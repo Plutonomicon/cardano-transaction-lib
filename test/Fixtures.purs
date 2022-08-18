@@ -173,7 +173,7 @@ import Types.ByteArray
   )
 import Types.Int as Int
 import Types.PlutusData as PD
-import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
+import Types.RawBytes (hexToRawBytesUnsafe, rawBytesFromIntArrayUnsafe)
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName (TokenName, mkTokenName)

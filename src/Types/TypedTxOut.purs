@@ -31,7 +31,9 @@ module Types.TypedTxOut
 -- | https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger/html/src/Ledger.Typed.Tx.html
 
 import Prelude
+
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
+import Cardano.Types.Value (Value)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Either (Either, note)
@@ -54,7 +56,6 @@ import Types.TypedValidator
   ( class DatumType
   , TypedValidator
   )
-import Cardano.Types.Value (Value)
 
 -- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.

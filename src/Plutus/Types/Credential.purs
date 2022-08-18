@@ -7,9 +7,12 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Aeson.Decode ((</$\>), (</*\>))
+import Aeson.Decode as Decode
 import Aeson.Encode ((>/\<))
+import Aeson.Encode as Encode
 import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
+import Data.Map as Map
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\))
 import FromData (class FromData, genericFromData)
@@ -21,12 +24,9 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
+import Serialization.Address (CertificateIndex, Slot, TransactionIndex)
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
-import Aeson.Decode as Decode
-import Aeson.Encode as Encode
-import Data.Map as Map
-import Serialization.Address (CertificateIndex, Slot, TransactionIndex)
 import Types.PubKeyHash (PubKeyHash)
 import Types.Scripts (ValidatorHash)
 

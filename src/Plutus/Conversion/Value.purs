@@ -5,25 +5,23 @@ module Plutus.Conversion.Value
 
 import Prelude
 
-import Data.Array (head, partition)
-import Data.Foldable (fold)
-import Data.List (List)
-import Data.Map (fromFoldable) as Map
-import Data.Maybe (fromMaybe, fromJust)
-import Data.Newtype (wrap, unwrap)
-import Data.Tuple (snd)
-import Data.Tuple.Nested ((/\))
-import Partial.Unsafe (unsafePartial)
-
 import Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
 import Cardano.Types.Value
   ( NonAdaAsset
   , flattenNonAdaValue
   , getCurrencySymbol
-  , mkValue
   , mkNonAdaAssetsFromTokenMap
+  , mkValue
   )
-
+import Data.Array (head, partition)
+import Data.Foldable (fold)
+import Data.List (List)
+import Data.Map (fromFoldable) as Map
+import Data.Maybe (fromJust, fromMaybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Tuple (snd)
+import Data.Tuple.Nested ((/\))
+import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
 import Plutus.Types.Value (Value) as Plutus
@@ -32,7 +30,6 @@ import Plutus.Types.Value
   , lovelaceValueOf
   , singleton'
   ) as Plutus.Value
-
 import Types.TokenName (adaToken, getTokenName)
 
 -- The underlying `Plutus.Types.AssocMap` of `Plutus.Types.Value` doesn't

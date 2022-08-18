@@ -5,18 +5,18 @@ module Contract.TextEnvelope
 
 import Contract.Prelude
 
-import Cardano.TextEnvelope (textEnvelopeBytes, TextEnvelopeType) as TE
 import Cardano.TextEnvelope
-  ( decodeTextEnvelope
-  , printTextEnvelopeDecodeError
-  , TextEnvelope(TextEnvelope)
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   , TextEnvelopeType
       ( PlutusScriptV1
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
-  , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
+  , decodeTextEnvelope
+  , printTextEnvelopeDecodeError
   ) as TextEnvelope
+import Cardano.TextEnvelope (TextEnvelopeType, textEnvelopeBytes) as TE
 import Contract.Monad (Contract)
 import Types.ByteArray (ByteArray)
 

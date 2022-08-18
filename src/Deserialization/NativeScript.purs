@@ -14,8 +14,8 @@ import FfiHelpers
   , containerHelper
   , maybeFfiHelper
   )
-import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Address (Slot(Slot))
+import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Types
   ( NativeScript
   , ScriptAll

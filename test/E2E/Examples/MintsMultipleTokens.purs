@@ -7,11 +7,10 @@ import Contract.Test.E2E
   , WalletExt(NamiExt)
   )
 import Test.E2E.Helpers
-  ( namiSign'
-  , namiConfirmAccess
+  ( namiConfirmAccess
+  , namiSign'
   , runE2ETest
   )
-
 import TestM (TestPlanM)
 
 runExample :: TestOptions -> TestPlanM Unit

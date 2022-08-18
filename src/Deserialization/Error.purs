@@ -9,8 +9,9 @@ module Deserialization.Error
   ) where
 
 import Prelude
-import Data.Maybe (Maybe)
+
 import Data.Either (Either(Left))
+import Data.Maybe (Maybe)
 import Data.Variant (default, inj, onMatch)
 import Deserialization.FromBytes (FromBytesError, _fromBytesError)
 import Error (E, NotImplementedError, _notImplementedError, noteE)

@@ -19,12 +19,12 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , encodeAeson'
   , JsonDecodeError
       ( TypeMismatch
       , UnexpectedValue
       )
   , caseAesonString
+  , encodeAeson'
   , toStringifiedNumbersJson
   )
 import Data.ArrayBuffer.Types (Uint8Array)

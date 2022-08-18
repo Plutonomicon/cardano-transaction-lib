@@ -35,7 +35,6 @@ module Contract.Transaction
   ) where
 
 import Prelude
-import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
@@ -117,11 +116,11 @@ import Contract.Monad
   ( Contract
   , liftedE
   , liftedM
-  , wrapContract
   , runContractInEnv
+  , wrapContract
   )
-import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Reader (asks, runReaderT, ReaderT)
+import Control.Monad.Error.Class (catchError, throwError, try)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either(Left, Right), hush)
@@ -141,6 +140,7 @@ import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
 import Plutus.Types.Value (Coin)
+import Prim.TypeError (class Warn, Text)
 import QueryM
   ( ClientError
       ( ClientHttpError
@@ -151,13 +151,13 @@ import QueryM
       )
   ) as ExportQueryM
 import QueryM (signTransaction, submitTxOgmios) as QueryM
-import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   ) as AwaitTx
 import QueryM.GetTxByHash (getTxByHash) as QueryM
+import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
 import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
 import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
@@ -201,8 +201,8 @@ import Types.Transaction
 import Types.Transaction (TransactionHash)
 import Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as TransactionMetadata
 import Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput)

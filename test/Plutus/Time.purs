@@ -2,9 +2,10 @@ module Test.Plutus.Time
   ( suite
   ) where
 
+import Prelude
+
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe(Just, Nothing))
-import Prelude
 import Mote (group)
 import QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
@@ -14,14 +15,14 @@ import QueryM.Ogmios
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   , EraSummaryTime(EraSummaryTime)
+  , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
-  , RelativeTime(RelativeTime)
   )
+import Serialization.Address (Slot(Slot))
 import Test.Utils (toFromAesonTest)
 import TestM (TestPlanM)
-import Serialization.Address (Slot(Slot))
 import Types.BigNum as BigNum
 import Types.Interval
   ( AbsTime(AbsTime)

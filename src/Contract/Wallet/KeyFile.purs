@@ -14,8 +14,8 @@ import Wallet (Wallet) as Wallet
 import Wallet (mkKeyWallet)
 import Wallet.KeyFile
   ( privatePaymentKeyFromFile
-  , privateStakeKeyFromFile
   , privatePaymentKeyToFile
+  , privateStakeKeyFromFile
   , privateStakeKeyToFile
   )
 

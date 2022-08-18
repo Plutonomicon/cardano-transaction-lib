@@ -118,10 +118,10 @@ import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Set (fromFoldable) as Set
-import Data.Traversable (traverse, for)
+import Data.Traversable (for, traverse)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -152,9 +152,9 @@ import FfiHelpers
   )
 import Serialization (toBytes)
 import Serialization.Address
-  ( RewardAddress
+  ( NetworkId(TestnetId, MainnetId)
+  , RewardAddress
   , StakeCredential
-  , NetworkId(TestnetId, MainnetId)
   ) as Csl
 import Serialization.Address (Slot(Slot))
 import Serialization.Hash (Ed25519KeyHash, ScriptHash)

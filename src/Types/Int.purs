@@ -26,7 +26,7 @@ import Data.Maybe (Maybe, fromJust)
 import Partial.Unsafe (unsafePartial)
 import Prim as Prim
 import Types.BigNum (BigNum)
-import Types.BigNum (fromInt, fromBigInt) as BigNum
+import Types.BigNum (fromBigInt, fromInt) as BigNum
 
 foreign import data Int :: Prim.Type
 

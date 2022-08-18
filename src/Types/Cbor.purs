@@ -23,10 +23,10 @@ import Contract.Prelude (foldl)
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
 import Data.Either (Either)
-import Data.UInt (UInt, zshr, shl, (.&.), (.|.))
-import Data.UInt as UInt
 import Data.Newtype (class Newtype)
-import Types.ByteArray (ByteArray, byteArrayToIntArray, subarray, byteLength)
+import Data.UInt (UInt, shl, zshr, (.&.), (.|.))
+import Data.UInt as UInt
+import Types.ByteArray (ByteArray, byteArrayToIntArray, byteLength, subarray)
 import Types.CborBytes (CborBytes(CborBytes))
 
 -- | A CBOR data item is encoded as a byte string

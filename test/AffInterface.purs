@@ -35,11 +35,11 @@ import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
-import Types.BigNum (fromInt, add) as BigNum
+import Types.BigNum (add, fromInt) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Interval
-  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
-  , POSIXTime(POSIXTime)
+  ( POSIXTime(POSIXTime)
+  , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , posixTimeToSlot
   , slotToPosixTime
   )

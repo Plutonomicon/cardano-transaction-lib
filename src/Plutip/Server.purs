@@ -32,7 +32,7 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (for, foldMap)
+import Data.Traversable (foldMap, for)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -64,6 +64,7 @@ import Plutip.Spawn
 import Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
+  , InitialUTxODistribution
   , InitialUTxOs
   , PlutipConfig
   , PostgresConfig
@@ -71,7 +72,6 @@ import Plutip.Types
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , InitialUTxODistribution
   )
 import Plutip.Utils (tmpdir)
 import Plutip.UtxoDistribution

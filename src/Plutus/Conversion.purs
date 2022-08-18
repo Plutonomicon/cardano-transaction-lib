@@ -31,35 +31,30 @@ module Plutus.Conversion
 
 import Prelude
 
-import Data.Maybe (Maybe)
-import Data.Newtype (wrap, unwrap)
-import Data.Traversable (traverse)
-
 import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Cardano
 import Cardano.Types.Value (Coin) as Cardano
-
-import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
-import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
-import Plutus.Types.Value (Coin) as Plutus
-
-import Serialization.Address (NetworkId)
-
+import Data.Maybe (Maybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
 import Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
-
+import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
+import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
 import Plutus.Conversion.Value
   ( fromPlutusValue
   , toPlutusValue
   ) as Conversion.Value
+import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
+import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
+import Plutus.Types.Value (Coin) as Plutus
+import Serialization.Address (NetworkId)
 
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin

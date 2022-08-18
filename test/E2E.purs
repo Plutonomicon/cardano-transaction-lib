@@ -1,19 +1,19 @@
 module Test.E2E (main) where
 
+import Contract.Test.E2E (TestOptions, parseOptions)
 import Data.Newtype (wrap)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Mote (group)
-import Prelude (Unit, ($), bind, discard, pure)
-import Contract.Test.E2E (TestOptions, parseOptions)
-import Test.E2E.Examples.Gero as Gero
-import Test.E2E.Examples.Pkh2PkhGero as Pkh2PkhGero
-import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
+import Prelude (Unit, bind, discard, pure, ($))
 import Test.E2E.Examples.AlwaysMints as AlwaysMints
 import Test.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Test.E2E.Examples.Datums as Datums
+import Test.E2E.Examples.Gero as Gero
 import Test.E2E.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
+import Test.E2E.Examples.Pkh2PkhGero as Pkh2PkhGero
 import Test.E2E.Examples.SignMultiple as SignMultiple
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils

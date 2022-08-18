@@ -39,7 +39,7 @@ import Address
   , enterpriseAddressValidatorHash
   , getNetworkId
   ) as Address
-import Contract.Monad (Contract, wrapContract, liftedM)
+import Contract.Monad (Contract, liftedM, wrapContract)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Plutus.Conversion
@@ -58,8 +58,8 @@ import Plutus.Types.Address
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
-  , toValidatorHash
   , toStakingCredential
+  , toValidatorHash
   ) as ExportAddress
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
@@ -75,31 +75,31 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId), addressBech32)
 import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  , TransactionIndex(TransactionIndex)
-  , CertificateIndex(CertificateIndex)
-  , Pointer
+  ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
+  , CertificateIndex(CertificateIndex)
   , NetworkId(TestnetId, MainnetId)
+  , Pointer
+  , Slot(Slot)
+  , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
+import Serialization.Address (NetworkId(MainnetId), addressBech32)
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
 import Types.Aliases (Bech32String)
 import Types.Aliases (Bech32String) as TypeAliases
 import Types.ByteArray (ByteArray) as ByteArray
+import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
 import Types.PubKeyHash
   ( payPubKeyHashBaseAddress
-  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
+  , payPubKeyHashRewardAddress
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress

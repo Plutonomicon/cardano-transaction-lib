@@ -19,8 +19,8 @@ import Cardano.TextEnvelope
       )
   , textEnvelopeBytes
   )
-import Data.Newtype (wrap)
 import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
@@ -28,7 +28,7 @@ import Helpers (liftM)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile, writeTextFile)
 import Node.Path (FilePath)
-import Serialization (privateKeyFromBytes, bytesFromPrivateKey)
+import Serialization (bytesFromPrivateKey, privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (ByteArray)
 import Types.RawBytes (rawBytesToHex)

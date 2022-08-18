@@ -8,7 +8,7 @@ import Prelude
 
 import Data.DateTime.Instant (unInstant)
 import Data.Maybe (isJust, maybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
 import Data.Time.Duration (Seconds(Seconds))
 import Effect.Aff (delay)

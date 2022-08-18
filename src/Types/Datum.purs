@@ -7,7 +7,9 @@ module Types.Datum
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
+import Aeson.Decode as Decode
 import Aeson.Encode ((>$<))
+import Aeson.Encode as Encode
 import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
@@ -16,8 +18,6 @@ import FromData (class FromData)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData)
 import Types.Transaction (DataHash(DataHash)) as X
-import Aeson.Decode as Decode
-import Aeson.Encode as Encode
 
 -- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
 -- | `Redeemer` where the latter is not to be confused with the CSL-stype

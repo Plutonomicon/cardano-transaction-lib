@@ -22,17 +22,17 @@ import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import FromData
-  ( FromDataError
+  ( class FromData
+  , class FromDataArgs
+  , class FromDataArgsRL
+  , class FromDataWithSchema
+  , FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
       , BigIntToIntFailed
       , IndexWantedButGot
       , WantedConstrGot
       )
-  , class FromData
-  , class FromDataArgs
-  , class FromDataArgsRL
-  , class FromDataWithSchema
   , fromData
   , fromDataArgs
   , fromDataArgsRec
@@ -40,8 +40,17 @@ import FromData
   , genericFromData
   ) as FromData
 import Hashing (datumHash) as Hashing
+import IsData (class IsData) as IsData
 import Plutus.Types.DataSchema
-  ( ApPCons
+  ( class AllUnique2
+  , class HasPlutusSchema
+  , class PlutusSchemaToRowListI
+  , class SchemaToRowList
+  , class ValidPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , ApPCons
   , Field
   , I
   , Id
@@ -53,14 +62,6 @@ import Plutus.Types.DataSchema
   , PCons
   , PNil
   , PSchema
-  , class AllUnique2
-  , class HasPlutusSchema
-  , class PlutusSchemaToRowListI
-  , class SchemaToRowList
-  , class ValidPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
   ) as DataSchema
 import QueryM
   ( DatumCacheListeners
@@ -75,18 +76,18 @@ import QueryM
 import ToData
   ( class ToData
   , class ToDataArgs
-  , class ToDataWithSchema
   , class ToDataArgsRL
   , class ToDataArgsRLHelper
+  , class ToDataWithSchema
   , genericToData
-  , toDataArgsRec
-  , toDataArgsRec'
   , toData
   , toDataArgs
+  , toDataArgsRec
+  , toDataArgsRec'
   , toDataWithSchema
   ) as ToData
-import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Types.Datum (DataHash)
+import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as PlutusData
@@ -96,7 +97,6 @@ import Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import IsData (class IsData) as IsData
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash

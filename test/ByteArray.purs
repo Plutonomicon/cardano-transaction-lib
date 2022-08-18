@@ -1,6 +1,7 @@
 module Test.ByteArray where
 
 import Prelude
+
 import Data.Maybe (Maybe(Just))
 import Effect.Class (liftEffect)
 import Mote (group, test)

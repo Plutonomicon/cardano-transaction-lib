@@ -37,8 +37,8 @@ import QueryM.Ogmios
   ) as ExportOgmios
 import QueryM.SystemStart (getSystemStart) as SystemStart
 import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
+  ( BlockId(BlockId)
+  , Slot(Slot)
   ) as SerializationAddress
 import Types.Interval
   ( AbsTime(AbsTime)

@@ -21,8 +21,8 @@ import Aeson
   , parseJsonStringToAeson
   , printJsonDecodeError
   )
-import Control.Monad.Except (throwError)
 import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Except (throwError)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, note)
 import Data.Newtype (class Newtype, wrap)

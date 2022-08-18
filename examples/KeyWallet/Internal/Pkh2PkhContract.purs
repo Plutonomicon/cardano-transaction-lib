@@ -27,10 +27,10 @@ import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)
 import Examples.KeyWallet.Internal.Pkh2PkhHtmlForm (Log, Unlock)
 import Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
-  ( mkForm
-  , levelColor
+  ( levelColor
   , levelName
   , logError
+  , mkForm
   ) as HtmlForm
 import Serialization (privateKeyFromBytes)
 import Serialization.Hash (ed25519KeyHashFromBech32)

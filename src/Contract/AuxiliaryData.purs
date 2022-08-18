@@ -11,17 +11,17 @@ import Cardano.Types.Transaction
   , AuxiliaryDataHash
   )
 import Cardano.Types.Transaction
-  ( _body
-  , _auxiliaryData
+  ( _auxiliaryData
   , _auxiliaryDataHash
+  , _body
   ) as Tx
-import Data.Maybe (Maybe, fromMaybe)
+import Contract.Monad (Contract)
+import Contract.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
 import Data.Lens.Types (Lens')
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Tuple (Tuple(Tuple))
-import Contract.Monad (Contract)
-import Contract.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Effect.Class (liftEffect)
 import Metadata.MetadataType (class MetadataType, toGeneralTxMetadata)
 import Serialization.AuxiliaryData (hashAuxiliaryData)

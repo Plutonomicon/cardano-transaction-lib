@@ -4,20 +4,20 @@ module Contract.Test.Plutip
   ( module X
   ) where
 
+import Contract.Monad (runContractInEnv) as X
+import Contract.Wallet (withKeyWallet) as X
 import Plutip.Server
   ( runPlutipContract
   , withPlutipContractEnv
   ) as X
-import Contract.Monad (runContractInEnv) as X
+import Plutip.Types
+  ( InitialUTxODistribution
+  , InitialUTxOs
+  , PlutipConfig
+  , PostgresConfig
+  , UtxoAmount
+  ) as X
 import Plutip.UtxoDistribution
   ( class UtxoDistribution
   , withStakeKey
   ) as X
-import Plutip.Types
-  ( PlutipConfig
-  , PostgresConfig
-  , UtxoAmount
-  , InitialUTxOs
-  , InitialUTxODistribution
-  ) as X
-import Contract.Wallet (withKeyWallet) as X

@@ -23,12 +23,12 @@ import Deserialization.UnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
-import Serialization (convertTransaction) as TS
 import Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
 import Mote (group, test)
+import Serialization (convertTransaction) as TS
 import Serialization (toBytes)
 import Serialization as Serialization
 import Serialization.BigInt as SB
@@ -69,7 +69,7 @@ import Test.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
+import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.BigNum (fromBigInt, toBigInt) as BigNum

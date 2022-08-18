@@ -3,10 +3,11 @@ module Serialization.BigInt
   ) where
 
 import Prelude
-import Serialization.Types (BigInt)
-import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
+import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Serialization.Types (BigInt)
 
 convertBigInt :: BigInt.BigInt -> Maybe BigInt
 convertBigInt = _BigInt_from_str maybeFfiHelper <<< BigInt.toString

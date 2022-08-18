@@ -71,8 +71,8 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
   , encodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
@@ -110,9 +110,9 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
 import Data.String.Common (split) as String
-import Data.Traversable (sequence, traverse, for)
+import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (uncurry)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)

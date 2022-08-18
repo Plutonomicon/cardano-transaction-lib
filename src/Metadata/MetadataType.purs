@@ -9,7 +9,7 @@ import Prelude
 
 import Data.Map (lookup, singleton) as Map
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Metadata.FromMetadata (class FromMetadata, fromMetadata)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Type.Proxy (Proxy(Proxy))

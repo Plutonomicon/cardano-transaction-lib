@@ -11,9 +11,9 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
+  , TransactionOutput(TransactionOutput)
   , Utxos
   , _vkeys
-  , TransactionOutput(TransactionOutput)
   )
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)

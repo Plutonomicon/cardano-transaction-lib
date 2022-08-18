@@ -44,13 +44,13 @@ import Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
+import Test.Fixtures (ed25519KeyHashFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 import Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Types.RawBytes (hexToRawBytesUnsafe)
-import Test.Fixtures (ed25519KeyHashFixture1)
 
 doesNotThrow
   :: forall (f :: Type -> Type) (a :: Type). Applicative f => a -> f a

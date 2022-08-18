@@ -2,7 +2,7 @@ module Test.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Array (range, length, zip)
+import Data.Array (length, range, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)

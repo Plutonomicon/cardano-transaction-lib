@@ -84,8 +84,8 @@ module Serialization.Types
 
 import Prelude
 
-import Data.Function (on)
 import Aeson (class EncodeAeson, encodeAeson')
+import Data.Function (on)
 import Types.ByteArray (ByteArray, byteArrayToHex)
 
 foreign import data AssetName :: Type

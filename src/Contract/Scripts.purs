@@ -12,6 +12,8 @@ module Contract.Scripts
   , module TypesScripts
   ) where
 
+import Prelude
+
 import Aeson (class DecodeAeson)
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
@@ -27,6 +29,10 @@ import Contract.Address
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Address
+import Contract.Monad (Contract, wrapContract)
+import Data.Either (Either, hush)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
 import QueryM
   ( ClientError
       ( ClientHttpError
@@ -42,6 +48,7 @@ import Scripts
   , validatorHash
   ) as ExportScripts
 import Serialization.Hash (ScriptHash) as Hash
+import Types.PlutusData (PlutusData)
 import Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
@@ -53,24 +60,17 @@ import Types.Scripts
   ) as TypesScripts
 import Types.Scripts (PlutusScript)
 import Types.TypedValidator
-  ( TypedValidator(TypedValidator)
-  , ValidatorType
-  , WrappedValidatorType
-  , class DatumType
+  ( class DatumType
   , class RedeemerType
   , class ValidatorTypes
+  , TypedValidator(TypedValidator)
+  , ValidatorType
+  , WrappedValidatorType
   , forwardingMintingPolicy
   , generalise
   , typedValidatorHash
   , typedValidatorScript
   ) as TypedValidator
-
-import Prelude
-import Contract.Monad (Contract, wrapContract)
-import Data.Either (Either, hush)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype)
-import Types.PlutusData (PlutusData)
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

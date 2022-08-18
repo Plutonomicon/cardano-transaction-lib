@@ -14,7 +14,7 @@ import Prelude
 import Control.Promise (Promise)
 import Control.Promise (toAffE) as Promise
 import Data.Maybe (Maybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)

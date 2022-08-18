@@ -11,9 +11,9 @@ import Effect.Class (liftEffect)
 import FromData (fromData)
 import Metadata.Cip25.Cip25String
   ( fromDataString
+  , fromMetadataString
   , toCip25Strings
   , toDataString
-  , fromMetadataString
   , toMetadataString
   )
 import Metadata.MetadataType (fromGeneralTxMetadata, toGeneralTxMetadata)

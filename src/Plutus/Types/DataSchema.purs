@@ -22,7 +22,7 @@ module Plutus.Types.DataSchema
   ) where
 
 import Type.RowList (Cons, Nil, RowList)
-
+import TypeLevel.Nat (Nat)
 import TypeLevel.RowList (class AllUniqueLabels)
 import TypeLevel.RowList.Unordered.Indexed
   ( class AllUniqueLabelsI
@@ -31,7 +31,6 @@ import TypeLevel.RowList.Unordered.Indexed
   , NilI
   , RowListI
   )
-import TypeLevel.Nat (Nat)
 
 {- This modules defines various data types (kinds) which are used to encode enough the *structure* of the Plutus Data that corresponds to a
    given data type at the type level.

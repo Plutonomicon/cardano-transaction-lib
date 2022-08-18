@@ -4,6 +4,7 @@ module QueryM.EraSummaries
   ) where
 
 import Prelude
+
 import QueryM (QueryM, mkOgmiosRequest)
 import QueryM.Ogmios (EraSummaries, queryEraSummariesCall) as Ogmios
 

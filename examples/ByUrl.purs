@@ -1,11 +1,12 @@
 module Examples.ByUrl (main) where
 
 import Prelude
+
 import Contract.Config
   ( ConfigParams
+  , testnetFlintConfig
   , testnetGeroConfig
   , testnetNamiConfig
-  , testnetFlintConfig
   )
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)

@@ -67,8 +67,8 @@ import Serialization.Types
   , PlutusScripts
   , PublicKey
   , Redeemer
-  , Redeemers
   , RedeemerTag
+  , Redeemers
   , TransactionWitnessSet
   , Vkey
   , Vkeywitness

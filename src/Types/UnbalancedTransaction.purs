@@ -13,12 +13,13 @@ import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
 import Cardano.Types.Transaction
-  ( Transaction
-  , TransactionOutput
-  , PublicKey(PublicKey)
-  , Vkey(Vkey)
+  ( PublicKey(PublicKey)
   , RequiredSigner(RequiredSigner)
+  , Transaction
+  , TransactionOutput
+  , Vkey(Vkey)
   )
+import Cardano.Types.Value (Value)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
@@ -33,9 +34,8 @@ import Serialization
   , publicKeyHash
   )
 import Types.Datum (DataHash)
-import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
-import Cardano.Types.Value (Value)
+import Types.Transaction (TransactionInput)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`
 newtype PaymentPubKey = PaymentPubKey PublicKey

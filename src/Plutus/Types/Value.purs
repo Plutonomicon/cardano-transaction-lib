@@ -29,12 +29,12 @@ import Prelude hiding (eq)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
   , encodeAeson
   , encodeAeson'
   , getField
-  , JsonDecodeError(TypeMismatch)
   )
 import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
@@ -50,18 +50,18 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
 import Helpers (showWithParens)
+import Plutus.Types.AssocMap (Map(Map)) as Plutus
+import Plutus.Types.AssocMap
+  ( keys
+  , lookup
+  , mapThese
+  , singleton
+  , union
+  ) as Plutus.Map
+import Plutus.Types.CurrencySymbol (CurrencySymbol, adaSymbol, mkCurrencySymbol)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 import Types.TokenName (TokenName, adaToken, mkTokenName)
-import Plutus.Types.AssocMap (Map(Map)) as Plutus
-import Plutus.Types.AssocMap
-  ( singleton
-  , lookup
-  , keys
-  , union
-  , mapThese
-  ) as Plutus.Map
-import Plutus.Types.CurrencySymbol (CurrencySymbol, mkCurrencySymbol, adaSymbol)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 

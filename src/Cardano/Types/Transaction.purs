@@ -93,7 +93,6 @@ import Aeson
   , encodeAeson
   , encodeAeson'
   )
-
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -110,13 +109,13 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
-import Data.Set (union, toUnfoldable) as Set
+import Data.Set (toUnfoldable, union) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeTagged')
+import Helpers (appendMap, encodeMap, encodeTagged', (</>), (<<>>))
 import Serialization.Address
   ( Address
   , NetworkId

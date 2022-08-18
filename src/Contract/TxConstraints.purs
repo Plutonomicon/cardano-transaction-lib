@@ -30,9 +30,9 @@ import Types.TxConstraints
   , mustMintCurrencyWithRedeemer
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
+  , mustPayToScript
   , mustPayWithDatumToPubKey
   , mustPayWithDatumToPubKeyAddress
   , mustProduceAtLeast

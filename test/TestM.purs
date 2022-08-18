@@ -1,15 +1,16 @@
 module TestM where
 
 import Prelude
+
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
-import Control.MonadPlus (class MonadPlus)
-import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
   , throwError
   )
+import Control.Monad.Except.Trans (ExceptT, runExceptT)
+import Control.MonadPlus (class MonadPlus)
 import Control.MonadZero (class MonadZero)
 import Control.Plus (class Plus)
 import Data.Const (Const)

@@ -1,6 +1,5 @@
 module Test.PrivateKey where
 
-import Contract.Config (testnetConfig)
 import Prelude
 
 import Cardano.Types.Transaction
@@ -9,6 +8,7 @@ import Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
   )
+import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
 import Contract.Transaction (signTransaction)
 import Data.Lens (_2, _Just, (^?))
@@ -25,16 +25,16 @@ import Test.Fixtures (txFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
+import Wallet.KeyFile
+  ( privatePaymentKeyFromFile
+  , privatePaymentKeyToFile
+  , privateStakeKeyFromFile
+  , privateStakeKeyToFile
+  )
 import Wallet.Spec
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , PrivateStakeKeySource(PrivateStakeKeyFile)
   , WalletSpec(UseKeys)
-  )
-import Wallet.KeyFile
-  ( privatePaymentKeyToFile
-  , privatePaymentKeyFromFile
-  , privateStakeKeyFromFile
-  , privateStakeKeyToFile
   )
 
 suite :: TestPlanM Unit

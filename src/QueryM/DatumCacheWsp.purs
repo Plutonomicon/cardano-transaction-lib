@@ -45,7 +45,7 @@ import QueryM.JsonWsp (JsonWspCall, mkCallType)
 import QueryM.UniqueId (ListenerId)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, byteArrayToHex)
-import Types.Datum (Datum, DataHash)
+import Types.Datum (DataHash, Datum)
 
 newtype WspFault = WspFault Aeson
 

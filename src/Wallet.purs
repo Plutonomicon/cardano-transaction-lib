@@ -30,8 +30,8 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Helpers ((<<>>))
-import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
-import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
+import Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
+import Wallet.Cip30 (Cip30Connection, Cip30Wallet, mkCip30WalletAff)
 import Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey

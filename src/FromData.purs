@@ -17,6 +17,8 @@ module FromData
   , genericFromData
   ) where
 
+import Prelude
+
 import Control.Alternative ((<|>))
 import Data.Array (uncons)
 import Data.Array as Array
@@ -26,7 +28,7 @@ import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty (NonEmpty(NonEmpty))
 import Data.Ratio (Ratio, reduce)
 import Data.Show.Generic (genericShow)
@@ -37,13 +39,12 @@ import Data.Tuple (Tuple(Tuple))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
 import Helpers (bigIntToUInt)
-import Prelude
+import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
 import Record as Record
 import Type.Proxy (Proxy(Proxy))
-import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import TypeLevel.Nat (class KnownNat, natVal)
 import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
@@ -52,9 +53,9 @@ import TypeLevel.RowList.Unordered.Indexed
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
-import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
+import Types.RawBytes (RawBytes)
 
 -- | Errors
 data FromDataError

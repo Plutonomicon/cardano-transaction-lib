@@ -28,8 +28,8 @@ import Data.BigInt (fromString, toString) as BigInt
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
-import Data.UInt (fromInt, fromString, toString) as UInt
 import Data.UInt (UInt)
+import Data.UInt (fromInt, fromString, toString) as UInt
 import Deserialization.Error (FromCslRepError, fromCslRepError)
 import Error (E, noteE)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)

@@ -24,6 +24,8 @@ import Cardano.Types.Transaction
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
+import Deserialization.NativeScript (convertNativeScript)
+import Deserialization.PlutusData (convertPlutusData)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Types
   ( BootstrapWitness
@@ -51,8 +53,6 @@ import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as T
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
-import Deserialization.NativeScript (convertNativeScript)
-import Deserialization.PlutusData (convertPlutusData)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper

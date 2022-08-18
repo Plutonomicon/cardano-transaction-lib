@@ -4,6 +4,7 @@ module QueryM.SystemStart
   ) where
 
 import Prelude
+
 import QueryM (QueryM, mkOgmiosRequest)
 import QueryM.Ogmios (SystemStart, querySystemStartCall) as Ogmios
 

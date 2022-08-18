@@ -13,12 +13,13 @@ module Types.NatRatio
   ) where
 
 import Prelude
+
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Nothing))
 import Types.Natural (Natural)
 import Types.Natural (fromBigInt', toBigInt) as Nat
 import Types.Rational (Rational)
-import Types.Rational ((%), numerator, denominator, denominatorAsNat) as Rational
+import Types.Rational (denominator, denominatorAsNat, numerator, (%)) as Rational
 
 -- | `NatRatio` is a newtype over `Rational` with smart constructors to create a
 -- | `NatRatio` safely. Therefore, the data constructor is not exported.

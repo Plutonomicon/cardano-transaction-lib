@@ -2,8 +2,8 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-import Data.Maybe (isJust)
 import Data.BigInt as BigInt
+import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Effect.Class (liftEffect)

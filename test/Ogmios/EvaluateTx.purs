@@ -2,13 +2,14 @@ module Test.Ogmios.EvaluateTx (suite) where
 
 import Prelude
 
-import Aeson (decodeAeson, JsonDecodeError(TypeMismatch))
+import Aeson (JsonDecodeError(TypeMismatch), decodeAeson)
 import Data.Either (Either(Left, Right))
 import Data.Map (toUnfoldable) as Map
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Mote (group, test)
+import QueryM.Ogmios (ExecutionUnits, RedeemerPointer, TxEvaluationResult)
 import Test.Fixtures
   ( ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
@@ -17,7 +18,6 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Types.Natural (fromInt')
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import QueryM.Ogmios (TxEvaluationResult, ExecutionUnits, RedeemerPointer)
 
 suite :: TestPlanM Unit
 suite = do

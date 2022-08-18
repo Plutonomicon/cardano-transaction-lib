@@ -6,8 +6,8 @@ module TypeLevel.Nat
   , natVal
   ) where
 
-import Type.Proxy (Proxy(Proxy))
 import Prelude ((+))
+import Type.Proxy (Proxy(Proxy))
 
 -- | The kind of type level natural number. This is not strictly needed, but improves the
 -- | legibility of type errors and facilitates more comprehensible type signatures

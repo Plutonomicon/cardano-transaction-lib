@@ -6,8 +6,8 @@ module Types.Chain
 
 import Prelude
 
-import Data.Newtype (class Newtype)
 import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Serialization.Address (Slot)
 

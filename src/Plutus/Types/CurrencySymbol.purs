@@ -23,13 +23,13 @@ import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap, wrap)
 import FromData (class FromData)
+import Metadata.FromMetadata (class FromMetadata)
+import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
 import Types.ByteArray (ByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
-import Metadata.FromMetadata (class FromMetadata)
-import Metadata.ToMetadata (class ToMetadata)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 

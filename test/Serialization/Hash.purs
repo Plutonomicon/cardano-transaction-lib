@@ -1,6 +1,6 @@
 module Test.Serialization.Hash (suite) where
 
-import Control.Bind (discard, bind)
+import Control.Bind (bind, discard)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)

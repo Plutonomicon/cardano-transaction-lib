@@ -68,12 +68,12 @@ import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Cardano.Types.Value
   ( CurrencySymbol
   , Value
+  , getNonAdaAsset
   , isZero
   , mkSingletonValue'
   , mpsSymbol
   , negation
   , split
-  , getNonAdaAsset
   )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
@@ -81,15 +81,15 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((:), singleton, union) as Array
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
+import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (.=), (<>=), (.~), (%~))
+import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -110,7 +110,7 @@ import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
-import Helpers ((<\>), liftEither, liftM)
+import Helpers (liftEither, liftM, (<\>))
 import IsData (class IsData)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
@@ -136,8 +136,8 @@ import Type.Proxy (Proxy(Proxy))
 import Types.Any (Any)
 import Types.Datum (DataHash, Datum)
 import Types.Interval
-  ( PosixTimeToSlotError
-  , POSIXTimeRange
+  ( POSIXTimeRange
+  , PosixTimeToSlotError
   , posixTimeRangeToTransactionValidity
   )
 import Types.PubKeyHash
@@ -178,10 +178,10 @@ import Types.TxConstraints
 import Types.TypedTxOut
   ( TypeCheckError
   , mkTypedTxOut
+  , typeTxOutRef
   , typedTxOutDatumHash
   , typedTxOutRefValue
   , typedTxOutTxOut
-  , typeTxOutRef
   )
 import Types.TypedValidator
   ( class DatumType

@@ -4,8 +4,8 @@ import Prelude
 
 import Contract.Test.E2E (TestOptions, WalletExt(NamiExt))
 import Test.E2E.Helpers
-  ( namiSign'
-  , namiConfirmAccess
+  ( namiConfirmAccess
+  , namiSign'
   , runE2ETest
   )
 import TestM (TestPlanM)

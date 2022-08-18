@@ -21,7 +21,7 @@ import Aeson
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, genericFromData)
 import Plutus.Types.Credential
@@ -41,8 +41,8 @@ import ToData (class ToData, genericToData)
 import TypeLevel.Nat (Z)
 import Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , StakePubKeyHash
   , PubKeyHash
+  , StakePubKeyHash
   )
 import Types.Scripts (ValidatorHash)
 

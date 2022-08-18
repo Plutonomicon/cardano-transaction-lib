@@ -9,6 +9,7 @@ import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
+import Data.Map as Map
 import Data.Traversable (for_, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
@@ -21,8 +22,8 @@ import JsWebSocket
   , _onWsConnect
   , _onWsError
   , _onWsMessage
-  , _wsSend
   , _wsClose
+  , _wsSend
   )
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
@@ -40,7 +41,6 @@ import QueryM.Ogmios (mkOgmiosCallType)
 import QueryM.ServerConfig (ServerConfig, mkWsUrl)
 import Type.Prelude (Proxy(Proxy))
 import Types.MultiMap as MultiMap
-import Data.Map as Map
 
 -- A simple websocket for testing
 -- TODO Generalize websocket constructors using type classes traversing rows

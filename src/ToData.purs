@@ -13,9 +13,9 @@ module ToData
   ) where
 
 import Prelude
+
 import Data.Array (cons, sortWith)
 import Data.Array as Array
-import Data.NonEmpty (NonEmpty)
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -24,31 +24,31 @@ import Data.Generic.Rep as G
 import Data.List (List)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
+import Data.NonEmpty (NonEmpty)
 import Data.Ratio (Ratio, denominator, numerator)
 import Data.Symbol (class IsSymbol)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.UInt (UInt)
 import Helpers (uIntToBigInt)
+import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import Prim.Row as Row
 import Prim.TypeError (class Fail, Text)
 import Record as Record
+import Type.Proxy (Proxy(Proxy))
 import Type.RowList as RL
-
-import Plutus.Types.DataSchema (class HasPlutusSchema, class ValidPlutusSchema)
 import TypeLevel.Nat (class KnownNat, natVal)
 import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
   , class GetLabelIndex
   , class GetWithLabel
   )
-import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (BigNum)
 import Types.BigNum (toBigIntUnsafe) as BigNum
 import Types.ByteArray (ByteArray(ByteArray))
-import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
 import Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
+import Types.RawBytes (RawBytes)
 
 -- | Classes
 

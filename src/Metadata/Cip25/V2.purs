@@ -37,7 +37,7 @@ import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.TextEncoder (encodeUtf8)
 import Data.Traversable (fold, for, sequence, traverse)
@@ -51,14 +51,14 @@ import Metadata.Cip25.Cip25String
   , fromMetadataString
   )
 import Metadata.Cip25.Common
-  ( nftMetadataLabel
+  ( Cip25MetadataFile(Cip25MetadataFile)
   , Cip25TokenName(Cip25TokenName)
-  , Cip25MetadataFile(Cip25MetadataFile)
+  , nftMetadataLabel
   )
 import Metadata.FromMetadata (class FromMetadata, fromMetadata)
 import Metadata.Helpers (errExpectedObject, lookupKey, lookupMetadata)
 import Metadata.MetadataType (class MetadataType)
-import Metadata.ToMetadata (class ToMetadata, toMetadata, anyToMetadata)
+import Metadata.ToMetadata (class ToMetadata, anyToMetadata, toMetadata)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Serialization.Hash (scriptHashFromBytes)

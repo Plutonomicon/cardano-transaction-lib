@@ -42,7 +42,7 @@ import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.List (fromFoldable) as List
-import Data.Map (isEmpty, empty, insert) as Map
+import Data.Map (empty, insert, isEmpty) as Map
 import Data.Maybe (isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))

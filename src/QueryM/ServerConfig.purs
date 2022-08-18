@@ -12,7 +12,7 @@ module QueryM.ServerConfig
 
 import Prelude
 
-import Data.Maybe (fromMaybe, Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import JsWebSocket (Url)

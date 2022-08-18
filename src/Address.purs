@@ -14,11 +14,6 @@ import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe)
 import QueryM (QueryM)
 import QueryM.Ogmios as Ogmios
-import Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  , StakeValidatorHash(StakeValidatorHash)
-  , ValidatorHash(ValidatorHash)
-  )
 import Serialization.Address
   ( Address
   , NetworkId
@@ -29,6 +24,11 @@ import Serialization.Address
   , stakeCredentialToScriptHash
   )
 import Serialization.Hash (ScriptHash)
+import Types.Scripts
+  ( MintingPolicyHash(MintingPolicyHash)
+  , StakeValidatorHash(StakeValidatorHash)
+  , ValidatorHash(ValidatorHash)
+  )
 
 -- | A module for address related helpers
 

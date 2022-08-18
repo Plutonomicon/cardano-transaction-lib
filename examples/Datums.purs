@@ -21,7 +21,7 @@ import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (runContract, launchAff_)
+import Contract.Monad (launchAff_, runContract)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Test.E2E (publishTestFeedback)

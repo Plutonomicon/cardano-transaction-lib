@@ -62,7 +62,7 @@ import Data.Traversable (traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (launchAff_, bracket)
+import Effect.Aff (bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)

@@ -48,12 +48,12 @@ import Serialization.Types
 import Types.BigNum (BigNum)
 import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
+import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as T
-import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput

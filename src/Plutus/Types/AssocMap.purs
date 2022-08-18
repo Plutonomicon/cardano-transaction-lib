@@ -21,13 +21,13 @@ module Plutus.Types.AssocMap
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import Data.Array ((:))
 import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
+import Data.Array ((:))
 import Data.Bifunctor (bimap)
 import Data.Foldable
   ( class Foldable
-  , foldlDefault
   , foldMap
+  , foldlDefault
   , foldr
   , foldrDefault
   )

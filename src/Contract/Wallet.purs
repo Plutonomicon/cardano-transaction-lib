@@ -22,16 +22,16 @@ import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
 import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
-import Wallet (isGeroAvailable, isNamiAvailable, isFlintAvailable) as Wallet
-import Wallet (mkKeyWallet, Wallet(KeyWallet))
-import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
+import Wallet (Wallet(KeyWallet), mkKeyWallet)
+import Wallet (isFlintAvailable, isGeroAvailable, isNamiAvailable) as Wallet
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
+import Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
+  )
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)

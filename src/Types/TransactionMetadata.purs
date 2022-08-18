@@ -19,7 +19,7 @@ import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Helpers (encodeMap, encodeTagged', appendRightMap, showWithParens)
+import Helpers (appendRightMap, encodeMap, encodeTagged', showWithParens)
 import Types.ByteArray (ByteArray)
 import Types.Int (Int) as Int
 

@@ -4,6 +4,7 @@ module QueryM.CurrentEpoch
   ) where
 
 import Prelude
+
 import QueryM (QueryM, mkOgmiosRequest)
 import QueryM.Ogmios (CurrentEpoch, queryCurrentEpochCall) as Ogmios
 

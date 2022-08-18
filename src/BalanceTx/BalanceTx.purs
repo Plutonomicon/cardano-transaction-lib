@@ -92,23 +92,23 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((\\), modifyAt, filter, catMaybes)
+import Data.Array (catMaybes, filter, modifyAt, (\\))
 import Data.Array as Array
-import Data.Bifunctor (lmap, bimap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), hush, note, either, isLeft)
-import Data.Foldable (find, foldl, length, foldMap)
+import Data.Either (Either(Left, Right), either, hush, isLeft, note)
+import Data.Foldable (find, foldMap, foldl, length)
 import Data.Foldable (lookup) as Foldable
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Function (applyN)
-import Data.Int (toStringAs, decimal, ceil, toNumber)
 import Data.Generic.Rep (class Generic)
+import Data.Int (ceil, decimal, toNumber, toStringAs)
 import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
-import Data.Lens.Setter ((.~), set, (?~), (%~))
-import Data.List ((:), List(Nil), partition)
+import Data.Lens.Setter (set, (%~), (.~), (?~))
+import Data.List (List(Nil), partition, (:))
 import Data.Log.Tag (tag)
 import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
@@ -117,12 +117,12 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern))
-import Data.String.Common (joinWith, split) as String
 import Data.String.CodePoints (length) as String
+import Data.String.Common (joinWith, split) as String
 import Data.String.Utils (padEnd)
 import Data.Traversable (sequence, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple), fst, snd)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (ClientError, QueryM)
 import QueryM
@@ -131,9 +131,7 @@ import QueryM
   ) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
 import QueryM.Ogmios
-  ( TxEvaluationResult(TxEvaluationResult)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
-  , RedeemerPointer
+  ( RedeemerPointer
   , ScriptFailure
       ( ExtraRedeemers
       , MissingRequiredDatums
@@ -144,8 +142,10 @@ import QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationResult(TxEvaluationResult)
   ) as Ogmios
-import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
+import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)

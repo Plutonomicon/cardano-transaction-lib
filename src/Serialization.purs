@@ -46,8 +46,8 @@ import Cardano.Types.Transaction
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
-  , UnitInterval
   , URL(URL)
+  , UnitInterval
   , Update
   ) as T
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -56,8 +56,8 @@ import Data.Foldable (class Foldable)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (wrap, unwrap)
-import Data.Traversable (traverse_, for_, for, traverse)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -65,17 +65,17 @@ import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Effect (Effect)
 import FfiHelpers
-  ( MaybeFfiHelper
-  , maybeFfiHelper
-  , ContainerHelper
+  ( ContainerHelper
+  , MaybeFfiHelper
   , containerHelper
+  , maybeFfiHelper
   )
 import Helpers (fromJustEff)
-import Serialization.Address (Address, StakeCredential, RewardAddress)
+import Serialization.Address (Address, RewardAddress, StakeCredential)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
-import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
+import Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashFromBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types
   ( AssetName
@@ -106,11 +106,11 @@ import Serialization.Types
   , NetworkId
   , PlutusData
   , PoolMetadata
+  , PrivateKey
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
-  , PrivateKey
   , Redeemer
   , Redeemers
   , Relay
@@ -134,9 +134,9 @@ import Serialization.Types
   , Withdrawals
   )
 import Serialization.WitnessSet
-  ( convertWitnessSet
+  ( convertExUnits
   , convertRedeemer
-  , convertExUnits
+  , convertWitnessSet
   )
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)

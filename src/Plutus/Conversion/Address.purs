@@ -9,7 +9,7 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -24,25 +24,25 @@ import Serialization.Address
   , Pointer
   , StakeCredential
   , addressNetworkId
-  , baseAddressFromAddress
-  , baseAddressToAddress
-  , baseAddressPaymentCred
   , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
+  , baseAddressToAddress
+  , enterpriseAddressFromAddress
+  , enterpriseAddressPaymentCred
+  , enterpriseAddressToAddress
+  , paymentKeyHashEnterpriseAddress
+  , paymentKeyHashPointerAddress
+  , paymentKeyHashScriptHashAddress
+  , paymentKeyHashStakeKeyHashAddress
   , pointerAddressFromAddress
-  , pointerAddressToAddress
   , pointerAddressPaymentCred
   , pointerAddressStakePointer
-  , enterpriseAddressFromAddress
-  , enterpriseAddressToAddress
-  , enterpriseAddressPaymentCred
-  , paymentKeyHashStakeKeyHashAddress
-  , scriptHashStakeKeyHashAddress
-  , paymentKeyHashScriptHashAddress
-  , scriptHashScriptHashAddress
-  , paymentKeyHashPointerAddress
-  , scriptHashPointerAddress
-  , paymentKeyHashEnterpriseAddress
+  , pointerAddressToAddress
   , scriptHashEnterpriseAddress
+  , scriptHashPointerAddress
+  , scriptHashScriptHashAddress
+  , scriptHashStakeKeyHashAddress
   , withStakeCredential
   ) as Csl
 import Types.PubKeyHash (PubKeyHash(PubKeyHash))

@@ -59,7 +59,6 @@ import Aeson
   , encodeAeson'
   , getField
   )
-
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)
@@ -72,9 +71,9 @@ import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
-import Data.List ((:), all, List(Nil))
+import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
-import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
+import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -83,7 +82,7 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData)
 import Helpers (encodeMap, showWithParens)
 import Metadata.FromMetadata (class FromMetadata)

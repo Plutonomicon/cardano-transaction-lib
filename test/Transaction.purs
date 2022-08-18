@@ -16,7 +16,7 @@ import Cardano.Types.Transaction
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, over)
+import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
@@ -31,8 +31,8 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Transaction
   ( attachDatum
-  , attachRedeemer
   , attachPlutusScript
+  , attachRedeemer
   , setScriptDataHash
   )
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)

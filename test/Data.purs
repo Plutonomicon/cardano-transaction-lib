@@ -3,7 +3,7 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude hiding (conj)
 
-import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
+import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
 import Contract.Monad (Aff)
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
@@ -12,7 +12,7 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.List as List
-import Data.Maybe (maybe, Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
@@ -47,9 +47,9 @@ import TestM (TestPlanM)
 import ToData (class ToData, genericToData, toData)
 import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
-import TypeLevel.Nat (Z, S)
+import TypeLevel.Nat (S, Z)
 import TypeLevel.RowList (class AllUniqueLabels)
-import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
+import TypeLevel.RowList.Unordered.Indexed (class UniqueIndices, ConsI, NilI)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.PlutusData (PlutusData(Constr, Integer))
 import Untagged.Union (asOneOf)

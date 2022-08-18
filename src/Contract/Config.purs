@@ -18,15 +18,10 @@ module Contract.Config
   ) where
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Serialization (privateKeyFromBytes)
 import Contract.Monad (ConfigParams)
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
+import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
-import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
 import QueryM.ServerConfig
   ( Host
   , ServerConfig
@@ -34,11 +29,16 @@ import QueryM.ServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
+import Serialization (privateKeyFromBytes)
 import Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Data.Log.Message (Message)
+import Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
+  )
 
 testnetConfig :: ConfigParams ()
 testnetConfig =

@@ -24,8 +24,8 @@ import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Ratio ((%), numerator, denominator) as Ratio
 import Data.Ratio (Ratio)
+import Data.Ratio (denominator, numerator, (%)) as Ratio
 import FromData (class FromData)
 import ToData (class ToData)
 import Types.Natural (Natural)

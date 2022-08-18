@@ -2,8 +2,7 @@
 module Contract.Numeric.Natural (module Natural) where
 
 import Types.Natural
-  ( (^-)
-  , Natural
+  ( Natural
   , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
@@ -12,4 +11,5 @@ import Types.Natural
   , fromString
   , minus
   , toBigInt
+  , (^-)
   ) as Natural

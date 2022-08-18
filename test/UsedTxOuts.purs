@@ -11,7 +11,7 @@ import Data.Newtype (unwrap)
 import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
-import Mote (test, group)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Fixtures
   ( mkSampleTx

@@ -23,11 +23,11 @@ import Cardano.Types.Transaction
   ) as Transaction
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
+import QueryM.Ogmios as Ogmios
 import Scripts (validatorHashEnterpriseAddress)
 import Serialization.Address (NetworkId)
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Datum (DataHash)
-import QueryM.Ogmios as Ogmios
 import Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Types.UnbalancedTransaction as UTx
 

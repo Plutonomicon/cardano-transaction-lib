@@ -35,8 +35,8 @@ import Record (get)
 import Serialization.Address
   ( Address
   , EnterpriseAddress
-  , RewardAddress
   , NetworkId
+  , RewardAddress
   , baseAddressToAddress
   , enterpriseAddress
   , enterpriseAddressToAddress

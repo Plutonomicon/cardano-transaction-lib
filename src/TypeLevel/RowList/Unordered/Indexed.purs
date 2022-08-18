@@ -12,10 +12,11 @@ module TypeLevel.RowList.Unordered.Indexed
   , class UniqueIndices
   ) where
 
-import TypeLevel.Nat (class KnownNat, Nat, S, Z)
-import Type.RowList (Cons, Nil, RowList)
-import Prim.TypeError (class Fail, Text)
 import Data.Symbol
+
+import Prim.TypeError (class Fail, Text)
+import Type.RowList (Cons, Nil, RowList)
+import TypeLevel.Nat (class KnownNat, Nat, S, Z)
 
 -- | A kind for unordered  RowLists which contain a Nat representation of their
 -- | intended position in a  non-lexicographic order. Actual RowLists are automagically

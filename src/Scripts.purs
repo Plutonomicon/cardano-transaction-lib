@@ -14,7 +14,7 @@ import Prelude
 
 import Control.Bind (bindFlipped)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Effect.Aff (Aff)
 import Hashing (plutusScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
@@ -22,10 +22,10 @@ import Serialization.Address
   ( Address
   , NetworkId
   , baseAddressToAddress
-  , scriptHashCredential
-  , scriptAddress
-  , enterpriseAddressToAddress
   , enterpriseAddress
+  , enterpriseAddressToAddress
+  , scriptAddress
+  , scriptHashCredential
   )
 import Serialization.Hash (ScriptHash)
 import Types.Scripts

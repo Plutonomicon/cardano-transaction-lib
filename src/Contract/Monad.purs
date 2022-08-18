@@ -49,11 +49,11 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Log.Tag
   ( TagSet
-  , tag
-  , intTag
-  , numberTag
   , booleanTag
+  , intTag
   , jsDateTag
+  , numberTag
+  , tag
   , tagSetTag
   ) as Log.Tag
 import Data.Maybe (Maybe, maybe)
@@ -76,10 +76,10 @@ import QueryM
   , OgmiosWebSocket
   , ServerConfig
   , WebSocket
-  , liftQueryM
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
+  , liftQueryM
   , mkDatumCacheWebSocketAff
   , mkHttpUrl
   , mkOgmiosWebSocketAff

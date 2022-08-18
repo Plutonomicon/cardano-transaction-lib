@@ -21,7 +21,7 @@ import Data.Bitraversable (bisequence)
 import Data.Foldable (fold, foldr)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
-import Data.Newtype (unwrap, wrap, over)
+import Data.Newtype (over, unwrap, wrap)
 import Data.Traversable (for, for_, sequence, traverse)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt

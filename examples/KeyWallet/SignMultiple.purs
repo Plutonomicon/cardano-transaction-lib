@@ -2,9 +2,8 @@ module Examples.KeyWallet.SignMultiple where
 
 import Contract.Prelude
 
-import Contract.Monad (Contract, liftedE, throwContractError)
 import Contract.Log (logInfo')
-import Control.Monad.Reader (asks)
+import Contract.Monad (Contract, liftedE, throwContractError)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -15,6 +14,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
+import Control.Monad.Reader (asks)
 import Data.Newtype (unwrap)
 import Effect.Ref (read) as Ref
 import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)

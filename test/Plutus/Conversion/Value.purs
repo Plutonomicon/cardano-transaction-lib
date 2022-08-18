@@ -2,12 +2,14 @@ module Test.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
-import Data.Array (range, length, zip)
+import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Value as Value
+import Data.Array (length, range, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
+import Data.Traversable (for_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.Traversable (for_)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Conversion (fromPlutusValue, toPlutusValue)
@@ -18,8 +20,6 @@ import Plutus.Types.Value as Plutus.Value
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Cardano.Types.Value (Value) as Types
-import Cardano.Types.Value as Value
 
 suite :: TestPlanM Unit
 suite = do

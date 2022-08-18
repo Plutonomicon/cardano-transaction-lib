@@ -11,19 +11,6 @@ module Test.E2E.Helpers
 import Prelude
 
 import Contract.Test.E2E
-  ( TestOptions
-  , withBrowser
-  , WalletExt(NamiExt, GeroExt)
-  , resetTestFeedback
-  , RunningExample
-  , WalletPassword
-  , checkSuccess
-  , delaySec
-  , geroSign
-  , namiSign
-  , withExample
-  )
-import Contract.Test.E2E
   ( E2EOutput
   , RunningExample(RunningExample)
   , WalletPassword(WalletPassword)
@@ -35,14 +22,27 @@ import Contract.Test.E2E
   , namiSign
   , withExample
   ) as E2EHelpers
+import Contract.Test.E2E
+  ( RunningExample
+  , TestOptions
+  , WalletExt(NamiExt, GeroExt)
+  , WalletPassword
+  , checkSuccess
+  , delaySec
+  , geroSign
+  , namiSign
+  , resetTestFeedback
+  , withBrowser
+  , withExample
+  )
 import Control.Monad.Error.Class (try)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Mote (test)
-import TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
+import TestM (TestPlanM)
 import Toppokki as Toppokki
 
 walletName :: WalletExt -> String

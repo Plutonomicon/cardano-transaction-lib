@@ -33,7 +33,7 @@ import Metadata.ToMetadata (class ToMetadata, toMetadata)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.PlutusData (PlutusData(Bytes))
-import Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
+import Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
 import Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519

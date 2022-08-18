@@ -100,7 +100,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, traverse, traverse_)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff
   ( Aff
@@ -173,22 +173,22 @@ import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Scripts (PlutusScript)
-import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
+import Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
   , Wallet(Gero, Flint, Nami, KeyWallet)
-  , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkGeroWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
   )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries

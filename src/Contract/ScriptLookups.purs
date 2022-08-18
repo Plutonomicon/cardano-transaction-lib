@@ -15,6 +15,7 @@ module Contract.ScriptLookups
   ) where
 
 import Prelude
+
 import Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
@@ -51,18 +52,18 @@ import Types.ScriptLookups
   , generalise
   , mintingPolicy
   , mintingPolicyM
-  , validator
-  , validatorM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  -- , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
-  -- , unsafePaymentPubKey
+  -- , paymentPubKeyM
   , unspentOutputs
   , unspentOutputsM
+  -- , unsafePaymentPubKey
+  , validator
+  , validatorM
   ) as ScriptLookups
 import Types.ScriptLookups (mkUnbalancedTx) as SL
 import Types.TxConstraints (TxConstraints)

@@ -3,9 +3,9 @@ module Contract.Prim.ByteArray (module ByteArray) where
 
 import Types.ByteArray
   ( ByteArray(ByteArray)
+  , byteArrayFromAscii
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayFromAscii
   , byteArrayToHex
   , byteArrayToIntArray
   , byteLength

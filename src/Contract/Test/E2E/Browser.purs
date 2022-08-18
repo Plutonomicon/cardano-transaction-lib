@@ -16,7 +16,9 @@ import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
   , execParser
+  , fullDesc
   , help
+  , info
   , long
   , metavar
   , option
@@ -25,8 +27,6 @@ import Options.Applicative
   , strOption
   , switch
   , value
-  , info
-  , fullDesc
   )
 import Toppokki as Toppokki
 
