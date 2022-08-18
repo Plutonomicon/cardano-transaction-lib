@@ -14,21 +14,22 @@ import Prelude
 import Contract.Test.E2E
   ( TestOptions
   , RunningExample
-  , WalletExt(NamiExt, GeroExt)    
+  , SomeWallet
   , WalletPassword
   , checkSuccess
   , delaySec
   , flintSign
   , geroSign
   , namiSign
-  , resetTestFeedback    
+  , resetTestFeedback
   , walletName
-  , withBrowser    
+  , withBrowser
   , withExample
   )
 import Contract.Test.E2E
   ( E2EOutput
   , RunningExample(RunningExample)
+  , SomeWallet
   , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
@@ -36,6 +37,7 @@ import Contract.Test.E2E
   , geroSign
   , namiConfirmAccess
   , namiSign
+  , walletName
   , withExample
   ) as E2EHelpers
 import Control.Monad.Error.Class (try)
@@ -48,7 +50,7 @@ import TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
 
-exampleUrl :: String -> WalletExt -> Toppokki.URL
+exampleUrl :: String -> SomeWallet -> Toppokki.URL
 exampleUrl exampleName wallet = wrap $ "http://localhost:4008/?" <> exampleName
   <> ":"
   <> walletName wallet
@@ -72,7 +74,7 @@ runE2ETest
   :: forall (a :: Type)
    . String
   -> TestOptions
-  -> WalletExt
+  -> SomeWallet
   -> (RunningExample -> Aff a)
   -> TestPlanM Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $

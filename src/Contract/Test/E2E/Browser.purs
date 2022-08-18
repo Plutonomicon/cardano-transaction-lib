@@ -1,15 +1,23 @@
 module Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
-  , WalletExt(FlintExt, GeroExt, NamiExt)
-  , walletName
   , withBrowser
   , parseOptions
   ) where
 
 import Prelude
 
+import Contract.Test.E2E.WalletExt
+  ( class WalletExt
+  , FlintExt(FlintExt)
+  , GeroExt(GeroExt)
+  , NamiExt(NamiExt)
+  , SomeWallet
+  , mkWallet
+  , walletPath
+  )
 import Data.Foldable (fold)
+import Data.Array (catMaybes)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Effect (Effect)
 import Effect.Aff (Aff, bracket)
@@ -33,13 +41,6 @@ import Options.Applicative
   )
 import Toppokki as Toppokki
 
-data WalletExt = NamiExt | GeroExt | FlintExt
-
-walletName :: WalletExt -> String
-walletName FlintExt = "flint"
-walletName NamiExt = "nami"
-walletName GeroExt = "gero"
-
 -- | Parameters for E2E tests
 -- | 'chromeExe' should point to a chromium or google-chrome binary.
 -- | 'namiDir' should point to a directory where Nami is unpacked.
@@ -52,9 +53,7 @@ walletName GeroExt = "gero"
 -- | 'noHeadless' is a flag to display the browser during the tests.
 data TestOptions = TestOptions
   { chromeExe :: Maybe FilePath
-  , flintDir :: Maybe FilePath
-  , geroDir :: Maybe FilePath
-  , namiDir :: Maybe FilePath
+  , wallets :: Array SomeWallet
   , chromeUserDataDir :: FilePath
   , noHeadless :: Boolean
   }
@@ -71,19 +70,19 @@ optParser = ado
     , help "Chrome/-ium exe (search in env if not set)"
     , value Nothing
     ]
-  namiDir <- option (Just <$> str) $ fold
+  nami <- option (Just <<< mkWallet <<< NamiExt <$> str) $ fold
     [ long "nami-dir"
     , metavar "DIR"
     , help "Directory where nami is unpacked"
     , value Nothing
     ]
-  geroDir <- option (Just <$> str) $ fold
+  gero <- option (Just <<< mkWallet <<< GeroExt <$> str) $ fold
     [ long "gero-dir"
     , metavar "DIR"
     , help "Directory where gero is unpacked"
     , value Nothing
     ]
-  flintDir <- option (Just <$> str) $ fold
+  flint <- option (Just <<< mkWallet <<< FlintExt <$> str) $ fold
     [ long "gero-dir"
     , metavar "DIR"
     , help "Directory where gero is unpacked"
@@ -100,50 +99,44 @@ optParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
+  let wallets = catMaybes [ nami, gero, flint ]
   in
     TestOptions
-      { chromeExe, flintDir, geroDir, namiDir, chromeUserDataDir, noHeadless }
+      { chromeExe, wallets, chromeUserDataDir, noHeadless }
 
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info optParser fullDesc
 
 withBrowser
-  :: forall (a :: Type)
-   . TestOptions
-  -> WalletExt
+  :: forall (a :: Type) (wallet :: Type)
+   . WalletExt wallet
+  => TestOptions
+  -> wallet
   -> (Toppokki.Browser -> Aff a)
   -> Aff a
 withBrowser opts ext = bracket (launchWithExtension ext opts) Toppokki.close
 
 launchWithExtension
-  :: WalletExt -> TestOptions -> Aff Toppokki.Browser
+  :: forall (wallet :: Type)
+   . WalletExt wallet
+  => wallet
+  -> TestOptions
+  -> Aff Toppokki.Browser
 launchWithExtension
   walletExt
   ( TestOptions
-      { chromeExe, chromeUserDataDir, flintDir, geroDir, namiDir, noHeadless }
-  ) =
-  case extDir of
-    Nothing -> liftEffect $ throw $ "Cannot load " <> walletName walletExt
-      <> " extension (please pass --"
-      <> walletName walletExt
-      <> "--dir=...)"
-    Just dir -> Toppokki.launch
-      { args:
-          [ "--disable-extensions-except=" <> dir
-          , "--load-extension=" <> dir
-          ] <> if mode == Headless then [ "--headless=chrome" ] else []
-      , headless: mode == Headless
-      , userDataDir: chromeUserDataDir
-      , executablePath: fromMaybe "" chromeExe
-      }
+      { chromeExe, chromeUserDataDir, noHeadless }
+  ) = Toppokki.launch
+  { args:
+      [ "--disable-extensions-except=" <> walletPath walletExt
+      , "--load-extension=" <> walletPath walletExt
+      ] <> if mode == Headless then [ "--headless=chrome" ] else []
+  , headless: mode == Headless
+  , userDataDir: chromeUserDataDir
+  , executablePath: fromMaybe "" chromeExe
+  }
   where
   mode :: Mode
   mode
     | noHeadless = Visible
     | otherwise = Headless
-
-  extDir :: Maybe FilePath
-  extDir = case walletExt of
-    FlintExt -> flintDir
-    GeroExt -> geroDir
-    NamiExt -> namiDir
