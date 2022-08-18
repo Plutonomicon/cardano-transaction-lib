@@ -1011,7 +1011,8 @@ type CostModelV2 =
 -- This assumes that cost models are stored in lexicographical order
 convertCostModel
   :: forall costModel
-   . HFoldl (List Csl.Int -> Csl.Int -> List Csl.Int) (List Csl.Int) costModel (List Csl.Int)
+   . HFoldl (List Csl.Int -> Csl.Int -> List Csl.Int) (List Csl.Int) costModel
+       (List Csl.Int)
   => costModel
   -> T.CostModel
 convertCostModel model = wrap $ reverse $ List.toUnfoldable $ hfoldl
