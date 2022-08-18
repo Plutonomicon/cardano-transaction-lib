@@ -3,7 +3,7 @@ module Test.Integration (main, testPlan) where
 import Prelude
 
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import QueryM (runQueryM)
@@ -22,7 +22,7 @@ main = launchAff_ do
   Utils.interpret testPlan
 
 -- Requires external services listed in README.md
-testPlan :: TestPlanM Unit
+testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
   mapTest (runQueryM testnetTraceQueryConfig) AffInterface.suite
   flip mapTest Types.Interval.suite \f -> runQueryM testnetTraceQueryConfig do

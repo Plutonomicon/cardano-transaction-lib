@@ -9,17 +9,17 @@ import Prelude
 import Aeson (decodeJsonString)
 import Control.Monad.Except (throwError)
 import Data.BigInt (fromString) as BigInt
-import Data.Const (Const)
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
 import Effect (Effect)
-import Effect.Aff (Aff, error)
-import Mote (MoteT, group, test)
+import Effect.Aff (error)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial, unsafeCrashWith)
 import QueryM.Ogmios (EraSummaries, SystemStart)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
+import TestM (TestPlanM)
 import Types.BigNum (fromInt) as BigNum
 import Types.Interval
   ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
@@ -28,12 +28,7 @@ import Types.Interval
   , slotToPosixTime
   )
 
-type TestPlanM a = MoteT (Const Void)
-  (EraSummaries -> SystemStart -> Effect Unit)
-  Aff
-  a
-
-suite :: TestPlanM Unit
+suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval type" do
     test "Inverse posixTimeToSlot >>> slotToPosixTime " $ testPosixTimeToSlot

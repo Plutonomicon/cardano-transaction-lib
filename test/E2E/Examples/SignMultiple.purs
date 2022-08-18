@@ -3,6 +3,7 @@ module Test.E2E.Examples.SignMultiple (runExample) where
 import Prelude
 
 import Contract.Test.E2E (TestOptions, WalletExt(NamiExt))
+import Effect.Aff (Aff)
 import Test.E2E.Helpers
   ( namiSign'
   , namiConfirmAccess
@@ -11,7 +12,7 @@ import Test.E2E.Helpers
   )
 import TestM (TestPlanM)
 
-runExample :: TestOptions -> TestPlanM Unit
+runExample :: TestOptions -> TestPlanM (Aff Unit) Unit
 runExample options = runE2ETest "SignMultiple" options NamiExt $ \example -> do
   namiConfirmAccess example
   namiSign' example

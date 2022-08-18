@@ -3,7 +3,7 @@ module Ctl.Test.Unit (main, testPlan) where
 import Prelude
 
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Base64 as Base64
@@ -35,7 +35,7 @@ main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan
 
-testPlan :: TestPlanM Unit
+testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
   Base64.suite
   ByteArray.suite

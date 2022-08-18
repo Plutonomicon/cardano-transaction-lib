@@ -7,6 +7,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
+import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
@@ -27,7 +28,7 @@ import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromInt) as BigNum
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Conversion: Plutus Address <-> CSL Address" do
     group "Shelley mainnet addresses" do
@@ -39,7 +40,7 @@ suite = do
         $ for_ addresses
         $ toFromAesonTest "Address"
 
-addressConversionTests :: NetworkId -> TestPlanM Unit
+addressConversionTests :: NetworkId -> TestPlanM (Aff Unit) Unit
 addressConversionTests networkId =
   let
     addressesBech32 =
@@ -53,7 +54,7 @@ addressConversionTests networkId =
       toFromPlutusAddressTest networkId addrType addrBech32 addr
 
 toFromPlutusAddressTest
-  :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
+  :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM (Aff Unit) Unit
 toFromPlutusAddressTest networkId addrType addrBech32 addrPlutus = do
   let testLabel = "Performs conversion between addresses of type "
   test (testLabel <> show addrType) $ do

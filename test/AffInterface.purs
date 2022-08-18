@@ -5,14 +5,13 @@ import Prelude
 import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
 import Control.Monad.Except (throwError)
-import Data.Const (Const)
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
 import Data.Newtype (over, wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
-import Effect.Aff (Aff, try, error)
-import Mote (MoteT, group, test)
+import Effect.Aff (try, error)
+import Mote (group, test)
 import QueryM
   ( QueryM
   , getChainTip
@@ -29,6 +28,7 @@ import QueryM.Utxos (utxosAt)
 import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import TestM (TestPlanM)
 import Types.BigNum (fromInt, add) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.Transaction (DataHash(DataHash))
@@ -41,14 +41,12 @@ addr1 :: OgmiosAddress
 addr1 =
   "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
 
-type TestPlanM a = MoteT (Const Void) (QueryM Unit) Aff a
-
 -- note: currently this suite relies on Ogmios being open and running against the
 -- testnet, and does not directly test outputs, as this suite is intended to
 -- help verify that the Aff interface for websockets itself works,
 -- not that the data represents expected values, as that would depend on chain
 -- state, and ogmios itself.
-suite :: TestPlanM Unit
+suite :: TestPlanM (QueryM Unit) Unit
 suite = do
   -- Test UtxosAt using internal types.
   group "Aff Int" do

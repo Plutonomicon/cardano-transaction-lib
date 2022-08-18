@@ -21,6 +21,7 @@ import Data.Tuple (Tuple, uncurry)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
+import Effect.Aff (Aff)
 import Effect.Exception (Error)
 import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
@@ -86,7 +87,7 @@ plutusDataRoundtripProperty
 plutusDataRoundtripProperty (_ :: Proxy a) =
   quickCheck \(input :: a) -> fromData (toData input) === Just input
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "PlutusData Aeson representation tests" $ do
     group "Primitives" do
@@ -559,7 +560,7 @@ testBinaryFixture
   => ToData a
   => a
   -> String
-  -> TestPlanM Unit
+  -> TestPlanM (Aff Unit) Unit
 testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value

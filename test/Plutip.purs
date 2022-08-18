@@ -63,7 +63,7 @@ import Data.Traversable (traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (launchAff_, bracket)
+import Effect.Aff (Aff, launchAff_, bracket)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -110,7 +110,7 @@ main = launchAff_ do
       suite
       UtxoDistribution.suite
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
