@@ -30,6 +30,10 @@ e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
 e2e-test-nami-settings := test-data/nami_settings.tar.gz
 
 # bump version here
+e2e-test-flint := test-data/chrome-extensions/flint_1.16.2_0.crx
+e2e-test-flint-settings := test-data/flint_settings.tar.gz
+
+# bump version here
 e2e-test-gero := test-data/chrome-extensions/gero_testnet_1.10.0_0.crx
 e2e-test-gero-settings := test-data/gero_settings.tar.gz
 
@@ -64,29 +68,34 @@ check-format: check-explicit-exports
 
 e2e-test:
 	@mkdir -p ${e2e-temp-dir}
-	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
-	    || echo "ignore warnings" # or make stops
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero || true
 	@tar xzf ${e2e-test-nami-settings}
-	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
-	    || echo "ignore warnings" # or make stops
+	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero || true
 	@tar xzf ${e2e-test-gero-settings}
+	@unzip ${e2e-test-flint} -d ${e2e-temp-dir}/gero > /dev/zero || true
+	@tar xzf ${e2e-test-flint-settings}
 	@rm -f ${e2e-test-chrome-dir}/SingletonLock
 	@spago test --main Test.E2E -a "E2ETest --nami-dir ${e2e-temp-dir}/nami --gero-dir ${e2e-temp-dir}/gero $(TEST_ARGS) --chrome-exe $(call e2e-browser)" || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-nami:
 	@mkdir -p ${e2e-temp-dir}
-	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero \
-	    || echo "ignore warnings" # or make stops
+	@unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero || true
 	@tar xzf ${e2e-test-nami-settings}
 	@$(call e2e-browser) --load-extension=${e2e-temp-dir}/nami --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 e2e-run-browser-gero:
 	@mkdir -p ${e2e-temp-dir}
-	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero \
-	   || echo "ignore warnings" # or make stops
+	@unzip ${e2e-test-gero} -d ${e2e-temp-dir}/gero > /dev/zero || true
 	@tar xzf ${e2e-test-gero-settings}
 	echo $(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 	$(call e2e-browser) --load-extension=${e2e-temp-dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
+
+e2e-run-browser-flint:
+	@mkdir -p ${e2e-temp-dir}
+	@unzip ${e2e-test-flint} -d ${e2e-temp-dir}/flint > /dev/zero || true
+	@tar xzf ${e2e-test-flint-settings}
+	echo $(call e2e-browser) --load-extension=${e2e-temp-dir}/flint --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
+	$(call e2e-browser) --load-extension=${e2e-temp-dir}/flint --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e-temp-dir}
 
 # extract current nami settings from e2e-test-chrome-dir and store them for git
 nami-settings:
@@ -96,6 +105,12 @@ nami-settings:
 gero-settings:
 	tar czf ${e2e-test-gero-settings} \
 		${e2e-test-chrome-dir}/Default/IndexedDB/chrome-extension_iifeegfcfhlhhnilhfoeihllenamcfgc_0.indexeddb.leveldb \
+		${e2e-test-chrome-dir}/Default/Extension\ State
+
+# extract current gero settings from e2e-test-chrome-dir and store them for git
+flint-settings:
+	tar czf ${e2e-test-flint-settings} \
+		${e2e-test-chrome-dir}/Default/IndexedDB/chrome-extension_hnhobjmcibchnmglfbldbfabcgaknlkj_0.indexeddb.leveldb \
 		${e2e-test-chrome-dir}/Default/Extension\ State
 
 format:

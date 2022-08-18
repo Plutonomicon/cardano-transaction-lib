@@ -7,6 +7,8 @@ module Contract.Test.E2E.Helpers
   , delaySec
   , geroConfirmAccess
   , geroSign
+  , flintConfirmAccess
+  , flintSign
   , namiConfirmAccess
   , namiSign
   , withExample
@@ -211,6 +213,23 @@ geroConfirmAccess =
 
 geroSign :: WalletPassword -> RunningExample -> Aff Unit
 geroSign gpassword =
+  flip inWalletPage $ \gero -> do
+    void $ doJQ (byId "confirm-swap") click gero
+    typeInto (byId "wallet-password") (unwrap gpassword) gero
+    clickButton "Next" gero
+
+flintConfirmAccess :: RunningExample -> Aff Unit
+flintConfirmAccess =
+  flip inWalletPage $ \page -> do
+    delaySec 0.1
+    void $ doJQ (inputType "radio") click page
+    void $ doJQ (buttonWithText "Continue") click page
+    delaySec 0.1
+    void $ doJQ (inputType "checkbox") click page
+    void $ doJQ (buttonWithText "Connect") click page
+
+flintSign :: WalletPassword -> RunningExample -> Aff Unit
+flintSign gpassword =
   flip inWalletPage $ \gero -> do
     void $ doJQ (byId "confirm-swap") click gero
     typeInto (byId "wallet-password") (unwrap gpassword) gero

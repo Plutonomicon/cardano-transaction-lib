@@ -7,7 +7,8 @@ module Contract.Test.E2E
 import Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
-  , WalletExt(GeroExt, NamiExt)
+  , WalletExt
+  , walletName
   , withBrowser
   , parseOptions
   ) as Browser
@@ -25,6 +26,8 @@ import Contract.Test.E2E.Helpers
   , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
+  , flintConfirmAccess
+  , flintSign
   , geroConfirmAccess
   , geroSign
   , namiConfirmAccess

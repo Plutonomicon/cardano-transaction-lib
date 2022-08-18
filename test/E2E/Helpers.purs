@@ -4,23 +4,26 @@ module Test.E2E.Helpers
   ( module E2EHelpers
   , runE2ETest
   , exampleUrl
-  , namiSign'
+  , flintSign'
   , geroSign'
+  , namiSign'
   ) where
 
 import Prelude
 
 import Contract.Test.E2E
   ( TestOptions
-  , withBrowser
-  , WalletExt(NamiExt, GeroExt)
-  , resetTestFeedback
   , RunningExample
+  , WalletExt(NamiExt, GeroExt)    
   , WalletPassword
   , checkSuccess
   , delaySec
+  , flintSign
   , geroSign
   , namiSign
+  , resetTestFeedback    
+  , walletName
+  , withBrowser    
   , withExample
   )
 import Contract.Test.E2E
@@ -45,10 +48,6 @@ import TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
 
-walletName :: WalletExt -> String
-walletName NamiExt = "nami"
-walletName GeroExt = "gero"
-
 exampleUrl :: String -> WalletExt -> Toppokki.URL
 exampleUrl exampleName wallet = wrap $ "http://localhost:4008/?" <> exampleName
   <> ":"
@@ -59,6 +58,9 @@ testPasswordNami = wrap "ctlctlctl"
 
 testPasswordGero :: WalletPassword
 testPasswordGero = wrap "VZVfu5rp1r"
+
+testPasswordFlint :: WalletPassword
+testPasswordFlint = wrap "VZVfu5rp1rVZVfu5rp1r"
 
 -- | Run an E2E test. Parameters are:
 -- |   String: Just a name for the logs
@@ -90,3 +92,6 @@ namiSign' = namiSign testPasswordNami
 
 geroSign' :: RunningExample -> Aff Unit
 geroSign' = geroSign testPasswordGero
+
+flintSign' :: RunningExample -> Aff Unit
+flintSign' = flintSign testPasswordFlint
