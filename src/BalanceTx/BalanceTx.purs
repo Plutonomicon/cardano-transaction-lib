@@ -126,7 +126,11 @@ import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
-import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
+import Types.UnbalancedTransaction
+  ( UnbalancedTx(UnbalancedTx)
+  , _transaction
+  , _utxoIndex
+  )
 import Untagged.Union (asOneOf)
 
 --------------------------------------------------------------------------------
@@ -553,44 +557,41 @@ balanceTxWithAddress
   :: Address
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress
-  ownAddr
-  unattachedTx@(UnattachedUnbalancedTx { unbalancedTx: t }) = do
-  let (UnbalancedTx { transaction: unbalancedTx, utxoIndex }) = t
-  networkId <- (unbalancedTx ^. _body <<< _networkId) #
-    maybe (asks $ _.config >>> _.networkId) pure
-  let unbalancedTx' = unbalancedTx # _body <<< _networkId ?~ networkId
-  runExceptT do
-    -- Get own wallet address, collateral and utxo set:
-    utxos <- ExceptT $ utxosAt ownAddr <#>
-      (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
+  utxos <- ExceptT $ utxosAt ownAddr
+    <#> note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap
 
-    -- After adding collateral, we need to balance the inputs and
-    -- non-Ada outputs before looping, i.e. we need to add input fees
-    -- for the Ada only collateral. No MinUtxos required. Perhaps
-    -- for some wallets this step can be skipped and we can go straight
-    -- to prebalancer.
-    unbalancedCollTx <-
-      if Array.null (unattachedTx ^. _redeemersTxIns)
-      -- Don't set collateral if tx doesn't contain phase-2 scripts:
-      then pure unbalancedTx'
-      else ExceptT $ setCollateral unbalancedTx'
-        <#> lmap GetWalletCollateralError'
+  unbalancedCollTx <-
+    if Array.null (unbalancedTx ^. _redeemersTxIns)
+    -- Don't set collateral if tx doesn't contain phase-2 scripts:
+    then
+      lift unbalancedTxWithNetworkId
+    else
+      ExceptT $ lmap GetWalletCollateralError' <$>
+        (setCollateral =<< unbalancedTxWithNetworkId)
 
-    let
-      -- Combines utxos at the user address and those from any scripts
-      -- involved with the contract in the unbalanced transaction.
-      allUtxos :: Utxos
-      allUtxos = utxos `Map.union` utxoIndex
+  let
+    allUtxos :: Utxos
+    allUtxos =
+      -- Combine utxos at the user address and those from any scripts
+      -- involved with the contract in the unbalanced transaction:
+      utxos `Map.union` (unbalancedTx ^. _unbalancedTx <<< _utxoIndex)
 
-    availableUtxos <- lift $ filterLockedUtxos allUtxos
+  availableUtxos <- lift $ filterLockedUtxos allUtxos
 
-    -- Logging Unbalanced Tx with collateral added:
-    logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
+  logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
-    ExceptT $
-      runBalancer availableUtxos ownAddr
-        (unattachedTx # _transaction' .~ unbalancedCollTx)
+  -- Balance and finalize the transaction: 
+  ExceptT $ runBalancer availableUtxos ownAddr
+    (unbalancedTx # _transaction' .~ unbalancedCollTx)
+  where
+  unbalancedTxWithNetworkId :: QueryM Transaction
+  unbalancedTxWithNetworkId = do
+    let transaction = unbalancedTx ^. _transaction'
+    networkId <-
+      transaction ^. _body <<< _networkId #
+        maybe (asks $ _.networkId <<< _.config) pure
+    pure (transaction # _body <<< _networkId ?~ networkId)
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -664,6 +665,8 @@ setTransactionMinFee
   :: MinFee -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
 setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
 
+-- | For each transaction output, if necessary, adds some number of lovelaces
+-- | to cover the utxo min-ada-value requirement.
 addLovelacesToTransactionOutputs
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
@@ -689,6 +692,16 @@ addLovelacesToTransactionOutput txOutput = runExceptT do
   pure $ wrap txOutputRec
     { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
 
+-- | Generates a change output to return all excess `Value` back to the owner's 
+-- | address. Does NOT check if the generated output fulfills the utxo
+-- | min-ada-value requirement (see Prerequisites).
+-- | 
+-- | Prerequisites: 
+-- |   1. Must be called after `addTransactionInputs`, which guarantees that 
+-- |   the change output will cover the utxo min-ada-value requirement.
+-- | 
+-- | TODO: Modify the logic to handle "The Problem of Concurrency"
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/924
 buildTransactionChangeOutput
   :: ChangeAddress
   -> Utxos
@@ -723,6 +736,14 @@ addTransactionChangeOutput changeAddress utxos unbalancedTx =
   map (\change -> unbalancedTx # _body' <<< _outputs %~ Array.cons change)
     <$> buildTransactionChangeOutput changeAddress utxos unbalancedTx
 
+-- | Selects a combination of unspent transaction outputs from the wallet's 
+-- | utxo set so that the total input value is sufficient to cover all  
+-- | transaction outputs, including the change that will be generated 
+-- | when using that particular combination of inputs. 
+-- | 
+-- | Prerequisites:
+-- |   1. Must be called with a transaction with no change output. 
+-- |   2. The `fee` field of a transaction body must be set.
 addTransactionInputs
   :: ChangeAddress
   -> Utxos
