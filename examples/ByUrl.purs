@@ -1,12 +1,15 @@
 module Examples.ByUrl (main) where
 
 import Prelude
+
 import Contract.Config
   ( ConfigParams
+  , testnetEternlConfig
+  , testnetFlintConfig
   , testnetGeroConfig
   , testnetNamiConfig
-  , testnetFlintConfig
   )
+import Contract.Prelude (fst, traverse_, uncurry)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)
 import Data.Foldable (lookup)
@@ -28,8 +31,12 @@ import Examples.Wallet as Wallet
 
 foreign import _queryString :: Effect String
 
+foreign import _writeExampleHTML :: String -> Array String -> Effect Unit
+
 main :: Effect Unit
 main = do
+  traverse_ (uncurry _writeExampleHTML) $ map ((_ /\ map fst wallets) <<< fst)
+    examples
   queryString <- last <<< split (Pattern "?") <$> _queryString
   case split (Pattern ":") <$> queryString of
     Just [ exampleName, walletName ] -> do
@@ -45,6 +52,7 @@ wallets =
   [ "nami" /\ testnetNamiConfig
   , "gero" /\ testnetGeroConfig
   , "flint" /\ testnetFlintConfig
+  , "eternl" /\ testnetEternlConfig
   ]
 
 examples :: Array (String /\ (ConfigParams () -> Effect Unit))

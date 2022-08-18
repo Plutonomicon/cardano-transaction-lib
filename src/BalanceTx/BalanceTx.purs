@@ -87,6 +87,7 @@ import Cardano.Types.Value
   , valueToCoin
   , valueToCoin'
   )
+import Contract.Prelude (foldr)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -110,7 +111,7 @@ import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Map (empty, fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
@@ -631,8 +632,11 @@ balanceTxWithAddress
       $ head ownAddrs
 
     -- Get own wallet address, collateral and utxo set:
-    utxos <- ExceptT $ utxosAt ownAddr <#>
-      (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
+    utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
+      ( traverse (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap) --Maybe -> Either and unwrap UtxoM
+
+          >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+      )
 
     -- After adding collateral, we need to balance the inputs and
     -- non-Ada outputs before looping, i.e. we need to add input fees
