@@ -150,7 +150,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "286862a975f4bafbef15540c365bbbb0480e0bf7"
+        , version = "8e9d42980e824450c18c397295573160d1ce8424"
         }
       , aeson-helpers =
         { dependencies =
@@ -348,6 +348,7 @@ let additions =
           , "spec"
           , "spec-quickcheck"
           , "strings"
+          , "stringutils"
           , "tailrec"
           , "text-encoding"
           , "these"
@@ -362,7 +363,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "dd79ed2cabed08d8f82925c2cfddb288f7228f6d"
+        , version = "8b90e8fa84ebbb529051dfad0cd712f1477742a9"
         }
       }
 in upstream // additions
