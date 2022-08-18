@@ -185,7 +185,7 @@ Here is an example that uses the `runtime` overlay to launch all of the required
 }
 ```
 
-For launching services for developing CTL itself, see our documentation on [development](#launching-services-for-development).
+For launching services for developing CTL itself, see our documentation on [development](./development.md#launching-services-for-development).
 
 ### Changing network configurations
 
