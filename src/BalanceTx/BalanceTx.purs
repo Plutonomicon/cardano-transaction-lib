@@ -1,42 +1,33 @@
 module BalanceTx
-  ( Actual(Actual)
-  , AddTransactionInputsError(CannotBuildNonMintedValue)
-  , BalanceTxError
-      ( AddTransactionInputsError'
-      , BuildTxChangeOutputError'
-      , GetWalletAddressError'
-      , GetWalletCollateralError'
-      , UtxosAtError'
-      , UtxoMinAdaValueCalcError'
-      , GetPublicKeyTransactionInputError'
-      , BalanceTxInsError'
-      , EvalExUnitsAndMinFeeError'
-      )
-  , BalanceTxInsError
-      ( InsufficientTxInputs
-      , UtxoLookupFailedFor
-      )
-  , BuildTxChangeOutputError(CannotBuildChangeValue)
-  , EvalExUnitsAndMinFeeError
-      ( EvalTxFailure
-      , ReindexRedeemersError
-      )
-  , Expected(Expected)
-  , FinalizedTransaction(FinalizedTransaction)
-  , GetPublicKeyTransactionInputError(CannotConvertScriptOutputToTxInput)
-  , GetWalletAddressError(CouldNotGetWalletAddress)
-  , GetWalletCollateralError
-      ( CouldNotGetCollateral
-      )
-  , UtxosAtError(CouldNotGetUtxos)
-  , UtxoMinAdaValueCalcError(UtxoMinAdaValueCalcError)
+  ( module BalanceTxErrorExport
   , balanceTx
   , balanceTxWithAddress
-  , printTxEvaluationFailure
+  , FinalizedTransaction(FinalizedTransaction)
   ) where
 
 import Prelude
 
+import BalanceTx.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CouldNotGetWalletAddress
+      , ExUnitsEvaluationFailed
+      , InsufficientTxInputs
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  )
+import BalanceTx.Error
+  ( Actual(Actual)
+  , BalanceTxError(..)
+  , Expected(Expected)
+  , printTxEvaluationFailure
+  ) as BalanceTxErrorExport
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
@@ -55,7 +46,6 @@ import Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
   ( Coin(Coin)
   , Value
@@ -70,16 +60,11 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
-import Data.Array (filter, catMaybes)
 import Data.Array as Array
-import Data.Bifunctor (lmap, bimap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), hush, note, either, isLeft)
-import Data.Foldable (find, foldl, length, foldMap)
-import Data.FoldableWithIndex (foldMapWithIndex)
-import Data.Function (applyN)
-import Data.Int (toStringAs, decimal, ceil, toNumber)
+import Data.Either (Either(Left, Right), hush, note)
+import Data.Foldable (foldl, foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
@@ -92,32 +77,14 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern))
-import Data.String.Common (joinWith, split) as String
-import Data.String.CodePoints (length) as String
-import Data.String.Utils (padEnd)
 import Data.Traversable (traverse, traverse_)
-import Data.Tuple (fst, snd)
+import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
-import QueryM (QueryM)
+import QueryM (QueryM, QueryMExtended)
 import QueryM (evaluateTxOgmios, getWalletAddress) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.Ogmios
-  ( TxEvaluationResult(TxEvaluationResult)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
-  , RedeemerPointer
-  , ScriptFailure
-      ( ExtraRedeemers
-      , MissingRequiredDatums
-      , MissingRequiredScripts
-      , ValidatorFailed
-      , UnknownInputReferencedByRedeemer
-      , NonScriptInputReferencedByRedeemer
-      , IllFormedExecutionBudget
-      , NoCostModelForLanguage
-      )
-  ) as Ogmios
+import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
@@ -129,235 +96,7 @@ import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx, _transaction, _utxoIndex)
 import Untagged.Union (asOneOf)
 
---------------------------------------------------------------------------------
--- Errors for Balancing functions
---------------------------------------------------------------------------------
-
--- These derivations may need tweaking when testing to make sure they are easy
--- to read, especially with generic show vs newtype show derivations.
-data BalanceTxError
-  = AddTransactionInputsError' AddTransactionInputsError
-  | BalanceTxInsError' BalanceTxInsError
-  | BuildTxChangeOutputError' BuildTxChangeOutputError
-  | EvalExUnitsAndMinFeeError' EvalExUnitsAndMinFeeError
-  | GetPublicKeyTransactionInputError' GetPublicKeyTransactionInputError
-  | GetWalletAddressError' GetWalletAddressError
-  | GetWalletCollateralError' GetWalletCollateralError
-  | UtxosAtError' UtxosAtError
-  | UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError
-
-derive instance Generic BalanceTxError _
-
-instance Show BalanceTxError where
-  show (EvalExUnitsAndMinFeeError' (EvalTxFailure tx failure)) =
-    "EvalExUnitsAndMinFeeError': EvalTxFailure: " <> printTxEvaluationFailure tx
-      failure
-  show e = genericShow e
-
-type WorkingLine = String
-type FrozenLine = String
-
-type PrettyString = Array (Either WorkingLine FrozenLine)
-
-runPrettyString :: PrettyString -> String
-runPrettyString ary = String.joinWith "" (either identity identity <$> ary)
-
-freeze :: PrettyString -> PrettyString
-freeze ary = either Right Right <$> ary
-
-line :: String -> PrettyString
-line s =
-  case Array.uncons lines of
-    Nothing -> []
-    Just { head, tail } -> [ head ] <> freeze tail
-  where
-  lines = Left <<< (_ <> "\n") <$> String.split (Pattern "\n") s
-
-bullet :: PrettyString -> PrettyString
-bullet ary = freeze (bimap ("- " <> _) ("  " <> _) <$> ary)
-
-number :: PrettyString -> PrettyString
-number ary = freeze (foldl go [] ary)
-  where
-  biggestPrefix :: String
-  biggestPrefix = toStringAs decimal (length (filter isLeft ary)) <> ". "
-
-  width :: Int
-  width = ceil (toNumber (String.length biggestPrefix) / 2.0) * 2
-
-  numberLine :: Int -> String -> String
-  numberLine i l = padEnd width (toStringAs decimal (i + 1) <> ". ") <> l
-
-  indentLine :: String -> String
-  indentLine = applyN ("  " <> _) (width / 2)
-
-  go :: PrettyString -> Either WorkingLine FrozenLine -> PrettyString
-  go b a = b <> [ bimap (numberLine $ length b) indentLine a ]
-
--- | Pretty print the failure response from Ogmios's EvaluateTx endpoint.
--- | Exported to allow testing, use `Test.Ogmios.Aeson.printEvaluateTxFailures`
--- | to visually verify the printing of errors without a context on fixtures.
-printTxEvaluationFailure
-  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationFailure -> String
-printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
-  runPrettyString $ case e of
-    Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
-    Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
-      (foldMapWithIndex printScriptFailures sf)
-  where
-  lookupRedeemerPointer
-    :: Ogmios.RedeemerPointer -> Maybe (Redeemer /\ Maybe TransactionInput)
-  lookupRedeemerPointer ptr = flip find redeemersTxIns
-    $ \(Redeemer rdmr /\ _) -> rdmr.tag == ptr.redeemerTag && rdmr.index ==
-        Natural.toBigInt ptr.redeemerIndex
-
-  printRedeemerPointer :: Ogmios.RedeemerPointer -> PrettyString
-  printRedeemerPointer ptr =
-    line
-      ( show ptr.redeemerTag <> ":" <> BigInt.toString
-          (Natural.toBigInt ptr.redeemerIndex)
-      )
-
-  -- TODO Investigate if more details can be printed, for example minting
-  -- policy/minted assets
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/881
-  printRedeemerDetails :: Ogmios.RedeemerPointer -> PrettyString
-  printRedeemerDetails ptr =
-    let
-      mbRedeemerTxIn = lookupRedeemerPointer ptr
-      mbData = mbRedeemerTxIn <#> \(Redeemer r /\ _) -> "Redeemer: " <> show
-        r.data
-      mbTxIn = (mbRedeemerTxIn >>= snd) <#> \txIn -> "Input: " <> show txIn
-    in
-      foldMap line $ catMaybes [ mbData, mbTxIn ]
-
-  printRedeemer :: Ogmios.RedeemerPointer -> PrettyString
-  printRedeemer ptr =
-    printRedeemerPointer ptr <> bullet (printRedeemerDetails ptr)
-
-  printScriptFailure :: Ogmios.ScriptFailure -> PrettyString
-  printScriptFailure = case _ of
-    Ogmios.ExtraRedeemers ptrs -> line "Extra redeemers:" <> bullet
-      (foldMap printRedeemer ptrs)
-    Ogmios.MissingRequiredDatums { provided, missing }
-    -> line "Supplied with datums:"
-      <> bullet (foldMap (foldMap line) provided)
-      <> line "But missing required datums:"
-      <> bullet (foldMap line missing)
-    Ogmios.MissingRequiredScripts { resolved, missing }
-    -> line "Supplied with scripts:"
-      <> bullet
-        ( foldMapWithIndex
-            (\ptr scr -> printRedeemer ptr <> line ("Script: " <> scr))
-            resolved
-        )
-      <> line "But missing required scripts:"
-      <> bullet (foldMap line missing)
-    Ogmios.ValidatorFailed { error, traces } -> line error <> line "Trace:" <>
-      number
-        (foldMap line traces)
-    Ogmios.UnknownInputReferencedByRedeemer txIn -> line
-      ("Unknown input referenced by redeemer: " <> show txIn)
-    Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
-      ("Non script input referenced by redeemer: " <> show txIn)
-    Ogmios.IllFormedExecutionBudget Nothing -> line
-      ("Ill formed execution budget: Execution budget missing")
-    Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
-      line "Ill formed execution budget:"
-        <> bullet
-          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
-              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
-          )
-    Ogmios.NoCostModelForLanguage language -> line
-      ("No cost model for language \"" <> language <> "\"")
-
-  printScriptFailures
-    :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString
-  printScriptFailures ptr sfs = printRedeemer ptr <> bullet
-    (foldMap printScriptFailure sfs)
-
-data AddTransactionInputsError = CannotBuildNonMintedValue
-
-derive instance Generic AddTransactionInputsError _
-
-instance Show AddTransactionInputsError where
-  show = genericShow
-
-data BuildTxChangeOutputError = CannotBuildChangeValue
-
-derive instance Generic BuildTxChangeOutputError _
-
-instance Show BuildTxChangeOutputError where
-  show = genericShow
-
-data GetWalletAddressError = CouldNotGetWalletAddress
-
-derive instance Generic GetWalletAddressError _
-
-instance Show GetWalletAddressError where
-  show = genericShow
-
-data GetWalletCollateralError = CouldNotGetCollateral
-
-derive instance Generic GetWalletCollateralError _
-
-instance Show GetWalletCollateralError where
-  show = genericShow
-
-data UtxosAtError = CouldNotGetUtxos
-
-derive instance Generic UtxosAtError _
-
-instance Show UtxosAtError where
-  show = genericShow
-
-data EvalExUnitsAndMinFeeError
-  = ReindexRedeemersError ReindexErrors
-  | EvalTxFailure UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
-
-derive instance Generic EvalExUnitsAndMinFeeError _
-
-instance Show EvalExUnitsAndMinFeeError where
-  show = genericShow
-
-data GetPublicKeyTransactionInputError = CannotConvertScriptOutputToTxInput
-
-derive instance Generic GetPublicKeyTransactionInputError _
-
-instance Show GetPublicKeyTransactionInputError where
-  show = genericShow
-
-data BalanceTxInsError
-  = InsufficientTxInputs Expected Actual
-  | UtxoLookupFailedFor TransactionInput
-
-derive instance Generic BalanceTxInsError _
-
-instance Show BalanceTxInsError where
-  show = genericShow
-
-newtype Expected = Expected Value
-
-derive instance Generic Expected _
-derive instance Newtype Expected _
-
-instance Show Expected where
-  show = genericShow
-
-newtype Actual = Actual Value
-
-derive instance Generic Actual _
-derive instance Newtype Actual _
-
-instance Show Actual where
-  show = genericShow
-
-data UtxoMinAdaValueCalcError = UtxoMinAdaValueCalcError
-
-derive instance Generic UtxoMinAdaValueCalcError _
-
-instance Show UtxoMinAdaValueCalcError where
-  show = genericShow
+type BalanceTxM (a :: Type) = ExceptT BalanceTxError (QueryMExtended ()) a
 
 --------------------------------------------------------------------------------
 -- Evaluation of fees and execution units, Updating redeemers
@@ -366,49 +105,39 @@ instance Show UtxoMinAdaValueCalcError where
 evalTxExecutionUnits
   :: Transaction
   -> UnattachedUnbalancedTx
-  -> QueryM (Either EvalExUnitsAndMinFeeError Ogmios.TxEvaluationResult)
+  -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx unattachedTx = do
   txBytes <- liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  lmap (EvalTxFailure unattachedTx) <<< unwrap <$> QueryM.evaluateTxOgmios
-    txBytes
+  ExceptT $ QueryM.evaluateTxOgmios txBytes
+    <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
 -- the minimum fee.
-evalExUnitsAndMinFee'
-  :: UnattachedUnbalancedTx
-  -> QueryM
-       (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee' unattachedTx =
-  runExceptT do
-    -- Reindex `Spent` script redeemers:
-    reindexedUnattachedTx <- ExceptT $ reindexRedeemers unattachedTx
-      <#> lmap ReindexRedeemersError
-    -- Reattach datums and redeemers before evaluating ex units:
-    let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
-    -- Evaluate transaction ex units:
-    rdmrPtrExUnitsList <- ExceptT $ evalTxExecutionUnits attachedTx
-      reindexedUnattachedTx
-    let
-      -- Set execution units received from the server:
-      reindexedUnattachedTxWithExUnits =
-        updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
-    -- Attach datums and redeemers, set the script integrity hash:
-    FinalizedTransaction finalizedTx <- lift $
-      finalizeTransaction reindexedUnattachedTxWithExUnits
-    -- Calculate the minimum fee for a transaction:
-    minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
-    pure $ reindexedUnattachedTxWithExUnits /\ minFee
-
 evalExUnitsAndMinFee
-  :: UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee =
-  map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
+  :: UnattachedUnbalancedTx -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
+evalExUnitsAndMinFee unattachedTx = do
+  -- Reindex `Spent` script redeemers:
+  reindexedUnattachedTx <-
+    ExceptT $ reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
+  -- Reattach datums and redeemers before evaluating ex units:
+  let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
+  -- Evaluate transaction ex units:
+  rdmrPtrExUnitsList <- evalTxExecutionUnits attachedTx reindexedUnattachedTx
+  let
+    -- Set execution units received from the server:
+    reindexedUnattachedTxWithExUnits =
+      updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
+  -- Attach datums and redeemers, set the script integrity hash:
+  FinalizedTransaction finalizedTx <- lift $
+    finalizeTransaction reindexedUnattachedTxWithExUnits
+  -- Calculate the minimum fee for a transaction:
+  minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
+  pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 newtype FinalizedTransaction = FinalizedTransaction Transaction
 
@@ -515,21 +244,6 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
 
 --------------------------------------------------------------------------------
--- Setting collateral
---------------------------------------------------------------------------------
-
-setCollateral
-  :: Transaction
-  -> QueryM (Either GetWalletCollateralError Transaction)
-setCollateral transaction = runExceptT do
-  collateral <- ExceptT $ getWalletCollateral <#> note CouldNotGetCollateral
-  pure $ addTxCollateral collateral transaction
-
-addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
-addTxCollateral utxos transaction =
-  transaction # _body <<< _collateral ?~ map (_.input <<< unwrap) utxos
-
---------------------------------------------------------------------------------
 -- Balancing functions and helpers
 --------------------------------------------------------------------------------
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
@@ -542,10 +256,12 @@ addTxCollateral utxos transaction =
 balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx tx = do
+balanceTx unbalancedTx = do
   QueryM.getWalletAddress >>= case _ of
-    Nothing -> pure $ Left $ GetWalletAddressError' CouldNotGetWalletAddress
-    Just address -> balanceTxWithAddress address tx
+    Nothing ->
+      pure $ Left CouldNotGetWalletAddress
+    Just address ->
+      balanceTxWithAddress address unbalancedTx
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the wallet).
@@ -555,16 +271,15 @@ balanceTxWithAddress
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
   utxos <- ExceptT $ utxosAt ownAddr
-    <#> note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap
+    <#> note CouldNotGetUtxos >>> map unwrap
 
   unbalancedCollTx <-
-    if Array.null (unbalancedTx ^. _redeemersTxIns)
-    -- Don't set collateral if tx doesn't contain phase-2 scripts:
-    then
-      lift unbalancedTxWithNetworkId
-    else
-      ExceptT $ lmap GetWalletCollateralError' <$>
-        (setCollateral =<< unbalancedTxWithNetworkId)
+    case Array.null (unbalancedTx ^. _redeemersTxIns) of
+      true ->
+        -- Don't set collateral if tx doesn't contain phase-2 scripts:
+        lift unbalancedTxWithNetworkId
+      false ->
+        setTransactionCollateral =<< lift unbalancedTxWithNetworkId
 
   let
     allUtxos :: Utxos
@@ -589,6 +304,13 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         maybe (asks $ _.networkId <<< _.config) pure
     pure (transaction # _body <<< _networkId ?~ networkId)
 
+  setTransactionCollateral :: Transaction -> BalanceTxM Transaction
+  setTransactionCollateral transaction = do
+    collateral <-
+      ExceptT $ note CouldNotGetCollateral <<< map (map (_.input <<< unwrap))
+        <$> getWalletCollateral
+    pure $ transaction # _body <<< _collateral ?~ collateral
+
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
 --------------------------------------------------------------------------------
@@ -603,52 +325,49 @@ runBalancer
   -> ChangeAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-runBalancer utxos changeAddress unbalancedTx' = runExceptT do
-  (ExceptT <<< mainLoop one zero)
-    =<< (ExceptT $ addLovelacesToTransactionOutputs unbalancedTx')
+runBalancer utxos changeAddress =
+  runExceptT <<<
+    (mainLoop one zero <=< addLovelacesToTransactionOutputs)
   where
   mainLoop
     :: Iteration
     -> MinFee
     -> UnattachedUnbalancedTx
-    -> QueryM (Either BalanceTxError FinalizedTransaction)
-  mainLoop iteration minFee unbalancedTx = runExceptT do
+    -> BalanceTxM FinalizedTransaction
+  mainLoop iteration minFee unbalancedTx = do
     let
-      unbalancedTxWithMinFee :: UnattachedUnbalancedTx
-      unbalancedTxWithMinFee = setTransactionMinFee minFee unbalancedTx
+      unbalancedTxWithMinFee =
+        setTransactionMinFee minFee unbalancedTx
 
     unbalancedTxWithInputs <-
-      ExceptT $ addTransactionInputs changeAddress utxos
-        unbalancedTxWithMinFee
+      addTransactionInputs changeAddress utxos unbalancedTxWithMinFee
 
-    lift $ traceMainLoop "added transaction inputs" "unbalancedTxWithInputs"
+    traceMainLoop "added transaction inputs" "unbalancedTxWithInputs"
       unbalancedTxWithInputs
 
-    prebalancedTx <-
-      ExceptT $ addTransactionChangeOutput changeAddress utxos
-        unbalancedTxWithInputs
+    let
+      prebalancedTx =
+        addTransactionChangeOutput changeAddress utxos unbalancedTxWithInputs
 
-    lift $ traceMainLoop "added transaction change output" "prebalancedTx"
+    traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <-
-      ExceptT $ evalExUnitsAndMinFee prebalancedTx
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx
 
-    lift $ traceMainLoop "calculated ex units and min fee" "balancedTx"
-      balancedTx
+    traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
     case newMinFee == minFee of
-      true -> lift do
-        finalizedTransaction <- finalizeTransaction balancedTx
+      true -> do
+        finalizedTransaction <- lift $ finalizeTransaction balancedTx
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
         pure finalizedTransaction
       false ->
-        ExceptT $ mainLoop (iteration + one) newMinFee unbalancedTxWithInputs
+        mainLoop (iteration + one) newMinFee unbalancedTxWithInputs
     where
     traceMainLoop
-      :: forall (a :: Type). Show a => String -> String -> a -> QueryM Unit
+      :: forall (a :: Type). Show a => String -> String -> a -> BalanceTxM Unit
     traceMainLoop meta message object =
       let
         tagMessage :: String
@@ -664,18 +383,17 @@ setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
 -- | For each transaction output, if necessary, adds some number of lovelaces
 -- | to cover the utxo min-ada-value requirement.
 addLovelacesToTransactionOutputs
-  :: UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
-addLovelacesToTransactionOutputs unbalancedTx = runExceptT do
+  :: UnattachedUnbalancedTx -> BalanceTxM UnattachedUnbalancedTx
+addLovelacesToTransactionOutputs unbalancedTx =
   map (\txOutputs -> unbalancedTx # _body' <<< _outputs .~ txOutputs) $
-    traverse (ExceptT <<< addLovelacesToTransactionOutput)
+    traverse addLovelacesToTransactionOutput
       (unbalancedTx ^. _body' <<< _outputs)
 
 addLovelacesToTransactionOutput
-  :: TransactionOutput -> QueryM (Either BalanceTxError TransactionOutput)
-addLovelacesToTransactionOutput txOutput = runExceptT do
+  :: TransactionOutput -> BalanceTxM TransactionOutput
+addLovelacesToTransactionOutput txOutput = do
   txOutputMinAda <- ExceptT $ utxoMinAdaValue txOutput
-    <#> note (UtxoMinAdaValueCalcError' UtxoMinAdaValueCalcError)
+    <#> note UtxoMinAdaValueCalculationFailed
   let
     txOutputRec = unwrap txOutput
 
@@ -699,11 +417,8 @@ addLovelacesToTransactionOutput txOutput = runExceptT do
 -- | TODO: Modify the logic to handle "The Problem of Concurrency"
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/924
 buildTransactionChangeOutput
-  :: ChangeAddress
-  -> Utxos
-  -> UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError TransactionChangeOutput)
-buildTransactionChangeOutput changeAddress utxos tx = runExceptT do
+  :: ChangeAddress -> Utxos -> UnattachedUnbalancedTx -> TransactionChangeOutput
+buildTransactionChangeOutput changeAddress utxos tx =
   let
     txBody :: TxBody
     txBody = tx ^. _body'
@@ -711,26 +426,20 @@ buildTransactionChangeOutput changeAddress utxos tx = runExceptT do
     totalInputValue :: Value
     totalInputValue = getInputValue utxos txBody
 
-  changeValue <- except $
-    note (BuildTxChangeOutputError' CannotBuildChangeValue)
-      ( (totalInputValue <> mintValue txBody)
+    changeValue :: Value
+    changeValue =
+      valueWithNonNegativeAda $
+        (totalInputValue <> mintValue txBody)
           `minus` (totalOutputValue txBody <> minFeeValue txBody)
-      )
-  let
-    amount :: Value
-    amount = valueWithNonNegativeAda changeValue
-
-  pure $ TransactionOutput
-    { address: changeAddress, amount, dataHash: Nothing }
+  in
+    TransactionOutput
+      { address: changeAddress, amount: changeValue, dataHash: Nothing }
 
 addTransactionChangeOutput
-  :: ChangeAddress
-  -> Utxos
-  -> UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
+  :: ChangeAddress -> Utxos -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
 addTransactionChangeOutput changeAddress utxos unbalancedTx =
-  map (\change -> unbalancedTx # _body' <<< _outputs %~ Array.cons change)
-    <$> buildTransactionChangeOutput changeAddress utxos unbalancedTx
+  unbalancedTx # _body' <<< _outputs %~
+    Array.cons (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
 -- | Selects a combination of unspent transaction outputs from the wallet's 
 -- | utxo set so that the total input value is sufficient to cover all  
@@ -744,8 +453,8 @@ addTransactionInputs
   :: ChangeAddress
   -> Utxos
   -> UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError UnattachedUnbalancedTx)
-addTransactionInputs changeAddress utxos unbalancedTx = runExceptT do
+  -> BalanceTxM UnattachedUnbalancedTx
+addTransactionInputs changeAddress utxos unbalancedTx = do
   let
     txBody :: TxBody
     txBody = unbalancedTx ^. _body'
@@ -753,13 +462,12 @@ addTransactionInputs changeAddress utxos unbalancedTx = runExceptT do
     txInputs :: Set TransactionInput
     txInputs = txBody ^. _inputs
 
-  nonMintedValue <- except $
-    note (AddTransactionInputsError' CannotBuildNonMintedValue)
-      (totalOutputValue txBody `minus` mintValue txBody)
+    nonMintedValue :: Value
+    nonMintedValue = totalOutputValue txBody `minus` mintValue txBody
 
   txChangeOutput <-
-    ExceptT (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
-      >>= (ExceptT <<< addLovelacesToTransactionOutput)
+    addLovelacesToTransactionOutput
+      (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
   let
     changeValue :: Value
@@ -768,12 +476,13 @@ addTransactionInputs changeAddress utxos unbalancedTx = runExceptT do
     requiredInputValue :: Value
     requiredInputValue = nonMintedValue <> minFeeValue txBody <> changeValue
 
-  newTxInputs <- except $ lmap BalanceTxInsError' $
-    collectTransactionInputs txInputs utxos requiredInputValue
+  newTxInputs <-
+    except $ collectTransactionInputs txInputs utxos requiredInputValue
 
   case newTxInputs == txInputs of
-    true -> pure unbalancedTx
-    false -> ExceptT $
+    true ->
+      pure unbalancedTx
+    false ->
       addTransactionInputs changeAddress utxos
         (unbalancedTx # _body' <<< _inputs %~ Set.union newTxInputs)
 
@@ -781,7 +490,7 @@ collectTransactionInputs
   :: Set TransactionInput
   -> Utxos
   -> Value
-  -> Either BalanceTxInsError (Set TransactionInput)
+  -> Either BalanceTxError (Set TransactionInput)
 collectTransactionInputs originalTxIns utxos value = do
   txInsValue <- updatedInputs >>= getTxInsValue utxos
   updatedInputs' <- updatedInputs
@@ -791,7 +500,7 @@ collectTransactionInputs originalTxIns utxos value = do
     false ->
       Left $ InsufficientTxInputs (Expected value) (Actual txInsValue)
   where
-  updatedInputs :: Either BalanceTxInsError (Array TransactionInput)
+  updatedInputs :: Either BalanceTxError (Array TransactionInput)
   updatedInputs =
     foldl
       ( \newTxIns txIn -> do
@@ -810,7 +519,7 @@ collectTransactionInputs originalTxIns utxos value = do
     not (Array.null txIns') && txInsValue `geq` value
 
   getTxInsValue
-    :: Utxos -> Array TransactionInput -> Either BalanceTxInsError Value
+    :: Utxos -> Array TransactionInput -> Either BalanceTxError Value
   getTxInsValue utxos' =
     map (Array.foldMap getAmount) <<<
       traverse (\x -> note (UtxoLookupFailedFor x) $ Map.lookup x utxos')
@@ -839,9 +548,9 @@ valueWithNonNegativeAda value =
 -- | and not `PaymentCredentialScript`, i.e. we want wallets only
 getPublicKeyTransactionInput
   :: TransactionInput /\ TransactionOutput
-  -> Either GetPublicKeyTransactionInputError TransactionInput
+  -> Either BalanceTxError TransactionInput
 getPublicKeyTransactionInput (txOutRef /\ txOut) =
-  note CannotConvertScriptOutputToTxInput $ do
+  note CouldNotConvertScriptOutputToTxInput $ do
     paymentCred <- unwrap txOut # (_.address >>> addressPaymentCred)
     -- TEST ME: using StakeCredential to determine whether wallet or script
     paymentCred # withStakeCredential
