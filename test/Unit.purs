@@ -57,6 +57,7 @@ testPlan = do
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Types.TokenName.suite
-  flip mapTest Types.Interval.suite \f -> liftEffect $
-    f Types.Interval.eraSummariesFixture Types.Interval.systemStartFixture
+  flip mapTest Types.Interval.suite \f -> liftEffect $ join $
+    f <$> Types.Interval.eraSummariesFixture
+      <*> Types.Interval.systemStartFixture
 

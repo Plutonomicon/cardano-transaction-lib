@@ -54,13 +54,15 @@ foreign import unsafeCall
 interpret :: TestPlanM (Aff Unit) Unit -> Aff Unit
 interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
 
-interpretWithTimeout :: Maybe Milliseconds -> TestPlanM (Aff Unit) Unit -> Aff Unit
+interpretWithTimeout
+  :: Maybe Milliseconds -> TestPlanM (Aff Unit) Unit -> Aff Unit
 interpretWithTimeout timeout spif = do
   plan <- planT spif
   runSpec' defaultConfig { timeout = timeout } [ consoleReporter ] $
     planToSpec plan
 
-interpretWithConfig :: SpecRunner.Config -> TestPlanM (Aff Unit) Unit -> Aff Unit
+interpretWithConfig
+  :: SpecRunner.Config -> TestPlanM (Aff Unit) Unit -> Aff Unit
 interpretWithConfig config spif = do
   plan <- planT spif
   runSpec' config [ consoleReporter ] $ planToSpec plan

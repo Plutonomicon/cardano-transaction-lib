@@ -54,7 +54,11 @@ addressConversionTests networkId =
       toFromPlutusAddressTest networkId addrType addrBech32 addr
 
 toFromPlutusAddressTest
-  :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM (Aff Unit) Unit
+  :: NetworkId
+  -> Int
+  -> Bech32String
+  -> Plutus.Address
+  -> TestPlanM (Aff Unit) Unit
 toFromPlutusAddressTest networkId addrType addrBech32 addrPlutus = do
   let testLabel = "Performs conversion between addresses of type "
   test (testLabel <> show addrType) $ do

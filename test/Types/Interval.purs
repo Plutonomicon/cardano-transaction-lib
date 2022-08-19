@@ -6,16 +6,21 @@ module Test.Types.Interval
 
 import Prelude
 
-import Aeson (decodeJsonString)
+import Aeson (decodeJsonString, class DecodeAeson, printJsonDecodeError)
 import Control.Monad.Except (throwError)
+import Control.Monad.Error.Class (liftEither)
 import Data.BigInt (fromString) as BigInt
+import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
 import Effect (Effect)
-import Effect.Aff (error)
+import Effect.Exception (error)
 import Mote (group, test)
-import Partial.Unsafe (unsafePartial, unsafeCrashWith)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
+import Node.Path (concat) as Path
+import Partial.Unsafe (unsafePartial)
 import QueryM.Ogmios (EraSummaries, SystemStart)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
@@ -35,16 +40,30 @@ suite = do
     test "Inverse slotToPosixTime >>> posixTimeToSlot " $ testSlotToPosixTime
     test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
 
--- launchAff_ $ runContract testnetConfig $ getEraSummaries >>= encodeAeson >>> stringifyAeson >>> logShow
-eraSummariesFixture :: EraSummaries
-eraSummariesFixture =
-  either (\_ -> unsafeCrashWith "internal error") identity $ decodeJsonString
-    "[{\"end\":{\"epoch\":74,\"slot\":1598400,\"time\":31968000},\"parameters\":{\"epochLength\":21600,\"safeZone\":4320,\"slotLength\":20},\"start\":{\"epoch\":0,\"slot\":0,\"time\":0}},{\"end\":{\"epoch\":102,\"slot\":13694400,\"time\":44064000},\"parameters\":{\"epochLength\":432000,\"safeZone\":129600,\"slotLength\":1},\"start\":{\"epoch\":74,\"slot\":1598400,\"time\":31968000}},{\"end\":{\"epoch\":112,\"slot\":18014400,\"time\":48384000},\"parameters\":{\"epochLength\":432000,\"safeZone\":129600,\"slotLength\":1},\"start\":{\"epoch\":102,\"slot\":13694400,\"time\":44064000}},{\"end\":{\"epoch\":154,\"slot\":36158400,\"time\":66528000},\"parameters\":{\"epochLength\":432000,\"safeZone\":129600,\"slotLength\":1},\"start\":{\"epoch\":112,\"slot\":18014400,\"time\":48384000}},{\"end\":{\"epoch\":215,\"slot\":62510400,\"time\":92880000},\"parameters\":{\"epochLength\":432000,\"safeZone\":129600,\"slotLength\":1},\"start\":{\"epoch\":154,\"slot\":36158400,\"time\":66528000}},{\"end\":{\"epoch\":224,\"slot\":66398400,\"time\":96768000},\"parameters\":{\"epochLength\":432000,\"safeZone\":129600,\"slotLength\":1},\"start\":{\"epoch\":215,\"slot\":62510400,\"time\":92880000}}]"
+loadOgmiosFixture
+  :: forall (a :: Type). DecodeAeson a => String -> String -> Effect a
+loadOgmiosFixture query hash = do
+  contents <- readTextFile UTF8 path
+  liftEither $ lmap
+    (error <<< ((path <> "\n  ") <> _) <<< printJsonDecodeError)
+    (decodeJsonString contents)
+  where
+  path :: String
+  path = Path.concat
+    [ "fixtures", "test", "ogmios", query <> "-" <> hash <> ".json" ]
 
--- launchAff_ $ runContract testnetConfig $ getSystemStart >>= encodeAeson >>> stringifyAeson >>> logShow
-systemStartFixture :: SystemStart
-systemStartFixture = either (\_ -> unsafeCrashWith "internal error") identity $
-  decodeJsonString "\"2019-07-24T20:20:16Z\""
+-- To update the eraSummaries and systemStart fixtures, run
+-- `spago run --main Test.Ogmios.GenerateFixtures`
+-- and take the hashes from the result and insert them here. Make sure the
+-- newly generated fixtures are stored in source control, i.e. git.
+
+eraSummariesFixture :: Effect EraSummaries
+eraSummariesFixture =
+  loadOgmiosFixture "eraSummaries" "bbf8b1d7d2487e750104ec2b5a31fa86"
+
+systemStartFixture :: Effect SystemStart
+systemStartFixture =
+  loadOgmiosFixture "systemStart" "ed0caad81f6936e0c122ef6f3c7de5e8"
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit
 testPosixTimeToSlot eraSummaries sysStart = do
@@ -165,8 +184,7 @@ testPosixTimeToSlotError eraSummaries sysStart = do
     (PosixTimeBeforeSystemStart posixTime)
   where
   errTest
-    :: forall (err :: Type)
-     . EraSummaries
+    :: EraSummaries
     -> SystemStart
     -> POSIXTime
     -> PosixTimeToSlotError
