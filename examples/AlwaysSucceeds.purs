@@ -1,22 +1,29 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module Examples.AlwaysSucceeds (main) where
+module Examples.AlwaysSucceeds
+  ( main
+  , example
+  , alwaysSucceedsScript
+  , payToAlwaysSucceeds
+  , spendFromAlwaysSucceeds
+  ) where
 
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -24,6 +31,7 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
+  , awaitTxConfirmed
   , balanceAndSignTxE
   , submit
   , plutusV1Script
@@ -34,28 +42,23 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
-import Effect.Aff (delay)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- alwaysSucceedsScript
     let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
     -- If the wallet is cold, you need a high parameter here.
-    countToZero 60
-    logInfo' "Try to spend locked values"
+    awaitTxConfirmed txId
+    logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
-
-countToZero :: Int -> Contract () Unit
-countToZero n =
-  unless (n <= 0) do
-    logInfo' $ "Waiting before we try to unlock: " <> show n
-    (liftAff <<< delay <<< wrap) 1000.0
-    countToZero (n - 1)
+  publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
@@ -89,7 +92,11 @@ spendFromAlwaysSucceeds vhash validator txId = do
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
       in
-        void $ buildBalanceSignAndSubmitTx lookups constraints
+        do
+          spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed spendTxId
+          logInfo' "Successfully spent locked values."
+
     _ ->
       logInfo' $ "The id "
         <> show txId

@@ -104,7 +104,7 @@ import Cardano.Types.Transaction
   ) as T
 import Cardano.Types.Value
   ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
+  , mkNonAdaAsset
   , scriptHashAsCurrencySymbol
   )
 import Control.Lazy (fix)
@@ -113,7 +113,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
-import Data.Int (fromString)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
@@ -132,13 +131,13 @@ import Deserialization.Error
   , fromCslRepError
   )
 import Deserialization.FromBytes (fromBytes')
+import Deserialization.Language (convertLanguage)
 import Deserialization.UnspentOutput (convertInput, convertOutput)
 import Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
   , convertWitnessSet
   )
-import Deserialization.Language (convertLanguage)
 import Error (E)
 import FfiHelpers
   ( ContainerHelper
@@ -441,7 +440,7 @@ convertPoolRetirement poolKeyhash epochInt = do
   pure $ T.PoolRetirement { poolKeyhash, epoch }
 
 convertMint :: Csl.Mint -> T.Mint
-convertMint mint = T.Mint $ NonAdaAsset
+convertMint mint = T.Mint $ mkNonAdaAsset
   $
     -- outer map
     M.fromFoldable <<< map (lmap scriptHashAsCurrencySymbol)
@@ -539,9 +538,9 @@ convertCostModel = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
   stringToInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) Int
-  stringToInt s = cslErr ("string (" <> s <> ") -> int") $
-    fromString s
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int.Int
+  stringToInt s = cslErr (": string (" <> s <> ") -> int") $
+    Int.fromBigInt =<< BigInt.fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData
@@ -667,12 +666,12 @@ convertProtocolVersion
   -> Csl.ProtocolVersion
   -> E (FromCslRepError + r) T.ProtocolVersion
 convertProtocolVersion nm cslPV =
-  let
-    { major, minor } = _unpackProtocolVersion cslPV
-  in
-    { major: _, minor: _ }
-      <$> cslNumberToUInt (nm <> " major") major
-      <*> cslNumberToUInt (nm <> " minor") minor
+  _unpackProtocolVersion cslPV #
+    ( \{ major, minor } ->
+        { major: _, minor: _ }
+          <$> cslNumberToUInt (nm <> " major") major
+          <*> cslNumberToUInt (nm <> " minor") minor
+    )
 
 ---- foreign imports
 

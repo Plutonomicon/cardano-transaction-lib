@@ -4,6 +4,8 @@ module Contract.Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
+  , addressWithNetworkTagToBech32
+  , addressToBech32
   , getWalletAddress
   , getWalletCollateral
   , module ByteArray
@@ -12,6 +14,7 @@ module Contract.Address
   , module ExportUnbalancedTransaction
   , module Hash
   , module SerializationAddress
+  , module TypeAliases
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
@@ -44,7 +47,11 @@ import Plutus.Conversion
   , toPlutusAddress
   , toPlutusTxUnspentOutput
   )
-import Plutus.Types.Address (Address)
+import Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
+import Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  )
 import Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -57,18 +64,18 @@ import Plutus.Types.Address
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
   ( getWalletAddress
-  , getWalletCollateral
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   ) as QueryM
+import QueryM.Utxos (getWalletCollateral) as QueryM
 import Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId))
+import Serialization.Address (NetworkId(MainnetId), addressBech32)
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
@@ -80,6 +87,8 @@ import Serialization.Address
   ) as SerializationAddress
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
+import Types.Aliases (Bech32String)
+import Types.Aliases (Bech32String) as TypeAliases
 import Types.ByteArray (ByteArray) as ByteArray
 import Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
@@ -153,6 +162,20 @@ getNetworkId = wrapContract Address.getNetworkId
 -- Helpers by deconstructing/constructing the Plutus Address are exported under
 -- `module Address`
 --------------------------------------------------------------------------------
+
+-- | Convert `Address` to `Bech32String`, using given `NetworkId` to determine
+-- | Bech32 prefix.
+addressWithNetworkTagToBech32 :: AddressWithNetworkTag -> Bech32String
+addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
+  addressBech32
+
+-- | Convert `Address` to `Bech32String`, using current `NetworkId` provided by
+-- | `Contract` configuration to determine the network tag.
+addressToBech32 :: forall (r :: Row Type). Address -> Contract r Bech32String
+addressToBech32 address = do
+  networkId <- getNetworkId
+  pure $ addressWithNetworkTagToBech32
+    (AddressWithNetworkTag { address, networkId })
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash

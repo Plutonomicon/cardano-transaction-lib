@@ -25,7 +25,7 @@
 - [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
 - [x] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary)
   - [ ] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API (**In progress**)
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface, provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet
 - [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server
 
 ### Light wallet support
@@ -34,7 +34,7 @@ Support is planned for the following light wallets:
 
 - [x] [Nami](https://namiwallet.io/)
 - [x] [Gero](https://gerowallet.io/)
-- [ ] [Flint](https://flint-wallet.com/)
+- [x] [Flint](https://flint-wallet.com/)
 - [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
@@ -44,13 +44,16 @@ Support is planned for the following light wallets:
 
 Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:
 
+- [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
+- [FAQs](./doc/faq.md)
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
 - [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
 - [Getting started writing CTL contracts](./doc/getting-started.md)
 - [CTL's runtime dependencies](./doc/runtime.md)
 - [Developing on CTL](./doc/development.md)
+- [Testing contracts with Plutip](./doc/plutip-testing.md)
 
-You can also [generate Purescript documentation for CTL and its dependencies](./doc/development.md#generating-ps-documentation).
+You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
 
 ## Architecture
 
@@ -82,5 +85,6 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 ## Available support channels info
 
 You can find help, more information and ongoing discusion about the project here:
-- Plutonomicon Discord: https://discord.gg/c8kZWxzJ
+
+- Plutonomicon Discord: https://discord.gg/gGFdGaUE
 - #ctl channel at MLabs' Slack

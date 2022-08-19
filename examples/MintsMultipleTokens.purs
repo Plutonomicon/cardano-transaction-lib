@@ -1,38 +1,52 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using three minting policies with different redeemers.
-module Examples.MintsMultipleTokens (main) where
+module Examples.MintsMultipleTokens
+  ( example
+  , main
+  , mintingPolicyRdmrInt1
+  , mintingPolicyRdmrInt2
+  , mintingPolicyRdmrInt3
+  ) where
 
 import Contract.Prelude
 
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractM
   , liftedE
   , liftedM
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (balanceAndSignTx, submit, plutusV1Script)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , balanceAndSignTx
+  , submit
+  , plutusV1Script
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.MintsMultipleTokens"
     tn1 <- mkTokenName "Token with a long name"
     tn2 <- mkTokenName "Token"
@@ -65,6 +79,11 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
+
+    awaitTxConfirmed txId
+    logInfo' $ "Tx submitted successfully!"
+
+  publishTestFeedback true
 
 mkTokenName :: String -> Contract () TokenName
 mkTokenName =

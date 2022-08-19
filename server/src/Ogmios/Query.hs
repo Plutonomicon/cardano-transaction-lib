@@ -82,7 +82,10 @@ tryQueryUntilZero query remainAttempts
   | remainAttempts <= 0 = pure $ Left "Error trying to connect to Ogmios"
   | otherwise =
     try @SomeException query >>= \case
-      Right msg -> pure $ Right msg
+      Right msg -> do
+        putStrLn "Successfully connected to Ogmios"
+        hFlush stdout
+        pure $ Right msg
       Left e -> do
         putStrLn $ "Error : " <> show e
         putStrLn "Waiting for ogmios conection attempt"

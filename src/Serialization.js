@@ -112,6 +112,14 @@ exports._privateKeyFromBytes = maybe => bytes => {
   }
 };
 
+exports._bytesFromPrivateKey = maybe => key => {
+  try {
+    return maybe.just(key.as_bytes());
+  } catch (err) {
+    return maybe.nothing;
+  }
+};
+
 exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>
@@ -135,8 +143,6 @@ exports.costModelSetCost = cm => op => cost => () => cm.set(op, cost);
 exports.newPlutusV1 = () => lib.Language.new_plutus_v1();
 
 exports.newPlutusV2 = () => lib.Language.new_plutus_v2();
-
-exports.newInt32 = x => () => lib.Int.new_i32(x);
 
 exports._hashScriptData = rs => cms => ds => () => {
   const list = lib.PlutusList.new();

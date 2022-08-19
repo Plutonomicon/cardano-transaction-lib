@@ -12,7 +12,11 @@
 module Test.Fixtures
   ( addressString1
   , cip25MetadataFixture1
+  , cip25MetadataFixture2
+  , cip25MetadataFixture3
   , cip25MetadataJsonFixture1
+  , cip25MetadataJsonFixture2
+  , cip25MetadataJsonFixture3
   , currencySymbol1
   , ed25519KeyHashFixture1
   , mkSampleTx
@@ -61,6 +65,7 @@ module Test.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
+  , unsafeMkCip25String
   ) where
 
 import Prelude
@@ -129,14 +134,15 @@ import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
-import Data.NonEmpty ((:|))
 import Data.Set (Set)
 import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
 import Effect (Effect)
-import Metadata.Cip25
+import Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
+import Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
+import Metadata.Cip25.V2
   ( Cip25Metadata(Cip25Metadata)
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
@@ -766,13 +772,14 @@ txBinaryFixture4 =
   \92192da7000119eabb18201a0002ff941a0006ea7818dc0001011a0002ff941a0006ea7818dc\
   \0001011a0011b22c1a0005fdde00021a000c504e197712041a001d6af61a0001425b041a0004\
   \0c660004001a00014fab18201a0003236119032c010119a0de18201a00033d7618201979f418\
-  \20197fb8182019a95d1820197df718201995aa18201a0223accc0a1a009063b91903fd0a1a02\
-  \515e841980b30a1382d81e820101d81e82010114820101158201011601010758200000000000\
-  \00000000000000000000000000000000000000000000000000000008187c09a1581c1d6445dd\
-  \eda578117f393848e685128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e\
-  \81581c1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d533610f011082583900\
-  \30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc3\
-  \5ec2e6f96c650fd3bfba3e96550504d5336100111a004c4b40a0f5f6"
+  \20197fb8182019a95d1820197df718201995aa18201b00000004a817c8001b00000004a817c8\
+  \001a009063b91903fd0a1b00000004a817c800001b00000004a817c8001382d81e820101d81e\
+  \8201011482010115820101160101075820000000000000000000000000000000000000000000\
+  \000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685128f1e78ad0c\
+  \4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6\
+  \f96c650fd3bfba3e96550504d533610f01108258390030fb3b8539951e26f034910a5a37f22c\
+  \b99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5\
+  \336100111a004c4b40a0f5f6"
 
 txBinaryFixture5 :: String
 txBinaryFixture5 =
@@ -1237,33 +1244,35 @@ policyId = MintingPolicyHash scriptHash1
 
 cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
 cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
-  [ { name: "file_name_1"
-    , mediaType: "media_type"
-    , uris: "uri1" :| [ "uri2", "uri3" ]
+  [ { name: unsafeMkCip25String "file_name_1"
+    , mediaType: unsafeMkCip25String "media_type"
+    , src: "uri1"
     }
-  , { name: "file_name_2"
-    , mediaType: "media_type_2"
-    , uris: "uri4" :| [ "uri5", "uri6" ]
+  , { name: unsafeMkCip25String "file_name_2"
+    , mediaType: unsafeMkCip25String "media_type_2"
+    , src: "uri4"
     }
   ]
 
 cip25MetadataEntryFixture1 :: Cip25MetadataEntry
 cip25MetadataEntryFixture1 = Cip25MetadataEntry
   { policyId: policyId
-  , assetName: tokenName1
-  , imageUris: "image_uri1" :| [ "image_uri2", "image_uri3" ]
-  , mediaType: Just "media_type"
-  , description: [ "desc1", "desc2", "desc3" ]
+  , assetName: Cip25TokenName tokenName1
+  , name: unsafeMkCip25String "ItestToken"
+  , image: "image_uri1"
+  , mediaType: Just $ unsafeMkCip25String "media_type"
+  , description: Just "desc1"
   , files: cip25MetadataFilesFixture1
   }
 
 cip25MetadataEntryFixture2 :: Cip25MetadataEntry
 cip25MetadataEntryFixture2 = Cip25MetadataEntry
   { policyId: policyId
-  , assetName: tokenName2
-  , imageUris: "image_uri1" :| []
+  , assetName: Cip25TokenName tokenName2
+  , name: unsafeMkCip25String "TestToken2"
+  , image: "image_uri1"
   , mediaType: Nothing
-  , description: []
+  , description: Nothing
   , files: []
   }
 
@@ -1271,9 +1280,50 @@ cip25MetadataFixture1 :: Cip25Metadata
 cip25MetadataFixture1 = Cip25Metadata
   [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
 
+cip25MetadataFixture2 :: Cip25Metadata
+cip25MetadataFixture2 = Cip25Metadata
+  [ Cip25MetadataEntry
+      { policyId: policyId
+      , assetName: Cip25TokenName tokenName1
+      , name: unsafeMkCip25String "ItestToken"
+      , image: "image_uri1"
+      , mediaType: Nothing
+      , description: Nothing
+      , files: []
+      }
+  ]
+
+cip25MetadataFixture3 :: Cip25Metadata
+cip25MetadataFixture3 = Cip25Metadata
+  [ Cip25MetadataEntry
+      { policyId: policyId
+      , assetName: Cip25TokenName tokenName1
+      , name: unsafeMkCip25String "monkey.jpg"
+      , image:
+          -- checking long strings
+          "https://upload.wikimedia.org/wikipedia/commons/3/35/Olive_baboon_Ngorongoro.jpg?download"
+      , mediaType: Nothing
+      , description: Nothing
+      , files: []
+      }
+  ]
+
+unsafeMkCip25String :: String -> Cip25String
+unsafeMkCip25String str = unsafePartial $ fromJust $ mkCip25String str
+
 cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
   readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+cip25MetadataJsonFixture2 :: Effect Aeson
+cip25MetadataJsonFixture2 =
+  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture2.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+cip25MetadataJsonFixture3 :: Effect Aeson
+cip25MetadataJsonFixture3 =
+  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture3.json" >>=
     pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
 ogmiosEvaluateTxValidRespFixture :: Effect Aeson

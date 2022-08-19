@@ -1,53 +1,31 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main) where
+module Examples.Pkh2Pkh (main, example) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( NetworkId(TestnetId)
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
-import Contract.Monad
-  ( ConfigParams(ConfigParams)
-  , LogLevel(Trace)
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , liftedE
-  , liftedM
-  , logInfo'
-  , mkContractConfig
-  , runContract_
-  )
+import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (launchAff_, liftedE, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
-  ( awaitTxConfirmed
+  ( awaitTxConfirmedWithTimeout
   , balanceAndSignTx
   , submit
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- mkContractConfig $ ConfigParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: {}
-    , wallet
-    }
+main = example testnetNamiConfig
 
-  runContract_ cfg $ do
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.Pkh2Pkh"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
@@ -66,5 +44,6 @@ main = launchAff_ $ do
       liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
-    awaitTxConfirmed txId
+    awaitTxConfirmedWithTimeout (wrap 100.0) txId
     logInfo' $ "Tx submitted successfully!"
+    liftAff $ publishTestFeedback true

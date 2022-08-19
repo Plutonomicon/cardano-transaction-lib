@@ -1,6 +1,7 @@
 -- | Node-only module. Allows to work with Skeys stored in files.
 module Contract.Wallet.KeyFile
   ( mkKeyWalletFromFiles
+  , module Wallet.KeyFile
   ) where
 
 import Prelude
@@ -11,7 +12,12 @@ import Effect.Aff (Aff)
 import Node.Path (FilePath)
 import Wallet (Wallet) as Wallet
 import Wallet (mkKeyWallet)
-import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
+import Wallet.KeyFile
+  ( privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
+  , privatePaymentKeyToFile
+  , privateStakeKeyToFile
+  )
 
 -- | Load `PrivateKey`s from `skey` files (the files should be in JSON format as
 -- | accepted by cardano-cli).

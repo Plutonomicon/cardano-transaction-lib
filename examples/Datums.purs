@@ -15,23 +15,23 @@
 -- |     ```
 -- |   * change the `ps-entrypoint` variable in the Makefile to `Examples.Datums`
 -- |   * `make run-dev` and visit `localhost:4008` in your browser
-module Examples.Datums (main) where
+module Examples.Datums (main, example) where
 
 import Contract.Prelude
 
-import Contract.Monad
-  ( runContract_
-  , launchAff_
-  , logInfo'
-  , traceTestnetContractConfig
-  )
+import Contract.Config (ConfigParams, testnetConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (runContract, launchAff_)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
+import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = example testnetConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ $ do
+  runContract cfg $ do
     logInfo' "Running Examples.Datums"
     logInfo' <<< show =<< getDatumByHash
       ( mkDatumHash
@@ -43,6 +43,7 @@ main = launchAff_ $ do
       , mkDatumHash
           "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
       ]
+  publishTestFeedback true
   where
   mkDatumHash :: String -> DataHash
   mkDatumHash = wrap <<< hexToByteArrayUnsafe

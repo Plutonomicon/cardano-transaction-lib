@@ -4,37 +4,39 @@ module QueryM.Utxos
   , getUtxo
   , getWalletBalance
   , utxosAt
+  , getWalletCollateral
   ) where
 
 import Prelude
 
 import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
-import Control.Monad.Logger.Trans (LoggerT)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
+import Data.Array as Array
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)
 import Data.Foldable (fold, foldr)
 import Data.Map as Map
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap, over)
-import Data.Traversable (for, sequence, traverse)
+import Data.Traversable (for, for_, sequence, traverse)
 import Data.Tuple.Nested (type (/\))
+import Data.UInt as UInt
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers as Helpers
-import Prim.TypeError (class Warn, Text)
-import QueryM (QueryM, getWalletAddress, getWalletCollateral, mkOgmiosRequest)
+import QueryM (QueryM, callCip30Wallet, getWalletAddress, mkOgmiosRequest)
 import QueryM.Ogmios as Ogmios
 import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Gero, Nami, KeyWallet))
+import Wallet (Wallet(Gero, Nami, Flint, KeyWallet))
 
 --------------------------------------------------------------------------------
 -- UtxosAt
@@ -44,15 +46,12 @@ import Wallet (Wallet(Gero, Nami, KeyWallet))
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
 utxosAt
-  :: Warn
-       ( Text
-           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/Plutonomicon/cardano-transaction-lib/issues/536."
-       )
-  => Address
+  :: Address
   -> QueryM (Maybe UtxoM)
-utxosAt = mkUtxoQuery
-  <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
-  <<< addressToOgmiosAddress
+utxosAt address =
+  mkUtxoQuery
+    <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
+    $ addressToOgmiosAddress address
 
 -- | Queries for UTxO given a transaction input.
 getUtxo
@@ -63,13 +62,15 @@ getUtxo ref =
     (_ >>= unwrap >>> Map.lookup ref)
 
 mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoM)
-mkUtxoQuery query = asks _.wallet >>= maybe allUtxosAt utxosAtByWallet
+mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt
+  utxosAtByWallet
   where
   -- Add more wallet types here:
   utxosAtByWallet :: Wallet -> QueryM (Maybe UtxoM)
   utxosAtByWallet = case _ of
     Nami _ -> cip30UtxosAt
     Gero _ -> cip30UtxosAt
+    Flint _ -> cip30UtxosAt
     KeyWallet _ -> allUtxosAt
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
@@ -125,16 +126,17 @@ filterLockedUtxos utxos =
 
 withTxRefsCache
   :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts (LoggerT Aff) a
+   . ReaderT UsedTxOuts Aff a
   -> QueryM a
-withTxRefsCache f = withReaderT (_.usedTxOuts) f
+withTxRefsCache = wrap <<< withReaderT (_.runtime >>> _.usedTxOuts)
 
 getWalletBalance
   :: QueryM (Maybe Value)
 getWalletBalance = do
-  asks _.wallet >>= map join <<< traverse case _ of
+  asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
     Nami wallet -> liftAff $ wallet.getBalance wallet.connection
     Gero wallet -> liftAff $ wallet.getBalance wallet.connection
+    Flint wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
       mbAddress <- getWalletAddress
@@ -142,3 +144,32 @@ getWalletBalance = do
         utxosAt address <#> map
           -- Combine `Value`s
           (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
+
+getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
+getWalletCollateral = do
+  mbCollateralUTxOs <- asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
+    case _ of
+      Nami nami -> liftAff $ callCip30Wallet nami _.getCollateral
+      Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
+      Flint flint -> liftAff $ callCip30Wallet flint _.getCollateral
+      KeyWallet kw -> do
+        networkId <- asks $ _.config >>> _.networkId
+        addr <- liftAff $ (unwrap kw).address networkId
+        utxos <- utxosAt addr <#> map unwrap >>> fromMaybe Map.empty
+          >>= filterLockedUtxos
+        pure $ Array.singleton <$> (unwrap kw).selectCollateral utxos
+  for_ mbCollateralUTxOs \collateralUTxOs -> do
+    pparams <- asks $ _.runtime >>> _.pparams
+    let
+      tooManyCollateralUTxOs =
+        fromMaybe false do
+          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
+          pure $ UInt.fromInt (Array.length collateralUTxOs) >
+            maxCollateralInputs
+    when tooManyCollateralUTxOs do
+      liftEffect $ throw tooManyCollateralUTxOsError
+  pure mbCollateralUTxOs
+  where
+  tooManyCollateralUTxOsError =
+    "Wallet returned too many UTxOs as collateral. This is likely a bug in \
+    \the wallet."
