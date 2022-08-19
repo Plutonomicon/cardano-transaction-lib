@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago run --main Test.Main",
+    "test": "spago run --main Scaffold.Test.Main",
     "dev": "make run-dev",
     "build": "make run-build"
   },

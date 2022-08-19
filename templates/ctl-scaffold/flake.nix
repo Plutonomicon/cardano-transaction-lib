@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "85b5d7e08650a3d1d1de3292bbce45cafaf6ad3a";
+      rev = "8b90e8fa84ebbb529051dfad0cd712f1477742a9";
     };
     nixpkgs.follows = "ctl/nixpkgs";
   };
@@ -28,14 +28,16 @@
         inherit system;
         overlays = [
           ctl.overlays.purescript
-          ctl.overlays.ctl-server
           ctl.overlays.runtime
         ];
       };
-      psProjectFor = pkgs:
-        pkgs.purescriptProject {
-          inherit pkgs;
+      psProjectFor = system:
+        let
           projectName = "ctl-scaffold";
+          pkgs = nixpkgsFor system;
+        in
+        pkgs.purescriptProject {
+          inherit pkgs projectName;
           packageJson = ./package.json;
           packageLock = ./package-lock.json;
           src = builtins.path {
@@ -45,12 +47,9 @@
             filter = path: ftype: !(pkgs.lib.hasSuffix ".md" path);
           };
           shell = {
+            withRuntime = true;
             packageLockOnly = true;
             packages = with pkgs; [
-              ogmios
-              ogmios-datum-cache
-              ctl-server
-              plutip-server
               nodePackages.eslint
               nodePackages.prettier
             ];
@@ -58,35 +57,27 @@
         };
     in
     {
-      packages = perSystem (system:
-        let
-          pkgs = nixpkgsFor system;
-        in
-        {
-          default = self.packages.${system}.ctl-scaffold-bundle-web;
-          ctl-scaffold-bundle-web = (psProjectFor pkgs).bundlePursProject {
-            main = "Scaffold.Main";
-            entrypoint = "index.js";
-          };
-          ctl-scaffold-runtime = pkgs.buildCtlRuntime { };
-        });
+      packages = perSystem (system: {
+        default = self.packages.${system}.ctl-scaffold-bundle-web;
+        ctl-scaffold-bundle-web = (psProjectFor system).bundlePursProject {
+          main = "Scaffold.Main";
+          entrypoint = "index.js";
+        };
+        ctl-scaffold-runtime = (nixpkgsFor system).buildCtlRuntime { };
+      });
 
-      apps = perSystem (system:
-        let
-          pkgs = nixpkgsFor system;
-        in
-        {
-          default = self.apps.${system}.ctl-scaffold-runtime;
-          ctl-scaffold-runtime = pkgs.launchCtlRuntime { };
-          docs = (psProjectFor pkgs).launchSearchablePursDocs { };
-        });
+      apps = perSystem (system: {
+        default = self.apps.${system}.ctl-scaffold-runtime;
+        ctl-scaffold-runtime = (nixpkgsFor system).launchCtlRuntime { };
+        docs = (psProjectFor system).launchSearchablePursDocs { };
+      });
 
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
         {
-          ctl-scaffold-plutip-test = (psProjectFor pkgs).runPlutipTest {
+          ctl-scaffold-plutip-test = (psProjectFor system).runPlutipTest {
             testMain = "Scaffold.Test.Main";
           };
 
@@ -118,12 +109,8 @@
             '';
         });
 
-      devShells = perSystem (system:
-        let
-          pkgs = nixpkgsFor system;
-        in
-        {
-          default = (psProjectFor pkgs).devShell;
-        });
+      devShells = perSystem (system: {
+        default = (psProjectFor system).devShell;
+      });
     };
 }
