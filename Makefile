@@ -63,7 +63,7 @@ check-format: check-explicit-exports
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
 	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
-	@prettier -c ${js-sources}
+	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
 
 e2e-test:
