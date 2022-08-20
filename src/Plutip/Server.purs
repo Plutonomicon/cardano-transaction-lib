@@ -135,15 +135,14 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
           $ withCtlServer
           $ withContractEnv (flip cont wallets)
   where
-  writeAwaitClosedChild :: Aff (ChildProcess /\ Stopped) -> Aff ChildProcess
-  writeAwaitClosedChild aChild = do
-    child /\ stopped <- aChild
+  writeAwaitClosedChild :: ChildProcess /\ Stopped -> Aff ChildProcess
+  writeAwaitClosedChild (child /\ stopped) = do
     liftEffect $ Ref.modify_ (_ <> [ stopped ]) waitersRef
     pure child
 
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
-    bracket (writeAwaitClosedChild $ startPlutipServer plutipCfg)
+    bracket (writeAwaitClosedChild =<< startPlutipServer plutipCfg)
       stopChildProcess <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
@@ -158,24 +157,24 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
     bracket
-      ( writeAwaitClosedChild $ startPostgresServer plutipCfg.postgresConfig
+      ( writeAwaitClosedChild =<< startPostgresServer plutipCfg.postgresConfig
           response
       )
       stopChildProcess <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
-    bracket (writeAwaitClosedChild $ startOgmios plutipCfg response)
+    bracket (writeAwaitClosedChild =<< startOgmios plutipCfg response)
       stopChildProcess <<< const
 
   withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
-    bracket (writeAwaitClosedChild $ startOgmiosDatumCache plutipCfg response)
+    bracket (writeAwaitClosedChild =<< startOgmiosDatumCache plutipCfg response)
       stopChildProcess <<< const
 
   withCtlServer :: Aff a -> Aff a
   withCtlServer =
-    bracket (writeAwaitClosedChild $ startCtlServer plutipCfg)
+    bracket (writeAwaitClosedChild =<< startCtlServer plutipCfg)
       stopChildProcess <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
