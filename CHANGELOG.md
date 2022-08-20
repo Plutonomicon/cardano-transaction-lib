@@ -79,6 +79,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Use `cardano-serialization-lib` for fee calculation, instead of server-side code.
 - `balanceAndSignTx` no longer silently drops error information via `Maybe`. The `Maybe` wrapper is currently maintained for API compatibility, but will be dropped in the future.
 - Made it impossible to write unlawful `EncodeAeson` instances ([#490](https://github.com/Plutonomicon/cardano-transaction-lib/issues/490))
+- `Plutip.Spawn.spawnAndWaitForOutput` output-checking now works on a line basis rather than full data up to that point. This improves compatibility with UTF8 streams. The filter parameter is now lifted to `Aff`, in case users wish to hold state to buffer and check more than a single line, but also `Aff`'s `MonadError` instance replaces the `Cancel` contructor of the `NewOutputAction` datatype ([#918](https://github.com/Plutonomicon/cardano-transaction-lib/pull/918))
 
 ### Removed
 
