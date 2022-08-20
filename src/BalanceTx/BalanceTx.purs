@@ -24,7 +24,17 @@ import BalanceTx.Error
   )
 import BalanceTx.Error
   ( Actual(Actual)
-  , BalanceTxError(..)
+  , BalanceTxError
+      ( CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CouldNotGetWalletAddress
+      , ExUnitsEvaluationFailed
+      , InsufficientTxInputs
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
   , Expected(Expected)
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
