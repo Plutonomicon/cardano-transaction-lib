@@ -52,7 +52,7 @@ run-build:
 
 .ONESHELL:
 check-explicit-exports:
-	@if grep -rn '(\.\.)' ./src ./test ./examples; then
+	@if grep -rn '(\.\.)' ${ps-sources}; then
 		echo "Use explicit imports/exports ^"
 		exit 1
 	else
