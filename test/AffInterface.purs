@@ -2,7 +2,7 @@ module Test.AffInterface (suite) where
 
 import Prelude
 
-import Address (addressToOgmiosAddress, ogmiosAddressToAddress)
+import Address (ogmiosAddressToAddress)
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
 import Control.Monad.Except (throwError)
 import Data.Either (Either(Left, Right))
@@ -27,7 +27,7 @@ import QueryM.SystemStart (getSystemStart)
 import QueryM.Utxos (utxosAt)
 import QueryM.WaitUntilSlot (waitUntilSlot)
 import Serialization.Address (Slot(Slot))
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (shouldSatisfy)
 import TestM (TestPlanM)
 import Types.BigNum (fromInt, add) as BigNum
 import Types.ByteArray (hexToByteArrayUnsafe)
@@ -58,14 +58,8 @@ suite = do
     test "Get ProtocolParameters" testGetProtocolParameters
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
-  -- Test inverse in one direction.
-  group "Address loop" do
-    test "Ogmios Address to Address & back Testnet"
-      $ testFromOgmiosAddress testnet_addr1
-    test "Ogmios Address to Address & back non-Testnet"
-      $ testFromOgmiosAddress addr1
   group "Ogmios error" do
-    test "Ogmios fails with user-freindly message" do
+    test "Ogmios fails with user-friendly message" do
       try testSubmitTxFailure >>= case _ of
         Right _ -> do
           void $ throwError $ error $
@@ -106,12 +100,6 @@ testWaitUntilSlot = do
       waitUntilSlot $ over Slot
         (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
         slot
-
-testFromOgmiosAddress :: OgmiosAddress -> QueryM Unit
-testFromOgmiosAddress testAddr = do
-  case ogmiosAddressToAddress testAddr of
-    Nothing -> throwError $ error "Failed Address loop"
-    Just addr -> addressToOgmiosAddress addr `shouldEqual` testAddr
 
 testGetEraSummaries :: QueryM Unit
 testGetEraSummaries = do

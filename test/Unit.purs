@@ -14,6 +14,7 @@ import Test.Hashing as Hashing
 import Test.Metadata.Cip25 as Cip25
 import Test.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.OgmiosDatumCache as OgmiosDatumCache
+import Test.Ogmios.Address as Ogmios.Address
 import Test.Ogmios.Aeson as Ogmios.Aeson
 import Test.Parser as Parser
 import Test.Plutus.Conversion.Address as Plutus.Conversion.Address
@@ -53,6 +54,7 @@ testPlan = do
   Transaction.suite
   UsedTxOuts.suite
   OgmiosDatumCache.suite
+  Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
