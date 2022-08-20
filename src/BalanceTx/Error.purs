@@ -1,3 +1,6 @@
+-- | Definitions for error types that may arise during transaction balancing,
+-- | along with helpers for parsing and pretty-printing script evaluation errors
+-- | that may be returned from Ogmios when calculating ex units.
 module BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -56,6 +59,7 @@ import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 
+-- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
   = CouldNotConvertScriptOutputToTxInput
   | CouldNotGetCollateral

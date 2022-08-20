@@ -22,7 +22,17 @@ import BalanceTx.Error
   )
 import BalanceTx.Error
   ( Actual(Actual)
-  , BalanceTxError(..)
+  , BalanceTxError
+      ( CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CouldNotGetWalletAddress
+      , ExUnitsEvaluationFailed
+      , InsufficientTxInputs
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
   , Expected(Expected)
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
@@ -87,13 +97,8 @@ import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
 
--- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
--- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
--- multisig but we don't have such functionality ATM.
-
--- | Balances an unbalanced transaction. For submitting a tx via Nami, the
--- | utxo set shouldn't include the collateral which is vital for balancing.
--- | In particular, the transaction inputs must not include the collateral.
+-- | Balances an unbalanced transaction using utxos from the current wallet's
+-- | address.
 balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
@@ -105,7 +110,7 @@ balanceTx unbalancedTx = do
       balanceTxWithAddress address unbalancedTx
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
--- | user's own (while `balanceTx` gets it from the wallet).
+-- | user's own (while `balanceTx` gets it from the attached wallet).
 balanceTxWithAddress
   :: Address
   -> UnattachedUnbalancedTx
