@@ -48,6 +48,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
@@ -68,7 +69,7 @@ import Test.QuickCheck.Gen
 import TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "Plutip UtxoDistribution" do
   distrs <- liftEffect $ randomSample' 5 arbitrary
   for_ distrs $ \distr ->
