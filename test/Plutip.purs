@@ -47,12 +47,15 @@ import Contract.Value as Value
 import Contract.Wallet (withKeyWallet)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
+import Data.Bifoldable (bitraverse_)
 import Data.BigInt as BigInt
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
+import Data.Posix.Signal (Signal(SIGINT))
 import Data.Traversable (traverse_)
+import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
@@ -69,10 +72,10 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Mote (group, test)
+import Node.ChildProcess (kill)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
-  , stopChildProcessAndWait
   , stopPlutipCluster
   )
 import Plutip.Types
@@ -97,7 +100,7 @@ main = launchAff_ do
   Utils.interpretWithConfig
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
-    defaultConfig { timeout = Just $ wrap 6_000.0, exit = false }
+    defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
     suite
 
 config :: PlutipConfig
@@ -138,7 +141,7 @@ suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
-        stopChildProcessAndWait $ const do
+        (bitraverse_ (liftEffect <<< kill SIGINT) identity) $ const do
         startRes <- startPlutipCluster config unit
         startRes `shouldSatisfy` case _ of
           ClusterStartupSuccess _ -> true
@@ -175,7 +178,6 @@ suite = do
           pure unit -- sign, balance, submit, etc.
 
     test "runPlutipContract: Pkh2Pkh" do
-      liftEffect $ Console.log "I'm HERE"
       let
         distribution :: InitialUTxO
         distribution =
@@ -197,12 +199,9 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = mempty
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          liftEffect $ Console.log "AND HERE2"
           bsTx <-
             liftedE $ balanceAndSignTxE ubTx
-          liftEffect $ Console.log "AND HERE3"
           submitAndLog bsTx
-          liftEffect $ Console.log "AND HERE4"
 
     test "runPlutipContract: parallel Pkh2Pkh" do
       let

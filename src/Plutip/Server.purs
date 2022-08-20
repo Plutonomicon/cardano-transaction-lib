@@ -4,7 +4,6 @@ module Plutip.Server
   , startPlutipCluster
   , stopPlutipCluster
   , startPlutipServer
-  , stopChildProcessAndWait
   ) where
 
 import Prelude
@@ -18,8 +17,6 @@ import Contract.Address (NetworkId(MainnetId))
 import Contract.Monad (Contract, ContractEnv(ContractEnv), runContractInEnv)
 import Control.Parallel (parSequence_)
 import Effect.Ref as Ref
-import Effect.Aff.AVar as AVar
-import Effect.AVar as Effect.AVar
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), either)
@@ -30,7 +27,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (for, foldMap)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff
@@ -53,19 +50,18 @@ import Node.ChildProcess
   , defaultSpawnOptions
   , execSync
   , kill
-  , pid
-  , spawn
-  , onClose
   , onExit
   , StdIOBehaviour(Pipe, Ignore)
   , ignore
   , stdout
   )
-import Node.Stream (destroy, end)
+import Node.Stream (destroy)
 import Plutip.PortCheck (isPortAvailable)
 import Plutip.Spawn
   ( NewOutputAction(Success, NextLine)
+  , Stopped
   , spawnAndWaitForOutput
+  , spawn
   )
 import Plutip.Types
   ( class UtxoDistribution
@@ -116,9 +112,9 @@ withPlutipContractEnv plutipCfg distr cont = do
     await
     (withPlutipContractEnv' plutipCfg distr cont)
   where
-    await waitersRef = do
-      waiters <- liftEffect $ Ref.read waitersRef
-      parSequence_ waiters
+  await waitersRef = do
+    waiters <- liftEffect $ Ref.read waitersRef
+    parSequence_ waiters
 
 withPlutipContractEnv'
   :: forall (distr :: Type) (wallets :: Type) (a :: Type)
@@ -139,19 +135,16 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
           $ withCtlServer
           $ withContractEnv (flip cont wallets)
   where
-  writeAwaitClosedChild :: Aff ChildProcess -> Aff ChildProcess
+  writeAwaitClosedChild :: Aff (ChildProcess /\ Stopped) -> Aff ChildProcess
   writeAwaitClosedChild aChild = do
-    child <- aChild
-    closedAVar <- AVar.empty
-    liftEffect $ onClose child $ const do
-       void $ Effect.AVar.tryPut unit closedAVar
-    liftEffect $ Ref.modify_ (_ <> [AVar.read closedAVar]) waitersRef
+    child /\ stopped <- aChild
+    liftEffect $ Ref.modify_ (_ <> [ stopped ]) waitersRef
     pure child
 
   withPlutipServer :: Aff a -> Aff a
   withPlutipServer =
     bracket (writeAwaitClosedChild $ startPlutipServer plutipCfg)
-      (stopChildProcessAndWait) <<< const
+      stopChildProcess <<< const
 
   withPlutipCluster :: (ClusterStartupParameters -> Aff a) -> Aff a
   withPlutipCluster cc = bracket (startPlutipCluster plutipCfg distr)
@@ -164,23 +157,26 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
-    bracket (writeAwaitClosedChild $ startPostgresServer plutipCfg.postgresConfig response)
-      stopChildProcessAndWait <<< const
+    bracket
+      ( writeAwaitClosedChild $ startPostgresServer plutipCfg.postgresConfig
+          response
+      )
+      stopChildProcess <<< const
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
     bracket (writeAwaitClosedChild $ startOgmios plutipCfg response)
-      stopChildProcessAndWait <<< const
+      stopChildProcess <<< const
 
   withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmiosDatumCache response =
     bracket (writeAwaitClosedChild $ startOgmiosDatumCache plutipCfg response)
-      stopChildProcessAndWait <<< const
+      stopChildProcess <<< const
 
   withCtlServer :: Aff a -> Aff a
   withCtlServer =
     bracket (writeAwaitClosedChild $ startCtlServer plutipCfg)
-      stopChildProcessAndWait <<< const
+      stopChildProcess <<< const
 
   withWallets :: ClusterStartupParameters -> (wallets -> Aff a) -> Aff a
   withWallets response cc = case decodeWallets response.privateKeys of
@@ -276,20 +272,22 @@ stopPlutipCluster cfg = do
       )
   either (liftEffect <<< throw <<< show) pure res
 
-startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
+startOgmios
+  :: PlutipConfig -> ClusterStartupParameters -> Aff (ChildProcess /\ Stopped)
 startOgmios cfg params = do
   -- We wait for any output, because CTL-server tries to connect to Ogmios
   -- repeatedly, and we can just wait for CTL-server to connect, instead of
   -- waiting for Ogmios first.
-  child <-
+  child /\ stopped <-
     spawnAndWaitForOutput "ogmios" ogmiosArgs
       (defaultSpawnOptions { stdio = [ Just Ignore, Just Pipe, Just Ignore ] })
       -- defaultSpawnOptions
-      $ const $ pure Success
+      $ const
+      $ pure Success
   liftEffect $ onExit child $ const $ destroy (stdout child)
   -- liftEffect $ 
   -- liftEffect $ end (stdout child)
-  pure child
+  pure $ child /\ stopped
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -303,28 +301,15 @@ startOgmios cfg params = do
     , params.nodeConfigPath
     ]
 
--- TODO Remove
--- | Kill a process and wait for it to stop.
-stopChildProcessAndWait :: ChildProcess -> Aff Unit
-stopChildProcessAndWait child = liftEffect $ kill SIGINT child --sequential $
-  -- (parallel (delay $ Milliseconds 30_000.0) <|> parallel action)
-  -- where
-  -- action :: Aff Unit
-  -- action = makeAff \cont -> do
-  --   log ("Stopping " <> show (pid child))
-  --   --onClose child $ const $ cont $ pure unit
-  --   -- onClose child $ const do
-  --   --    log (show (pid child) <> " stopped")
-  --   --    cont $ pure unit
-  --   kill SIGINT child
-  --   cont
-  --   pure nonCanceler
+-- | Kill a child process
+stopChildProcess :: ChildProcess -> Aff Unit
+stopChildProcess child = liftEffect $ kill SIGINT child
 
-startPlutipServer :: PlutipConfig -> Aff ChildProcess
+startPlutipServer :: PlutipConfig -> Aff (ChildProcess /\ Stopped)
 startPlutipServer cfg = do
-  p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
+  p <- spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     (defaultSpawnOptions { stdio = ignore })
-    -- defaultSpawnOptions
+  -- defaultSpawnOptions
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -335,7 +320,7 @@ startPlutipServer cfg = do
   pure p
 
 startPostgresServer
-  :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
+  :: PostgresConfig -> ClusterStartupParameters -> Aff (ChildProcess /\ Stopped)
 startPostgresServer pgConfig _ = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
@@ -344,7 +329,7 @@ startPostgresServer pgConfig _ = do
     databaseDir = workingDir <> "/postgres/data"
     postgresSocket = workingDir <> "/postgres"
   liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
-  pgChildProcess <- liftEffect $ spawn "postgres"
+  pgChildProcess <- spawn "postgres"
     [ "-D"
     , databaseDir
     , "-p"
@@ -355,7 +340,7 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     (defaultSpawnOptions { stdio = ignore })
-    -- defaultSpawnOptions
+  -- defaultSpawnOptions
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
@@ -389,7 +374,7 @@ startPostgresServer pgConfig _ = do
 startOgmiosDatumCache
   :: PlutipConfig
   -> ClusterStartupParameters
-  -> Aff ChildProcess
+  -> Aff (ChildProcess /\ Stopped)
 startOgmiosDatumCache cfg _params = do
   apiKey <- liftEffect $ uniqueId "token"
   let
@@ -416,7 +401,7 @@ startOgmiosDatumCache cfg _params = do
       , "--use-latest"
       , "--from-origin"
       ]
-  child <-
+  child /\ stopped <-
     spawnAndWaitForOutput "ogmios-datum-cache" arguments
       -- defaultSpawnOptions
       (defaultSpawnOptions { stdio = [ Just Ignore, Just Pipe, Just Ignore ] })
@@ -426,7 +411,7 @@ startOgmiosDatumCache cfg _params = do
           >>> pure
   liftEffect $ onExit child $ const $ destroy (stdout child)
   -- liftEffect $ destroy (stdout child)
-  pure child
+  pure $ child /\ stopped
 
 mkClusterContractEnv
   :: PlutipConfig
@@ -465,7 +450,7 @@ mkClusterContractEnv plutipCfg = do
     , extraConfig: {}
     }
 
-startCtlServer :: PlutipConfig -> Aff ChildProcess
+startCtlServer :: PlutipConfig -> Aff (ChildProcess /\ Stopped)
 startCtlServer cfg = do
   let
     ctlServerArgs =
@@ -476,7 +461,7 @@ startCtlServer cfg = do
       , "--ogmios-port"
       , UInt.toString cfg.ogmiosConfig.port
       ]
-  child <-
+  child /\ stopped <-
     spawnAndWaitForOutput "ctl-server" ctlServerArgs
       (defaultSpawnOptions { stdio = [ Just Ignore, Just Pipe, Just Ignore ] })
       -- defaultSpawnOptions
@@ -486,7 +471,7 @@ startCtlServer cfg = do
           >>> pure
   liftEffect $ onExit child $ const $ destroy (stdout child)
   -- liftEffect $ destroy (stdout child)
-  pure child
+  pure $ child /\ stopped
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
