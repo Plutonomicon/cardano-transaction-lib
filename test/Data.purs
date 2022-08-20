@@ -4,7 +4,6 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
-import Contract.Monad (Aff)
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.BigInt (BigInt)
@@ -21,6 +20,7 @@ import Data.Tuple (Tuple, uncurry)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.PlutusData as PDD
+import Effect.Aff (Aff)
 import Effect.Exception (Error)
 import FromData (class FromData, fromData, genericFromData)
 import Helpers (showWithParens)
@@ -86,7 +86,7 @@ plutusDataRoundtripProperty
 plutusDataRoundtripProperty (_ :: Proxy a) =
   quickCheck \(input :: a) -> fromData (toData input) === Just input
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "PlutusData Aeson representation tests" $ do
     group "Primitives" do
@@ -559,7 +559,7 @@ testBinaryFixture
   => ToData a
   => a
   -> String
-  -> TestPlanM Unit
+  -> TestPlanM (Aff Unit) Unit
 testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
