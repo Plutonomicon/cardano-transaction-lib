@@ -6,7 +6,13 @@ module Test.Plutip
 
 import Prelude
 
-import Contract.Address (getWalletCollateral, ownPaymentPubKeyHash)
+import Contract.Address
+  ( PaymentPubKeyHash
+  , StakePubKeyHash
+  , getWalletCollateral
+  , ownPaymentPubKeyHash
+  , ownStakePubKeyHash
+  )
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -26,10 +32,11 @@ import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy, validatorHash)
 import Contract.Test.Plutip
-  ( InitialUTxO
+  ( InitialUTxOs
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
+  , withStakeKey
   )
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -42,14 +49,13 @@ import Contract.Transaction
   , withBalancedAndSignedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName)
+import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
-import Contract.Wallet (withKeyWallet)
+import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
 import Data.Bifoldable (bitraverse_)
 import Data.BigInt as BigInt
-import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -57,7 +63,6 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.Traversable (traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (launchAff_, bracket)
 import Effect.Class (liftEffect)
@@ -78,16 +83,15 @@ import Plutip.Server
   , startPlutipServer
   , stopPlutipCluster
   )
-import Plutip.Types
-  ( PlutipConfig
-  , StartClusterResponse(ClusterStartupSuccess)
-  , StopClusterResponse(StopClusterSuccess)
-  )
+import Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Plutus.Types.Value (lovelaceValueOf)
+import Test.Plutip.Common (config, privateStakeKey)
+import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -101,40 +105,9 @@ main = launchAff_ do
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
     defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
-    suite
-
-config :: PlutipConfig
-config =
-  { host: "127.0.0.1"
-  , port: UInt.fromInt 8082
-  , logLevel: Trace
-  -- Server configs are used to deploy the corresponding services.
-  , ogmiosConfig:
-      { port: UInt.fromInt 1338
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , ogmiosDatumCacheConfig:
-      { port: UInt.fromInt 10000
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , ctlServerConfig:
-      { port: UInt.fromInt 8083
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , postgresConfig:
-      { host: "127.0.0.1"
-      , port: UInt.fromInt 5433
-      , user: "ctxlib"
-      , password: "ctxlib"
-      , dbname: "ctxlib"
-      }
-  }
+    do
+      suite
+      UtxoDistribution.suite
 
 suite :: TestPlanM Unit
 suite = do
@@ -143,10 +116,7 @@ suite = do
       bracket (startPlutipServer config)
         (bitraverse_ (liftEffect <<< kill SIGINT) identity) $ const do
         startRes <- startPlutipCluster config unit
-        startRes `shouldSatisfy` case _ of
-          ClusterStartupSuccess _ -> true
-          _ -> false
-        liftEffect $ Console.log $ "startPlutipCluster: " <> show startRes
+        liftEffect $ Console.log $ "startPlutipCluster: " <> show (snd startRes)
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
           StopClusterSuccess -> true
@@ -155,7 +125,7 @@ suite = do
 
     test "runPlutipContract" do
       let
-        distribution :: InitialUTxO /\ InitialUTxO
+        distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
@@ -179,83 +149,78 @@ suite = do
 
     test "runPlutipContract: Pkh2Pkh" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
-          pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-          let
-            constraints :: Constraints.TxConstraints Void Void
-            -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
-            -- does not provide stake keys).
-            constraints = Constraints.mustPayToPubKey pkh
-              $ Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+        checkUtxoDistribution distribution alice
+        withKeyWallet alice $ pkh2PkhContract alice
 
-            lookups :: Lookups.ScriptLookups Void
-            lookups = mempty
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
-          submitAndLog bsTx
+    test "runPlutipContract: Pkh2Pkh with stake key" do
+      let
+        aliceUtxos =
+          [ BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+        distribution = withStakeKey privateStakeKey aliceUtxos
+
+      runPlutipContract config distribution \alice -> do
+        checkUtxoDistribution distribution alice
+        withKeyWallet alice $ pkh2PkhContract alice
 
     test "runPlutipContract: parallel Pkh2Pkh" do
       let
-        distribution :: InitialUTxO /\ InitialUTxO
-        distribution =
+        aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
-          ] /\
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
-            ]
-      withPlutipContractEnv config distribution \env (alice /\ bob) ->
-        sequential ado
-          parallel $ runContractInEnv env $ withKeyWallet alice do
-            bobPkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-              ownPaymentPubKeyHash
-            let
-              constraints :: Constraints.TxConstraints Void Void
-              -- In real contracts, library users most likely want to use
-              -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
-              -- does not provide stake keys).
-              constraints = Constraints.mustPayToPubKey bobPkh
-                $ Value.lovelaceValueOf
-                $ BigInt.fromInt 2_000_000
+          ]
+        bobUtxos =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
-            submitAndLog bsTx
-          parallel $ runContractInEnv env $ withKeyWallet bob do
-            alicePkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-              ownPaymentPubKeyHash
-            let
-              constraints :: Constraints.TxConstraints Void Void
-              -- In real contracts, library users most likely want to use
-              -- `mustPayToPubKeyAddress` (we're not doing that because Plutip
-              -- does not provide stake keys).
-              constraints = Constraints.mustPayToPubKey alicePkh
-                $ Value.lovelaceValueOf
-                $ BigInt.fromInt 2_000_000
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution = aliceUtxos /\ bobUtxos
+      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+        do
+          runContractInEnv env $
+            checkUtxoDistribution distribution wallets
+          sequential ado
+            parallel $ runContractInEnv env $ withKeyWallet alice $
+              pkh2PkhContract bob
+            parallel $ runContractInEnv env $ withKeyWallet bob $
+              pkh2PkhContract alice
+            in unit
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
-            submitAndLog bsTx
-          in unit
+    test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
+      let
+        aliceUtxos =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+        bobUtxos =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+        distribution =
+          withStakeKey privateStakeKey aliceUtxos
+            /\ withStakeKey privateStakeKey bobUtxos
+      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+        do
+          runContractInEnv env $
+            checkUtxoDistribution distribution wallets
+          sequential ado
+            parallel $ runContractInEnv env $ withKeyWallet alice $
+              pkh2PkhContract bob
+            parallel $ runContractInEnv env $ withKeyWallet bob $
+              pkh2PkhContract alice
+            in unit
 
     test "runPlutipContract: AlwaysMints" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -302,7 +267,7 @@ suite = do
 
     test "runPlutipContract: MintsMultipleTokens" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -342,45 +307,29 @@ suite = do
 
     test "runPlutipContract: SignMultiple" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 100_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
-          pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-          let
-            constraints :: Constraints.TxConstraints Void Void
-            -- In real contracts, library users most likely want to use
-            -- `mustPayToPubKeyAddres` (we're not doing that because Plutip
-            -- does not provide stake keys).
-            constraints = Constraints.mustPayToPubKey pkh
-              $ Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+        checkUtxoDistribution distribution alice
+        withKeyWallet alice signMultipleContract
 
-            lookups :: Lookups.ScriptLookups Void
-            lookups = mempty
-
-          ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-
-          withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
-            locked <- getLockedInputs
-            logInfo' $ "Locked inputs inside bracket (should be nonempty): " <>
-              show
-                locked
-            traverse_ submitAndLog txs
-
-          locked <- getLockedInputs
-          logInfo' $ "Locked inputs after bracket (should be empty): " <> show
-            locked
-          unless (locked # Map.isEmpty) do
-            liftEffect $ throw "locked inputs map is not empty"
+    test "runPlutipContract: SignMultiple with stake key" do
+      let
+        aliceUtxos =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 100_000_000
+          ]
+        distribution = withStakeKey privateStakeKey aliceUtxos
+      runPlutipContract config distribution \alice -> do
+        checkUtxoDistribution distribution alice
+        withKeyWallet alice signMultipleContract
 
     test "runPlutipContract: AlwaysSucceeds" do
       let
-        distribution :: InitialUTxO
+        distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
           , BigInt.fromInt 2_000_000_000
@@ -395,6 +344,52 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
+signMultipleContract :: forall (r :: Row Type). Contract r Unit
+signMultipleContract = do
+  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+  stakePkh <- ownStakePubKeyHash
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = mempty
+
+  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+
+  withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+    locked <- getLockedInputs
+    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+      <> show locked
+    traverse_ submitAndLog txs
+
+  locked <- getLockedInputs
+  logInfo' $ "Locked inputs after bracket (should be empty): "
+    <> show locked
+  unless (locked # Map.isEmpty) do
+    liftEffect $ throw "locked inputs map is not empty"
+
+pkh2PkhContract :: forall (r :: Row Type). KeyWallet -> Contract r Unit
+pkh2PkhContract payToWallet = do
+  pkh <- liftedM "Failed to get PKH" $ withKeyWallet payToWallet
+    ownPaymentPubKeyHash
+  stakePkh <- withKeyWallet payToWallet ownStakePubKeyHash
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = mempty
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  bsTx <-
+    liftedE $ balanceAndSignTxE ubTx
+  submitAndLog bsTx
 
 submitAndLog
   :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
@@ -427,3 +422,13 @@ mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
   cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
+
+mustPayToPubKeyStakeAddress
+  :: forall (o :: Type) (i :: Type)
+   . PaymentPubKeyHash
+  -> Maybe StakePubKeyHash
+  -> Value
+  -> Constraints.TxConstraints i o
+mustPayToPubKeyStakeAddress pkh Nothing = Constraints.mustPayToPubKey pkh
+mustPayToPubKeyStakeAddress pkh (Just stk) =
+  Constraints.mustPayToPubKeyAddress pkh stk

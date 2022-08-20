@@ -61,7 +61,7 @@ To develop locally, you can use one the CTL flake to launch all required service
   - `make run-build` _or_ `npm run build` will output a Webpack-bundled example module to `dist`
   - `nix build -L .#ctl-example-bundle-web` will build an example module using Nix and Webpack
 
-By default, Webpack will build a [small Purescript example](examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
+By default, Webpack will build a [small Purescript example](/examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](./runtime#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 
