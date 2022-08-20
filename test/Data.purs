@@ -4,7 +4,6 @@ module Test.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
-import Contract.Monad (Aff)
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.BigInt (BigInt)
