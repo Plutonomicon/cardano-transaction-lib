@@ -1,8 +1,8 @@
 module BalanceTx
   ( module BalanceTxErrorExport
+  , module FinalizedTransaction
   , balanceTx
   , balanceTxWithAddress
-  , FinalizedTransaction(FinalizedTransaction)
   ) where
 
 import Prelude
@@ -14,9 +14,7 @@ import BalanceTx.Error
       , CouldNotGetCollateral
       , CouldNotGetUtxos
       , CouldNotGetWalletAddress
-      , ExUnitsEvaluationFailed
       , InsufficientTxInputs
-      , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
       )
@@ -28,10 +26,19 @@ import BalanceTx.Error
   , Expected(Expected)
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
+import BalanceTx.ExUnitsAndMinFee (evalExUnitsAndMinFee, finalizeTransaction)
+import BalanceTx.Helpers (_body', _redeemersTxIns, _transaction', _unbalancedTx)
+import BalanceTx.Types
+  ( BalanceTxM
+  , FinalizedTransaction
+  , PrebalancedTransaction(PrebalancedTransaction)
+  )
+import BalanceTx.Types
+  ( FinalizedTransaction(FinalizedTransaction)
+  ) as FinalizedTransaction
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
-  , Transaction(Transaction)
+  ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxos
@@ -42,9 +49,6 @@ import Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
-  , _plutusData
-  , _redeemers
-  , _witnessSet
   )
 import Cardano.Types.Value
   ( Coin(Coin)
@@ -61,191 +65,28 @@ import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
-import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable (foldl, foldMap)
-import Data.Generic.Rep (class Generic)
-import Data.Lens (Lens', lens')
 import Data.Lens.Getter ((^.))
-import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse, traverse_)
-import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (class MonadEffect, liftEffect)
-import QueryM (QueryM, QueryMExtended)
-import QueryM (evaluateTxOgmios, getWalletAddress) as QueryM
-import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
+import Effect.Class (class MonadEffect)
+import QueryM (QueryM)
+import QueryM (getWalletAddress) as QueryM
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
-import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
-import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
-import Transaction (setScriptDataHash)
-import Types.Natural (toBigInt) as Natural
-import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
-import Types.UnbalancedTransaction (UnbalancedTx, _transaction, _utxoIndex)
-import Untagged.Union (asOneOf)
+import Types.UnbalancedTransaction (_utxoIndex)
 
-type BalanceTxM (a :: Type) = ExceptT BalanceTxError (QueryMExtended ()) a
-
---------------------------------------------------------------------------------
--- Evaluation of fees and execution units, Updating redeemers
---------------------------------------------------------------------------------
-
-evalTxExecutionUnits
-  :: Transaction
-  -> UnattachedUnbalancedTx
-  -> BalanceTxM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx unattachedTx = do
-  txBytes <- liftEffect
-    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-        Serialization.convertTransaction tx
-    )
-  ExceptT $ QueryM.evaluateTxOgmios txBytes
-    <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
-
--- Calculates the execution units needed for each script in the transaction
--- and the minimum fee, including the script fees.
--- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
--- the minimum fee.
-evalExUnitsAndMinFee
-  :: UnattachedUnbalancedTx -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
-evalExUnitsAndMinFee unattachedTx = do
-  -- Reindex `Spent` script redeemers:
-  reindexedUnattachedTx <-
-    ExceptT $ reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
-  -- Reattach datums and redeemers before evaluating ex units:
-  let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
-  -- Evaluate transaction ex units:
-  rdmrPtrExUnitsList <- evalTxExecutionUnits attachedTx reindexedUnattachedTx
-  let
-    -- Set execution units received from the server:
-    reindexedUnattachedTxWithExUnits =
-      updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
-  -- Attach datums and redeemers, set the script integrity hash:
-  FinalizedTransaction finalizedTx <- lift $
-    finalizeTransaction reindexedUnattachedTxWithExUnits
-  -- Calculate the minimum fee for a transaction:
-  minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
-  pure $ reindexedUnattachedTxWithExUnits /\ minFee
-
-newtype FinalizedTransaction = FinalizedTransaction Transaction
-
-derive instance Generic FinalizedTransaction _
-derive instance Newtype FinalizedTransaction _
-derive newtype instance Eq FinalizedTransaction
-
-instance Show FinalizedTransaction where
-  show = genericShow
-
--- | Attaches datums and redeemers, sets the script integrity hash,
--- | for use after reindexing.
-finalizeTransaction
-  :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
-finalizeTransaction reindexedUnattachedTxWithExUnits =
-  let
-    attachedTxWithExUnits =
-      reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
-    ws = attachedTxWithExUnits ^. _witnessSet # unwrap
-    redeemers = fromMaybe mempty ws.redeemers
-    datums = wrap <$> fromMaybe mempty ws.plutusData
-  in
-    do
-      costModels <- asks (_.runtime >>> _.pparams >>> unwrap >>> _.costModels)
-      liftEffect $ FinalizedTransaction <$>
-        setScriptDataHash costModels redeemers datums attachedTxWithExUnits
-
-reindexRedeemers
-  :: UnattachedUnbalancedTx
-  -> QueryM (Either ReindexErrors UnattachedUnbalancedTx)
-reindexRedeemers
-  unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
-  let
-    inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
-  in
-    reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
-      map \redeemersTxInsReindexed ->
-        unattachedTx # _redeemersTxIns .~ redeemersTxInsReindexed
-
--- | Reattaches datums and redeemers to the transaction.
-reattachDatumsAndRedeemers :: UnattachedUnbalancedTx -> Transaction
-reattachDatumsAndRedeemers
-  (UnattachedUnbalancedTx { unbalancedTx, datums, redeemersTxIns }) =
-  let
-    transaction = unbalancedTx ^. _transaction
-  in
-    transaction # _witnessSet <<< _plutusData ?~ map unwrap datums
-      # _witnessSet <<< _redeemers ?~ map fst redeemersTxIns
-
-updateTxExecutionUnits
-  :: UnattachedUnbalancedTx
-  -> Ogmios.TxEvaluationResult
-  -> UnattachedUnbalancedTx
-updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList =
-  unattachedTx #
-    _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnitsList
-
-setRdmrsExecutionUnits
-  :: Array (Redeemer /\ Maybe TransactionInput)
-  -> Ogmios.TxEvaluationResult
-  -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs (Ogmios.TxEvaluationResult xxs) =
-  case Array.uncons (Map.toUnfoldable xxs) of
-    Nothing -> rs
-    Just { head: ptr /\ exUnits, tail: xs } ->
-      let
-        xsWrapped = Ogmios.TxEvaluationResult (Map.fromFoldable xs)
-        ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
-          rdmr.tag == ptr.redeemerTag
-            && rdmr.index == Natural.toBigInt ptr.redeemerIndex
-      in
-        ixMaybe # maybe (setRdmrsExecutionUnits rs xsWrapped) \ix ->
-          flip setRdmrsExecutionUnits xsWrapped $
-            rs # Lens.ix ix %~ \(Redeemer rec /\ txOutRef) ->
-              let
-                mem = Natural.toBigInt exUnits.memory
-                steps = Natural.toBigInt exUnits.steps
-              in
-                Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
-
---------------------------------------------------------------------------------
--- `UnattachedUnbalancedTx` Lenses
---------------------------------------------------------------------------------
-
-_unbalancedTx :: Lens' UnattachedUnbalancedTx UnbalancedTx
-_unbalancedTx = lens' \(UnattachedUnbalancedTx rec@{ unbalancedTx }) ->
-  unbalancedTx /\
-    \ubTx -> UnattachedUnbalancedTx rec { unbalancedTx = ubTx }
-
-_transaction' :: Lens' UnattachedUnbalancedTx Transaction
-_transaction' = lens' \unattachedTx ->
-  unattachedTx ^. _unbalancedTx <<< _transaction /\
-    \tx -> unattachedTx # _unbalancedTx %~ (_transaction .~ tx)
-
-_body' :: Lens' UnattachedUnbalancedTx TxBody
-_body' = lens' \unattachedTx ->
-  unattachedTx ^. _transaction' <<< _body /\
-    \txBody -> unattachedTx # _transaction' %~ (_body .~ txBody)
-
-_redeemersTxIns
-  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TransactionInput))
-_redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
-  redeemersTxIns /\
-    \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
-
---------------------------------------------------------------------------------
--- Balancing functions and helpers
---------------------------------------------------------------------------------
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L54
 -- FIX ME: UnbalancedTx contains requiredSignatories which would be a part of
 -- multisig but we don't have such functionality ATM.
@@ -436,9 +277,9 @@ buildTransactionChangeOutput changeAddress utxos tx =
       { address: changeAddress, amount: changeValue, dataHash: Nothing }
 
 addTransactionChangeOutput
-  :: ChangeAddress -> Utxos -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
+  :: ChangeAddress -> Utxos -> UnattachedUnbalancedTx -> PrebalancedTransaction
 addTransactionChangeOutput changeAddress utxos unbalancedTx =
-  unbalancedTx # _body' <<< _outputs %~
+  PrebalancedTransaction $ unbalancedTx # _body' <<< _outputs %~
     Array.cons (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
 -- | Selects a combination of unspent transaction outputs from the wallet's 
