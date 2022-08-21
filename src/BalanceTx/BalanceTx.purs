@@ -14,19 +14,6 @@ import BalanceTx.Error
       , CouldNotGetCollateral
       , CouldNotGetUtxos
       , CouldNotGetWalletAddress
-      , InsufficientTxInputs
-      , UtxoLookupFailedFor
-      , UtxoMinAdaValueCalculationFailed
-      )
-  , Expected(Expected)
-  )
-import BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetCollateral
-      , CouldNotGetUtxos
-      , CouldNotGetWalletAddress
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
       , ReindexRedeemersError
@@ -36,6 +23,19 @@ import BalanceTx.Error
   , Expected(Expected)
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
+import BalanceTx.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CouldNotGetWalletAddress
+      , InsufficientTxInputs
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  )
 import BalanceTx.ExUnitsAndMinFee (evalExUnitsAndMinFee, finalizeTransaction)
 import BalanceTx.Helpers (_body', _redeemersTxIns, _transaction', _unbalancedTx)
 import BalanceTx.Types
@@ -43,9 +43,7 @@ import BalanceTx.Types
   , FinalizedTransaction
   , PrebalancedTransaction(PrebalancedTransaction)
   )
-import BalanceTx.Types
-  ( FinalizedTransaction(FinalizedTransaction)
-  ) as FinalizedTransaction
+import BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
@@ -76,6 +74,7 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
+import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
@@ -83,7 +82,7 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -92,7 +91,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import QueryM (QueryM)
-import QueryM (getWalletAddress) as QueryM
+import QueryM (getWalletAddresses) as QueryM
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.ScriptLookups (UnattachedUnbalancedTx)
@@ -105,7 +104,7 @@ balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx unbalancedTx = do
-  QueryM.getWalletAddress >>= case _ of
+  QueryM.getWalletAddresses >>= case _ of
     Nothing ->
       pure $ Left CouldNotGetWalletAddress
     Just address ->
@@ -117,9 +116,12 @@ balanceTxWithAddress
   :: Array Address
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
-  utxos <- ExceptT $ utxosAt ownAddr
-    <#> note CouldNotGetUtxos >>> map unwrap
+balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
+  utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
+    ( traverse (note CouldNotGetUtxos >>> map unwrap) --Maybe -> Either and unwrap UtxoM
+
+        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+    )
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -140,8 +142,10 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
 
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
+  changeAddr <- ExceptT $ pure $ note CouldNotGetWalletAddress $ head ownAddrs
+
   -- Balance and finalize the transaction: 
-  ExceptT $ runBalancer availableUtxos ownAddr
+  ExceptT $ runBalancer availableUtxos changeAddr
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
