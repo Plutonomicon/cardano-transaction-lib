@@ -65,11 +65,11 @@ transactionInputToTxOutRef
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
   :: Ogmios.OgmiosTxOut -> Maybe Transaction.TransactionOutput
-ogmiosTxOutToTransactionOutput { address, value, datum } = do
+ogmiosTxOutToTransactionOutput { address, value, datumHash } = do
   address' <- ogmiosAddressToAddress address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
   -- and capture failure if we can't hash.
-  dataHash <- traverse ogmiosDatumHashToDatumHash datum
+  dataHash <- traverse ogmiosDatumHashToDatumHash datumHash
   pure $ wrap
     { address: address'
     , amount: value
@@ -86,12 +86,12 @@ transactionOutputToOgmiosTxOut
   (Transaction.TransactionOutput { address, amount: value, datum }) =
   { address: addressToOgmiosAddress address
   , value
-  , datum: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
+  , datumHash: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
   }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
 ogmiosTxOutToScriptOutput :: Ogmios.OgmiosTxOut -> Maybe UTx.ScriptOutput
-ogmiosTxOutToScriptOutput { address, value, datum: Just dHash } = do
+ogmiosTxOutToScriptOutput { address, value, datumHash: Just dHash } = do
   address' <- ogmiosAddressToAddress address
   validatorHash <- enterpriseAddressValidatorHash address'
   datumHash <- ogmiosDatumHashToDatumHash dHash
@@ -100,7 +100,7 @@ ogmiosTxOutToScriptOutput { address, value, datum: Just dHash } = do
     , value
     , datumHash
     }
-ogmiosTxOutToScriptOutput { datum: Nothing } = Nothing
+ogmiosTxOutToScriptOutput { datumHash: Nothing } = Nothing
 
 -- | Converts an `ScriptOutput` to Ogmios Transaction output.
 scriptOutputToOgmiosTxOut
@@ -112,7 +112,7 @@ scriptOutputToOgmiosTxOut
       addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId
         validatorHash
   , value
-  , datum: pure (datumHashToOgmiosDatumHash datumHash)
+  , datumHash: pure (datumHashToOgmiosDatumHash datumHash)
   }
 
 -- | Converts an internal transaction output to `ScriptOutput`.
