@@ -11,6 +11,7 @@ import Data.Newtype (unwrap)
 import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
+import Effect.Aff (Aff)
 import Mote (test, group)
 import Partial.Unsafe (unsafePartial)
 import Test.Fixtures
@@ -93,7 +94,7 @@ buildSampleTransaction =
     , unusedTxOutRefs: unwrap <$> unusedTxOutRefs
     }
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "UsedTxOuts API tests" do
 
