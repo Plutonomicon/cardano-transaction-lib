@@ -21,6 +21,7 @@ import Contract.Monad
   , liftContractM
   , liftedE
   , liftedM
+  , wrapContract
   )
 import Contract.PlutusData
   ( PlutusData(Integer)
@@ -64,7 +65,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (launchAff_, bracket)
+import Effect.Aff (Aff, launchAff_, bracket)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (throw)
@@ -77,6 +78,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Mote (group, test)
+import Mote.Monad (mapTest)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -89,6 +91,7 @@ import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Plutus.Types.Value (lovelaceValueOf)
+import Test.AffInterface as AffInterface
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
@@ -110,7 +113,7 @@ main = launchAff_ do
       suite
       UtxoDistribution.suite
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutip" do
     test "startPlutipCluster / stopPlutipCluster" do
@@ -123,6 +126,9 @@ suite = do
           StopClusterSuccess -> true
           _ -> false
         liftEffect $ Console.log $ "stopPlutipCluster: " <> show stopRes
+
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
 
     test "runPlutipContract" do
       let

@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Maybe (isJust)
 import Data.Traversable (for_)
+import Effect.Aff (Aff)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Utils (toFromAesonTest)
@@ -11,7 +12,7 @@ import TestM (TestPlanM)
 import Types.ByteArray (hexToByteArrayUnsafe)
 import Types.TokenName (mkTokenName)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Types.TokenName" $ do
     group "Aeson tests" $ do

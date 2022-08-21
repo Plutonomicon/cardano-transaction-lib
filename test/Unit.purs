@@ -3,7 +3,9 @@ module Ctl.Test.Unit (main, testPlan) where
 import Prelude
 
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
+import Effect.Class (liftEffect)
+import Mote.Monad (mapTest)
 import Test.Base64 as Base64
 import Test.ByteArray as ByteArray
 import Test.Data as Data
@@ -12,6 +14,7 @@ import Test.Hashing as Hashing
 import Test.Metadata.Cip25 as Cip25
 import Test.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.OgmiosDatumCache as OgmiosDatumCache
+import Test.Ogmios.Address as Ogmios.Address
 import Test.Ogmios.Aeson as Ogmios.Aeson
 import Test.Parser as Parser
 import Test.Plutus.Conversion.Address as Plutus.Conversion.Address
@@ -22,6 +25,7 @@ import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import Test.Types.TokenName as Types.TokenName
+import Test.Types.Interval as Types.Interval
 import Test.Transaction as Transaction
 import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
@@ -32,7 +36,7 @@ main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan
 
-testPlan :: TestPlanM Unit
+testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
   Base64.suite
   ByteArray.suite
@@ -50,7 +54,12 @@ testPlan = do
   Transaction.suite
   UsedTxOuts.suite
   OgmiosDatumCache.suite
+  Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Types.TokenName.suite
+  flip mapTest Types.Interval.suite \f -> liftEffect $ join $
+    f <$> Types.Interval.eraSummariesFixture
+      <*> Types.Interval.systemStartFixture
+

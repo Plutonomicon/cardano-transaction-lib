@@ -144,7 +144,7 @@ printEvaluateTxFailures = launchAff_ do
           )
       )
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do
   group "Slot length encode/decode" do
     group "Slot length string format" $

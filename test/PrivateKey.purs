@@ -17,6 +17,7 @@ import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Node.FS.Sync (unlink)
@@ -37,7 +38,7 @@ import Wallet.KeyFile
   , privateStakeKeyToFile
   )
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "PrivateKey" $ do
     test "privateKeyFromFile" do

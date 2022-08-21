@@ -8,6 +8,7 @@ import Prelude
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
 import Data.Traversable (for_)
+import Effect.Aff (Aff)
 import Mote (group)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.Credential (Credential(ScriptCredential, PubKeyCredential))
@@ -16,7 +17,7 @@ import Test.Utils (toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutus.Types.Credential" $ do
     group "Aeson tests" $ do
