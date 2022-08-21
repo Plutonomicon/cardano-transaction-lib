@@ -87,6 +87,7 @@ import Cardano.Types.Value
   , valueToCoin
   , valueToCoin'
   )
+import Contract.Log (logInfo')
 import Contract.Prelude (foldr)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
@@ -632,11 +633,15 @@ balanceTxWithAddress
       $ head ownAddrs
 
     -- Get own wallet address, collateral and utxo set:
-    utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
-      ( traverse (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap) --Maybe -> Either and unwrap UtxoM
+    utxos <-
+      ExceptT $ traverse utxosAt ownAddrs <#>
+        ( traverse (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap) --Maybe -> Either and unwrap UtxoM
 
-          >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
-      )
+            >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+        )
+
+    logInfo' $ "utxos: " <> show utxos
+    -- ExceptT $ utxosAt ownAddr <#> (note (UtxosAtError' CouldNotGetUtxos) >>> map unwrap)
 
     -- After adding collateral, we need to balance the inputs and
     -- non-Ada outputs before looping, i.e. we need to add input fees
@@ -774,7 +779,9 @@ balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx tx = do
-  QueryM.getWalletAddresses >>= case _ of
+  addrs <- QueryM.getWalletAddresses
+  logInfo' $ "get addrs: " <> show addrs
+  case addrs of
     Nothing -> pure $ Left $ GetWalletAddressError' CouldNotGetWalletAddress
     Just addresses -> balanceTxWithAddress addresses tx
 

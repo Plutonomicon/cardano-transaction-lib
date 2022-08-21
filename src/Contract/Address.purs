@@ -6,7 +6,7 @@ module Contract.Address
   , getNetworkId
   , addressWithNetworkTagToBech32
   , addressToBech32
-  , getWalletAddress
+  , getWalletAddresses
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
@@ -40,6 +40,7 @@ import Address
   , getNetworkId
   ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
+import Contract.Prelude (sequence)
 import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
@@ -114,16 +115,25 @@ import Types.UnbalancedTransaction
   ) as ExportUnbalancedTransaction
 
 -- | Get the `Address` of the browser wallet.
-getWalletAddress
-  :: forall (r :: Row Type). Contract r (Maybe Address)
-getWalletAddress = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddresses
+getWalletAddresses
+  :: forall (r :: Row Type). Contract r (Maybe (Array Address))
+getWalletAddresses = do
+  mbAddrs <- wrapContract $ QueryM.getWalletAddresses
   -- TODO: change this to Maybe (Array Address)
-  for (mbAddr >>= head) $
-    liftedM "getWalletAddress: failed to deserialize Address"
-      <<< wrapContract
-      <<< pure
-      <<< toPlutusAddress
+  for mbAddrs \addrs ->
+    ( for addrs
+        ( liftedM "getWalletAddress: failed to deserialize Address"
+            <<< wrapContract
+            <<< pure
+            <<< toPlutusAddress
+        )
+    )
+
+{- for mbAddrs $
+liftedM "getWalletAddress: failed to deserialize Address"
+  <<< wrapContract
+  <<< pure
+  <<< toPlutusAddress -}
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.

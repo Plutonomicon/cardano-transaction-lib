@@ -12,7 +12,7 @@ module Contract.Wallet
 
 import Prelude
 
-import Contract.Address (getWalletAddress, getWalletCollateral)
+import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv)
 import Control.Monad.Reader (local)
 import Data.Lens (Lens, (.~))

@@ -14,7 +14,7 @@ import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddress
+  , getWalletAddresses
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   , payPubKeyHashEnterpriseAddress
@@ -34,6 +34,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
+import Data.Array (head)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
@@ -145,7 +146,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   unless (null walletsInfo) do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
     ourAddr <- liftedM "Could not get our address"
-      $ withKeyWallet ourWallet getWalletAddress
+      $ withKeyWallet ourWallet (getWalletAddresses <#> (_ >>= head))
     ourUtxos <- liftedM "Could not find our utxos"
       $ utxosAt ourAddr
     ourPkh <- liftedM "Could not get our payment pkh"

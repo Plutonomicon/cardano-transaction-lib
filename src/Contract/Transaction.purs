@@ -111,7 +111,7 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
-import Contract.Address (getWalletAddress)
+import Contract.Address (getWalletAddresses)
 import Contract.Monad
   ( Contract
   , liftedE
@@ -438,12 +438,12 @@ balanceTxs
   -> Contract r (t FinalizedTransaction)
 balanceTxs unbalancedTxs = do
   -- TODO: change to take array of addrs addrs
-  mbOwnAddress <- getWalletAddress <#> map singleton
-  case mbOwnAddress of
+  mbOwnAddrs <- getWalletAddresses
+  case mbOwnAddrs of
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"
-    Just ownAddress ->
-      balanceTxsWithAddress ownAddress unbalancedTxs
+    Just ownAddrs ->
+      balanceTxsWithAddress ownAddrs unbalancedTxs
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM

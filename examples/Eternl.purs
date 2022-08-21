@@ -10,7 +10,7 @@ module Examples.Eternl (main) where
 
 import Contract.Prelude
 
-import Contract.Address (getWalletAddress, getWalletCollateral)
+import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Config (testnetEternlConfig)
 import Contract.Monad (launchAff_, runContract)
 import Contract.Test.E2E (publishTestFeedback)
@@ -19,7 +19,7 @@ import Contract.Utxos (getWalletBalance)
 main :: Effect Unit
 main = launchAff_ do
   runContract testnetEternlConfig do
-    log <<< show =<< getWalletAddress
+    log <<< show =<< getWalletAddresses
     log <<< show =<< getWalletCollateral
     log <<< show =<< getWalletBalance
   publishTestFeedback true
