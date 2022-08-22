@@ -66,7 +66,6 @@ import Control.Parallel (parallel, sequential)
 import Data.Array (find)
 import Data.BigInt as BigInt
 import Data.Foldable (foldM)
-import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -94,13 +93,8 @@ import Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types
-  ( PlutipConfig
-  , StartClusterResponse(ClusterStartupSuccess)
-  , StopClusterResponse(StopClusterSuccess)
-  )
-import Plutus.Conversion.Address (toPlutusAddress)
 import Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import Plutus.Conversion.Address (toPlutusAddress)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
