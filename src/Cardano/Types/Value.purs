@@ -533,14 +533,15 @@ isAdaOnly v =
         tn == adaToken
     _ -> false
 
-minus :: Value -> Value -> Maybe Value
-minus x y = do
+minus :: Value -> Value -> Value
+minus lhs rhs =
   let
     negativeValues :: List (CurrencySymbol /\ TokenName /\ BigInt)
-    negativeValues = unsafeFlattenValue y <#>
+    negativeValues = unsafeFlattenValue rhs <#>
       (\(c /\ t /\ a) -> c /\ t /\ negate a)
-  y' <- traverse unflattenValue negativeValues
-  pure $ x <> fold y'
+  in
+    unsafePartial $
+      lhs <> fold (fromJust $ traverse unflattenValue negativeValues)
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- "isValueNat" uses unsafeFlattenValue which guards against zeros, so non-strict

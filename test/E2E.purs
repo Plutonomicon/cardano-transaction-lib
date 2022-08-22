@@ -2,7 +2,7 @@ module Test.E2E (main) where
 
 import Data.Newtype (wrap)
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote (group)
 import Prelude (Unit, ($), bind, discard, pure)
@@ -28,7 +28,7 @@ main = launchAff_ $ do
     (testPlan options)
 
 -- Requires external services listed in README.md
-testPlan :: TestOptions -> TestPlanM Unit
+testPlan :: TestOptions -> TestPlanM (Aff Unit) Unit
 testPlan options = group "e2e tests" do
   Gero.runExample options
   Pkh2PkhGero.runExample options

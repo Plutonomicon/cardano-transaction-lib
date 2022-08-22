@@ -46,10 +46,7 @@ instance DecodeAeson CurrencySymbol where
     (flip getField "unCurrencySymbol" >=> decodeAeson >>> map CurrencySymbol)
 
 instance EncodeAeson CurrencySymbol where
-  encodeAeson' (CurrencySymbol mph) = do
-    mph' <- encodeAeson' mph
-    encodeAeson'
-      { "unCurrencySymbol": mph' }
+  encodeAeson' (CurrencySymbol mph) = encodeAeson' { "unCurrencySymbol": mph }
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"

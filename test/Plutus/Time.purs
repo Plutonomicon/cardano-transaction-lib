@@ -4,6 +4,7 @@ module Test.Plutus.Time
 
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe(Just, Nothing))
+import Effect.Aff (Aff)
 import Prelude
 import Mote (group)
 import QueryM.Ogmios
@@ -181,7 +182,7 @@ eraSummariesFixture = EraSummaries
       }
   ]
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Time-related Aeson representation tests" do
     toFromAesonTest "POSIXTime" posixTimeFixture

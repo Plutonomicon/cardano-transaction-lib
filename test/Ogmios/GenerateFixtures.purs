@@ -13,6 +13,7 @@ import Data.Traversable (for_, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (Error)
 import Effect.Ref as Ref
 import Helpers (logString)
@@ -144,4 +145,5 @@ main =
           , query <> "-" <> respMd5 <> ".json"
           ]
       writeTextFile UTF8 fp resp'
+      log ("Written " <> fp)
     liftEffect $ _wsClose ws

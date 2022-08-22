@@ -7,6 +7,7 @@ import Data.Either (Either(Right), hush)
 import Data.Maybe (Maybe(Just))
 import Data.TextDecoder (decodeUtf8)
 import Data.TextEncoding (encodeUtf8)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import FromData (fromData)
 import Metadata.Cip25.Cip25String
@@ -33,7 +34,7 @@ import Test.Spec.QuickCheck (quickCheck)
 import TestM (TestPlanM)
 import ToData (toData)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "CIP25 Metadata" do
     test "Long string ToData encoding" do

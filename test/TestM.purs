@@ -19,7 +19,8 @@ import Data.Medea (ValidationError(EmptyError))
 import Effect.Aff (Aff)
 import Mote (MoteT)
 
-type TestPlanM a = MoteT (Const Void) (Aff Unit) Aff a
+type TestPlanM :: Type -> Type -> Type
+type TestPlanM test a = MoteT (Const Void) test Aff a
 
 -- this silly thing is needed because Medea's `validate` needs both
 -- MonadPlus and MonadError, there must be a better way
