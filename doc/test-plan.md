@@ -2,6 +2,18 @@
 
 This document outlines CTL's test plan, i.e. a formalized description of testing CTL itself.
 
+**Table of Contents**
+
+- [User interactions](#user-interactions)
+  - [Constraints/lookups](#constraintslookups)
+    - [Exceptions](#exceptions)
+  - [Other functionality](#other-functionality)
+- [Acceptance criteria](#acceptance-criteria)
+  - [Example contracts as tests](#example-contracts-as-tests)
+  - [Test environments](#test-environments)
+  - [Unit and integration testing](#unit-and-integration-testing)
+    - [Required parsing tests](#required-parsing-tests)
+
 ## User interactions
 
 This section outlines the parts of CTL's interface that we aim to guarantee function as expected. Each of the following functionality **must** be covered by an example contract (see our [Acceptance criteria](#acceptance-criteria) below for more details about coverage).
