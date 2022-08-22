@@ -13,7 +13,6 @@ module TxOutput
 
 import Prelude
 
-import Untagged.Union (asOneOf)
 import Address
   ( addressToOgmiosAddress
   , enterpriseAddressValidatorHash
@@ -39,6 +38,7 @@ import Types.OutputDatum
   )
 import Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Types.UnbalancedTransaction as UTx
+import Untagged.Union (asOneOf)
 
 -- | A module for helpers of the various transaction output types.
 
