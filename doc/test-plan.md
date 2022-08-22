@@ -8,30 +8,34 @@ This section outlines the parts of CTL's interface that we aim to guarantee func
 
 ### Constraints/lookups
 
-CTL's primary user interface is its constraints and lookups API, modeled after that of Plutus. We must ensure then that **all** of this interface is covered by complete examples. Each of the following constraints should be covered, along with the lookup that it implies (indicated in parentheses where applicable):
+CTL's primary user interface is its constraints and lookups API, modeled after that of Plutus. We must ensure then that **all** of this interface is covered by complete examples (see [Acceptance criteria](#acceptance-criteria) below). Each of the following constraints should be covered, along with the lookup that it implies (indicated in parentheses where applicable):
 
 - [x] `mustMintValue` (`mintingPolicy`). Also implies
   - `mustMintCurrency`
 - [x] `mustPayToScript` (`validator`)
 - [x] `mustPayToPubKey`
+  - **Note**: This invokes the same code as `mustPayToPubKeyAddress`, but does not include a stake key component
 - [x] `mustPayToPubKeyAddress`
 - [x] `mustMintValueWithRedeemer` (`mintingPolicy`). Also implies
   - `mustMintCurrencyWithRedeemer`
+- [x] `mustSpendScriptOutput`
+- [ ] `mustSpendPubKeyOutput`
+  - **Note**: This constraint is included in our stake key integration with Plutip. We should still write a full contract that uses it
 - [ ] `mustBeSignedBy`
+  - **Note**: This constraint is also included in our Plutip stake key integration, as with `mustSpendPubKeyOutput`
 - [ ] `mustHashDatum`
 - [ ] `mustIncludeDatum`
 - [ ] `mustPayWithDatumToPubKey`
 - [ ] `mustPayWithDatumToPubKeyAddress`
-- [ ] `mustProduceAtLeast`
-- [ ] `mustProduceAtLeastTotal`
+- [ ] `mustProduceAtLeastTotal`. Also implies
+  - [ ] `mustProduceAtLeast`
 - [ ] `mustSatisfyAnyOf`
-- [ ] `mustSpendAtLeast`
-- [ ] `mustSpendAtLeastTotal`
+- [ ] `mustSpendAtLeastTotal`. Also implies
+  - [ ] `mustSpendAtLeast`
 - [ ] `mustSpendPubKeyOutput`
-- [ ] `mustSpendScriptOutput`
 - [ ] `mustValidateIn`
 
-In addition, several combinations of individual constraints must be covered by tests or examples as well, namely
+In addition, several redeemer combinations in a **single transaction** must be covered by tests or examples as well, namely
 
 - [x] Two or more `Mint` redeemers
 - [ ] Two or more `Spend` redeemers
@@ -55,6 +59,16 @@ CTL does **not** currently support staking validators (see [#785](https://github
   - [x] `mintingPolicy`
   - [ ] `applyArgs`
 
+- `Contract.Hashing.*`
+
+  - [x] `datumHash`
+  - [x] `plutusScriptHash`
+
+- `Contract.PlutusData.*`
+
+  - [x] `getDatumByHash`
+  - [x] `getDatumsByHashes`
+
 - `Contract.Utxos.*`
 
   - [x] `utxosAt`
@@ -63,8 +77,6 @@ CTL does **not** currently support staking validators (see [#785](https://github
 
 Coverage of particular functionality is measured by the inclusion of the **public** interface in examples and tests.
 
-In the case of CTL's constraints/lookups API, in order to be qualified as "covered", the relevant part of the API **must** be included in a **complete example** that builds, balances, and submits a transaction.
+In the case of CTL's constraints/lookups API, in order to be qualified as "covered", the relevant part of the API **must** be included in a **complete example** that builds, balances, and submits a transaction (such examples are currently contained in our [`examples/`](../examples) directory).
 
 CTL only guarantees functionality for the present era, currently Babbage.
-
-TODO
