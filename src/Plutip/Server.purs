@@ -476,14 +476,10 @@ startCtlServer cfg = do
     ctlServerArgs =
       [ "--port"
       , UInt.toString cfg.ctlServerConfig.port
-      , "--ogmios-host"
-      , cfg.ogmiosConfig.host
-      , "--ogmios-port"
-      , UInt.toString cfg.ogmiosConfig.port
       ]
   child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "Successfully connected to Ogmios" string in the output
-    $ String.indexOf (Pattern "Successfully connected to Ogmios")
+    $ String.indexOf (Pattern "CTL server starting on port")
         >>> maybe NoOp (const Success)
   liftEffect $ killOnExit child
   pure child

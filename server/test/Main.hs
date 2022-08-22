@@ -1,54 +1,10 @@
 module Main (main) where
 
 import Api (app, applyArgs)
-import Cardano.Api.Shelley (
-  EpochNo (EpochNo),
-  ExecutionUnitPrices (
-    ExecutionUnitPrices,
-    priceExecutionMemory,
-    priceExecutionSteps
-  ),
-  ExecutionUnits (ExecutionUnits, executionMemory, executionSteps),
-  Lovelace (Lovelace),
-  ProtocolParameters (
-    ProtocolParameters,
-    protocolParamCollateralPercent,
-    protocolParamCostModels,
-    protocolParamDecentralization,
-    protocolParamExtraPraosEntropy,
-    protocolParamMaxBlockBodySize,
-    protocolParamMaxBlockExUnits,
-    protocolParamMaxBlockHeaderSize,
-    protocolParamMaxCollateralInputs,
-    protocolParamMaxTxExUnits,
-    protocolParamMaxTxSize,
-    protocolParamMaxValueSize,
-    protocolParamMinPoolCost,
-    protocolParamMinUTxOValue,
-    protocolParamMonetaryExpansion,
-    protocolParamPoolPledgeInfluence,
-    protocolParamPoolRetireMaxEpoch,
-    protocolParamPrices,
-    protocolParamProtocolVersion,
-    protocolParamStakeAddressDeposit,
-    protocolParamStakePoolDeposit,
-    protocolParamStakePoolTargetNum,
-    protocolParamTreasuryCut,
-    protocolParamTxFeeFixed,
-    protocolParamTxFeePerByte,
-    protocolParamUTxOCostPerWord
-  ),
- )
-import Data.Bifunctor (second)
-import Data.ByteString.Lazy qualified as LBS
-import Data.Functor ((<&>))
 import Data.Kind (Type)
-import Data.Map qualified as Map
-import Data.Ratio ((%))
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.Warp qualified as Warp
-import Ogmios.Parser (decodeProtocolParameters)
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Servant.Client (
   BaseUrl (baseUrlPort),
@@ -69,13 +25,11 @@ import Test.Hspec (
   it,
   runIO,
   shouldBe,
-  shouldSatisfy,
  )
 import Test.Hspec.Core.Spec (SpecM)
 import Types (
   AppliedScript (AppliedScript),
   ApplyArgsRequest (ApplyArgsRequest, args, script),
-  Env (Env),
   unsafeDecode,
  )
 
@@ -85,7 +39,6 @@ main = hspec serverSpec
 serverSpec :: Spec
 serverSpec = do
   describe "Api.Handlers.applyArgs" applyArgsSpec
-  describe "Ogmios.Parser " testParser
 
 applyArgsSpec :: Spec
 applyArgsSpec = around withTestApp $ do
@@ -119,10 +72,7 @@ setupClientEnv = do
      in clientEnv
 
 withTestApp :: ActionWith (Port -> IO ())
-withTestApp =
-  Warp.testWithApplication $
-    pure . app $
-      Env fixedProtocolParameters
+withTestApp = Warp.testWithApplication $ pure app
 
 runClientM' ::
   forall (a :: Type).
@@ -206,76 +156,3 @@ fullyAppliedScript =
     \0b22333573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122\
     \010010091326353008009498cd4015d680119a802bae00112001200112001120011220021\
     \2200120014c01021820004c010544746573740001\""
-
-fixedProtocolParameters :: ProtocolParameters
-fixedProtocolParameters =
-  ProtocolParameters
-    { protocolParamProtocolVersion = (7, 0)
-    , protocolParamDecentralization = 0 % 1
-    , protocolParamExtraPraosEntropy = Nothing
-    , protocolParamMaxBlockHeaderSize = 1100
-    , protocolParamMaxBlockBodySize = 65536
-    , protocolParamMaxTxSize = 16384
-    , protocolParamTxFeeFixed = 155381
-    , protocolParamTxFeePerByte = 44
-    , protocolParamMinUTxOValue = Nothing
-    , protocolParamStakeAddressDeposit = Lovelace 400000
-    , protocolParamStakePoolDeposit = Lovelace 500000000
-    , protocolParamMinPoolCost = Lovelace 0
-    , protocolParamPoolRetireMaxEpoch = EpochNo 18
-    , protocolParamStakePoolTargetNum = 50
-    , protocolParamPoolPledgeInfluence = 1 % 10
-    , protocolParamMonetaryExpansion = 178650067 % 100000000000
-    , protocolParamTreasuryCut = 1 % 10
-    , protocolParamUTxOCostPerWord = Just (Lovelace 34480)
-    , protocolParamCostModels = Map.empty
-    , protocolParamPrices =
-        Just
-          ( ExecutionUnitPrices
-              { priceExecutionSteps = 721 % 10000000
-              , priceExecutionMemory = 577 % 10000
-              }
-          )
-    , protocolParamMaxTxExUnits =
-        Just
-          ( ExecutionUnits
-              { executionSteps =
-                  10000000000
-              , executionMemory = 10000000
-              }
-          )
-    , protocolParamMaxBlockExUnits =
-        Just
-          ( ExecutionUnits
-              { executionSteps = 40000000000
-              , executionMemory = 50000000
-              }
-          )
-    , protocolParamMaxValueSize = Just 5000
-    , protocolParamCollateralPercent = Just 150
-    , protocolParamMaxCollateralInputs = Just 3
-    }
-
-loadParametersFile :: IO (Either String ProtocolParameters)
-loadParametersFile =
-  LBS.readFile "test/ogmios.json"
-    <&> decodeProtocolParameters
-
-testParser :: Spec
-testParser =
-  it "Testing parser of ogmios parameters" $ do
-    value <- loadParametersFile
-    makeNullCostModels value `shouldBe` Right fixedProtocolParameters
-    value `shouldSatisfy` isNotNullCostModels
-  where
-    makeNullCostModels ::
-      Either String ProtocolParameters -> Either String ProtocolParameters
-    makeNullCostModels =
-      second
-        (\v -> v {protocolParamCostModels = mempty})
-
-    isNotNullCostModels ::
-      Either String ProtocolParameters -> Bool
-    isNotNullCostModels (Right parameters) =
-      not . Map.null . protocolParamCostModels $ parameters
-    isNotNullCostModels _ = False
