@@ -50,31 +50,22 @@ CTL does **not** currently support staking validators (see [#785](https://github
 In addition to the constraints/lookups listed above, there are several other critical pieces of functionality that CTL must guarantee. This functionality is subject to the same criteria as our constraints/lookups.
 
 - `Contract.Transaction.*`
-
   - [x] `balanceTx`
   - [x] `signTransaction`
   - [x] `submit`
   - [x] `getTxByHash`
   - [x] `awaitTxConfirmed` (implies `awaitTxConfirmedWithTimeout`)
-
 - `Contract.Scripts.*`
-
   - [x] `validatorHash`
   - [x] `mintingPolicy`
   - [ ] `applyArgs`
-
 - `Contract.Hashing.*`
-
   - [x] `datumHash`
   - [x] `plutusScriptHash`
-
 - `Contract.PlutusData.*`
-
   - [x] `getDatumByHash`
   - [x] `getDatumsByHashes`
-
 - `Contract.Utxos.*`
-
   - [x] `utxosAt`
 
 ## Acceptance criteria
