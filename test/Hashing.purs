@@ -5,6 +5,7 @@ import Prelude
 import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
+import Effect.Aff (Aff)
 import Hashing
   ( blake2b256Hash
   , blake2b256HashHex
@@ -27,7 +28,7 @@ import Types.RawBytes (hexToRawBytesUnsafe)
 import Types.Scripts (PlutusScript)
 import Types.Transaction (DataHash)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "Hashing" do
     test "blake2b256 hash of an arbitrary byte array" do

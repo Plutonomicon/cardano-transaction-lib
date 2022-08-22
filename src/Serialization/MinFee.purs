@@ -8,14 +8,12 @@ import Cardano.Types.Transaction as T
 import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Lens ((.~))
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple.Nested ((/\))
-import Data.UInt as UInt
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -35,9 +33,7 @@ calculateMinFeeCsl
   -> T.Transaction
   -> m Coin
 calculateMinFeeCsl (ProtocolParameters pparams) txNoSigs = do
-  let
-    tx = addFakeSignatures txNoSigs
-    txFeePerByte = BigInt.fromInt $ UInt.toInt pparams.txFeePerByte
+  let tx = addFakeSignatures txNoSigs
   cslTx <- liftEffect $ Serialization.convertTransaction tx
   minFee <- liftMaybe (error "Unable to calculate min_fee") $
     BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
@@ -48,7 +44,7 @@ calculateMinFeeCsl (ProtocolParameters pparams) txNoSigs = do
   minScriptFee <-
     liftMaybe (error "Unable to calculate min_script_fee") $
       BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
-  pure $ wrap $ minFee + minScriptFee + BigInt.fromInt 3 * txFeePerByte
+  pure $ wrap $ minFee + minScriptFee
 
 -- | Adds fake signatures for each expected signature of a transaction.
 addFakeSignatures :: T.Transaction -> T.Transaction

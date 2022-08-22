@@ -6,7 +6,7 @@ SHELL := bash
 
 # find a suitable browser for e2e-tests
 define e2e-browser
-	$(shell which chromium google-chrome | head -n1)
+	$(shell which chromium google-chrome 2>/dev/null | head -n1)
 endef
 
 # find a suitable temp directory for e2e-tests. snaps don't work
@@ -50,17 +50,21 @@ run-dev:
 run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
+.ONESHELL:
 check-explicit-exports:
-	@[ -z "$$(grep -rn '(\.\.)' ./src ./test ./examples)" ] || \
-		(echo "Use explicit exports:" && \
-		grep -rn '(\.\.)' ./src ./test ./examples)
+	@if grep -rn '(\.\.)' ${ps-sources}; then
+		echo "Use explicit imports/exports ^"
+		exit 1
+	else
+		echo "All imports/exports are explicit"
+	fi
 
 check-format: check-explicit-exports
 	@purs-tidy check ${ps-sources}
-	nixpkgs-fmt --check ${nix-sources}
-	fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
-	prettier -c ${js-sources}
-	eslint ${js-sources}
+	@nixpkgs-fmt --check ${nix-sources}
+	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
+	@prettier --loglevel warn -c ${js-sources}
+	@eslint --quiet ${js-sources}
 
 e2e-test:
 	@mkdir -p ${e2e-temp-dir}

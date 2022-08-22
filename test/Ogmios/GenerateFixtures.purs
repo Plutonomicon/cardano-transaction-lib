@@ -13,6 +13,7 @@ import Data.Traversable (for_, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (Error)
 import Effect.Ref as Ref
 import Helpers (logString)
@@ -22,7 +23,6 @@ import JsWebSocket
   , _onWsError
   , _onWsMessage
   , _wsSend
-  , _wsWatch
   , _wsClose
   )
 import Node.Encoding (Encoding(UTF8))
@@ -67,7 +67,7 @@ mkWebSocket lvl serverCfg cb = do
       logString lvl Debug "WS error occured, resending requests"
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
-    _wsWatch ws (logger Debug) onError
+    void $ _onWsError ws \_ -> onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
     void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
@@ -145,4 +145,5 @@ main =
           , query <> "-" <> respMd5 <> ".json"
           ]
       writeTextFile UTF8 fp resp'
+      log ("Written " <> fp)
     liftEffect $ _wsClose ws

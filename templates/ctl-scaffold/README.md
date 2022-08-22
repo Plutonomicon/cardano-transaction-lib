@@ -2,7 +2,7 @@
 
 Welcome to your new CTL project!
 
-To enter the Nix environment and start working on it, run `nix develop`
+To enter the Nix environment and start working on it, run `nix develop`. Please make sure to use Nix v2.8 or later.
 
 Please also see our
 

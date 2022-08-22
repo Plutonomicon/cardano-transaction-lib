@@ -29,7 +29,7 @@ import Mote (group, test)
 import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
 import QueryM.Ogmios (UtxoQR)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   str <- lift $ readTextFile UTF8
     "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"

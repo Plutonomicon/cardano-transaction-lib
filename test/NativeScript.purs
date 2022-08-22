@@ -3,15 +3,11 @@ module Test.NativeScript (suite) where
 import Prelude
 
 import Cardano.Types.Transaction
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      )
+  ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
 import Data.Maybe (fromJust)
 import Data.Set as Set
+import Effect.Aff (Aff)
 import Mote (group, test)
 import NativeScripts (getMaximumSigners)
 import Partial.Unsafe (unsafePartial)
@@ -24,7 +20,7 @@ import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Types.RawBytes (hexToRawBytesUnsafe)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "NativeScript number of keys" do
     test "#1" do
