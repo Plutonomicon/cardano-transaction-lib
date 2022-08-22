@@ -8,6 +8,7 @@ import Data.Maybe (fromJust)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Traversable (for_)
+import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Conversion (fromPlutusValue, toPlutusValue)
@@ -21,7 +22,7 @@ import TestM (TestPlanM)
 import Cardano.Types.Value (Value) as Types
 import Cardano.Types.Value as Value
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Conversion: Plutus Value <-> Types.Value" $ do
     let indices = 0 `range` (length testData - 1)
@@ -29,7 +30,7 @@ suite = do
       toFromPlutusValueTest i valuePlutus value
 
 toFromPlutusValueTest
-  :: Int -> Plutus.Value -> Types.Value -> TestPlanM Unit
+  :: Int -> Plutus.Value -> Types.Value -> TestPlanM (Aff Unit) Unit
 toFromPlutusValueTest i valuePlutus value = do
   test (show i <> ": Performs conversion between `Value`s") $ do
     let resValue = fromPlutusValue valuePlutus

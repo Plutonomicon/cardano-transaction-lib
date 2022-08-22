@@ -46,7 +46,7 @@ config =
       , password: "ctxlib"
       , dbname: "ctxlib"
       }
-  , customLogger: pure \_ -> pure unit
+  , customLogger: Nothing
   }
 
 privateStakeKey :: PrivateStakeKey

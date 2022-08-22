@@ -10,6 +10,7 @@ import Control.Monad.Error.Class (class MonadThrow)
 import Data.Either (Either(Right, Left))
 import Data.Newtype (unwrap)
 import Data.Traversable (for_)
+import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Hashing (datumHash)
@@ -20,7 +21,7 @@ import TestM (TestPlanM)
 import Types.Datum (Datum(Datum))
 import Types.PlutusData (PlutusData)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Datum Cache tests" $ do
   skip $ test
     "Plutus data samples should satisfy the Aeson roundtrip test (FIXME: \

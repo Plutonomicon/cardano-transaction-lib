@@ -16,8 +16,8 @@
       };
     };
 
-    plutip.url = "github:mlabs-haskell/plutip/d24b98162bcbcbfb4ca403ee62fdb890f2059f47";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/47f01a1d9f7dc5cc5246c0c228e5cf5f5ba44399";
+    plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/880a69a03fbfd06a4990ba8873f06907d4cd16a7";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -216,20 +216,16 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
+              withRuntime = true;
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
               packages = with pkgs; [
                 arion
-                ctl-server
                 fd
                 haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
-                ogmios
-                ogmios-datum-cache
-                plutip-server
-                postgresql
               ];
             };
           };
@@ -384,29 +380,13 @@
                 haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.prettier
+                nodePackages.eslint
                 fd
               ];
             }
             ''
               cd ${self}
-              purs-tidy check $(fd -epurs)
-              fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
-                $(fd -ehs)
-              nixpkgs-fmt --check $(fd -enix --exclude='spago*')
-              prettier -c $(fd -ejs)
-              touch $out
-            '';
-
-          js-lint-check = pkgs.runCommand "js-lint-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodePackages.eslint
-                pkgs.fd
-              ];
-            }
-            ''
-              cd ${self}
-              eslint $(fd -ejs)
+              make check-format
               touch $out
             '';
         });
