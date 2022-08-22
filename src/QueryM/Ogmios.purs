@@ -1135,6 +1135,7 @@ type OgmiosTxOut =
   { address :: OgmiosAddress
   , value :: Value
   , datumHash :: Maybe String
+  , datum :: Maybe String
   -- TODO: add datum and scriptRef
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
   }
@@ -1146,8 +1147,10 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let datumHash = hush $ getField o "datumHash"
-  pure { address, value, datumHash }
+  let
+    datumHash = hush $ getField o "datumHash"
+    datum = hush $ getField o "datum"
+  pure { address, value, datumHash, datum }
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
