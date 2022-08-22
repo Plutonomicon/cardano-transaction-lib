@@ -919,16 +919,17 @@ processConstraint mpsMap osMap = do
               queryD <- lift case outputDatumDataHash datum' of
                 Nothing -> pure $ Left CannotFindDatum
                 Just dHash -> do
-                  getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+                  Just <$> getDatumByHash dHash <#> note
+                    (CannotQueryDatum dHash)
               lookupD <- case outputDatumDataHash datum' of
                 Nothing -> pure $ Left CannotFindDatum
                 Just dHash -> do
-                  lookupDatum dHash
+                  map Just <$> lookupDatum dHash
               pure $ queryD <|> lookupD <|>
-                (outputDatumDatum datum' # note CannotFindDatum)
+                (Nothing <$ outputDatumDatum datum' # note CannotFindDatum)
             ExceptT $ attachToCps attachPlutusScript plutusScript
             _cpsToTxBody <<< _inputs %= Set.insert txo
-            ExceptT $ addDatum dataValue
+            maybe (pure unit) (ExceptT <<< addDatum) dataValue
             let
               -- Create a redeemer with hardcoded execution units then call Ogmios
               -- to add the units in at the very end.
