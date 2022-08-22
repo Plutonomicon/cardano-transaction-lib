@@ -21,7 +21,6 @@ module Serialization.Types
   , GenesisDelegateHash
   , GenesisHash
   , GenesisKeyDelegation
-  , Int32
   , Ipv4
   , Ipv6
   , Language
@@ -47,7 +46,6 @@ module Serialization.Types
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
-  , ProtocolVersions
   , PublicKey
   , PrivateKey
   , Redeemer
@@ -112,7 +110,6 @@ foreign import data GeneralTransactionMetadata :: Type
 foreign import data GenesisDelegateHash :: Type
 foreign import data GenesisHash :: Type
 foreign import data GenesisKeyDelegation :: Type
-foreign import data Int32 :: Type
 foreign import data Ipv4 :: Type
 foreign import data Ipv6 :: Type
 foreign import data Language :: Type
@@ -138,7 +135,6 @@ foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
-foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
 foreign import data PrivateKey :: Type
 foreign import data Redeemer :: Type

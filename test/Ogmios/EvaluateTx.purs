@@ -7,6 +7,7 @@ import Data.Either (Either(Left, Right))
 import Data.Map (toUnfoldable) as Map
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Test.Fixtures
@@ -17,20 +18,20 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import TestM (TestPlanM)
 import Types.Natural (fromInt')
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import QueryM.Ogmios (TxEvaluationR, ExecutionUnits, RedeemerPointer)
+import QueryM.Ogmios (TxEvaluationResult, ExecutionUnits, RedeemerPointer)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Ogmios EvaluateTx endpoint" do
     group "Decoding EvaluateTx response" do
       test "Successfully decodes a valid response" do
-        txEvalR :: Either JsonDecodeError TxEvaluationR <-
+        txEvalR :: Either JsonDecodeError TxEvaluationResult <-
           decodeAeson <$> liftEffect ogmiosEvaluateTxValidRespFixture
         (Map.toUnfoldable <<< unwrap <$> txEvalR) `shouldEqual`
           Right ogmiosEvaluateTxValidRespDecoded
 
       test "Fails to decode a response with invalid redeemer pointer format" do
-        txEvalR :: Either JsonDecodeError TxEvaluationR <-
+        txEvalR :: Either JsonDecodeError TxEvaluationResult <-
           decodeAeson <$> liftEffect ogmiosEvaluateTxInvalidPointerFormatFixture
         txEvalR `shouldSatisfy` case _ of
           Left (TypeMismatch _) -> true

@@ -355,7 +355,7 @@ type ProtocolParamUpdate =
   , treasuryGrowthRate :: Maybe UnitInterval
   , d :: Maybe UnitInterval
   , extraEntropy :: Maybe Nonce
-  , protocolVersion :: Maybe (Array ProtocolVersion)
+  , protocolVersion :: Maybe ProtocolVersion
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
   , costModels :: Maybe Costmdls
@@ -402,7 +402,7 @@ instance EncodeAeson Language where
   encodeAeson' = case _ of
     PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
 
-newtype CostModel = CostModel (Array Int)
+newtype CostModel = CostModel (Array Int.Int)
 
 derive instance Newtype CostModel _
 derive newtype instance Eq CostModel

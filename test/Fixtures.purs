@@ -12,7 +12,11 @@
 module Test.Fixtures
   ( addressString1
   , cip25MetadataFixture1
+  , cip25MetadataFixture2
+  , cip25MetadataFixture3
   , cip25MetadataJsonFixture1
+  , cip25MetadataJsonFixture2
+  , cip25MetadataJsonFixture3
   , currencySymbol1
   , ed25519KeyHashFixture1
   , mkSampleTx
@@ -59,6 +63,7 @@ module Test.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
+  , unsafeMkCip25String
   ) where
 
 import Prelude
@@ -123,14 +128,15 @@ import Data.BigInt as BigInt
 import Data.Either (fromRight)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.NonEmpty ((:|))
 import Data.Set (Set)
 import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Deserialization.FromBytes (fromBytes)
 import Effect (Effect)
-import Metadata.Cip25
+import Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
+import Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
+import Metadata.Cip25.V2
   ( Cip25Metadata(Cip25Metadata)
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
@@ -169,9 +175,7 @@ import Types.Int as Int
 import Types.PlutusData as PD
 import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  )
+import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction
   ( TransactionHash(TransactionHash)
@@ -454,7 +458,7 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
         --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
         , protocolVersion: Just
-            [ { major: UInt.fromInt 1, minor: UInt.fromInt 1 } ]
+            { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
         , minPoolCost: Just bigNumOne
         , adaPerUtxoByte: Just bigNumOne
         , costModels: Just costModelsFixture1
@@ -650,7 +654,7 @@ txBinaryFixture4 =
   \7f13c113ad5f9b22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113\
   \ad5f9b22212703482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e95861\
   \1f3c6b758f65b4000101010219271003192710041903e8050106010701080109d81e8201010a\
-  \d81e8201010bd81e8201010e8101011001110112a10098a61a000302590001011a00060bc719\
+  \d81e8201010bd81e8201010e8201011001110112a10098a61a000302590001011a00060bc719\
   \026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d186419744d\
   \186419744d186419744d186419744d186419744d18641864186419744d18641a000249f01820\
   \1a000249f018201a000249f018201a000249f01903e800011a000249f018201a000249f01903\
@@ -1123,33 +1127,35 @@ policyId = MintingPolicyHash scriptHash1
 
 cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
 cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
-  [ { name: "file_name_1"
-    , mediaType: "media_type"
-    , uris: "uri1" :| [ "uri2", "uri3" ]
+  [ { name: unsafeMkCip25String "file_name_1"
+    , mediaType: unsafeMkCip25String "media_type"
+    , src: "uri1"
     }
-  , { name: "file_name_2"
-    , mediaType: "media_type_2"
-    , uris: "uri4" :| [ "uri5", "uri6" ]
+  , { name: unsafeMkCip25String "file_name_2"
+    , mediaType: unsafeMkCip25String "media_type_2"
+    , src: "uri4"
     }
   ]
 
 cip25MetadataEntryFixture1 :: Cip25MetadataEntry
 cip25MetadataEntryFixture1 = Cip25MetadataEntry
   { policyId: policyId
-  , assetName: tokenName1
-  , imageUris: "image_uri1" :| [ "image_uri2", "image_uri3" ]
-  , mediaType: Just "media_type"
-  , description: [ "desc1", "desc2", "desc3" ]
+  , assetName: Cip25TokenName tokenName1
+  , name: unsafeMkCip25String "ItestToken"
+  , image: "image_uri1"
+  , mediaType: Just $ unsafeMkCip25String "media_type"
+  , description: Just "desc1"
   , files: cip25MetadataFilesFixture1
   }
 
 cip25MetadataEntryFixture2 :: Cip25MetadataEntry
 cip25MetadataEntryFixture2 = Cip25MetadataEntry
   { policyId: policyId
-  , assetName: tokenName2
-  , imageUris: "image_uri1" :| []
+  , assetName: Cip25TokenName tokenName2
+  , name: unsafeMkCip25String "TestToken2"
+  , image: "image_uri1"
   , mediaType: Nothing
-  , description: []
+  , description: Nothing
   , files: []
   }
 
@@ -1157,9 +1163,50 @@ cip25MetadataFixture1 :: Cip25Metadata
 cip25MetadataFixture1 = Cip25Metadata
   [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
 
+cip25MetadataFixture2 :: Cip25Metadata
+cip25MetadataFixture2 = Cip25Metadata
+  [ Cip25MetadataEntry
+      { policyId: policyId
+      , assetName: Cip25TokenName tokenName1
+      , name: unsafeMkCip25String "ItestToken"
+      , image: "image_uri1"
+      , mediaType: Nothing
+      , description: Nothing
+      , files: []
+      }
+  ]
+
+cip25MetadataFixture3 :: Cip25Metadata
+cip25MetadataFixture3 = Cip25Metadata
+  [ Cip25MetadataEntry
+      { policyId: policyId
+      , assetName: Cip25TokenName tokenName1
+      , name: unsafeMkCip25String "monkey.jpg"
+      , image:
+          -- checking long strings
+          "https://upload.wikimedia.org/wikipedia/commons/3/35/Olive_baboon_Ngorongoro.jpg?download"
+      , mediaType: Nothing
+      , description: Nothing
+      , files: []
+      }
+  ]
+
+unsafeMkCip25String :: String -> Cip25String
+unsafeMkCip25String str = unsafePartial $ fromJust $ mkCip25String str
+
 cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
   readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+cip25MetadataJsonFixture2 :: Effect Aeson
+cip25MetadataJsonFixture2 =
+  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture2.json" >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
+cip25MetadataJsonFixture3 :: Effect Aeson
+cip25MetadataJsonFixture3 =
+  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture3.json" >>=
     pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
 ogmiosEvaluateTxValidRespFixture :: Effect Aeson

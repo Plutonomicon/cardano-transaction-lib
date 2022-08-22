@@ -1,23 +1,30 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module Examples.AlwaysSucceeds (main) where
+module Examples.AlwaysSucceeds
+  ( main
+  , example
+  , alwaysSucceedsScript
+  , payToAlwaysSucceeds
+  , spendFromAlwaysSucceeds
+  ) where
 
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractAffM
   , liftedE
-  , logInfo'
-  , runContract_
-  , traceTestnetContractConfig
+  , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -37,9 +44,11 @@ import Data.BigInt as BigInt
 import Data.Map as Map
 
 main :: Effect Unit
-main = launchAff_ $ do
-  cfg <- traceTestnetContractConfig
-  runContract_ cfg $ do
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
     logInfo' "Running Examples.AlwaysSucceeds"
     validator <- alwaysSucceedsScript
     vhash <- liftContractAffM "Couldn't hash validator"
@@ -50,6 +59,7 @@ main = launchAff_ $ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
+  publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do

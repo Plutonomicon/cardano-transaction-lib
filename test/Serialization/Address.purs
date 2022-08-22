@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
+import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Serialization.Address
@@ -68,7 +69,7 @@ mPkh = ed25519KeyHashFromBech32 pkhBech32
 mScriptHash :: Maybe ScriptHash
 mScriptHash = scriptHashFromBytes $ hexToRawBytesUnsafe scriptHashHex
 
-addressFunctionsTest :: TestPlanM Unit
+addressFunctionsTest :: TestPlanM (Aff Unit) Unit
 addressFunctionsTest = test "Address tests" $ do
   let
     bechstr =
@@ -83,7 +84,7 @@ addressFunctionsTest = test "Address tests" $ do
   addr2 `shouldEqual` addr1
   addressNetworkId addr2 `shouldEqual` MainnetId
 
-stakeCredentialTests :: TestPlanM Unit
+stakeCredentialTests :: TestPlanM (Aff Unit) Unit
 stakeCredentialTests = test "StakeCredential tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   scrh <- errMaybe "Error scriptHashFromBech32:" mScriptHash
@@ -110,7 +111,7 @@ stakeCredentialTests = test "StakeCredential tests" $ do
   sch2 `shouldEqual` scrh
   stakeCredentialToKeyHash schCred2 `shouldEqual` Nothing
 
-baseAddressFunctionsTest :: TestPlanM Unit
+baseAddressFunctionsTest :: TestPlanM (Aff Unit) Unit
 baseAddressFunctionsTest = test "BaseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   baddr <- doesNotThrow $
@@ -124,7 +125,7 @@ baseAddressFunctionsTest = test "BaseAddress tests" $ do
     ed25519KeyHashFixture1
   baseAddressPaymentCred baddr `shouldEqual` keyHashCredential pkh
 
-rewardAddressFunctionsTest :: TestPlanM Unit
+rewardAddressFunctionsTest :: TestPlanM (Aff Unit) Unit
 rewardAddressFunctionsTest = test "RewardAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   raddr <- doesNotThrow $ rewardAddress
@@ -135,7 +136,7 @@ rewardAddressFunctionsTest = test "RewardAddress tests" $ do
   raddr2 `shouldEqual` raddr
   rewardAddressPaymentCred raddr `shouldEqual` keyHashCredential pkh
 
-enterpriseAddressFunctionsTest :: TestPlanM Unit
+enterpriseAddressFunctionsTest :: TestPlanM (Aff Unit) Unit
 enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   eaddr <- doesNotThrow $ enterpriseAddress
@@ -147,7 +148,7 @@ enterpriseAddressFunctionsTest = test "EnterpriseAddress tests" $ do
   eaddr2 `shouldEqual` eaddr
   enterpriseAddressPaymentCred eaddr `shouldEqual` keyHashCredential pkh
 
-pointerAddressFunctionsTest :: TestPlanM Unit
+pointerAddressFunctionsTest :: TestPlanM (Aff Unit) Unit
 pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pkh <- errMaybe "Error ed25519KeyHashFromBech32:" mPkh
   let
@@ -169,11 +170,11 @@ pointerAddressFunctionsTest = test "PointerAddress tests" $ do
   pointerAddressPaymentCred paddr `shouldEqual` keyHashCredential pkh
   pointerAddressStakePointer paddr `shouldEqual` pointer
 
-byronAddressFunctionsTest :: TestPlanM Unit
+byronAddressFunctionsTest :: TestPlanM (Aff Unit) Unit
 byronAddressFunctionsTest = test "ByronAddress tests" $ log
   "ByronAddress tests todo"
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "Address test suite" $ do
   addressFunctionsTest
   stakeCredentialTests

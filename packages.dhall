@@ -150,7 +150,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "286862a975f4bafbef15540c365bbbb0480e0bf7"
+        , version = "8e9d42980e824450c18c397295573160d1ce8424"
         }
       , aeson-helpers =
         { dependencies =
@@ -266,6 +266,19 @@ let additions =
           ]
         , repo = "https://github.com/juspay/medea-ps.git"
         , version = "8b215851959aa8bbf33e6708df6bd683c89d1a5a"
+        }
+      , purescript-toppokki =
+        { dependencies =
+          [ "prelude"
+          , "record"
+          , "functions"
+          , "node-http"
+          , "aff-promise"
+          , "node-buffer"
+          , "node-fs-aff"
+          ]
+        , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
+        , version = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9"
         }
       }
 

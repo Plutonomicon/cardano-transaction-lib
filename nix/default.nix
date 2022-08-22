@@ -1,4 +1,4 @@
-{ pkgs, system }:
+{ pkgs }:
 { src
   # The name of the project, used to generate derivation names
 , projectName
@@ -23,6 +23,8 @@
 , ...
 }:
 let
+  inherit (pkgs) system;
+
   purs = pkgs.easy-ps.purs-0_14_5;
 
   spagoPkgs = import spagoPackages { inherit pkgs; };
@@ -57,31 +59,79 @@ let
 
   projectNodeModules = mkNodeModules { };
 
+  # Constructs a development environment containing various tools to work on
+  # Purescript projects. The resulting derivation can be used as a `devShell` in
+  # your flake outputs
+  #
+  # All arguments are optional
   shellFor =
-    { packages ? [ ]
+    {
+      # Extra packages to include in the shell environment
+      packages ? [ ]
+      # Passed through to `pkgs.mkShell.inputsFrom`
     , inputsFrom ? [ ]
+      # Passed through to `pkgs.mkShell.shellHook`
     , shellHook ? ""
+      # One of `purs-tidy` or `purty` to format Purescript sources
     , formatter ? "purs-tidy"
+      # Whether or not to include `purescript-language-server`
     , pursls ? true
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
+      # If `true`, `npm i` will only write to your `package-lock.json` instead
+      # of installing to a local `node_modules`
     , packageLockOnly ? false
+      # If `true`, all of CTL's runtime dependencies will be added to the
+      # shell's `packages`. These packages are *required* if you plan on running
+      # Plutip tests in your local shell environment (that is, not using Nix
+      # directly as with `runPlutipTest`). Make sure you have applied
+      # `overlays.runtime` or otherwise added the runtime packages to your
+      # package set if you select this option!
+    , withRuntime ? true
+      # If `true`, the `chromium` package from your package set will be made
+      # available in the shell environment. This can help with ensuring that
+      # any e2e tests that you write and run with `Contract.Test.E2E` are
+      # reproducible
+    , withChromium ? false
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
+      with pkgs.lib;
       pkgs.mkShell {
-        buildInputs = [
-          nodeModules
-          purs
-          nodejs
-          pkgs.easy-ps.spago
-          pkgs.easy-ps."${formatter}"
-          pkgs.easy-ps.pscid
-          pkgs.easy-ps.psa
-          pkgs.easy-ps.spago2nix
-          pkgs.nodePackages.node2nix
-        ] ++ pkgs.lib.lists.optional
-          pursls
-          pkgs.easy-ps.purescript-language-server;
         inherit packages inputsFrom;
+        buildInputs = builtins.concatLists
+          [
+            [
+              nodeModules
+              purs
+              nodejs
+              pkgs.easy-ps.spago
+              pkgs.easy-ps.${formatter}
+              pkgs.easy-ps.pscid
+              pkgs.easy-ps.psa
+              pkgs.easy-ps.spago2nix
+              pkgs.nodePackages.node2nix
+              pkgs.unzip
+            ]
+
+            (lists.optional pursls pkgs.easy-ps.purescript-language-server)
+
+            (lists.optional withChromium pkgs.chromium)
+
+            (
+              lists.optional withRuntime (
+                [
+                  pkgs.ogmios
+                  pkgs.ogmios-datum-cache
+                  pkgs.plutip-server
+                  pkgs.postgresql
+                ]
+                # this package will be soon put into its own overlay, so we'll
+                # check this now for future compat
+                ++ lists.optional (pkgs ? ctl-server) pkgs.ctl-server
+              )
+            )
+          ];
         shellHook = ''
           export NODE_PATH="${nodeModules}/lib/node_modules"
           export PATH="${nodeModules}/bin:$PATH"
@@ -90,8 +140,16 @@ let
         + shellHook;
       };
 
+  # Compiles your Purescript project and copies the `output` directory into the
+  # Nix store. Also copies the local sources to be made available later as `purs`
+  # does not include any external files to its `output` (if we attempted to refer
+  # to absolute paths from the project-wide `src` argument, they would be wrong)
   buildPursProject =
-    { name ? projectName
+    {
+      # Can be used to override the name given to the resulting derivation
+      name ? projectName
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
     , ...
     }:
@@ -126,77 +184,120 @@ let
           --censor-lib --is-lib=.spago ${spagoGlobs} \
           --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs"
       '';
+      # We also need to copy all of `src` here, since compiled modules in `output`
+      # might refer to paths that will point to nothing if we use `src` directly
+      # in other derivations (e.g. when using `fs.readFileSync` inside an FFI
+      # module)
       installPhase = ''
         mkdir $out
         mv output $out/
+        cp -r $src/* $out/
       '';
     };
 
   project = buildPursProject { };
 
+  # Runs a test written in Purescript using NodeJS.
   runPursTest =
-    { testMain ? "Test.Main"
+    {
+      # The name of the main Purescript module
+      testMain ? "Test.Main"
+      # Can be used to override the name of the resulting derivation
     , name ? "${projectName}-check"
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
+      # Additional variables to pass to the test environment
     , env ? { }
+      # Passed through to the `buildInputs` of the derivation. Use this to add
+      # additional packages to the test environment
+    , buildInputs ? [ ]
     , ...
     }: pkgs.runCommand "${name}"
-      ({
-        buildInputs = [ project nodeModules ];
-        NODE_PATH = "${nodeModules}/lib/node_modules";
-      } // env)
+      (
+        {
+          buildInputs = [ project nodeModules ] ++ buildInputs;
+          NODE_PATH = "${nodeModules}/lib/node_modules";
+        } // env
+      )
       # spago will attempt to download things, which will fail in the
       # sandbox, so we can just use node instead
       # (idea taken from `plutus-playground-client`)
       ''
-        cd ${src}
-        ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()'
+        cd ${project}
+        ${nodejs}/bin/node -e 'require("./output/${testMain}").main()'
         touch $out
       '';
 
+  # Runs a test using Plutip. Takes the same arguments as `runPursTest`
+  #
+  # NOTE: You *must* either use CTL's `overlays.runtime` or otherwise make the
+  # the following required `buildInputs` available in your own package set:
+  #
+  #  - `ogmios`
+  #  - `ogmios-datum-cache`
+  #  - `plutip-server`
+  #  - `ctl-server`
+  #
+  runPlutipTest = args: runPursTest (
+    {
+      buildInputs = with pkgs; [
+        postgresql
+        ogmios
+        ogmios-datum-cache
+        plutip-server
+        ctl-server
+      ];
+    } // args
+  );
+
+  # Bundles a Purescript project using Webpack, typically for the browser
   bundlePursProject =
-    { name ? "${projectName}-bundle-" +
+    {
+      # Can be used to override the name given to the resulting derivation
+      name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
+      # The Webpack `entrypoint`
     , entrypoint ? "index.js"
-    , htmlTemplate ? "index.html"
+      # The main Purescript module
     , main ? "Main"
+      # If this bundle is being produced for a browser environment or not
     , browserRuntime ? true
+      # Path to the Webpack config to use
     , webpackConfig ? "webpack.config.js"
+      # The name of the bundled JS module that `spago bundle-module` will produce
     , bundledModuleName ? "output.js"
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
     , nodeModules ? projectNodeModules
     , ...
-    }: pkgs.stdenv.mkDerivation {
-      inherit name src;
-      buildInputs = [
-        nodejs
-        nodeModules
-        project
-      ];
-      nativeBuildInputs = [
-        purs
-        pkgs.easy-ps.spago
-      ];
-      buildPhase = ''
+    }: pkgs.runCommand "${name}"
+      {
+        buildInputs = [
+          nodejs
+          nodeModules
+          project
+        ];
+        nativeBuildInputs = [
+          purs
+          pkgs.easy-ps.spago
+        ];
+      }
+      ''
         export HOME="$TMP"
         export NODE_PATH="${nodeModules}/lib/node_modules"
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-        cp -r ${project}/output .
+        cp -r ${project}/* .
         chmod -R +rwx .
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
-        cp $src/${entrypoint} .
-        cp $src/${htmlTemplate} .
-        cp $src/${webpackConfig} .
         mkdir ./dist
         webpack --mode=production -c ${webpackConfig} -o ./dist \
           --entry ./${entrypoint}
-      '';
-      installPhase = ''
         mkdir $out
         mv dist $out
       '';
-    };
 
   pursDocsSearchNpm =
     let
@@ -253,28 +354,79 @@ let
         '';
       });
 
-  buildSearchablePursDocs = { packageName, ... }:
-    pkgs.stdenv.mkDerivation {
-      name = "${projectName}-searchable-docs";
-      dontUnpack = true;
-      buildInputs = [ spagoPkgs.installSpagoStyle ];
-      buildPhase = ''
+  # Builds all of the documentation for your Purescript project (including deps)
+  # and creates a searchable index for them
+  buildSearchablePursDocs =
+    {
+      # Passed to the `--package-name` argument of `purescript-docs-search`
+      packageName ? projectName
+    , ...
+    }:
+    pkgs.runCommand "${projectName}-searchable-docs"
+      {
+        buildInputs = [ spagoPkgs.installSpagoStyle ];
+      }
+      ''
         export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
         export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
         cp -r ${buildPursDocs { }}/{generated-docs,output} .
         install-spago-style
         chmod -R +rwx .
         purescript-docs-search build-index --package-name ${packageName}
-      '';
-      installPhase = ''
         mkdir $out
         cp -r generated-docs $out
       '';
+
+  # Creates a flakes-compatible `apps` output to serve a searchable index of all
+  # project docs (including dependencies) locally. For example
+  #
+  # ```
+  #   apps = perSystem (system: {
+  #     docs = (psProjectFor system).launchSearchablePursDocs { port = 9090; };
+  #   });
+  # ```
+  #
+  # You can then invoke `nix run .#docs` to serve the documentation index locally
+  # and visit `localhost:9090` to browse them
+  launchSearchablePursDocs =
+    {
+      # If you are already building your docs (e.g. as part of your flake
+      # `packages`), you can pass them here. Otherwise, `buildSearchablePursDocs`
+      # will be invoked
+      builtDocs ? null
+      # The port to run the local HTTP server on
+    , port ? 8080
+    , ...
+    }:
+    let
+      binPath = "docs-server";
+      docs =
+        if builtDocs == null
+        then buildSearchablePursDocs { }
+        else builtDocs;
+      script = pkgs.writeShellApplication {
+        name = binPath;
+        runtimeInputs = [
+          pkgs.nodejs-14_x
+          pkgs.nodePackages.http-server
+        ];
+        text =
+          ''
+            ${pkgs.nodePackages.http-server}/bin/http-server \
+              --port ${builtins.toString port} ${docs}/generated-docs/html
+          '';
+      };
+    in
+    {
+      type = "app";
+      program = "${script}/bin/${binPath}";
     };
 
 in
 {
-  inherit buildPursProject runPursTest buildPursDocs bundlePursProject
-    buildSearchablePursDocs purs nodejs mkNodeModules;
+  inherit
+    buildPursProject runPursTest runPlutipTest bundlePursProject
+    buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
+    purs nodejs mkNodeModules;
   devShell = shellFor shell;
 }

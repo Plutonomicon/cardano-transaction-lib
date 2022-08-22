@@ -36,7 +36,7 @@ module Deserialization.Transaction
   , _unpackMint
   , _unpackMintAssets
   , _unpackProtocolParamUpdate
-  , _unpackProtocolVersions
+  , _unpackProtocolVersion
   , _unpackUnitInterval
   , _unpackUpdate
   , _unpackWithdrawals
@@ -54,7 +54,7 @@ module Deserialization.Transaction
   , convertMint
   , convertNonce
   , convertProtocolParamUpdate
-  , convertProtocolVersions
+  , convertProtocolVersion
   , convertTransaction
   , convertTxBody
   , convertUpdate
@@ -107,7 +107,7 @@ import Cardano.Types.Transaction
   ) as T
 import Cardano.Types.Value
   ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
+  , mkNonAdaAsset
   , scriptHashAsCurrencySymbol
   )
 import Control.Lazy (fix)
@@ -116,7 +116,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
-import Data.Int (fromString)
 import Data.Map as M
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
@@ -186,7 +185,7 @@ import Serialization.Types
   , PoolMetadata
   , PoolParams
   , ProtocolParamUpdate
-  , ProtocolVersions
+  , ProtocolVersion
   , Relay
   , ScriptDataHash
   , SingleHostAddr
@@ -432,7 +431,7 @@ convertPoolRetirement poolKeyhash epochInt = do
   pure $ T.PoolRetirement { poolKeyhash, epoch }
 
 convertMint :: Csl.Mint -> T.Mint
-convertMint mint = T.Mint $ NonAdaAsset
+convertMint mint = T.Mint $ mkNonAdaAsset
   $
     -- outer map
     M.fromFoldable <<< map (lmap scriptHashAsCurrencySymbol)
@@ -472,7 +471,7 @@ convertProtocolParamUpdate cslPpu = do
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
-  protocolVersion <- traverse (convertProtocolVersions (lbl "protocolVersion"))
+  protocolVersion <- traverse (convertProtocolVersion (lbl "protocolVersion"))
     ppu.protocolVersion
   costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
@@ -542,9 +541,9 @@ convertCostModel err = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
   stringToInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) Int
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int.Int
   stringToInt s = cslErr (err <> ": string (" <> s <> ") -> int") $
-    fromString s
+    Int.fromBigInt =<< BigInt.fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData
@@ -664,13 +663,13 @@ convertExUnits nm cslExunits =
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
 
-convertProtocolVersions
+convertProtocolVersion
   :: forall (r :: Row Type)
    . String
-  -> Csl.ProtocolVersions
-  -> E (FromCslRepError + r) (Array T.ProtocolVersion)
-convertProtocolVersions nm cslPV =
-  for (_unpackProtocolVersions containerHelper cslPV)
+  -> Csl.ProtocolVersion
+  -> E (FromCslRepError + r) T.ProtocolVersion
+convertProtocolVersion nm cslPV =
+  _unpackProtocolVersion cslPV #
     ( \{ major, minor } ->
         { major: _, minor: _ }
           <$> cslNumberToUInt (nm <> " major") major
@@ -703,7 +702,7 @@ foreign import _unpackProtocolParamUpdate
          Maybe Csl.UnitInterval
      , d :: Maybe Csl.UnitInterval
      , extraEntropy :: Maybe Csl.Nonce
-     , protocolVersion :: Maybe Csl.ProtocolVersions
+     , protocolVersion :: Maybe Csl.ProtocolVersion
      , minPoolCost :: Maybe Csl.BigNum
      , adaPerUtxoByte :: Maybe Csl.BigNum
      , costModels :: Maybe Csl.Costmdls
@@ -735,10 +734,9 @@ type MetadatumHelper (r :: Row Type) =
   , error :: String -> Err r TransactionMetadatum
   }
 
-foreign import _unpackProtocolVersions
-  :: ContainerHelper
-  -> Csl.ProtocolVersions
-  -> Array { major :: Number, minor :: Number }
+foreign import _unpackProtocolVersion
+  :: Csl.ProtocolVersion
+  -> { major :: Number, minor :: Number }
 
 foreign import _unpackExUnits
   :: Csl.ExUnits -> { mem :: Csl.BigNum, steps :: Csl.BigNum }

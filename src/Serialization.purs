@@ -1,5 +1,7 @@
 module Serialization
-  ( convertTransaction
+  ( bytesFromPrivateKey
+  , convertExUnitPrices
+  , convertTransaction
   , convertTxBody
   , convertTxInput
   , convertTxOutput
@@ -28,6 +30,7 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , ExUnitPrices
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
   , Language(PlutusV1)
@@ -91,7 +94,6 @@ import Serialization.Types
   , ExUnits
   , GenesisDelegateHash
   , GenesisHash
-  , Int32
   , Ipv4
   , Ipv6
   , Language
@@ -141,9 +143,10 @@ import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
-import Types.RawBytes (RawBytes)
+import Types.Int as Csl
 import Types.Int as Int
 import Types.PlutusData as PlutusData
+import Types.RawBytes (RawBytes)
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
@@ -217,6 +220,9 @@ foreign import publicKeyFromPrivateKey
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
 
+foreign import _bytesFromPrivateKey
+  :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
+
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
@@ -227,9 +233,9 @@ foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
 
 foreign import newCostModel :: Effect CostModel
-foreign import costModelSetCost :: CostModel -> Int -> Int32 -> Effect Unit
+foreign import costModelSetCost :: CostModel -> Int -> Csl.Int -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
-foreign import newInt32 :: Int -> Effect Int32
+
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
 
@@ -377,9 +383,8 @@ foreign import ppuSetTreasuryGrowthRate
 foreign import newProtocolVersion :: Int -> Int -> Effect ProtocolVersion
 
 foreign import ppuSetProtocolVersion
-  :: ContainerHelper
-  -> ProtocolParamUpdate
-  -> Array ProtocolVersion
+  :: ProtocolParamUpdate
+  -> ProtocolVersion
   -> Effect Unit
 
 foreign import ppuSetMinPoolCost
@@ -556,9 +561,9 @@ convertProtocolParamUpdate
     mkUnitInterval >=> ppuSetExpansionRate ppu
   for_ treasuryGrowthRate $
     mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
-  for_ protocolVersion $
-    ppuSetProtocolVersion containerHelper ppu <=<
-      traverse \pv -> newProtocolVersion (UInt.toInt pv.major)
+  for_ protocolVersion \pv ->
+    ppuSetProtocolVersion ppu =<<
+      newProtocolVersion (UInt.toInt pv.major)
         (UInt.toInt pv.minor)
   for_ minPoolCost $ ppuSetMinPoolCost ppu
   for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
@@ -568,17 +573,17 @@ convertProtocolParamUpdate
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
   for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
   pure ppu
-  where
-  mkUnitInterval
-    :: T.UnitInterval -> Effect UnitInterval
-  mkUnitInterval x = newUnitInterval x.numerator x.denominator
 
-  convertExUnitPrices
-    :: { memPrice :: T.UnitInterval, stepPrice :: T.UnitInterval }
-    -> Effect ExUnitPrices
-  convertExUnitPrices { memPrice, stepPrice } =
-    join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
-      stepPrice
+mkUnitInterval
+  :: T.UnitInterval -> Effect UnitInterval
+mkUnitInterval x = newUnitInterval x.numerator x.denominator
+
+convertExUnitPrices
+  :: T.ExUnitPrices
+  -> Effect ExUnitPrices
+convertExUnitPrices { memPrice, stepPrice } =
+  join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
+    stepPrice
 
 convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
 convertWithdrawals mp =
@@ -592,6 +597,9 @@ publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
 privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
+
+bytesFromPrivateKey :: PrivateKey -> Maybe RawBytes
+bytesFromPrivateKey = _bytesFromPrivateKey maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
@@ -679,7 +687,8 @@ convertNetworkId = case _ of
   T.MainnetId -> networkIdMainnet
 
 convertMint :: T.Mint -> Effect Mint
-convertMint (T.Mint (Value.NonAdaAsset m)) = do
+convertMint (T.Mint nonAdaAssets) = do
+  let m = Value.unwrapNonAdaAsset nonAdaAssets
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
@@ -763,7 +772,7 @@ convertCostmdls (T.Costmdls cs) = do
     $ Map.lookup T.PlutusV1 cs
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
-    costModelSetCost costModel operation =<< newInt32 cost
+    costModelSetCost costModel operation cost
   costmdls <- newCostmdls
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel

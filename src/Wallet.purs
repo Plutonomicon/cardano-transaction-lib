@@ -1,11 +1,13 @@
 module Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, KeyWallet)
+  , Wallet(Gero, Nami, Flint, KeyWallet)
   , isGeroAvailable
   , isNamiAvailable
+  , isFlintAvailable
   , mkNamiWalletAff
   , mkGeroWalletAff
+  , mkFlintWalletAff
   , mkKeyWallet
   , cip30Wallet
   , dummySign
@@ -41,6 +43,7 @@ import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
+  | Flint Cip30Wallet
   | KeyWallet KeyWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
@@ -67,11 +70,22 @@ mkGeroWalletAff = Gero <$> mkCip30WalletAff "Gero" _enableGero
 
 foreign import _enableGero :: Effect (Promise Cip30Connection)
 
+isFlintAvailable :: Effect Boolean
+isFlintAvailable = _isFlintAvailable
+
+foreign import _isFlintAvailable :: Effect Boolean
+
+mkFlintWalletAff :: Aff Wallet
+mkFlintWalletAff = Flint <$> mkCip30WalletAff "Flint" _enableFlint
+
+foreign import _enableFlint :: Effect (Promise Cip30Connection)
+
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
   Nami c30 -> Just c30
   Gero c30 -> Just c30
-  _ -> Nothing
+  Flint c30 -> Just c30
+  KeyWallet _ -> Nothing
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't

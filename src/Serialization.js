@@ -102,6 +102,14 @@ exports._privateKeyFromBytes = maybe => bytes => {
   }
 };
 
+exports._bytesFromPrivateKey = maybe => key => {
+  try {
+    return maybe.just(key.as_bytes());
+  } catch (err) {
+    return maybe.nothing;
+  }
+};
+
 exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>
@@ -120,8 +128,6 @@ exports.newCostModel = () => lib.CostModel.new();
 exports.costModelSetCost = cm => op => cost => () => cm.set(op, cost);
 
 exports.newPlutusV1 = () => lib.Language.new_plutus_v1();
-
-exports.newInt32 = x => () => lib.Int.new_i32(x);
 
 exports._hashScriptData = rs => cms => ds => () => {
   const list = lib.PlutusList.new();
@@ -337,10 +343,8 @@ exports.ppuSetTreasuryGrowthRate = setter("treasury_growth_rate");
 exports.newProtocolVersion = major => minor => () =>
   lib.ProtocolVersion.new(major, minor);
 
-exports.ppuSetProtocolVersion = containerHelper => ppu => versions => () =>
-  ppu.set_protocol_version(
-    containerHelper.pack(lib.ProtocolVersions, versions)
-  );
+exports.ppuSetProtocolVersion = ppu => version => () =>
+  ppu.set_protocol_version(version);
 
 exports.ppuSetMinPoolCost = setter("min_pool_cost");
 

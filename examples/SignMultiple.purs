@@ -1,33 +1,23 @@
 -- | This module balances and signs two transactions at once and demonstrates
 -- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
-module Examples.SignMultiple (main) where
+module Examples.SignMultiple (example, main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( NetworkId(TestnetId)
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
+import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
-  , ConfigParams(ConfigParams)
-  , LogLevel(Trace)
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
   , launchAff_
   , liftedE
   , liftedM
-  , logInfo'
-  , mkContractConfig
-  , runContract_
+  , runContract
   , throwContractError
   )
-import Control.Monad.Reader (asks)
-import Effect.Ref as Ref
 import Contract.ScriptLookups as Lookups
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
@@ -37,30 +27,23 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
+import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
+import Effect.Ref as Ref
 import Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< unwrap)
+  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- mkContractConfig $ ConfigParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: {}
-    , wallet
-    }
+main = example testnetNamiConfig
 
-  runContract_ cfg $ do
-    logInfo' "Running Examples.Pkh2Pkh"
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg do
+    logInfo' "Running Examples.SignMultiple"
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
 
@@ -93,6 +76,8 @@ main = launchAff_ $ do
         logInfo' $ "Tx 2 submitted successfully!"
       _ -> throwContractError "Unexpected error - no transaction IDs"
 
+  publishTestFeedback true
+
   where
   submitAndLog
     :: forall (r :: Row Type)
@@ -102,4 +87,3 @@ main = launchAff_ $ do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     pure txId
-
