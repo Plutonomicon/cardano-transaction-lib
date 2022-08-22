@@ -19,7 +19,8 @@ import Address
   , ogmiosAddressToAddress
   )
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as Transaction
-import Data.Maybe (Maybe(Nothing, Just))
+import Control.Alt ((<|>))
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Deserialization.FromBytes (fromBytes)
@@ -99,58 +100,71 @@ transactionOutputToOgmiosTxOut
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
 ogmiosTxOutToScriptOutput :: Ogmios.OgmiosTxOut -> Maybe UTx.ScriptOutput
-ogmiosTxOutToScriptOutput
-  { address, value, datumHash: Just dHash } = do
-  address' <- ogmiosAddressToAddress address
-  validatorHash <- enterpriseAddressValidatorHash address'
-  datumHash <- ogmiosDatumHashToDatumHash dHash
-  pure $ UTx.ScriptOutput
-    { validatorHash
-    , value
-    , datumHash
-    }
-ogmiosTxOutToScriptOutput { datumHash: Nothing } = Nothing
+ogmiosTxOutToScriptOutput { address, value, datum, datumHash } =
+  case ogmiosDatumToScriptDatum datum datumHash of
+    Just scriptDatum -> do
+
+      address' <- ogmiosAddressToAddress address
+      validatorHash <- enterpriseAddressValidatorHash address'
+
+      pure $ UTx.ScriptOutput
+        { validatorHash
+        , value
+        , datum: scriptDatum
+        }
+    Nothing -> Nothing
 
 -- | Converts an `ScriptOutput` to Ogmios Transaction output.
 scriptOutputToOgmiosTxOut
   :: NetworkId -> UTx.ScriptOutput -> Ogmios.OgmiosTxOut
 scriptOutputToOgmiosTxOut
   networkId
-  (UTx.ScriptOutput { validatorHash, value, datumHash }) =
-  { address:
+  (UTx.ScriptOutput { validatorHash, value, datum: scriptDatum }) =
+  let
+    address =
       addressToOgmiosAddress $ validatorHashEnterpriseAddress networkId
         validatorHash
-  , value
-  , datumHash: pure (datumHashToOgmiosDatumHash datumHash)
-  , datum: Nothing
-  }
+  in
+    case scriptDatum of
+      UTx.ScriptDatum d ->
+        { address
+        , value
+        , datumHash: Nothing
+        , datum: datumToOgmiosDatum d
+        }
+      UTx.ScriptDatumHash dh ->
+        { address
+        , value
+        , datumHash: Just (datumHashToOgmiosDatumHash dh)
+        , datum: Nothing
+        }
 
 -- | Converts an internal transaction output to `ScriptOutput`.
 transactionOutputToScriptOutput
   :: Transaction.TransactionOutput -> Maybe UTx.ScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
-      { address, amount: value, datum: OutputDatumHash datumHash }
-  ) = do
-  validatorHash <- enterpriseAddressValidatorHash address
-  pure $ UTx.ScriptOutput
-    { validatorHash
-    , value
-    , datumHash
-    }
-transactionOutputToScriptOutput
-  (Transaction.TransactionOutput _) = Nothing
+      { address, amount: value, datum }
+  ) = case outputDatumToScriptDatum datum of
+  Just scriptDatum -> do
+    validatorHash <- enterpriseAddressValidatorHash address
+    pure $ UTx.ScriptOutput
+      { validatorHash
+      , value
+      , datum: scriptDatum
+      }
+  Nothing -> Nothing
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput
   :: NetworkId -> UTx.ScriptOutput -> Transaction.TransactionOutput
 scriptOutputToTransactionOutput
   networkId
-  (UTx.ScriptOutput { validatorHash, value, datumHash }) =
+  (UTx.ScriptOutput { validatorHash, value, datum }) =
   Transaction.TransactionOutput
     { address: validatorHashEnterpriseAddress networkId validatorHash
     , amount: value
-    , datum: OutputDatumHash datumHash
+    , datum: scriptDatumToOutputDatum datum
     , scriptRef: Nothing
     }
 
@@ -181,6 +195,25 @@ datumToOgmiosDatum (Datum plutusData) =
     (asOneOf >>> toBytes >>> byteArrayToHex)
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
-toOutputDatum (Just d) _ = OutputDatum d
-toOutputDatum _ (Just dh) = OutputDatumHash dh
-toOutputDatum _ _ = NoOutputDatum
+toOutputDatum d dh =
+  OutputDatum <$> d <|> OutputDatumHash <$> dh # fromMaybe NoOutputDatum
+
+ogmiosDatumToScriptDatum
+  :: Maybe String -> Maybe String -> Maybe UTx.ScriptDatum
+ogmiosDatumToScriptDatum d dh =
+  let
+    datum =
+      d >>= ogmiosDatumToDatum >>= UTx.ScriptDatum >>> pure
+    datumHash =
+      dh >>= ogmiosDatumHashToDatumHash >>= UTx.ScriptDatumHash >>> pure
+  in
+    datum <|> datumHash
+
+outputDatumToScriptDatum :: OutputDatum -> Maybe UTx.ScriptDatum
+outputDatumToScriptDatum (OutputDatum d) = Just (UTx.ScriptDatum d)
+outputDatumToScriptDatum (OutputDatumHash d) = Just (UTx.ScriptDatumHash d)
+outputDatumToScriptDatum NoOutputDatum = Nothing
+
+scriptDatumToOutputDatum :: UTx.ScriptDatum -> OutputDatum
+scriptDatumToOutputDatum (UTx.ScriptDatum d) = OutputDatum d
+scriptDatumToOutputDatum (UTx.ScriptDatumHash dh) = OutputDatumHash dh
