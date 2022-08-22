@@ -79,7 +79,9 @@ In addition to the constraints/lookups listed above, there are several other cri
 
 ## Acceptance criteria
 
-Coverage of particular functionality is measured by the inclusion of the **public** interface in full example contracts and tests.
+Coverage of particular functionality is measured by the inclusion of the **public** interface in full example contracts and tests. CTL's public API is defined in its `Contract.*` modules.
+
+Most user interactions defined [above](#user-interactions) also call various parsers and serialization/deserialization code defined in CTL's private/internal modules. Acceptance criteria for these aspects of CTL are defined in [Unit testing](#unit-and-integration-testing) below.
 
 ### Example contracts as tests
 
@@ -91,7 +93,7 @@ In the case of CTL's constraints/lookups API, in order to be qualified as "cover
 - sign the transaction using the attached wallet (either a browser-based light wallet or our own `KeyWallet`)
 - submit the transaction to the node via Ogmios
 
-The functionality to achieve the above **must** be taken from our public `Contract.*` API. That is, we must consume the public interface directly in all example contracts rather than importing internal CTL modules (anything outside of `Contract.*`).
+The functionality to achieve the above **must** be taken from our public API. That is, we must consume the public interface directly in all example contracts rather than importing internal CTL modules (anything outside of `Contract.*`).
 
 #### Test environments
 
@@ -133,6 +135,48 @@ Then, the exported `example` must be added to `Examples.ByUrl` to be run with `m
 
 The **only** exception to the above rule is when the particulars of a contract preclude running it in one of the environments. For example, a contract that requires interaction between two or more wallets cannot currently be adapted to our e2e testing (as it assumes one connected wallet with one account).
 
-<!-- TODO parsing/unit tests -->
+### Unit and integration testing
 
-### Coverage during development
+CTL relies heavily on various runtime components to provide the necessary information to perform chain queries and construct transactions. We depend on a large amount of parsers, including serialization/deserialization code (i.e. to and from CTL's own domain type to `cardano-serialization-lib` FFI types), to consume the responses to websocket and HTTP requests made against CTL's runtime.
+
+Although such parsers are included implicitly in the example contracts defined above, we must also ensure good coverage of edge cases that may arise when making runtime requests. Our approach to such testing can be formalized as:
+
+- **Unit tests**
+  - These tests rely on fixtures generated from runtime responses (see [`fixtures/`](../fixtures/test) for examples), stored in the same format as they are received in genuine responses
+  - The corresponding tests can be largely pure functions which read the fixture and parse it
+  - Success is defined as a parse returning a `Just` or `Right` value, depending on the parser
+    - Due to the large number and semi-random nature of our test fixtures, we do not require comparing parsed values to an expected result
+  - If possible, we should validate a parser against a component's _own_ test fixtures
+    - See `Test.Ogmios.GenerateFixtures` for an example of this approach, which uses Ogmios' generated test vectors for our own testing
+- **Integration tests**
+  - These tests are run against a full runtime and make real requests to different components
+  - These are intended to augment the unit tests described above and are a step below our full example contracts
+  - These can either call effects from the `Contract` interface or its underlying `QueryM` monad stack
+
+#### Required parsing tests
+
+Currently, we require parsing tests for the following data structures, organized by dependency (including runtime dependencies):
+
+- Ogmios
+  - [x] `ChainTipQR`
+  - [x] `UtxoQR`
+  - [x] `CurrentEpoch`
+  - [x] `SystemStart`
+  - [x] `EraSummaries`
+  - [x] `ProtocolParameters`
+  - [x] `TxEvaluationR`
+  - [x] `SubmitTxR`
+- `ogmios-datum-cache`
+  - [x] `GetDatumByHashR`
+  - [ ] `GetDatumsByHashesR`
+  - [ ] `GetTxByHashR`
+- `cardano-serialization-lib`
+  - `Transaction`
+    - [x] Serialization
+    - [x] Deserialization
+  - `TxBody`
+    - [x] Serialization
+    - [x] Deserialization
+  - `TransactionWitnessSet`
+    - [x] Serialization
+    - [x] Deserialization
