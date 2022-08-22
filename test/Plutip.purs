@@ -119,7 +119,7 @@ suite = do
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
-        startRes <- startPlutipCluster config unit
+        startRes <- startPlutipCluster config [ [] ]
         liftEffect $ Console.log $ "startPlutipCluster: " <> show (snd startRes)
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
