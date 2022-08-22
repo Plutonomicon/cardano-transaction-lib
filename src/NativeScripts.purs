@@ -44,22 +44,25 @@ nativeScriptHash ns = wrap <<< Hashing.nativeScriptHash <$> convertNativeScript
 
 -- | `SetChoice` is an internal type representing internal state of
 -- | `getMaximumSigners` algorithm.
-type SetChoice a = Array (Set a)
+type SetChoice (a :: Type) = Array (Set a)
 
-anyChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
+anyChoice
+  :: forall (a :: Type). Ord a => SetChoice a -> SetChoice a -> SetChoice a
 anyChoice as bs = Array.nub $ as <> bs
 
-allChoice :: forall a. Ord a => SetChoice a -> SetChoice a -> SetChoice a
+allChoice
+  :: forall (a :: Type). Ord a => SetChoice a -> SetChoice a -> SetChoice a
 allChoice as bs = (<>) <$> as <*> bs
 
-subsetsOfLength :: forall a. Int -> Array a -> Array (Array a)
+subsetsOfLength :: forall (a :: Type). Int -> Array a -> Array (Array a)
 subsetsOfLength n =
   List.fromFoldable >>> sublists n >>> List.toUnfoldable >>> map
     List.toUnfoldable
 
-sublists :: forall a. Int -> List a -> List (List a)
+sublists :: forall (a :: Type). Int -> List a -> List (List a)
 sublists n xs = List.take (List.length xs - n + 1) $ sublists' n xs
   where
+  sublists' :: Int -> List a -> List (List a)
   sublists' _ Nil = Cons Nil Nil
   sublists' n' xs'@(Cons _ rest) = List.take n' xs' : sublists' n' rest
 
@@ -87,5 +90,5 @@ getMaximumSigners alreadyCounted =
     TimelockStart _ -> emptySetChoice
     TimelockExpiry _ -> emptySetChoice
 
-emptySetChoice :: forall a. SetChoice a
+emptySetChoice :: forall (a :: Type). SetChoice a
 emptySetChoice = [ Set.empty ]
