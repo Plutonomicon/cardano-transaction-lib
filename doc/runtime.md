@@ -213,6 +213,8 @@ Where `<TAG>` is the current tag supported by the CTL runtime (you can check CTL
 
 This will mount the volumes required to communicate with the node container (specifically `/ipc`) in the `$PWD` under `.node` (you can choose any directory you'd like -- this is simply an example).
 
+**Note**: Depending on your Docker installation, you may need to `chmod` the mount point for the IPC volume on the host (in the example above, `.node/socket`). Ogmios must be able to read and write to the socket, and Docker often runs as root. If you don't set the correct permissions, Ogmios will be unable to communicate with the node.
+
 3. Start Ogmios
 
 ```
