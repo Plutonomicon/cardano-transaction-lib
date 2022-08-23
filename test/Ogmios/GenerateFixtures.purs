@@ -68,7 +68,8 @@ mkWebSocket lvl serverCfg cb = do
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     void $ _onWsError ws \_ -> onError
-    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ _ -> pure unit)
+      md
     void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
       (mkListenerSet dispatchMap pendingRequests)
@@ -131,7 +132,7 @@ main =
         , mkQuery' "chainTip"
         ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxo"
     resps <- flip parTraverse queries \(Query qc shown) -> do
-      resp <- mkRequestAff listeners ws logLevel qc identity unit
+      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
       pure { resp, query: shown }
 
     for_ resps \{ resp, query } -> do

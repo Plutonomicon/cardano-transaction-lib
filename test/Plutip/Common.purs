@@ -47,6 +47,7 @@ config =
       , dbname: "ctxlib"
       }
   , suppressLogs: true
+  , customLogger: Nothing
   }
 
 privateStakeKey :: PrivateStakeKey
