@@ -146,40 +146,6 @@ printEvaluateTxFailures = launchAff_ do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do
-  group "Slot length encode/decode" do
-    group "Slot length string format" $
-      for_
-        [ ".2" /\ 200
-        , "1" /\ 1000
-        , "1." /\ 1000
-        , "1.22" /\ 1220
-        , "100.537" /\ 100537
-        , "111.5372047" /\ 111537
-        ]
-        \(str /\ expected) ->
-          test ("Format: " <> str) $
-            shouldEqual (O.parseSlotLength str)
-              (Right (wrap $ BigInt.fromInt expected))
-    test "Slot length roundtrip property" $ quickCheck \slotLength ->
-      let
-        actual = O.encodeSlotLength <$> O.parseSlotLength (toString slotLength)
-        diff = actual <#> (_ - slotLength)
-        margOfError = recip $ Int.toNumber O.slotLengthFactor
-      in
-        case diff of
-          Left err -> Failed $ "Failed with slotLength=" <> show slotLength
-            <> ", error:"
-            <> show err
-          Right diff' -> (diff' < margOfError) <?>
-            ( show diff' <> " >= " <> show margOfError <> " where actual="
-                <> show actual
-                <> " and slotLength="
-                <> show slotLength
-            )
-    test "Slot length expected value property" $ quickCheck \slotLength ->
-      hush (unwrap <$> O.parseSlotLength (toString slotLength)) ===
-        BigInt.fromNumber (slotLength * Int.toNumber O.slotLengthFactor)
-
   groupedFiles <- lift loadFixtures
 
   for_ groupedFiles \(query /\ files') ->

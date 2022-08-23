@@ -59,8 +59,6 @@ module QueryM.Ogmios
   , queryUtxosCall
   , submitTxCall
   , slotLengthFactor
-  , parseSlotLength
-  , encodeSlotLength
   ) where
 
 import Prelude
@@ -428,7 +426,7 @@ instance Show Epoch where
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
+  , slotLength :: SlotLength -- <= 9,007,199,254,740,992 A slot length, in miliseconds.
   , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.
   -- This should be (at least) the number of slots in which we are guaranteed
@@ -445,55 +443,23 @@ instance Show EraSummaryParameters where
 instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
     epochLength <- getField o "epochLength"
-    slotLength <- getField o "slotLength" >>= stringifyAeson >>> parseSlotLength
+    slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
     safeZone <- fromMaybe zero <$> getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
 
-slotLengthFactor :: Int
-slotLengthFactor = 1000
-
-parseSlotLength :: String -> Either JsonDecodeError SlotLength
-parseSlotLength slotLengthStr = do
-  intPart /\ fracPart <- case split (Pattern ".") slotLengthStr of
-    [ intPart ] -> parseBigIntOrEmpty intPart <#> (_ /\ zero)
-    [ intPart, fracPart ] ->
-      Tuple
-        <$> parseBigIntOrEmpty intPart
-        <*> (parseBigIntOrEmpty =<< formatFracPart fracPart)
-    _ -> Left $ TypeMismatch $
-      "Couldn't parse slotLength: " <> slotLengthStr
-  pure $ wrap $ intPart * BigInt.fromInt slotLengthFactor + fracPart
-  where
-  parseBigIntOrEmpty :: String -> Either JsonDecodeError BigInt
-  parseBigIntOrEmpty = case _ of
-    "" -> Right zero
-    x -> decodeJsonString x
-
-  formatFracPart :: String -> Either JsonDecodeError String
-  formatFracPart x = note (TypeMismatch "Could not format fraction part")
-    let
-      len = length x
-      goalLen = 3
-    in
-      if len <= goalLen then (x <> _) <$> repeat (goalLen - len) "0"
-      else Just $ take goalLen x
+-- | The EraSummaryParameters uses seconds and we use miliseconds
+-- to translate back multiply by 1e(-3) instead of div. 
+slotLengthFactor :: Number
+-- Using 1e3 instead of 1000 seems more explicit
+slotLengthFactor = 1e3
 
 instance EncodeAeson EraSummaryParameters where
   encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
     encodeAeson'
       { "epochLength": epochLength
-      , "slotLength": encodeSlotLength slotLength
+      , "slotLength": slotLength
       , "safeZone": safeZone
       }
-
-encodeSlotLength :: SlotLength -> Number
-encodeSlotLength (SlotLength sl) =
-  let
-    fracPart = BigInt.toNumber (sl `mod` BigInt.fromInt slotLengthFactor) /
-      Int.toNumber slotLengthFactor
-    intPart = BigInt.toNumber $ sl / BigInt.fromInt slotLengthFactor
-  in
-    intPart + fracPart
 
 -- | An epoch number or length. [ 0 .. 18446744073709552000 ]
 newtype EpochLength = EpochLength BigInt
@@ -507,8 +473,8 @@ derive newtype instance EncodeAeson EpochLength
 instance Show EpochLength where
   show (EpochLength el) = showWithParens "EpochLength" el
 
--- | A slot length, in milliseconds <= 18446744073709552000000
-newtype SlotLength = SlotLength BigInt
+-- | A slot length, in milliseconds
+newtype SlotLength = SlotLength Number
 
 derive instance Generic SlotLength _
 derive instance Newtype SlotLength _

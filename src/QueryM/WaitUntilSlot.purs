@@ -69,8 +69,7 @@ waitUntilSlot futureSlot =
                 currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot_ }))
                   | currentSlot_ >= futureSlot -> pure currentTip
                   | otherwise -> do
-                      liftAff $ delay $ Milliseconds $ BigInt.toNumber
-                        slotLengthMs
+                      liftAff $ delay $ Milliseconds slotLengthMs
                       getLag eraSummaries sysStart currentSlot_ >>= logLag
                         slotLengthMs
                       fetchRepeatedly
@@ -86,12 +85,12 @@ waitUntilSlot futureSlot =
   retryDelay :: Milliseconds
   retryDelay = wrap 1000.0
 
-  logLag :: BigInt -> Milliseconds -> QueryM Unit
+  logLag :: Number -> Milliseconds -> QueryM Unit
   logLag slotLengthMs (Milliseconds lag) = do
     logLevel <- asks $ _.config >>> _.logLevel
     liftEffect $ logString logLevel Trace $
       "waitUntilSlot: current lag: " <> show lag <> " ms, "
-        <> show (lag / BigInt.toNumber slotLengthMs)
+        <> show (lag / slotLengthMs)
         <> " slots."
 
 -- | Calculate difference between estimated POSIX time of given slot

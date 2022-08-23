@@ -3,6 +3,7 @@ module Test.Plutus.Time
   ) where
 
 import Data.BigInt as BigInt
+import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff)
 import Prelude
@@ -92,7 +93,7 @@ mkEpochLength :: Int -> EpochLength
 mkEpochLength = EpochLength <<< BigInt.fromInt
 
 mkSlotLength :: Int -> SlotLength
-mkSlotLength = SlotLength <<< BigInt.fromInt
+mkSlotLength = SlotLength <<< Int.toNumber
 
 mkSafeZone :: Int -> SafeZone
 mkSafeZone = SafeZone <<< BigInt.fromInt
