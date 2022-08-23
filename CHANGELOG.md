@@ -109,6 +109,7 @@ See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - Disallow specifying less than 1 ADA in Plutip UTxO distribution ([#901](https://github.com/Plutonomicon/cardano-transaction-lib/pull/901))
 - Bug in `TransactionMetadatum` deserialization ([#932](https://github.com/Plutonomicon/cardano-transaction-lib/issues/932))
 - Fix excessive logging after the end of `Contract` execution ([#893](https://github.com/Plutonomicon/cardano-transaction-lib/issues/893))
+- Add ability to suppress logs of successful `Contract` executions - with new `suppressLogs` config option the logs will be shown on error ([#768](https://github.com/Plutonomicon/cardano-transaction-lib/issues/768))
 
 ## [2.0.0-alpha] - 2022-07-05
 
