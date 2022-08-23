@@ -463,6 +463,7 @@ mkClusterContractEnv plutipCfg = do
         , logLevel: plutipCfg.logLevel
         , walletSpec: Nothing
         , customLogger: Nothing
+        , suppressLogs: plutipCfg.suppressLogs
         }
     , runtime:
         { ogmiosWs

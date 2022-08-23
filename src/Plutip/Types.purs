@@ -59,6 +59,7 @@ type PlutipConfig =
   , ctlServerConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
+  , suppressLogs :: Boolean
   }
 
 type PostgresConfig =

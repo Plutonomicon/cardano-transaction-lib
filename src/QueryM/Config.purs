@@ -22,6 +22,7 @@ testnetTraceQueryConfig =
   , logLevel: Trace
   , walletSpec: Nothing
   , customLogger: Nothing
+  , suppressLogs: false
   }
 
 testnetQueryConfig :: QueryConfig

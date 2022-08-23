@@ -33,6 +33,7 @@ import Control.Monad.Error.Class
   , class MonadThrow
   , catchError
   )
+import Control.Monad.Except (throwError)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class
   ( class MonadAsk
@@ -44,7 +45,10 @@ import Control.Monad.Reader.Class
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Plus (class Plus, empty)
-import Data.Either (Either, either, hush)
+import Data.Either (Either(Left, Right), either, hush)
+import Data.JSDate (now)
+import Data.List (List(Cons, Nil))
+import Data.List as List
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Log.Tag
@@ -56,15 +60,19 @@ import Data.Log.Tag
   , jsDateTag
   , tagSetTag
   ) as Log.Tag
-import Data.Maybe (Maybe, maybe)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
+import Data.Traversable (for_)
 import Effect (Effect)
-import Effect.Aff (Aff)
 import Effect.Aff (Aff, launchAff_) as Aff
+import Effect.Aff (Aff, launchAff_, try)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
+import Effect.Ref as Ref
+import Helpers (logString)
 import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
@@ -204,6 +212,7 @@ type ConfigParams (r :: Row Type) =
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
+  , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
   , extraConfig :: { | r }
   }
@@ -230,10 +239,52 @@ runContractInEnv
    . ContractEnv r
   -> Contract r a
   -> Aff a
-runContractInEnv config =
-  flip runReaderT (unwrap config)
-    <<< unwrap
-    <<< unwrap
+runContractInEnv (ContractEnv env@{ config: { suppressLogs: true } }) contract =
+  do
+    logsRef <- liftEffect $ Ref.new Nil
+    let
+      -- TODO: use external mkLogger when
+      -- https://github.com/Plutonomicon/cardano-transaction-lib/pull/935/files
+      -- is merged
+      mkLogger
+        :: LogLevel
+        -> Maybe (Message -> Aff Unit)
+        -> LogLevel
+        -> String
+        -> Effect Unit
+      mkLogger logLevel mbCustomLogger level message =
+        case mbCustomLogger of
+          Nothing -> logString logLevel level message
+          Just loggerFunc -> liftEffect do
+            timestamp <- now
+            launchAff_ $ loggerFunc
+              { level, message, tags: Map.empty, timestamp }
+
+      addLogEntry :: Message -> Effect Unit
+      addLogEntry msg =
+        Ref.modify_ (Cons msg) logsRef
+      logger = mkLogger env.config.logLevel env.config.customLogger
+
+      printLogs :: Effect Unit
+      printLogs = do
+        logs <- List.reverse <$> Ref.read logsRef
+        for_ logs \logEntry -> do
+          logger logEntry.level logEntry.message
+    res <- try
+      $ flip runReaderT env
+          { config { customLogger = Just (liftEffect <<< addLogEntry) } }
+      $ unwrap
+      $ unwrap contract
+    case res of
+      Left err -> liftEffect do
+        printLogs
+        throwError err
+      Right result -> pure result
+
+runContractInEnv env contract =
+  flip runReaderT (unwrap env)
+    $ unwrap
+    $ unwrap contract
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
@@ -255,6 +306,7 @@ mkContractEnv
     , logLevel
     , walletSpec
     , customLogger
+    , suppressLogs
     } = do
   let
     config =
@@ -265,6 +317,7 @@ mkContractEnv
       , logLevel
       , walletSpec
       , customLogger
+      , suppressLogs
       }
   runtime <- mkQueryRuntime
     config
@@ -304,6 +357,7 @@ withContractEnv
     , logLevel
     , walletSpec
     , customLogger
+    , suppressLogs
     }
   action = do
   let
@@ -315,6 +369,7 @@ withContractEnv
       , logLevel
       , walletSpec
       , customLogger
+      , suppressLogs
       }
   withQueryRuntime config \runtime -> do
     let
