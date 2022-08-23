@@ -465,7 +465,7 @@ mkClusterContractEnv plutipCfg = do
         , networkId: MainnetId
         , logLevel: plutipCfg.logLevel
         , walletSpec: Nothing
-        , customLogger: Nothing
+        , customLogger: plutipCfg.customLogger
         , suppressLogs: plutipCfg.suppressLogs
         }
     , runtime:
