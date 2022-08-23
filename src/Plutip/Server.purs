@@ -468,17 +468,17 @@ mkClusterContractEnv
   -> Maybe (Message -> Aff Unit)
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg logger customLogger = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff logger
-    QueryM.defaultOgmiosWsConfig
-      { port = plutipCfg.ogmiosConfig.port
-      , host = plutipCfg.ogmiosConfig.host
-      }
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff logger
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff datumCacheWs logger
+    QueryM.defaultOgmiosWsConfig
+      { port = plutipCfg.ogmiosConfig.port
+      , host = plutipCfg.ogmiosConfig.host
+      }
   usedTxOuts <- newUsedTxOuts
   pparams <- Ogmios.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv

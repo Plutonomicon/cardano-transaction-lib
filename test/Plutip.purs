@@ -60,12 +60,10 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse_)
-import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, bracket)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)

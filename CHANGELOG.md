@@ -58,6 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Added `privatePaymentKeyToFile` and `privateStakeKeyToFile` to `Wallet.KeyFile` and `Contract.Wallet.KeyFile` for writing keys to files
 - Added `bytesFromPrivateKey` to `Serialization`
 - Improved error handling of transaction evaluation through Ogmios. This helps with debugging during balancing, as it requires the transaction to be evaluated to calculate fees. ([#832](https://github.com/Plutonomicon/cardano-transaction-lib/pull/832))
+- `Contract.Hashing.transactionHash` to calculate the hash of the transaction ([#870](https://github.com/Plutonomicon/cardano-transaction-lib/pull/870))
 - Flint wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 
 ### Changed
@@ -91,12 +92,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Bug with collateral selection: only the first UTxO provided by wallet was included as collateral [(#723)](https://github.com/Plutonomicon/cardano-transaction-lib/issues/723)
 - Bug with collateral selection for `KeyWallet` when signing multiple transactions ([#709](https://github.com/Plutonomicon/cardano-transaction-lib/pull/709))
 - Bug when zero-valued non-Ada assets were added to the non-Ada change output ([#802](https://github.com/Plutonomicon/cardano-transaction-lib/pull/802))
+- Error recovery logic for `SubmitTx` if the WebSocket connection is dropped ([#870](https://github.com/Plutonomicon/cardano-transaction-lib/pull/870))
 - Properly implemented CIP-25 V2 metadata. Now there's no need to split arbitrary-length strings manually to fit them in 64 PlutusData bytes (CTL handles that). A new `Cip25String` type has been introduced (a smart constructor ensures that byte representation fits 64 bytes, as required by the spec). Additionally, a new `Metadata.Cip25.Common.Cip25TokenName` wrapper over `TokenName` is added to ensure proper encoding of `asset_name`s. There are still some minor differences from the spec:
-
--- We do not split strings in pieces when encoding to JSON
--- We require a `"version": 2` tag.
--- `policy_id` must be 28 bytes
--- `asset_name` is up to 32 bytes.
+    - We do not split strings in pieces when encoding to JSON
+    - We require a `"version": 2` tag
+    - `policy_id` must be 28 bytes
+    - `asset_name` is up to 32 bytes
 
 See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - `ogmios-datum-cache` now works on `x86_64-darwin`
@@ -104,9 +105,10 @@ See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - `Contract.Address.getWalletCollateral` now works with `KeyWallet`.
 - Removed unwanted error messages in case `WebSocket` listeners get cancelled ([#827](https://github.com/Plutonomicon/cardano-transaction-lib/issues/827))
 - Bug in `CostModel` serialization - incorrect `Int` type ([#874](https://github.com/Plutonomicon/cardano-transaction-lib/issues/874))
-- Fix excessive logging after the end of `Contract` execution ([#893](https://github.com/Plutonomicon/cardano-transaction-lib/issues/893))
 - Use logger settings on Contract initialization ([#897](https://github.com/Plutonomicon/cardano-transaction-lib/issues/897))
 - Disallow specifying less than 1 ADA in Plutip UTxO distribution ([#901](https://github.com/Plutonomicon/cardano-transaction-lib/pull/901))
+- Bug in `TransactionMetadatum` deserialization ([#932](https://github.com/Plutonomicon/cardano-transaction-lib/issues/932))
+- Fix excessive logging after the end of `Contract` execution ([#893](https://github.com/Plutonomicon/cardano-transaction-lib/issues/893))
 
 ## [2.0.0-alpha] - 2022-07-05
 

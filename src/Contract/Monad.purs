@@ -46,8 +46,6 @@ import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Plus (class Plus, empty)
 import Data.Either (Either(Left, Right), either, hush)
-import Data.List (List(Cons, Nil))
-import Data.List as List
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Log.Tag
@@ -62,14 +60,12 @@ import Data.Log.Tag
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
-import Data.Traversable (for_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_) as Aff
 import Effect.Aff (Aff, try)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
-import Effect.Ref as Ref
 import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
