@@ -67,6 +67,7 @@ import Cardano.Types.Value
   , getNonAdaAsset
   , minus
   , mkValue
+  , posNonAdaAsset
   , valueToCoin'
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
@@ -273,10 +274,9 @@ buildTransactionChangeOutput changeAddress utxos tx =
     totalInputValue = getInputValue utxos txBody
 
     changeValue :: Value
-    changeValue =
-      valueWithNonNegativeAda $
-        (totalInputValue <> mintValue txBody)
-          `minus` (totalOutputValue txBody <> minFeeValue txBody)
+    changeValue = posValue $
+      (totalInputValue <> mintValue txBody)
+        `minus` (totalOutputValue txBody <> minFeeValue txBody)
   in
     TransactionOutput
       { address: changeAddress, amount: changeValue, dataHash: Nothing }
@@ -386,9 +386,10 @@ mintValue txBody = maybe mempty (mkValue mempty <<< unwrap) (txBody ^. _mint)
 minFeeValue :: TxBody -> Value
 minFeeValue txBody = mkValue (txBody ^. _fee) mempty
 
-valueWithNonNegativeAda :: Value -> Value
-valueWithNonNegativeAda value =
-  mkValue (Coin $ max (valueToCoin' value) zero) (getNonAdaAsset value)
+posValue :: Value -> Value
+posValue value = mkValue 
+  (Coin $ max (valueToCoin' value) zero) 
+  (posNonAdaAsset $ getNonAdaAsset value)
 
 -- | Get `TransactionInput` such that it is associated to `PaymentCredentialKey`
 -- | and not `PaymentCredentialScript`, i.e. we want wallets only
