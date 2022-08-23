@@ -441,17 +441,17 @@ mkClusterContractEnv
   :: PlutipConfig
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
-    QueryM.defaultOgmiosWsConfig
-      { port = plutipCfg.ogmiosConfig.port
-      , host = plutipCfg.ogmiosConfig.host
-      }
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff plutipCfg.logLevel
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff datumCacheWs plutipCfg.logLevel
+    QueryM.defaultOgmiosWsConfig
+      { port = plutipCfg.ogmiosConfig.port
+      , host = plutipCfg.ogmiosConfig.host
+      }
   usedTxOuts <- newUsedTxOuts
   pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
   pure $ ContractEnv
