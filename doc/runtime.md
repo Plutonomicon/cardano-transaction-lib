@@ -187,6 +187,98 @@ Here is an example that uses the `runtime` overlay to launch all of the required
 
 For launching services for developing CTL itself, see our documentation on [development](./development.md#launching-services-for-development).
 
+### Manually starting the runtime components
+
+It is _not_ necessary to use the flake app approach above (i.e. with `launchCtlRuntime`). You can start the runtime manually by running all of the components individually in your shell. This might be necessary if your platform is not supported by Arion or `docker-compose` (macOS users in particular have reported this).
+
+The following steps should help you start the runtime without using `launchCtlRuntime`. **Note**: the following steps require Docker, but not `docker-compose`
+
+1. Enter a development shell with the correct runtime components, provided by CTL
+
+CTL's `purescriptProject` function will produce a `devShell` suitable for use with your own flake. Pass the `withRuntime` flag to put all of the required runtime components in your development environment. Then, run `nix develop`. You will now have the necessary packages to manually start the runtime (`ogmios`, `ogmios-datum-cache`, and `ctl-server`). (_Note_: you don't need to use `purescriptProject`, you can still add the packages yourself to a `devShell` that you define yourself.)
+
+Make sure that you have applied the necessary `overlays` provided by CTL, as outlined above.
+
+2. Start `cardano-node`
+
+```
+docker run --rm \
+  -e NETWORK=testnet \
+  -v "$PWD"/.node/socket:/ipc \
+  -v "$PWD"/.node/data:/data \
+  inputoutput/cardano-node:<TAG>
+```
+
+Where `<TAG>` is the current tag supported by the CTL runtime (you can check CTL's own flake to find the current default tag).
+
+This will mount the volumes required to communicate with the node container (specifically `/ipc`) in the `$PWD` under `.node` (you can choose any directory you'd like -- this is simply an example).
+
+3. Start Ogmios
+
+```
+$ ogmios
+    --host <HOST> \
+    --port <PORT> \
+    --node-socket .node/socket \
+    --node-config <CONFIG_PATH>/cardano-node/config.json
+```
+
+Where `<CONFIG_PATH>` points to a local copy of the correct revision of `cardano-configurations`. `cardano-configurations` is included in CTL's `runtime` overlay. You can add the following to `purescriptProject.shell.shellHook` to export the correct paths for Ogmios to use:
+
+```bash
+cfgdir=./.node-cfg
+mkdir -p "$cfgdir"/testnet/{config,genesis}
+ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
+  "$cfgdir"/testnet/config/config.json
+ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
+  "$cfgdir"/testnet/genesis/byron.json
+ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
+  "$cfgdir"/testnet/genesis/shelley.json
+```
+
+You can also clone `cardano-configurations` locally, check out the correct revision, and export the path pointing to the local copy.
+
+4. Start the Postgres DB:
+
+This is required for `ogmios-datum-cache`. Any combination of username, password, and DB name will work, but make sure that it matches what you provide to `ogmios-datum-cache`.
+
+```
+$ docker run -d --rm \
+  -e "POSTGRES_USER=<USER>" \
+  -e "POSTGRES_PASSWORD=<PASSWORD>" \
+  -e "POSTGRES_DB=<DBNAME>" \
+  -p 127.0.0.1:5432:5432 \
+  postgres:13
+```
+
+5. Start `ogmios-datum-cache`
+
+`ogmios-datum-cache` can take a large number of command-line arguments. The most important are `--server-port`, which corresponds to the Ogmios port, and the `--db-*` options, which must match those provided in step 4 above.
+
+```
+$ ogmios-datum-cache
+  --server-api '' \
+  --server-port 9999 \
+  --ogmios-address 127.0.0.1 \
+  --ogmios-port 1337 \
+  --db-port 5432 \
+  --db-host localhost \
+  --db-user user \
+  --db-name dbname \
+  --db-password password \
+  --block-slot 54066900 \
+  --block-hash 6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d \
+  --block-filter ''
+```
+
+6. Start `ctl-server`
+
+Finally, start `ctl-server`. **Note**: in the future, this service will be optional and only required if you depend on CTL's `applyArgs` effect.
+
+```
+$ ctl-server
+```
+
 ### Changing network configurations
 
 CTL supports using networks other than the public testnet to provide different development environments.
