@@ -246,11 +246,11 @@ This is required for `ogmios-datum-cache`. Any combination of username, password
 
 ```
 $ docker run -d --rm \
-  -e "POSTGRES_USER=<USER>" \
-  -e "POSTGRES_PASSWORD=<PASSWORD>" \
-  -e "POSTGRES_DB=<DBNAME>" \
-  -p 127.0.0.1:5432:5432 \
-  postgres:13
+    -e "POSTGRES_USER=<USER>" \
+    -e "POSTGRES_PASSWORD=<PASSWORD>" \
+    -e "POSTGRES_DB=<DBNAME>" \
+    -p 127.0.0.1:5432:5432 \
+    postgres:13
 ```
 
 5. Start `ogmios-datum-cache`
@@ -259,18 +259,18 @@ $ docker run -d --rm \
 
 ```
 $ ogmios-datum-cache
-  --server-api '' \
-  --server-port 9999 \
-  --ogmios-address 127.0.0.1 \
-  --ogmios-port 1337 \
-  --db-port 5432 \
-  --db-host localhost \
-  --db-user user \
-  --db-name dbname \
-  --db-password password \
-  --block-slot 54066900 \
-  --block-hash 6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d \
-  --block-filter ''
+    --server-api '' \
+    --server-port 9999 \
+    --ogmios-address 127.0.0.1 \
+    --ogmios-port 1337 \
+    --db-port 5432 \
+    --db-host localhost \
+    --db-user user \
+    --db-name dbname \
+    --db-password password \
+    --block-slot 54066900 \
+    --block-hash 6eb2542a85f375d5fd6cbc1c768707b0e9fe8be85b7b1dd42a85017a70d2623d \
+    --block-filter ''
 ```
 
 6. Start `ctl-server`
