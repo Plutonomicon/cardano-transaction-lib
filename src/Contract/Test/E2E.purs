@@ -34,13 +34,10 @@ import Contract.Test.E2E.Helpers
   , withExample
   ) as Helpers
 import Contract.Test.E2E.WalletExt
-  ( class WalletExt
-  , FlintExt
-  , NamiExt
-  , GeroExt
-  , SomeWallet
-  , mkWallet
+  ( SomeWallet
+  , WalletExt(FlintExt, GeroExt, NamiExt)
+  , getWalletByName
+  , getWalletByType
+
   , walletName
-  , walletSign
-  , walletConfirmAccess
   ) as WalletExt

@@ -14,7 +14,7 @@ import Prelude
 import Contract.Test.E2E
   ( TestOptions
   , RunningExample
-  , SomeWallet
+  , WalletExt
   , WalletPassword
   , checkSuccess
   , delaySec
@@ -37,10 +37,10 @@ import Contract.Test.E2E
   , geroSign
   , namiConfirmAccess
   , namiSign
-  , walletName
   , withExample
   ) as E2EHelpers
 import Control.Monad.Error.Class (try)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap, unwrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -50,7 +50,7 @@ import TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
 
-exampleUrl :: String -> SomeWallet -> Toppokki.URL
+exampleUrl :: String -> WalletExt -> Toppokki.URL
 exampleUrl exampleName wallet = wrap $ "http://localhost:4008/?" <> exampleName
   <> ":"
   <> walletName wallet
@@ -74,20 +74,26 @@ runE2ETest
   :: forall (a :: Type)
    . String
   -> TestOptions
-  -> SomeWallet
+  -> WalletExt
   -> (RunningExample -> Aff a)
   -> TestPlanM Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
-  \browser -> withExample (exampleUrl example ext) browser
-    ( \e -> do
-        liftEffect $ log $ "Start Example " <> example <> ":" <> walletName ext
-        resetTestFeedback (_.main $ unwrap e)
-        void $ try $ f e
-        delaySec 10.0
-        liftEffect $ log $ "Example " <> example <>
-          " finished, check success..."
-        checkSuccess e >>= flip shouldSatisfy (_ == true)
-    )
+  \mbrowser ->
+    case mbrowser of
+      Nothing -> do
+        liftEffect $ log $ "Wallet " <> walletName ext <> " not provided"
+      Just browser ->
+        withExample (exampleUrl example ext) browser
+          ( \e -> do
+              liftEffect $ log $ "Start Example " <> example <> ":" <>
+                walletName ext
+              resetTestFeedback (_.main $ unwrap e)
+              void $ try $ f e
+              delaySec 10.0
+              liftEffect $ log $ "Example " <> example <>
+                " finished, check success..."
+              checkSuccess e >>= flip shouldSatisfy (_ == true)
+          )
 
 namiSign' :: RunningExample -> Aff Unit
 namiSign' = namiSign testPasswordNami
