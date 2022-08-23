@@ -46,7 +46,6 @@ import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Plus (class Plus, empty)
 import Data.Either (Either(Left, Right), either, hush)
-import Data.JSDate (now)
 import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Log.Level (LogLevel)
@@ -60,19 +59,17 @@ import Data.Log.Tag
   , jsDateTag
   , tagSetTag
   ) as Log.Tag
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Data.Traversable (for_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_) as Aff
-import Effect.Aff (Aff, launchAff_, try)
+import Effect.Aff (Aff, try)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Effect.Ref as Ref
-import Helpers (logString)
 import Prim.TypeError (class Warn, Text)
 import QueryM
   ( DatumCacheListeners
@@ -99,10 +96,13 @@ import QueryM
   , QueryM
   , QueryMExtended
   , QueryRuntime
+  , Logger
+  , mkLogger
   , mkQueryRuntime
   , stopQueryRuntime
   , withQueryRuntime
   )
+import QueryM.Logging (setupLogs)
 import Serialization.Address (NetworkId)
 import Wallet.Spec (WalletSpec)
 
@@ -239,48 +239,6 @@ runContractInEnv
    . ContractEnv r
   -> Contract r a
   -> Aff a
-runContractInEnv (ContractEnv env@{ config: { suppressLogs: true } }) contract =
-  do
-    logsRef <- liftEffect $ Ref.new Nil
-    let
-      -- TODO: use external mkLogger when
-      -- https://github.com/Plutonomicon/cardano-transaction-lib/pull/935/files
-      -- is merged
-      mkLogger
-        :: LogLevel
-        -> Maybe (Message -> Aff Unit)
-        -> LogLevel
-        -> String
-        -> Effect Unit
-      mkLogger logLevel mbCustomLogger level message =
-        case mbCustomLogger of
-          Nothing -> logString logLevel level message
-          Just loggerFunc -> liftEffect do
-            timestamp <- now
-            launchAff_ $ loggerFunc
-              { level, message, tags: Map.empty, timestamp }
-
-      addLogEntry :: Message -> Effect Unit
-      addLogEntry msg =
-        Ref.modify_ (Cons msg) logsRef
-      logger = mkLogger env.config.logLevel env.config.customLogger
-
-      printLogs :: Effect Unit
-      printLogs = do
-        logs <- List.reverse <$> Ref.read logsRef
-        for_ logs \logEntry -> do
-          logger logEntry.level logEntry.message
-    res <- try
-      $ flip runReaderT env
-          { config { customLogger = Just (liftEffect <<< addLogEntry) } }
-      $ unwrap
-      $ unwrap contract
-    case res of
-      Left err -> liftEffect do
-        printLogs
-        throwError err
-      Right result -> pure result
-
 runContractInEnv env contract =
   flip runReaderT (unwrap env)
     $ unwrap
@@ -360,7 +318,10 @@ withContractEnv
     , suppressLogs
     }
   action = do
+  { addLogEntry, printLogs } <-
+    liftEffect $ setupLogs params.logLevel params.customLogger
   let
+    config :: QueryConfig
     config =
       { ctlServerConfig
       , ogmiosConfig
@@ -368,14 +329,22 @@ withContractEnv
       , networkId
       , logLevel
       , walletSpec
-      , customLogger
+      , customLogger:
+          if suppressLogs then Just $ liftEffect <<< addLogEntry
+          else customLogger
       , suppressLogs
       }
+
   withQueryRuntime config \runtime -> do
     let
       contractEnv = wrap
         { runtime, config, extraConfig: params.extraConfig }
-    action contractEnv
+    res <- try $ action contractEnv
+    case res of
+      Left err -> liftEffect do
+        when suppressLogs printLogs
+        throwError err
+      Right result -> pure result
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.

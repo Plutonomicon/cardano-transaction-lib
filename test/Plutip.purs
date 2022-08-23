@@ -93,6 +93,7 @@ import Test.AffInterface as AffInterface
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
+import Test.Plutip.Logging as Logging
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -113,16 +114,16 @@ main = launchAff_ do
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutip" do
+    Logging.suite
+
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
-        startRes <- startPlutipCluster config [ [] ]
-        liftEffect $ Console.log $ "startPlutipCluster: " <> show (snd startRes)
+        _startRes <- startPlutipCluster config [ [] ]
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
           StopClusterSuccess -> true
           _ -> false
-        liftEffect $ Console.log $ "stopPlutipCluster: " <> show stopRes
 
     flip mapTest AffInterface.suite
       (runPlutipContract config unit <<< const <<< wrapContract)
