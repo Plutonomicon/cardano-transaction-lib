@@ -7,6 +7,7 @@ module Types.Int
   , toBigInt
   , fromInt
   , toInt
+  , fromString
   ) where
 
 import Prelude
@@ -67,3 +68,6 @@ fromInt n
 
 toInt :: Int -> Maybe Prim.Int
 toInt = toBigInt >>> BigInt.toInt
+
+fromString :: Prim.String -> Maybe Int
+fromString = fromBigInt <=< BigInt.fromString
