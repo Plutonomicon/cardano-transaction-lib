@@ -387,8 +387,8 @@ minFeeValue :: TxBody -> Value
 minFeeValue txBody = mkValue (txBody ^. _fee) mempty
 
 posValue :: Value -> Value
-posValue value = mkValue 
-  (Coin $ max (valueToCoin' value) zero) 
+posValue value = mkValue
+  (Coin $ max (valueToCoin' value) zero)
   (posNonAdaAsset $ getNonAdaAsset value)
 
 -- | Get `TransactionInput` such that it is associated to `PaymentCredentialKey`

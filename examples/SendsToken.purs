@@ -1,3 +1,7 @@
+-- | This module demonstrates how the `Contract` interface can be used to build,
+-- | balance, and submit transactions. It creates two transactions: one that 
+-- | mints a token and one that sends that token to the owner's address.
+
 module Examples.SendsToken (main, example, contract) where
 
 import Contract.Prelude
@@ -5,13 +9,7 @@ import Contract.Prelude
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractAffM
-  , liftedM
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
 import Contract.Test.E2E (publishTestFeedback)
@@ -19,7 +17,6 @@ import Contract.Transaction (TransactionHash, awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value as Value
-import Contract.Wallet (KeyWallet, withKeyWallet)
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.Helpers
   ( buildBalanceSignAndSubmitTx
