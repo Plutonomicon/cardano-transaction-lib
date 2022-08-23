@@ -41,7 +41,7 @@ import Types.PlutusData (PlutusData(Integer))
 import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts (PlutusScript(PlutusScript))
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "attach datums to tx" $ do
   test "datum should be correctly attached" testAttachDatum
   test "redeemer should be correctly attached" testAttachRedeemer
