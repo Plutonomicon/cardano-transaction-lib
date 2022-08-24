@@ -170,7 +170,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     Nothing -> x
     Just config ->
       bracket
-        (startCtlServer plutipCfg config.port)
+        (startCtlServer config.port)
         (stopChildProcessWithPort config.port)
         $ const x
 
@@ -484,8 +484,8 @@ mkClusterContractEnv plutipCfg = do
     , extraConfig: {}
     }
 
-startCtlServer :: PlutipConfig -> UInt -> Aff ChildProcess
-startCtlServer cfg serverPort = do
+startCtlServer :: UInt -> Aff ChildProcess
+startCtlServer serverPort = do
   let ctlServerArgs = [ "--port", UInt.toString serverPort ]
   child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "CTL server starting on port" string in the output
