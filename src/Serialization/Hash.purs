@@ -11,6 +11,7 @@ module Serialization.Hash
   , scriptHashFromBytes
   , scriptHashFromBech32
   , scriptHashToBech32
+  , nativeScriptHash
   ) where
 
 import Prelude
@@ -30,6 +31,7 @@ import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import FromData (class FromData)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata, toMetadata)
+import Serialization.Types (NativeScript)
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.PlutusData (PlutusData(Bytes))
@@ -191,3 +193,5 @@ scriptHashFromBech32 = _scriptHashFromBech32Impl maybeFfiHelper
 -- | More on prefixes: https://cips.cardano.org/cips/cip5
 scriptHashToBech32 :: String -> ScriptHash -> Maybe Bech32String
 scriptHashToBech32 = _scriptHashToBech32Impl maybeFfiHelper
+
+foreign import nativeScriptHash :: NativeScript -> ScriptHash
