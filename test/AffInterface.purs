@@ -107,7 +107,8 @@ testGetEraSummaries = do
 
 testSubmitTxFailure :: QueryM Unit
 testSubmitTxFailure = do
-  void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")
+  let bytes = hexToByteArrayUnsafe "00"
+  void $ submitTxOgmios bytes (wrap bytes)
 
 testGetProtocolParameters :: QueryM Unit
 testGetProtocolParameters = do
