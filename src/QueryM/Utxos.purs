@@ -157,7 +157,14 @@ getWalletCollateral = do
         addr <- liftAff $ (unwrap kw).address networkId
         utxos <- utxosAt addr <#> map unwrap >>> fromMaybe Map.empty
           >>= filterLockedUtxos
-        pure $ Array.singleton <$> (unwrap kw).selectCollateral utxos
+        pparams <- asks $ _.runtime >>> _.pparams <#> unwrap
+        let
+          coinsPerUtxoByte = pparams.coinsPerUtxoByte
+          maxCollateralInputs = fromMaybe 3 $ map UInt.toInt $
+            pparams.maxCollateralInputs
+        liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoByte
+          maxCollateralInputs
+          utxos
   for_ mbCollateralUTxOs \collateralUTxOs -> do
     pparams <- asks $ _.runtime >>> _.pparams
     let
