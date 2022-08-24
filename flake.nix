@@ -408,29 +408,13 @@
                 haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.prettier
+                nodePackages.eslint
                 fd
               ];
             }
             ''
               cd ${self}
-              purs-tidy check $(fd -epurs)
-              fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost \
-                $(fd -ehs)
-              nixpkgs-fmt --check $(fd -enix --exclude='spago*')
-              prettier -c $(fd -ejs)
-              touch $out
-            '';
-
-          js-lint-check = pkgs.runCommand "js-lint-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodePackages.eslint
-                pkgs.fd
-              ];
-            }
-            ''
-              cd ${self}
-              eslint $(fd -ejs)
+              make check-format
               touch $out
             '';
         });
@@ -438,11 +422,12 @@
       check = perSystem (system:
         (nixpkgsFor system).runCommand "combined-check"
           {
-            nativeBuildInputs =
+            combined =
               builtins.attrValues self.checks.${system}
               ++ builtins.attrValues self.packages.${system};
           }
           ''
+            echo $combined
             touch $out
           ''
       );

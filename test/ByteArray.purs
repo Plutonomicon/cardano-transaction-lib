@@ -2,6 +2,7 @@ module Test.ByteArray where
 
 import Prelude
 import Data.Maybe (Maybe(Just))
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Test.QuickCheck (quickCheck, (===))
@@ -20,7 +21,7 @@ import Types.ByteArray
   , hexToByteArray
   )
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "ByteArray" do
     test "Eq instance" $ liftEffect do

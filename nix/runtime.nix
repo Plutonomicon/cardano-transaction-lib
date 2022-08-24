@@ -194,13 +194,11 @@ rec {
           service = {
             useHostStore = true;
             ports = [ (bindPort ctlServer.port) ];
-            depends_on = [ "ogmios" ];
-            volumes = [ "${nodeIpcVol}:/ipc" ];
             command = [
               "${pkgs.bash}/bin/sh"
               "-c"
               ''
-                ${pkgs.ctl-server}/bin/ctl-server --port ${toString ctlServer.port}
+                ${server}/bin/ctl-server --port ${toString ctlServer.port}
               ''
             ];
           };

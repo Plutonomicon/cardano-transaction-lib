@@ -37,7 +37,7 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (for, foldMap)
+import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -135,10 +135,20 @@ withPlutipContractEnv plutipCfg distr cont = do
       (stopChildProcessWithPort plutipCfg.port) <<< const
 
   withPlutipCluster
-    :: ((PrivatePaymentKey /\ ClusterStartupParameters) -> Aff a) -> Aff a
-  withPlutipCluster = bracket
-    (startPlutipCluster plutipCfg distr)
-    (const $ void $ stopPlutipCluster plutipCfg)
+    :: (PrivatePaymentKey /\ ClusterStartupParameters -> Aff a) -> Aff a
+  withPlutipCluster cc = do
+    let
+      distrArray =
+        encodeDistribution $
+          ourInitialUtxos (encodeDistribution distr) /\
+            distr
+    for_ distrArray $ traverse_ \n -> when (n < BigInt.fromInt 1_000_000) do
+      liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
+        ", must be at least 1_000_000 Lovelace"
+    bracket
+      (startPlutipCluster plutipCfg distrArray)
+      (const $ void $ stopPlutipCluster plutipCfg)
+      cc
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
@@ -160,6 +170,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     Nothing -> x
     Just config -> const x # bracket (startCtlServer plutipCfg config.port)
       (stopChildProcessWithPort config.port)
+      $ const x
 
   withWallets
     :: ContractEnv ()
@@ -217,17 +228,11 @@ configCheck cfg = do
 -- | utxos in the passed distribution, so it can be used to handle
 -- | transaction fees.
 startPlutipCluster
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => PlutipConfig
-  -> distr
+  :: PlutipConfig
+  -> InitialUTxODistribution
   -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
-startPlutipCluster cfg utxoDistribution = do
-  let
-    url = mkServerEndpointUrl cfg "start"
-    initialDistribution = encodeDistribution $
-      ourInitialUtxos (encodeDistribution utxoDistribution) /\
-        utxoDistribution
+startPlutipCluster cfg keysToGenerate = do
+  let url = mkServerEndpointUrl cfg "start"
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -237,7 +242,7 @@ startPlutipCluster cfg utxoDistribution = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate: initialDistribution }
+                    { keysToGenerate }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -444,17 +449,17 @@ mkClusterContractEnv
   :: PlutipConfig
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
-    QueryM.defaultOgmiosWsConfig
-      { port = plutipCfg.ogmiosConfig.port
-      , host = plutipCfg.ogmiosConfig.host
-      }
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff plutipCfg.logLevel
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff datumCacheWs plutipCfg.logLevel
+    QueryM.defaultOgmiosWsConfig
+      { port = plutipCfg.ogmiosConfig.port
+      , host = plutipCfg.ogmiosConfig.host
+      }
   usedTxOuts <- newUsedTxOuts
   pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
   pure $ ContractEnv
@@ -479,18 +484,10 @@ mkClusterContractEnv plutipCfg = do
 
 startCtlServer :: PlutipConfig -> UInt -> Aff ChildProcess
 startCtlServer cfg serverPort = do
-  let
-    ctlServerArgs =
-      [ "--port"
-      , UInt.toString serverPort
-      , "--ogmios-host"
-      , cfg.ogmiosConfig.host
-      , "--ogmios-port"
-      , UInt.toString cfg.ogmiosConfig.port
-      ]
+  let ctlServerArgs = [ "--port", UInt.toString serverPort ]
   child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
-    -- Wait for "Successfully connected to Ogmios" string in the output
-    $ String.indexOf (Pattern "Successfully connected to Ogmios")
+    -- Wait for "CTL server starting on port" string in the output
+    $ String.indexOf (Pattern "CTL server starting on port")
         >>> maybe NoOp (const Success)
   liftEffect $ killOnExit child
   pure child

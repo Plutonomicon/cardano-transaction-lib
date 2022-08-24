@@ -13,17 +13,8 @@ import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractAffM
-  , liftContractM
-  , liftedE
-  , liftedM
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
-import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
 import Contract.Test.E2E (publishTestFeedback)
@@ -31,11 +22,15 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (awaitTxConfirmed, balanceAndSignTx, submit)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
+import Examples.Helpers
+  ( buildBalanceSignAndSubmitTx
+  , mkCurrencySymbol
+  , mkTokenName
+  ) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -44,11 +39,11 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.MintsMultipleTokens"
-    tn1 <- mkTokenName "Token with a long name"
-    tn2 <- mkTokenName "Token"
-    mp1 /\ cs1 <- mkCurrencySymbol mintingPolicyRdmrInt1
-    mp2 /\ cs2 <- mkCurrencySymbol mintingPolicyRdmrInt2
-    mp3 /\ cs3 <- mkCurrencySymbol mintingPolicyRdmrInt3
+    tn1 <- Helpers.mkTokenName "Token with a long name"
+    tn2 <- Helpers.mkTokenName "Token"
+    mp1 /\ cs1 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt1
+    mp2 /\ cs2 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt2
+    mp3 /\ cs3 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt3
 
     let
       constraints :: Constraints.TxConstraints Void Void
@@ -70,29 +65,12 @@ example cfg = launchAff_ do
           <> Lookups.mintingPolicy mp2
           <> Lookups.mintingPolicy mp3
 
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx
-    logInfo' $ "Tx ID: " <> show txId
+    txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
     awaitTxConfirmed txId
     logInfo' $ "Tx submitted successfully!"
 
   publishTestFeedback true
-
-mkTokenName :: String -> Contract () TokenName
-mkTokenName =
-  liftContractM "Cannot make token name"
-    <<< (Value.mkTokenName <=< byteArrayFromAscii)
-
-mkCurrencySymbol
-  :: Contract () MintingPolicy
-  -> Contract () (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
 
 foreign import redeemerInt1 :: String
 foreign import redeemerInt2 :: String

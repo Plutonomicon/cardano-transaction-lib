@@ -7,6 +7,7 @@ import Data.Either (Either(Left, Right))
 import Data.Map (toUnfoldable) as Map
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Test.Fixtures
@@ -19,7 +20,7 @@ import Types.Natural (fromInt')
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import QueryM.Ogmios (TxEvaluationResult, ExecutionUnits, RedeemerPointer)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Ogmios EvaluateTx endpoint" do
     group "Decoding EvaluateTx response" do
