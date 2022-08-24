@@ -208,6 +208,7 @@ type ConfigParams (r :: Row Type) =
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
+  -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
   , extraConfig :: { | r }
