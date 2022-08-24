@@ -8,7 +8,6 @@ import Prelude
 
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , StakePubKeyHash
   , PubKeyHash(PubKeyHash)
   , getWalletCollateral
   , ownPaymentPubKeyHash
@@ -33,7 +32,7 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy, validatorHash)
+import Contract.Scripts (validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , runContractInEnv
@@ -58,7 +57,6 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoM(UtxoM), utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
@@ -80,11 +78,17 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.Helpers
+  ( mkCurrencySymbol
+  , mkTokenName
+  , mustPayToPubKeyStakeAddress
+  )
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import Examples.SendsToken (contract) as SendsToken
 import Mote (group, test)
 import Mote.Monad (mapTest)
 import Plutip.Server
@@ -129,7 +133,7 @@ suite = do
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
-        startRes <- startPlutipCluster config unit
+        startRes <- startPlutipCluster config [ [] ]
         liftEffect $ Console.log $ "startPlutipCluster: " <> show (snd startRes)
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
@@ -564,6 +568,16 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
+    test "runPlutipContract: SendsToken" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice SendsToken.contract
+
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
   pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
@@ -627,27 +641,3 @@ getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
-
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
-mkTokenName =
-  liftContractM "Cannot make token name"
-    <<< (Value.mkTokenName <=< byteArrayFromAscii)
-
-mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Contract r MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
-
-mustPayToPubKeyStakeAddress
-  :: forall (o :: Type) (i :: Type)
-   . PaymentPubKeyHash
-  -> Maybe StakePubKeyHash
-  -> Value
-  -> Constraints.TxConstraints i o
-mustPayToPubKeyStakeAddress pkh Nothing = Constraints.mustPayToPubKey pkh
-mustPayToPubKeyStakeAddress pkh (Just stk) =
-  Constraints.mustPayToPubKeyAddress pkh stk

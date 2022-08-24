@@ -11,5 +11,6 @@ import Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
+  , transactionHash
   ) as X
 import NativeScripts (nativeScriptHash) as X

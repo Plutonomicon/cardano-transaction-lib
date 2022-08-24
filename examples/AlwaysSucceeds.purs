@@ -14,13 +14,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractAffM
-  , liftedE
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -33,8 +27,6 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , balanceAndSignTxE
-  , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -42,6 +34,7 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
+import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -72,7 +65,7 @@ payToAlwaysSucceeds vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 spendFromAlwaysSucceeds
   :: ValidatorHash
@@ -94,7 +87,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
           Constraints.mustSpendScriptOutput txInput unitRedeemer
       in
         do
-          spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
+          spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
           awaitTxConfirmed spendTxId
           logInfo' "Successfully spent locked values."
 
@@ -107,17 +100,6 @@ spendFromAlwaysSucceeds vhash validator txId = do
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
-
-buildBalanceSignAndSubmitTx
-  :: Lookups.ScriptLookups PlutusData
-  -> TxConstraints Unit Unit
-  -> Contract () TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints = do
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceAndSignTxE ubTx
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  pure txId
 
 foreign import alwaysSucceeds :: String
 

@@ -583,21 +583,12 @@ convertMetadatum
 convertMetadatum err = fix \_ -> addErrTrace err <<< _convertMetadatum
   ( { error: fromCslRepError
     , from_bytes: pure <<< Bytes
-    , from_int: map Int <<< stringToInt "Metadatum Int"
+    , from_int: pure <<< Int
     , from_text: pure <<< Text
     , from_map: convertMetadataMap convertMetadatum
     , from_list: convertMetadataList convertMetadatum
     }
   )
-
-  where
-  stringToInt
-    :: forall (s :: Row Type)
-     . String
-    -> String
-    -> Either (Variant (fromCslRepError :: String | s)) Int.Int
-  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> bigint") <<<
-    (Int.fromBigInt <=< BigInt.fromString)
 
 convertMetadataList
   :: forall (r :: Row Type)
@@ -728,7 +719,7 @@ foreign import _unpackMetadataList
 type MetadatumHelper (r :: Row Type) =
   { from_map :: Csl.MetadataMap -> Err r TransactionMetadatum
   , from_list :: Csl.MetadataList -> Err r TransactionMetadatum
-  , from_int :: String -> Err r TransactionMetadatum
+  , from_int :: Csl.Int -> Err r TransactionMetadatum
   , from_text :: String -> Err r TransactionMetadatum
   , from_bytes :: ByteArray -> Err r TransactionMetadatum
   , error :: String -> Err r TransactionMetadatum
