@@ -10,7 +10,6 @@ module Plutus.Types.AssocMap
   , mapMaybe
   , mapMaybeWithKey
   , mapThese
-  , mapWithKey
   , member
   , null
   , singleton
@@ -218,14 +217,6 @@ filter f (Map xs) = Map $ Array.filter (f <<< snd) xs
 -- | Return all elements of the map in the ascending order of their keys.
 elems :: forall (k :: Type) (v :: Type). Map k v -> Array v
 elems (Map xs) = snd <$> xs
-
--- | Map a function over all values in the `Map`
-mapWithKey
-  :: forall (k :: Type) (a :: Type) (b :: Type)
-   . (k -> a -> b)
-  -> Map k a
-  -> Map k b
-mapWithKey = mapWithIndex
 
 -- | Map values and collect the `Just` results.
 mapMaybe

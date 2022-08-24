@@ -13,7 +13,6 @@ import Plutus.Types.AssocMap
   , mapMaybe
   , mapMaybeWithKey
   , mapThese
-  , mapWithKey
   , member
   , null
   , singleton
