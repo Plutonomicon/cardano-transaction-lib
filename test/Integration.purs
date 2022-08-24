@@ -6,6 +6,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
+import Mote (skip)
 import QueryM (runQueryM)
 import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.EraSummaries (getEraSummaries)
@@ -25,8 +26,13 @@ main = launchAff_ do
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
   mapTest (runQueryM testnetTraceQueryConfig) AffInterface.suite
-  flip mapTest Types.Interval.suite \f -> runQueryM testnetTraceQueryConfig do
-    eraSummaries <- getEraSummaries
-    sysStart <- getSystemStart
-    liftEffect $ f eraSummaries sysStart
+  -- These tests depend on assumptions about testnet history.
+  -- We disabled them during transition from `testnet` to `preprod` networks.
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
+  skip $ flip mapTest Types.Interval.suite \f -> runQueryM
+    testnetTraceQueryConfig
+    do
+      eraSummaries <- getEraSummaries
+      sysStart <- getSystemStart
+      liftEffect $ f eraSummaries sysStart
   PrivateKey.suite

@@ -16,7 +16,7 @@ import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
 import Effect (Effect)
 import Effect.Exception (error)
-import Mote (group, skip, test)
+import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
@@ -36,12 +36,9 @@ import Types.Interval
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval type" do
-    -- These tests depend on assumptions about testnet history.
-    -- We disabled them during transition from `testnet` to `preprod` networks.
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
-    skip $ test "Inverse posixTimeToSlot >>> slotToPosixTime " $
+    test "Inverse posixTimeToSlot >>> slotToPosixTime " $
       testPosixTimeToSlot
-    skip $ test "Inverse slotToPosixTime >>> posixTimeToSlot " $
+    test "Inverse slotToPosixTime >>> posixTimeToSlot " $
       testSlotToPosixTime
     test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
 
