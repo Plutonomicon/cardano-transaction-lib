@@ -983,7 +983,7 @@ processConstraint mpsMap osMap = do
       -- Append reindexed mint redeemers to array.
       _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
       _cpsToTxBody <<< _mint <>= map wrap mintVal
-    MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
+    MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
@@ -1031,13 +1031,12 @@ processConstraint mpsMap osMap = do
             , amount
             -- TODO: save correct datum and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
-            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
             , datum: maybe NoOutputDatum OutputDatumHash dataHash
-            , scriptRef: Nothing
+            , scriptRef: scriptRef
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToScript vlh dat plutusValue -> do
+    MustPayToScript vlh dat scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
@@ -1050,9 +1049,8 @@ processConstraint mpsMap osMap = do
             , amount
             -- TODO: save correct datum and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
-            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
             , datum: datum'
-            , scriptRef: Nothing
+            , scriptRef: scriptRef
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.

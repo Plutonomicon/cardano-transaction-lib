@@ -29,8 +29,13 @@ module Types.TxConstraints
   , mustPayToScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
+  , mustPayWithDatumAndScriptRefToPubKey
+  , mustPayWithDatumAndScriptRefToPubKeyAddress
   , mustPayWithDatumToPubKey
   , mustPayWithDatumToPubKeyAddress
+  , mustPayWithScriptRefToPubKey
+  , mustPayWithScriptRefToPubKeyAddress
+  , mustPayWithScriptRefToScript
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustSatisfyAnyOf
@@ -48,6 +53,7 @@ module Types.TxConstraints
 
 import Prelude hiding (join)
 
+import Cardano.Types.ScriptRef (ScriptRef)
 import Data.Array ((:), concat)
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
@@ -89,8 +95,9 @@ data TxConstraint
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
+      (Maybe ScriptRef)
       Value
-  | MustPayToScript ValidatorHash Datum Value
+  | MustPayToScript ValidatorHash Datum (Maybe ScriptRef) Value
   | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
@@ -186,6 +193,51 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
+-- | Lock the value with a payment public key hash and (optionally) a stake
+-- | public key hash.
+mustPayToPubKeyAddress
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> Value
+  -> TxConstraints i o
+mustPayToPubKeyAddress pkh skh =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing Nothing
+
+-- | Lock the value and datum with a payment public key hash and (optionally) a
+-- | stake public key hash.
+mustPayWithDatumToPubKeyAddress
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> Datum
+  -> Value
+  -> TxConstraints i o
+mustPayWithDatumToPubKeyAddress pkh skh datum =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum) Nothing
+
+mustPayWithScriptRefToPubKeyAddress
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> ScriptRef
+  -> Value
+  -> TxConstraints i o
+mustPayWithScriptRefToPubKeyAddress pkh skh scriptRef =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing (Just scriptRef)
+
+mustPayWithDatumAndScriptRefToPubKeyAddress
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> StakePubKeyHash
+  -> Datum
+  -> ScriptRef
+  -> Value
+  -> TxConstraints i o
+mustPayWithDatumAndScriptRefToPubKeyAddress pkh skh datum scriptRef =
+  singleton
+    <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum) (Just scriptRef)
+
 -- | Lock the value with a public key
 mustPayToPubKey
   :: forall (i :: Type) (o :: Type)
@@ -196,18 +248,8 @@ mustPayToPubKey
   => PaymentPubKeyHash
   -> Value
   -> TxConstraints i o
-mustPayToPubKey pkh = singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing
-
--- | Lock the value with a payment public key hash and (optionally) a stake
--- | public key hash.
-mustPayToPubKeyAddress
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
-  -> StakePubKeyHash
-  -> Value
-  -> TxConstraints i o
-mustPayToPubKeyAddress pkh skh =
-  singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing
+mustPayToPubKey pkh =
+  singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing Nothing
 
 -- | Lock the value and datum with a payment public key hash
 mustPayWithDatumToPubKey
@@ -217,19 +259,26 @@ mustPayWithDatumToPubKey
   -> Value
   -> TxConstraints i o
 mustPayWithDatumToPubKey pkh datum =
-  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum)
+  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum) Nothing
 
--- | Lock the value and datum with a payment public key hash and (optionally) a
--- | stake public key hash.
-mustPayWithDatumToPubKeyAddress
-  :: forall i o
+mustPayWithScriptRefToPubKey
+  :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
-  -> StakePubKeyHash
-  -> Datum
+  -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithDatumToPubKeyAddress pkh skh datum =
-  singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum)
+mustPayWithScriptRefToPubKey pkh scriptRef =
+  singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing (Just scriptRef)
+
+mustPayWithDatumAndScriptRefToPubKey
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> Datum
+  -> ScriptRef
+  -> Value
+  -> TxConstraints i o
+mustPayWithDatumAndScriptRefToPubKey pkh datum scriptRef =
+  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum) (Just scriptRef)
 
 -- | Note that CTL does not have explicit equivalents of Plutus'
 -- | `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
@@ -243,7 +292,18 @@ mustPayToScript
   -> Value
   -> TxConstraints i o
 mustPayToScript vh dt vl =
-  singleton (MustPayToScript vh dt vl)
+  singleton (MustPayToScript vh dt Nothing vl)
+    <> singleton (MustIncludeDatum dt)
+
+mustPayWithScriptRefToScript
+  :: forall (i :: Type) (o :: Type)
+   . ValidatorHash
+  -> Datum
+  -> ScriptRef
+  -> Value
+  -> TxConstraints i o
+mustPayWithScriptRefToScript vh dt scriptRef vl =
+  singleton (MustPayToScript vh dt (Just scriptRef) vl)
     <> singleton (MustIncludeDatum dt)
 
 -- | Mint the given `Value`
@@ -344,7 +404,7 @@ pubKeyPayments (TxConstraints { constraints }) =
     $ fromFoldableWith (<>)
     $ constraints >>=
         case _ of
-          MustPayToPubKeyAddress pkh _ _ vl -> Array.singleton (pkh /\ vl)
+          MustPayToPubKeyAddress pkh _ _ _ vl -> Array.singleton (pkh /\ vl)
           _ -> []
 
 -- | The minimum `Value` that satisfies all `MustSpendAtLeast` constraints
@@ -407,8 +467,8 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendPubKeyOutput _ -> true
       MustSpendScriptOutput _ _ -> true
       MustMintValue _ _ _ _ -> true
-      MustPayToPubKeyAddress _ _ _ vl -> not (isZero vl)
-      MustPayToScript _ _ vl -> not (isZero vl)
+      MustPayToPubKeyAddress _ _ _ _ vl -> not (isZero vl)
+      MustPayToScript _ _ _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in

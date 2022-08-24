@@ -54,7 +54,6 @@ example cfg = launchAff_ do
     let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToAlwaysSucceeds vhash
-    -- If the wallet is cold, you need a high parameter here.
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysSucceeds vhash validator txId
