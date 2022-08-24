@@ -26,6 +26,7 @@ import Types.TxConstraints
   , mustBeSignedBy
   , mustHashDatum
   , mustIncludeDatum
+  , mustIncludeReferenceInput
   , mustMintCurrency
   , mustMintCurrencyWithRedeemer
   , mustMintValue

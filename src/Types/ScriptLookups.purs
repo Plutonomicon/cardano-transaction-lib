@@ -61,6 +61,7 @@ import Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
   , _witnessSet
@@ -82,7 +83,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((:), singleton, union) as Array
+import Data.Array ((:), cons, singleton, union) as Array
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
@@ -98,7 +99,7 @@ import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
 import Data.Map (insert, toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Set (insert) as Set
 import Data.Show.Generic (genericShow)
@@ -167,6 +168,7 @@ import Types.TxConstraints
       ( MustBeSignedBy
       , MustHashDatum
       , MustIncludeDatum
+      , MustIncludeReferenceInput
       , MustMintValue
       , MustPayToScript
       , MustPayToPubKeyAddress
@@ -859,6 +861,9 @@ processConstraint
 processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum dat -> addDatum dat
+    MustIncludeReferenceInput refInput -> runExceptT do
+      _cpsToTxBody <<< _referenceInputs %= \refInputs ->
+        Just (refInput `Array.cons` fromMaybe mempty refInputs)
     MustValidateIn posixTimeRange -> do
       -- Potential improvement: bring these out so we have one source of truth
       -- although they should be static in a single contract call

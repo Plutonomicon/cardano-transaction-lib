@@ -64,6 +64,7 @@ module Cardano.Types.Transaction
   , _plutusData
   , _plutusScripts
   , _redeemers
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
   , _totalCollateral
@@ -662,6 +663,9 @@ _requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
 _networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
+
+_referenceInputs :: Lens' TxBody (Maybe (Array TransactionInput))
+_referenceInputs = _Newtype <<< prop (SProxy :: SProxy "referenceInputs")
 
 _collateralReturn :: Lens' TxBody (Maybe TransactionOutput)
 _collateralReturn = _Newtype <<< prop (SProxy :: SProxy "collateralReturn")

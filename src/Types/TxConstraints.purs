@@ -3,6 +3,7 @@ module Types.TxConstraints
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
+      , MustIncludeReferenceInput
       , MustValidateIn
       , MustBeSignedBy
       , MustSpendAtLeast
@@ -22,6 +23,7 @@ module Types.TxConstraints
   , mustBeSignedBy
   , mustHashDatum
   , mustIncludeDatum
+  , mustIncludeReferenceInput
   , mustMintCurrency
   , mustMintCurrencyWithRedeemer
   , mustMintValue
@@ -86,6 +88,7 @@ import Types.Transaction (DataHash, TransactionInput)
 -- | Constraints on transactions that want to spend script outputs
 data TxConstraint
   = MustIncludeDatum Datum
+  | MustIncludeReferenceInput TransactionInput
   | MustValidateIn POSIXTimeRange
   | MustBeSignedBy PaymentPubKeyHash
   | MustSpendAtLeast Value
@@ -192,6 +195,11 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 -- | Require the transaction to include a datum.
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
+
+-- | Require the transaction to include a reference input.
+mustIncludeReferenceInput
+  :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
+mustIncludeReferenceInput = singleton <<< MustIncludeReferenceInput
 
 -- | Lock the value with a payment public key hash and (optionally) a stake
 -- | public key hash.

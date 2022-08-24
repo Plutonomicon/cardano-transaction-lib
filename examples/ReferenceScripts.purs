@@ -1,9 +1,13 @@
-module Examples.ReferenceScripts where
+module Examples.ReferenceScripts
+  ( main
+  , example
+  , alwaysSucceedsScriptV2
+  ) where
 
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Config (ConfigParams)
+import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
@@ -28,6 +32,9 @@ import Contract.Value (lovelaceValueOf) as Value
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (empty, toUnfoldable) as Map
 import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+
+main :: Effect Unit
+main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
@@ -81,7 +88,7 @@ spendFromAlwaysSucceeds vhash txId = do
           awaitTxConfirmed spendTxId
           logInfo' "Successfully spent locked values."
 
-    Nothing ->
+    othing ->
       logInfo' $ "The id "
         <> show txId
         <> " does not have output locked at: "
