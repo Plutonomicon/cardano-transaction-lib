@@ -19,4 +19,5 @@ import Plutus.Types.AssocMap
   , singleton
   , union
   , unionWith
+  , values
   ) as AssocMap
