@@ -8,25 +8,15 @@ import Contract.Prelude
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( launchAff_
-  , liftContractM
-  , liftedE
-  , liftedM
-  , runContract
-  , wrapContract
-  )
+import Contract.Monad (launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction
-  ( awaitTxConfirmedWithTimeout
-  , balanceAndSignTx
-  , submit
-  )
+import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.Array (index)
 import Data.BigInt as BigInt
+import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -47,14 +37,8 @@ example cfg = launchAff_ do
       lookups :: Lookups.ScriptLookups Void
       lookups = mempty
 
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
-    logInfo' $ "Unbalanced tx" <> show ubTx
-
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx
-    logInfo' $ "Tx ID: " <> show txId
     awaitTxConfirmedWithTimeout (wrap 100.0) txId
     logInfo' $ "Tx submitted successfully!"
     liftAff $ publishTestFeedback true

@@ -26,6 +26,7 @@ import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.Datums as Datums
 import Examples.MintsMultipleTokens as MintsMultipleTokens
 import Examples.Pkh2Pkh as Pkh2Pkh
+import Examples.SendsToken as SendsToken
 import Examples.SignMultiple as SignMultiple
 import Examples.Wallet as Wallet
 
@@ -62,6 +63,7 @@ examples =
   , "Datums" /\ Datums.example
   , "Wallet" /\ Wallet.example
   , "Pkh2Pkh" /\ Pkh2Pkh.example
+  , "SendsToken" /\ SendsToken.example
   , "SignMultiple" /\ SignMultiple.example
   , "MintsMultipleTokens" /\ MintsMultipleTokens.example
   ]

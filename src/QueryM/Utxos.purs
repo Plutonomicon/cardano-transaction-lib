@@ -52,7 +52,7 @@ utxosAt
   -> QueryM (Maybe UtxoM)
 utxosAt address =
   mkUtxoQuery
-    <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxo
+    <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxosAt
     $ addressToOgmiosAddress address
 
 -- | Queries for UTxO given a transaction input.

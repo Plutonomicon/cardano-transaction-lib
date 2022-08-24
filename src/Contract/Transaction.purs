@@ -112,6 +112,7 @@ import Cardano.Types.Transaction
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
 import Contract.Address (getWalletAddresses)
+import Contract.Log (logDebug')
 import Contract.Monad
   ( Contract
   , liftedE
@@ -136,6 +137,7 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
+import Hashing (transactionHash) as Hashing
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
@@ -255,11 +257,12 @@ submitE
    . BalancedSignedTransaction
   -> Contract r (Either (Array Aeson) TransactionHash)
 submitE tx = do
-  result <- wrapContract <<< QueryM.submitTxOgmios =<<
-    liftEffect
-      ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-          Serialization.convertTransaction (unwrap tx)
-      )
+  cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
+  txHash <- liftAff $ Hashing.transactionHash cslTx
+  logDebug' $ "Pre-calculated tx hash: " <> show txHash
+  let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
+  result <- wrapContract $
+    QueryM.submitTxOgmios (unwrap txHash) txCborBytes
   pure $ case result of
     SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json

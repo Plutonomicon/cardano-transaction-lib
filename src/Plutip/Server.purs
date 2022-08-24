@@ -441,17 +441,17 @@ mkClusterContractEnv
   :: PlutipConfig
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
-    QueryM.defaultOgmiosWsConfig
-      { port = plutipCfg.ogmiosConfig.port
-      , host = plutipCfg.ogmiosConfig.host
-      }
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff plutipCfg.logLevel
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff datumCacheWs plutipCfg.logLevel
+    QueryM.defaultOgmiosWsConfig
+      { port = plutipCfg.ogmiosConfig.port
+      , host = plutipCfg.ogmiosConfig.host
+      }
   usedTxOuts <- newUsedTxOuts
   pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
   pure $ ContractEnv
@@ -480,14 +480,10 @@ startCtlServer cfg = do
     ctlServerArgs =
       [ "--port"
       , UInt.toString cfg.ctlServerConfig.port
-      , "--ogmios-host"
-      , cfg.ogmiosConfig.host
-      , "--ogmios-port"
-      , UInt.toString cfg.ogmiosConfig.port
       ]
   child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "Successfully connected to Ogmios" string in the output
-    $ String.indexOf (Pattern "Successfully connected to Ogmios")
+    $ String.indexOf (Pattern "CTL server starting on port")
         >>> maybe NoOp (const Success)
   liftEffect $ killOnExit child
   pure child
