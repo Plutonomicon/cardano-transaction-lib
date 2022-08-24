@@ -168,9 +168,11 @@ withPlutipContractEnv plutipCfg distr cont = do
   withMCtlServer :: Aff a -> Aff a
   withMCtlServer x = case plutipCfg.ctlServerConfig of
     Nothing -> x
-    Just config -> const x # bracket (startCtlServer plutipCfg config.port)
-      (stopChildProcessWithPort config.port)
-      $ const x
+    Just config ->
+      bracket
+        (startCtlServer plutipCfg config.port)
+        (stopChildProcessWithPort config.port)
+        $ const x
 
   withWallets
     :: ContractEnv ()
