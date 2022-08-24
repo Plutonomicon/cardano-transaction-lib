@@ -37,7 +37,7 @@ import Data.FoldableWithIndex
   , foldlWithIndexDefault
   , foldrWithIndexDefault
   )
-import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
+import Data.FunctorWithIndex (class FunctorWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, unwrap)
