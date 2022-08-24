@@ -4,6 +4,7 @@ module QueryM.Ogmios
   ( ChainOrigin(ChainOrigin)
   , ChainPoint
   , ChainTipQR(CtChainOrigin, CtChainPoint)
+  , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
   , CostModel
   , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
@@ -69,13 +70,13 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
+  , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
   , encodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
@@ -112,9 +113,9 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
-import Data.Tuple (snd, uncurry)
 import Data.String.Common (split) as String
 import Data.Traversable (sequence, traverse, for)
+import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -754,7 +755,8 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minPoolCost" :: BigInt
-  , "coinsPerUtxoByte" :: BigInt
+  , "coinsPerUtxoByte" :: Maybe BigInt
+  , "coinsPerUtxoWord" :: Maybe BigInt
   , "costModels" ::
       { "plutus:v1" :: CostModel
       }
@@ -774,6 +776,13 @@ type ProtocolParametersRaw =
   , "collateralPercentage" :: Maybe UInt
   , "maxCollateralInputs" :: Maybe UInt
   }
+
+data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
+
+derive instance Generic CoinsPerUtxoUnit _
+
+instance Show CoinsPerUtxoUnit where
+  show = genericShow
 
 -- Based on `Cardano.Api.ProtocolParameters.ProtocolParameters` from
 -- `cardano-api`.
@@ -795,7 +804,7 @@ newtype ProtocolParameters = ProtocolParameters
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
-  , coinsPerUtxoByte :: Coin
+  , coinsPerUtxoUnit :: CoinsPerUtxoUnit
   , costModels :: Costmdls
   , prices :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -815,7 +824,13 @@ instance DecodeAeson ProtocolParameters where
   decodeAeson aeson = do
     ps :: ProtocolParametersRaw <- decodeAeson aeson
     prices <- decodePrices ps
-
+    coinsPerUtxoUnit <-
+      maybe
+        (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
+        pure
+        -- Multiply by 8 in case we have `coinsPerUtxoWord`
+        $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
+            (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
     pure $ ProtocolParameters
       { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
       -- The following two parameters were removed from Babbage
@@ -833,7 +848,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
+      , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
       , prices: prices
