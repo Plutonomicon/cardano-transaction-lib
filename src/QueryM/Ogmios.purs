@@ -362,8 +362,7 @@ instance EncodeAeson EraSummary where
       }
 
 newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
-  -- start time of the network.
+  { time :: RelativeTime -- The time is relative to the start time of the network.
   , slot :: Slot -- An absolute slot number
   -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
   -- u64 which has precision up to 18446744073709551615 (note 385 difference)
@@ -398,7 +397,7 @@ instance EncodeAeson EraSummaryTime where
 
 -- | A time in seconds relative to another one (typically, system start or era
 -- | start). [ 0 .. 18446744073709552000 ]
-newtype RelativeTime = RelativeTime BigInt
+newtype RelativeTime = RelativeTime Number
 
 derive instance Generic RelativeTime _
 derive instance Newtype RelativeTime _

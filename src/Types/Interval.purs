@@ -63,22 +63,12 @@ module Types.Interval
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , aesonNull
-  , decodeAeson
-  , encodeAeson
-  , encodeAeson'
-  , getField
-  , isNull
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(TypeMismatch), aesonNull, decodeAeson, encodeAeson, encodeAeson', getField, isNull)
 import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
+import Aeson.Utils (maybeToEither)
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -90,14 +80,8 @@ import Data.Either (Either(Right), note)
 import Data.Enum (class Enum, succ)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
-import Data.Lattice
-  ( class BoundedJoinSemilattice
-  , class BoundedMeetSemilattice
-  , class JoinSemilattice
-  , class MeetSemilattice
-  )
+import Data.Lattice (class BoundedJoinSemilattice, class BoundedMeetSemilattice, class JoinSemilattice, class MeetSemilattice)
 import Data.Map as Map
-import Math (trunc, (%)) as Math
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -107,32 +91,14 @@ import Effect.Class (liftEffect)
 import Foreign.Object (Object)
 import FromData (class FromData, genericFromData)
 import Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
+import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
-import QueryM.Ogmios
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , SystemStart
-  , aesonObject
-  )
+import Plutus.Types.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), I, PNil)
+import QueryM.Ogmios (EraSummaries(EraSummaries), EraSummary(EraSummary), SystemStart, aesonObject)
 import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
-import Types.BigNum
-  ( add
-  , fromBigInt
-  , maxValue
-  , one
-  , toBigIntUnsafe
-  , zero
-  ) as BigNum
+import Types.BigNum (add, fromBigInt, maxValue, one, toBigIntUnsafe, zero) as BigNum
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -716,7 +682,7 @@ absTimeFromRelTime
 absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
   let
     startTime = unwrap (unwrap start).time * factor
-    absTime = startTime + relTime -- relative to System Start, not UNIX Epoch.
+    absTime = startTime + BigInt.toNumber relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
     -- Note the hack that we don't have `end` for the current era, if we did not
@@ -860,22 +826,29 @@ findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
   where
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    unwrap (unwrap start).time * factor <= at
-      && maybe true ((<) at <<< (*) factor <<< unwrap <<< _.time <<< unwrap) end
+    let 
+      numberAt = BigInt.toNumber at
+    in
+    unwrap (unwrap start).time * factor <= numberAt
+      && maybe true ((<) numberAt <<< (*) factor <<< unwrap <<< _.time <<< unwrap) end
 
 -- Use this factor to convert Ogmios seconds to Milliseconds for example, I
 -- think this is safe e.g. see https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
 -- that indeed, start of eras should be exact to the second.
-factor :: BigInt
-factor = BigInt.fromInt 1000
+factor :: Number
+factor = 1e3
 
 relTimeFromAbsTime
   :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
 relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
   let startTime = unwrap (unwrap start).time * factor
-  unless (startTime <= absTime) (throwError $ StartTimeGreaterThanTime at)
-  let relTime = absTime - startTime -- relative to era start, not UNIX Epoch.
-  pure $ wrap relTime
+  unless (startTime <= BigInt.toNumber absTime) (throwError $ StartTimeGreaterThanTime at)
+  let relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
+  wrap  <$>  (
+    maybeToEither  CannotGetBigIntFromNumber' <<< 
+    BigInt.fromNumber <<< 
+    Math.trunc
+    ) relTime
 
 -- | Converts relative time to relative slot (using Euclidean division) and
 -- | modulus for any leftover.
