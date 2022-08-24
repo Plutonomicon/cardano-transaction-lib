@@ -8,6 +8,7 @@ module Test.Utils
   , interpretWithTimeout
   , interpretWithConfig
   , toFromAesonTest
+  , toFromAesonTestWith
   , unsafeCall
   , readAeson
   ) where
@@ -120,6 +121,30 @@ toFromAesonTest
   -> TestPlanM (Aff Unit) Unit
 toFromAesonTest desc x = test desc $ aesonRoundTrip x `shouldEqual` Right x
 
+toFromAesonTestWith 
+  :: forall (a :: Type)
+   . Eq a
+  => DecodeAeson a
+  => EncodeAeson a
+  => Show a
+  => String
+  -> (a -> a)
+  -> a
+  -> TestPlanM (Aff Unit) Unit
+toFromAesonTestWith desc transform  x = 
+  test desc $ aesonRoundTripWith transform x `shouldEqual` Right x
+
+aesonRoundTripWith
+  :: forall (a :: Type)
+   . Eq a
+  => Show a
+  => DecodeAeson a
+  => EncodeAeson a
+  => (a->a)
+  -> a
+  -> Either JsonDecodeError a
+aesonRoundTripWith transform = decodeAeson <<< encodeAeson <<< transform
+
 aesonRoundTrip
   :: forall (a :: Type)
    . Eq a
@@ -128,7 +153,7 @@ aesonRoundTrip
   => EncodeAeson a
   => a
   -> Either JsonDecodeError a
-aesonRoundTrip = decodeAeson <<< encodeAeson
+aesonRoundTrip = aesonRoundTripWith \ x->x
 
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
 readAeson = errEither <<< parseJsonStringToAeson

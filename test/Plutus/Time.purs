@@ -2,59 +2,30 @@ module Test.Plutus.Time
   ( suite
   ) where
 
+import Prelude
+
+import Contract.Time (EraSummaries(..), EraSummary(..), EraSummaryParameters(..), SlotLength(..))
 import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
-import Prelude
 import Mote (group)
-import QueryM.Ogmios
-  ( CurrentEpoch(CurrentEpoch)
-  , Epoch(Epoch)
-  , EpochLength(EpochLength)
-  , EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , EraSummaryParameters(EraSummaryParameters)
-  , EraSummaryTime(EraSummaryTime)
-  , SafeZone(SafeZone)
-  , SlotLength(SlotLength)
-  , SystemStart(SystemStart)
-  , RelativeTime(RelativeTime)
-  )
-import Test.Utils (toFromAesonTest)
-import TestM (TestPlanM)
+import QueryM.Ogmios (CurrentEpoch(CurrentEpoch), Epoch(Epoch), EpochLength(EpochLength), EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters), EraSummaryTime(EraSummaryTime), RelativeTime(RelativeTime), SafeZone(SafeZone), SlotLength(SlotLength), SystemStart(SystemStart))
 import Serialization.Address (Slot(Slot))
+import Test.Utils (toFromAesonTest, toFromAesonTestWith)
+import TestM (TestPlanM)
 import Types.BigNum as BigNum
-import Types.Interval
-  ( AbsTime(AbsTime)
-  , ModTime(ModTime)
-  , POSIXTime(POSIXTime)
-  , PosixTimeToSlotError
-      ( CannotFindTimeInEraSummaries
-      , CannotGetBigIntFromNumber'
-      , EndSlotLessThanSlotOrModNonZero
-      , PosixTimeBeforeSystemStart
-      , StartTimeGreaterThanTime
-      )
-  , RelSlot(RelSlot)
-  , RelTime(RelTime)
-  , SlotToPosixTimeError
-      ( CannotFindSlotInEraSummaries
-      , CannotGetBigIntFromNumber
-      , EndTimeLessThanTime
-      , StartingSlotGreaterThanSlot
-      )
-  , ToOnChainPosixTimeRangeError
-      ( PosixTimeToSlotError'
-      , SlotToPosixTimeError'
-      )
-  )
+import Types.Interval (AbsTime(AbsTime), ModTime(ModTime), POSIXTime(POSIXTime), PosixTimeToSlotError(CannotFindTimeInEraSummaries, CannotGetBigIntFromNumber', EndSlotLessThanSlotOrModNonZero, PosixTimeBeforeSystemStart, StartTimeGreaterThanTime), RelSlot(RelSlot), RelTime(RelTime), SlotToPosixTimeError(CannotFindSlotInEraSummaries, CannotGetBigIntFromNumber, EndTimeLessThanTime, StartingSlotGreaterThanSlot), ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError'))
 
 slotFixture :: Slot
 slotFixture = mkSlot 34892625
 
 absTimeFixture :: AbsTime
 absTimeFixture = AbsTime $ BigInt.fromInt 321541237
+
+absTimeNumberFixture :: Number
+absTimeNumberFixture = BigInt.toNumber $ BigInt.fromInt 321541237
 
 posixTimeFixture :: POSIXTime
 posixTimeFixture = POSIXTime $ BigInt.fromInt 12345678
@@ -81,7 +52,7 @@ systemStartFixture :: SystemStart
 systemStartFixture = SystemStart "2019-07-24T20:20:16Z"
 
 mkRelativeTime :: Int -> RelativeTime
-mkRelativeTime = RelativeTime <<< BigInt.fromInt
+mkRelativeTime = RelativeTime <<< BigInt.toNumber <<< BigInt.fromInt
 
 mkSlot :: Int -> Slot
 mkSlot = Slot <<< BigNum.fromInt
@@ -183,6 +154,20 @@ eraSummariesFixture = EraSummaries
       }
   ]
 
+eraSummaryLengthToSeconds :: EraSummary -> EraSummary 
+eraSummaryLengthToSeconds old@(EraSummary{parameters}) = 
+  let 
+    newSlotLength :: SlotLength
+    newSlotLength = wrap $ 1e-3 * unwrap (unwrap parameters).slotLength
+    newParameters :: EraSummaryParameters
+    newParameters = wrap $ (unwrap parameters){slotLength=newSlotLength} 
+  in
+  wrap (unwrap old){parameters= newParameters}
+
+eraSummariesLengthToSeconds :: EraSummaries -> EraSummaries
+eraSummariesLengthToSeconds (EraSummaries values) = 
+  EraSummaries (eraSummaryLengthToSeconds <$> values)
+
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Time-related Aeson representation tests" do
@@ -191,7 +176,7 @@ suite = do
       toFromAesonTest "CannotFindSlotInEraSummaries" slotToPosixTimeErrFixture
       toFromAesonTest "StartingSlotGreaterThanSlot" $
         StartingSlotGreaterThanSlot slotFixture
-      toFromAesonTest "EndTimeLessThanTime" $ EndTimeLessThanTime absTimeFixture
+      toFromAesonTest "EndTimeLessThanTime" $ EndTimeLessThanTime absTimeNumberFixture
       toFromAesonTest "CannotGetBigIntFromNumber" CannotGetBigIntFromNumber
     group "PosixTimeToSlotError" do
       toFromAesonTest "PosixTimeBeforeSystemStart" $ PosixTimeBeforeSystemStart
@@ -211,6 +196,6 @@ suite = do
       toFromAesonTest "AbsTime" absTimeFixture
       toFromAesonTest "RelSlot" relSlotFixture
       toFromAesonTest "RelTime" relTimeFixture
-      toFromAesonTest "EraSummaries" eraSummariesFixture
+      toFromAesonTestWith "EraSummaries" eraSummariesLengthToSeconds eraSummariesFixture
       toFromAesonTest "SystemStart" systemStartFixture
       toFromAesonTest "CurrentEpoch" currentEpochFixture

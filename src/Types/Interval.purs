@@ -470,7 +470,7 @@ maxSlot = wrap BigNum.maxValue
 data SlotToPosixTimeError
   = CannotFindSlotInEraSummaries Slot
   | StartingSlotGreaterThanSlot Slot
-  | EndTimeLessThanTime AbsTime
+  | EndTimeLessThanTime Number
   | CannotGetBigIntFromNumber
 
 derive instance Generic SlotToPosixTimeError _
@@ -692,8 +692,12 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     endTime = maybe (absTime + one)
       ((*) factor <<< unwrap <<< _.time <<< unwrap)
       end
-  unless (absTime <= endTime) (throwError $ EndTimeLessThanTime $ wrap absTime)
-  pure $ wrap absTime
+  unless 
+    (absTime <= endTime) 
+    (throwError $ EndTimeLessThanTime absTime)
+
+  wrap <$> (liftM CannotGetBigIntFromNumber $ BigInt.fromNumber absTime)
+
 
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
