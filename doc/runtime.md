@@ -297,19 +297,17 @@ When changing networks, make sure that `network.magic` is correctly synchronized
 
 ### Other requirements
 
-In order to run most `Contract` actions in the browser, **you must use Nami or Gero wallet**. The following steps must be taken to ensure that you can run CTL contracts:
+In order to run most `Contract` actions in the browser, **you must use one of our supported wallets** (currently Nami, Gero, and Flint). The following steps must be taken to ensure that you can run CTL contracts:
 
-#### With Nami:
-
-1. Install [Nami extension](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
-   - Due to limitations with Nami itself, only Chromium-based browsers are supported
-2. Make sure that you have an active wallet
-3. Make sure that your wallet is running on the testnet (can be configured via a toggle in the settings menu)
-4. Make sure that you have set collateral for the wallet, which Nami reserves apart from other wallet UTxOs
-
-#### With Gero:
-
-1. Install [GeroWallet Testnet extension](https://chrome.google.com/webstore/detail/gerowallet-testnet/iifeegfcfhlhhnilhfoeihllenamcfgc)
-   - Due to limitations with Gero itself, only Chromium-based browsers are supported
-2. Make sure that you have an active wallet
-3. Make sure that you have set collateral for the wallet, which Gero reserves apart from other wallet UTxOs
+1. Install the correct browser extension
+  - [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
+  - [Gero (testnet version)](https://chrome.google.com/webstore/detail/gerowallet-testnet/iifeegfcfhlhhnilhfoeihllenamcfgc)
+  - [Flint](https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj)
+2. Make sure to set up an active wallet by creating a new one (or importing an existing one) and that the wallet has funds available
+3. Make sure that you are running on the testnet (for development)
+  - In Nami and Flint, this can be toggled in the settings menu
+  - For Gero, different extensions are published for different networks
+4. Make sure that collateral has been set for the wallet
+  - Each light wallet reserves these separately from other UTxOs
+  - For Nami and Gero, you can split existing UTxOs into smaller ones and use a part as collateral
+  - For Flint, you must have a 5-20 Ada UTxO available in your wallet to use. If you do not have such a UTxO, you must send yourself a UTxO of the correct size
