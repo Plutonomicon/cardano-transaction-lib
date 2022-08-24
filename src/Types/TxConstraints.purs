@@ -9,9 +9,11 @@ module Types.TxConstraints
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustSpendNativeScriptOutput
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
+      , MustPayToNativeScript
       , MustHashDatum
       , MustSatisfyAnyOf
       )
@@ -27,6 +29,7 @@ module Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToNativeScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey
@@ -36,6 +39,7 @@ module Types.TxConstraints
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
+  , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   , mustValidateIn
@@ -48,6 +52,7 @@ module Types.TxConstraints
 
 import Prelude hiding (join)
 
+import Cardano.Types.Transaction (NativeScript)
 import Data.Array ((:), concat)
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
@@ -60,6 +65,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
+import NativeScripts (NativeScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
 import Prim.TypeError (class Warn, Text)
@@ -86,11 +92,13 @@ data TxConstraint
   | MustProduceAtLeast Value
   | MustSpendPubKeyOutput TransactionInput
   | MustSpendScriptOutput TransactionInput Redeemer
+  | MustSpendNativeScriptOutput TransactionInput NativeScript
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
       Value
   | MustPayToScript ValidatorHash Datum Value
+  | MustPayToNativeScript NativeScriptHash Value
   | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
@@ -246,6 +254,14 @@ mustPayToScript vh dt vl =
   singleton (MustPayToScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
 
+mustPayToNativeScript
+  :: forall (i :: Type) (o :: Type)
+   . NativeScriptHash
+  -> Value
+  -> TxConstraints i o
+mustPayToNativeScript nsHash vl =
+  singleton (MustPayToNativeScript nsHash vl)
+
 -- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
@@ -304,6 +320,14 @@ mustSpendScriptOutput
   -> Redeemer
   -> TxConstraints i o
 mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
+
+mustSpendNativeScriptOutput
+  :: forall (i :: Type) (o :: Type)
+   . TransactionInput
+  -> NativeScript
+  -> TxConstraints i o
+mustSpendNativeScriptOutput txOutRef = singleton <<< MustSpendNativeScriptOutput
+  txOutRef
 
 mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
@@ -409,6 +433,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustMintValue _ _ _ _ -> true
       MustPayToPubKeyAddress _ _ _ vl -> not (isZero vl)
       MustPayToScript _ _ vl -> not (isZero vl)
+      MustPayToNativeScript _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in

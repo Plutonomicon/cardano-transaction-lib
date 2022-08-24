@@ -38,6 +38,7 @@ module Cardano.Types.Value
   , numNonAdaAssets
   , numNonAdaCurrencySymbols
   , numTokenNames
+  , posNonAdaAsset
   , split
   , sumTokenNameLengths
   , scriptHashAsCurrencySymbol
@@ -413,8 +414,14 @@ mkSingletonValue' curSymbol tokenName amount = do
 
 -- | Normalize `NonAdaAsset` so that it doesn't contain zero-valued tokens.
 normalizeNonAdaAsset :: NonAdaAsset -> NonAdaAsset
-normalizeNonAdaAsset (NonAdaAsset mp) =
-  NonAdaAsset $ Map.filter (not Map.isEmpty) $ Map.filter (notEq zero) <$> mp
+normalizeNonAdaAsset = filterNonAdaAsset (notEq zero)
+
+posNonAdaAsset :: NonAdaAsset -> NonAdaAsset
+posNonAdaAsset = filterNonAdaAsset (\x -> x > zero)
+
+filterNonAdaAsset :: (BigInt -> Boolean) -> NonAdaAsset -> NonAdaAsset
+filterNonAdaAsset p (NonAdaAsset mp) =
+  NonAdaAsset $ Map.filter (not Map.isEmpty) $ Map.filter p <$> mp
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
 -- | Combine two `Map`s.
