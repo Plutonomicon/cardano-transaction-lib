@@ -17,7 +17,7 @@ In order to run CTL's `Contract` effects, several services are required. These c
 The services that are currently required are:
 
 - [Ogmios](https://ogmios.dev)
-  - You **must** use Ogmios v5.2.0 or greater with CTL
+  - You **must** use Ogmios v5.4.0 or greater with CTL
   - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v1.34.0 or greater is recommended
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
