@@ -198,7 +198,7 @@ rec {
               "${pkgs.bash}/bin/sh"
               "-c"
               ''
-                ${server}/bin/ctl-server --port ${toString ctlServer.port}
+                ${pkgs.ctl-server}/bin/ctl-server --port ${toString ctlServer.port}
               ''
             ];
           };
