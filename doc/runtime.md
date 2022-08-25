@@ -193,67 +193,97 @@ It is _not_ necessary to use the flake app approach above (i.e. with `launchCtlR
 
 The following steps should help you start the runtime without using `launchCtlRuntime`. **Note**: the following steps require Docker, but not `docker-compose`
 
-1. Enter a development shell with the correct runtime components, provided by CTL
+#### Enter a development shell
 
 CTL's `purescriptProject` function will produce a `devShell` suitable for use with your own flake. Pass the `withRuntime` flag to put all of the required runtime components in your development environment. Then, run `nix develop`. You will now have the necessary packages to manually start the runtime (`ogmios`, `ogmios-datum-cache`, and `ctl-server`). (_Note_: you don't need to use `purescriptProject`, you can still add the packages yourself to a `devShell` that you define yourself.)
 
 Make sure that you have applied the necessary `overlays` provided by CTL, as outlined above.
 
-2. Start `cardano-node`
+#### Set the correct location for `cardano-configurations` and other node data
+
+To launch Ogmios and, depending on the chosen method, `cardano-node` (see the steps below), you will need to point to a local copy of the correct revision of `cardano-configurations`. `cardano-configurations` is included in CTL's `runtime` overlay. You can add the following to `purescriptProject.shell.shellHook` to export the correct paths:
+
+```nix
+''
+  # You can set this to any value you'd like, this is simply an example
+  export NODE_DATA_DIR=.node
+  # These subdirectories will be required in later steps as well
+  mkdir -p "$NODE_DATA_DIR/{config,data,socket}"
+  ln -s ${pkgs.cardano-configurations}/network/testnet "$NODE_DATA_DIR/config/testnet/"
+  export NODE_CONFIG_PATH="$NODE_DATA_DIR/config/testnet"
+''
+```
+
+You can also clone `cardano-configurations` locally, check out the correct revision, and export the path pointing to the local copy directly in your shell (rather than doing so via a `shellHook`).
+
+#### Start `cardano-node`
+
+##### With Docker
+
+The simplest way to start `cardano-node` is using Docker. However, this may not work on macOS (please see the note below). To launch it via Docker:
 
 ```
 docker run --rm \
   -e NETWORK=testnet \
-  -v "$PWD"/.node/socket:/ipc \
-  -v "$PWD"/.node/data:/data \
+  -v "$NODE_DATA_DIR"/socket:/ipc \
+  -v "$NODE_DATA_DIR"/data:/data \
   inputoutput/cardano-node:<TAG>
 ```
 
 Where `<TAG>` is the current tag supported by the CTL runtime (you can check CTL's own flake to find the current default tag).
 
-This will mount the volumes required to communicate with the node container (specifically `/ipc`) in the `$PWD` under `.node` (you can choose any directory you'd like -- this is simply an example).
+This will mount the volumes required to communicate with the node container (specifically `/ipc`) under the `$NODE_DATA_DIR` we defined earlier (again, this can be any path you'd like; in the example above, it was set to `.node`).
 
-**Note**: Depending on your Docker installation, you may need to `chmod` the mount point for the IPC volume on the host (in the example above, `.node/socket`). Ogmios must be able to read and write to the socket, and Docker often runs as root. If you don't set the correct permissions, Ogmios will be unable to communicate with the node.
+**Note**: Depending on your Docker installation, you may need to `chmod` the mount point for the IPC volume on the host (in the example above, `$NODE_DATA_DIR/socket`). Ogmios must be able to read and write to the socket, and Docker often runs as root. If you don't set the correct permissions, Ogmios will be unable to communicate with the node. macOS users have reported that `chmod` does **not** resolve this problem; if this is the case for you, please refer to starting the node directly.
 
-3. Start Ogmios
+##### Directly
+
+We have had Nix issues when using the `cardano-node` repository as a flake input without also setting `flake = false;` for it. Accordingly, we do **not** include any of the packages the repo defines in our development environment.
+
+To add the packages to your `$PATH`, the easiest way is to use `nix shell`. You do not need to leave your shell environment provided by CTL: you can run the commands in the same shell session:
+
+```
+$ nix shell 'github:input-output-hk/cardano-node?ref=<TAG>#cardano-node'
+```
+
+Where `TAG` matches the version tag that CTL uses in its runtime (this corresponds to the Docker tag above).
+
+The `cardano-node` package should now be available in your shell environment. Run the following to start the node:
+
+```
+$ cardano-node run --config "$NODE_CONFIG_PATH/cardano-node/config.json" \
+  --topology "$NODE_CONFIG_PATH/cardano-node/topology.json" \
+  --database-path "$NODE_DATA_DIR"/data/db \
+  --socket-path "$NODE_DATA_DIR"/socket/node.socket \
+  --host-addr 127.0.0.1 --port 3001
+```
+
+#### Start Ogmios
 
 ```
 $ ogmios
     --host <HOST> \
     --port <PORT> \
     --node-socket .node/socket \
-    --node-config <CONFIG_PATH>/cardano-node/config.json
+    --node-config "$NODE_CONFIG_PATH/cardano-node/config.json"
 ```
 
-Where `<CONFIG_PATH>` points to a local copy of the correct revision of `cardano-configurations`. `cardano-configurations` is included in CTL's `runtime` overlay. You can add the following to `purescriptProject.shell.shellHook` to export the correct paths for Ogmios to use:
+Where `$NODE_CONFIG_PATH` points to the path containing `cardano-configurations` as noted above.
 
-```bash
-cfgdir=./.node-cfg
-mkdir -p "$cfgdir"/testnet/{config,genesis}
-ln -s ${pkgs.cardano-configurations}/network/testnet/cardano-node/config.json \
-  "$cfgdir"/testnet/config/config.json
-ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/byron.json \
-  "$cfgdir"/testnet/genesis/byron.json
-ln -s ${pkgs.cardano-configurations}/network/testnet/genesis/shelley.json \
-  "$cfgdir"/testnet/genesis/shelley.json
-```
-
-You can also clone `cardano-configurations` locally, check out the correct revision, and export the path pointing to the local copy.
-
-4. Start the Postgres DB:
+#### Start Postgres
 
 This is required for `ogmios-datum-cache`. Any combination of username, password, and DB name will work, but make sure that it matches what you provide to `ogmios-datum-cache`.
 
 ```
 $ docker run -d --rm \
-    -e "POSTGRES_USER=<USER>" \
-    -e "POSTGRES_PASSWORD=<PASSWORD>" \
-    -e "POSTGRES_DB=<DBNAME>" \
+    -e "POSTGRES_USER=user" \
+    -e "POSTGRES_PASSWORD=password" \
+    -e "POSTGRES_DB=dbname" \
     -p 127.0.0.1:5432:5432 \
     postgres:13
 ```
 
-5. Start `ogmios-datum-cache`
+#### Start `ogmios-datum-cache`
 
 `ogmios-datum-cache` can take a large number of command-line arguments. The most important are `--server-port`, which corresponds to the Ogmios port, and the `--db-*` options, which must match those provided in step 4 above.
 
@@ -273,7 +303,7 @@ $ ogmios-datum-cache
     --block-filter ''
 ```
 
-6. Start `ctl-server`
+#### Start `ctl-server`
 
 Finally, start `ctl-server`. **Note**: in the future, this service will be optional and only required if you depend on CTL's `applyArgs` effect.
 
@@ -300,14 +330,19 @@ When changing networks, make sure that `network.magic` is correctly synchronized
 In order to run most `Contract` actions in the browser, **you must use one of our supported wallets** (currently Nami, Gero, and Flint). The following steps must be taken to ensure that you can run CTL contracts:
 
 1. Install the correct browser extension
-  - [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
-  - [Gero (testnet version)](https://chrome.google.com/webstore/detail/gerowallet-testnet/iifeegfcfhlhhnilhfoeihllenamcfgc)
-  - [Flint](https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj)
+
+- [Nami](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
+- [Gero (testnet version)](https://chrome.google.com/webstore/detail/gerowallet-testnet/iifeegfcfhlhhnilhfoeihllenamcfgc)
+- [Flint](https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj)
+
 2. Make sure to set up an active wallet by creating a new one (or importing an existing one) and that the wallet has funds available
 3. Make sure that you are running on the testnet (for development)
-  - In Nami and Flint, this can be toggled in the settings menu
-  - For Gero, different extensions are published for different networks
+
+- In Nami and Flint, this can be toggled in the settings menu
+- For Gero, different extensions are published for different networks
+
 4. Make sure that collateral has been set for the wallet
-  - Each light wallet reserves these separately from other UTxOs
-  - For Nami and Gero, you can split existing UTxOs into smaller ones and use a part as collateral
-  - For Flint, you must have a 5-20 Ada UTxO available in your wallet to use. If you do not have such a UTxO, you must send yourself a UTxO of the correct size
+
+- Each light wallet reserves these separately from other UTxOs
+- For Nami and Gero, you can split existing UTxOs into smaller ones and use a part as collateral
+- For Flint, you must have a 5-20 Ada UTxO available in your wallet to use. If you do not have such a UTxO, you must send yourself a UTxO of the correct size
