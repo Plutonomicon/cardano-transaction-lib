@@ -35,7 +35,6 @@ import Aeson
   , (.:)
   )
 import Data.BigInt (BigInt)
-import Data.Maybe (Maybe)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
