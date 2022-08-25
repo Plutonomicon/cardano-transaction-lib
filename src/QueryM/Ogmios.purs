@@ -13,6 +13,7 @@ module QueryM.Ogmios
   , EraSummaryParameters(EraSummaryParameters)
   , EraSummaryTime(EraSummaryTime)
   , ExecutionUnits
+  , MempoolSnapshotAcquired
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
   , OgmiosTxOut
@@ -45,9 +46,11 @@ module QueryM.Ogmios
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
+  , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
   , evaluateTxCall
+  , mempoolSnapshotHasTxCall
   , mkOgmiosCallType
   , queryChainTipCall
   , queryCurrentEpochCall
@@ -116,9 +119,9 @@ import Data.String
   , splitAt
   , uncons
   )
+import Data.Tuple (snd, uncurry)
 import Data.String.Common (split) as String
 import Data.Traversable (sequence, traverse, for)
-import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -143,74 +146,68 @@ import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
--- LOCAL STATE QUERY PROTOCOL
+--------------------------------------------------------------------------------
+-- Local State Query Protocol
 -- https://ogmios.dev/mini-protocols/local-state-query/
+--------------------------------------------------------------------------------
 
 -- | Queries Ogmios for the system start Datetime
 querySystemStartCall :: JsonWspCall Unit SystemStart
-querySystemStartCall = mkOgmiosCallType
+querySystemStartCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "systemStart" }
   }
-  Proxy
 
 -- | Queries Ogmios for the current epoch
 queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
-queryCurrentEpochCall = mkOgmiosCallType
+queryCurrentEpochCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "currentEpoch" }
   }
-  Proxy
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
 queryEraSummariesCall :: JsonWspCall Unit EraSummaries
-queryEraSummariesCall = mkOgmiosCallType
+queryEraSummariesCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
   }
-  Proxy
 
 -- | Queries Ogmios for the current protocol parameters
 queryProtocolParametersCall :: JsonWspCall Unit ProtocolParameters
-queryProtocolParametersCall = mkOgmiosCallType
+queryProtocolParametersCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "currentProtocolParameters" }
   }
-  Proxy
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType
+queryChainTipCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "chainTip" }
   }
-  Proxy
 
 -- | Queries Ogmios for utxos at given addresses.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
-queryUtxosCall = mkOgmiosCallType
+queryUtxosCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: { query: _ }
   }
-  Proxy
 
 -- | Queries Ogmios for utxos at given address.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
-queryUtxosAtCall = mkOgmiosCallType
+queryUtxosAtCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
-  Proxy
 
 -- | Queries Ogmios for the utxo with the given output reference.
 queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
-queryUtxoCall = mkOgmiosCallType
+queryUtxoCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
   }
-  Proxy
   where
   renameFields
     :: { transactionId :: TransactionHash, index :: UInt }
@@ -219,39 +216,79 @@ queryUtxoCall = mkOgmiosCallType
 
 type OgmiosAddress = String
 
--- LOCAL TX SUBMISSION
+--------------------------------------------------------------------------------
+-- Local Tx Submission Protocol
 -- https://ogmios.dev/mini-protocols/local-tx-submission/
+--------------------------------------------------------------------------------
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonWspCall CborBytes SubmitTxR
-submitTxCall = mkOgmiosCallType
+submitTxCall :: JsonWspCall (TxHash /\ CborBytes) SubmitTxR
+submitTxCall = mkOgmiosCallType Proxy
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< cborBytesToHex
+  , args: { submit: _ } <<< cborBytesToHex <<< snd
   }
-  Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
 evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
-evaluateTxCall = mkOgmiosCallType
+evaluateTxCall = mkOgmiosCallType Proxy
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
   }
-  Proxy
 
--- convenience helper
+--------------------------------------------------------------------------------
+-- Local Tx Monitor Protocol
+-- https://ogmios.dev/mini-protocols/local-tx-monitor/
+--------------------------------------------------------------------------------
+
+acquireMempoolSnapshotCall :: JsonWspCall Unit MempoolSnapshotAcquired
+acquireMempoolSnapshotCall =
+  mkOgmiosCallTypeNoArgs Proxy "AwaitAcquire"
+
+mempoolSnapshotHasTxCall
+  :: MempoolSnapshotAcquired -> JsonWspCall TxHash Boolean
+mempoolSnapshotHasTxCall _ = mkOgmiosCallType Proxy
+  { methodname: "HasTx"
+  , args: { id: _ }
+  }
+
+--------------------------------------------------------------------------------
+-- Local Tx Monitor Query Response & Parsing
+--------------------------------------------------------------------------------
+
+newtype MempoolSnapshotAcquired = AwaitAcquired Slot
+
+instance Show MempoolSnapshotAcquired where
+  show (AwaitAcquired slot) = "(AwaitAcquired " <> show slot <> ")"
+
+instance DecodeAeson MempoolSnapshotAcquired where
+  decodeAeson =
+    map AwaitAcquired <<< aesonObject
+      (flip getField "AwaitAcquired" >=> flip getField "slot")
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+mkOgmiosCallTypeNoArgs
+  :: forall (o :: Type). Proxy o -> String -> JsonWspCall Unit o
+mkOgmiosCallTypeNoArgs proxy methodname =
+  mkOgmiosCallType proxy { methodname, args: const {} }
+
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeAeson (JsonWspRequest a)
-  => { methodname :: String, args :: i -> a }
-  -> Proxy o
+  => Proxy o
+  -> { methodname :: String, args :: i -> a }
   -> JsonWspCall i o
-mkOgmiosCallType = mkCallType
-  { "type": "jsonwsp/request"
-  , version: "1.0"
-  , servicename: "ogmios"
-  }
+mkOgmiosCallType = flip
+  ( mkCallType
+      { "type": "jsonwsp/request"
+      , version: "1.0"
+      , servicename: "ogmios"
+      }
+  )
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 

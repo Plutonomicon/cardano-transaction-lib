@@ -394,11 +394,12 @@
       check = perSystem (system:
         (nixpkgsFor system).runCommand "combined-check"
           {
-            nativeBuildInputs =
+            combined =
               builtins.attrValues self.checks.${system}
               ++ builtins.attrValues self.packages.${system};
           }
           ''
+            echo $combined
             touch $out
           ''
       );
