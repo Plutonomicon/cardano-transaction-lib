@@ -64,13 +64,14 @@ Here is an example that uses the `runtime` overlay to launch all of the required
         inherit system;
         overlays = [
           cardano-transaction-lib.overlays.runtime
-          # you probably want this one too, although it's not demonstrated
-          # in this example
-          cardano-transaction-lib.overlays.purescript
           # This one is optional. If you set `ctl-server.enable = true;`
           # in the runtime config as shown below, you must enable this
           # overlay. `ctl-server` itself is **only** required when using
           # CTL's `applyArgs` effect
+          cardano-transaction-lib.overlays.ctl-server
+          # you probably want this one too, although it's not demonstrated
+          # in this example
+          cardano-transaction-lib.overlays.purescript
         ];
       };
 
