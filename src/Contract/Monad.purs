@@ -199,7 +199,7 @@ asksConfig f = do
 type ConfigParams (r :: Row Type) =
   { ogmiosConfig :: QueryM.ServerConfig
   , datumCacheConfig :: QueryM.ServerConfig
-  , ctlServerConfig :: QueryM.ServerConfig
+  , ctlServerConfig :: Maybe QueryM.ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
