@@ -63,7 +63,18 @@ module Types.Interval
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(TypeMismatch), aesonNull, decodeAeson, encodeAeson, encodeAeson', getField, isNull)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , aesonNull
+  , decodeAeson
+  , encodeAeson
+  , encodeAeson'
+  , getField
+  , isNull
+  )
 import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
@@ -80,7 +91,12 @@ import Data.Either (Either(Right), note)
 import Data.Enum (class Enum, succ)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
-import Data.Lattice (class BoundedJoinSemilattice, class BoundedMeetSemilattice, class JoinSemilattice, class MeetSemilattice)
+import Data.Lattice
+  ( class BoundedJoinSemilattice
+  , class BoundedMeetSemilattice
+  , class JoinSemilattice
+  , class MeetSemilattice
+  )
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -93,8 +109,20 @@ import FromData (class FromData, genericFromData)
 import Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), I, PNil)
-import QueryM.Ogmios (EraSummaries(EraSummaries), EraSummary(EraSummary), SystemStart, aesonObject)
+import Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
+import QueryM.Ogmios
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , SystemStart
+  , aesonObject
+  )
 import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
 import TypeLevel.Nat (S, Z)
@@ -692,12 +720,11 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     endTime = maybe (absTime + one)
       ((*) factor <<< unwrap <<< _.time <<< unwrap)
       end
-  unless 
-    (absTime <= endTime) 
+  unless
+    (absTime <= endTime)
     (throwError $ EndTimeLessThanTime absTime)
 
   wrap <$> (liftM CannotGetBigIntFromNumber $ BigInt.fromNumber absTime)
-
 
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
@@ -830,11 +857,13 @@ findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
   where
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    let 
+    let
       numberAt = BigInt.toNumber at
     in
-    unwrap (unwrap start).time * factor <= numberAt
-      && maybe true ((<) numberAt <<< (*) factor <<< unwrap <<< _.time <<< unwrap) end
+      unwrap (unwrap start).time * factor <= numberAt
+        && maybe true
+          ((<) numberAt <<< (*) factor <<< unwrap <<< _.time <<< unwrap)
+          end
 
 -- Use this factor to convert Ogmios seconds to Milliseconds for example, I
 -- think this is safe e.g. see https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
@@ -846,12 +875,15 @@ relTimeFromAbsTime
   :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
 relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
   let startTime = unwrap (unwrap start).time * factor
-  unless (startTime <= BigInt.toNumber absTime) (throwError $ StartTimeGreaterThanTime at)
-  let relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
-  wrap  <$>  (
-    maybeToEither  CannotGetBigIntFromNumber' <<< 
-    BigInt.fromNumber <<< 
-    Math.trunc
+  unless (startTime <= BigInt.toNumber absTime)
+    (throwError $ StartTimeGreaterThanTime at)
+  let
+    relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
+  wrap <$>
+    ( maybeToEither CannotGetBigIntFromNumber'
+        <<< BigInt.fromNumber
+        <<<
+          Math.trunc
     ) relTime
 
 -- | Converts relative time to relative slot (using Euclidean division) and

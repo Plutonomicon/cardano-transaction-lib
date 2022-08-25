@@ -121,7 +121,7 @@ toFromAesonTest
   -> TestPlanM (Aff Unit) Unit
 toFromAesonTest desc x = test desc $ aesonRoundTrip x `shouldEqual` Right x
 
-toFromAesonTestWith 
+toFromAesonTestWith
   :: forall (a :: Type)
    . Eq a
   => DecodeAeson a
@@ -131,7 +131,7 @@ toFromAesonTestWith
   -> (a -> a)
   -> a
   -> TestPlanM (Aff Unit) Unit
-toFromAesonTestWith desc transform  x = 
+toFromAesonTestWith desc transform x =
   test desc $ aesonRoundTripWith transform x `shouldEqual` Right x
 
 aesonRoundTripWith
@@ -140,7 +140,7 @@ aesonRoundTripWith
   => Show a
   => DecodeAeson a
   => EncodeAeson a
-  => (a->a)
+  => (a -> a)
   -> a
   -> Either JsonDecodeError a
 aesonRoundTripWith transform = decodeAeson <<< encodeAeson <<< transform
@@ -153,7 +153,7 @@ aesonRoundTrip
   => EncodeAeson a
   => a
   -> Either JsonDecodeError a
-aesonRoundTrip = aesonRoundTripWith \ x->x
+aesonRoundTrip = aesonRoundTripWith \x -> x
 
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
 readAeson = errEither <<< parseJsonStringToAeson
