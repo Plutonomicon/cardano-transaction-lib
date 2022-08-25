@@ -4,12 +4,6 @@ module Test.Plutus.Time
 
 import Prelude
 
-import Contract.Time
-  ( EraSummaries(..)
-  , EraSummary(..)
-  , EraSummaryParameters(..)
-  , SlotLength(..)
-  )
 import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))

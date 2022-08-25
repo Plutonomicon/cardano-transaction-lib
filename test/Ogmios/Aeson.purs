@@ -15,13 +15,10 @@ import Control.Parallel (parTraverse)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy, filter)
 import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
 import Data.Bifunctor (lmap, bimap)
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush)
-import Data.Int as Int
+import Data.Either (either, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Number.Format (toString)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_, traverse)
@@ -39,9 +36,6 @@ import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import QueryM.Ogmios as O
-import Test.QuickCheck (Result(Failed), (<?>), (===))
-import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.QuickCheck (quickCheck)
 import Test.Utils as Utils
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))

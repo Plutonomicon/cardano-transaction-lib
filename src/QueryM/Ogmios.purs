@@ -72,7 +72,6 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , decodeJsonString
   , encodeAeson
   , encodeAeson'
   , getField
@@ -97,7 +96,6 @@ import Cardano.Types.Value
   , mkNonAdaAsset
   , mkValue
   )
-import Contract.Prelude (Tuple(Tuple))
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (index, singleton)
@@ -106,7 +104,6 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
-import Data.Int as Int
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
@@ -115,14 +112,11 @@ import Data.Show.Generic (genericShow)
 import Data.String
   ( Pattern(Pattern)
   , indexOf
-  , length
   , split
   , splitAt
-  , take
   , uncons
   )
 import Data.String.Common (split) as String
-import Data.String.Utils (repeat)
 import Data.Traversable (sequence, traverse, for)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested ((/\), type (/\))

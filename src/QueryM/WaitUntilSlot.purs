@@ -9,7 +9,6 @@ import Prelude
 
 import Control.Monad.Reader (asks)
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
 import Data.Either (hush)
