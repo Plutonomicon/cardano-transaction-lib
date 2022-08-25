@@ -77,6 +77,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Cardano.Types.Transaction (_witnessSet)
 import Cardano.Types.Transaction as Transaction
 import Control.Monad.Error.Class
   ( class MonadError
@@ -92,6 +93,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
+import Data.Lens ((<>~))
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map (Map)
@@ -476,7 +478,9 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
-  KeyWallet kw -> Just <$> (unwrap kw).signTx tx
+  KeyWallet kw -> do
+    witnessSet <- (unwrap kw).signTx tx
+    pure $ Just (tx # _witnessSet <>~ witnessSet)
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
