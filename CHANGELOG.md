@@ -62,6 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Flint wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 - Support for `NativeScript`s in constraints interface: `mustPayToNativeScript` and `mustSpendNativeScriptOutput` functions ([#869](https://github.com/Plutonomicon/cardano-transaction-lib/pull/869))
 - `Plutus.Types.AssocMap.AssocMap` now has `TraversableWithIndex`,  `FoldableWithIndex`,  `FunctorWithIndex` instances
+- Lode wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 
 ### Changed
 

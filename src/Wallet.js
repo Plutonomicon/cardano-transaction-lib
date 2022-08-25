@@ -28,10 +28,10 @@ const checkNotNode = () => {
   }
 };
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
 const enableWallet = wallet => () => {
-  return delay(100).then(() => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  // TODO: find a better solution for this
+  return delay(200).then(() => {
     const isAvailable = isWalletAvailable(wallet)();
     if (isAvailable) {
       return window.cardano[wallet].enable().catch(e => {
