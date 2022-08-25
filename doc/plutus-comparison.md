@@ -67,13 +67,16 @@ Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `C
 
 CTL has adapted Plutus' constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
 
-| Plutus                 | CTL               |
-| ---------------------- | ----------------- |
-| `mustPayToTheScript`   | _removed_         |
-| `mustPayToOtherScript` | `mustPayToScript` |
-| `otherScript`          | `validator`       |
-| `otherData`            | `datum`           |
-|                        |                   |
+| Plutus                 | CTL                           |
+| ---------------------- | ----------------------------- |
+| `mustPayToTheScript`   | _removed_                     |
+| `mustPayToOtherScript` | `mustPayToScript`             |
+| `otherScript`          | `validator`                   |
+| `otherData`            | `datum`                       |
+| _none_                 | `mustPayToNativeScript`       |
+| _none_                 | `mustSpendNativeScriptOutput` |
+
+Additionally, we implement `NativeScript` (multi-signature phase-1 script) support, which is not covered by Plutus.
 
 ### Typed scripts
 
