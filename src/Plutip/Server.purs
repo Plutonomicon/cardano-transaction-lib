@@ -9,7 +9,12 @@ module Plutip.Server
 
 import Prelude
 
-import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -124,7 +129,7 @@ withPlutipContractEnv plutipCfg distr cont = do
       withPostgres response
         $ withOgmios response
         $ withOgmiosDatumCache response
-        $ withCtlServer
+        $ withMCtlServer
         $ withContractEnv \env ->
             withWallets env ourKey response (cont env)
   where
@@ -164,10 +169,14 @@ withPlutipContractEnv plutipCfg distr cont = do
     bracket (startOgmiosDatumCache plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
 
-  withCtlServer :: Aff a -> Aff a
-  withCtlServer =
-    bracket (startCtlServer plutipCfg)
-      (stopChildProcessWithPort plutipCfg.ctlServerConfig.port) <<< const
+  withMCtlServer :: Aff a -> Aff a
+  withMCtlServer x = case plutipCfg.ctlServerConfig of
+    Nothing -> x
+    Just config ->
+      bracket
+        (startCtlServer config.port)
+        (stopChildProcessWithPort config.port)
+        $ const x
 
   withWallets
     :: ContractEnv ()
@@ -221,13 +230,13 @@ withPlutipContractEnv plutipCfg distr cont = do
 configCheck :: PlutipConfig -> Aff Unit
 configCheck cfg = do
   let
+    services :: Array (UInt /\ String)
     services =
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
-      , cfg.ctlServerConfig.port /\ "ctl-server"
       , cfg.postgresConfig.port /\ "postgres"
-      ]
+      ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
@@ -235,6 +244,7 @@ configCheck cfg = do
       "Unable to run the following services, because the ports are occupied:\
       \\n" <> foldMap printServiceEntry occupiedServices
   where
+  printServiceEntry :: UInt /\ String -> String
   printServiceEntry (port /\ service) =
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
@@ -502,15 +512,11 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , extraConfig: {}
     }
 
-startCtlServer :: PlutipConfig -> Aff ChildProcess
-startCtlServer cfg = do
-  let
-    ctlServerArgs =
-      [ "--port"
-      , UInt.toString cfg.ctlServerConfig.port
-      ]
+startCtlServer :: UInt -> Aff ChildProcess
+startCtlServer serverPort = do
+  let ctlServerArgs = [ "--port", UInt.toString serverPort ]
   child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
-    -- Wait for "Successfully connected to Ogmios" string in the output
+    -- Wait for "CTL server starting on port" string in the output
     $ String.indexOf (Pattern "CTL server starting on port")
         >>> maybe NoOp (const Success)
   liftEffect $ killOnExit child

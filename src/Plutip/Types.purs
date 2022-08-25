@@ -59,7 +59,8 @@ type PlutipConfig =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , ogmiosDatumCacheConfig :: ServerConfig
-  , ctlServerConfig :: ServerConfig
+  -- Set this to `Nothing` to avoid spawning `ctl-server`
+  , ctlServerConfig :: Maybe ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (Message -> Aff Unit)

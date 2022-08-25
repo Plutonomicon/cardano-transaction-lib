@@ -44,7 +44,7 @@ testnetConfig :: ConfigParams ()
 testnetConfig =
   { ogmiosConfig: defaultOgmiosWsConfig
   , datumCacheConfig: defaultDatumCacheWsConfig
-  , ctlServerConfig: defaultServerConfig
+  , ctlServerConfig: Just defaultServerConfig
   , networkId: TestnetId
   , extraConfig: {}
   , walletSpec: Nothing

@@ -212,7 +212,7 @@ import Wallet.Spec
 -- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { ctlServerConfig :: ServerConfig
+  { ctlServerConfig :: Maybe ServerConfig
   , ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
   , networkId :: NetworkId
@@ -558,29 +558,44 @@ applyArgs
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = case traverse plutusDataToAeson args of
-  Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
-  Just ps -> do
-    let
-      reqBody :: Aeson
-      reqBody = encodeAeson
-        $ Object.fromFoldable
-            [ "script" /\ scriptToAeson (unwrap script)
-            , "args" /\ encodeAeson ps
-            ]
-    url <- mkServerEndpointUrl "apply-args"
-    liftAff (postAeson url reqBody)
-      <#> map wrap <<< handleAffjaxResponse
-  where
-  plutusDataToAeson :: PlutusData -> Maybe Aeson
-  plutusDataToAeson =
-    map
-      ( encodeAeson
-          <<< byteArrayToHex
-          <<< Serialization.toBytes
-          <<< asOneOf
-      )
-      <<< Serialization.convertPlutusData
+applyArgs script args = asks (_.ctlServerConfig <<< _.config) >>= case _ of
+  Nothing ->
+    pure
+      $ Left
+      $
+        ClientOtherError
+          "The `ctl-server` service is required to call `applyArgs`. Please \
+          \provide a `Just` value in `ConfigParams.ctlServerConfig` and make \
+          \sure that the `ctl-server` service is running and available at the \
+          \provided host and port. The `ctl-server` packages can be obtained \
+          \from `overlays.ctl-server` defined in CTL's flake. Please see \
+          \`doc/runtime.md` in the CTL repository for more information"
+  Just config -> case traverse plutusDataToAeson args of
+    Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
+    Just ps -> do
+      let
+        url :: String
+        url = mkHttpUrl config <> "/apply-args"
+
+        reqBody :: Aeson
+        reqBody = encodeAeson
+          $ Object.fromFoldable
+              [ "script" /\ scriptToAeson (unwrap script)
+              , "args" /\ encodeAeson ps
+              ]
+
+      liftAff (postAeson url reqBody)
+        <#> map wrap <<< handleAffjaxResponse
+    where
+    plutusDataToAeson :: PlutusData -> Maybe Aeson
+    plutusDataToAeson =
+      map
+        ( encodeAeson
+            <<< byteArrayToHex
+            <<< Serialization.toBytes
+            <<< asOneOf
+        )
+        <<< Serialization.convertPlutusData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
@@ -618,12 +633,6 @@ postAeson url body = Affjax.request $ Affjax.defaultRequest
 -- write an instance in the `Types.*` modules)
 scriptToAeson :: PlutusScript -> Aeson
 scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
-
-mkServerEndpointUrl :: String -> QueryM Url
-mkServerEndpointUrl path = asks $ (_ <> "/" <> path)
-  <<< mkHttpUrl
-  <<< _.ctlServerConfig
-  <<< _.config
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps

@@ -49,6 +49,7 @@ runKeyWalletContract_ contract =
               (PrivatePaymentKeyValue $ wrap privateKey)
               Nothing
           , customLogger = Just printLog
+          , ctlServerConfig = Nothing
           }
 
         printLog :: Message -> Aff Unit

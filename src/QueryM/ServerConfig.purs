@@ -12,7 +12,7 @@ module QueryM.ServerConfig
 
 import Prelude
 
-import Data.Maybe (fromMaybe, Maybe(Nothing))
+import Data.Maybe (maybe, Maybe(Nothing))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import JsWebSocket (Url)
@@ -66,4 +66,4 @@ mkServerUrl protocol cfg =
     <> cfg.host
     <> ":"
     <> UInt.toString cfg.port
-    <> fromMaybe "" cfg.path
+    <> maybe "" ("/" <> _) cfg.path
