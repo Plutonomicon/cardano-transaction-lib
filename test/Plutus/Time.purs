@@ -54,6 +54,10 @@ systemStartFixture = SystemStart "2019-07-24T20:20:16Z"
 mkRelativeTime :: Int -> RelativeTime
 mkRelativeTime = RelativeTime <<< BigInt.toNumber <<< BigInt.fromInt
 
+
+mkRelativeTime' :: Number -> RelativeTime
+mkRelativeTime' = RelativeTime 
+
 mkSlot :: Int -> Slot
 mkSlot = Slot <<< BigNum.fromInt
 
@@ -65,6 +69,9 @@ mkEpochLength = EpochLength <<< BigInt.fromInt
 
 mkSlotLength :: Int -> SlotLength
 mkSlotLength = SlotLength <<< Int.toNumber
+
+mkSlotLength' :: Number -> SlotLength
+mkSlotLength' = SlotLength 
 
 mkSafeZone :: Int -> SafeZone
 mkSafeZone = SafeZone <<< BigInt.fromInt
@@ -149,6 +156,32 @@ eraSummariesFixture = EraSummaries
       , "parameters": EraSummaryParameters
           { "epochLength": mkEpochLength 432000
           , "slotLength": SlotLength one
+          , "safeZone": mkSafeZone 129600
+          }
+      }
+  , EraSummary
+      { "start": EraSummaryTime
+          { "time": mkRelativeTime' 66528000.023234
+          , "slot": mkSlot 36158400
+          , "epoch": mkEpoch 154
+          }
+      , "end": Nothing
+      , "parameters": EraSummaryParameters
+          { "epochLength": mkEpochLength 432000
+          , "slotLength": SlotLength one
+          , "safeZone": mkSafeZone 129600
+          }
+      }
+  , EraSummary
+      { "start": EraSummaryTime
+          { "time": mkRelativeTime 66528000
+          , "slot": mkSlot 36158400
+          , "epoch": mkEpoch 154
+          }
+      , "end": Nothing
+      , "parameters": EraSummaryParameters
+          { "epochLength": mkEpochLength 432000
+          , "slotLength": mkSlotLength' 0.001
           , "safeZone": mkSafeZone 129600
           }
       }
