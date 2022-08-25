@@ -12,10 +12,11 @@ import Test.Data as Data
 import Test.Deserialization as Deserialization
 import Test.Hashing as Hashing
 import Test.Metadata.Cip25 as Cip25
-import Test.Ogmios.EvaluateTx as Ogmios.EvaluateTx
-import Test.OgmiosDatumCache as OgmiosDatumCache
+import Test.NativeScript as NativeScript
 import Test.Ogmios.Address as Ogmios.Address
 import Test.Ogmios.Aeson as Ogmios.Aeson
+import Test.Ogmios.EvaluateTx as Ogmios.EvaluateTx
+import Test.OgmiosDatumCache as OgmiosDatumCache
 import Test.Parser as Parser
 import Test.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Plutus.Conversion.Value as Plutus.Conversion.Value
@@ -24,9 +25,9 @@ import Test.ProtocolParams as ProtocolParams
 import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
-import Test.Types.TokenName as Types.TokenName
-import Test.Types.Interval as Types.Interval
 import Test.Transaction as Transaction
+import Test.Types.Interval as Types.Interval
+import Test.Types.TokenName as Types.TokenName
 import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -38,6 +39,7 @@ main = launchAff_ do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
+  NativeScript.suite
   Base64.suite
   ByteArray.suite
   Cip25.suite
@@ -62,4 +64,3 @@ testPlan = do
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
-
