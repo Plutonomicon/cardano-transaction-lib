@@ -1,13 +1,15 @@
 module Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Lode, KeyWallet)
   , isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
+  , isLodeAvailable
   , mkNamiWalletAff
   , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkLodeWalletAff
   , mkKeyWallet
   , cip30Wallet
   , dummySign
@@ -44,47 +46,59 @@ data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
   | Flint Cip30Wallet
+  | Lode Cip30Wallet
   | KeyWallet KeyWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
   mbStakeKey
 
+foreign import _isNamiAvailable :: Effect Boolean
+
 isNamiAvailable :: Effect Boolean
 isNamiAvailable = _isNamiAvailable
 
-foreign import _isNamiAvailable :: Effect Boolean
+foreign import _enableNami :: Effect (Promise Cip30Connection)
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami
 
-foreign import _enableNami :: Effect (Promise Cip30Connection)
+foreign import _isGeroAvailable :: Effect Boolean
 
 isGeroAvailable :: Effect Boolean
 isGeroAvailable = _isGeroAvailable
 
-foreign import _isGeroAvailable :: Effect Boolean
+foreign import _enableGero :: Effect (Promise Cip30Connection)
 
 mkGeroWalletAff :: Aff Wallet
 mkGeroWalletAff = Gero <$> mkCip30WalletAff "Gero" _enableGero
 
-foreign import _enableGero :: Effect (Promise Cip30Connection)
+foreign import _isFlintAvailable :: Effect Boolean
 
 isFlintAvailable :: Effect Boolean
 isFlintAvailable = _isFlintAvailable
 
-foreign import _isFlintAvailable :: Effect Boolean
+foreign import _enableFlint :: Effect (Promise Cip30Connection)
 
 mkFlintWalletAff :: Aff Wallet
 mkFlintWalletAff = Flint <$> mkCip30WalletAff "Flint" _enableFlint
 
-foreign import _enableFlint :: Effect (Promise Cip30Connection)
+foreign import _isLodeAvailable :: Effect Boolean
+
+isLodeAvailable :: Effect Boolean
+isLodeAvailable = _isLodeAvailable
+
+foreign import _enableLode :: Effect (Promise Cip30Connection)
+
+mkLodeWalletAff :: Aff Wallet
+mkLodeWalletAff = Lode <$> mkCip30WalletAff "Lode" _enableLode
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
   Nami c30 -> Just c30
   Gero c30 -> Just c30
   Flint c30 -> Just c30
+  Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to

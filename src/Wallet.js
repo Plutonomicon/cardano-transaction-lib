@@ -4,9 +4,18 @@ const getIsWalletAvailableFunctionName = wallet => {
   const strs = {
     nami: "isNamiWalletAvailable",
     gerowallet: "isGeroWalletAvailable",
+    flint: "isFlintWalletAvailable",
+    LodeWallet: "isLodeWalletAvailable",
   };
 
   return strs[wallet] || "is?WalletAvailable";
+};
+
+const wallets = {
+  nami: "nami",
+  flint: "flint",
+  gero: "gerowallet",
+  lode: "LodeWallet",
 };
 
 const nodeEnvError =
@@ -19,29 +28,32 @@ const checkNotNode = () => {
   }
 };
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 const enableWallet = wallet => () => {
-  const isAvailable = isWalletAvailable(wallet)();
-  if (isAvailable) {
-    return window.cardano[wallet].enable().catch(e => {
+  return delay(100).then(() => {
+    const isAvailable = isWalletAvailable(wallet)();
+    if (isAvailable) {
+      return window.cardano[wallet].enable().catch(e => {
+        throw (
+          "enableWallet failed: " +
+          (typeof e.info == "string" ? e.info : e.toString())
+        );
+      });
+    } else {
       throw (
-        "enableWallet failed: " +
-        (typeof e.info == "string" ? e.info : e.toString())
+        "Wallet is not available. Use `" +
+        getIsWalletAvailableFunctionName(wallet) +
+        "` before connecting."
       );
-    });
-  } else {
-    throw (
-      "Wallet is not available. Use `" +
-      getIsWalletAvailableFunctionName(wallet) +
-      "` before connecting."
-    );
-  }
+    }
+  });
 };
 
-exports._enableNami = enableWallet("nami");
-
-exports._enableGero = enableWallet("gerowallet");
-
-exports._enableFlint = enableWallet("flint");
+exports._enableNami = enableWallet(wallets.nami);
+exports._enableGero = enableWallet(wallets.gero);
+exports._enableFlint = enableWallet(wallets.flint);
+exports._enableLode = enableWallet(wallets.lode);
 
 const isWalletAvailable = walletName => () => {
   checkNotNode();
@@ -52,8 +64,7 @@ const isWalletAvailable = walletName => () => {
   );
 };
 
-exports._isNamiAvailable = isWalletAvailable("nami");
-
-exports._isGeroAvailable = isWalletAvailable("gerowallet");
-
-exports._isFlintAvailable = isWalletAvailable("flint");
+exports._isNamiAvailable = isWalletAvailable(wallets.nami);
+exports._isGeroAvailable = isWalletAvailable(wallets.gero);
+exports._isFlintAvailable = isWalletAvailable(wallets.flint);
+exports._isLodeAvailable = isWalletAvailable(wallets.lode);
