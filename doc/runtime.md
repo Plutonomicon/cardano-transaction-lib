@@ -304,9 +304,9 @@ $ ogmios-datum-cache
     --block-filter ''
 ```
 
-#### Start `ctl-server`
+#### [Optional] Start `ctl-server`
 
-Finally, start `ctl-server`. **Note**: in the future, this service will be optional and only required if you depend on CTL's `applyArgs` effect.
+If you depend on CTL's `applyArgs` effect, you must also start `ctl-server`. Otherwise, this step can be skipped.
 
 ```
 $ ctl-server
