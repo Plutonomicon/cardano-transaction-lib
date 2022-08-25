@@ -16,20 +16,17 @@ import Network.Wai.Handler.Warp (
   setPort,
  )
 import Network.Wai.Logger (withStdoutLogger)
-import Ogmios.Query qualified
 import Options.Applicative qualified as Options
-import System.Exit (die)
-import Types (ServerOptions (ServerOptions, port), newEnvIO)
+import System.IO (hFlush, stdout)
+import Types (ServerOptions (ServerOptions, port))
 
 main :: IO ()
 main = do
-  serverOptions@ServerOptions {port} <- Options.execParser opts
+  ServerOptions {port} <- Options.execParser opts
   withStdoutLogger $ \logger -> do
     putStrLn $ "CTL server starting on port " <> show port
-    runSettings (mkSettings port logger)
-      . app
-      =<< either die pure
-      =<< newEnvIO serverOptions
+    hFlush stdout
+    runSettings (mkSettings port logger) app
   where
     mkSettings ::
       Port -> (Request -> Status -> Maybe Integer -> IO ()) -> Settings
@@ -52,27 +49,5 @@ serverOptionsParser =
           <> Options.help "Server port"
           <> Options.showDefault
           <> Options.value 8081
-          <> Options.metavar "INT"
-      )
-    <*> Options.option
-      Options.str
-      ( Options.long "ogmios-host"
-          <> Options.help "The hostname for ogmios"
-          <> Options.showDefault
-          <> Options.value
-            ( Ogmios.Query.host
-                Ogmios.Query.defaultServerParameters
-            )
-          <> Options.metavar "IPV4"
-      )
-    <*> Options.option
-      Options.auto
-      ( Options.long "ogmios-port"
-          <> Options.help "The port for ogmios"
-          <> Options.showDefault
-          <> Options.value
-            ( Ogmios.Query.port
-                Ogmios.Query.defaultServerParameters
-            )
           <> Options.metavar "INT"
       )

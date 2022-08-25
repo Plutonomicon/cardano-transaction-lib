@@ -237,19 +237,32 @@ let
   #  - `ogmios`
   #  - `ogmios-datum-cache`
   #  - `plutip-server`
-  #  - `ctl-server`
   #
-  runPlutipTest = args: runPursTest (
+  # If you require `ctl-server` to be present in `PATH` (e.g. because your
+  # contract will call the `applyArgs` endpoint), please ensure the following:
+  #
+  #  - `ctl-server` is present in the package set you create your project with
+  #  - The `withCtlServer` option is set to to `true` (currently the default)
+  #
+  runPlutipTest =
     {
-      buildInputs = with pkgs; [
-        postgresql
-        ogmios
-        ogmios-datum-cache
-        plutip-server
-        ctl-server
-      ];
-    } // args
-  );
+      # If `ctl-server` should be included in the `buildInputs`. If you rely on
+      # the `applyArgs` endpoint, make sure this is set to `true` and that
+      # `ctl-server` is in the package set you initialize `purescriptProject`
+      # with!
+      withCtlServer ? true
+    , ...
+    }@args:
+    runPursTest (
+      {
+        buildInputs = with pkgs; [
+          postgresql
+          ogmios
+          ogmios-datum-cache
+          plutip-server
+        ] ++ pkgs.lib.lists.optional withCtlServer pkgs.ctl-server;
+      } // args
+    );
 
   # Bundles a Purescript project using Webpack, typically for the browser
   bundlePursProject =

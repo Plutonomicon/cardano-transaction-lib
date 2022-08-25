@@ -48,8 +48,7 @@ addr1 =
 -- state, and ogmios itself.
 suite :: TestPlanM (QueryM Unit) Unit
 suite = do
-  -- Test UtxosAt using internal types.
-  group "Aff Int" do
+  group "Aff Interface" do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt non-Testnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
@@ -107,7 +106,8 @@ testGetEraSummaries = do
 
 testSubmitTxFailure :: QueryM Unit
 testSubmitTxFailure = do
-  void $ submitTxOgmios (wrap $ hexToByteArrayUnsafe "00")
+  let bytes = hexToByteArrayUnsafe "00"
+  void $ submitTxOgmios bytes (wrap bytes)
 
 testGetProtocolParameters :: QueryM Unit
 testGetProtocolParameters = do

@@ -7,6 +7,7 @@ module Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
+  , transactionHash
   ) where
 
 import Prelude
@@ -15,15 +16,18 @@ import Control.Promise (Promise)
 import Control.Promise (toAffE) as Promise
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
+import Deserialization.Transaction (_txBody)
 import Effect (Effect)
 import Effect.Aff (Aff)
+import Serialization (toBytes)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Serialization.PlutusData (convertPlutusData)
-import Serialization.Types (PlutusData) as Serialization
+import Serialization.Types (PlutusData, Transaction) as Serialization
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
-import Types.Transaction (DataHash)
+import Types.Transaction (DataHash, TransactionHash)
+import Untagged.Union (asOneOf)
 
 foreign import _blake2b256Hash :: ByteArray -> Effect (Promise ByteArray)
 
@@ -54,3 +58,9 @@ datumHash =
 plutusScriptHash :: PlutusScript -> Aff (Maybe ScriptHash)
 plutusScriptHash =
   map (scriptHashFromBytes <<< wrap) <<< Promise.toAffE <<< hashPlutusScript
+
+-- | Calculates the hash of the transaction by applying `blake2b256Hash` to
+-- | the cbor-encoded transaction body.
+transactionHash :: Serialization.Transaction -> Aff TransactionHash
+transactionHash =
+  map wrap <<< blake2b256Hash <<< toBytes <<< asOneOf <<< _txBody

@@ -3,6 +3,7 @@ module Transaction
   , attachDatum
   , attachRedeemer
   , attachPlutusScript
+  , attachNativeScript
   , setScriptDataHash
   ) where
 
@@ -10,10 +11,11 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Costmdls
+  , NativeScript
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
-  , TransactionWitnessSet
+  , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   )
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
@@ -129,6 +131,12 @@ attachPlutusScripts ps tx@(Transaction { witnessSet: ws }) = do
     ps
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScripts ps')
+
+attachNativeScript
+  :: NativeScript -> Transaction -> Effect (Either ModifyTxError Transaction)
+attachNativeScript ns tx = do
+  runExceptT $ updateTxWithWitnesses tx $
+    mempty # over TransactionWitnessSet _ { nativeScripts = Just [ ns ] }
 
 convertWitnessesWith
   :: TransactionWitnessSet
