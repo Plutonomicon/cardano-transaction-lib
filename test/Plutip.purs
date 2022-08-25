@@ -123,9 +123,9 @@ main = launchAff_ do
     -- we don't want to exit because we need to clean up after failure by
     -- timeout
     defaultConfig { timeout = Just $ wrap 30_000.0, exit = false }
-    do
-      suite
-      UtxoDistribution.suite
+    $ do
+        suite
+        UtxoDistribution.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

@@ -13,7 +13,6 @@ import Contract.Monad
   ( Contract
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , launchAff_
   , runContract
   )
@@ -53,7 +52,7 @@ runKeyWalletContract_ contract =
         cfg =
           { ogmiosConfig: defaultOgmiosWsConfig
           , datumCacheConfig: defaultDatumCacheWsConfig
-          , ctlServerConfig: defaultServerConfig
+          , ctlServerConfig: Nothing
           , networkId: TestnetId
           , logLevel: Trace
           , extraConfig: {}

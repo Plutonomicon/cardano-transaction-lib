@@ -38,7 +38,7 @@ config =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig:
+  , ctlServerConfig: Just
       { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
