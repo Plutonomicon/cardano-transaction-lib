@@ -122,6 +122,7 @@ import QueryM.Ogmios
   , EraSummary(EraSummary)
   , SystemStart
   , aesonObject
+  , slotLengthFactor
   )
 import Serialization.Address (Slot(Slot))
 import ToData (class ToData, genericToData)
@@ -709,7 +710,7 @@ absTimeFromRelTime
   :: EraSummary -> RelTime -> Either SlotToPosixTimeError AbsTime
 absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
   let
-    startTime = unwrap (unwrap start).time * factor
+    startTime = unwrap (unwrap start).time * slotLengthFactor
     absTime = startTime + BigInt.toNumber relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
@@ -718,7 +719,7 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     -- required to be in the distant future. Onchain, this uses POSIXTime which
     -- is stable, unlike Slots.
     endTime = maybe (absTime + one)
-      ((*) factor <<< unwrap <<< _.time <<< unwrap)
+      ((*) slotLengthFactor <<< unwrap <<< _.time <<< unwrap)
       end
   unless
     (absTime <= endTime)
@@ -860,21 +861,17 @@ findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
     let
       numberAt = BigInt.toNumber at
     in
-      unwrap (unwrap start).time * factor <= numberAt
+      unwrap (unwrap start).time * slotLengthFactor <= numberAt
         && maybe true
-          ((<) numberAt <<< (*) factor <<< unwrap <<< _.time <<< unwrap)
+          ( (<) numberAt <<< (*) slotLengthFactor <<< unwrap <<< _.time <<<
+              unwrap
+          )
           end
-
--- Use this factor to convert Ogmios seconds to Milliseconds for example, I
--- think this is safe e.g. see https://cardano.stackexchange.com/questions/7034/how-to-convert-posixtime-to-slot-number-on-cardano-testnet/7035#7035
--- that indeed, start of eras should be exact to the second.
-factor :: Number
-factor = 1e3
 
 relTimeFromAbsTime
   :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
 relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
-  let startTime = unwrap (unwrap start).time * factor
+  let startTime = unwrap (unwrap start).time * slotLengthFactor
   unless (startTime <= BigInt.toNumber absTime)
     (throwError $ StartTimeGreaterThanTime at)
   let
