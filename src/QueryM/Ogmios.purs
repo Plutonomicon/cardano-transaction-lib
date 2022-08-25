@@ -441,9 +441,8 @@ instance DecodeAeson EraSummaryParameters where
     pure $ wrap { epochLength, slotLength, safeZone }
 
 -- | The EraSummaryParameters uses seconds and we use miliseconds
--- to translate back multiply by 1e(-3) instead of div. 
+-- use it to translate between them
 slotLengthFactor :: Number
--- Using 1e3 instead of 1000 seems more explicit
 slotLengthFactor = 1e3
 
 instance EncodeAeson EraSummaryParameters where
