@@ -7,7 +7,7 @@ import Prelude
 
 import Contract.Wallet (privateKeyFromBytes)
 import Data.Log.Level (LogLevel(Trace))
-import Data.Maybe (Maybe(Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
@@ -33,7 +33,7 @@ config =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig:
+  , ctlServerConfig: Just
       { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
@@ -46,6 +46,8 @@ config =
       , password: "ctxlib"
       , dbname: "ctxlib"
       }
+  , suppressLogs: true
+  , customLogger: Nothing
   }
 
 privateStakeKey :: PrivateStakeKey

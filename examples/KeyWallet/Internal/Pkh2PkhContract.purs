@@ -4,19 +4,13 @@ module Examples.KeyWallet.Internal.Pkh2PkhContract
 
 import Contract.Prelude
 
-import Contract.Address (NetworkId(TestnetId), PaymentPubKeyHash)
+import Contract.Address (PaymentPubKeyHash)
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyValue)
   , WalletSpec(UseKeys)
+  , testnetConfig
   )
-import Contract.Monad
-  ( Contract
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, runContract)
 import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString) as BigInt
@@ -50,17 +44,12 @@ runKeyWalletContract_ contract =
       lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
         BigInt.fromString input.lovelace
       let
-        cfg =
-          { ogmiosConfig: defaultOgmiosWsConfig
-          , datumCacheConfig: defaultDatumCacheWsConfig
-          , ctlServerConfig: defaultServerConfig
-          , networkId: TestnetId
-          , logLevel: Trace
-          , extraConfig: {}
-          , walletSpec: Just $ UseKeys
+        cfg = testnetConfig
+          { walletSpec = Just $ UseKeys
               (PrivatePaymentKeyValue $ wrap privateKey)
               Nothing
-          , customLogger: Just printLog
+          , customLogger = Just printLog
+          , ctlServerConfig = Nothing
           }
 
         printLog :: Message -> Aff Unit
