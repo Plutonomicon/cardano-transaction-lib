@@ -46,6 +46,7 @@ config =
       , password: "ctxlib"
       , dbname: "ctxlib"
       }
+  , suppressLogs: true
   , customLogger: Nothing
   }
 

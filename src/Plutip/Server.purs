@@ -29,9 +29,10 @@ import Contract.Monad
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left), either)
+import Data.Either (Either(Left, Right), either)
 import Data.Foldable (sum)
 import Data.HTTP.Method as Method
+import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
@@ -42,7 +43,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -88,10 +89,12 @@ import Plutip.UtxoDistribution
   )
 import QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  , Logger
   , mkLogger
   , stopQueryRuntime
   )
 import QueryM as QueryM
+import QueryM.Logging (setupLogs)
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Type.Prelude (Proxy(Proxy))
@@ -195,8 +198,29 @@ withPlutipContractEnv plutipCfg distr cont = do
     cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
-  withContractEnv = bracket (mkClusterContractEnv plutipCfg)
-    (liftEffect <<< stopContractEnv)
+  withContractEnv | plutipCfg.suppressLogs = \contractEnvCont -> do
+    -- if logs should be suppressed, setup the machinery and continue with
+    -- the bracket
+    { addLogEntry, suppressedLogger, printLogs } <-
+      liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
+
+    let configLogger = Just $ liftEffect <<< addLogEntry
+
+    bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
+      (liftEffect <<< stopContractEnv)
+      $ contractEnvCont >>> try >=> case _ of
+          Left err -> do
+            liftEffect printLogs
+            throwError err
+          Right res -> pure res
+  withContractEnv =
+    -- otherwise, proceed with the env setup and provide a normal logger
+    bracket
+      ( mkClusterContractEnv plutipCfg
+          (mkLogger plutipCfg.logLevel plutipCfg.customLogger)
+          plutipCfg.customLogger
+      )
+      (liftEffect <<< stopContractEnv)
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
   stopContractEnv :: ContractEnv () -> Effect Unit
@@ -450,10 +474,10 @@ startOgmiosDatumCache cfg _params = do
 
 mkClusterContractEnv
   :: PlutipConfig
+  -> Logger
+  -> Maybe (Message -> Aff Unit)
   -> Aff (ContractEnv ())
-mkClusterContractEnv plutipCfg = do
-  let
-    logger = mkLogger plutipCfg.logLevel plutipCfg.customLogger
+mkClusterContractEnv plutipCfg logger customLogger = do
   datumCacheWs <-
     QueryM.mkDatumCacheWebSocketAff logger
       QueryM.defaultDatumCacheWsConfig
@@ -475,7 +499,8 @@ mkClusterContractEnv plutipCfg = do
         , networkId: MainnetId
         , logLevel: plutipCfg.logLevel
         , walletSpec: Nothing
-        , customLogger: plutipCfg.customLogger
+        , customLogger: customLogger
+        , suppressLogs: plutipCfg.suppressLogs
         }
     , runtime:
         { ogmiosWs
