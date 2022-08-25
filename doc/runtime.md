@@ -6,6 +6,7 @@ In order to run CTL's `Contract` effects, several services are required. These c
 
 - [Current services](#current-services)
 - [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
+  - [Manually starting the runtime components](#manually-starting-the-runtime-components)
 - [Changing network configurations](#changing-network-configurations)
 - [Other requirements](#other-requirements)
   - [With Nami:](#with-nami)
