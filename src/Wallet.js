@@ -29,25 +29,21 @@ const checkNotNode = () => {
 };
 
 const enableWallet = wallet => () => {
-  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-  // TODO: find a better solution for this
-  return delay(200).then(() => {
-    const isAvailable = isWalletAvailable(wallet)();
-    if (isAvailable) {
-      return window.cardano[wallet].enable().catch(e => {
-        throw (
-          "enableWallet failed: " +
-          (typeof e.info == "string" ? e.info : e.toString())
-        );
-      });
-    } else {
+  const isAvailable = isWalletAvailable(wallet)();
+  if (isAvailable) {
+    return window.cardano[wallet].enable().catch(e => {
       throw (
-        "Wallet is not available. Use `" +
-        getIsWalletAvailableFunctionName(wallet) +
-        "` before connecting."
+        "enableWallet failed: " +
+        (typeof e.info == "string" ? e.info : e.toString())
       );
-    }
-  });
+    });
+  } else {
+    throw (
+      "Wallet is not available. Use `" +
+      getIsWalletAvailableFunctionName(wallet) +
+      "` before connecting."
+    );
+  }
 };
 
 exports._enableNami = enableWallet(wallets.nami);

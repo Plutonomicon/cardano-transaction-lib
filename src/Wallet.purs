@@ -25,12 +25,17 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
+import Contract.Log (logError', logWarn')
+import Contract.Numeric.Natural (fromInt', minus)
+import Contract.Prelude (liftEffect, wrap)
+import Control.Monad.Error.Class (catchError, throwError, try)
 import Control.Promise (Promise)
+import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, delay, error, message)
 import Helpers ((<<>>))
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
@@ -90,8 +95,26 @@ isLodeAvailable = _isLodeAvailable
 
 foreign import _enableLode :: Effect (Promise Cip30Connection)
 
+-- Lode does not inject on page load, so this function retries up to set
+-- number of times, for Lode to be available.
 mkLodeWalletAff :: Aff Wallet
-mkLodeWalletAff = Lode <$> mkCip30WalletAff "Lode" _enableLode
+mkLodeWalletAff = do
+  retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
+    $ liftEffect isLodeAvailable
+
+  catchError
+    (Lode <$> mkCip30WalletAff "Lode" _enableLode)
+    ( \e -> throwError <<< error $ (show e) <>
+        " Note: LodeWallet is injected asynchronously and may be unreliable."
+    )
+  --(\e -> throwError <<< error $ (message e) <> "Note: LodeWallet is injected asynchronously and may be unreliable.")
+
+  where
+  retryNWithIntervalUntil n ms mBool =
+    if n == zero then pure unit
+    else mBool >>=
+      if _ then pure unit
+      else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
