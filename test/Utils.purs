@@ -153,7 +153,7 @@ aesonRoundTrip
   => EncodeAeson a
   => a
   -> Either JsonDecodeError a
-aesonRoundTrip = aesonRoundTripWith \x -> x
+aesonRoundTrip = aesonRoundTripWith identity 
 
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
 readAeson = errEither <<< parseJsonStringToAeson

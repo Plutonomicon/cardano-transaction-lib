@@ -79,7 +79,6 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
-import Aeson.Utils (maybeToEither)
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -877,10 +876,9 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
   let
     relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
   wrap <$>
-    ( maybeToEither CannotGetBigIntFromNumber'
+    ( note CannotGetBigIntFromNumber'
         <<< BigInt.fromNumber
-        <<<
-          Math.trunc
+        <<< Math.trunc
     ) relTime
 
 -- | Converts relative time to relative slot (using Euclidean division) and

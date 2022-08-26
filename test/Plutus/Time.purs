@@ -100,9 +100,6 @@ mkEpochLength = EpochLength <<< BigInt.fromInt
 mkSlotLength :: Int -> SlotLength
 mkSlotLength = SlotLength <<< Int.toNumber
 
-mkSlotLength' :: Number -> SlotLength
-mkSlotLength' = SlotLength
-
 mkSafeZone :: Int -> SafeZone
 mkSafeZone = SafeZone <<< BigInt.fromInt
 
@@ -211,7 +208,7 @@ eraSummariesFixture = EraSummaries
       , "end": Nothing
       , "parameters": EraSummaryParameters
           { "epochLength": mkEpochLength 432000
-          , "slotLength": mkSlotLength' 0.001
+          , "slotLength": SlotLength 0.001
           , "safeZone": mkSafeZone 129600
           }
       }
@@ -229,8 +226,8 @@ eraSummaryLengthToSeconds old@(EraSummary { parameters }) =
     wrap (unwrap old) { parameters = newParameters }
 
 eraSummariesLengthToSeconds :: EraSummaries -> EraSummaries
-eraSummariesLengthToSeconds (EraSummaries values) =
-  EraSummaries (eraSummaryLengthToSeconds <$> values)
+eraSummariesLengthToSeconds values =
+  wrap (eraSummaryLengthToSeconds <$> unwrap values)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
