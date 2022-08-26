@@ -260,7 +260,9 @@ let
           ogmios
           ogmios-datum-cache
           plutip-server
-        ] ++ pkgs.lib.lists.optional withCtlServer pkgs.ctl-server ++ args.buildInputs;
+        ]
+        ++ (pkgs.lib.lists.optional withCtlServer pkgs.ctl-server)
+        ++ args.buildInputs;
       }
     );
 
