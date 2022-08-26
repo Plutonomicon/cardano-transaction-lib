@@ -47,8 +47,10 @@ import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
+import Control.Monad.Error.Class (try)
 import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
+import Data.Either (isLeft)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -63,6 +65,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.InlineDatum as InlineDatum
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
@@ -335,6 +338,43 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
+    test "runPlutipContract: InlineDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          InlineDatum.spendFromCheckDatumIsInline vhash validator txId
+
+    test "runPlutipContract: InlineDatum Failure" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- InlineDatum.payToCheckDatumIsInlineWrong vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          eResult <- try $ InlineDatum.spendFromCheckDatumIsInline vhash
+            validator
+            txId
+          eResult `shouldSatisfy` isLeft
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do

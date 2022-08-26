@@ -31,6 +31,7 @@ import Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToScriptInlineDatum
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey

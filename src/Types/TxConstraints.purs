@@ -12,6 +12,7 @@ module Types.TxConstraints
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
+      , MustPayToScriptInlineDatum
       , MustHashDatum
       , MustSatisfyAnyOf
       )
@@ -27,6 +28,7 @@ module Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToScriptInlineDatum
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey
@@ -91,6 +93,7 @@ data TxConstraint
       (Maybe Datum)
       Value
   | MustPayToScript ValidatorHash Datum Value
+  | MustPayToScriptInlineDatum ValidatorHash Datum Value
   | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
 
@@ -245,6 +248,15 @@ mustPayToScript
 mustPayToScript vh dt vl =
   singleton (MustPayToScript vh dt vl)
     <> singleton (MustIncludeDatum dt)
+
+mustPayToScriptInlineDatum
+  :: forall (i :: Type) (o :: Type)
+   . ValidatorHash
+  -> Datum
+  -> Value
+  -> TxConstraints i o
+mustPayToScriptInlineDatum vh dt vl =
+  singleton (MustPayToScriptInlineDatum vh dt vl)
 
 -- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o

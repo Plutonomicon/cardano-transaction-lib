@@ -140,7 +140,7 @@ import Types.Interval
   , posixTimeRangeToTransactionValidity
   )
 import Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash)
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   )
@@ -169,6 +169,7 @@ import Types.TxConstraints
       , MustIncludeDatum
       , MustMintValue
       , MustPayToScript
+      , MustPayToScriptInlineDatum
       , MustPayToPubKeyAddress
       , MustProduceAtLeast
       , MustSatisfyAnyOf
@@ -1053,6 +1054,25 @@ processConstraint mpsMap osMap = do
             -- Constraints API upgrade that follows Vasil
             -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
             , datum: datum'
+            , scriptRef: Nothing
+            }
+        -- Note we don't `addDatum` as this included as part of `mustPayToScript`
+        -- constraint already.
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
+        _valueSpentBalancesOutputs <>= provideValue amount
+    MustPayToScriptInlineDatum vlh dat plutusValue -> do
+      -- TODO Check if vlh corresponds to v1 or v2?
+      networkId <- getNetworkId
+      let amount = fromPlutusValue plutusValue
+      runExceptT do
+        let
+          txOut = TransactionOutput
+            { address: validatorHashEnterpriseAddress networkId vlh
+            , amount
+            -- TODO: save correct datum and scriptRef, should be done in
+            -- Constraints API upgrade that follows Vasil
+            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+            , datum: OutputDatum dat
             , scriptRef: Nothing
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
