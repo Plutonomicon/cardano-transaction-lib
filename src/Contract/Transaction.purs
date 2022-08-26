@@ -19,6 +19,7 @@ module Contract.Transaction
   , module NativeScript
   , module OutputDatum
   , module PTransaction
+  , module PTransactionUnspentOutput
   , module ReindexRedeemersExport
   , module Scripts
   , module ScriptLookups
@@ -148,6 +149,10 @@ import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , mkTxUnspentOut
+  ) as PTransactionUnspentOutput
 import Plutus.Types.Value (Coin)
 import QueryM
   ( ClientError

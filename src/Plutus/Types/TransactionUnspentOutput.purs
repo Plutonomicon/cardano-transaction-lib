@@ -1,5 +1,6 @@
 module Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , mkTxUnspentOut
   ) where
 
 import Prelude
@@ -21,3 +22,8 @@ derive newtype instance Eq TransactionUnspentOutput
 
 instance Show TransactionUnspentOutput where
   show = genericShow
+
+mkTxUnspentOut
+  :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
+mkTxUnspentOut input output =
+  TransactionUnspentOutput { input, output }

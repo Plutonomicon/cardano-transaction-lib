@@ -1,15 +1,16 @@
 module Types.TxConstraints
   ( InputConstraint(InputConstraint)
+  , InputWithScriptRef(RefInput, SpendableInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
-      , MustIncludeReferenceInput
       , MustValidateIn
       , MustBeSignedBy
       , MustSpendAtLeast
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustReferenceOutput
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
@@ -23,9 +24,10 @@ module Types.TxConstraints
   , mustBeSignedBy
   , mustHashDatum
   , mustIncludeDatum
-  , mustIncludeReferenceInput
   , mustMintCurrency
+  , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
+  , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
@@ -40,11 +42,13 @@ module Types.TxConstraints
   , mustPayWithScriptRefToScript
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
+  , mustReferenceOutput
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
+  , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments
   , requiredDatums
@@ -69,6 +73,7 @@ import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
 import Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
+import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
 import Prim.TypeError (class Warn, Text)
 import Types.Datum (Datum)
@@ -88,14 +93,15 @@ import Types.Transaction (DataHash, TransactionInput)
 -- | Constraints on transactions that want to spend script outputs
 data TxConstraint
   = MustIncludeDatum Datum
-  | MustIncludeReferenceInput TransactionInput
   | MustValidateIn POSIXTimeRange
   | MustBeSignedBy PaymentPubKeyHash
   | MustSpendAtLeast Value
   | MustProduceAtLeast Value
   | MustSpendPubKeyOutput TransactionInput
-  | MustSpendScriptOutput TransactionInput Redeemer
+  | MustSpendScriptOutput TransactionInput Redeemer (Maybe InputWithScriptRef)
+  | MustReferenceOutput TransactionInput
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
+      (Maybe InputWithScriptRef)
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe Datum)
       (Maybe ScriptRef)
@@ -109,6 +115,16 @@ derive instance Generic TxConstraint _
 
 instance Show TxConstraint where
   show x = genericShow x
+
+data InputWithScriptRef
+  = RefInput TransactionUnspentOutput
+  | SpendableInput TransactionUnspentOutput
+
+derive instance Eq InputWithScriptRef
+derive instance Generic InputWithScriptRef _
+
+instance Show InputWithScriptRef where
+  show = genericShow
 
 newtype InputConstraint (i :: Type) = InputConstraint
   { redeemer :: i
@@ -196,10 +212,11 @@ mustBeSignedBy = singleton <<< MustBeSignedBy
 mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
--- | Require the transaction to include a reference input.
-mustIncludeReferenceInput
+-- | Require the transaction to reference (not spend!) the given unspent 
+-- | transaction output.
+mustReferenceOutput
   :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
-mustIncludeReferenceInput = singleton <<< MustIncludeReferenceInput
+mustReferenceOutput = singleton <<< MustReferenceOutput
 
 -- | Lock the value with a payment public key hash and (optionally) a stake
 -- | public key hash.
@@ -342,7 +359,18 @@ mustMintCurrency
   -> TokenName
   -> BigInt
   -> TxConstraints i o
-mustMintCurrency mph = mustMintCurrencyWithRedeemer mph unitRedeemer
+mustMintCurrency mph =
+  mustMintCurrencyWithRedeemer mph unitRedeemer
+
+mustMintCurrencyUsingScriptRef
+  :: forall (i :: Type) (o :: Type)
+   . MintingPolicyHash
+  -> TokenName
+  -> BigInt
+  -> InputWithScriptRef
+  -> TxConstraints i o
+mustMintCurrencyUsingScriptRef mph =
+  mustMintCurrencyWithRedeemerUsingScriptRef mph unitRedeemer
 
 -- | Create the given amount of the currency
 mustMintCurrencyWithRedeemer
@@ -352,7 +380,19 @@ mustMintCurrencyWithRedeemer
   -> TokenName
   -> BigInt
   -> TxConstraints i o
-mustMintCurrencyWithRedeemer mph red tn = singleton <<< MustMintValue mph red tn
+mustMintCurrencyWithRedeemer mph red tn amount =
+  singleton (MustMintValue mph red tn amount Nothing)
+
+mustMintCurrencyWithRedeemerUsingScriptRef
+  :: forall (i :: Type) (o :: Type)
+   . MintingPolicyHash
+  -> Redeemer
+  -> TokenName
+  -> BigInt
+  -> InputWithScriptRef
+  -> TxConstraints i o
+mustMintCurrencyWithRedeemerUsingScriptRef mph red tn amount =
+  singleton <<< MustMintValue mph red tn amount <<< Just
 
 -- | Requirement to spend inputs with at least the given value
 mustSpendAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
@@ -371,7 +411,17 @@ mustSpendScriptOutput
    . TransactionInput
   -> Redeemer
   -> TxConstraints i o
-mustSpendScriptOutput txOutRef = singleton <<< MustSpendScriptOutput txOutRef
+mustSpendScriptOutput txOutRef red =
+  singleton (MustSpendScriptOutput txOutRef red Nothing)
+
+mustSpendScriptOutputUsingScriptRef
+  :: forall (i :: Type) (o :: Type)
+   . TransactionInput
+  -> Redeemer
+  -> InputWithScriptRef
+  -> TxConstraints i o
+mustSpendScriptOutputUsingScriptRef txOutRef red =
+  singleton <<< MustSpendScriptOutput txOutRef red <<< Just
 
 mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
@@ -452,7 +502,7 @@ requiredMonetaryPolicies
 requiredMonetaryPolicies = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array MintingPolicyHash
-  f (MustMintValue mph _ _ _) = Array.singleton mph
+  f (MustMintValue mph _ _ _ _) = Array.singleton mph
   f _ = []
 
 requiredDatums
@@ -473,8 +523,8 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendAtLeast _ -> true
       MustProduceAtLeast _ -> true
       MustSpendPubKeyOutput _ -> true
-      MustSpendScriptOutput _ _ -> true
-      MustMintValue _ _ _ _ -> true
+      MustSpendScriptOutput _ _ _ -> true
+      MustMintValue _ _ _ _ _ -> true
       MustPayToPubKeyAddress _ _ _ _ vl -> not (isZero vl)
       MustPayToScript _ _ _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs

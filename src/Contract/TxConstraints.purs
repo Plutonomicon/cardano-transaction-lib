@@ -4,6 +4,7 @@ module Contract.TxConstraints (module TxConstraints) where
 
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
+  , InputWithScriptRef(RefInput, SpendableInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
@@ -13,6 +14,7 @@ import Types.TxConstraints
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustReferenceOutput
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
@@ -26,9 +28,10 @@ import Types.TxConstraints
   , mustBeSignedBy
   , mustHashDatum
   , mustIncludeDatum
-  , mustIncludeReferenceInput
   , mustMintCurrency
+  , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
+  , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
@@ -43,11 +46,13 @@ import Types.TxConstraints
   , mustPayWithScriptRefToScript
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
+  , mustReferenceOutput
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
+  , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments
   , requiredDatums

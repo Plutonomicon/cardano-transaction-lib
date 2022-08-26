@@ -63,11 +63,18 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.Helpers
+  ( mkCurrencySymbol
+  , mkTokenName
+  , mustPayToPubKeyStakeAddress
+  )
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import Examples.ReferenceInputs (contract) as ReferenceInputs
+import Examples.ReferenceScripts (contract) as ReferenceScripts
 import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
@@ -336,6 +343,26 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
+    test "runPlutipContract: ReferenceScripts" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice ReferenceScripts.contract
+
+    test "runPlutipContract: ReferenceInputs" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice ReferenceInputs.contract
+
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
   pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
@@ -400,26 +427,3 @@ getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
 
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
-mkTokenName =
-  liftContractM "Cannot make token name"
-    <<< (Value.mkTokenName <=< byteArrayFromAscii)
-
-mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Contract r MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
-
-mustPayToPubKeyStakeAddress
-  :: forall (o :: Type) (i :: Type)
-   . PaymentPubKeyHash
-  -> Maybe StakePubKeyHash
-  -> Value
-  -> Constraints.TxConstraints i o
-mustPayToPubKeyStakeAddress pkh Nothing = Constraints.mustPayToPubKey pkh
-mustPayToPubKeyStakeAddress pkh (Just stk) =
-  Constraints.mustPayToPubKeyAddress pkh stk

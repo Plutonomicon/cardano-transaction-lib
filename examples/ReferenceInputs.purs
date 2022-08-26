@@ -1,6 +1,7 @@
 module Examples.ReferenceInputs
   ( main
   , example
+  , contract
   ) where
 
 import Contract.Prelude
@@ -30,10 +31,15 @@ import Contract.Transaction
   , TransactionHash
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput
   , awaitTxConfirmed
+  , mkTxUnspentOut
   , plutusV2Script
   )
-import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints
+  ( InputWithScriptRef(RefInput)
+  , TxConstraints
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value (Value)
@@ -49,23 +55,25 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.ReferenceInputs"
-    validator <- alwaysSucceedsScriptV2
-    let
-      vhash :: ValidatorHash
-      vhash = validatorHash validator
-
-      scriptRef :: ScriptRef
-      scriptRef = PlutusScriptRef (unwrap validator)
-
-    logInfo' "Attempt to lock value"
-    txId <- payToAlwaysSucceedsAndCreateScriptRefOutput vhash scriptRef
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromAlwaysSucceeds vhash txId (unwrap vhash)
-
+  runContract cfg contract
   publishTestFeedback true
+
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.ReferenceInputs"
+  validator <- alwaysSucceedsScriptV2
+  let
+    vhash :: ValidatorHash
+    vhash = validatorHash validator
+
+    scriptRef :: ScriptRef
+    scriptRef = PlutusScriptRef (unwrap validator)
+
+  logInfo' "Attempt to lock value"
+  txId <- payToAlwaysSucceedsAndCreateScriptRefOutput vhash scriptRef
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromAlwaysSucceeds vhash txId (unwrap vhash)
 
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> Contract () TransactionHash
@@ -98,17 +106,18 @@ spendFromAlwaysSucceeds vhash txId refScriptHash = do
     mTxInput = fst <$>
       find hasTransactionId (Map.toUnfoldable scriptAddressUtxos :: Array _)
 
-    mRefInput :: Maybe TransactionInput
-    mRefInput = fst <$>
+    mRefInput :: Maybe TransactionUnspentOutput
+    mRefInput =
       find (hasAlwaysSucceedsScriptRef refScriptHash) utxos
+        <#> \(input /\ output) -> mkTxUnspentOut input output
 
   case mTxInput /\ mRefInput of
     Just txInput /\ Just refInput ->
       let
         constraints :: TxConstraints Unit Unit
         constraints =
-          Constraints.mustSpendScriptOutput txInput unitRedeemer
-            <> Constraints.mustIncludeReferenceInput refInput
+          Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
+            (RefInput refInput)
 
         lookups :: Lookups.ScriptLookups PlutusData
         lookups = Lookups.unspentOutputs scriptAddressUtxos
