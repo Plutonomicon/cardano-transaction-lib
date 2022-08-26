@@ -714,6 +714,7 @@ updateUtxoIndex
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   networkId <- lift getNetworkId
+  -- FIXME: `scriptRef` is lost after conversion from `Plutus.TransactionOutput`
   let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
@@ -970,6 +971,7 @@ processConstraint mpsMap osMap = do
                   lookupDatum dHash
               pure $ queryD <|> lookupD <|>
                 (outputDatumDatum datum' # note CannotFindDatum)
+            _cpsToTxBody <<< _inputs %= Set.insert txo
             ExceptT $ addDatum dataValue
             let
               -- Create a redeemer with hardcoded execution units then call Ogmios

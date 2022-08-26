@@ -58,6 +58,7 @@ import Prelude
 
 import BalanceTx.Collateral (CollateralReturnError) as Collateral
 import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
+import Cardano.Types.ScriptRef (getPlutusScript) as ScriptRef
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -154,6 +155,7 @@ import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
+import Types.Scripts (PlutusScript)
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
@@ -470,9 +472,10 @@ evalTxExecutionUnits tx unattachedTx = do
 -- the minimum fee.
 evalExUnitsAndMinFee'
   :: UnattachedUnbalancedTx
+  -> Utxos
   -> QueryM
        (Either EvalExUnitsAndMinFeeError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee' unattachedTx =
+evalExUnitsAndMinFee' unattachedTx utxos =
   runExceptT do
     -- Reindex `Spent` script redeemers:
     reindexedUnattachedTx <- ExceptT $ reindexRedeemers unattachedTx
@@ -488,29 +491,31 @@ evalExUnitsAndMinFee' unattachedTx =
         updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
     -- Attach datums and redeemers, set the script integrity hash:
     FinalizedTransaction finalizedTx <- lift $
-      finalizeTransaction reindexedUnattachedTxWithExUnits
+      finalizeTransaction reindexedUnattachedTxWithExUnits utxos
     -- Calculate the minimum fee for a transaction:
     minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
     pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 evalExUnitsAndMinFee
   :: UnattachedUnbalancedTx
+  -> Utxos
   -> QueryM (Either BalanceTxError (UnattachedUnbalancedTx /\ BigInt))
-evalExUnitsAndMinFee =
-  map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee'
+evalExUnitsAndMinFee unattachedTx =
+  map (lmap EvalExUnitsAndMinFeeError') <<< evalExUnitsAndMinFee' unattachedTx
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
 finalizeTransaction
-  :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
-finalizeTransaction reindexedUnattachedTxWithExUnits = do
+  :: UnattachedUnbalancedTx -> Utxos -> QueryM FinalizedTransaction
+finalizeTransaction reindexedUnattachedTxWithExUnits utxos = do
   let
+    txBody = reindexedUnattachedTxWithExUnits ^. _body'
     attachedTxWithExUnits =
       reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
     ws = attachedTxWithExUnits ^. _witnessSet # unwrap
     redeemers = fromMaybe mempty ws.redeemers
     datums = wrap <$> fromMaybe mempty ws.plutusData
-    scripts = fromMaybe mempty ws.plutusScripts
+    scripts = fromMaybe mempty ws.plutusScripts <> getRefPlutusScripts txBody
     languages = foldMap (unwrap >>> snd >>> Set.singleton) scripts
   costModels <- asks $ _.runtime >>> _.pparams <#> unwrap >>> _.costModels
     >>> unwrap
@@ -518,6 +523,21 @@ finalizeTransaction reindexedUnattachedTxWithExUnits = do
     >>> wrap
   liftEffect $ FinalizedTransaction <$>
     setScriptDataHash costModels redeemers datums attachedTxWithExUnits
+  where
+  getRefPlutusScripts :: TxBody -> Array PlutusScript
+  getRefPlutusScripts (TxBody txBody) =
+    let
+      spendAndRefInputs :: Array TransactionInput
+      spendAndRefInputs =
+        Array.fromFoldable txBody.inputs
+          <> fromMaybe mempty txBody.referenceInputs
+    in
+      fromMaybe mempty $ catMaybes <<< map getPlutusScript <$>
+        traverse (flip Map.lookup utxos) spendAndRefInputs
+
+  getPlutusScript :: TransactionOutput -> Maybe PlutusScript
+  getPlutusScript (TransactionOutput { scriptRef }) =
+    ScriptRef.getPlutusScript =<< scriptRef
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
@@ -666,7 +686,7 @@ balanceTxWithAddress
       prebalanceCollateral zero availableUtxos utxoMinVal unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
-    _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx'
+    _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx' availableUtxos
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) availableUtxos utxoMinVal
         ubcTx
@@ -680,7 +700,7 @@ balanceTxWithAddress
         <#>
           lmap ReturnAdaChangeError'
     -- Attach datums and redeemers, set the script integrity hash:
-    finalizedTx <- lift $ finalizeTransaction unsignedTx
+    finalizedTx <- lift $ finalizeTransaction unsignedTx availableUtxos
     -- Log final balanced tx and return it:
     logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx
@@ -741,7 +761,7 @@ balanceTxWithAddress
         tx' = wrap tx { body = txBodyWithoutFees' }
         unattachedTx'' = unattachedTx' # _unbalancedTx <<< _transaction .~ tx'
       unattachedTx''' /\ fees' <- ExceptT $
-        evalExUnitsAndMinFee unattachedTx''
+        evalExUnitsAndMinFee unattachedTx'' utxoIndex'
       let feesWithBuffer = fees' + feeBuffer
       except <<< map (\body -> unattachedTx''' # _body' .~ body) $
         preBalanceTxBody minUtxos' feesWithBuffer utxoIndex' ownAddr' utxoMinVal
@@ -805,7 +825,7 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
   runExceptT do
     -- Calculate min fee before returning ada change to the owner's address:
     unattachedTxAndFees@(_ /\ fees) <-
-      ExceptT $ evalExUnitsAndMinFee' unattachedTx
+      ExceptT $ evalExUnitsAndMinFee' unattachedTx utxos
         <#> lmap ReturnAdaChangeCalculateMinFee
     -- If required, create an extra output to return the change:
     unattachedTxWithChangeTxOut /\ { recalculateFees } <-
@@ -817,7 +837,7 @@ returnAdaChangeAndFinalizeFees changeAddr utxos unattachedTx =
       true -> do
         -- Recalculate min fee, then adjust the change output:
         unattachedTx' /\ fees' <-
-          ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut
+          ExceptT $ evalExUnitsAndMinFee' unattachedTxWithChangeTxOut utxos
             <#> lmap ReturnAdaChangeCalculateMinFee
         ExceptT $ adaOnlyUtxoMinAdaValue <#>
           adjustAdaChangeAndSetFees unattachedTx' fees' (fees' - fees)

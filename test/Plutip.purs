@@ -7,9 +7,7 @@ module Test.Plutip
 import Prelude
 
 import Contract.Address
-  ( PaymentPubKeyHash
-  , StakePubKeyHash
-  , getWalletCollateral
+  ( getWalletCollateral
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
@@ -24,7 +22,7 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy, validatorHash)
+import Contract.Scripts (validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , runContractInEnv
@@ -43,7 +41,6 @@ import Contract.Transaction
   , withBalancedAndSignedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
@@ -75,7 +72,7 @@ import Examples.MintsMultipleTokens
   )
 import Examples.ReferenceInputs (contract) as ReferenceInputs
 import Examples.ReferenceScripts (contract) as ReferenceScripts
-import Mote (group, test)
+import Mote (group, test, skip)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -343,7 +340,7 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    test "runPlutipContract: ReferenceScripts" do
+    skip $ test "runPlutipContract: ReferenceScripts" do
       let
         distribution :: InitialUTxOs
         distribution =

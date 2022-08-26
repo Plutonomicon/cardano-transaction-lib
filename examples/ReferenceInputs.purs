@@ -20,12 +20,8 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (ScriptHash, Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (ScriptHash, ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
-  )
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
@@ -34,7 +30,6 @@ import Contract.Transaction
   , TransactionUnspentOutput
   , awaitTxConfirmed
   , mkTxUnspentOut
-  , plutusV2Script
   )
 import Contract.TxConstraints
   ( InputWithScriptRef(RefInput)
@@ -106,18 +101,18 @@ spendFromAlwaysSucceeds vhash txId refScriptHash = do
     mTxInput = fst <$>
       find hasTransactionId (Map.toUnfoldable scriptAddressUtxos :: Array _)
 
-    mRefInput :: Maybe TransactionUnspentOutput
-    mRefInput =
+    mRefScriptUnspentOut :: Maybe TransactionUnspentOutput
+    mRefScriptUnspentOut =
       find (hasAlwaysSucceedsScriptRef refScriptHash) utxos
         <#> \(input /\ output) -> mkTxUnspentOut input output
 
-  case mTxInput /\ mRefInput of
-    Just txInput /\ Just refInput ->
+  case mTxInput /\ mRefScriptUnspentOut of
+    Just txInput /\ Just refScriptUnspentOut ->
       let
         constraints :: TxConstraints Unit Unit
         constraints =
           Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
-            (RefInput refInput)
+            (RefInput refScriptUnspentOut)
 
         lookups :: Lookups.ScriptLookups PlutusData
         lookups = Lookups.unspentOutputs scriptAddressUtxos
@@ -131,7 +126,7 @@ spendFromAlwaysSucceeds vhash txId refScriptHash = do
       logInfo' $ "txInput: "
         <> show mTxInput
         <> ", refInput: "
-        <> show mRefInput
+        <> show mRefScriptUnspentOut
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput txInput /\ _) =

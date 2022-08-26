@@ -53,9 +53,6 @@ import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutu
 import Plutus.Types.Value (Coin) as Plutus
 import Serialization.Address (NetworkId)
 
-import Cardano.Types.ScriptRef
-import Data.Maybe
-
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin
 --------------------------------------------------------------------------------

@@ -9,7 +9,7 @@ import Contract.Prelude
 
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractAffM, liftContractM, liftedE)
+import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
 import Contract.Scripts (MintingPolicy)
