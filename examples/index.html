@@ -10,7 +10,7 @@
     function writeExampleHTML (example) {
         document.writeln('<li>');
         document.writeln(example + ': ');
-        for (let wallet of ['gero', 'nami', 'flint']) {
+        for (let wallet of ['gero', 'nami', 'flint', 'gero-mock', 'nami-mock', 'flint-mock']) {
             writeExampleWalletLink(example, wallet);
         }
         document.writeln('</li>');

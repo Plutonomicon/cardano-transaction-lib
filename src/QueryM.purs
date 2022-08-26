@@ -988,9 +988,10 @@ mkOgmiosRequest
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest = mkRequest
-  (asks $ listeners <<< _.ogmiosWs <<< _.runtime)
-  (asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime)
+mkOgmiosRequest jsonWspCall getLs inp = do
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
@@ -1012,9 +1013,10 @@ mkDatumCacheRequest
   -> (DatumCacheListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkDatumCacheRequest = mkRequest
-  (asks $ listeners <<< _.datumCacheWs <<< _.runtime)
-  (asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime)
+mkDatumCacheRequest jsonWspCall getLs inp = do
+  listeners' <- asks $ listeners <<< _.datumCacheWs <<< _.runtime
+  websocket <- asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds a Datum Cache request action using `Aff`
 mkDatumCacheRequestAff
@@ -1031,15 +1033,13 @@ mkDatumCacheRequestAff datumCacheWs = mkRequestAff
 
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . QueryM listeners
-  -> QueryM JsWebSocket
+   . listeners
+  -> JsWebSocket
   -> JsonWsp.JsonWspCall request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
-  ws <- getWebSocket
-  listeners' <- getListeners
+mkRequest listeners' ws jsonWspCall getLs inp = do
   logLevel <- asks $ _.config >>> _.logLevel
   liftAff $ mkRequestAff listeners' ws logLevel jsonWspCall getLs inp
 

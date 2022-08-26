@@ -15,6 +15,8 @@ import Wallet (mkKeyWallet)
 import Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
+  , privatePaymentKeyFromString
+  , privateStakeKeyFromString
   , privatePaymentKeyToFile
   , privateStakeKeyToFile
   )
