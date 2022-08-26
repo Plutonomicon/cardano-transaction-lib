@@ -31,12 +31,14 @@ module Plutus.Conversion
 
 import Prelude
 
+import Cardano.Types.ScriptRef (scriptRefHash)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Cardano
 import Cardano.Types.Value (Coin) as Cardano
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse)
+import Hashing (plutusScriptHash)
 import Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -50,6 +52,9 @@ import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
 import Plutus.Types.Value (Coin) as Plutus
 import Serialization.Address (NetworkId)
+
+import Cardano.Types.ScriptRef
+import Data.Maybe
 
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin
@@ -85,15 +90,11 @@ toPlutusTxOutput
 toPlutusTxOutput cardanoTxOut = do
   let rec = unwrap cardanoTxOut
   address <- toPlutusAddress rec.address
-  let amount = toPlutusValue rec.amount
+  let
+    amount = toPlutusValue rec.amount
+    referenceScript = scriptRefHash =<< rec.scriptRef
   pure $ wrap
-    { address
-    , amount
-    , datum: rec.datum
-    -- TODO: properly initialize reference script
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-    , referenceScript: Nothing
-    }
+    { address, amount, datum: rec.datum, referenceScript }
 
 --------------------------------------------------------------------------------
 -- Plutus TransactionUnspentOutput <-> Cardano TransactionUnspentOutput

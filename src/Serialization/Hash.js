@@ -64,3 +64,5 @@ exports._ed25519KeyHashToBech32Impl = hashToBech32Impl;
 exports.scriptHashToBytes = hashToBytes;
 exports.scriptHashToBech32Unsafe = hashToBech32Unsafe;
 exports._scriptHashToBech32Impl = hashToBech32Impl;
+
+exports.nativeScriptHash = script => script.hash();
