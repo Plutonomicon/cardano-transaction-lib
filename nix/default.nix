@@ -445,4 +445,5 @@ in
     purs nodejs mkNodeModules;
   devShell = shellFor shell;
   compiled = project;
+  nodeModules = projectNodeModules;
 }
