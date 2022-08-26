@@ -2,6 +2,8 @@ module Test.Integration (main, testPlan) where
 
 import Prelude
 
+import Contract.Config (testnetConfig)
+import Contract.Monad (runContract, wrapContract)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -12,6 +14,7 @@ import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.SystemStart (getSystemStart)
 import Test.AffInterface as AffInterface
+import Test.Logging as Logging
 import Test.PrivateKey as PrivateKey
 import Test.Types.Interval as Types.Interval
 import Test.Utils as Utils
@@ -25,7 +28,7 @@ main = launchAff_ do
 -- Requires external services listed in README.md
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
-  mapTest (runQueryM testnetTraceQueryConfig) AffInterface.suite
+  mapTest runQueryM' AffInterface.suite
   -- These tests depend on assumptions about testnet history.
   -- We disabled them during transition from `testnet` to `preprod` networks.
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
@@ -36,3 +39,7 @@ testPlan = do
       sysStart <- getSystemStart
       liftEffect $ f eraSummaries sysStart
   PrivateKey.suite
+  Logging.suite
+  where
+  runQueryM' =
+    runContract (testnetConfig { suppressLogs = true }) <<< wrapContract

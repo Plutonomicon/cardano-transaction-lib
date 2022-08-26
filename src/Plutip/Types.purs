@@ -64,6 +64,7 @@ type PlutipConfig =
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (Message -> Aff Unit)
+  , suppressLogs :: Boolean
   }
 
 type PostgresConfig =

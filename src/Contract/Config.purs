@@ -46,10 +46,11 @@ testnetConfig =
   , datumCacheConfig: defaultDatumCacheWsConfig
   , ctlServerConfig: Just defaultServerConfig
   , networkId: TestnetId
-  , logLevel: Trace
   , extraConfig: {}
   , walletSpec: Nothing
+  , logLevel: Trace
   , customLogger: Nothing
+  , suppressLogs: false
   }
 
 testnetNamiConfig :: ConfigParams ()
