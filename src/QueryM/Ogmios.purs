@@ -76,6 +76,7 @@ import Aeson
   , encodeAeson
   , getField
   , getFieldOptional
+  , getFieldOptional'
   , isNull
   , stringifyAeson
   )
@@ -86,6 +87,7 @@ import Cardano.Types.Transaction
   , Nonce
   , SubCoin
   )
+import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value
   ( Coin(Coin)
@@ -98,6 +100,7 @@ import Cardano.Types.Value
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (index, singleton, reverse)
+import Data.Array (head) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
@@ -133,7 +136,7 @@ import Types.Rational (Rational, (%))
 import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
-import Types.Scripts (Language(PlutusV1, PlutusV2))
+import Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
@@ -1135,7 +1138,8 @@ type OgmiosTxOut =
   { address :: OgmiosAddress
   , value :: Value
   , datum :: Maybe String
-  -- TODO: add datum and scriptRef
+  , script :: Maybe ScriptRef
+  -- TODO: add datum
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
   }
 
@@ -1147,7 +1151,33 @@ parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
   let datum = hush $ getField o "datumHash"
-  pure { address, value, datum }
+  script <- parseScript o
+  pure { address, value, datum, script }
+
+parseScript :: Object Aeson -> Either JsonDecodeError (Maybe ScriptRef)
+parseScript outer =
+  getFieldOptional' outer "script" >>= case _ of
+    Nothing -> pure Nothing
+    Just script -> do
+      case (Array.head $ ForeignObject.toUnfoldable script) of
+        Just ("plutus:v1" /\ plutusScript) ->
+          Just <$> plutusScriptWithLang PlutusV1 plutusScript
+        Just ("plutus:v2" /\ plutusScript) ->
+          Just <$> plutusScriptWithLang PlutusV2 plutusScript
+        Just ("native" /\ nativeScript) ->
+          pure Nothing -- TODO: parse native scripts 
+        _ ->
+          Left (TypeMismatch "Expected hex-encoded script")
+  where
+  plutusScriptWithLang
+    :: Language -> String -> Either JsonDecodeError ScriptRef
+  plutusScriptWithLang lang hexEncodedScript = do
+    let
+      scriptTypeMismatch :: JsonDecodeError
+      scriptTypeMismatch = TypeMismatch
+        $ "Expected hex-encoded Plutus script, got: " <> hexEncodedScript
+    scriptBytes <- note scriptTypeMismatch (hexToByteArray hexEncodedScript)
+    pure $ PlutusScriptRef $ PlutusScript (scriptBytes /\ lang)
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
