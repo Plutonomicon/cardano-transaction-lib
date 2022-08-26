@@ -356,6 +356,23 @@ suite = do
           logInfo' "Try to spend locked values"
           InlineDatum.spendFromCheckDatumIsInline vhash validator txId
 
+    test "runPlutipContract: InlineDatum Read" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to read inline datum"
+          InlineDatum.readFromCheckDatumIsInline vhash txId
+
     test "runPlutipContract: InlineDatum Failure" do
       let
         distribution :: InitialUTxOs

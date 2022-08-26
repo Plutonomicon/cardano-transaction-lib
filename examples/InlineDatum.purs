@@ -7,6 +7,7 @@ module Examples.InlineDatum
   , checkDatumIsInlineScript
   , payToCheckDatumIsInline
   , payToCheckDatumIsInlineWrong
+  , readFromCheckDatumIsInline
   , spendFromCheckDatumIsInline
   ) where
 
@@ -36,6 +37,8 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , OutputDatum(OutputDatum)
   , awaitTxConfirmed
   , balanceAndSignTxE
   , submit
@@ -47,6 +50,7 @@ import Contract.Utxos (UtxoM(UtxoM), utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
+import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -124,6 +128,28 @@ spendFromCheckDatumIsInline vhash validator txId = do
       spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
       awaitTxConfirmed spendTxId
       logInfo' "Successfully spent locked values."
+
+    _ ->
+      logInfo' $ "The id "
+        <> show txId
+        <> " does not have output locked at: "
+        <> show scriptAddress
+  where
+  hasTransactionId :: TransactionInput /\ _ -> Boolean
+  hasTransactionId (TransactionInput tx /\ _) =
+    tx.transactionId == txId
+
+readFromCheckDatumIsInline
+  :: ValidatorHash
+  -> TransactionHash
+  -> Contract () Unit
+readFromCheckDatumIsInline vhash txId = do
+  let scriptAddress = scriptHashAddress vhash
+  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  case snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
+    Just (TransactionOutput { datum }) -> do
+      datum `shouldEqual` OutputDatum (Datum plutusData)
+      logInfo' "Successfully read inline datum."
 
     _ ->
       logInfo' $ "The id "
