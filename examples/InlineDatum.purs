@@ -1,6 +1,6 @@
--- | This module demonstrates how the `Contract` interface can be used to build,
--- | balance, and submit a smart-contract transaction. It creates a transaction
--- | that pays two Ada to the `CheckDatumIsInline` script address
+-- | This module demonstrates creating a UTxO whose datum is inline via the
+-- | `Contract` interface. The `checkDatumIsInlineScript` only validates if the
+-- | scripts own input was supplied with an inline datum matching the redeemer.
 module Examples.InlineDatum
   ( main
   , example
@@ -87,22 +87,6 @@ payToCheckDatumIsInline vhash = do
 
   buildBalanceSignAndSubmitTx lookups constraints
 
-payToCheckDatumIsInlineWrong :: ValidatorHash -> Contract () TransactionHash
-payToCheckDatumIsInlineWrong vhash = do
-  let
-    datum :: Datum
-    datum = Datum plutusData
-
-    constraints :: TxConstraints Unit Unit
-    constraints = Constraints.mustPayToScript vhash datum
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
-
-    lookups :: Lookups.ScriptLookups PlutusData
-    lookups = mempty
-
-  buildBalanceSignAndSubmitTx lookups constraints
-
 spendFromCheckDatumIsInline
   :: ValidatorHash
   -> Validator
@@ -138,6 +122,22 @@ spendFromCheckDatumIsInline vhash validator txId = do
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
+
+payToCheckDatumIsInlineWrong :: ValidatorHash -> Contract () TransactionHash
+payToCheckDatumIsInlineWrong vhash = do
+  let
+    datum :: Datum
+    datum = Datum plutusData
+
+    constraints :: TxConstraints Unit Unit
+    constraints = Constraints.mustPayToScript vhash datum
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
+
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = mempty
+
+  buildBalanceSignAndSubmitTx lookups constraints
 
 readFromCheckDatumIsInline
   :: ValidatorHash
