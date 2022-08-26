@@ -262,7 +262,7 @@ let
           plutip-server
         ]
         ++ (pkgs.lib.lists.optional withCtlServer pkgs.ctl-server)
-        ++ args.buildInputs;
+        ++ (args.buildInputs or [ ]);
       }
     );
 
