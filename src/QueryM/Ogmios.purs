@@ -76,6 +76,7 @@ import Aeson
   , encodeAeson
   , getField
   , getFieldOptional
+  , getFieldOptional'
   , isNull
   , stringifyAeson
   )
@@ -100,7 +101,7 @@ import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (index, singleton, reverse)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.List (List)
@@ -1147,9 +1148,8 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let
-    datumHash = hush $ getField o "datumHash"
-    datum = hush $ getField o "datum"
+  datumHash <- getFieldOptional' o "datumHash"
+  datum <- getFieldOptional' o "datum"
   pure { address, value, datumHash, datum }
 
 -- parses the `Value` type
