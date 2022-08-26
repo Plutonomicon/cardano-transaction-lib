@@ -33,6 +33,7 @@ import Control.Monad.Error.Class
   , class MonadThrow
   , catchError
   )
+import Control.Monad.Except (throwError)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class
   ( class MonadAsk
@@ -44,7 +45,7 @@ import Control.Monad.Reader.Class
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Plus (class Plus, empty)
-import Data.Either (Either, either, hush)
+import Data.Either (Either(Left, Right), either, hush)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Log.Tag
@@ -56,12 +57,12 @@ import Data.Log.Tag
   , jsDateTag
   , tagSetTag
   ) as Log.Tag
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect (Effect)
-import Effect.Aff (Aff)
 import Effect.Aff (Aff, launchAff_) as Aff
+import Effect.Aff (Aff, try)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
@@ -91,10 +92,13 @@ import QueryM
   , QueryM
   , QueryMExtended
   , QueryRuntime
+  , Logger
+  , mkLogger
   , mkQueryRuntime
   , stopQueryRuntime
   , withQueryRuntime
   )
+import QueryM.Logging (setupLogs)
 import Serialization.Address (NetworkId)
 import Wallet.Spec (WalletSpec)
 
@@ -199,11 +203,13 @@ asksConfig f = do
 type ConfigParams (r :: Row Type) =
   { ogmiosConfig :: QueryM.ServerConfig
   , datumCacheConfig :: QueryM.ServerConfig
-  , ctlServerConfig :: QueryM.ServerConfig
+  , ctlServerConfig :: Maybe QueryM.ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
+  -- | Suppress logs until an exception is thrown
+  , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
   , extraConfig :: { | r }
   }
@@ -230,10 +236,10 @@ runContractInEnv
    . ContractEnv r
   -> Contract r a
   -> Aff a
-runContractInEnv config =
-  flip runReaderT (unwrap config)
-    <<< unwrap
-    <<< unwrap
+runContractInEnv env contract =
+  flip runReaderT (unwrap env)
+    $ unwrap
+    $ unwrap contract
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
@@ -255,6 +261,7 @@ mkContractEnv
     , logLevel
     , walletSpec
     , customLogger
+    , suppressLogs
     } = do
   let
     config =
@@ -265,6 +272,7 @@ mkContractEnv
       , logLevel
       , walletSpec
       , customLogger
+      , suppressLogs
       }
   runtime <- mkQueryRuntime
     config
@@ -304,9 +312,13 @@ withContractEnv
     , logLevel
     , walletSpec
     , customLogger
+    , suppressLogs
     }
   action = do
+  { addLogEntry, printLogs } <-
+    liftEffect $ setupLogs params.logLevel params.customLogger
   let
+    config :: QueryConfig
     config =
       { ctlServerConfig
       , ogmiosConfig
@@ -314,13 +326,22 @@ withContractEnv
       , networkId
       , logLevel
       , walletSpec
-      , customLogger
+      , customLogger:
+          if suppressLogs then Just $ liftEffect <<< addLogEntry
+          else customLogger
+      , suppressLogs
       }
+
   withQueryRuntime config \runtime -> do
     let
       contractEnv = wrap
         { runtime, config, extraConfig: params.extraConfig }
-    action contractEnv
+    res <- try $ action contractEnv
+    case res of
+      Left err -> liftEffect do
+        when suppressLogs printLogs
+        throwError err
+      Right result -> pure result
 
 -- | Throws an `Error` for any showable error using `Effect.Exception.throw`
 -- | and lifting into the `Contract` monad.

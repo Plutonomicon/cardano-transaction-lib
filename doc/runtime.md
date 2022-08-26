@@ -13,7 +13,7 @@ In order to run CTL's `Contract` effects, several services are required. These c
 
 ### Current services
 
-The services that are currently required are:
+The services that are currently **required** are:
 
 - [Ogmios](https://ogmios.dev)
   - You **must** use Ogmios v5.2.0 or greater with CTL
@@ -22,6 +22,9 @@ The services that are currently required are:
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
   - This is required to query for datums, which Ogmios itself does not support
   - This in turn requires a PostgreSQL DB
+
+Optional services:
+
 - [Our Haskell server](/server/README.md)
   - We hope to deprecate this in the future, but we use it at the moment to apply arguments to Plutus scripts, which is hard to implement on front-end.
   - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
@@ -61,6 +64,11 @@ Here is an example that uses the `runtime` overlay to launch all of the required
         inherit system;
         overlays = [
           cardano-transaction-lib.overlays.runtime
+          # This one is optional. If you set `ctl-server.enable = true;`
+          # in the runtime config as shown below, you must enable this
+          # overlay. `ctl-server` itself is **only** required when using
+          # CTL's `applyArgs` effect
+          cardano-transaction-lib.overlays.ctl-server
           # you probably want this one too, although it's not demonstrated
           # in this example
           cardano-transaction-lib.overlays.purescript
@@ -120,7 +128,11 @@ Here is an example that uses the `runtime` overlay to launch all of the required
           tag = "1.35.2";
         };
         ogmios = { port = 1337; };
-        ctlServer = { port = 8081; };
+        # If you don't need to use `applyArgs` (i.e. you're not using parameterized
+        # scripts), you can disable CTL's server entirely in the runtime using
+        # `{ ctlServer.enable = false; }`. Currently we default to enabling it
+        # by default for backwards compatibility
+        ctlServer = { enable = true; port = 8081; };
         postgres = {
           port = 5432;
           user = "ctxlib";
