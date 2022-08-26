@@ -254,14 +254,16 @@ let
     , ...
     }@args:
     runPursTest (
-      {
+      args // {
         buildInputs = with pkgs; [
           postgresql
           ogmios
           ogmios-datum-cache
           plutip-server
-        ] ++ pkgs.lib.lists.optional withCtlServer pkgs.ctl-server;
-      } // args
+        ]
+        ++ (pkgs.lib.lists.optional withCtlServer pkgs.ctl-server)
+        ++ (args.buildInputs or [ ]);
+      }
     );
 
   # Bundles a Purescript project using Webpack, typically for the browser
