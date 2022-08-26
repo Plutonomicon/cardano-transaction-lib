@@ -828,7 +828,6 @@ instance DecodeAeson ProtocolParameters where
       maybe
         (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
         pure
-        -- Multiply by 8 in case we have `coinsPerUtxoWord`
         $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
             (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
     pure $ ProtocolParameters
