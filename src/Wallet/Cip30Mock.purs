@@ -40,6 +40,19 @@ import Wallet.Key
 
 data WalletMock = MockFlint | MockGero | MockNami
 
+-- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
+-- | behind a CIP-30 interface and uses Ogmios to submit Txs.
+-- | The wallet is injected directly to `window.cardano` object, under the
+-- | name corresponding to provided `WalletMock`. It works even in NodeJS
+-- | (we introduce a global `window` object and delete it afterwards).
+-- |
+-- | Note that this function will refuse to overwrite existing wallet
+-- | with the mock, so the users should disable their browser extensions
+-- | before running it in the browser.
+-- |
+-- | Note that this function implements single-address light wallet logic, so
+-- | it will have to be changed a lot to successfully mimic the behavior of
+-- | multi-address wallets, like Eternl.
 withCip30Mock
   :: forall r a. KeyWallet -> WalletMock -> Contract r a -> Contract r a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
