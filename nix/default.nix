@@ -444,4 +444,5 @@ in
     buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
     purs nodejs mkNodeModules;
   devShell = shellFor shell;
+  compiled = project;
 }
