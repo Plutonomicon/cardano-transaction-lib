@@ -350,7 +350,7 @@ suite = do
         withKeyWallet alice do
           validator <- InlineDatum.checkDatumIsInlineScript
           let vhash = validatorHash validator
-          logInfo' "Attempt to lock value"
+          logInfo' "Attempt to lock value with inline datum"
           txId <- InlineDatum.payToCheckDatumIsInline vhash
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
@@ -367,7 +367,7 @@ suite = do
         withKeyWallet alice do
           validator <- InlineDatum.checkDatumIsInlineScript
           let vhash = validatorHash validator
-          logInfo' "Attempt to lock value"
+          logInfo' "Attempt to lock value with inline datum"
           txId <- InlineDatum.payToCheckDatumIsInline vhash
           awaitTxConfirmed txId
           logInfo' "Try to read inline datum"
@@ -384,8 +384,28 @@ suite = do
         withKeyWallet alice do
           validator <- InlineDatum.checkDatumIsInlineScript
           let vhash = validatorHash validator
-          logInfo' "Attempt to lock value"
+          logInfo' "Attempt to lock value without inline datum"
           txId <- InlineDatum.payToCheckDatumIsInlineWrong vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          eResult <- try $ InlineDatum.spendFromCheckDatumIsInline vhash
+            validator
+            txId
+          eResult `shouldSatisfy` isLeft
+
+    test "runPlutipContract: InlineDatum Cannot Spend PlutusV1" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value at plutusv1 script with inline datum"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           eResult <- try $ InlineDatum.spendFromCheckDatumIsInline vhash
