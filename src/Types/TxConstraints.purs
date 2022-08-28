@@ -323,6 +323,9 @@ mustSatisfyAnyOf =
     >>> MustSatisfyAnyOf
     >>> singleton
 
+-- | Marks the transaction as invalid, requiring at least one script execution
+-- | to fail. Despite failure, the transaction can still be submitted into the
+-- | chain and collateral will be lost.
 mustNotBeValid :: forall (i :: Type) (o :: Type). TxConstraints i o
 mustNotBeValid = singleton $ MustNotBeValid
 
