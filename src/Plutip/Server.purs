@@ -8,7 +8,12 @@ module Plutip.Server
 
 import Prelude
 
-import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -25,23 +30,21 @@ import Effect.Ref as Ref
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left), either)
+import Data.Either (Either(Left, Right), either)
 import Data.Foldable (sum)
 import Data.HTTP.Method as Method
+import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (for, foldMap)
+import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Milliseconds(Milliseconds)
-  , bracket
-  )
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -92,9 +95,12 @@ import Plutip.UtxoDistribution
   )
 import QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  , Logger
+  , mkLogger
   , stopQueryRuntime
   )
 import QueryM as QueryM
+import QueryM.Logging (setupLogs)
 import QueryM.ProtocolParameters as Ogmios
 import QueryM.UniqueId (uniqueId)
 import Type.Prelude (Proxy(Proxy))
@@ -147,7 +153,7 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
       withPostgres response
         $ withOgmios response
         $ withOgmiosDatumCache response
-        $ withCtlServer
+        $ withMCtlServer
         $ withContractEnv \env ->
             withWallets env ourKey response (cont env)
   where
@@ -162,10 +168,20 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
       stopChildProcess <<< const
 
   withPlutipCluster
-    :: ((PrivatePaymentKey /\ ClusterStartupParameters) -> Aff a) -> Aff a
-  withPlutipCluster = bracket
-    (startPlutipCluster plutipCfg distr)
-    (const $ void $ stopPlutipCluster plutipCfg)
+    :: (PrivatePaymentKey /\ ClusterStartupParameters -> Aff a) -> Aff a
+  withPlutipCluster cc = do
+    let
+      distrArray =
+        encodeDistribution $
+          ourInitialUtxos (encodeDistribution distr) /\
+            distr
+    for_ distrArray $ traverse_ \n -> when (n < BigInt.fromInt 1_000_000) do
+      liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
+        ", must be at least 1_000_000 Lovelace"
+    bracket
+      (startPlutipCluster plutipCfg distrArray)
+      (const $ void $ stopPlutipCluster plutipCfg)
+      cc
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
   withPostgres response =
@@ -185,10 +201,12 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
     bracket (writeAwaitClosedChild =<< startOgmiosDatumCache plutipCfg response)
       stopChildProcess <<< const
 
-  withCtlServer :: Aff a -> Aff a
-  withCtlServer =
-    bracket (writeAwaitClosedChild =<< startCtlServer plutipCfg)
-      stopChildProcess <<< const
+  withMCtlServer :: Aff a -> Aff a
+  withMCtlServer = case plutipCfg.ctlServerConfig of
+    Nothing -> identity
+    Just config ->
+      bracket (writeAwaitClosedChild =<< startCtlServer config.port)
+        stopChildProcess <<< const
 
   withWallets
     :: ContractEnv ()
@@ -210,8 +228,29 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
     cc wallets
 
   withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
-  withContractEnv = bracket (mkClusterContractEnv plutipCfg)
-    (liftEffect <<< stopContractEnv)
+  withContractEnv | plutipCfg.suppressLogs = \contractEnvCont -> do
+    -- if logs should be suppressed, setup the machinery and continue with
+    -- the bracket
+    { addLogEntry, suppressedLogger, printLogs } <-
+      liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
+
+    let configLogger = Just $ liftEffect <<< addLogEntry
+
+    bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
+      (liftEffect <<< stopContractEnv)
+      $ contractEnvCont >>> try >=> case _ of
+          Left err -> do
+            liftEffect printLogs
+            throwError err
+          Right res -> pure res
+  withContractEnv =
+    -- otherwise, proceed with the env setup and provide a normal logger
+    bracket
+      ( mkClusterContractEnv plutipCfg
+          (mkLogger plutipCfg.logLevel plutipCfg.customLogger)
+          plutipCfg.customLogger
+      )
+      (liftEffect <<< stopContractEnv)
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
   stopContractEnv :: ContractEnv () -> Effect Unit
@@ -221,13 +260,13 @@ withPlutipContractEnv' plutipCfg distr cont waitersRef = do
 configCheck :: PlutipConfig -> Aff Unit
 configCheck cfg = do
   let
+    services :: Array (UInt /\ String)
     services =
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
-      , cfg.ctlServerConfig.port /\ "ctl-server"
       , cfg.postgresConfig.port /\ "postgres"
-      ]
+      ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
@@ -235,6 +274,7 @@ configCheck cfg = do
       "Unable to run the following services, because the ports are occupied:\
       \\n" <> foldMap printServiceEntry occupiedServices
   where
+  printServiceEntry :: UInt /\ String -> String
   printServiceEntry (port /\ service) =
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
@@ -245,17 +285,11 @@ configCheck cfg = do
 -- | utxos in the passed distribution, so it can be used to handle
 -- | transaction fees.
 startPlutipCluster
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => PlutipConfig
-  -> distr
+  :: PlutipConfig
+  -> InitialUTxODistribution
   -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
-startPlutipCluster cfg utxoDistribution = do
-  let
-    url = mkServerEndpointUrl cfg "start"
-    initialDistribution = encodeDistribution $
-      ourInitialUtxos (encodeDistribution utxoDistribution) /\
-        utxoDistribution
+startPlutipCluster cfg keysToGenerate = do
+  let url = mkServerEndpointUrl cfg "start"
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -265,7 +299,7 @@ startPlutipCluster cfg utxoDistribution = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate: initialDistribution }
+                    { keysToGenerate }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -472,21 +506,23 @@ startOgmiosDatumCache cfg _params = do
 
 mkClusterContractEnv
   :: PlutipConfig
+  -> Logger
+  -> Maybe (Message -> Aff Unit)
   -> Aff (ContractEnv ())
-mkClusterContractEnv plutipCfg = do
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff plutipCfg.logLevel
-    QueryM.defaultOgmiosWsConfig
-      { port = plutipCfg.ogmiosConfig.port
-      , host = plutipCfg.ogmiosConfig.host
-      }
+mkClusterContractEnv plutipCfg logger customLogger = do
   datumCacheWs <-
-    QueryM.mkDatumCacheWebSocketAff plutipCfg.logLevel
+    QueryM.mkDatumCacheWebSocketAff logger
       QueryM.defaultDatumCacheWsConfig
         { port = plutipCfg.ogmiosDatumCacheConfig.port
         , host = plutipCfg.ogmiosDatumCacheConfig.host
         }
+  ogmiosWs <- QueryM.mkOgmiosWebSocketAff datumCacheWs logger
+    QueryM.defaultOgmiosWsConfig
+      { port = plutipCfg.ogmiosConfig.port
+      , host = plutipCfg.ogmiosConfig.host
+      }
   usedTxOuts <- newUsedTxOuts
-  pparams <- Ogmios.getProtocolParametersAff ogmiosWs plutipCfg.logLevel
+  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
     { config:
         { ctlServerConfig: plutipCfg.ctlServerConfig
@@ -495,7 +531,8 @@ mkClusterContractEnv plutipCfg = do
         , networkId: MainnetId
         , logLevel: plutipCfg.logLevel
         , walletSpec: Nothing
-        , customLogger: Nothing
+        , customLogger: customLogger
+        , suppressLogs: plutipCfg.suppressLogs
         }
     , runtime:
         { ogmiosWs
@@ -507,23 +544,15 @@ mkClusterContractEnv plutipCfg = do
     , extraConfig: {}
     }
 
-startCtlServer :: PlutipConfig -> Aff (ChildProcess /\ Stopped)
-startCtlServer cfg = do
-  let
-    ctlServerArgs =
-      [ "--port"
-      , UInt.toString cfg.ctlServerConfig.port
-      , "--ogmios-host"
-      , cfg.ogmiosConfig.host
-      , "--ogmios-port"
-      , UInt.toString cfg.ogmiosConfig.port
-      ]
+startCtlServer :: UInt -> Aff (ChildProcess /\ Stopped)
+startCtlServer serverPort = do
+  let ctlServerArgs = [ "--port", UInt.toString serverPort ]
   child /\ stopped <-
     spawnAndWaitForOutput "ctl-server" ctlServerArgs
       (defaultSpawnOptions { stdio = [ Just Ignore, Just Pipe, Just Ignore ] })
       -- defaultSpawnOptions
       -- Wait for "Successfully connected to Ogmios" string in the output
-      $ String.indexOf (Pattern "Successfully connected to Ogmios")
+      $ String.indexOf (Pattern "CTL server starting on port")
           >>> maybe NextLine (const Success)
           >>> pure
   liftEffect $ onExit child $ const $ destroy (stdout child)

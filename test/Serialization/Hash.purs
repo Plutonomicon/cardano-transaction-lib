@@ -6,6 +6,7 @@ import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (wrap)
 import Data.Unit (Unit)
+import Effect.Aff (Aff)
 import Serialization.Hash
   ( ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
@@ -32,7 +33,7 @@ scriptHashHex = "463e9264962cea64efafa576d44c8d2821d09c0c7495c253d4101a9a"
 invalidBech32 :: Bech32String
 invalidBech32 = "addr_vkh1zuctrdcq6ctd29242w8g8444z0q38t2lnv3zzf44fqktx044444"
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   assertTrue "ed25519KeyHashFromBech32 returns Nothing on random string"
     (isNothing $ ed25519KeyHashFromBech32 invalidBech32)
