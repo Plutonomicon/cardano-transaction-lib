@@ -64,8 +64,9 @@ getWalletBalance
    . Contract r (Maybe Value)
 getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
 
--- | Similar to `utxosAt`, except that it uses CIP-30 wallet state and not
--- | query layer state. The user should not expect these states to be in sync.
+-- | Similar to `utxosAt` called on own address, except that it uses CIP-30
+-- | wallet state and not query layer state.
+-- | The user should not expect these states to be in sync.
 -- | When active wallet is `KeyWallet`, query layer state is used.
 -- | This function is expected to be more performant `utxosAt` when there is a
 -- | large number of assets.
