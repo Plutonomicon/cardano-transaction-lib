@@ -6,31 +6,45 @@ module BalanceTx.UtxoMinAda
 import Prelude
 
 import Cardano.Types.Transaction (TransactionOutput)
-import Cardano.Types.Value (lovelaceValueOf)
+import Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (wrap, unwrap)
 import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Partial.Unsafe (unsafePartial)
 import QueryM (QueryM)
+import QueryM.Ogmios (CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte))
 import Serialization (convertTxOutput)
 import Serialization.Address (addressFromBech32) as Csl
+import Serialization.Types (DataCost)
 import Serialization.Types (TransactionOutput) as Csl
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, maxValue, toBigInt, toBigIntUnsafe) as BigNum
 
 foreign import minAdaForOutput
-  :: MaybeFfiHelper -> Csl.TransactionOutput -> BigNum -> Maybe BigNum
+  :: MaybeFfiHelper -> Csl.TransactionOutput -> DataCost -> Maybe BigNum
+
+foreign import newCoinsPerWord :: BigNum -> DataCost
+
+foreign import newCoinsPerByte :: BigNum -> DataCost
 
 utxoMinAdaValue :: TransactionOutput -> QueryM (Maybe BigInt)
 utxoMinAdaValue txOutput = do
-  coinsPerUtxoByte <- asks (_.runtime >>> _.pparams) <#> unwrap >>>
-    _.coinsPerUtxoByte
+  coinsPerUtxoUnit <- asks (_.runtime >>> _.pparams) <#> unwrap >>>
+    _.coinsPerUtxoUnit
+  dataCost <- case coinsPerUtxoUnit of
+    CoinsPerUtxoByte (Coin n) -> do
+      newCoinsPerByte <$> liftMaybe (error "Failed to convert CoinsPerUtxoByte")
+        (BigNum.fromBigInt n)
+    CoinsPerUtxoWord (Coin n) -> do
+      newCoinsPerWord <$> liftMaybe (error "Failed to convert CoinsPerUtxoWord")
+        (BigNum.fromBigInt n)
   cslTxOutput <- liftEffect $ convertTxOutput txOutput
-  pure $ BigNum.fromBigInt (unwrap coinsPerUtxoByte)
-    >>= minAdaForOutput maybeFfiHelper cslTxOutput
+  pure $ minAdaForOutput maybeFfiHelper cslTxOutput dataCost
     -- useful spy: BigNum.toBigInt >>= (pure <<< spy "utxoMinAdaValue")
     >>= BigNum.toBigInt
 

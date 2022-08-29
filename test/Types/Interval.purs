@@ -36,8 +36,10 @@ import Types.Interval
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval type" do
-    test "Inverse posixTimeToSlot >>> slotToPosixTime " $ testPosixTimeToSlot
-    test "Inverse slotToPosixTime >>> posixTimeToSlot " $ testSlotToPosixTime
+    test "Inverse posixTimeToSlot >>> slotToPosixTime " $
+      testPosixTimeToSlot
+    test "Inverse slotToPosixTime >>> posixTimeToSlot " $
+      testSlotToPosixTime
     test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
 
 loadOgmiosFixture
