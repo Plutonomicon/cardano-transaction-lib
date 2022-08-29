@@ -65,4 +65,10 @@ exports._wsReconnect = ws => () => {
   ws.reconnect();
 };
 
-exports._wsTerminate = ws => () => ws.terminate();
+exports._wsTerminate = ws => () => {
+  if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
+    ws.close();
+  } else {
+    ws.terminate();
+  }
+};
