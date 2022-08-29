@@ -1,22 +1,26 @@
 module Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
-  , Utxo
-  , UtxoM(UtxoM)
+  , UtxoMap
+  , lookupTxHash
   ) where
 
 import Prelude
 
+import Data.Array (filter)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
+import Data.Tuple (fst)
+import Data.Tuple.Nested (type (/\))
 import FromData (class FromData, fromData)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Value (Value)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Constr))
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (DataHash, TransactionHash, TransactionInput)
 
 newtype TransactionOutput = TransactionOutput
   { address :: Address
@@ -45,13 +49,10 @@ instance ToData TransactionOutput where
   toData (TransactionOutput { address, amount, dataHash }) =
     Constr zero [ toData address, toData amount, toData dataHash ]
 
-newtype UtxoM = UtxoM Utxo
+type UtxoMap = Map TransactionInput TransactionOutput
 
-derive instance Generic UtxoM _
-derive instance Newtype UtxoM _
-derive newtype instance Eq UtxoM
-
-instance Show UtxoM where
-  show = genericShow
-
-type Utxo = Map TransactionInput TransactionOutput
+lookupTxHash
+  :: TransactionHash -> UtxoMap -> Array (TransactionInput /\ TransactionOutput)
+lookupTxHash txHash utxos =
+  filter (fst >>> unwrap >>> _.transactionId >>> eq txHash) $
+    Map.toUnfoldable utxos

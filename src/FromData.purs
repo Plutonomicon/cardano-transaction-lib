@@ -182,7 +182,7 @@ else instance (FromData a) => FromDataArgs t constr (G.Argument a) where
     { head: pd, tail: pds } <- note (ArgsWantedButGot constrName 1 pdArgs) $
       uncons pdArgs
     repArg <- note (FromDataFailed constrName pd) $ fromData pd
-    pure $ { head: G.Argument repArg, tail: pds }
+    pure { head: G.Argument repArg, tail: pds }
 
 instance
   ( FromDataArgs t c a
@@ -196,7 +196,7 @@ instance
     { head: repSnd, tail: pdArgs'' } <- fromDataArgs (Proxy :: Proxy t)
       (Proxy :: Proxy c)
       pdArgs'
-    pure $ { head: G.Product repFst repSnd, tail: pdArgs'' }
+    pure { head: G.Product repFst repSnd, tail: pdArgs'' }
 
 -- | FromDataArgsRL instances
 

@@ -56,12 +56,12 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array (find)
+import Data.Array (find, (!!))
 import Data.BigInt as BigInt
 import Data.Foldable (foldM)
 import Data.Map as Map
@@ -98,7 +98,10 @@ import Plutip.Server
   )
 import Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Plutus.Conversion.Address (toPlutusAddress)
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , lookupTxHash
+  )
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
@@ -107,9 +110,9 @@ import Safe.Coerce (coerce)
 import Scripts (nativeScriptHashEnterpriseAddress)
 import Test.AffInterface as AffInterface
 import Test.Plutip.Common (config, privateStakeKey)
+import Test.Plutip.Logging as Logging
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
-import Test.Plutip.Logging as Logging
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
@@ -302,15 +305,11 @@ suite = do
             networkId <- asks $ unwrap >>> _.config >>> _.networkId
             let
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
-
-              hasTransactionId :: TransactionInput /\ _ -> Boolean
-              hasTransactionId (TransactionInput tx /\ _) =
-                tx.transactionId == txId
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt nsAddrPlutus
+            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
-              fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
+              fst <$> lookupTxHash txId utxos !! 0
             let
               constraints :: TxConstraints Unit Unit
               constraints =
@@ -408,15 +407,11 @@ suite = do
             networkId <- asks $ unwrap >>> _.config >>> _.networkId
             let
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
-
-              hasTransactionId :: TransactionInput /\ _ -> Boolean
-              hasTransactionId (TransactionInput tx /\ _) =
-                tx.transactionId == txId
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt nsAddrPlutus
+            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
-              fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
+              fst <$> lookupTxHash txId utxos !! 0
             let
               constraints :: TxConstraints Unit Unit
               constraints =

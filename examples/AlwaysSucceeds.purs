@@ -30,7 +30,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
@@ -74,7 +74,7 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
       let
