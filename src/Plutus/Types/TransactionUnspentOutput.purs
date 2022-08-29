@@ -8,12 +8,12 @@ import Prelude
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Plutus.Types.Transaction (TransactionOutput)
+import Plutus.Types.Transaction (TransactionOutputWithRefScript)
 import Types.Transaction (TransactionInput)
 
 newtype TransactionUnspentOutput = TransactionUnspentOutput
   { input :: TransactionInput
-  , output :: TransactionOutput
+  , output :: TransactionOutputWithRefScript
   }
 
 derive instance Generic TransactionUnspentOutput _
@@ -24,6 +24,7 @@ instance Show TransactionUnspentOutput where
   show = genericShow
 
 mkTxUnspentOut
-  :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
-mkTxUnspentOut input output =
-  TransactionUnspentOutput { input, output }
+  :: TransactionInput
+  -> TransactionOutputWithRefScript
+  -> TransactionUnspentOutput
+mkTxUnspentOut input output = TransactionUnspentOutput { input, output }

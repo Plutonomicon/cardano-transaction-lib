@@ -113,8 +113,8 @@ import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
 import IsData (class IsData)
-import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
-import Plutus.Types.Transaction (TransactionOutput) as Plutus
+import Plutus.Conversion (fromPlutusTxOutputWithRefScript, fromPlutusValue)
+import Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
@@ -228,7 +228,7 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps ::
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
-      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend
+      Map TransactionInput Plutus.TransactionOutputWithRefScript -- Unspent outputs that the script may want to spend
   , scripts ::
       Array Validator -- Script validators
   , datums :: Map DataHash Datum --  Datums that we might need
@@ -321,7 +321,7 @@ typedValidatorLookupsM = pure <<< typedValidatorLookups
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type)
-   . Map TransactionInput Plutus.TransactionOutput
+   . Map TransactionInput Plutus.TransactionOutputWithRefScript
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
@@ -330,7 +330,7 @@ unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 -- | should not fail.
 unspentOutputsM
   :: forall (a :: Type)
-   . Map TransactionInput Plutus.TransactionOutput
+   . Map TransactionInput Plutus.TransactionOutputWithRefScript
   -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
@@ -714,8 +714,7 @@ updateUtxoIndex
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   networkId <- lift getNetworkId
-  -- FIXME: `scriptRef` is lost after conversion from `Plutus.TransactionOutput`
-  let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
+  let cTxOutputs = map (fromPlutusTxOutputWithRefScript networkId) txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
@@ -736,7 +735,7 @@ addOwnInput _pd (InputConstraint { txOutRef }) = do
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
-    let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
+    let cTxOutputs = map (fromPlutusTxOutputWithRefScript networkId) txOutputs
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -815,7 +814,7 @@ lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
   networkId <- lift getNetworkId
-  pure $ fromPlutusTxOutput networkId txOut
+  pure $ fromPlutusTxOutputWithRefScript networkId txOut
 
 lookupDatum
   :: forall (a :: Type)
@@ -878,7 +877,7 @@ processScriptRefUnspentOut scriptHash = case _ of
   checkScriptRef (TransactionUnspentOutput { output }) =
     let
       refScriptHash :: Maybe ScriptHash
-      refScriptHash = (unwrap output).referenceScript
+      refScriptHash = _.referenceScript $ unwrap $ (unwrap output).output
 
       err :: ConstraintsM a (Either MkUnbalancedTxError Unit)
       err = pure $ throwError $ WrongRefScriptHash refScriptHash

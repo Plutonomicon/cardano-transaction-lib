@@ -1164,7 +1164,7 @@ parseScript outer =
           Just <$> plutusScriptWithLang PlutusV1 plutusScript
         Just ("plutus:v2" /\ plutusScript) ->
           Just <$> plutusScriptWithLang PlutusV2 plutusScript
-        Just ("native" /\ nativeScript) ->
+        Just ("native" /\ _) ->
           pure Nothing -- TODO: parse native scripts 
         _ ->
           Left (TypeMismatch "Expected hex-encoded script")

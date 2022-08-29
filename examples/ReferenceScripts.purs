@@ -10,7 +10,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -81,27 +81,23 @@ spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId = do
   let scriptAddress = scriptHashAddress vhash
   UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
-  case find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just (txInput /\ txOutput) ->
-      let
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
-            (SpendableInput $ mkTxUnspentOut txInput txOutput)
 
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.unspentOutputs utxos
-      in
-        do
-          spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-          awaitTxConfirmed spendTxId
-          logInfo' "Successfully spent locked values."
+  txInput /\ txOutput <-
+    liftContractM "Could not find unspent output locked at script address"
+      $ find hasTransactionId (Map.toUnfoldable utxos :: Array _)
 
-    Nothing ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
+  let
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
+        (SpendableInput $ mkTxUnspentOut txInput txOutput)
+
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.unspentOutputs utxos
+
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =

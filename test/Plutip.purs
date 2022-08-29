@@ -72,7 +72,7 @@ import Examples.MintsMultipleTokens
   )
 import Examples.ReferenceInputs (contract) as ReferenceInputs
 import Examples.ReferenceScripts (contract) as ReferenceScripts
-import Mote (group, test, skip)
+import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -80,7 +80,9 @@ import Plutip.Server
   , stopPlutipCluster
   )
 import Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
+import Plutus.Types.Transaction
+  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  )
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
@@ -133,8 +135,9 @@ suite = do
             Nothing -> throw "Unable to get collateral"
             Just
               [ TransactionUnspentOutput
-                  { output: TransactionOutput { amount } }
+                  { output: TransactionOutputWithRefScript { output } }
               ] -> do
+              let amount = (unwrap output).amount
               unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
                 $ throw "Wrong UTxO selected as collateral"
             Just _ -> do
@@ -340,7 +343,7 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    skip $ test "runPlutipContract: ReferenceScripts" do
+    test "runPlutipContract: ReferenceScripts" do
       let
         distribution :: InitialUTxOs
         distribution =
