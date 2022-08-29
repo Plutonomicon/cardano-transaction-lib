@@ -100,18 +100,16 @@ transactionOutputToOgmiosTxOut
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
 ogmiosTxOutToScriptOutput :: Ogmios.OgmiosTxOut -> Maybe UTx.ScriptOutput
-ogmiosTxOutToScriptOutput { address, value, datum, datumHash } =
-  case ogmiosDatumToScriptDatum datum datumHash of
-    Just scriptDatum -> do
-      address' <- ogmiosAddressToAddress address
-      validatorHash <- enterpriseAddressValidatorHash address'
+ogmiosTxOutToScriptOutput { address, value, datum, datumHash } = do
+  scriptDatum <- ogmiosDatumToScriptDatum datum datumHash
+  address' <- ogmiosAddressToAddress address
+  validatorHash <- enterpriseAddressValidatorHash address'
 
-      pure $ UTx.ScriptOutput
-        { validatorHash
-        , value
-        , datum: scriptDatum
-        }
-    Nothing -> Nothing
+  pure $ UTx.ScriptOutput
+    { validatorHash
+    , value
+    , datum: scriptDatum
+    }
 
 -- | Converts an `ScriptOutput` to Ogmios Transaction output.
 scriptOutputToOgmiosTxOut
