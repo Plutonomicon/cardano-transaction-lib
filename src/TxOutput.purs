@@ -103,7 +103,6 @@ ogmiosTxOutToScriptOutput :: Ogmios.OgmiosTxOut -> Maybe UTx.ScriptOutput
 ogmiosTxOutToScriptOutput { address, value, datum, datumHash } =
   case ogmiosDatumToScriptDatum datum datumHash of
     Just scriptDatum -> do
-
       address' <- ogmiosAddressToAddress address
       validatorHash <- enterpriseAddressValidatorHash address'
 
@@ -145,15 +144,14 @@ transactionOutputToScriptOutput
 transactionOutputToScriptOutput
   ( Transaction.TransactionOutput
       { address, amount: value, datum }
-  ) = case outputDatumToScriptDatum datum of
-  Just scriptDatum -> do
-    validatorHash <- enterpriseAddressValidatorHash address
-    pure $ UTx.ScriptOutput
-      { validatorHash
-      , value
-      , datum: scriptDatum
-      }
-  Nothing -> Nothing
+  ) = do
+  scriptDatum <- outputDatumToScriptDatum datum
+  validatorHash <- enterpriseAddressValidatorHash address
+  pure $ UTx.ScriptOutput
+    { validatorHash
+    , value
+    , datum: scriptDatum
+    }
 
 -- | Converts `ScriptOutput` to an internal transaction output.
 scriptOutputToTransactionOutput
@@ -177,7 +175,6 @@ ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 
 -- | Converts an Ogmios datum `String` to an internal `Datum`
 ogmiosDatumToDatum :: String -> Maybe Datum
--- ogmiosDatumToDatum str = hexToByteArray str <#> wrap
 ogmiosDatumToDatum =
   hexToByteArray
     >=> fromBytes
@@ -202,10 +199,8 @@ ogmiosDatumToScriptDatum
   :: Maybe String -> Maybe String -> Maybe UTx.ScriptDatum
 ogmiosDatumToScriptDatum d dh =
   let
-    datum =
-      d >>= ogmiosDatumToDatum >>= UTx.ScriptDatum >>> pure
-    datumHash =
-      dh >>= ogmiosDatumHashToDatumHash >>= UTx.ScriptDatumHash >>> pure
+    datum = d >>= ogmiosDatumToDatum <#> UTx.ScriptDatum
+    datumHash = dh >>= ogmiosDatumHashToDatumHash <#> UTx.ScriptDatumHash
   in
     datum <|> datumHash
 
