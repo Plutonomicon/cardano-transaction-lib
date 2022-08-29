@@ -43,14 +43,13 @@ import Contract.Test.Plutip
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
-  , NativeScript(ScriptAll, ScriptNOfK, ScriptPubkey)
-  , TransactionInput(TransactionInput)
+  , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
   , balanceTx
-  , signTransaction
   , getTxByHash
+  , signTransaction
   , submit
   , withBalancedAndSignedTxs
   )
@@ -61,7 +60,7 @@ import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array (find, (!!))
+import Data.Array ((!!))
 import Data.BigInt as BigInt
 import Data.Foldable (foldM)
 import Data.Map as Map
