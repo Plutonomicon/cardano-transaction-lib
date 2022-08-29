@@ -141,7 +141,10 @@ import Hashing (transactionHash) as Hashing
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , lookupTxHash
+  ) as PTransaction
 import Plutus.Types.Value (Coin)
 import QueryM
   ( ClientError
