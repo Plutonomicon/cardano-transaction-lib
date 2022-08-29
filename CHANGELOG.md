@@ -116,6 +116,7 @@ See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - Fix excessive logging after the end of `Contract` execution ([#893](https://github.com/Plutonomicon/cardano-transaction-lib/issues/893))
 - Add ability to suppress logs of successful `Contract` executions - with new `suppressLogs` config option the logs will be shown on error ([#768](https://github.com/Plutonomicon/cardano-transaction-lib/issues/768))
 - Fix `runPlutipTest` not passing custom `buildInputs` ([#955](https://github.com/Plutonomicon/cardano-transaction-lib/pull/954))
+- Use `WebSocket.terminate` instead of `WebSocket.close` ([#965](https://github.com/Plutonomicon/cardano-transaction-lib/pull/965))
 
 ## [2.0.0-alpha] - 2022-07-05
 
