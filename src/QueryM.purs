@@ -227,6 +227,7 @@ type QueryConfig =
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
+  , suppressLogs :: Boolean
   }
 
 -- | Reusable part of `QueryRuntime` that can be shared between many `QueryM`

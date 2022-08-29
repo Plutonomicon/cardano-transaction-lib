@@ -52,4 +52,5 @@ config =
       , dbname: "ctxlib"
       }
   , customLogger: Nothing
+  , suppressLogs: false
   }
