@@ -132,7 +132,7 @@ import JsWebSocket
   , _onWsError
   , _onWsMessage
   , _removeOnWsError
-  , _wsClose
+  , _wsTerminate
   , _wsReconnect
   , _wsSend
   )
@@ -301,8 +301,8 @@ stopQueryRuntime
   :: QueryRuntime
   -> Effect Unit
 stopQueryRuntime runtime = do
-  _wsClose $ underlyingWebSocket runtime.ogmiosWs
-  _wsClose $ underlyingWebSocket runtime.datumCacheWs
+  _wsTerminate $ underlyingWebSocket runtime.ogmiosWs
+  _wsTerminate $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
@@ -747,11 +747,10 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
-      _wsClose ws
       logger Error $
         "First connection to Ogmios WebSocket failed. Terminating. Error: " <>
           errMessage
-      _wsClose ws
+      _wsTerminate ws
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
@@ -775,7 +774,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
           liftEffect $ _wsReconnect ws
       continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
-    _wsClose ws
+    _wsTerminate ws
     continue $ Left $ err
 
 -- | For all pending `SubmitTx` requests checks if a transaction was added
@@ -870,7 +869,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
-      _wsClose ws
+      _wsTerminate ws
       logger Error $
         "First connection to Ogmios Datum Cache WebSocket failed. "
           <> "Terminating. Error: "
@@ -906,7 +905,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
             getTxByHashPendingRequests
         }
   pure $ Canceler $ \err -> liftEffect do
-    _wsClose ws
+    _wsTerminate ws
     continue $ Left $ err
 
 mkDatumCacheWebSocketAff

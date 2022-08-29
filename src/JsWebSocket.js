@@ -65,4 +65,4 @@ exports._wsReconnect = ws => () => {
   ws.reconnect();
 };
 
-exports._wsClose = ws => () => ws.close();
+exports._wsTerminate = ws => () => ws.terminate();
