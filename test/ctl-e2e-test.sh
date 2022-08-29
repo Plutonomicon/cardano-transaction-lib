@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 
+load_settings () {
+    source "$(dirname "$(realpath "$0")")/e2e_defaults.env"
+}
+
+load_settings
+
 # find a suitable browser for e2e-tests
-e2e_browser () {
+find_browser () {
     which chromium google-chrome | head -n1
 }
 
 # find a suitable temp directory for e2e-tests. snaps don't work
 # in $TMPDIR, because of lacking read access!
-e2e_temp_base () {
-    BROWSER=$(e2e_browser)
+temp_base () {
+    BROWSER=$(find_browser)
     if [[ "$BROWSER" == *"snap"* ]]; then
 	echo ./tmp
     else
@@ -16,94 +22,146 @@ e2e_temp_base () {
     fi
 }
 
-e2e_temp_dir () {
-    echo "$(e2e_temp_base)/$(mktemp -du e2e.XXXXXXX)"
+unique_temp_dir () {
+    echo "$(temp_base)/$(mktemp -du e2e.XXXXXXX)"
 }
 
-e2e_test_chrome_dir="test-data/chrome-user-data"
-
-# bump version here
-e2e_test_nami="test-data/chrome-extensions/nami_3.2.5_1.crx"
-e2e_test_nami_settings="test-data/nami_settings.tar.gz"
-
-# bump version here
-e2e_test_flint="test-data/chrome-extensions/flint_1.16.2_0.crx"
-e2e_test_flint_settings="test-data/flint_settings.tar.gz"
-
-# bump version here
-e2e_test_gero="test-data/chrome-extensions/gero_testnet_1.10.0_0.crx"
-e2e_test_gero_settings="test-data/gero_settings.tar.gz"
-
-e2e_test () {
-	mkdir -p $(e2e_temp_dir)
-	unzip $e2e_test_nami -d $(e2e_temp_dir)/nami > /dev/zero
-	tar xzf $e2e_test_nami_settings
-	unzip $e2e_test_gero -d $(e2e_temp_dir)/gero > /dev/zero
-	tar xzf $e2e_test_gero_settings
-	unzip $e2e_test_flint -d $(e2e_temp_dir)/gero > /dev/zero
-	tar xzf $e2e_test_flint_settings
-	rm -f $e2e_test_chrome_dir/SingletonLock
-	spago test --main Test.E2E -a "E2ETest --nami-dir $(e2e_temp_dir)/nami --gero-dir $(e2e_temp_dir)/gero $* --chrome-exe $(e2e_browser)" || rm -Rf $(e2e_temp_dir)
+run_tests () {
+    UNIQUE_TEMP_DIR=$(unique_temp_dir)
+    mkdir -p $UNIQUE_TEMP_DIR
+    unzip $NAMI_CRX -d $UNIQUE_TEMP_DIR/nami > /dev/zero
+    tar xzf $NAMI_SETTINGS
+    unzip $GERO_CRX -d $UNIQUE_TEMP_DIR/gero > /dev/zero
+    tar xzf $GERO_SETTINGS
+    unzip $FLINT_CRX -d $UNIQUE_TEMP_DIR/flint > /dev/zero
+    tar xzf $FLINT_SETTINGS
+    rm -f $CHROME_PROFILE/SingletonLock
+    spago test --main Test.E2E -a "E2ETest --nami-dir $UNIQUE_TEMP_DIR/nami --gero-dir $UNIQUE_TEMP_DIR/gero $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
 }
 
-#e2e-run-browser-nami:
-#	@mkdir -p ${e2e_temp_dir}
-#	@unzip ${e2e-test-nami} -d ${e2e_temp_dir}/nami > /dev/zero || true
-#	@tar xzf ${e2e-test-nami-settings}
-#	@$(call e2e-browser) --load-extension=${e2e_temp_dir}/nami --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e_temp_dir}
-#
-#e2e-run-browser-gero:
-#	@mkdir -p ${e2e_temp_dir}
-#	@unzip ${e2e-test-gero} -d ${e2e_temp_dir}/gero > /dev/zero || true
-#	@tar xzf ${e2e-test-gero-settings}
-#	echo $(call e2e-browser) --load-extension=${e2e_temp_dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e_temp_dir}
-#	$(call e2e-browser) --load-extension=${e2e_temp_dir}/gero --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e_temp_dir}
-#
-#e2e-run-browser-flint:
-#	@mkdir -p ${e2e_temp_dir}
-#	@unzip ${e2e-test-flint} -d ${e2e_temp_dir}/flint > /dev/zero || true
-#	@tar xzf ${e2e-test-flint-settings}
-#	echo $(call e2e-browser) --load-extension=${e2e_temp_dir}/flint --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e_temp_dir}
-#	$(call e2e-browser) --load-extension=${e2e_temp_dir}/flint --user-data-dir=${e2e-test-chrome-dir} || rm -Rf ${e2e_temp_dir}
+extract_settings() {
+    if [ -n "$1" ] && [ -f "$1" ]
+    then
+	tar xzf "$1"
+    fi
+}
 
-# extract current nami settings from e2e-test-chrome-dir and store them for git
-#nami-settings:
-#	tar czf ${e2e-test-nami-settings} ${e2e-test-chrome-dir}/Default/Local\ Extension\ Se#ttings/lpfcbjknijpeeillifnkikgncikgfhdo/*
+extract_crx() {
+    if [ -n "$1" ] && [ -f "$1" ]
+    then
+	unzip $1 -d $2 > /dev/zero
+    fi
+}
 
-# extract current gero settings from e2e-test-chrome-dir and store them for git
-#gero-settings:
-#	tar czf ${e2e-test-gero-settings} \
-#		${e2e-test-chrome-dir}/Default/IndexedDB/chrome-extension_iifeegfcfhlhhnilhfoeihllenamcfgc_0.indexeddb.leveldb \
-#		${e2e-test-chrome-dir}/Default/Extension\ State
-#
-# extract current gero settings from e2e-test-chrome-dir and store them for git
-#flint-settings:
-#	tar czf ${e2e-test-flint-settings} \
-#		${e2e-test-chrome-dir}/Default/IndexedDB/chrome-extension_hnhobjmcibchnmglfbldbfabcgaknlkj_0.indexeddb.leveldb \
-#		${e2e-test-chrome-dir}/Default/Extension\
-#
-#tgt:
-#	@echo $(call e2e_temp_base,$(call e2e-browser))
+
+run_browser () {
+    UNIQUE_TEMP_DIR=$(unique_temp_dir)    
+    mkdir -p $UNIQUE_TEMP_DIR
+
+    extract_settings "$FLINT_SETTINGS"
+    extract_settings "$GERO_SETTINGS"
+    extract_settings "$NAMI_SETTINGS"
+    extract_crx "$FLINT_CRX" "$UNIQUE_TEMP_DIR/flint"
+    extract_crx "$GERO_CRX" "$UNIQUE_TEMP_DIR/gero"
+    extract_crx "$NAMI_CRX" "$UNIQUE_TEMP_DIR/nami"
+
+    $(find_browser) \
+	--load-extension=$UNIQUE_TEMP_DIR/flint,$UNIQUE_TEMP_DIR/gero,$UNIQUE_TEMP_DIR/nami \
+	--user-data-dir=$CHROME_PROFILE || rm -Rf $UNIQUE_TEMP_DIR
+    
+}
+
+EXTID_NAMI=lpfcbjknijpeeillifnkikgncikgfhdo
+EXTID_GERO=iifeegfcfhlhhnilhfoeihllenamcfgc
+EXTID_FLINT=hnhobjmcibchnmglfbldbfabcgaknlkj
+
+extract_settings_nami() {
+    extid=$1    
+    tgt=$2
+
+    tar czf $tgt $CHROME_PROFILE/Default/Local\ Extension\ Settings/$extid/*
+}
+
+extract_settings_gero_flint() {
+    extid=$1    
+    tgt=$2
+
+    tar czf $tgt \
+	$CHROME_PROFILE/Default/IndexedDB/chrome-extension_${extid}_0.indexeddb.leveldb \
+	$CHROME_PROFILE/Default/Extension\ State
+}
+
 
 MODE=""
 
 
 usage() {
-    echo "Usage: $0 cmd"
+    echo "Usage: $0 cmd [options]"
     echo " commands:"
-    echo "   run      run the tests"
+    echo "   run                                  Run the tests"
+    echo "   browser                              Start the browser in order to configure wallets"
+    echo "   settings [nami|gero|flint] [-o out]  Dump wallet setting to out"
+    exit 1
 }
-
 
 cmd_run() {
-    e2e_test
+    run_tests
 }
+
+cmd_browser() {
+    run_browser
+}
+
+cmd_settings() {
+    
+    case "$1" in
+	"flint")
+	    CMD=extract_settings_gero_flint
+	    EXTID=$EXTID_FLINT
+	    TARGET=$FLINT_SETTINGS
+	    ;;
+	"gero")
+	    CMD=extract_settings_gero_flint
+	    EXTID=$EXTID_GERO
+	    TARGET=$GERO_SETTINGS
+	    ;;
+	"nami")
+	    CMD=extract_settings_nami
+	    EXTID=$EXTID_NAMI
+	    TARGET=$NAMI_SETTINGS
+	    ;;	
+    esac
+
+    shift 1   
+    while getopts "o:" arg; do
+	case $arg in
+	    o)
+		TARGET="$OPTARG"
+		;;
+	esac
+    done
+    
+    $CMD $EXTID $TARGET    
+}
+
+if [ -z "$1" ]
+then
+    usage
+fi
 
 case "$1" in
     "run") 
 	shift 1
 	cmd_run $*
 	;;
+    "browser") 
+	shift 1
+	cmd_browser $*
+	;;    
+    "settings") 
+	shift 1
+	cmd_settings $*
+	;;    
     "*")
 	usage
 	;;
