@@ -10,11 +10,9 @@ module QueryM.Utxos
 import Prelude
 
 import Address (addressToOgmiosAddress)
-import Affjax.RequestBody (document)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
-import Contract.Prelude (Maybe(..))
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Array as Array

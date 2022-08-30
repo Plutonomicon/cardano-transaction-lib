@@ -40,7 +40,6 @@ import Address
   , getNetworkId
   ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
-import Contract.Prelude (sequence)
 import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)

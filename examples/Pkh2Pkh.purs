@@ -14,7 +14,6 @@ import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Data.Array (index)
 import Data.BigInt as BigInt
 import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 

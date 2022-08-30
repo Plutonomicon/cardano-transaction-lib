@@ -123,7 +123,6 @@ import Contract.Monad
 import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Control.Monad.Reader.Class (ask)
-import Data.Array (singleton)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)

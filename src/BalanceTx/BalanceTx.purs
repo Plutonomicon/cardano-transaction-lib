@@ -41,12 +41,12 @@ import BalanceTx.Helpers (_body', _redeemersTxIns, _transaction', _unbalancedTx)
 import BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
-  , PrebalancedTransaction(..)
+  , PrebalancedTransaction(PrebalancedTransaction)
   )
 import BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
-  ( RequiredSigner(..)
+  ( RequiredSigner(RequiredSigner)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
@@ -70,8 +70,7 @@ import Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Contract.Log (logInfo')
-import Contract.Prelude (Tuple, foldr, for, fromMaybe, log)
+import Contract.Prelude (foldr, for, fromMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -85,7 +84,7 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (empty, keys, lookup, toUnfoldable, union, fromFoldable) as Map
+import Data.Map (empty, lookup, toUnfoldable, union, fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set, union)
@@ -95,7 +94,6 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
-import QueryM.MinFee (calculateMinFee)
 import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
 import Serialization.Address
   ( Address
@@ -103,7 +101,7 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   , withStakeCredential
   )
-import Types.ScriptLookups (UnattachedUnbalancedTx(..))
+import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
 
@@ -249,7 +247,7 @@ runBalancer utxos changeAddress =
       true -> do
         finalizedTransaction <- lift $ finalizeTransaction balancedTx
 
-        someMinFee <- lift $ calculateMinFee (unwrap finalizedTransaction)
+        -- someMinFee <- lift $ calculateMinFee (unwrap finalizedTransaction)
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction

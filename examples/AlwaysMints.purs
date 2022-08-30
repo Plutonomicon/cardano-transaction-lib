@@ -5,10 +5,9 @@ module Examples.AlwaysMints (main, example, alwaysMintsPolicy) where
 
 import Contract.Prelude
 
-import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
 import Contract.Test.E2E (publishTestFeedback)
@@ -18,9 +17,7 @@ import Contract.TextEnvelope
   )
 import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
-import Data.Array (head)
 import Data.BigInt as BigInt
 import Examples.Helpers
   ( buildBalanceSignAndSubmitTx
