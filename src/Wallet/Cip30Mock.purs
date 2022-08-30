@@ -3,11 +3,11 @@ module Wallet.Cip30Mock where
 import Prelude
 
 import Contract.Monad (Contract, ContractEnv, wrapContract)
-import Control.Monad.Error.Class (liftMaybe, throwError, try)
+import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
-import Data.Either (Either(Left, Right), hush)
+import Data.Either (hush)
 import Data.Foldable (fold)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
@@ -18,10 +18,12 @@ import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
 import Deserialization.Transaction (deserializeTransaction)
 import Effect (Effect)
+import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
+import Helpers (liftEither)
 import QueryM (QueryM, runQueryMInRuntime)
 import QueryM.Utxos (utxosAt)
 import Serialization (convertTransactionUnspentOutput, convertValue, toBytes)
@@ -30,7 +32,7 @@ import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.CborBytes (cborBytesFromByteArray)
 import Untagged.Union (asOneOf)
-import Wallet (mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
+import Wallet (Wallet, mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
 import Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey
@@ -68,14 +70,15 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
         (Just wallet)
   res <- try $ local setUpdatedWallet contract
   liftEffect deleteMock
-  case res of
-    Left err -> throwError err
-    Right r -> pure r
+  liftEither res
   where
+  mkWalletAff :: Aff Wallet
   mkWalletAff = case mock of
     MockFlint -> mkFlintWalletAff
     MockGero -> mkGeroWalletAff
     MockNami -> mkNamiWalletAff
+
+  mockString :: String
   mockString = case mock of
     MockFlint -> "flint"
     MockGero -> "gerowallet"
