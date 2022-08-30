@@ -68,7 +68,7 @@ getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
 -- | wallet state and not query layer state.
 -- | The user should not expect these states to be in sync.
 -- | When active wallet is `KeyWallet`, query layer state is used.
--- | This function is expected to be more performant `utxosAt` when there is a
+-- | This function is expected to be more performant than `utxosAt` when there is a
 -- | large number of assets.
 getWalletUtxos
   :: forall (r :: Row Type)
