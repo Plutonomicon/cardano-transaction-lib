@@ -65,7 +65,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
-import Examples.AlwaysFails as AlwaysFails
+import Examples.Lose7Ada as AlwaysFails
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2

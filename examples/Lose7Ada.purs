@@ -1,9 +1,9 @@
--- | Warning: This contract will permanently lock 5ada
+-- | Warning: This contract will permanently lock 7 Ada
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a failing smart-contract transaction. It creates a
 -- | transaction that pays two Ada to the `AlwaysFails` script address, and
 -- | then attempts to spend the two Ada, failing and losing the collateral.
-module Examples.AlwaysFails
+module Examples.Lose7Ada
   ( main
   , example
   , alwaysFailsScript
