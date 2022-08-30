@@ -1162,22 +1162,27 @@ parseScript outer =
       case (Array.head $ ForeignObject.toUnfoldable script) of
         Just ("plutus:v1" /\ plutusScript) ->
           Just <$> plutusScriptWithLang PlutusV1 plutusScript
+
         Just ("plutus:v2" /\ plutusScript) ->
           Just <$> plutusScriptWithLang PlutusV2 plutusScript
+
         Just ("native" /\ _) ->
           pure Nothing -- TODO: parse native scripts 
         _ ->
           Left (TypeMismatch "Expected hex-encoded script")
   where
   plutusScriptWithLang
-    :: Language -> String -> Either JsonDecodeError ScriptRef
-  plutusScriptWithLang lang hexEncodedScript = do
+    :: Language -> Aeson -> Either JsonDecodeError ScriptRef
+  plutusScriptWithLang lang aeson = do
     let
       scriptTypeMismatch :: JsonDecodeError
       scriptTypeMismatch = TypeMismatch
-        $ "Expected hex-encoded Plutus script, got: " <> hexEncodedScript
-    scriptBytes <- note scriptTypeMismatch (hexToByteArray hexEncodedScript)
-    pure $ PlutusScriptRef $ PlutusScript (scriptBytes /\ lang)
+        $ "Expected hex-encoded Plutus script, got: " <> show aeson
+
+    aeson # caseAesonString (Left scriptTypeMismatch)
+      \hexEncodedScript -> do
+        scriptBytes <- note scriptTypeMismatch (hexToByteArray hexEncodedScript)
+        pure $ PlutusScriptRef $ PlutusScript (scriptBytes /\ lang)
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
