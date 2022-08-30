@@ -73,6 +73,7 @@ import Cardano.Types.Transaction
   , _outputs
   , _plutusData
   , _redeemers
+  , _referenceInputs
   , _witnessSet
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -117,7 +118,7 @@ import Data.Map (fromFoldable, lookup, toUnfoldable, union, filterKeys) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
-import Data.Set as Set
+import Data.Set (fromFoldable, member, singleton, union) as Set
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern))
 import Data.String.Common (joinWith, split) as String
@@ -675,7 +676,13 @@ balanceTxWithAddress
       allUtxos :: Utxos
       allUtxos = utxos `Map.union` utxoIndex
 
+      refInputs :: Set TransactionInput
+      refInputs = unbalancedCollTx ^. _body <<< _referenceInputs
+
     availableUtxos <- lift $ filterLockedUtxos allUtxos
+      -- Filter out reference unspent outputs from the utxo set 
+      -- used during balancing:
+      <#> Map.filterKeys (not <<< flip Set.member refInputs)
 
     -- Logging Unbalanced Tx with collateral added:
     logTx "Unbalanced Collaterised Tx " availableUtxos unbalancedCollTx
@@ -685,7 +692,7 @@ balanceTxWithAddress
       prebalanceCollateral zero availableUtxos utxoMinVal unbalancedCollTx
     -- Prebalance collaterised tx with fees:
     let unattachedTx' = unattachedTx # _transaction' .~ ubcTx
-    _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx' availableUtxos
+    _ /\ fees <- ExceptT $ evalExUnitsAndMinFee unattachedTx' allUtxos
     ubcTx' <- except $
       prebalanceCollateral (fees + feeBuffer) availableUtxos utxoMinVal
         ubcTx
@@ -699,7 +706,7 @@ balanceTxWithAddress
         <#>
           lmap ReturnAdaChangeError'
     -- Attach datums and redeemers, set the script integrity hash:
-    finalizedTx <- lift $ finalizeTransaction unsignedTx availableUtxos
+    finalizedTx <- lift $ finalizeTransaction unsignedTx allUtxos
     -- Log final balanced tx and return it:
     logTx "Post-balancing Tx " availableUtxos (unwrap finalizedTx)
     except $ Right finalizedTx

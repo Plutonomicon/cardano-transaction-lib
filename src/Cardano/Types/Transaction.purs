@@ -84,7 +84,6 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
   , decodeAeson
-  , encodeAeson
   , encodeAeson'
   )
 
@@ -106,7 +105,7 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
-import Data.Set (union, toUnfoldable) as Set
+import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
