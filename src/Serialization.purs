@@ -60,6 +60,7 @@ import Cardano.Types.Transaction
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value as Value
 import Data.Foldable (class Foldable)
+import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
@@ -517,8 +518,6 @@ convertTxBody (T.TxBody body) = do
     unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
-  for_ body.referenceInputs $
-    convertTxInputs >=> setTxBodyReferenceInputs txBody
   for_ body.scriptDataHash
     ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
         setTxBodyScriptDataHash txBody
@@ -532,6 +531,8 @@ convertTxBody (T.TxBody body) = do
   for_ body.totalCollateral $
     unwrap >>> BigNum.fromBigInt >>> fromJustEff "Failed to convert fee" >=>
       setTxBodyTotalCollateral txBody
+  if Foldable.null body.referenceInputs then pure unit
+  else convertTxInputs body.referenceInputs >>= setTxBodyReferenceInputs txBody
   pure txBody
 
 convertTransaction :: T.Transaction -> Effect Transaction

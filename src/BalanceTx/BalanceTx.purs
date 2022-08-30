@@ -529,8 +529,7 @@ finalizeTransaction reindexedUnattachedTxWithExUnits utxos = do
     let
       spendAndRefInputs :: Array TransactionInput
       spendAndRefInputs =
-        Array.fromFoldable txBody.inputs
-          <> fromMaybe mempty txBody.referenceInputs
+        Array.fromFoldable (txBody.inputs <> txBody.referenceInputs)
     in
       fromMaybe mempty $ catMaybes <<< map getPlutusScript <$>
         traverse (flip Map.lookup utxos) spendAndRefInputs

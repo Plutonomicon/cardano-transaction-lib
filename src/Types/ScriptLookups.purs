@@ -84,7 +84,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Data.Array ((:), cons, singleton, union) as Array
+import Data.Array ((:), singleton, union) as Array
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
@@ -100,7 +100,7 @@ import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
 import Data.Map (insert, toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Set (insert) as Set
 import Data.Show.Generic (genericShow)
@@ -867,8 +867,7 @@ processScriptRefUnspentOut scriptHash = case _ of
     checkScriptRef unspentOut
   RefInput unspentOut -> do
     let refInput = (unwrap unspentOut).input
-    _cpsToTxBody <<< _referenceInputs %= \refInputs ->
-      Just (refInput `Array.cons` fromMaybe mempty refInputs)
+    _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     checkScriptRef unspentOut
   where
   checkScriptRef
@@ -989,8 +988,7 @@ processConstraint mpsMap osMap = do
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
     MustReferenceOutput refInput -> runExceptT do
-      _cpsToTxBody <<< _referenceInputs %= \refInputs ->
-        Just (refInput `Array.cons` fromMaybe mempty refInputs)
+      _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
       case scriptRefUnspentOut of
         Nothing -> do
