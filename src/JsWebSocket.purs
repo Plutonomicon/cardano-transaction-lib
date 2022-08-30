@@ -9,7 +9,7 @@ module JsWebSocket
   , _onWsMessage
   , _wsSend
   , _wsReconnect
-  , _wsTerminate
+  , _wsClose
   ) where
 
 import Prelude
@@ -57,4 +57,4 @@ foreign import _wsSend
 foreign import _wsReconnect
   :: JsWebSocket -> Effect Unit
 
-foreign import _wsTerminate :: JsWebSocket -> Effect Unit
+foreign import _wsClose :: JsWebSocket -> Effect Unit

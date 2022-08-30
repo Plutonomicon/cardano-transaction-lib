@@ -25,7 +25,7 @@ import JsWebSocket
   , _onWsError
   , _onWsMessage
   , _wsSend
-  , _wsTerminate
+  , _wsClose
   )
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
@@ -149,4 +149,4 @@ main =
           ]
       writeTextFile UTF8 fp resp'
       log ("Written " <> fp)
-    liftEffect $ _wsTerminate ws
+    liftEffect $ _wsClose ws

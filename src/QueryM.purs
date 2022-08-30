@@ -132,7 +132,7 @@ import JsWebSocket
   , _onWsError
   , _onWsMessage
   , _removeOnWsError
-  , _wsTerminate
+  , _wsClose
   , _wsReconnect
   , _wsSend
   )
@@ -301,8 +301,8 @@ stopQueryRuntime
   :: QueryRuntime
   -> Effect Unit
 stopQueryRuntime runtime = do
-  _wsTerminate $ underlyingWebSocket runtime.ogmiosWs
-  _wsTerminate $ underlyingWebSocket runtime.datumCacheWs
+  _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsClose $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
@@ -750,7 +750,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       logger Error $
         "First connection to Ogmios WebSocket failed. Terminating. Error: " <>
           errMessage
-      _wsTerminate ws
+      _wsClose ws
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
@@ -774,7 +774,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
           liftEffect $ _wsReconnect ws
       continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
-    _wsTerminate ws
+    _wsClose ws
     continue $ Left $ err
 
 -- | For all pending `SubmitTx` requests checks if a transaction was added
@@ -861,7 +861,6 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
   let
     sendRequest :: forall (inp :: Type). RequestBody /\ inp -> Effect Unit
     sendRequest = _wsSend ws (logger Debug) <<< Tuple.fst
-
     resendPendingRequests = do
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
@@ -869,7 +868,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
-      _wsTerminate ws
+      _wsClose ws
       logger Error $
         "First connection to Ogmios Datum Cache WebSocket failed. "
           <> "Terminating. Error: "
@@ -905,7 +904,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
             getTxByHashPendingRequests
         }
   pure $ Canceler $ \err -> liftEffect do
-    _wsTerminate ws
+    _wsClose ws
     continue $ Left $ err
 
 mkDatumCacheWebSocketAff

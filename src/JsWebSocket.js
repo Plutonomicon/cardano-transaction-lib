@@ -42,6 +42,9 @@ exports._onWsError = ws => fn => () => {
     fn(event.toString())();
   };
   ws.addEventListener("error", listener);
+  ws.addEventListener("close", () => {
+    ws.removeEventListener("error", listener);
+  });
   return listener;
 };
 
@@ -49,10 +52,14 @@ exports._removeOnWsError = ws => listener => () =>
   ws.removeEventListener("error", listener);
 
 exports._onWsMessage = ws => logger => fn => () => {
-  ws.addEventListener("message", function func(event) {
+  const listener = function func(event) {
     const str = event.data;
     logger(`message: ${str}`)();
     fn(str)();
+  };
+  ws.addEventListener("message", listener);
+  ws.addEventListener("close", () => {
+    ws.removeEventListener("message", listener);
   });
 };
 
@@ -65,10 +72,6 @@ exports._wsReconnect = ws => () => {
   ws.reconnect();
 };
 
-exports._wsTerminate = ws => () => {
-  if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
-    ws.close();
-  } else {
-    ws.terminate();
-  }
+exports._wsClose = ws => () => {
+  ws.close();
 };
