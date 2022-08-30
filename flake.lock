@@ -1415,17 +1415,17 @@
         "wai-routes": "wai-routes"
       },
       "locked": {
-        "lastModified": 1656650330,
-        "narHash": "sha256-Rl5xNP3LVtuOzXXSsdAWNB3EXGRPsFPMvBO0TDUvSJE=",
+        "lastModified": 1660637986,
+        "narHash": "sha256-0I+yfuva9pg6pPHeWNO73oPRxCjh8I4ER0Egxf8XKdk=",
         "owner": "mlabs-haskell",
         "repo": "ogmios",
-        "rev": "e406801eaeb32b28cd84357596ca1512bff27741",
+        "rev": "9c04524d45de2c417ddda9e7ab0d587a54954c57",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "ogmios",
-        "rev": "e406801eaeb32b28cd84357596ca1512bff27741",
+        "rev": "9c04524d45de2c417ddda9e7ab0d587a54954c57",
         "type": "github"
       }
     },
