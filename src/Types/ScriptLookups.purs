@@ -555,9 +555,8 @@ processLookupsAndConstraints
      . (constr -> ConstraintsM c (Either MkUnbalancedTxError Unit))
     -> Array constr
     -> ConstraintsM c (Either MkUnbalancedTxError Unit)
-  foldConstraints handler = foldM
-    (\_ constr -> runExceptT $ ExceptT $ handler constr)
-    (Right unit)
+  foldConstraints handler =
+    runExceptT <<< traverse_ (ExceptT <<< handler)
 
 -- Helper to run the stack and get back to `QueryM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.

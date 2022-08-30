@@ -73,7 +73,9 @@ addFakeSignatures tx =
 
   in
     tx # _witnessSet <<< _vkeys .~ Just
-      (Array.replicate (nRequiredSigners + nsPossibleSigners) fakeVkeywitness)
+      ( Array.replicate (nRequiredSigners + nsPossibleSigners)
+          fakeVkeywitness
+      )
 
 fakeVkeywitness :: T.Vkeywitness
 fakeVkeywitness = T.Vkeywitness

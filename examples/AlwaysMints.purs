@@ -38,18 +38,6 @@ example cfg = launchAff_ $ do
     mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
     tn <- Helpers.mkTokenName "TheToken"
 
-    mbAddrs <- getWalletAddresses <#> (_ >>= head)
-    us <- traverse utxosAt mbAddrs
-    logInfo' $ "Utxos: " <> show us
-
-    b <- getWalletBalance
-    logInfo' $ "Wallet balance: " <> show b
-
-    c <- getWalletCollateral
-    logInfo' $ "Wallet collateral: " <> show c
-
-    _ <- throwContractError "Not implemented"
-
     let
       constraints :: Constraints.TxConstraints Void Void
       constraints = Constraints.mustMintValue
