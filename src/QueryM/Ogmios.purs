@@ -1075,6 +1075,7 @@ type ChainPoint =
 -- | Ogmios response for Utxo Query
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
+derive instance Newtype UtxoQR _
 derive newtype instance Show UtxoQR
 
 instance DecodeAeson UtxoQR where
