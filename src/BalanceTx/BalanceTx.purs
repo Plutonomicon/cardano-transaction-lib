@@ -68,13 +68,12 @@ import Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Contract.Prelude (for, fromMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
-import Data.Array (fromFoldable, head)
+import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
@@ -82,27 +81,18 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Map (lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Set (Set, union)
+import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
-import QueryM.Utxos
-  ( filterLockedUtxos
-  , getWalletCollateral
-  , getWalletUtxos
-  )
-import Serialization.Address
-  ( Address
-  , addressPaymentCred
-  , stakeCredentialToKeyHash
-  , withStakeCredential
-  )
+import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, getWalletUtxos)
+import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
@@ -214,33 +204,6 @@ runBalancer utxos changeAddress =
 
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
-
-    walletCollats <- lift
-      ( Map.fromFoldable
-          <<< map
-            ( ( case _ of
-                  { input, output } -> input /\ output
-              ) <<< unwrap
-            )
-          <<< fromMaybe [] <$> getWalletCollateral
-      )
-
-    let
-      utxosWithCollats = utxos `Map.union` walletCollats
-      collats =
-        (unwrap prebalancedTx ^. _transaction' <<< _body <<< _collateral)
-          # fromMaybe []
-          # Set.fromFoldable
-      txInputs = unwrap prebalancedTx ^. _transaction' <<< _body <<< _inputs
-      selfSigners = for (fromFoldable $ txInputs `union` collats) \ti -> do
-        TransactionOutput { address } <- Map.lookup ti utxosWithCollats
-        kh <- (addressPaymentCred >=> stakeCredentialToKeyHash) address
-        pure $ kh
-
-    selfSignerSet <- ExceptT $ note CouldNotGetUtxos <$>
-      (pure <<< map Set.fromFoldable $ selfSigners)
-
-    traceMainLoop "Required signers" "signers" selfSignerSet
 
     balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx
 
