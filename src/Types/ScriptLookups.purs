@@ -76,7 +76,7 @@ import Cardano.Types.Value
   , getNonAdaAsset
   )
 import Control.Alt ((<|>))
-import Control.Monad.Error.Class (catchError, throwError, liftMaybe)
+import Control.Monad.Error.Class (catchError, throwError, liftMaybe, liftEither)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
@@ -108,7 +108,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
-import Helpers ((<\>), liftEither, liftM)
+import Helpers ((<\>), liftM)
 import IsData (class IsData)
 import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
 import Plutus.Types.Transaction (TransactionOutput) as Plutus
@@ -140,8 +140,6 @@ import Types.Interval
   )
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  , outputDatumDataHash
-  , outputDatumDatum
   )
 import Types.PubKeyHash
   ( PaymentPubKeyHash
@@ -681,19 +679,19 @@ addMissingValueSpent = do
     -- Potential fix me: This logic may be suspect:
     txOut <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just skh -> liftEither $ Right $ TransactionOutput
+      Just pkh, Just skh -> pure $ TransactionOutput
         { address: payPubKeyHashBaseAddress networkId pkh skh
         , amount: missing
         , datum: NoOutputDatum
         , scriptRef: Nothing
         }
-      Just pkh, Nothing -> liftEither $ Right $ TransactionOutput
+      Just pkh, Nothing -> pure $ TransactionOutput
         { address: payPubKeyHashEnterpriseAddress networkId pkh
         , amount: missing
         , datum: NoOutputDatum
         , scriptRef: Nothing
         }
-      Nothing, Just skh -> liftEither $ Right $ TransactionOutput
+      Nothing, Just skh -> pure $ TransactionOutput
         { address: stakePubKeyHashRewardAddress networkId skh
         , amount: missing
         , datum: NoOutputDatum
@@ -814,26 +812,21 @@ lookupDatum
   -> ConstraintsM a (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
   otherDt <- use _lookups <#> unwrap >>> _.datums
-  let err = pure $ throwError $ DatumNotFound dh
-  maybe err (pure <<< Right) $ lookup dh otherDt
+  pure $ note (DatumNotFound dh) $ lookup dh otherDt
 
 lookupMintingPolicy
-  :: forall (a :: Type)
-   . MintingPolicyHash
+  :: MintingPolicyHash
   -> Map MintingPolicyHash MintingPolicy
-  -> ConstraintsM a (Either MkUnbalancedTxError MintingPolicy)
-lookupMintingPolicy mph mpsMap = do
-  let err = pure $ throwError $ MintingPolicyNotFound mph
-  maybe err (pure <<< Right) $ lookup mph mpsMap
+  -> Either MkUnbalancedTxError MintingPolicy
+lookupMintingPolicy mph mpsMap =
+  note (MintingPolicyNotFound mph) $ lookup mph mpsMap
 
 lookupValidator
-  :: forall (a :: Type)
-   . ValidatorHash
+  :: ValidatorHash
   -> Map ValidatorHash Validator
-  -> ConstraintsM a (Either MkUnbalancedTxError Validator)
-lookupValidator vh osMap = do
-  let err = pure $ throwError $ ValidatorHashNotFound vh
-  maybe err (pure <<< Right) $ lookup vh osMap
+  -> Either MkUnbalancedTxError Validator
+lookupValidator vh osMap =
+  note (ValidatorHashNotFound vh) $ lookup vh osMap
 
 reindexMintRedeemers
   :: forall (a :: Type)
@@ -896,40 +889,36 @@ processConstraint mpsMap osMap = do
           -- consuming script, public key or simple script)
           _cpsToTxBody <<< _inputs %= Set.insert txo
           _valueSpentBalancesInputs <>= provideValue amount
-        _ -> liftEither $ throwError $ TxOutRefWrongType txo
+        _ -> throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
         TransactionOutput { datum: NoOutputDatum } ->
-          liftEither $ throwError $ TxOutRefWrongType txo
+          throwError $ TxOutRefWrongType txo
         TransactionOutput { address, amount, datum: datum' } ->
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
               (enterpriseAddressValidatorHash address)
-            plutusScript <- ExceptT $ lookupValidator vHash osMap <#> map unwrap
+            plutusScript <- liftEither $ lookupValidator vHash osMap <#> unwrap
             -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
             -- Use the datum hash inside the lookup
             -- Note: if we get `Nothing`, we have to throw eventhough that's a
             -- valid input, because our `txOut` above is a Script address via
             -- `Just`.
-            dataValue <- ExceptT do
-              queryD <- lift case outputDatumDataHash datum' of
-                Nothing -> pure $ Left CannotFindDatum
-                Just dHash -> do
-                  Just <$> getDatumByHash dHash <#> note
-                    (CannotQueryDatum dHash)
-              lookupD <- case outputDatumDataHash datum' of
-                Nothing -> pure $ Left CannotFindDatum
-                Just dHash -> do
-                  map Just <$> lookupDatum dHash
-              pure $ queryD <|> lookupD <|>
-                (Nothing <$ outputDatumDatum datum' # note CannotFindDatum)
+            case datum' of
+              OutputDatumHash dHash -> do
+                dat <- ExceptT do
+                  mDatumQuery <- lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+                  mDatumLookup <- lookupDatum dHash
+                  pure (mDatumQuery <|> mDatumLookup)
+                ExceptT $ addDatum dat
+              OutputDatum _ -> pure unit
+              NoOutputDatum -> throwError CannotFindDatum
             ExceptT $ attachToCps attachPlutusScript plutusScript
             _cpsToTxBody <<< _inputs %= Set.insert txo
-            maybe (pure unit) (ExceptT <<< addDatum) dataValue
             let
               -- Create a redeemer with hardcoded execution units then call Ogmios
               -- to add the units in at the very end.
@@ -948,7 +937,7 @@ processConstraint mpsMap osMap = do
             ExceptT $ attachToCps attachRedeemer redeemer
     MustMintValue mpsHash red tn i -> runExceptT do
       plutusScript <-
-        ExceptT $ lookupMintingPolicy mpsHash mpsMap <#> map unwrap
+        liftEither $ lookupMintingPolicy mpsHash mpsMap <#> unwrap
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
@@ -960,11 +949,11 @@ processConstraint mpsMap osMap = do
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provideValue v
-          liftEither $ Right $ map getNonAdaAsset $ value i
+          pure $ map getNonAdaAsset $ value i
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
-          liftEither $ Right $ map getNonAdaAsset $ value i
+          pure $ map getNonAdaAsset $ value i
       ExceptT $ attachToCps attachPlutusScript plutusScript
       let
         -- Create a redeemer with zero execution units then call Ogmios to
