@@ -76,7 +76,7 @@ runE2ETest
   -> TestOptions
   -> WalletExt
   -> (RunningExample -> Aff a)
-  -> TestPlanM Unit
+  -> TestPlanM (Aff Unit) Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
   \mbrowser ->
     case mbrowser of

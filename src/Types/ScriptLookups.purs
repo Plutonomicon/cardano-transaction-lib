@@ -1,27 +1,27 @@
 module Types.ScriptLookups
   ( MkUnbalancedTxError
-      ( TypeCheckFailed
-      , ModifyTx
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , DatumNotFound
-      , MintingPolicyNotFound
-      , MintingPolicyHashNotCurrencySymbol
-      , CannotMakeValue
-      , ValidatorHashNotFound
-      , OwnPubKeyAndStakeKeyMissing
-      , TypedValidatorMissing
-      , DatumWrongHash
-      , CannotQueryDatum
-      , CannotHashDatum
-      , CannotConvertPOSIXTimeRange
+      ( CannotConvertPOSIXTimeRange
+      , CannotConvertPaymentPubKeyHash
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
-      , TypedTxOutHasNoDatumHash
+      , CannotHashDatum
       , CannotHashMintingPolicy
       , CannotHashValidator
-      , CannotConvertPaymentPubKeyHash
+      , CannotMakeValue
+      , CannotQueryDatum
+      , DatumNotFound
+      , DatumWrongHash
+      , MintingPolicyHashNotCurrencySymbol
+      , MintingPolicyNotFound
+      , MkTypedTxOutFailed
+      , ModifyTx
+      , OwnPubKeyAndStakeKeyMissing
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , TypeCheckFailed
+      , TypedTxOutHasNoDatumHash
+      , TypedValidatorMissing
+      , ValidatorHashNotFound
       , CannotSatisfyAny
       )
   , ScriptLookups(ScriptLookups)
@@ -120,6 +120,7 @@ import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import Scripts
   ( mintingPolicyHash
+  , nativeScriptHashEnterpriseAddress
   , validatorHash
   , validatorHashEnterpriseAddress
   )
@@ -128,6 +129,7 @@ import ToData (class ToData)
 import Transaction
   ( ModifyTxError
   , attachDatum
+  , attachNativeScript
   , attachPlutusScript
   , attachRedeemer
   , setScriptDataHash
@@ -159,21 +161,23 @@ import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
   , OutputConstraint(OutputConstraint)
+  , TxConstraints(TxConstraints)
   , TxConstraint
-      ( MustBeSignedBy
-      , MustHashDatum
-      , MustIncludeDatum
-      , MustMintValue
-      , MustPayToScript
-      , MustPayToPubKeyAddress
-      , MustProduceAtLeast
-      , MustSatisfyAnyOf
+      ( MustIncludeDatum
+      , MustValidateIn
+      , MustBeSignedBy
       , MustSpendAtLeast
+      , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
-      , MustValidateIn
+      , MustSpendNativeScriptOutput
+      , MustMintValue
+      , MustPayToPubKeyAddress
+      , MustPayToScript
+      , MustPayToNativeScript
+      , MustHashDatum
+      , MustSatisfyAnyOf
       )
-  , TxConstraints(TxConstraints)
   )
 import Types.TypedTxOut
   ( TypeCheckError
@@ -942,6 +946,9 @@ processConstraint mpsMap osMap = do
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
         _ -> liftEither $ throwError $ TxOutRefWrongType txo
+    MustSpendNativeScriptOutput txo ns -> runExceptT do
+      _cpsToTxBody <<< _inputs %= Set.insert txo
+      ExceptT $ attachToCps attachNativeScript ns
     MustMintValue mpsHash red tn i -> runExceptT do
       plutusScript <-
         ExceptT $ lookupMintingPolicy mpsHash mpsMap <#> map unwrap
@@ -1045,6 +1052,18 @@ processConstraint mpsMap osMap = do
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
+        _valueSpentBalancesOutputs <>= provideValue amount
+    MustPayToNativeScript nsh plutusValue -> do
+      networkId <- getNetworkId
+      let amount = fromPlutusValue plutusValue
+      runExceptT do
+        let
+          txOut = TransactionOutput
+            { address: nativeScriptHashEnterpriseAddress networkId nsh
+            , amount
+            , dataHash: Nothing
+            }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do

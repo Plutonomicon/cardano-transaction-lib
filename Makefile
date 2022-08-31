@@ -4,8 +4,6 @@ SHELL := bash
 		query-testnet-tip clean check-explicit-exports
 .SHELLFLAGS := -eu -o pipefail -c
 
-
-
 ps-sources := $(shell fd -epurs -Etmp)
 nix-sources := $(shell fd -enix --exclude='spago*' -Etmp)
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs -Etmp)
@@ -21,17 +19,21 @@ run-dev:
 run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
+.ONESHELL:
 check-explicit-exports:
-	@[ -z "$$(grep -rn '(\.\.)' ./src ./test ./examples)" ] || \
-		(echo "Use explicit exports:" && \
-		grep -rn '(\.\.)' ./src ./test ./examples)
+	@if grep -rn '(\.\.)' ${ps-sources}; then
+		echo "Use explicit imports/exports ^"
+		exit 1
+	else
+		echo "All imports/exports are explicit"
+	fi
 
 check-format: check-explicit-exports
 	@purs-tidy check ${ps-sources}
-	nixpkgs-fmt --check ${nix-sources}
-	fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
-	prettier -c ${js-sources}
-	eslint ${js-sources}
+	@nixpkgs-fmt --check ${nix-sources}
+	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
+	@prettier --loglevel warn -c ${js-sources}
+	@eslint --quiet ${js-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

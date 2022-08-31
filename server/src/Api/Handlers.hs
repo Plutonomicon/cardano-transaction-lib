@@ -3,12 +3,12 @@ module Api.Handlers (
 ) where
 
 import Plutus.V1.Ledger.Scripts (applyArguments)
-import Types (AppM, AppliedScript (AppliedScript), ApplyArgsRequest (ApplyArgsRequest, args, script))
+import Types (AppliedScript (AppliedScript), ApplyArgsRequest (ApplyArgsRequest, args, script))
 
 --------------------------------------------------------------------------------
 -- Handlers
 --------------------------------------------------------------------------------
 
-applyArgs :: ApplyArgsRequest -> AppM AppliedScript
+applyArgs :: ApplyArgsRequest -> AppliedScript
 applyArgs ApplyArgsRequest {script, args} =
-  pure . AppliedScript $ applyArguments script args
+  AppliedScript $ applyArguments script args

@@ -10,9 +10,12 @@ import Control.Parallel (parTraverse)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Traversable (for_, traverse_)
+import Data.Tuple (fst) as Tuple
+import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (Error)
 import Effect.Ref as Ref
 import Helpers (logString)
@@ -61,13 +64,15 @@ mkWebSocket lvl serverCfg cb = do
     md = [ queryDispatch dispatchMap ]
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest = _wsSend ws (logString lvl Debug)
+    sendRequest :: forall (req :: Type). String /\ req -> Effect Unit
+    sendRequest = _wsSend ws (logString lvl Debug) <<< Tuple.fst
     onError = do
       logString lvl Debug "WS error occured, resending requests"
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     void $ _onWsError ws \_ -> onError
-    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
+    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ _ -> pure unit)
+      md
     void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
       (mkListenerSet dispatchMap pendingRequests)
@@ -93,11 +98,10 @@ data Query = Query (JsonWspCall Unit Aeson) String
 mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
 mkQuery query shown = Query queryCall shown
   where
-  queryCall = mkOgmiosCallType
+  queryCall = mkOgmiosCallType Proxy
     { methodname: "Query"
     , args: const { query }
     }
-    Proxy
 
 mkQuery' :: String -> Query
 mkQuery' query = mkQuery query query
@@ -130,7 +134,7 @@ main =
         , mkQuery' "chainTip"
         ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxo"
     resps <- flip parTraverse queries \(Query qc shown) -> do
-      resp <- mkRequestAff listeners ws logLevel qc identity unit
+      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
       pure { resp, query: shown }
 
     for_ resps \{ resp, query } -> do
@@ -144,4 +148,5 @@ main =
           , query <> "-" <> respMd5 <> ".json"
           ]
       writeTextFile UTF8 fp resp'
+      log ("Written " <> fp)
     liftEffect $ _wsClose ws

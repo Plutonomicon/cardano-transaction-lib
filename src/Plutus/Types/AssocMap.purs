@@ -10,12 +10,12 @@ module Plutus.Types.AssocMap
   , mapMaybe
   , mapMaybeWithKey
   , mapThese
-  , mapWithKey
   , member
   , null
   , singleton
   , union
   , unionWith
+  , values
   ) where
 
 import Prelude
@@ -32,13 +32,20 @@ import Data.Foldable
   , foldrDefault
   )
 import Data.Foldable (lookup) as Foldable
+import Data.FoldableWithIndex
+  ( class FoldableWithIndex
+  , foldlWithIndexDefault
+  , foldrWithIndexDefault
+  )
+import Data.FunctorWithIndex (class FunctorWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This), these)
 import Data.Traversable (class Traversable, for, sequence, traverse)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.TraversableWithIndex (class TraversableWithIndex)
+import Data.Tuple (Tuple(Tuple), fst, snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import FromData (class FromData, fromData)
 import ToData (class ToData, toData)
@@ -80,14 +87,27 @@ instance (FromData k, FromData v) => FromData (Map k v) where
 instance Functor (Map k) where
   map f (Map xs) = Map $ map (map f) xs
 
+instance FunctorWithIndex k (Map k) where
+  mapWithIndex f (Map xs) = Map $ map (\(Tuple k v) -> Tuple k (f k v)) xs
+
 instance Foldable (Map k) where
   foldMap f (Map xs) = foldMap (foldMap f) xs
   foldr f = foldrDefault f
   foldl f = foldlDefault f
 
+instance FoldableWithIndex k (Map k) where
+  foldMapWithIndex f (Map xs) = foldMap (uncurry f) xs
+  foldrWithIndex f = foldrWithIndexDefault f
+  foldlWithIndex f = foldlWithIndexDefault f
+
 instance Traversable (Map k) where
   traverse f (Map xs) = Map <$> traverse (traverse f) xs
   sequence (Map xs) = Map <$> sequence (map sequence xs)
+
+instance TraversableWithIndex k (Map k) where
+  traverseWithIndex f (Map xs) = Map <$> traverse
+    (\(Tuple k v) -> Tuple k <$> f k v)
+    xs
 
 instance (Eq k, Semigroup v) => Semigroup (Map k v) where
   append = unionWith (<>)
@@ -117,6 +137,10 @@ delete k (Map xs) =
 -- | The keys of a `Map`
 keys :: forall (k :: Type) (v :: Type). Map k v -> Array k
 keys (Map xs) = fst <$> xs
+
+-- | The values of a `Map`
+values :: forall (k :: Type) (v :: Type). Map k v -> Array v
+values (Map xs) = snd <$> xs
 
 -- | Combine two `Map`s
 union
@@ -193,14 +217,6 @@ filter f (Map xs) = Map $ Array.filter (f <<< snd) xs
 -- | Return all elements of the map in the ascending order of their keys.
 elems :: forall (k :: Type) (v :: Type). Map k v -> Array v
 elems (Map xs) = snd <$> xs
-
--- | Map a function over all values in the `Map`
-mapWithKey
-  :: forall (k :: Type) (a :: Type) (b :: Type)
-   . (k -> a -> b)
-  -> Map k a
-  -> Map k b
-mapWithKey f (Map xs) = Map $ map (\(k /\ v) -> k /\ f k v) xs
 
 -- | Map values and collect the `Just` results.
 mapMaybe

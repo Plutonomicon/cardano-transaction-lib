@@ -4,6 +4,7 @@ module Contract.Config
   , testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
+  , testnetLodeConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
@@ -23,7 +24,13 @@ import Contract.Monad (ConfigParams)
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Maybe (Maybe(Just, Nothing))
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToLode
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -44,12 +51,13 @@ testnetConfig :: ConfigParams ()
 testnetConfig =
   { ogmiosConfig: defaultOgmiosWsConfig
   , datumCacheConfig: defaultDatumCacheWsConfig
-  , ctlServerConfig: defaultServerConfig
+  , ctlServerConfig: Just defaultServerConfig
   , networkId: TestnetId
-  , logLevel: Trace
   , extraConfig: {}
   , walletSpec: Nothing
+  , logLevel: Trace
   , customLogger: Nothing
+  , suppressLogs: false
   }
 
 testnetNamiConfig :: ConfigParams ()
@@ -60,6 +68,9 @@ testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
 
 testnetFlintConfig :: ConfigParams ()
 testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
+
+testnetLodeConfig :: ConfigParams ()
+testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 
 mainnetConfig :: ConfigParams ()
 mainnetConfig = testnetConfig { networkId = MainnetId }
