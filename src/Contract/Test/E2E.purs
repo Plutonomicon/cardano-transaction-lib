@@ -22,7 +22,7 @@ import Contract.Test.E2E.Feedback
 import Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample(RunningExample)
-  , WalletPassword(WalletPassword)
+  , WalletPassword(WalletPassword)        
   , checkSuccess
   , delaySec
   , flintConfirmAccess
@@ -33,11 +33,12 @@ import Contract.Test.E2E.Helpers
   , namiSign
   , withExample
   ) as Helpers
+
 import Contract.Test.E2E.WalletExt
-  ( SomeWallet
+  ( SomeWallet(SomeWallet)
+  , WalletConfig(WalletConfig)
   , WalletExt(FlintExt, GeroExt, NamiExt)
   , getWalletByName
   , getWalletByType
-
   , walletName
   ) as WalletExt

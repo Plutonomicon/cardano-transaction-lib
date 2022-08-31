@@ -4,9 +4,6 @@ module Test.E2E.Helpers
   ( module E2EHelpers
   , runE2ETest
   , exampleUrl
-  , flintSign'
-  , geroSign'
-  , namiSign'
   ) where
 
 import Prelude
@@ -14,6 +11,7 @@ import Prelude
 import Contract.Test.E2E
   ( TestOptions
   , RunningExample
+  , SomeWallet
   , WalletExt
   , WalletPassword
   , checkSuccess
@@ -55,15 +53,6 @@ exampleUrl exampleName wallet = wrap $ "http://localhost:4008/?" <> exampleName
   <> ":"
   <> walletName wallet
 
-testPasswordNami :: WalletPassword
-testPasswordNami = wrap "ctlctlctl"
-
-testPasswordGero :: WalletPassword
-testPasswordGero = wrap "VZVfu5rp1r"
-
-testPasswordFlint :: WalletPassword
-testPasswordFlint = wrap "VZVfu5rp1rVZVfu5rp1r"
-
 -- | Run an E2E test. Parameters are:
 -- |   String: Just a name for the logs
 -- |   Toppokki.URL: URL where the example is running
@@ -94,12 +83,3 @@ runE2ETest example opts ext f = test example $ withBrowser opts ext $
                 " finished, check success..."
               checkSuccess e >>= flip shouldSatisfy (_ == true)
           )
-
-namiSign' :: RunningExample -> Aff Unit
-namiSign' = namiSign testPasswordNami
-
-geroSign' :: RunningExample -> Aff Unit
-geroSign' = geroSign testPasswordGero
-
-flintSign' :: RunningExample -> Aff Unit
-flintSign' = flintSign testPasswordFlint
