@@ -113,7 +113,6 @@ cmd_browser() {
 }
 
 cmd_settings() {
-    
     case "$1" in
 	"flint")
 	    CMD=extract_settings_gero_flint
