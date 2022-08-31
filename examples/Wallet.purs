@@ -6,7 +6,7 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Config (ConfigParams)
 import Contract.Monad (launchAff_, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Utxos (getWalletBalance)
+import Contract.Utxos (getWalletBalance, getWalletUtxos)
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
@@ -14,4 +14,5 @@ example cfg = launchAff_ $ do
     log <<< show =<< getWalletAddress
     log <<< show =<< getWalletCollateral
     log <<< show =<< getWalletBalance
+    log <<< show =<< getWalletUtxos
     liftAff $ publishTestFeedback true
