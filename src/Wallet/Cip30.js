@@ -15,3 +15,6 @@ exports._signTx = txHex => conn => () => {
 };
 
 exports._getBalance = conn => () => conn.getBalance();
+
+exports._getUtxos = maybe => conn => () =>
+  conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));

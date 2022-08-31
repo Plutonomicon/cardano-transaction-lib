@@ -46,8 +46,7 @@ import BalanceTx.Types
 import BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
-  ( RequiredSigner(RequiredSigner)
-  , Transaction(Transaction)
+  ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , Utxos
@@ -58,7 +57,6 @@ import Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
-  , _requiredSigners
   )
 import Cardano.Types.Value
   ( Coin(Coin)
@@ -70,7 +68,7 @@ import Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Contract.Prelude (foldr, for, fromMaybe)
+import Contract.Prelude (for, fromMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -84,7 +82,7 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (empty, lookup, toUnfoldable, union, fromFoldable) as Map
+import Data.Map (fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set, union)
@@ -94,7 +92,11 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
-import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
+import QueryM.Utxos
+  ( filterLockedUtxos
+  , getWalletCollateral
+  , getWalletUtxos
+  )
 import Serialization.Address
   ( Address
   , addressPaymentCred
@@ -124,11 +126,13 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
-  utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
-    ( traverse (note CouldNotGetUtxos >>> map unwrap) --Maybe -> Either and unwrap UtxoM
+  {- utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
+  ( traverse (note CouldNotGetUtxos >>> map unwrap) --Maybe -> Either and unwrap UtxoM
 
-        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
-    )
+      >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+  ) -}
+
+  utxos <- ExceptT $ (note CouldNotGetUtxos <<< map unwrap) <$> getWalletUtxos
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -228,18 +232,17 @@ runBalancer utxos changeAddress =
           # fromMaybe []
           # Set.fromFoldable
       txInputs = unwrap prebalancedTx ^. _transaction' <<< _body <<< _inputs
-      signers = for (fromFoldable $ txInputs `union` collats) \ti -> do
+      selfSigners = for (fromFoldable $ txInputs `union` collats) \ti -> do
         TransactionOutput { address } <- Map.lookup ti utxosWithCollats
         kh <- (addressPaymentCred >=> stakeCredentialToKeyHash) address
-        pure $ RequiredSigner kh
-      prebalancedWithSigners = PrebalancedTransaction
-        ( unwrap prebalancedTx # _transaction' <<< _body <<< _requiredSigners .~
-            signers
-        )
+        pure $ kh
 
-    traceMainLoop "Required signers" "signers" signers
+    selfSignerSet <- ExceptT $ note CouldNotGetUtxos <$>
+      (pure <<< map Set.fromFoldable $ selfSigners)
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedWithSigners
+    traceMainLoop "Required signers" "signers" selfSignerSet
+
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
