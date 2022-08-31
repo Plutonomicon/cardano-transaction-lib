@@ -192,6 +192,7 @@ let
         mkdir $out
         mv output $out/
         cp -r $src/* $out/
+        cp -r $src/src $out/
       '';
     };
 
@@ -371,6 +372,7 @@ let
           mkdir $out
           cp -r generated-docs $out
           cp -r output $out
+          cp -r $src/src $out
         '';
       });
 
@@ -389,7 +391,7 @@ let
       ''
         export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
         export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
-        cp -r ${buildPursDocs { }}/{generated-docs,output} .
+        cp -r ${buildPursDocs { }}/{generated-docs,output,src} .
         install-spago-style
         chmod -R +rwx .
         purescript-docs-search build-index --package-name ${packageName} --source-files 'src/**/*.purs'
