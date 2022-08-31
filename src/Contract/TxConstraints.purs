@@ -3,7 +3,8 @@
 module Contract.TxConstraints (module TxConstraints) where
 
 import Types.TxConstraints
-  ( InputConstraint(InputConstraint)
+  ( DatumPresence(DatumInline, DatumWitness)
+  , InputConstraint(InputConstraint)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
@@ -31,7 +32,6 @@ import Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
-  , mustPayToScriptInlineDatum
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayWithDatumToPubKey
