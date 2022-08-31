@@ -1,16 +1,17 @@
-module Test.TxOutput where
+module Test.TxOutput (suite, main) where
 
 import Prelude
 
 import Aeson (printJsonDecodeError, decodeJsonString)
 import Cardano.Types.Transaction (TransactionOutput)
-import Control.Monad.Error.Class (liftEither, liftMaybe)
+import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Data.Bifunctor (bimap)
 import Data.Map as Map
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
+import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Node.Encoding (Encoding(UTF8))
@@ -18,13 +19,18 @@ import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
 import Mote (test, group)
 import QueryM.Ogmios as O
-import Test.Spec.Assertions (shouldSatisfy)
 import TestM (TestPlanM)
 import TxOutput (ogmiosTxOutToTransactionOutput)
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Data.FoldableWithIndex (traverseWithIndex_)
+import Test.Utils as Utils
+
+-- Run with `spago test --main Test.TxOutput`
+main :: Effect Unit
+main = launchAff_ do
+  Utils.interpret suite
 
 suite :: TestPlanM Unit
 suite = do
@@ -36,7 +42,7 @@ suite = do
           $ Map.lookup input fixtureChecks
         output' <- liftMaybe (error "Failed to convert output")
           $ ogmiosTxOutToTransactionOutput output
-        output' `shouldSatisfy` check
+        check output'
 
 loadQueryResultFixture
   :: Effect O.UtxoQueryResult
@@ -55,32 +61,44 @@ loadQueryResultFixture = do
     , "utxo-681f7f01fe06ae75d83187cda28c376e.json"
     ]
 
-hasInlineDatum :: TransactionOutput -> Boolean
-hasInlineDatum = unwrap >>> _.datum >>> case _ of
-  OutputDatum _ -> true
-  _ -> false
+expect :: TransactionOutput -> String -> String -> Effect Unit
+expect to expected got = throwError $ error $
+  "Expected "
+    <> expected
+    <> " but got "
+    <> got
+    <> ": "
+    <> show to
 
-hasDetatchedDatum :: TransactionOutput -> Boolean
-hasDetatchedDatum = unwrap >>> _.datum >>> case _ of
-  OutputDatumHash _ -> true
-  _ -> false
+hasInlineDatum :: TransactionOutput -> Effect Unit
+hasInlineDatum to = to # unwrap >>> _.datum >>> case _ of
+  OutputDatum _ -> pure unit
+  OutputDatumHash _ -> expect to "inline datum" "datum"
+  NoOutputDatum -> expect to "inline datum" "no datum"
 
-hasNoDatum :: TransactionOutput -> Boolean
-hasNoDatum = unwrap >>> _.datum >>> case _ of
-  NoOutputDatum -> true
-  _ -> false
+hasDatum :: TransactionOutput -> Effect Unit
+hasDatum to = to # unwrap >>> _.datum >>> case _ of
+  OutputDatumHash _ -> pure unit
+  NoOutputDatum -> expect to "datum" "no datum"
+  OutputDatum _ -> expect to "datum" "inline datum"
 
-fixtureChecks :: Map.Map O.OgmiosTxOutRef (TransactionOutput -> Boolean)
+hasNoDatum :: TransactionOutput -> Effect Unit
+hasNoDatum to = to # unwrap >>> _.datum >>> case _ of
+  NoOutputDatum -> pure unit
+  OutputDatum _ -> expect to "no datum" "inline datum"
+  OutputDatumHash _ -> expect to "no datum" "datum"
+
+fixtureChecks :: Map.Map O.OgmiosTxOutRef (TransactionOutput -> Effect Unit)
 fixtureChecks = Map.fromFoldable
   [ { "txId": "2208e439244a1d0ef238352e3693098aba9de9dd0154f9056551636c8ed15dc1"
     , "index": UInt.fromInt 6
-    } /\ hasDetatchedDatum
+    } /\ hasDatum
   , { "txId": "4f539156bfbefc070a3b61cad3d1cedab3050e2b2a62f0ffe16a43eb0edc1ce8"
     , "index": UInt.fromInt 2
-    } /\ hasDetatchedDatum
+    } /\ hasDatum
   , { "txId": "e88bd757ad5b9bedf372d8d3f0cf6c962a469db61a265f6418e1ffed86da29ec"
     , "index": UInt.fromInt 4
-    } /\ hasDetatchedDatum
+    } /\ hasDatum
   , { "txId": "ee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25"
     , "index": UInt.fromInt 7
     } /\ hasInlineDatum
