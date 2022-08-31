@@ -24,7 +24,7 @@ temp_base () {
 
 unique_temp_dir () {
     echo "$(temp_base)/$(mktemp -du e2e.XXXXXXX)"
-}
+} 
 
 run_tests () {
     UNIQUE_TEMP_DIR=$(unique_temp_dir)
@@ -35,8 +35,10 @@ run_tests () {
     tar xzf $GERO_SETTINGS
     unzip $FLINT_CRX -d $UNIQUE_TEMP_DIR/flint > /dev/zero
     tar xzf $FLINT_SETTINGS
+    unzip $LODE_CRX -d $UNIQUE_TEMP_DIR/lode > /dev/zero
+    tar xzf $LODE_SETTINGS
     rm -f $CHROME_PROFILE/SingletonLock
-    spago test --main Test.E2E -a "E2ETest --nami-dir $UNIQUE_TEMP_DIR/nami --gero-dir $UNIQUE_TEMP_DIR/gero $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
+    spago test --main Test.E2E -a "E2ETest --nami-dir $UNIQUE_TEMP_DIR/nami --gero-dir $UNIQUE_TEMP_DIR/gero --lode-dir $UNIQUE_TEMP_DIR/lode --flint-dir $UNIQUE_TEMP_DIR/flint $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
 }
 
 extract_settings() {
@@ -60,9 +62,11 @@ run_browser () {
 
     extract_settings "$FLINT_SETTINGS"
     extract_settings "$GERO_SETTINGS"
+    extract_settings "$LODE_SETTINGS"    
     extract_settings "$NAMI_SETTINGS"
     extract_crx "$FLINT_CRX" "$UNIQUE_TEMP_DIR/flint"
     extract_crx "$GERO_CRX" "$UNIQUE_TEMP_DIR/gero"
+    extract_crx "$LODE_CRX" "$UNIQUE_TEMP_DIR/lode"    
     extract_crx "$NAMI_CRX" "$UNIQUE_TEMP_DIR/nami"
 
     $(find_browser) \
@@ -74,6 +78,7 @@ run_browser () {
 EXTID_NAMI=lpfcbjknijpeeillifnkikgncikgfhdo
 EXTID_GERO=iifeegfcfhlhhnilhfoeihllenamcfgc
 EXTID_FLINT=hnhobjmcibchnmglfbldbfabcgaknlkj
+EXTID_LODE=ikffplhknjhbfkgbhnionfklokakmknd
 
 extract_settings_nami() {
     extid=$1    
@@ -98,9 +103,10 @@ MODE=""
 usage() {
     echo "Usage: $0 cmd [options]"
     echo " commands:"
-    echo "   run                                  Run the tests"
-    echo "   browser                              Start the browser in order to configure wallets"
-    echo "   settings [nami|gero|flint] [-o out]  Dump wallet setting to out"
+    echo "   run                  Run the tests"
+    echo "   browser              Start the browser in order to configure wallets"
+    echo "   settings [nami|gero|flint|lode] [-o out] "
+    echo "                        Dump wallet setting to out"
     exit 1
 }
 
@@ -128,6 +134,11 @@ cmd_settings() {
 	    CMD=extract_settings_nami
 	    EXTID=$EXTID_NAMI
 	    TARGET=$NAMI_SETTINGS
+	    ;;	
+	"lode")
+	    CMD=extract_settings_gero_flint
+	    EXTID=$EXTID_LODE
+	    TARGET=$LODE_SETTINGS
 	    ;;	
     esac
 
