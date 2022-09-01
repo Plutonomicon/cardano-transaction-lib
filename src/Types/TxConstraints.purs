@@ -14,6 +14,7 @@ module Types.TxConstraints
       , MustPayToScript
       , MustHashDatum
       , MustSatisfyAnyOf
+      , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -39,6 +40,7 @@ module Types.TxConstraints
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   , mustValidateIn
+  , mustNotBeValid
   , pubKeyPayments
   , requiredDatums
   , requiredMonetaryPolicies
@@ -93,6 +95,7 @@ data TxConstraint
   | MustPayToScript ValidatorHash Datum Value
   | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
+  | MustNotBeValid
 
 derive instance Eq TxConstraint
 derive instance Generic TxConstraint _
@@ -319,6 +322,12 @@ mustSatisfyAnyOf =
     >>> map (_.constraints <<< unwrap)
     >>> MustSatisfyAnyOf
     >>> singleton
+
+-- | Marks the transaction as invalid, requiring at least one script execution
+-- | to fail. Despite failure, the transaction can still be submitted into the
+-- | chain and collateral will be lost.
+mustNotBeValid :: forall (i :: Type) (o :: Type). TxConstraints i o
+mustNotBeValid = singleton $ MustNotBeValid
 
 -- | Are the constraints satisfiable given the time intervals?
 isSatisfiable :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
