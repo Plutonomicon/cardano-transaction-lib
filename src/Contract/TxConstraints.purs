@@ -20,6 +20,7 @@ import Types.TxConstraints
       , MustPayToScript
       , MustHashDatum
       , MustSatisfyAnyOf
+      , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -34,6 +35,7 @@ import Types.TxConstraints
   , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
+  , mustNotBeValid
   , mustPayToScript
   , mustPayToScriptWithScriptRef
   , mustPayToPubKey

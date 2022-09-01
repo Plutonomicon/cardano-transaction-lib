@@ -812,6 +812,7 @@ newtype Redeemer = Redeemer
   }
 
 derive instance Generic Redeemer _
+derive instance Newtype Redeemer _
 derive newtype instance Eq Redeemer
 derive newtype instance Ord Redeemer
 derive newtype instance EncodeAeson Redeemer

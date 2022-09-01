@@ -9,24 +9,23 @@ module Wallet.Key
 
 import Prelude
 
+import BalanceTx.Collateral (selectCollateral) as Collateral
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
   , Utxos
   , _vkeys
-  , TransactionOutput(TransactionOutput)
   )
 import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ( TransactionUnspentOutput
   )
-import Cardano.Types.Value (Value(Value), mkCoin, unwrapNonAdaAsset)
+import Cardano.Types.Value (Coin)
 import Contract.Prelude (class Newtype)
-import Data.Foldable (all)
-import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Array (fromFoldable)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
-import Data.Ord.Min (Min(Min))
 import Deserialization.WitnessSet as Deserialization.WitnessSet
+import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Serialization (publicKeyFromPrivateKey, publicKeyHash)
@@ -47,7 +46,8 @@ import Serialization.Types (PrivateKey)
 -------------------------------------------------------------------------------
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
-  , selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
+  , selectCollateral ::
+      Coin -> Int -> Utxos -> Effect (Maybe (Array TransactionUnspentOutput))
   , signTx :: Transaction -> Aff Transaction
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
@@ -98,19 +98,10 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         >>> enterpriseAddress
         >>> enterpriseAddressToAddress
 
-  selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
-  selectCollateral utxos = unwrap <<< unwrap <$> flip
-    foldMapWithIndex
-    utxos
-    \input output ->
-      let
-        txuo = AdaOut $ TransactionUnspentOutput { input, output }
-        Value ada naa = _value txuo
-        onlyAda = all (all ((==) zero)) (unwrapNonAdaAsset naa)
-        bigAda = ada >= mkCoin 5_000_000
-      in
-        if onlyAda && bigAda then Just $ Min txuo
-        else Nothing
+  selectCollateral
+    :: Coin -> Int -> Utxos -> Effect (Maybe (Array TransactionUnspentOutput))
+  selectCollateral coinsPerUtxoByte maxCollateralInputs utxos = map fromFoldable
+    <$> Collateral.selectCollateral coinsPerUtxoByte maxCollateralInputs utxos
 
   signTx :: Transaction -> Aff Transaction
   signTx (Transaction tx) = liftEffect do
@@ -120,23 +111,3 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
       Serialization.makeVkeywitness hash (unwrap payKey)
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
     pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
-
-_value :: AdaOut -> Value
-_value
-  (AdaOut (TransactionUnspentOutput { output: TransactionOutput { amount } })) =
-  amount
-
--- A wrapper around a UTxO, ordered by ada value
-newtype AdaOut = AdaOut TransactionUnspentOutput
-
-derive instance Newtype AdaOut _
-
-instance Eq AdaOut where
-  eq a b
-    | Value a' _ <- _value a
-    , Value b' _ <- _value b = eq a' b'
-
-instance Ord AdaOut where
-  compare a b
-    | Value a' _ <- _value a
-    , Value b' _ <- _value b = compare a' b'

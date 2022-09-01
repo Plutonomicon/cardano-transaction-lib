@@ -66,6 +66,7 @@ import Cardano.Types.Transaction
   , _requiredSigners
   , _scriptDataHash
   , _witnessSet
+  , _isValid
   )
 import Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Cardano.Types.Value
@@ -184,6 +185,7 @@ import Types.TxConstraints
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
       , MustValidateIn
+      , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   )
@@ -1132,6 +1134,8 @@ processConstraint mpsMap osMap = do
             (Right unit)
             ys
       tryNext (toUnfoldable $ map toUnfoldable xs)
+    MustNotBeValid -> runExceptT do
+      _cpsToTransaction <<< _isValid .= false
   where
   -- Set ex units to zero. They will be calculated by the server after calling
   -- the `eval-ex-units` endpoint
