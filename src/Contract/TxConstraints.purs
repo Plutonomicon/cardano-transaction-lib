@@ -4,7 +4,7 @@ module Contract.TxConstraints (module TxConstraints) where
 
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendableInput)
+  , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
@@ -35,15 +35,15 @@ import Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToScriptWithScriptRef
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayWithDatumAndScriptRefToPubKey
-  , mustPayWithDatumAndScriptRefToPubKeyAddress
-  , mustPayWithDatumToPubKey
-  , mustPayWithDatumToPubKeyAddress
-  , mustPayWithScriptRefToPubKey
-  , mustPayWithScriptRefToPubKeyAddress
-  , mustPayWithScriptRefToScript
+  , mustPayToPubKeyAddressWithDatum
+  , mustPayToPubKeyAddressWithDatumAndScriptRef
+  , mustPayToPubKeyAddressWithScriptRef
+  , mustPayToPubKeyWithDatum
+  , mustPayToPubKeyWithDatumAndScriptRef
+  , mustPayToPubKeyWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput

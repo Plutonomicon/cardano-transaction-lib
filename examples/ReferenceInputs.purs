@@ -107,7 +107,7 @@ payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
 
     createOutputWithScriptRef :: ScriptRef -> TxConstraints Unit Unit
     createOutputWithScriptRef scriptRef =
-      mustPayWithScriptRefToPubKeyStakeAddress pkh skh scriptRef value
+      mustPayToPubKeyStakeAddressWithScriptRef pkh skh scriptRef value
 
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -179,17 +179,17 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
     -> Contract () (Map TransactionInput TransactionOutputWithRefScript)
   utxosAt' = map (unwrap <<< fromMaybe (UtxoM Map.empty)) <<< utxosAt
 
-mustPayWithScriptRefToPubKeyStakeAddress
+mustPayToPubKeyStakeAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithScriptRefToPubKeyStakeAddress pkh Nothing =
-  Constraints.mustPayWithScriptRefToPubKey pkh
-mustPayWithScriptRefToPubKeyStakeAddress pkh (Just skh) =
-  Constraints.mustPayWithScriptRefToPubKeyAddress pkh skh
+mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing =
+  Constraints.mustPayToPubKeyWithScriptRef pkh
+mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
+  Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh
 
 foreign import alwaysMintsV2 :: String
 

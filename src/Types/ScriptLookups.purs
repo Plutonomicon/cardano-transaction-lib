@@ -168,7 +168,7 @@ import Types.TokenName (TokenName)
 import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendableInput)
+  , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
@@ -862,7 +862,7 @@ processScriptRefUnspentOut
   -> InputWithScriptRef
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
 processScriptRefUnspentOut scriptHash = case _ of
-  SpendableInput unspentOut -> do
+  SpendInput unspentOut -> do
     _cpsToTxBody <<< _inputs %= Set.insert (_.input <<< unwrap $ unspentOut)
     checkScriptRef unspentOut
   RefInput unspentOut -> do

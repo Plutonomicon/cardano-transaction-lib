@@ -1,6 +1,6 @@
 module Types.TxConstraints
   ( InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendableInput)
+  , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
@@ -31,15 +31,15 @@ module Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToScriptWithScriptRef
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayWithDatumAndScriptRefToPubKey
-  , mustPayWithDatumAndScriptRefToPubKeyAddress
-  , mustPayWithDatumToPubKey
-  , mustPayWithDatumToPubKeyAddress
-  , mustPayWithScriptRefToPubKey
-  , mustPayWithScriptRefToPubKeyAddress
-  , mustPayWithScriptRefToScript
+  , mustPayToPubKeyAddressWithDatum
+  , mustPayToPubKeyAddressWithDatumAndScriptRef
+  , mustPayToPubKeyAddressWithScriptRef
+  , mustPayToPubKeyWithDatum
+  , mustPayToPubKeyWithDatumAndScriptRef
+  , mustPayToPubKeyWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
@@ -118,7 +118,7 @@ instance Show TxConstraint where
 
 data InputWithScriptRef
   = RefInput TransactionUnspentOutput
-  | SpendableInput TransactionUnspentOutput
+  | SpendInput TransactionUnspentOutput
 
 derive instance Eq InputWithScriptRef
 derive instance Generic InputWithScriptRef _
@@ -231,27 +231,27 @@ mustPayToPubKeyAddress pkh skh =
 
 -- | Lock the value and datum with a payment public key hash and (optionally) a
 -- | stake public key hash.
-mustPayWithDatumToPubKeyAddress
+mustPayToPubKeyAddressWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> StakePubKeyHash
   -> Datum
   -> Value
   -> TxConstraints i o
-mustPayWithDatumToPubKeyAddress pkh skh datum =
+mustPayToPubKeyAddressWithDatum pkh skh datum =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum) Nothing
 
-mustPayWithScriptRefToPubKeyAddress
+mustPayToPubKeyAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> StakePubKeyHash
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithScriptRefToPubKeyAddress pkh skh scriptRef =
+mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing (Just scriptRef)
 
-mustPayWithDatumAndScriptRefToPubKeyAddress
+mustPayToPubKeyAddressWithDatumAndScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> StakePubKeyHash
@@ -259,7 +259,7 @@ mustPayWithDatumAndScriptRefToPubKeyAddress
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithDatumAndScriptRefToPubKeyAddress pkh skh datum scriptRef =
+mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh datum scriptRef =
   singleton
     <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum) (Just scriptRef)
 
@@ -277,32 +277,32 @@ mustPayToPubKey pkh =
   singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing Nothing
 
 -- | Lock the value and datum with a payment public key hash
-mustPayWithDatumToPubKey
+mustPayToPubKeyWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Datum
   -> Value
   -> TxConstraints i o
-mustPayWithDatumToPubKey pkh datum =
+mustPayToPubKeyWithDatum pkh datum =
   singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum) Nothing
 
-mustPayWithScriptRefToPubKey
+mustPayToPubKeyWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithScriptRefToPubKey pkh scriptRef =
+mustPayToPubKeyWithScriptRef pkh scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing (Just scriptRef)
 
-mustPayWithDatumAndScriptRefToPubKey
+mustPayToPubKeyWithDatumAndScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Datum
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithDatumAndScriptRefToPubKey pkh datum scriptRef =
+mustPayToPubKeyWithDatumAndScriptRef pkh datum scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum) (Just scriptRef)
 
 -- | Note that CTL does not have explicit equivalents of Plutus'
@@ -320,14 +320,14 @@ mustPayToScript vh dt vl =
   singleton (MustPayToScript vh dt Nothing vl)
     <> singleton (MustIncludeDatum dt)
 
-mustPayWithScriptRefToScript
+mustPayToScriptWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
   -> Datum
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayWithScriptRefToScript vh dt scriptRef vl =
+mustPayToScriptWithScriptRef vh dt scriptRef vl =
   singleton (MustPayToScript vh dt (Just scriptRef) vl)
     <> singleton (MustIncludeDatum dt)
 

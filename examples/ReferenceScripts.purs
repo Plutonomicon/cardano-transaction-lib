@@ -28,7 +28,7 @@ import Contract.Transaction
   , plutusV2Script
   )
 import Contract.TxConstraints
-  ( InputWithScriptRef(SpendableInput)
+  ( InputWithScriptRef(SpendInput)
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
@@ -69,7 +69,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
   let
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayWithScriptRefToScript vhash unitDatum scriptRef
+      Constraints.mustPayToScriptWithScriptRef vhash unitDatum scriptRef
         (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
     lookups :: Lookups.ScriptLookups PlutusData
@@ -90,7 +90,7 @@ spendFromAlwaysSucceeds vhash txId = do
     constraints :: TxConstraints Unit Unit
     constraints =
       Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
-        (SpendableInput $ mkTxUnspentOut txInput txOutput)
+        (SpendInput $ mkTxUnspentOut txInput txOutput)
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = Lookups.unspentOutputs utxos
