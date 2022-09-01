@@ -31,7 +31,6 @@ import Serialization.MinFee (calculateMinFeeCsl)
 calculateMinFee :: Transaction -> QueryM Coin
 calculateMinFee tx = do
   selfSigners <- getSelfSigners tx
-
   pparams <- getProtocolParameters
   calculateMinFeeCsl pparams selfSigners tx
 
@@ -54,6 +53,8 @@ getSelfSigners tx = do
       # Set.fromFoldable
     txInputs = tx ^. _body <<< _inputs
 
+    -- Traverse over inputs and collaterals to find required VKeyHashes that
+    -- need to sign the Tx
     selfSigners = for (fromFoldable $ txInputs `Set.union` txCollats) \ti -> do
       TransactionOutput { address } <- Map.lookup ti utxosWithCollats
       kh <- (addressPaymentCred >=> stakeCredentialToKeyHash) address

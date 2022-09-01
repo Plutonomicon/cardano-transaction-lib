@@ -6,11 +6,12 @@ This document lists common problems encountered by CTL users and developers.
 
 - [Bundling-related](#bundling-related)
 - [Time-related](#time-related)
+- [Ecosystem](#ecosystem)
 - [Miscellaneous](#miscellaneous)
 
 ## Bundling-related
 
-### `lib.something` is not a function, why?
+### Q: `lib.something` is not a function, why?
 
 This is probably because npm is used directly. This is something users have reported when using `npm install` instead of having Nix manage the node dependencies (done automatically with `nix develop`, but if you have `node_modules` present in the working directory it will shadow the ones from the Nix store).
 
@@ -27,6 +28,16 @@ To do anything time-related, it's best to rely on local node chain tip time, ins
 ### Q: Time/slot conversion functions return `Nothing`. Why is that?
 
 Time/slot conversion functions depend on `eraSummaries` [Ogmios local state query](https://ogmios.dev/mini-protocols/local-state-query/), that returns era bounds and slotting parameters details, required for proper slot arithmetic. The most common source of the problem is that Ogmios does not return enough epochs into the future.
+
+### Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`
+
+Ensure your transaction's validity range does not go over `SafeZone` slots of the current era. The reason for this kind of errors is that time-related estimations are slot-based, and future forks may change slot lengths. So there is only a relatively small time window in the future during which it is known that forks cannot occur.
+
+## Ecosystem
+
+### Q: Why `aeson` and not `argonaut`?
+
+Haskell's `aeson` library encodes long integers as JSON numbers, which leads to numeric truncation on decoder side if JS `Number` is used. Unfortunately, `purescript-argonaut` does not allow to use another type, because the truncation happens during `JSON.parse` call. `purescript-aeson` is our custom solution that bypasses this limitation by storing numbers as strings. It exposes a very similar API.
 
 ## Miscellaneous
 
