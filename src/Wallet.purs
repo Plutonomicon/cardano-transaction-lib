@@ -5,11 +5,10 @@ module Wallet
   , isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
+  , isEternlAvailable
   , mkNamiWalletAff
-  , isGeroAvailable
   , mkGeroWalletAff
   , mkFlintWalletAff
-  , isEternlAvailable
   , mkEternlWalletAff
   , mkKeyWallet
   , cip30Wallet

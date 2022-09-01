@@ -22,7 +22,6 @@ import Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Contract.Address (Ed25519KeyHash)
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
@@ -36,7 +35,6 @@ import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Map (fromFoldable, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Set (Set)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (liftEffect)

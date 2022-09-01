@@ -40,14 +40,6 @@ calculateMinFee tx = do
 getSelfSigners :: Transaction -> QueryM (Set Ed25519KeyHash)
 getSelfSigners tx = do
 
-  {- ownAddrs <- liftedM (error "Couldn't get addresses") getWalletAddresses
-
-  walletUtxos <- flip bind liftEither $ traverse utxosAt ownAddrs <#>
-    ( traverse (note (error "Couldn't get utxos") >>> map unwrap) --Maybe -> Either and unwrap UtxoM
-
-        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
-    ) -}
-
   walletCollats <- fromMaybe [] <$> getWalletCollateral
   walletUtxos <- unwrap <$>
     (liftM (error "CIP-30 wallet missing collateral") =<< getWalletUtxos)
