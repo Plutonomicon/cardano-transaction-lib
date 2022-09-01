@@ -68,6 +68,7 @@ import Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
+import Contract.Prelude (foldr)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -81,7 +82,7 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -91,7 +92,12 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
-import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, getWalletUtxos)
+import QueryM.Utxos
+  ( filterLockedUtxos
+  , getWalletCollateral
+  , getWalletUtxos
+  , utxosAt
+  )
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
@@ -116,6 +122,7 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
+
   {- utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
   ( traverse (note CouldNotGetUtxos >>> map unwrap) --Maybe -> Either and unwrap UtxoM
 
