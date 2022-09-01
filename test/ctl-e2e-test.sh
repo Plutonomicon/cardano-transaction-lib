@@ -79,7 +79,7 @@ run_browser () {
     extract_crx "$NAMI_CRX" "$UNIQUE_TEMP_DIR/nami"
 
     $(find_browser) \
-	--load-extension=$UNIQUE_TEMP_DIR/flint,$UNIQUE_TEMP_DIR/gero,$UNIQUE_TEMP_DIR/nami \
+	--load-extension=$UNIQUE_TEMP_DIR/flint,$UNIQUE_TEMP_DIR/gero,$UNIQUE_TEMP_DIR/nami,$UNIQUE_TEMP_DIR/lode \
 	--user-data-dir=$CHROME_PROFILE || rm -Rf $UNIQUE_TEMP_DIR
     
 }
