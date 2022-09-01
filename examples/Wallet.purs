@@ -10,9 +10,14 @@ import Contract.Utxos (getWalletBalance, getWalletUtxos)
 
 contract :: Contract () Unit
 contract = do
+  log "Address:"
   log <<< show =<< getWalletAddress
+  log "Collateral:"
   log <<< show =<< getWalletCollateral
+  log "Balance:"
   log <<< show =<< getWalletBalance
+  log "UTxOs:"
+  log <<< show =<< getWalletUtxos
   liftAff $ publishTestFeedback true
 
 example :: ConfigParams () -> Effect Unit

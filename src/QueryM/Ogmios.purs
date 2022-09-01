@@ -120,7 +120,6 @@ import Data.String
   , splitAt
   , uncons
   )
-import Data.Tuple (snd, uncurry)
 import Data.String.Common (split) as String
 import Data.Traversable (sequence, traverse, for)
 import Data.Tuple (snd, uncurry)
