@@ -30,7 +30,10 @@ import Wallet.Spec
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 
 withKeyWallet

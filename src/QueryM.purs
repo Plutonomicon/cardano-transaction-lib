@@ -80,6 +80,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Cardano.Types.Transaction (_witnessSet)
 import Cardano.Types.Transaction as Transaction
 import Control.Monad.Error.Class
   ( class MonadError
@@ -95,6 +96,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
+import Data.Lens ((<>~))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
@@ -488,7 +490,9 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
-  KeyWallet kw -> Just <$> (unwrap kw).signTx tx
+  KeyWallet kw -> do
+    witnessSet <- (unwrap kw).signTx tx
+    pure $ Just (tx # _witnessSet <>~ witnessSet)
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -1006,9 +1010,10 @@ mkOgmiosRequest
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest = mkRequest
-  (asks $ listeners <<< _.ogmiosWs <<< _.runtime)
-  (asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime)
+mkOgmiosRequest jsonWspCall getLs inp = do
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
@@ -1030,9 +1035,10 @@ mkDatumCacheRequest
   -> (DatumCacheListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkDatumCacheRequest = mkRequest
-  (asks $ listeners <<< _.datumCacheWs <<< _.runtime)
-  (asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime)
+mkDatumCacheRequest jsonWspCall getLs inp = do
+  listeners' <- asks $ listeners <<< _.datumCacheWs <<< _.runtime
+  websocket <- asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds a Datum Cache request action using `Aff`
 mkDatumCacheRequestAff
@@ -1049,15 +1055,13 @@ mkDatumCacheRequestAff datumCacheWs = mkRequestAff
 
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . QueryM listeners
-  -> QueryM JsWebSocket
+   . listeners
+  -> JsWebSocket
   -> JsonWsp.JsonWspCall request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
-  ws <- getWebSocket
-  listeners' <- getListeners
+mkRequest listeners' ws jsonWspCall getLs inp = do
   logger <- getLogger
   liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
 
