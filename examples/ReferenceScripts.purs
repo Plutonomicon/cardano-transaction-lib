@@ -12,7 +12,7 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
@@ -20,7 +20,6 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , mkTxUnspentOut
-  , plutusV2Script
   )
 import Contract.TxConstraints
   ( InputWithScriptRef(SpendInput)
