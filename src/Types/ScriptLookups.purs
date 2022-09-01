@@ -911,7 +911,8 @@ processConstraint mpsMap osMap = do
             case datum' of
               OutputDatumHash dHash -> do
                 dat <- ExceptT do
-                  mDatumQuery <- lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+                  mDatumQuery <- lift $ getDatumByHash dHash <#> note
+                    (CannotQueryDatum dHash)
                   mDatumLookup <- lookupDatum dHash
                   pure (mDatumQuery <|> mDatumLookup)
                 ExceptT $ addDatum dat
