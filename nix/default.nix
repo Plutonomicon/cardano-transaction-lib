@@ -192,7 +192,6 @@ let
         mkdir $out
         mv output $out/
         cp -r $src/* $out/
-        cp -r $src/src $out/
       '';
     };
 
