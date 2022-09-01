@@ -78,7 +78,19 @@ import Aeson
   , getFieldOptional
   , getFieldOptional'
   , isNull
+  , isString
   , stringifyAeson
+  , toString
+  )
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
   )
 import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
@@ -87,7 +99,7 @@ import Cardano.Types.Transaction
   , Nonce
   , SubCoin
   )
-import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value
   ( Coin(Coin)
@@ -106,11 +118,12 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.Int (fromString) as Int
 import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
@@ -123,8 +136,10 @@ import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
+import Partial.Unsafe (unsafePartial)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
+import Serialization.Hash (ed25519KeyHashFromBytes)
 import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
@@ -134,6 +149,7 @@ import Types.Natural (Natural)
 import Types.Natural (fromString) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
+import Types.RawBytes (hexToRawBytes)
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
 import Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
@@ -1161,19 +1177,21 @@ parseScript outer =
     Just script -> do
       case (Array.head $ ForeignObject.toUnfoldable script) of
         Just ("plutus:v1" /\ plutusScript) ->
-          Just <$> plutusScriptWithLang PlutusV1 plutusScript
+          Just <$> parsePlutusScriptWithLang PlutusV1 plutusScript
 
         Just ("plutus:v2" /\ plutusScript) ->
-          Just <$> plutusScriptWithLang PlutusV2 plutusScript
+          Just <$> parsePlutusScriptWithLang PlutusV2 plutusScript
 
-        Just ("native" /\ _) ->
-          pure Nothing -- TODO: parse native scripts 
+        Just ("native" /\ nativeScript) ->
+          Just <<< NativeScriptRef <$> parseNativeScript nativeScript
+
         _ ->
-          Left (TypeMismatch "Expected hex-encoded script")
+          Left $ TypeMismatch $
+            "Expected native or Plutus script, got: " <> show script
   where
-  plutusScriptWithLang
+  parsePlutusScriptWithLang
     :: Language -> Aeson -> Either JsonDecodeError ScriptRef
-  plutusScriptWithLang lang aeson = do
+  parsePlutusScriptWithLang lang aeson = do
     let
       scriptTypeMismatch :: JsonDecodeError
       scriptTypeMismatch = TypeMismatch
@@ -1183,6 +1201,46 @@ parseScript outer =
       \hexEncodedScript -> do
         scriptBytes <- note scriptTypeMismatch (hexToByteArray hexEncodedScript)
         pure $ PlutusScriptRef $ PlutusScript (scriptBytes /\ lang)
+
+  parseNativeScript :: Aeson -> Either JsonDecodeError NativeScript
+  parseNativeScript aeson
+    | isString aeson = do
+        let
+          pubKeyHashTypeMismatch :: JsonDecodeError
+          pubKeyHashTypeMismatch = TypeMismatch
+            $ "Expected hex-encoded pub key hash, got: " <> show aeson
+
+          pubKeyHashHex :: String
+          pubKeyHashHex = unsafePartial fromJust $ toString aeson
+
+        ScriptPubkey <$> note pubKeyHashTypeMismatch
+          (ed25519KeyHashFromBytes =<< hexToRawBytes pubKeyHashHex)
+
+    | otherwise = aeson # aesonObject \obj -> do
+        let
+          scriptTypeMismatch :: JsonDecodeError
+          scriptTypeMismatch = TypeMismatch
+            $ "Expected native script, got: " <> show aeson
+
+        case (Array.head $ ForeignObject.toUnfoldable obj) of
+          Just ("any" /\ scripts) ->
+            scripts # aesonArray (map ScriptAny <<< traverse parseNativeScript)
+
+          Just ("all" /\ scripts) ->
+            scripts # aesonArray (map ScriptAll <<< traverse parseNativeScript)
+
+          Just ("expiresAt" /\ slot) ->
+            TimelockExpiry <$> decodeAeson slot
+
+          Just ("startsAt" /\ slot) ->
+            TimelockStart <$> decodeAeson slot
+
+          Just (atLeast /\ scripts) -> do
+            n <- note scriptTypeMismatch (Int.fromString atLeast)
+            scripts # aesonArray
+              (map (ScriptNOfK n) <<< traverse parseNativeScript)
+
+          _ -> Left scriptTypeMismatch
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
