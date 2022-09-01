@@ -5,6 +5,7 @@ module QueryM.Utxos
   , getWalletBalance
   , utxosAt
   , getWalletCollateral
+  , getWalletUtxos
   ) where
 
 import Prelude
@@ -23,7 +24,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap, over)
 import Data.Traversable (for, for_, sequence, traverse)
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
@@ -144,6 +145,20 @@ getWalletBalance = do
         utxosAt address <#> map
           -- Combine `Value`s
           (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
+
+getWalletUtxos :: QueryM (Maybe UtxoM)
+getWalletUtxos = do
+  asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
+    Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
+    Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
+    Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
+    KeyWallet _ -> do
+      mbAddress <- getWalletAddress
+      map join $ for mbAddress utxosAt
+  where
+  toUtxoM :: Array TransactionUnspentOutput -> UtxoM
+  toUtxoM = wrap <<< Map.fromFoldable <<< map
+    (unwrap >>> \({ input, output }) -> input /\ output)
 
 getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
