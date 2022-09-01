@@ -43,6 +43,7 @@ import Contract.Transaction
   , withBalancedAndSignedTxs
   )
 import Contract.TxConstraints as Constraints
+import Contract.Utxos (getWalletBalance)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
@@ -51,6 +52,7 @@ import Control.Monad.Error.Class (try)
 import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
+import Data.Foldable (fold)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -66,11 +68,13 @@ import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.InlineDatum as InlineDatum
+import Examples.Lose7Ada as AlwaysFails
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
@@ -87,7 +91,7 @@ import Plutus.Types.Value (lovelaceValueOf)
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
-import Test.Spec.Assertions (shouldSatisfy)
+import Test.Spec.Assertions (shouldSatisfy, shouldEqual)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -412,6 +416,98 @@ suite = do
             validator
             txId
           eResult `shouldSatisfy` isLeft
+
+    test "runPlutipContract: AlwaysSucceeds PlutusV2" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
+    test "runPlutipContract: AlwaysFails Ada Collateral Return" do
+      let
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 2_000_000_000
+          ] /\ [ BigInt.fromInt 2_000_000_000 ]
+      runPlutipContract config distribution \(alice /\ seed) -> do
+        validator <- AlwaysFails.alwaysFailsScript
+        let vhash = validatorHash validator
+        txId <- withKeyWallet seed do
+          logInfo' "Attempt to lock value"
+          txId <- AlwaysFails.payToAlwaysFails vhash
+          awaitTxConfirmed txId
+          pure txId
+
+        withKeyWallet alice do
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          balanceBefore <- fold <$> getWalletBalance
+          AlwaysFails.spendFromAlwaysFails vhash validator txId
+          balance <- fold <$> getWalletBalance
+          let
+            collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt $ -5_000_000
+          balance `shouldEqual` (balanceBefore <> collateralLoss)
+
+    test "runPlutipContract: AlwaysFails Native Asset Collateral Return" do
+      let
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution =
+          [] /\ [ BigInt.fromInt 2_100_000_000 ]
+      runPlutipContract config distribution \(alice /\ seed) -> do
+        alicePkh /\ aliceStakePkh <- withKeyWallet alice do
+          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+          stakePkh <- ownStakePubKeyHash
+          pure $ pkh /\ stakePkh
+
+        mp <- alwaysMintsPolicy
+        cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+        tn <- liftContractM "Cannot make token name"
+          $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
+        let asset = Value.singleton cs tn $ BigInt.fromInt 50
+
+        validator <- AlwaysFails.alwaysFailsScript
+        let vhash = validatorHash validator
+
+        txId <- withKeyWallet seed do
+          logInfo' "Minting asset to Alice"
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue (asset <> asset)
+              <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
+                (asset <> (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000))
+              <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
+                ( asset <>
+                    (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000_000)
+                )
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          bsTx <- liftedE $ balanceAndSignTxE ubTx
+          submit bsTx >>= awaitTxConfirmed
+
+          logInfo' "Attempt to lock value"
+          txId <- AlwaysFails.payToAlwaysFails vhash
+          awaitTxConfirmed txId
+          pure txId
+
+        withKeyWallet alice do
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          AlwaysFails.spendFromAlwaysFails vhash validator txId
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do

@@ -5,7 +5,6 @@ module BalanceTx.Collateral
       )
   , addTxCollateral
   , addTxCollateralReturn
-  , getMaxCollateralInputs
   , maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
@@ -28,7 +27,6 @@ import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin, NonAdaAsset)
 import Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left, Right), note)
@@ -39,7 +37,7 @@ import Data.Lens.Setter ((?~))
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe(Nothing), fromMaybe)
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.Ord.Max (Max(Max))
 import Data.Ordering (invert) as Ordering
@@ -48,8 +46,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (toInt) as UInt
-import QueryM (QueryM)
+import Effect (Effect)
 import Serialization.Address (Address)
 import Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
@@ -62,11 +59,6 @@ addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral collateral transaction =
   transaction # _body <<< _collateral ?~
     map (_.input <<< unwrap) collateral
-
-getMaxCollateralInputs :: QueryM Int
-getMaxCollateralInputs =
-  asks $ _.runtime >>> _.pparams <#>
-    fromMaybe 3 <<< map UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
 -- | A constant that limits the number of candidate utxos for collateral
 -- | selection, thus maintaining acceptable time complexity.
@@ -93,11 +85,12 @@ instance Show CollateralReturnError where
 -- | NOTE: Collateral cannot be less than `minRequiredCollateral` when
 -- | selected using `selectCollateral` function in this module.
 addTxCollateralReturn
-  :: Array TransactionUnspentOutput
+  :: Coin
+  -> Array TransactionUnspentOutput
   -> Transaction
   -> Address
-  -> QueryM (Either CollateralReturnError Transaction)
-addTxCollateralReturn collateral transaction ownAddress =
+  -> Effect (Either CollateralReturnError Transaction)
+addTxCollateralReturn coinsPerUtxoByte collateral transaction ownAddress =
   let
     collAdaValue :: BigInt
     collAdaValue = foldl adaValue' zero collateral
@@ -114,7 +107,7 @@ addTxCollateralReturn collateral transaction ownAddress =
   setTxCollateralReturn
     :: BigInt
     -> NonAdaAsset
-    -> QueryM (Either CollateralReturnError Transaction)
+    -> Effect (Either CollateralReturnError Transaction)
   setTxCollateralReturn collAdaValue collNonAdaAsset = runExceptT do
     let
       maxBigNumAdaValue :: Coin
@@ -129,7 +122,7 @@ addTxCollateralReturn collateral transaction ownAddress =
 
     -- Calculate the required min ada value for the collateral return output:
     minAdaValue <-
-      ExceptT $ utxoMinAdaValue (wrap collReturnOutputRec)
+      ExceptT $ utxoMinAdaValue coinsPerUtxoByte (wrap collReturnOutputRec)
         <#> note CollateralReturnMinAdaValueCalcError
 
     let
@@ -163,9 +156,10 @@ addTxCollateralReturn collateral transaction ownAddress =
 --------------------------------------------------------------------------------
 
 collateralReturnMinAdaValue
-  :: List TransactionUnspentOutput -> QueryM (Maybe BigInt)
-collateralReturnMinAdaValue =
-  utxoMinAdaValue <<< fakeOutputWithNonAdaAssets <<< foldMap nonAdaAsset
+  :: Coin -> List TransactionUnspentOutput -> Effect (Maybe BigInt)
+collateralReturnMinAdaValue coinsPerUtxoByte =
+  utxoMinAdaValue coinsPerUtxoByte <<< fakeOutputWithNonAdaAssets <<< foldMap
+    nonAdaAsset
 
 type ReturnOutMinAdaValue = BigInt
 
@@ -209,15 +203,16 @@ mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
 -- |   utxo min ada value, we prefer the one with fewer inputs.
 -- |
 selectCollateral
-  :: Int -> Utxos -> QueryM (Maybe (List TransactionUnspentOutput))
-selectCollateral maxCollateralInputs =
+  :: Coin -> Int -> Utxos -> Effect (Maybe (List TransactionUnspentOutput))
+selectCollateral coinsPerUtxoByte maxCollateralInputs =
   -- Sort candidate utxo combinations in ascending order by utxo min ada value
   -- of return output, then select the first utxo combination:
   map (map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort)
     -- For each candidate utxo combination calculate
     -- the min Ada value of the corresponding collateral return output:
     <<< map (List.mapMaybe mkCollateralCandidate)
-    <<< traverse (\x -> Tuple x <$> collateralReturnMinAdaValue x)
+    <<< traverse
+      (\x -> Tuple x <$> collateralReturnMinAdaValue coinsPerUtxoByte x)
     -- Filter out all utxo combinations
     -- with total Ada value < `minRequiredCollateral`:
     <<< List.filter (\x -> foldl adaValue' zero x >= minRequiredCollateral)

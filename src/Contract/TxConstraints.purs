@@ -19,6 +19,7 @@ import Types.TxConstraints
       , MustPayToScript
       , MustHashDatum
       , MustSatisfyAnyOf
+      , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -43,6 +44,7 @@ import Types.TxConstraints
   , mustSpendAtLeastTotal
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
+  , mustNotBeValid
   , mustValidateIn
   , pubKeyPayments
   , requiredDatums

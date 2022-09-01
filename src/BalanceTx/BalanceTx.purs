@@ -52,12 +52,17 @@ module BalanceTx
   , balanceTx
   , balanceTxWithAddress
   , printTxEvaluationFailure
+  , finalizeTransaction
   ) where
 
 import Prelude
 
-import BalanceTx.Collateral (CollateralReturnError) as Collateral
-import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue)
+import BalanceTx.Collateral
+  ( CollateralReturnError
+  , addTxCollateral
+  , addTxCollateralReturn
+  ) as Collateral
+import BalanceTx.UtxoMinAda (adaOnlyUtxoMinAdaValue, utxoMinAdaValue) as UtxoMinAda
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction(Transaction)
@@ -65,7 +70,6 @@ import Cardano.Types.Transaction
   , TxBody(TxBody)
   , Utxos
   , _body
-  , _collateral
   , _fee
   , _inputs
   , _networkId
@@ -73,10 +77,12 @@ import Cardano.Types.Transaction
   , _plutusData
   , _redeemers
   , _witnessSet
+  , _isValid
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value
   ( Value
+  , Coin
   , filterNonAda
   , geq
   , getLovelace
@@ -112,8 +118,8 @@ import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), set, (?~), (%~))
 import Data.List ((:), List(Nil), partition)
 import Data.Log.Tag (tag)
-import Data.Map (fromFoldable, lookup, toUnfoldable, union, filterKeys) as Map
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
+import Data.Map (fromFoldable, lookup, toUnfoldable, union, filterKeys, empty) as Map
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe, isJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -158,6 +164,7 @@ import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx), _transaction)
 import Untagged.Union (asOneOf)
+import Wallet (cip30Wallet)
 
 -- This module replicates functionality from
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
@@ -461,8 +468,11 @@ evalTxExecutionUnits tx unattachedTx = do
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  lmap (EvalTxFailure unattachedTx) <<< unwrap <$> QueryM.evaluateTxOgmios
-    txBytes
+  eResult <- unwrap <$> QueryM.evaluateTxOgmios txBytes
+  pure case eResult of
+    Right a -> Right a
+    Left e | tx ^. _isValid -> Left $ EvalTxFailure unattachedTx e
+    Left _ -> Right $ wrap $ Map.empty
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
@@ -603,14 +613,36 @@ _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
 
 setCollateral
   :: Transaction
-  -> QueryM (Either GetWalletCollateralError Transaction)
-setCollateral transaction = runExceptT do
-  collateral <- ExceptT $ getWalletCollateral <#> note CouldNotGetCollateral
-  pure $ addTxCollateral collateral transaction
+  -> Address
+  -> QueryM (Either BalanceTxError Transaction)
+setCollateral transaction ownAddr = runExceptT do
+  collateral <- ExceptT $ getWalletCollateral <#> note
+    (GetWalletCollateralError' CouldNotGetCollateral)
+  let collaterisedTx = Collateral.addTxCollateral collateral transaction
+  -- Don't mess with Cip30 collateral
+  isCip30 <- asks $ (_.runtime >>> _.wallet >=> cip30Wallet) >>> isJust
+  if isCip30 then pure collaterisedTx
+  else ExceptT $ lmap CollateralReturnError' <$> addTxCollateralReturn
+    collateral
+    collaterisedTx
+    ownAddr
 
-addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
-addTxCollateral utxos transaction =
-  transaction # _body <<< _collateral ?~ map (_.input <<< unwrap) utxos
+askCoinsPerUtxoByte :: QueryM Coin
+askCoinsPerUtxoByte =
+  asks (_.runtime >>> _.pparams) <#> unwrap >>>
+    _.coinsPerUtxoByte
+
+addTxCollateralReturn
+  :: Array TransactionUnspentOutput
+  -> Transaction
+  -> Address
+  -> QueryM (Either Collateral.CollateralReturnError Transaction)
+addTxCollateralReturn collateral transaction ownAddress = do
+  coinsPerUtxoByte <- askCoinsPerUtxoByte
+  liftEffect
+    ( Collateral.addTxCollateralReturn coinsPerUtxoByte collateral transaction
+        ownAddress
+    )
 
 --------------------------------------------------------------------------------
 -- Balancing functions and helpers
@@ -647,8 +679,7 @@ balanceTxWithAddress
       if Array.null (unattachedTx ^. _redeemersTxIns)
       -- Don't set collateral if tx doesn't contain phase-2 scripts:
       then pure unbalancedTx'
-      else ExceptT $ setCollateral unbalancedTx'
-        <#> lmap GetWalletCollateralError'
+      else ExceptT $ setCollateral unbalancedTx' ownAddr
 
     let
       -- Combines utxos at the user address and those from any scripts
@@ -934,6 +965,16 @@ calculateMinUtxos = map sequence <<< traverse
       utxoMinAdaValue txOutput
         <#> note UtxoMinAdaValueCalcError >>> map (Tuple txOutput)
   )
+
+utxoMinAdaValue :: TransactionOutput -> QueryM (Maybe BigInt)
+utxoMinAdaValue txOut = do
+  coinsPerUtxoByte <- askCoinsPerUtxoByte
+  liftEffect (UtxoMinAda.utxoMinAdaValue coinsPerUtxoByte txOut)
+
+adaOnlyUtxoMinAdaValue :: QueryM BigInt
+adaOnlyUtxoMinAdaValue = do
+  coinsPerUtxoByte <- askCoinsPerUtxoByte
+  liftEffect $ UtxoMinAda.adaOnlyUtxoMinAdaValue coinsPerUtxoByte
 
 -- https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs#L116
 preBalanceTxBody
