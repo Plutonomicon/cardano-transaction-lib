@@ -9,6 +9,7 @@ module Wallet.Key
 
 import Prelude
 
+import BalanceTx.Collateral (selectCollateral) as Collateral
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
   , Utxos
@@ -39,8 +40,6 @@ import Serialization.Address
   , keyHashCredential
   )
 import Serialization.Types (PrivateKey)
-
-import BalanceTx.Collateral (selectCollateral) as Collateral
 
 -------------------------------------------------------------------------------
 -- Key backend
