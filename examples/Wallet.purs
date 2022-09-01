@@ -6,7 +6,7 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Config (ConfigParams)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Utxos (getWalletBalance)
+import Contract.Utxos (getWalletBalance, getWalletUtxos)
 
 contract :: Contract () Unit
 contract = do
