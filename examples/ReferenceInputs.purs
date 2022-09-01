@@ -64,7 +64,7 @@ import Examples.Helpers
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
-import Examples.ReferenceScripts (alwaysSucceedsScriptV2)
+import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
 main = example testnetNamiConfig

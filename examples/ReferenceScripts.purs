@@ -2,7 +2,6 @@ module Examples.ReferenceScripts
   ( main
   , example
   , contract
-  , alwaysSucceedsScriptV2
   ) where
 
 import Contract.Prelude
@@ -15,10 +14,6 @@ import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
-  )
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
@@ -37,6 +32,7 @@ import Contract.Value (lovelaceValueOf) as Value
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (empty, toUnfoldable) as Map
 import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -102,11 +98,4 @@ spendFromAlwaysSucceeds vhash txId = do
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
-
-foreign import alwaysSucceedsV2 :: String
-
-alwaysSucceedsScriptV2 :: Contract () Validator
-alwaysSucceedsScriptV2 =
-  map (wrap <<< plutusV2Script)
-    (textEnvelopeBytes alwaysSucceedsV2 PlutusScriptV2)
 

@@ -60,7 +60,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Improved error handling of transaction evaluation through Ogmios. This helps with debugging during balancing, as it requires the transaction to be evaluated to calculate fees. ([#832](https://github.com/Plutonomicon/cardano-transaction-lib/pull/832))
 - Flint wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 - `mustNotBeValid` constraint which marks the transaction as invalid, allowing scripts to fail during balancing and for Ogmios to allow submission. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
-
+- `ReferenceScripts` example, for testing reference scripts ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
+- `ReferenceInputs` example, for testing reference inputs ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
+- Constraints for creating outputs with reference scripts: `mustPayToScriptWithScriptRef`, `mustPayToPubKeyAddressWithDatumAndScriptRef`, `mustPayToPubKeyAddressWithScriptRef`, `mustPayToPubKeyWithDatumAndScriptRef`, `mustPayToPubKeyWithScriptRef` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
+- Constraints for using reference validators and minting policies: `mustSpendScriptOutputUsingScriptRef`, `mustMintCurrencyUsingScriptRef`, `mustMintCurrencyWithRedeemerUsingScriptRef` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
+- Constraint for attaching a reference input to a transaction: `mustReferenceOutput` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
+ 
 ### Changed
 
 - `PlutusScript` is now aware of which version of Plutus the script is for. The JSON representation has thus changed to reflect this and is not compatible with older JSON format.
