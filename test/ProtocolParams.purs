@@ -4,7 +4,7 @@ module Test.ProtocolParams
 
 import Prelude
 
-import Contract.Aeson (decodeAeson)
+import Aeson (decodeAeson)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)

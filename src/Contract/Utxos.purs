@@ -4,6 +4,7 @@
 module Contract.Utxos
   ( getUtxo
   , getWalletBalance
+  , getWalletUtxos
   , utxosAt
   , module X
   ) where
@@ -23,7 +24,7 @@ import Plutus.Types.Transaction (UtxoMap)
 import Plutus.Types.Transaction (UtxoMap) as X
 import Plutus.Types.Value (Value)
 import Prim.TypeError (class Warn, Text)
-import QueryM.Utxos (getUtxo, getWalletBalance, utxosAt) as Utxos
+import QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxos
 
 -- | This module defines query functionality via Ogmios to get utxos.
 
@@ -57,9 +58,24 @@ getUtxo
 getUtxo ref = do
   cardanoTxOut <- wrapContract $ Utxos.getUtxo ref
   for cardanoTxOut
-    (liftContractM "getUtxo: unable to deserialize utxo" <<< toPlutusTxOutput)
+    (liftContractM "getUtxo: unable to deserialize UTxO" <<< toPlutusTxOutput)
 
 getWalletBalance
   :: forall (r :: Row Type)
    . Contract r (Maybe Value)
 getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
+
+-- | Similar to `utxosAt` called on own address, except that it uses CIP-30
+-- | wallet state and not query layer state.
+-- | The user should not expect these states to be in sync.
+-- | When active wallet is `KeyWallet`, query layer state is used.
+-- | This function is expected to be more performant than `utxosAt` when there
+-- | is a large number of assets.
+getWalletUtxos
+  :: forall (r :: Row Type)
+   . Contract r (Maybe Transaction.UtxoM)
+getWalletUtxos = do
+  mCardanoUtxos <- wrapContract Utxos.getWalletUtxos
+  for mCardanoUtxos $
+    liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
+      toPlutusUtxoM

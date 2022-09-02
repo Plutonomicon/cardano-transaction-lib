@@ -13,6 +13,7 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
+import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -40,6 +41,7 @@ import Contract.Test.Plutip
   , withPlutipContractEnv
   , withStakeKey
   )
+import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
@@ -66,7 +68,7 @@ import Data.Foldable (foldM)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse_)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -116,6 +118,7 @@ import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
+import Types.Interval (getSlotLength)
 import Types.UsedTxOuts (TxOutRefCache)
 
 -- Run with `spago test --main Test.Plutip`
@@ -561,6 +564,12 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
+    test "runPlutipContract: currentTime" do
+      runPlutipContract config unit \_ -> do
+        void $ currentTime
+        void $ getEraSummaries >>= unwrap >>> traverse
+          (getSlotLength >>> show >>> logInfo')
 
     test "runPlutipContract: SendsToken" do
       let
