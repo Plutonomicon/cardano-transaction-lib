@@ -241,18 +241,13 @@ lodeConfirmAccess :: RunningExample -> Aff Unit
 lodeConfirmAccess =
   flip inWalletPage $ \page -> do
     delaySec 0.1
-    void $ doJQ (inputType "radio") click page
-    void $ doJQ (buttonWithText "Continue") click page
-    delaySec 0.1
-    void $ doJQ (inputType "checkbox") click page
-    void $ doJQ (buttonWithText "Connect") click page
+    void $ doJQ (buttonWithText "Access") click page
 
 lodeSign :: WalletPassword -> RunningExample -> Aff Unit
 lodeSign gpassword =
   flip inWalletPage $ \page -> do
-    void $ doJQ (byId "confirm-swap") click page
-    typeInto (byId "wallet-password") (unwrap gpassword) page
-    clickButton "Next" page
+    typeInto (inputType "password") (unwrap gpassword) page
+    clickButton "Approve" page
 
 -- | A String representing a jQuery selector, e.g. "#my-id" or ".my-class"
 newtype Selector = Selector String
