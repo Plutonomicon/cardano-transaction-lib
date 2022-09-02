@@ -65,11 +65,11 @@ import Control.Parallel (parallel, sequential)
 import Data.Array ((!!))
 import Data.BigInt as BigInt
 import Data.Foldable (foldM)
+import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
-import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, bracket)
@@ -99,12 +99,11 @@ import Plutip.Server
   )
 import Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Plutus.Conversion.Address (toPlutusAddress)
-import Plutus.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , lookupTxHash
-  )
+import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , lookupTxHash
   )
 import Plutus.Types.Value (lovelaceValueOf)
 import Safe.Coerce (coerce)
@@ -311,7 +310,7 @@ suite = do
               $ toPlutusAddress nsAddr
             utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
-              fst <$> lookupTxHash txId utxos !! 0
+              view _input <$> lookupTxHash txId utxos !! 0
             let
               constraints :: TxConstraints Unit Unit
               constraints =
@@ -413,7 +412,7 @@ suite = do
               $ toPlutusAddress nsAddr
             utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
-              fst <$> lookupTxHash txId utxos !! 0
+              view _input <$> lookupTxHash txId utxos !! 0
             let
               constraints :: TxConstraints Unit Unit
               constraints =

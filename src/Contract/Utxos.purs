@@ -73,9 +73,9 @@ getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
 -- | is a large number of assets.
 getWalletUtxos
   :: forall (r :: Row Type)
-   . Contract r (Maybe Transaction.UtxoM)
+   . Contract r (Maybe UtxoMap)
 getWalletUtxos = do
   mCardanoUtxos <- wrapContract Utxos.getWalletUtxos
   for mCardanoUtxos $
     liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
-      toPlutusUtxoM
+      toPlutusUtxoMap
