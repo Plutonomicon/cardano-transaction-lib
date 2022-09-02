@@ -12,6 +12,7 @@ import Cardano.Types.Transaction
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
@@ -24,7 +25,7 @@ import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization as Serialization
 import Serialization.Address (Address, addressFromBytes)
@@ -41,6 +42,7 @@ type Cip30Wallet =
   , getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
   -- Get combination of all available UTxOs
   , getBalance :: Cip30Connection -> Aff (Maybe Value)
+  , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral ::
       Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
@@ -65,6 +67,7 @@ mkCip30WalletAff walletName enableWallet = do
     , getCollateral
     , signTx
     , getBalance
+    , getUtxos
     }
 
 -------------------------------------------------------------------------------
@@ -96,6 +99,14 @@ getCollateral conn = do
       maybe (throw "Unable to convert UTxO") pure =<<
         Deserialization.UnspentOuput.convertUnspentOutput
           <$> fromBytesEffect (unwrap bytes)
+
+getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+getUtxos conn = do
+  mArrayStr <- toAffE $ _getUtxos maybeFfiHelper conn
+  liftEffect $ for mArrayStr $ traverse \str -> do
+    liftMaybe (error "Unable to convert UTxO") $
+      hexToRawBytes str >>= unwrap >>> fromBytes >>=
+        Deserialization.UnspentOuput.convertUnspentOutput
 
 signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
 signTx conn tx = do
@@ -146,3 +157,8 @@ foreign import _signTx
   -> Effect (Promise String)
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
+
+foreign import _getUtxos
+  :: MaybeFfiHelper
+  -> Cip30Connection
+  -> Effect (Promise (Maybe (Array String)))

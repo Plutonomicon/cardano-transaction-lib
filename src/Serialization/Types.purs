@@ -12,6 +12,7 @@ module Serialization.Types
   , ConstrPlutusData
   , CostModel
   , Costmdls
+  , DataCost
   , DataHash
   , Ed25519KeyHashes
   , Ed25519Signature
@@ -101,6 +102,7 @@ foreign import data Certificates :: Type
 foreign import data ConstrPlutusData :: Type
 foreign import data CostModel :: Type
 foreign import data Costmdls :: Type
+foreign import data DataCost :: Type
 foreign import data DataHash :: Type
 foreign import data Ed25519KeyHashes :: Type
 foreign import data Ed25519Signature :: Type

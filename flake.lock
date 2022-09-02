@@ -293,11 +293,11 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "lastModified": 1655361562,
-        "narHash": "sha256-b/z5RSgqTMQpEUSD4nbrBAr86PcQs+n6EMtn/YPeyj4=",
+        "lastModified": 1661149943,
+        "narHash": "sha256-x6M9zMacJDvBsmgjxRNVT+rPymgmQjOEs3e5TXdX5wk=",
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "08e6c0572d5d48049fab521995b29607e0a91a9e",
+        "rev": "303f3a3035c52eb753b533d53ef439c6b4cde9c9",
         "type": "github"
       },
       "original": {
@@ -1415,17 +1415,17 @@
         "wai-routes": "wai-routes"
       },
       "locked": {
-        "lastModified": 1656650330,
-        "narHash": "sha256-Rl5xNP3LVtuOzXXSsdAWNB3EXGRPsFPMvBO0TDUvSJE=",
+        "lastModified": 1660637986,
+        "narHash": "sha256-0I+yfuva9pg6pPHeWNO73oPRxCjh8I4ER0Egxf8XKdk=",
         "owner": "mlabs-haskell",
         "repo": "ogmios",
-        "rev": "e406801eaeb32b28cd84357596ca1512bff27741",
+        "rev": "9c04524d45de2c417ddda9e7ab0d587a54954c57",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "ogmios",
-        "rev": "e406801eaeb32b28cd84357596ca1512bff27741",
+        "rev": "9c04524d45de2c417ddda9e7ab0d587a54954c57",
         "type": "github"
       }
     },
