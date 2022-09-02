@@ -76,6 +76,7 @@ import Aeson
   , encodeAeson
   , getField
   , getFieldOptional
+  , getFieldOptional'
   , isNull
   , stringifyAeson
   )
@@ -100,7 +101,7 @@ import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (index, singleton, reverse)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.List (List)
@@ -1074,6 +1075,7 @@ type ChainPoint =
 -- | Ogmios response for Utxo Query
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
+derive instance Newtype UtxoQR _
 derive newtype instance Show UtxoQR
 
 instance DecodeAeson UtxoQR where
@@ -1134,6 +1136,7 @@ parseTxOutRef = aesonObject $ \o -> do
 type OgmiosTxOut =
   { address :: OgmiosAddress
   , value :: Value
+  , datumHash :: Maybe String
   , datum :: Maybe String
   -- TODO: add datum and scriptRef
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
@@ -1146,8 +1149,9 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ getField o "datumHash"
-  pure { address, value, datum }
+  datumHash <- getFieldOptional' o "datumHash"
+  datum <- getFieldOptional' o "datum"
+  pure { address, value, datumHash, datum }
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
