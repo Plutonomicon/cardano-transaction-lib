@@ -87,7 +87,7 @@ run_browser () {
 EXTID_NAMI=lpfcbjknijpeeillifnkikgncikgfhdo
 EXTID_GERO=iifeegfcfhlhhnilhfoeihllenamcfgc
 EXTID_FLINT=hnhobjmcibchnmglfbldbfabcgaknlkj
-EXTID_LODE=ikffplhknjhbfkgbhnionfklokakmknd
+EXTID_LODE=aoeinhkbhhfdlfdglbkbofhigianohdm
 
 extract_settings_nami() {
     extid=$1
@@ -105,6 +105,13 @@ extract_settings_gero_flint() {
         $CHROME_PROFILE/Default/Extension\ State
 }
 
+extract_settings_lode() {
+    extid=$1
+    tgt=$2
+
+    tar czf $tgt $CHROME_PROFILE/Default/Local\ Extension\ Settings/$extid/* \
+                 $CHROME_PROFILE/Default/Extension\ State
+}
 
 MODE=""
 
@@ -145,7 +152,7 @@ cmd_settings() {
             TARGET=$NAMI_SETTINGS
             ;;
         "lode")
-            CMD=extract_settings_gero_flint
+            CMD=extract_settings_lode
             EXTID=$EXTID_LODE
             TARGET=$LODE_SETTINGS
             ;;

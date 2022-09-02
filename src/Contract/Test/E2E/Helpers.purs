@@ -246,6 +246,7 @@ lodeConfirmAccess =
 lodeSign :: WalletPassword -> RunningExample -> Aff Unit
 lodeSign gpassword =
   flip inWalletPage $ \page -> do
+    delaySec 0.1
     typeInto (inputType "password") (unwrap gpassword) page
     clickButton "Approve" page
 
