@@ -18,7 +18,6 @@ import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
-  , liftContractAffM
   , liftContractM
   , liftedE
   , liftedM
@@ -454,7 +453,7 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
           tn <- liftContractM "Cannot make token name"
             $ Value.mkTokenName
                 =<< byteArrayFromAscii "TheToken"
@@ -563,8 +562,7 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
           validator <- AlwaysSucceeds.alwaysSucceedsScript
-          vhash <- liftContractAffM "Couldn't hash validator"
-            $ validatorHash validator
+          let vhash = validatorHash validator
           logInfo' "Attempt to lock value"
           txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
           awaitTxConfirmed txId

@@ -11,46 +11,46 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
-// -----------------------------------------------------------------------------
-// blake2b256Hash, blake2b256HashHex, hashPlutusData, hashPlutusScript
-// -----------------------------------------------------------------------------
-
-const DIGEST_LENGTH_256 = 32;
-const DIGEST_LENGTH_224 = 28;
-const DIGEST_ENCODING_BINARY = "binary";
-const DIGEST_ENCODING_HEX = "hex";
-
-const blake2bHash = bytesToHash => digestLength => digestEncoding => {
+exports._blake2bReady = () => {
   return new Promise((resolve, reject) => {
     Blake2bWasm.ready(error => {
       if (error || !Blake2bWasm.SUPPORTED) {
-        reject(new Error("Failed to calculate Blake2b hash"));
+        reject(new Error("Could not initialize blake2b-wasm"));
       } else {
-        const digest = Blake2bWasm(digestLength)
-          .update(Buffer.from(bytesToHash))
-          .digest(digestEncoding);
-        resolve(digest);
+        resolve();
       }
     });
   });
 };
 
-exports._blake2b256Hash = bytesToHash => () => {
-  return blake2bHash(bytesToHash)(DIGEST_LENGTH_256)(DIGEST_ENCODING_BINARY);
+// -----------------------------------------------------------------------------
+// blake2b256Hash, blake2b256HashHex, hashPlutusData, hashPlutusScript
+// -----------------------------------------------------------------------------
+
+const blake2b256Hash = bytesToHash => digestEncoding => {
+  try {
+    return Blake2bWasm(32)
+      .update(Buffer.from(bytesToHash))
+      .digest(digestEncoding);
+  } catch (_) {
+    throw new Error("WASM not loaded. Use `blake2bReady` before hashing.");
+  }
 };
 
-exports._blake2b256HashHex = bytesToHash => () => {
-  return blake2bHash(bytesToHash)(DIGEST_LENGTH_256)(DIGEST_ENCODING_HEX);
+exports.unsafeBlake2b256Hash = bytesToHash => {
+  return blake2b256Hash(bytesToHash)("binary");
+};
+
+exports.unsafeBlake2b256HashHex = bytesToHash => {
+  return blake2b256Hash(bytesToHash)("hex");
 };
 
 exports.hashPlutusData = plutusData => {
   return lib.hash_plutus_data(plutusData).to_bytes();
 };
 
-exports.hashPlutusScript = plutusScriptBytes => () => {
-  // set Plutus language namespace byte
-  const bytes = new Uint8Array([0x1, ...plutusScriptBytes]);
-  return blake2bHash(bytes)(DIGEST_LENGTH_224)(DIGEST_ENCODING_BINARY);
+exports.plutusScriptHash = script => {
+  return lib.PlutusScript.new(script).hash();
 };
 
 // -----------------------------------------------------------------------------

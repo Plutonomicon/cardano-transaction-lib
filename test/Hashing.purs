@@ -40,8 +40,8 @@ suite =
         shouldEqual blake2b256HexDigestFixture
 
     test "blake2b224 hash of a Plutus script" do
-      Hashing.plutusScriptHash plutusScriptFixture >>=
-        shouldEqual (Just plutusScriptHashFixture)
+      Hashing.plutusScriptHash plutusScriptFixture
+        `shouldEqual` plutusScriptHashFixture
 
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
