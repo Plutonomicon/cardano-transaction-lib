@@ -16,15 +16,15 @@ find_browser () {
 temp_base () {
     BROWSER=$(find_browser)
     if [[ "$BROWSER" == *"snap"* ]]; then
-	echo ./tmp
+        echo ./tmp
     else
-	eche $TMPDIR
+        eche $TMPDIR
     fi
 }
 
 unique_temp_dir () {
     echo "$(temp_base)/$(mktemp -du e2e.XXXXXXX)"
-} 
+}
 
 run_tests () {
     UNIQUE_TEMP_DIR=$(unique_temp_dir)
@@ -39,49 +39,49 @@ run_tests () {
     tar xzf $LODE_SETTINGS
     rm -f $CHROME_PROFILE/SingletonLock
     spago test --main Test.E2E -a "E2ETest \
-    	  --nami-dir $UNIQUE_TEMP_DIR/nami \
-	  --nami-password $NAMI_PASSWORD \
-	  --gero-dir $UNIQUE_TEMP_DIR/gero \
-	  --gero-password $GERO_PASSWORD \
-	  --lode-dir $UNIQUE_TEMP_DIR/lode \
- 	  --lode-password $LODE_PASSWORD \
- 	  --flint-dir $UNIQUE_TEMP_DIR/flint \
- 	  --flint-password $FLINT_PASSWORD \
-	  $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
+          --nami-dir $UNIQUE_TEMP_DIR/nami \
+          --nami-password $NAMI_PASSWORD \
+          --gero-dir $UNIQUE_TEMP_DIR/gero \
+          --gero-password $GERO_PASSWORD \
+          --lode-dir $UNIQUE_TEMP_DIR/lode \
+          --lode-password $LODE_PASSWORD \
+          --flint-dir $UNIQUE_TEMP_DIR/flint \
+          --flint-password $FLINT_PASSWORD \
+          $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
 }
 
 extract_settings() {
     if [ -n "$1" ] && [ -f "$1" ]
     then
-	tar xzf "$1"
+        tar xzf "$1"
     fi
 }
 
 extract_crx() {
     if [ -n "$1" ] && [ -f "$1" ]
     then
-	unzip $1 -d $2 > /dev/zero
+        unzip $1 -d $2 > /dev/zero
     fi
 }
 
 
 run_browser () {
-    UNIQUE_TEMP_DIR=$(unique_temp_dir)    
+    UNIQUE_TEMP_DIR=$(unique_temp_dir)
     mkdir -p $UNIQUE_TEMP_DIR
 
     extract_settings "$FLINT_SETTINGS"
     extract_settings "$GERO_SETTINGS"
-    extract_settings "$LODE_SETTINGS"    
+    extract_settings "$LODE_SETTINGS"
     extract_settings "$NAMI_SETTINGS"
     extract_crx "$FLINT_CRX" "$UNIQUE_TEMP_DIR/flint"
     extract_crx "$GERO_CRX" "$UNIQUE_TEMP_DIR/gero"
-    extract_crx "$LODE_CRX" "$UNIQUE_TEMP_DIR/lode"    
+    extract_crx "$LODE_CRX" "$UNIQUE_TEMP_DIR/lode"
     extract_crx "$NAMI_CRX" "$UNIQUE_TEMP_DIR/nami"
 
     $(find_browser) \
-	--load-extension=$UNIQUE_TEMP_DIR/flint,$UNIQUE_TEMP_DIR/gero,$UNIQUE_TEMP_DIR/nami,$UNIQUE_TEMP_DIR/lode \
-	--user-data-dir=$CHROME_PROFILE || rm -Rf $UNIQUE_TEMP_DIR
-    
+        --load-extension=$UNIQUE_TEMP_DIR/flint,$UNIQUE_TEMP_DIR/gero,$UNIQUE_TEMP_DIR/nami,$UNIQUE_TEMP_DIR/lode \
+        --user-data-dir=$CHROME_PROFILE || rm -Rf $UNIQUE_TEMP_DIR
+
 }
 
 EXTID_NAMI=lpfcbjknijpeeillifnkikgncikgfhdo
@@ -90,19 +90,19 @@ EXTID_FLINT=hnhobjmcibchnmglfbldbfabcgaknlkj
 EXTID_LODE=ikffplhknjhbfkgbhnionfklokakmknd
 
 extract_settings_nami() {
-    extid=$1    
+    extid=$1
     tgt=$2
 
     tar czf $tgt $CHROME_PROFILE/Default/Local\ Extension\ Settings/$extid/*
 }
 
 extract_settings_gero_flint() {
-    extid=$1    
+    extid=$1
     tgt=$2
 
     tar czf $tgt \
-	$CHROME_PROFILE/Default/IndexedDB/chrome-extension_${extid}_0.indexeddb.leveldb \
-	$CHROME_PROFILE/Default/Extension\ State
+        $CHROME_PROFILE/Default/IndexedDB/chrome-extension_${extid}_0.indexeddb.leveldb \
+        $CHROME_PROFILE/Default/Extension\ State
 }
 
 
@@ -129,38 +129,38 @@ cmd_browser() {
 
 cmd_settings() {
     case "$1" in
-	"flint")
-	    CMD=extract_settings_gero_flint
-	    EXTID=$EXTID_FLINT
-	    TARGET=$FLINT_SETTINGS
-	    ;;
-	"gero")
-	    CMD=extract_settings_gero_flint
-	    EXTID=$EXTID_GERO
-	    TARGET=$GERO_SETTINGS
-	    ;;
-	"nami")
-	    CMD=extract_settings_nami
-	    EXTID=$EXTID_NAMI
-	    TARGET=$NAMI_SETTINGS
-	    ;;	
-	"lode")
-	    CMD=extract_settings_gero_flint
-	    EXTID=$EXTID_LODE
-	    TARGET=$LODE_SETTINGS
-	    ;;	
+        "flint")
+            CMD=extract_settings_gero_flint
+            EXTID=$EXTID_FLINT
+            TARGET=$FLINT_SETTINGS
+            ;;
+        "gero")
+            CMD=extract_settings_gero_flint
+            EXTID=$EXTID_GERO
+            TARGET=$GERO_SETTINGS
+            ;;
+        "nami")
+            CMD=extract_settings_nami
+            EXTID=$EXTID_NAMI
+            TARGET=$NAMI_SETTINGS
+            ;;
+        "lode")
+            CMD=extract_settings_gero_flint
+            EXTID=$EXTID_LODE
+            TARGET=$LODE_SETTINGS
+            ;;
     esac
 
-    shift 1   
+    shift 1
     while getopts "o:" arg; do
-	case $arg in
-	    o)
-		TARGET="$OPTARG"
-		;;
-	esac
+        case $arg in
+            o)
+                TARGET="$OPTARG"
+                ;;
+        esac
     done
-    
-    $CMD $EXTID $TARGET    
+
+    $CMD $EXTID $TARGET
 }
 
 if [ -z "$1" ]
@@ -169,19 +169,19 @@ then
 fi
 
 case "$1" in
-    "run") 
-	shift 1
-	cmd_run $*
-	;;
-    "browser") 
-	shift 1
-	cmd_browser $*
-	;;    
-    "settings") 
-	shift 1
-	cmd_settings $*
-	;;    
+    "run")
+        shift 1
+        cmd_run $*
+        ;;
+    "browser")
+        shift 1
+        cmd_browser $*
+        ;;
+    "settings")
+        shift 1
+        cmd_settings $*
+        ;;
     "*")
-	usage
-	;;
+        usage
+        ;;
 esac

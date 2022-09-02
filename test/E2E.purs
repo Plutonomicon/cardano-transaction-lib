@@ -30,13 +30,15 @@ main = launchAff_ $ do
 
 -- Requires external services listed in README.md
 testPlan :: TestOptions -> TestPlanM (Aff Unit) Unit
-testPlan options@(TestOptions {wallets}) = group "e2e tests" $
- void $ forWithIndex wallets $ \wallet (WalletConfig _ password) -> do
-   let w = getWalletByType wallet
-   Pkh2Pkh.runExample w password options
-   AlwaysMints.runExample (getWalletByType wallet) password options
-   AlwaysSucceeds.runExample w password options
-   Datums.runExample w password options
-   MintsMultipleTokens.runExample w password options
-   SignMultiple.runExample w password options
+testPlan options@(TestOptions { wallets }) = group "e2e tests"
+  $ void
+  $ forWithIndex wallets
+  $ \wallet (WalletConfig _ password) -> do
+      let w = getWalletByType wallet
+      Pkh2Pkh.runExample w password options
+      AlwaysMints.runExample (getWalletByType wallet) password options
+      AlwaysSucceeds.runExample w password options
+      Datums.runExample w password options
+      MintsMultipleTokens.runExample w password options
+      SignMultiple.runExample w password options
 

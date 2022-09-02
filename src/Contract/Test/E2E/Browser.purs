@@ -14,7 +14,8 @@ import Contract.Test.E2E.WalletExt
   , getWalletByType
   )
 import Contract.Test.E2E.Helpers
- ( WalletPassword(WalletPassword))
+  ( WalletPassword(WalletPassword)
+  )
 
 import Data.Foldable (fold)
 import Data.Array (catMaybes)
@@ -85,7 +86,7 @@ optParser = ado
     , metavar "PW"
     , help "Nami wallet password"
     , value Nothing
-    ]    
+    ]
   geroDir <- option (Just <$> str) $ fold
     [ long "gero-dir"
     , metavar "DIR"
@@ -97,7 +98,7 @@ optParser = ado
     , metavar "PW"
     , help "Gero wallet password"
     , value Nothing
-    ]        
+    ]
   flintDir <- option (Just <$> str) $ fold
     [ long "flint-dir"
     , metavar "DIR"
@@ -133,18 +134,24 @@ optParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
-  let wallets = Map.fromFoldable $ catMaybes
-                [ mkConfig NamiExt namiDir namiPassword
-                , mkConfig GeroExt geroDir geroPassword
-                , mkConfig FlintExt flintDir flintPassword
-                , mkConfig LodeExt lodeDir lodePassword
-                ]
+  let
+    wallets = Map.fromFoldable $ catMaybes
+      [ mkConfig NamiExt namiDir namiPassword
+      , mkConfig GeroExt geroDir geroPassword
+      , mkConfig FlintExt flintDir flintPassword
+      , mkConfig LodeExt lodeDir lodePassword
+      ]
   in
     TestOptions
       { chromeExe, wallets, chromeUserDataDir, noHeadless }
-  where mkConfig :: WalletExt -> Maybe FilePath -> Maybe WalletPassword -> Maybe (Tuple WalletExt WalletConfig)
-        mkConfig ext mfp mpw = map (ext /\ _) $ WalletConfig <$> mfp <*> mpw
-  
+  where
+  mkConfig
+    :: WalletExt
+    -> Maybe FilePath
+    -> Maybe WalletPassword
+    -> Maybe (Tuple WalletExt WalletConfig)
+  mkConfig ext mfp mpw = map (ext /\ _) $ WalletConfig <$> mfp <*> mpw
+
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info optParser fullDesc
 

@@ -10,7 +10,9 @@ import Test.E2E.Helpers
   )
 import TestM (TestPlanM)
 
-runExample :: SomeWallet -> WalletPassword -> TestOptions -> TestPlanM (Aff Unit) Unit
-runExample (SomeWallet {wallet, confirmAccess, sign}) password options = runE2ETest "Pkh2Pkh" options wallet $ \example -> do
-  confirmAccess example
-  sign password example
+runExample
+  :: SomeWallet -> WalletPassword -> TestOptions -> TestPlanM (Aff Unit) Unit
+runExample (SomeWallet { wallet, confirmAccess, sign }) password options =
+  runE2ETest "Pkh2Pkh" options wallet $ \example -> do
+    confirmAccess example
+    sign password example

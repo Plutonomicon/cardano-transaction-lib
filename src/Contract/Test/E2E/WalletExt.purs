@@ -95,4 +95,3 @@ walletName = _.name <<< unwrap <<< getWalletByType
 
 data WalletConfig = WalletConfig FilePath WalletPassword
 
-

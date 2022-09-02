@@ -22,7 +22,7 @@ import Contract.Test.E2E.Feedback
 import Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample(RunningExample)
-  , WalletPassword(WalletPassword)        
+  , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
   , flintConfirmAccess
