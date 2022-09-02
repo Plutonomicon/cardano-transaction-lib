@@ -61,6 +61,7 @@ module QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
+  , slotLengthFactor
   ) where
 
 import Prelude
@@ -74,8 +75,8 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
   , encodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , isNull
@@ -111,7 +112,13 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
+import Data.String
+  ( Pattern(Pattern)
+  , indexOf
+  , split
+  , splitAt
+  , uncons
+  )
 import Data.Tuple (snd, uncurry)
 import Data.String.Common (split) as String
 import Data.Traversable (sequence, traverse, for)
@@ -386,8 +393,7 @@ instance EncodeAeson EraSummary where
       }
 
 newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
-  -- start time of the network.
+  { time :: RelativeTime -- The time is relative to the start time of the network.
   , slot :: Slot -- An absolute slot number
   -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
   -- u64 which has precision up to 18446744073709551615 (note 385 difference)
@@ -422,7 +428,7 @@ instance EncodeAeson EraSummaryTime where
 
 -- | A time in seconds relative to another one (typically, system start or era
 -- | start). [ 0 .. 18446744073709552000 ]
-newtype RelativeTime = RelativeTime BigInt
+newtype RelativeTime = RelativeTime Number
 
 derive instance Generic RelativeTime _
 derive instance Newtype RelativeTime _
@@ -450,7 +456,9 @@ instance Show Epoch where
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
+  , slotLength :: SlotLength -- <= MAX_SAFE_INTEGER (=9,007,199,254,740,992) 
+  -- A slot length, in milliseconds, previously it has 
+  -- a max limit of 18446744073709552000, now removed.
   , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.
   -- This should be (at least) the number of slots in which we are guaranteed
@@ -467,9 +475,14 @@ instance Show EraSummaryParameters where
 instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
     epochLength <- getField o "epochLength"
-    slotLength <- getField o "slotLength"
+    slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
     safeZone <- fromMaybe zero <$> getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
+
+-- | The EraSummaryParameters uses seconds and we use miliseconds
+-- use it to translate between them
+slotLengthFactor :: Number
+slotLengthFactor = 1e3
 
 instance EncodeAeson EraSummaryParameters where
   encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
@@ -491,8 +504,8 @@ derive newtype instance EncodeAeson EpochLength
 instance Show EpochLength where
   show (EpochLength el) = showWithParens "EpochLength" el
 
--- | A slot length, in seconds <= 18446744073709552000
-newtype SlotLength = SlotLength BigInt
+-- | A slot length, in milliseconds
+newtype SlotLength = SlotLength Number
 
 derive instance Generic SlotLength _
 derive instance Newtype SlotLength _
