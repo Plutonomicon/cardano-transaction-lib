@@ -24,9 +24,9 @@ module Plutus.Conversion
   , fromPlutusTxUnspentOutput
   , toPlutusTxUnspentOutput
 
-  -- Plutus UtxoM <-> Cardano UtxoM
-  , fromPlutusUtxoM
-  , toPlutusUtxoM
+  -- Plutus UtxoMap <-> Cardano UtxoMap
+  , fromPlutusUtxoMap
+  , toPlutusUtxoMap
   ) where
 
 import Prelude
@@ -35,7 +35,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse)
 
-import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
+import Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Cardano
@@ -43,7 +43,7 @@ import Cardano.Types.Value (Coin) as Cardano
 
 import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import Plutus.Types.Transaction (TransactionOutput, UtxoM) as Plutus
+import Plutus.Types.Transaction (TransactionOutput, UtxoMap) as Plutus
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
 import Plutus.Types.Value (Coin) as Plutus
 
@@ -121,13 +121,13 @@ toPlutusTxUnspentOutput txUnspentOutput = do
   pure $ wrap { input: rec.input, output }
 
 --------------------------------------------------------------------------------
--- Plutus UtxoM <-> Cardano UtxoM
+-- Plutus UtxoMap <-> Cardano UtxoMap
 --------------------------------------------------------------------------------
 
-fromPlutusUtxoM :: NetworkId -> Plutus.UtxoM -> Cardano.UtxoM
-fromPlutusUtxoM networkId =
-  wrap <<< map (fromPlutusTxOutput networkId) <<< unwrap
+fromPlutusUtxoMap :: NetworkId -> Plutus.UtxoMap -> Cardano.UtxoMap
+fromPlutusUtxoMap networkId =
+  map (fromPlutusTxOutput networkId)
 
-toPlutusUtxoM :: Cardano.UtxoM -> Maybe Plutus.UtxoM
-toPlutusUtxoM =
-  map wrap <<< traverse toPlutusTxOutput <<< unwrap
+toPlutusUtxoMap :: Cardano.UtxoMap -> Maybe Plutus.UtxoMap
+toPlutusUtxoMap =
+  traverse toPlutusTxOutput

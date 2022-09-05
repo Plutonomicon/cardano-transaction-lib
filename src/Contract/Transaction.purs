@@ -17,6 +17,7 @@ module Contract.Transaction
   , module BalanceTxError
   , module ExportQueryM
   , module PTransaction
+  , module PTransactionUnspentOutput
   , module ReindexRedeemersExport
   , module ScriptLookups
   , module Transaction
@@ -141,7 +142,12 @@ import Hashing (transactionHash) as Hashing
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput)) as PTransaction
+import Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as PTransaction
+import Plutus.Types.TransactionUnspentOutput
+  ( lookupTxHash
+  ) as PTransactionUnspentOutput
 import Plutus.Types.Value (Coin)
 import QueryM
   ( ClientError

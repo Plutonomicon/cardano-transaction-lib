@@ -52,8 +52,7 @@ module Cardano.Types.Transaction
   , URL(URL)
   , UnitInterval
   , Update
-  , Utxos
-  , UtxoM(UtxoM)
+  , UtxoMap
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , _auxiliaryData
@@ -93,7 +92,6 @@ import Aeson
   , encodeAeson
   , encodeAeson'
   )
-
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -884,13 +882,4 @@ derive newtype instance EncodeAeson TransactionOutput
 instance Show TransactionOutput where
   show = genericShow
 
-newtype UtxoM = UtxoM Utxos
-
-derive instance Generic UtxoM _
-derive instance Newtype UtxoM _
-derive newtype instance Eq UtxoM
-
-instance Show UtxoM where
-  show = genericShow
-
-type Utxos = Map TransactionInput TransactionOutput
+type UtxoMap = Map TransactionInput TransactionOutput

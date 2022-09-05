@@ -11,7 +11,7 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
-  , Utxos
+  , UtxoMap
   , _vkeys
   , TransactionOutput(TransactionOutput)
   )
@@ -47,7 +47,7 @@ import Serialization.Types (PrivateKey)
 -------------------------------------------------------------------------------
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
-  , selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
+  , selectCollateral :: UtxoMap -> Maybe TransactionUnspentOutput
   , signTx :: Transaction -> Aff Transaction
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
@@ -98,7 +98,7 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         >>> enterpriseAddress
         >>> enterpriseAddressToAddress
 
-  selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
+  selectCollateral :: UtxoMap -> Maybe TransactionUnspentOutput
   selectCollateral utxos = unwrap <<< unwrap <$> flip
     foldMapWithIndex
     utxos
