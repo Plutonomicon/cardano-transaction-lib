@@ -3,7 +3,8 @@
 module Contract.TxConstraints (module TxConstraints) where
 
 import Types.TxConstraints
-  ( InputConstraint(InputConstraint)
+  ( DatumPresence(DatumInline, DatumWitness)
+  , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint

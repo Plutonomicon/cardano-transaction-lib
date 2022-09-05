@@ -49,7 +49,8 @@ import Contract.Transaction
   , plutusV2Script
   )
 import Contract.TxConstraints
-  ( InputWithScriptRef(RefInput)
+  ( DatumPresence(DatumWitness)
+  , InputWithScriptRef(RefInput)
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
@@ -111,7 +112,7 @@ payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
 
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayToScript vhash unitDatum value
+      Constraints.mustPayToScript vhash unitDatum DatumWitness value
         <> createOutputWithScriptRef validatorRef
         <> createOutputWithScriptRef mpRef
 

@@ -68,9 +68,11 @@ payToAlwaysFails :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysFails vhash = do
   let
     constraints :: TxConstraints Unit Unit
-    constraints = Constraints.mustPayToScript vhash unitDatum
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+    constraints =
+      Constraints.mustPayToScript vhash unitDatum
+        Constraints.DatumWitness
+        $ Value.lovelaceValueOf
+        $ BigInt.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty

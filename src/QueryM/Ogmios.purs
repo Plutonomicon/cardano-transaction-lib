@@ -115,7 +115,7 @@ import Data.Array (index, singleton, reverse)
 import Data.Array (head) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
@@ -1093,6 +1093,7 @@ type ChainPoint =
 -- | Ogmios response for Utxo Query
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
+derive instance Newtype UtxoQR _
 derive newtype instance Show UtxoQR
 
 instance DecodeAeson UtxoQR where
@@ -1153,10 +1154,9 @@ parseTxOutRef = aesonObject $ \o -> do
 type OgmiosTxOut =
   { address :: OgmiosAddress
   , value :: Value
+  , datumHash :: Maybe String
   , datum :: Maybe String
   , script :: Maybe ScriptRef
-  -- TODO: add datum
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
   }
 
 -- Ogmios currently supplies the Raw OgmiosAddress in addr1 format, rather than the
@@ -1166,9 +1166,10 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ getField o "datumHash"
+  datumHash <- getFieldOptional' o "datumHash"
+  datum <- getFieldOptional' o "datum"
   script <- parseScript o
-  pure { address, value, datum, script }
+  pure { address, value, datumHash, datum, script }
 
 parseScript :: Object Aeson -> Either JsonDecodeError (Maybe ScriptRef)
 parseScript outer =

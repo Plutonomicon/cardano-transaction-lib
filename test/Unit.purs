@@ -23,6 +23,7 @@ import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import Test.Types.TokenName as Types.TokenName
 import Test.Transaction as Transaction
+import Test.TxOutput as TxOutput
 import Test.UsedTxOuts as UsedTxOuts
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -48,6 +49,7 @@ testPlan = do
   Serialization.Address.suite
   Serialization.Hash.suite
   Transaction.suite
+  TxOutput.suite
   UsedTxOuts.suite
   OgmiosDatumCache.suite
   Ogmios.Aeson.suite

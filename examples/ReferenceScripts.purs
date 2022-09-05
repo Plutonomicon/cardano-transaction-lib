@@ -22,7 +22,8 @@ import Contract.Transaction
   , mkTxUnspentOut
   )
 import Contract.TxConstraints
-  ( InputWithScriptRef(SpendInput)
+  ( DatumPresence(DatumWitness)
+  , InputWithScriptRef(SpendInput)
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
@@ -64,7 +65,8 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
   let
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayToScriptWithScriptRef vhash unitDatum scriptRef
+      Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
+        scriptRef
         (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
     lookups :: Lookups.ScriptLookups PlutusData

@@ -45,8 +45,10 @@ import Contract.Utxos (getWalletBalance)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
+import Control.Monad.Error.Class (try)
 import Control.Parallel (parallel, sequential)
 import Data.BigInt as BigInt
+import Data.Either (isLeft)
 import Data.Foldable (fold)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
@@ -62,6 +64,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.InlineDatum as InlineDatum
 import Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
@@ -346,6 +349,80 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
+    test "runPlutipContract: InlineDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value with inline datum"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          InlineDatum.spendFromCheckDatumIsInline vhash validator txId
+
+    test "runPlutipContract: InlineDatum Read" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value with inline datum"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to read inline datum"
+          InlineDatum.readFromCheckDatumIsInline vhash txId
+
+    test "runPlutipContract: InlineDatum Failure" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value without inline datum"
+          txId <- InlineDatum.payToCheckDatumIsInlineWrong vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          eResult <- try $ InlineDatum.spendFromCheckDatumIsInline vhash
+            validator
+            txId
+          eResult `shouldSatisfy` isLeft
+
+    test "runPlutipContract: InlineDatum Cannot Spend PlutusV1" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value at plutusv1 script with inline datum"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          eResult <- try $ InlineDatum.spendFromCheckDatumIsInline vhash
+            validator
+            txId
+          eResult `shouldSatisfy` isLeft
 
     test "runPlutipContract: AlwaysSucceeds PlutusV2" do
       let

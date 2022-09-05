@@ -1,5 +1,6 @@
 module Types.TxConstraints
-  ( InputConstraint(InputConstraint)
+  ( DatumPresence(DatumInline, DatumWitness)
+  , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
@@ -71,6 +72,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Map (fromFoldableWith, toUnfoldable)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\), type (/\))
@@ -105,10 +107,10 @@ data TxConstraint
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
       (Maybe InputWithScriptRef)
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
-      (Maybe Datum)
+      (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
       Value
-  | MustPayToScript ValidatorHash Datum (Maybe ScriptRef) Value
+  | MustPayToScript ValidatorHash Datum DatumPresence (Maybe ScriptRef) Value
   | MustHashDatum DataHash Datum
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
@@ -128,6 +130,22 @@ derive instance Generic InputWithScriptRef _
 
 instance Show InputWithScriptRef where
   show = genericShow
+
+-- | `DatumPresence` describes how datum should be stored in the transaction
+-- | when paying to a script.
+data DatumPresence
+  -- | `DatumInline` asserts the datum should be stored in the
+  -- | `TransactionOutput` as an inline datum.
+  = DatumInline
+  -- | `DatumWitness` asserts the datum's hash be stored in the
+  -- | `TransactionOutput`, and the datum added to the transactions witnesses.
+  | DatumWitness
+
+derive instance Eq DatumPresence
+derive instance Generic DatumPresence _
+
+instance Show DatumPresence where
+  show x = genericShow x
 
 newtype InputConstraint (i :: Type) = InputConstraint
   { redeemer :: i
@@ -239,10 +257,12 @@ mustPayToPubKeyAddressWithDatum
    . PaymentPubKeyHash
   -> StakePubKeyHash
   -> Datum
+  -> DatumPresence
   -> Value
   -> TxConstraints i o
-mustPayToPubKeyAddressWithDatum pkh skh datum =
-  singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum) Nothing
+mustPayToPubKeyAddressWithDatum pkh skh datum dtp =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
+    Nothing
 
 mustPayToPubKeyAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)
@@ -259,12 +279,13 @@ mustPayToPubKeyAddressWithDatumAndScriptRef
    . PaymentPubKeyHash
   -> StakePubKeyHash
   -> Datum
+  -> DatumPresence
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh datum scriptRef =
-  singleton
-    <<< MustPayToPubKeyAddress pkh (Just skh) (Just datum) (Just scriptRef)
+mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh datum dtp scriptRef =
+  singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
+    (Just scriptRef)
 
 -- | Lock the value with a public key
 mustPayToPubKey
@@ -284,10 +305,11 @@ mustPayToPubKeyWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Datum
+  -> DatumPresence
   -> Value
   -> TxConstraints i o
-mustPayToPubKeyWithDatum pkh datum =
-  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum) Nothing
+mustPayToPubKeyWithDatum pkh datum dtp =
+  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just $ datum /\ dtp) Nothing
 
 mustPayToPubKeyWithScriptRef
   :: forall (i :: Type) (o :: Type)
@@ -302,11 +324,13 @@ mustPayToPubKeyWithDatumAndScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Datum
+  -> DatumPresence
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayToPubKeyWithDatumAndScriptRef pkh datum scriptRef =
-  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just datum) (Just scriptRef)
+mustPayToPubKeyWithDatumAndScriptRef pkh datum dtp scriptRef =
+  singleton <<< MustPayToPubKeyAddress pkh Nothing (Just $ datum /\ dtp)
+    (Just scriptRef)
 
 -- | Note that CTL does not have explicit equivalents of Plutus'
 -- | `mustPayToTheScript` or `mustPayToOtherScript`, as we have no notion
@@ -317,22 +341,24 @@ mustPayToScript
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
   -> Datum
+  -> DatumPresence
   -> Value
   -> TxConstraints i o
-mustPayToScript vh dt vl =
-  singleton (MustPayToScript vh dt Nothing vl)
-    <> singleton (MustIncludeDatum dt)
+mustPayToScript vh dt dtp vl =
+  singleton (MustPayToScript vh dt dtp Nothing vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToScriptWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
   -> Datum
+  -> DatumPresence
   -> ScriptRef
   -> Value
   -> TxConstraints i o
-mustPayToScriptWithScriptRef vh dt scriptRef vl =
-  singleton (MustPayToScript vh dt (Just scriptRef) vl)
-    <> singleton (MustIncludeDatum dt)
+mustPayToScriptWithScriptRef vh dt dtp scriptRef vl =
+  singleton (MustPayToScript vh dt dtp (Just scriptRef) vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 -- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
@@ -535,7 +561,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendScriptOutput _ _ _ -> true
       MustMintValue _ _ _ _ _ -> true
       MustPayToPubKeyAddress _ _ _ _ vl -> not (isZero vl)
-      MustPayToScript _ _ _ vl -> not (isZero vl)
+      MustPayToScript _ _ _ _ vl -> not (isZero vl)
       MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
       _ -> false
   in
