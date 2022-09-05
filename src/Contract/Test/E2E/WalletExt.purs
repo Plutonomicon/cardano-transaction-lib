@@ -10,6 +10,7 @@ module Contract.Test.E2E.WalletExt
 
 import Prelude
 
+import Contract.Test.E2E.Helpers (ExtensionId(ExtensionId)) as X
 import Contract.Test.E2E.Helpers
   ( ExtensionId(ExtensionId)
   , RunningExample
@@ -23,11 +24,15 @@ import Contract.Test.E2E.Helpers
   , namiConfirmAccess
   , namiSign
   )
-import Contract.Test.E2E.Helpers (ExtensionId(ExtensionId)) as X
+import Control.Monad.Error.Class (liftMaybe)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, wrap)
+import Effect (Effect)
 import Effect.Aff (Aff)
+import Effect.Exception (error)
 import Node.Path (FilePath)
+import Node.Process (lookupEnv)
+import Record as Record
 
 data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt
 
@@ -44,50 +49,63 @@ newtype SomeWallet = SomeWallet
 
 derive instance Newtype SomeWallet _
 
-getWalletByName :: String -> Maybe SomeWallet
+getWalletByName :: String -> Effect (Maybe SomeWallet)
 getWalletByName = case _ of
-  "flint" -> Just $ getWalletByType FlintExt
-  "gero" -> Just $ getWalletByType GeroExt
-  "lode" -> Just $ getWalletByType LodeExt
-  "nami" -> Just $ getWalletByType NamiExt
-  _ -> Nothing
+  "flint" -> Just <$> getWalletByType FlintExt
+  "gero" -> Just <$> getWalletByType GeroExt
+  "lode" -> Just <$> getWalletByType LodeExt
+  "nami" -> Just <$> getWalletByType NamiExt
+  _ -> pure Nothing
 
-getWalletByType :: WalletExt -> SomeWallet
-getWalletByType = case _ of
-  FlintExt ->
-    wrap
+readExtIdEnvVar :: String -> Effect ExtensionId
+readExtIdEnvVar varName = do
+  mbStr <- lookupEnv varName
+  ExtensionId <$> liftMaybe
+    (error $ "Unable to get " <> varName <> " environment variable")
+    mbStr
+
+getWalletByType :: WalletExt -> Effect SomeWallet
+getWalletByType walletExt = addName case walletExt of
+  FlintExt -> do
+    id <- readExtIdEnvVar "FLINT_EXTID"
+    pure
       { wallet: FlintExt
-      , name: "flint"
-      , id: ExtensionId "hnhobjmcibchnmglfbldbfabcgaknlkj"
+      , id
       , confirmAccess: flintConfirmAccess
       , sign: flintSign
       }
-  GeroExt ->
-    wrap
+  GeroExt -> do
+    id <- readExtIdEnvVar "GERO_EXTID"
+    pure
       { wallet: GeroExt
-      , name: "gero"
-      , id: ExtensionId "iifeegfcfhlhhnilhfoeihllenamcfgc"
+      , id
       , confirmAccess: geroConfirmAccess
       , sign: geroSign
       }
-  LodeExt ->
-    wrap
+  LodeExt -> do
+    id <- readExtIdEnvVar "LODE_EXTID"
+    pure
       { wallet: LodeExt
-      , name: "lode"
-      , id: ExtensionId "aoeinhkbhhfdlfdglbkbofhigianohdm"
+      , id
       , confirmAccess: lodeConfirmAccess
       , sign: lodeSign
       }
-  NamiExt ->
-    wrap
+  NamiExt -> do
+    id <- readExtIdEnvVar "NAMI_EXTID"
+    pure
       { wallet: NamiExt
-      , name: "nami"
-      , id: ExtensionId "lpfcbjknijpeeillifnkikgncikgfhdo"
+      , id
       , confirmAccess: namiConfirmAccess
       , sign: namiSign
       }
+  where
+  addName m = m <#> Record.merge { name: walletName walletExt } >>> wrap
 
 walletName :: WalletExt -> String
-walletName = _.name <<< unwrap <<< getWalletByType
+walletName = case _ of
+  GeroExt -> "gero"
+  LodeExt -> "lode"
+  NamiExt -> "namie"
+  FlintExt -> "flint"
 
 data WalletConfig = WalletConfig FilePath WalletPassword

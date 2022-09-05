@@ -96,7 +96,11 @@ waitForWalletPage extId timeout browser =
       if timeout > 0.0 then do
         delaySec 0.1
         waitForWalletPage extId (timeout - 0.1) browser
-      else liftEffect $ throw "Wallet did not open"
+      else liftEffect $ throw $
+        "Wallet popup did not open. Did you provide extension ID correctly? "
+          <> "Provided ID: "
+          <> unwrap extId
+
     Just page -> pure page
 
 showOutput :: Ref (Array E2EOutput) -> Effect String

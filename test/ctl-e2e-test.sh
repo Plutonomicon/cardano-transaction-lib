@@ -78,11 +78,6 @@ run_browser () {
 
 }
 
-EXTID_NAMI=lpfcbjknijpeeillifnkikgncikgfhdo
-EXTID_GERO=iifeegfcfhlhhnilhfoeihllenamcfgc
-EXTID_FLINT=hnhobjmcibchnmglfbldbfabcgaknlkj
-EXTID_LODE=aoeinhkbhhfdlfdglbkbofhigianohdm
-
 extract_settings_nami() {
     extid=$1
     tgt=$2
