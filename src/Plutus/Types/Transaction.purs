@@ -1,7 +1,6 @@
 module Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
-  , Utxo
-  , UtxoM(UtxoM)
+  , UtxoMap
   ) where
 
 import Prelude
@@ -45,13 +44,4 @@ instance ToData TransactionOutput where
   toData (TransactionOutput { address, amount, dataHash }) =
     Constr zero [ toData address, toData amount, toData dataHash ]
 
-newtype UtxoM = UtxoM Utxo
-
-derive instance Generic UtxoM _
-derive instance Newtype UtxoM _
-derive newtype instance Eq UtxoM
-
-instance Show UtxoM where
-  show = genericShow
-
-type Utxo = Map TransactionInput TransactionOutput
+type UtxoMap = Map TransactionInput TransactionOutput
