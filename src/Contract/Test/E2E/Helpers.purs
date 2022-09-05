@@ -233,22 +233,15 @@ geroSign extId gpassword re =
     typeInto (byId "wallet-password") (unwrap gpassword) gero
     clickButton "Next" gero
 
+-- Not implemented yet
 flintConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
-flintConfirmAccess extId re =
-  inWalletPage extId re \page -> do
-    delaySec 0.1
-    void $ doJQ (inputType "radio") click page
-    void $ doJQ (buttonWithText "Continue") click page
-    delaySec 0.1
-    void $ doJQ (inputType "checkbox") click page
-    void $ doJQ (buttonWithText "Connect") click page
+flintConfirmAccess _ _ =
+  liftEffect $ throw "Flint support is not implemented"
 
+-- Not implemented yet
 flintSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
-flintSign extId gpassword re = do
-  inWalletPage extId re \gero -> do
-    void $ doJQ (byId "confirm-swap") click gero
-    typeInto (byId "wallet-password") (unwrap gpassword) gero
-    clickButton "Next" gero
+flintSign _ _ _ = do
+  liftEffect $ throw "Flint support is not implemented"
 
 lodeConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 lodeConfirmAccess extId re = do

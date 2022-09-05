@@ -39,14 +39,8 @@ run_tests () {
     tar xzf $LODE_SETTINGS
     rm -f $CHROME_PROFILE/SingletonLock
     spago test --main Test.E2E -a "E2ETest \
-          --nami-dir $UNIQUE_TEMP_DIR/nami \
-          --nami-password $NAMI_PASSWORD \
-          --gero-dir $UNIQUE_TEMP_DIR/gero \
-          --gero-password $GERO_PASSWORD \
           --lode-dir $UNIQUE_TEMP_DIR/lode \
           --lode-password $LODE_PASSWORD \
-          --flint-dir $UNIQUE_TEMP_DIR/flint \
-          --flint-password $FLINT_PASSWORD \
           $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
 }
 
