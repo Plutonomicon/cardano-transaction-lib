@@ -2,12 +2,7 @@ module Test.E2E.Examples.SignMultiple (runExample) where
 
 import Prelude
 
-import Contract.Test.E2E
-  ( TestOptions
-  , SomeWallet(SomeWallet)
-  , WalletExt(NamiExt)
-  , WalletPassword
-  )
+import Contract.Test.E2E (SomeWallet(SomeWallet), TestOptions, WalletPassword)
 import Effect.Aff (Aff)
 import Test.E2E.Helpers
   ( delaySec

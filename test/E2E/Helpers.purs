@@ -9,16 +9,11 @@ module Test.E2E.Helpers
 import Prelude
 
 import Contract.Test.E2E
-  ( TestOptions
-  , RunningExample
-  , SomeWallet
+  ( RunningExample
+  , TestOptions
   , WalletExt
-  , WalletPassword
   , checkSuccess
   , delaySec
-  , flintSign
-  , geroSign
-  , namiSign
   , resetTestFeedback
   , walletName
   , withBrowser
@@ -78,7 +73,7 @@ runE2ETest example opts ext f = test example $ withBrowser opts ext $
                 walletName ext
               resetTestFeedback (_.main $ unwrap e)
               void $ try $ f e
-              delaySec 10.0
+              delaySec 30.0
               liftEffect $ log $ "Example " <> example <>
                 " finished, check success..."
               checkSuccess e >>= flip shouldSatisfy (_ == true)

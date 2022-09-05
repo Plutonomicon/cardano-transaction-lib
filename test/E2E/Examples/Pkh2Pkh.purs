@@ -4,10 +4,7 @@ import Prelude
 
 import Contract.Test.E2E (TestOptions, SomeWallet(SomeWallet), WalletPassword)
 import Effect.Aff (Aff)
-import Test.E2E.Helpers
-  ( namiConfirmAccess
-  , runE2ETest
-  )
+import Test.E2E.Helpers (runE2ETest)
 import TestM (TestPlanM)
 
 runExample

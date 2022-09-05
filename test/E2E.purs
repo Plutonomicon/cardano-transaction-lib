@@ -41,4 +41,3 @@ testPlan options@(TestOptions { wallets }) = group "e2e tests"
       Datums.runExample w password options
       MintsMultipleTokens.runExample w password options
       SignMultiple.runExample w password options
-
