@@ -21,7 +21,7 @@ import Contract.Test.E2E
   )
 import Contract.Test.E2E
   ( E2EOutput
-  , RunningExample(RunningExample)
+  , RunningExample
   , SomeWallet
   , WalletPassword(WalletPassword)
   , checkSuccess
@@ -34,7 +34,7 @@ import Contract.Test.E2E
   ) as E2EHelpers
 import Control.Monad.Error.Class (try)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
@@ -71,7 +71,7 @@ runE2ETest example opts ext f = test example $ withBrowser opts ext $
           ( \e -> do
               liftEffect $ log $ "Start Example " <> example <> ":" <>
                 walletName ext
-              resetTestFeedback (_.main $ unwrap e)
+              resetTestFeedback (_.main e)
               void $ try $ f e
               delaySec 30.0
               liftEffect $ log $ "Example " <> example <>

@@ -21,7 +21,7 @@ import Contract.Test.E2E.Feedback
 
 import Contract.Test.E2E.Helpers
   ( E2EOutput
-  , RunningExample(RunningExample)
+  , RunningExample
   , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec

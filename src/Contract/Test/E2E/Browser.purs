@@ -8,10 +8,8 @@ module Contract.Test.E2E.Browser
 import Prelude
 
 import Contract.Test.E2E.WalletExt
-  ( SomeWallet
-  , WalletConfig(WalletConfig)
-  , WalletExt(FlintExt, GeroExt, LodeExt, NamiExt)
-  , getWalletByType
+  ( WalletConfig(WalletConfig)
+  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt)
   )
 import Contract.Test.E2E.Helpers
   ( WalletPassword(WalletPassword)
@@ -26,8 +24,6 @@ import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, bracket)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Node.Path (FilePath)
 import Options.Applicative
   ( Parser

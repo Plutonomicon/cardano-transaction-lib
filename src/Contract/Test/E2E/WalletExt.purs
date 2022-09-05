@@ -2,6 +2,7 @@ module Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
   , WalletExt(FlintExt, GeroExt, LodeExt, NamiExt)
   , WalletConfig(WalletConfig)
+  , module X
   , getWalletByName
   , getWalletByType
   , walletName
@@ -10,7 +11,8 @@ module Contract.Test.E2E.WalletExt
 import Prelude
 
 import Contract.Test.E2E.Helpers
-  ( RunningExample
+  ( ExtensionId(ExtensionId)
+  , RunningExample
   , WalletPassword
   , flintConfirmAccess
   , flintSign
@@ -21,14 +23,9 @@ import Contract.Test.E2E.Helpers
   , namiConfirmAccess
   , namiSign
   )
-
-import Prelude
-
-import Data.Array (head)
+import Contract.Test.E2E.Helpers (ExtensionId(ExtensionId)) as X
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Map (Map)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Tuple (Tuple(Tuple), snd)
 import Effect.Aff (Aff)
 import Node.Path (FilePath)
 
@@ -40,9 +37,9 @@ derive instance Ord WalletExt
 newtype SomeWallet = SomeWallet
   { wallet :: WalletExt
   , name :: String
-  , id :: String
-  , confirmAccess :: RunningExample -> Aff Unit
-  , sign :: WalletPassword -> RunningExample -> Aff Unit
+  , id :: ExtensionId
+  , confirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+  , sign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
   }
 
 derive instance Newtype SomeWallet _
@@ -61,7 +58,7 @@ getWalletByType = case _ of
     wrap
       { wallet: FlintExt
       , name: "flint"
-      , id: "hnhobjmcibchnmglfbldbfabcgaknlkj"
+      , id: ExtensionId "hnhobjmcibchnmglfbldbfabcgaknlkj"
       , confirmAccess: flintConfirmAccess
       , sign: flintSign
       }
@@ -69,7 +66,7 @@ getWalletByType = case _ of
     wrap
       { wallet: GeroExt
       , name: "gero"
-      , id: "iifeegfcfhlhhnilhfoeihllenamcfgc"
+      , id: ExtensionId "iifeegfcfhlhhnilhfoeihllenamcfgc"
       , confirmAccess: geroConfirmAccess
       , sign: geroSign
       }
@@ -77,7 +74,7 @@ getWalletByType = case _ of
     wrap
       { wallet: LodeExt
       , name: "lode"
-      , id: "ikffplhknjhbfkgbhnionfklokakmknd"
+      , id: ExtensionId "aoeinhkbhhfdlfdglbkbofhigianohdm"
       , confirmAccess: lodeConfirmAccess
       , sign: lodeSign
       }
@@ -85,7 +82,7 @@ getWalletByType = case _ of
     wrap
       { wallet: NamiExt
       , name: "nami"
-      , id: "lpfcbjknijpeeillifnkikgncikgfhdo"
+      , id: ExtensionId "lpfcbjknijpeeillifnkikgncikgfhdo"
       , confirmAccess: namiConfirmAccess
       , sign: namiSign
       }
@@ -94,4 +91,3 @@ walletName :: WalletExt -> String
 walletName = _.name <<< unwrap <<< getWalletByType
 
 data WalletConfig = WalletConfig FilePath WalletPassword
-

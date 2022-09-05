@@ -1,7 +1,8 @@
 {- | This module is intended to be used for running custom E2E-tests -}
 module Contract.Test.E2E.Helpers
   ( E2EOutput
-  , RunningExample(RunningExample)
+  , RunningExample
+  , ExtensionId(ExtensionId)
   , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
@@ -21,10 +22,12 @@ import Prelude
 import Contract.Test.E2E.Feedback (testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Promise (Promise, toAffE)
-import Data.Array (head, filterA, elem, any)
+import Data.Array (any, elem, head)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.String.CodeUnits as String
+import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (for, fold)
 import Effect (Effect)
 import Effect.Aff (Aff, bracket, launchAff_, delay)
@@ -46,14 +49,12 @@ newtype E2EOutput = E2EOutput
   , output :: String
   }
 
-newtype RunningExample = RunningExample
+type RunningExample =
   { browser :: Toppokki.Browser
   , jQuery :: String
   , main :: Toppokki.Page
   , errors :: Ref (Array E2EOutput)
   }
-
-derive instance Newtype RunningExample _
 
 newtype WalletPassword = WalletPassword String
 
@@ -67,33 +68,34 @@ retrieveJQuery = toAffE <<< _retrieveJQuery
 typeInto :: Selector -> String -> Toppokki.Page -> Aff Unit
 typeInto selector text page = toAffE $ _typeInto selector text page
 
--- | Count how many items match a selector
-jQueryCount :: Selector -> Toppokki.Page -> Aff Int
-jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
-  page
-
--- | Check if a selector is matched on a page
-hasSelector :: Selector -> Toppokki.Page -> Aff Boolean
-hasSelector selector page = (_ > 0) <$> jQueryCount selector page
-
 -- | Find the popup page of the wallet. This works for both Nami and Gero
 -- | by looking for a page with a button. If there is a button on the main page
 -- | this needs to be modified.
-findWalletPage :: String -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
-findWalletPage jQuery browser = do
-  pages <- injectJQueryAll jQuery browser
-  pages' <- filterA (hasSelector button) pages
-  pure $ head $ pages'
+findWalletPage :: ExtensionId -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
+findWalletPage (ExtensionId extId) browser = do
+  pages <- Toppokki.pages browser
+  head <<< fold <$> for pages \page -> do
+    url <- pageUrl page
+    pure $
+      if String.contains (Pattern extId) url then [ page ]
+      else []
+
+pageUrl :: Toppokki.Page -> Aff String
+pageUrl page = do
+  unsafeFromForeign <$> Toppokki.unsafeEvaluateStringFunction
+    "document.location.href"
+    page
 
 -- | Wait until the wallet page pops up. Timout should be at least a few seconds.
 -- | The 'String' param is the text of jQuery, which will be injected.
-waitForWalletPage :: String -> Number -> Toppokki.Browser -> Aff Toppokki.Page
-waitForWalletPage jQuery timeout browser =
-  findWalletPage jQuery browser >>= case _ of
+waitForWalletPage
+  :: ExtensionId -> Number -> Toppokki.Browser -> Aff Toppokki.Page
+waitForWalletPage extId timeout browser =
+  findWalletPage extId browser >>= case _ of
     Nothing -> do
       if timeout > 0.0 then do
         delaySec 0.1
-        waitForWalletPage jQuery (timeout - 0.1) browser
+        waitForWalletPage extId (timeout - 0.1) browser
       else liftEffect $ throw "Wallet did not open"
     Just page -> pure page
 
@@ -123,7 +125,7 @@ startExample url browser = do
     Toppokki.onRequestFailed (handler errorRef RequestFailed $ pure <<< show)
       page
   Toppokki.goto url page
-  pure $ wrap
+  pure
     { browser: browser
     , jQuery: jQuery
     , main: page
@@ -138,7 +140,7 @@ startExample url browser = do
     -> OutputType
     -> (a -> Aff String)
     -> EffectFn1 a Unit
-  handler errorRef outputType f = mkEffectFn1 $ \e -> launchAff_ do
+  handler errorRef outputType f = mkEffectFn1 \e -> launchAff_ do
     output <- f e
     liftEffect $ Ref.modify_
       ( _ <>
@@ -153,7 +155,7 @@ startExample url browser = do
 -- | Run an example in the browser and close the browser afterwards
 -- | A Wallet page will be detected.
 -- | Sample usage:
--- |   withBrowser options NamiExt $ \browser -> do
+-- |   withBrowser options NamiExt \browser -> do
 -- |     withExample
 -- |        (wrap "http://myserver:1234/docontract")
 -- |        browser $ do
@@ -168,7 +170,7 @@ withExample url browser = bracket (startExample url browser)
   (const $ pure unit)
 
 waitForTestFeedback :: RunningExample -> Number -> Aff Unit
-waitForTestFeedback ex@(RunningExample { main, errors }) timeout
+waitForTestFeedback ex@{ main, errors } timeout
   | timeout <= 0.0 = pure unit
   | otherwise =
       do
@@ -183,29 +185,40 @@ waitForTestFeedback ex@(RunningExample { main, errors }) timeout
         [ PageError, RequestFailed ]
 
 checkSuccess :: RunningExample -> Aff Boolean
-checkSuccess ex@(RunningExample { main, errors }) = do
+checkSuccess ex@{ main, errors } = do
   waitForTestFeedback ex 50.0
   feedback <- testFeedbackIsTrue main
   unless feedback $ liftEffect $ showOutput errors >>= log
   pure feedback
 
+newtype ExtensionId = ExtensionId String
+
+derive instance Newtype ExtensionId _
+
 inWalletPage
-  :: forall (a :: Type). RunningExample -> (Toppokki.Page -> Aff a) -> Aff a
-inWalletPage (RunningExample { browser, jQuery }) =
-  (waitForWalletPage jQuery 10.0 browser >>= _)
+  :: forall (a :: Type)
+   . ExtensionId
+  -> RunningExample
+  -> (Toppokki.Page -> Aff a)
+  -> Aff a
+inWalletPage extId { browser, jQuery } cont = do
+  page <- waitForWalletPage extId 10.0 browser
+  injectJQuery page jQuery
+  cont page
 
-namiConfirmAccess :: RunningExample -> Aff Unit
-namiConfirmAccess = flip inWalletPage (clickButton "Access")
+namiConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+namiConfirmAccess extId re = inWalletPage extId re (clickButton "Access")
 
-namiSign :: WalletPassword -> RunningExample -> Aff Unit
-namiSign wpassword = flip inWalletPage \nami -> do
-  clickButton "Sign" nami
-  reactSetValue password (unwrap wpassword) nami
-  clickButton "Confirm" nami
+namiSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+namiSign extId wpassword re = do
+  inWalletPage extId re \nami -> do
+    clickButton "Sign" nami
+    reactSetValue password (unwrap wpassword) nami
+    clickButton "Confirm" nami
 
-geroConfirmAccess :: RunningExample -> Aff Unit
-geroConfirmAccess =
-  flip inWalletPage $ \page -> do
+geroConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+geroConfirmAccess extId re = do
+  inWalletPage extId re \page -> do
     delaySec 0.1
     void $ doJQ (inputType "radio") click page
     void $ doJQ (buttonWithText "Continue") click page
@@ -213,16 +226,16 @@ geroConfirmAccess =
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
 
-geroSign :: WalletPassword -> RunningExample -> Aff Unit
-geroSign gpassword =
-  flip inWalletPage $ \gero -> do
+geroSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+geroSign extId gpassword re =
+  inWalletPage extId re \gero -> do
     void $ doJQ (byId "confirm-swap") click gero
     typeInto (byId "wallet-password") (unwrap gpassword) gero
     clickButton "Next" gero
 
-flintConfirmAccess :: RunningExample -> Aff Unit
-flintConfirmAccess =
-  flip inWalletPage $ \page -> do
+flintConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+flintConfirmAccess extId re =
+  inWalletPage extId re \page -> do
     delaySec 0.1
     void $ doJQ (inputType "radio") click page
     void $ doJQ (buttonWithText "Continue") click page
@@ -230,24 +243,29 @@ flintConfirmAccess =
     void $ doJQ (inputType "checkbox") click page
     void $ doJQ (buttonWithText "Connect") click page
 
-flintSign :: WalletPassword -> RunningExample -> Aff Unit
-flintSign gpassword =
-  flip inWalletPage $ \gero -> do
+flintSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+flintSign extId gpassword re = do
+  inWalletPage extId re \gero -> do
     void $ doJQ (byId "confirm-swap") click gero
     typeInto (byId "wallet-password") (unwrap gpassword) gero
     clickButton "Next" gero
 
-lodeConfirmAccess :: RunningExample -> Aff Unit
-lodeConfirmAccess =
-  flip inWalletPage $ \page -> do
+lodeConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+lodeConfirmAccess extId re = do
+  inWalletPage extId re \page -> do
     delaySec 0.1
     void $ doJQ (buttonWithText "Access") click page
 
-lodeSign :: WalletPassword -> RunningExample -> Aff Unit
-lodeSign gpassword =
-  flip inWalletPage $ \page -> do
-    delaySec 0.1
+lodeSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+lodeSign extId gpassword re = do
+  delaySec 3.0
+  inWalletPage extId re \page -> do
+    void $ Toppokki.unsafeEvaluateStringFunction "console.log('hiii')" page
+    void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
+      {}
+      page
     typeInto (inputType "password") (unwrap gpassword) page
+    delaySec 0.1
     clickButton "Approve" page
 
 -- | A String representing a jQuery selector, e.g. "#my-id" or ".my-class"
@@ -268,10 +286,6 @@ doJQ selector action page = do
   where
   jq :: String
   jq = "$('" <> unwrap selector <> "')." <> unwrap action
-
--- | select any button
-button :: Selector
-button = wrap "button"
 
 -- | select a button with a specific text inside
 buttonWithText :: String -> Selector
@@ -295,18 +309,13 @@ click = wrap "click()"
 clickButton :: String -> Toppokki.Page -> Aff Unit
 clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
 
--- | inject jQuery into all pages in the browser which don't have it yet.
-injectJQueryAll :: String -> Toppokki.Browser -> Aff (Array Toppokki.Page)
-injectJQueryAll jQuery browser = do
-  pages <- Toppokki.pages browser
-  void $ for pages $ \page -> do
-    (alreadyInjected :: Boolean) <-
-      unsafeFromForeign <$>
-        Toppokki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'"
-          page
-    unless alreadyInjected $ void $ Toppokki.unsafeEvaluateStringFunction jQuery
+injectJQuery :: Toppokki.Page -> String -> Aff Unit
+injectJQuery page jQuery = do
+  (alreadyInjected :: Boolean) <- unsafeFromForeign <$>
+    Toppokki.unsafeEvaluateStringFunction "typeof(jQuery) !== 'undefined'"
       page
-  pure pages
+  unless alreadyInjected $ void $ Toppokki.unsafeEvaluateStringFunction jQuery
+    page
 
 -- | Set the value of an item with the browser's native value setter.
 -- | This is necessary for react items so that react reacts.

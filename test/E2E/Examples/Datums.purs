@@ -16,8 +16,8 @@ import TestM (TestPlanM)
 
 runExample
   :: SomeWallet -> WalletPassword -> TestOptions -> TestPlanM (Aff Unit) Unit
-runExample (SomeWallet { wallet, confirmAccess, sign }) password options =
+runExample (SomeWallet { id, confirmAccess, sign }) password options =
   runE2ETest "Datums" options NamiExt
     $ \example -> do
-        confirmAccess example
-        sign password example
+        confirmAccess id example
+        sign id password example
