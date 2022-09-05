@@ -72,7 +72,7 @@ runE2ETest example opts ext f = test example $ withBrowser opts ext $
               liftEffect $ log $ "Start Example " <> example <> ":" <>
                 walletName ext
               resetTestFeedback (_.main e)
-              void $ try $ f e
+              void $ f e
               delaySec 30.0
               liftEffect $ log $ "Example " <> example <>
                 " finished, check success..."
