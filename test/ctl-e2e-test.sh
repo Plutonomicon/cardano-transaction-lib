@@ -31,21 +31,21 @@ unique_temp_dir () {
 }
 
 run_tests () {
-    local UNIQUE_TEMP_DIR="$(unique_temp_dir)"
-    mkdir -p "$UNIQUE_TEMP_DIR"
-    unzip "$NAMI_CRX" -d "$UNIQUE_TEMP_DIR"/nami > /dev/zero
+    local temp_dir="$(unique_temp_dir)"
+    mkdir -p "$temp_dir"
+    unzip "$NAMI_CRX" -d "$temp_dir"/nami > /dev/zero
     tar xzf "$NAMI_SETTINGS"
-    unzip "$GERO_CRX" -d "$UNIQUE_TEMP_DIR"/gero > /dev/zero
+    unzip "$GERO_CRX" -d "$temp_dir"/gero > /dev/zero
     tar xzf "$GERO_SETTINGS"
-    unzip "$FLINT_CRX" -d "$UNIQUE_TEMP_DIR"/flint > /dev/zero
+    unzip "$FLINT_CRX" -d "$temp_dir"/flint > /dev/zero
     tar xzf "$FLINT_SETTINGS"
-    unzip "$LODE_CRX" -d "$UNIQUE_TEMP_DIR"/lode > /dev/zero
+    unzip "$LODE_CRX" -d "$temp_dir"/lode > /dev/zero
     tar xzf "$LODE_SETTINGS"
     rm -f "$CHROME_PROFILE"/SingletonLock
     spago test --main Test.E2E -a "E2ETest \
-          --lode-dir $UNIQUE_TEMP_DIR/lode \
+          --lode-dir $temp_dir/lode \
           --lode-password $LODE_PASSWORD \
-          $* --chrome-exe $(find_browser)" || rm -Rf "$UNIQUE_TEMP_DIR"
+          $* --chrome-exe $(find_browser)" || rm -Rf "$temp_dir"
 }
 
 extract_settings() {
@@ -64,21 +64,21 @@ extract_crx() {
 
 
 run_browser () {
-    local UNIQUE_TEMP_DIR="$(unique_temp_dir)"
-    mkdir -p "$UNIQUE_TEMP_DIR"
+    local temp_dir="$(unique_temp_dir)"
+    mkdir -p "$temp_dir"
 
     extract_settings "$FLINT_SETTINGS"
     extract_settings "$GERO_SETTINGS"
     extract_settings "$LODE_SETTINGS"
     extract_settings "$NAMI_SETTINGS"
-    extract_crx "$FLINT_CRX" "$UNIQUE_TEMP_DIR/flint"
-    extract_crx "$GERO_CRX" "$UNIQUE_TEMP_DIR/gero"
-    extract_crx "$LODE_CRX" "$UNIQUE_TEMP_DIR/lode"
-    extract_crx "$NAMI_CRX" "$UNIQUE_TEMP_DIR/nami"
+    extract_crx "$FLINT_CRX" "$temp_dir/flint"
+    extract_crx "$GERO_CRX" "$temp_dir/gero"
+    extract_crx "$LODE_CRX" "$temp_dir/lode"
+    extract_crx "$NAMI_CRX" "$temp_dir/nami"
 
     "$(find_browser)" \
-        --load-extension="$UNIQUE_TEMP_DIR"/flint,"$UNIQUE_TEMP_DIR"/gero,"$UNIQUE_TEMP_DIR"/nami,"$UNIQUE_TEMP_DIR"/lode \
-        --user-data-dir="$CHROME_PROFILE" || rm -Rf "$UNIQUE_TEMP_DIR"
+        --load-extension="$temp_dir"/flint,"$temp_dir"/gero,"$temp_dir"/nami,"$temp_dir"/lode \
+        --user-data-dir="$CHROME_PROFILE" || rm -Rf "$temp_dir"
 
 }
 
