@@ -11,8 +11,10 @@ import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
+import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
+import Data.Traversable (traverse)
 import Deserialization.BigInt as DB
 import Deserialization.FromBytes (fromBytes)
 import Deserialization.NativeScript as NSD
@@ -30,6 +32,9 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
 import Mote (group, test)
+import Node.Encoding (Encoding (UTF8))
+import Node.FS.Sync (readdir, readTextFile)
+import Node.Path (FilePath)
 import Serialization (toBytes)
 import Serialization as Serialization
 import Serialization.BigInt as SB
@@ -74,6 +79,7 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.BigNum (fromBigInt, toBigInt) as BigNum
+import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.Transaction (TransactionInput) as T
 import Untagged.Union (asOneOf)
 
@@ -165,6 +171,7 @@ suite = do
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected
+      roundTripTxTests "fixtures/test/transactions"
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
@@ -257,3 +264,19 @@ testNativeScript input = do
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input
+
+readTxCBors :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m (Array String)
+readTxCBors path = liftEffect $ readdir path >>= traverse (readTextFile UTF8)
+
+roundTripTxTests :: FilePath -> TestPlanM (Aff Unit) Unit
+roundTripTxTests path = do
+  cbors <- readTxCBors path
+  flip traverseWithIndex_ cbors $ \n txStr ->
+    test ("serialization is inverse to deserialization #" <> show n) $
+      liftEffect do
+        txHex <- errMaybe "Cannot unhex transaction" $ hexToByteArray txStr
+        binaryFixture <- errMaybe "Cannot deserialised bytes" $ fromBytes txHex
+        tx <- errMaybe "Cannot deserialise transaction" $ hush $ TD.convertTransaction binaryFixture
+        expected <- liftEffect $ TS.convertTransaction tx
+        let bytes = toBytes (asOneOf expected)
+        txStr `shouldEqual` byteArrayToHex bytes
