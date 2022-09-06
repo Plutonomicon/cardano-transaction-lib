@@ -14,11 +14,15 @@ find_browser () {
 # find a suitable temp directory for e2e-tests. snaps don't work
 # in $TMPDIR, because of lacking read access!
 temp_base () {
-    BROWSER=$(find_browser)
-    if [[ "$BROWSER" == *"snap"* ]]; then
+    local browser="$(find_browser)"
+    if [[ "$browser" == *"snap"* ]]; then
         echo ./tmp
     else
-        eche $TMPDIR
+        if [[ -z "$TMPDIR" ]]; then
+            echo ./tmp
+        else
+            echo "$TMPDIR"
+        fi
     fi
 }
 
@@ -27,21 +31,21 @@ unique_temp_dir () {
 }
 
 run_tests () {
-    UNIQUE_TEMP_DIR=$(unique_temp_dir)
-    mkdir -p $UNIQUE_TEMP_DIR
-    unzip $NAMI_CRX -d $UNIQUE_TEMP_DIR/nami > /dev/zero
-    tar xzf $NAMI_SETTINGS
-    unzip $GERO_CRX -d $UNIQUE_TEMP_DIR/gero > /dev/zero
-    tar xzf $GERO_SETTINGS
-    unzip $FLINT_CRX -d $UNIQUE_TEMP_DIR/flint > /dev/zero
-    tar xzf $FLINT_SETTINGS
-    unzip $LODE_CRX -d $UNIQUE_TEMP_DIR/lode > /dev/zero
-    tar xzf $LODE_SETTINGS
-    rm -f $CHROME_PROFILE/SingletonLock
+    local UNIQUE_TEMP_DIR="$(unique_temp_dir)"
+    mkdir -p "$UNIQUE_TEMP_DIR"
+    unzip "$NAMI_CRX" -d "$UNIQUE_TEMP_DIR"/nami > /dev/zero
+    tar xzf "$NAMI_SETTINGS"
+    unzip "$GERO_CRX" -d "$UNIQUE_TEMP_DIR"/gero > /dev/zero
+    tar xzf "$GERO_SETTINGS"
+    unzip "$FLINT_CRX" -d "$UNIQUE_TEMP_DIR"/flint > /dev/zero
+    tar xzf "$FLINT_SETTINGS"
+    unzip "$LODE_CRX" -d "$UNIQUE_TEMP_DIR"/lode > /dev/zero
+    tar xzf "$LODE_SETTINGS"
+    rm -f "$CHROME_PROFILE"/SingletonLock
     spago test --main Test.E2E -a "E2ETest \
           --lode-dir $UNIQUE_TEMP_DIR/lode \
           --lode-password $LODE_PASSWORD \
-          $* --chrome-exe $(find_browser)" || rm -Rf $UNIQUE_TEMP_DIR
+          $* --chrome-exe $(find_browser)" || rm -Rf "$UNIQUE_TEMP_DIR"
 }
 
 extract_settings() {
@@ -54,14 +58,14 @@ extract_settings() {
 extract_crx() {
     if [ -n "$1" ] && [ -f "$1" ]
     then
-        unzip $1 -d $2 > /dev/zero
+        unzip "$1" -d "$2" > /dev/zero
     fi
 }
 
 
 run_browser () {
-    UNIQUE_TEMP_DIR=$(unique_temp_dir)
-    mkdir -p $UNIQUE_TEMP_DIR
+    local UNIQUE_TEMP_DIR="$(unique_temp_dir)"
+    mkdir -p "$UNIQUE_TEMP_DIR"
 
     extract_settings "$FLINT_SETTINGS"
     extract_settings "$GERO_SETTINGS"
@@ -72,91 +76,84 @@ run_browser () {
     extract_crx "$LODE_CRX" "$UNIQUE_TEMP_DIR/lode"
     extract_crx "$NAMI_CRX" "$UNIQUE_TEMP_DIR/nami"
 
-    $(find_browser) \
-        --load-extension=$UNIQUE_TEMP_DIR/flint,$UNIQUE_TEMP_DIR/gero,$UNIQUE_TEMP_DIR/nami,$UNIQUE_TEMP_DIR/lode \
-        --user-data-dir=$CHROME_PROFILE || rm -Rf $UNIQUE_TEMP_DIR
+    "$(find_browser)" \
+        --load-extension="$UNIQUE_TEMP_DIR"/flint,"$UNIQUE_TEMP_DIR"/gero,"$UNIQUE_TEMP_DIR"/nami,"$UNIQUE_TEMP_DIR"/lode \
+        --user-data-dir="$CHROME_PROFILE" || rm -Rf "$UNIQUE_TEMP_DIR"
 
 }
 
 extract_settings_nami() {
-    extid=$1
-    tgt=$2
+    local extid="$1"
+    local tgt="$2"
 
-    tar czf $tgt $CHROME_PROFILE/Default/Local\ Extension\ Settings/$extid/*
+    tar czf "$tgt" "$CHROME_PROFILE"/Default/Local\ Extension\ Settings/"$extid"/*
 }
 
 extract_settings_gero_flint() {
-    extid=$1
-    tgt=$2
+    local extid="$1"
+    local tgt="$2"
 
-    tar czf $tgt \
-        $CHROME_PROFILE/Default/IndexedDB/chrome-extension_${extid}_0.indexeddb.leveldb \
-        $CHROME_PROFILE/Default/Extension\ State
+    tar czf "$tgt" \
+        "$CHROME_PROFILE"/Default/IndexedDB/chrome-extension_"$extid"_0.indexeddb.leveldb \
+        "$CHROME_PROFILE"/Default/Extension\ State
 }
 
 extract_settings_lode() {
-    extid=$1
-    tgt=$2
+    local extid="$1"
+    local tgt="$2"
 
-    tar czf $tgt $CHROME_PROFILE/Default/Local\ Extension\ Settings/$extid/* \
-                 $CHROME_PROFILE/Default/Extension\ State
+    tar czf "$tgt" \
+        "$CHROME_PROFILE"/Default/Local\ Extension\ Settings/"$extid"/* \
+        "$CHROME_PROFILE"/Default/Extension\ State
 }
-
-MODE=""
-
 
 usage() {
     echo "Usage: $0 cmd [options]"
     echo " commands:"
-    echo "   run                  Run the tests"
+    echo "   run [--no-headless]  Run the tests"
     echo "   browser              Start the browser in order to configure wallets"
     echo "   settings [nami|gero|flint|lode] [-o out] "
     echo "                        Dump wallet setting to out"
     exit 1
 }
 
-cmd_run() {
-    run_tests
-}
-
-cmd_browser() {
-    run_browser
-}
-
 cmd_settings() {
     case "$1" in
         "flint")
             CMD=extract_settings_gero_flint
-            EXTID=$EXTID_FLINT
-            TARGET=$FLINT_SETTINGS
+            EXTID="$FLINT_EXTID"
+            TARGET="$FLINT_SETTINGS"
             ;;
         "gero")
             CMD=extract_settings_gero_flint
-            EXTID=$EXTID_GERO
-            TARGET=$GERO_SETTINGS
+            EXTID="$GERO_EXTID"
+            TARGET="$GERO_SETTINGS"
             ;;
         "nami")
             CMD=extract_settings_nami
-            EXTID=$EXTID_NAMI
-            TARGET=$NAMI_SETTINGS
+            EXTID="$NAMI_EXTID"
+            TARGET="$NAMI_SETTINGS"
             ;;
         "lode")
             CMD=extract_settings_lode
-            EXTID=$EXTID_LODE
-            TARGET=$LODE_SETTINGS
+            EXTID="$LODE_EXTID"
+            TARGET="$LODE_SETTINGS"
+            ;;
+        *)
+            usage
             ;;
     esac
 
     shift 1
     while getopts "o:" arg; do
-        case $arg in
+        case "$arg" in
             o)
                 TARGET="$OPTARG"
                 ;;
         esac
     done
 
-    $CMD $EXTID $TARGET
+    "$CMD" "$EXTID" "$TARGET"
 }
 
 if [ -z "$1" ]
@@ -167,17 +164,17 @@ fi
 case "$1" in
     "run")
         shift 1
-        cmd_run $*
+        run_tests $*
         ;;
     "browser")
         shift 1
-        cmd_browser $*
+        run_browser
         ;;
     "settings")
         shift 1
         cmd_settings $*
         ;;
-    "*")
+    *)
         usage
         ;;
 esac
