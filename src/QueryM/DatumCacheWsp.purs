@@ -140,7 +140,7 @@ instance DecodeAeson GetTxByHashR where
     let
       txFound :: Either JsonDecodeError (Maybe Base64String)
       txFound =
-        getNestedAeson r [ "TxFound", "value", "raw" ] >>= decodeAeson
+        getNestedAeson r [ "TxFound", "value" ] >>= decodeAeson
 
       txNotFound :: Either JsonDecodeError (Maybe Base64String)
       txNotFound =
