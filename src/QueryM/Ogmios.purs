@@ -130,7 +130,6 @@ import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
-import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
