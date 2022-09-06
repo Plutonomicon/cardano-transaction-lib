@@ -12,7 +12,7 @@ import Cardano.Types.Transaction
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
@@ -157,7 +157,10 @@ foreign import _getCollateral
   -> Effect (Promise (Maybe (Array String)))
 
 getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
-getCip30Collateral = _getCollateral maybeFfiHelper
+getCip30Collateral =
+  flip catchError
+    (\e -> throwError $ error "Wallet doesn't implement `getCollateral`.") <<<
+    _getCollateral maybeFfiHelper
 
 foreign import _signTx
   :: String -- Hex-encoded cbor of tx
