@@ -866,7 +866,7 @@ instance DecodeAeson ProtocolParameters where
     decodePrices ps = note (TypeMismatch "ExUnitPrices") do
       memPrice <- rationalToSubcoin ps.prices.memory
       stepPrice <- rationalToSubcoin ps.prices.steps
-      pure $ { memPrice, stepPrice } -- ExUnits
+      pure { memPrice, stepPrice } -- ExUnits
 
 -- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
 type CostModel =
