@@ -23,7 +23,7 @@ import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( TransactionOutput(TransactionOutput)
+  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
   , balanceAndSignTxE
   , signTransaction
@@ -182,8 +182,9 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/853
     Constraints.mustBeSignedBy payPkh <>
       foldMapWithIndex
-        ( \input (TransactionOutput { amount }) ->
-            Constraints.mustPayToPubKeyAddress payPkh stakePkh amount
+        ( \input (TransactionOutputWithRefScript { output }) ->
+            Constraints.mustPayToPubKeyAddress payPkh stakePkh
+              (unwrap output).amount
               <> Constraints.mustSpendPubKeyOutput input
         )
         utxos

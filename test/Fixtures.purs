@@ -335,7 +335,7 @@ txFixture1 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
-        , referenceInputs: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
@@ -369,7 +369,7 @@ txFixture2 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
-        , referenceInputs: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
@@ -425,7 +425,7 @@ txFixture3 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
-        , referenceInputs: Just [ txInputFixture1 ]
+        , referenceInputs: Set.singleton txInputFixture1
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -614,7 +614,7 @@ txFixture4 =
         , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
-        , referenceInputs: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
@@ -666,7 +666,7 @@ txFixture5 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
-        , referenceInputs: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing

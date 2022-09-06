@@ -7,9 +7,7 @@ module Test.Plutip
 import Prelude
 
 import Contract.Address
-  ( PaymentPubKeyHash
-  , StakePubKeyHash
-  , getWalletCollateral
+  ( getWalletCollateral
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
@@ -24,7 +22,7 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy, validatorHash)
+import Contract.Scripts (validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , runContractInEnv
@@ -44,7 +42,6 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance)
-import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Monad.Reader (asks)
@@ -68,6 +65,11 @@ import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.InlineDatum as InlineDatum
+import Examples.Helpers
+  ( mkCurrencySymbol
+  , mkTokenName
+  , mustPayToPubKeyStakeAddress
+  )
 import Examples.Lose7Ada as AlwaysFails
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
@@ -75,6 +77,8 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Examples.ReferenceInputs (contract) as ReferenceInputs
+import Examples.ReferenceScripts (contract) as ReferenceScripts
 import Mote (group, test)
 import Plutip.Server
   ( startPlutipCluster
@@ -83,7 +87,9 @@ import Plutip.Server
   , stopPlutipCluster
   )
 import Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
+import Plutus.Types.Transaction
+  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  )
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
@@ -136,8 +142,9 @@ suite = do
             Nothing -> throw "Unable to get collateral"
             Just
               [ TransactionUnspentOutput
-                  { output: TransactionOutput { amount } }
+                  { output: TransactionOutputWithRefScript { output } }
               ] -> do
+              let amount = (unwrap output).amount
               unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
                 $ throw "Wrong UTxO selected as collateral"
             Just _ -> do
@@ -509,6 +516,26 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysFails.spendFromAlwaysFails vhash validator txId
 
+    test "runPlutipContract: ReferenceScripts" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice ReferenceScripts.contract
+
+    test "runPlutipContract: ReferenceInputs" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice ReferenceInputs.contract
+
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
   pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
@@ -573,26 +600,3 @@ getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
 
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
-mkTokenName =
-  liftContractM "Cannot make token name"
-    <<< (Value.mkTokenName <=< byteArrayFromAscii)
-
-mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Contract r MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
-
-mustPayToPubKeyStakeAddress
-  :: forall (o :: Type) (i :: Type)
-   . PaymentPubKeyHash
-  -> Maybe StakePubKeyHash
-  -> Value
-  -> Constraints.TxConstraints i o
-mustPayToPubKeyStakeAddress pkh Nothing = Constraints.mustPayToPubKey pkh
-mustPayToPubKeyStakeAddress pkh (Just stk) =
-  Constraints.mustPayToPubKeyAddress pkh stk

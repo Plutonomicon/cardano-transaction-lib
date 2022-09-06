@@ -9,6 +9,7 @@ module Types.ScriptLookups
       , MintingPolicyHashNotCurrencySymbol
       , CannotMakeValue
       , ValidatorHashNotFound
+      , WrongRefScriptHash
       , OwnPubKeyAndStakeKeyMissing
       , TypedValidatorMissing
       , DatumWrongHash
@@ -60,6 +61,7 @@ import Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
   , _witnessSet
@@ -77,7 +79,7 @@ import Cardano.Types.Value
   , getNonAdaAsset
   )
 import Control.Alt ((<|>))
-import Control.Monad.Error.Class (catchError, throwError, liftMaybe, liftEither)
+import Control.Monad.Error.Class (catchError, throwError, liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
@@ -111,8 +113,11 @@ import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftM)
 import IsData (class IsData)
-import Plutus.Conversion (fromPlutusTxOutput, fromPlutusValue)
-import Plutus.Types.Transaction (TransactionOutput) as Plutus
+import Plutus.Conversion (fromPlutusTxOutputWithRefScript, fromPlutusValue)
+import Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
+import Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import QueryM (QueryM, QueryMExtended, getDatumByHash)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.ProtocolParameters (getProtocolParameters)
@@ -123,6 +128,7 @@ import Scripts
   , validatorHashEnterpriseAddress
   )
 import Serialization.Address (Address, NetworkId)
+import Serialization.Hash (ScriptHash)
 import ToData (class ToData)
 import Transaction
   ( ModifyTxError
@@ -161,6 +167,7 @@ import Types.Transaction (TransactionInput)
 import Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
   , InputConstraint(InputConstraint)
+  , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
@@ -170,6 +177,7 @@ import Types.TxConstraints
       , MustPayToScript
       , MustPayToPubKeyAddress
       , MustProduceAtLeast
+      , MustReferenceOutput
       , MustSatisfyAnyOf
       , MustSpendAtLeast
       , MustSpendPubKeyOutput
@@ -220,7 +228,7 @@ newtype ScriptLookups (a :: Type) = ScriptLookups
   { mps ::
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs ::
-      Map TransactionInput Plutus.TransactionOutput -- Unspent outputs that the script may want to spend
+      Map TransactionInput Plutus.TransactionOutputWithRefScript -- Unspent outputs that the script may want to spend
   , scripts ::
       Array Validator -- Script validators
   , datums :: Map DataHash Datum --  Datums that we might need
@@ -313,7 +321,7 @@ typedValidatorLookupsM = pure <<< typedValidatorLookups
 -- | input constraints.
 unspentOutputs
   :: forall (a :: Type)
-   . Map TransactionInput Plutus.TransactionOutput
+   . Map TransactionInput Plutus.TransactionOutputWithRefScript
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
@@ -322,7 +330,7 @@ unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 -- | should not fail.
 unspentOutputsM
   :: forall (a :: Type)
-   . Map TransactionInput Plutus.TransactionOutput
+   . Map TransactionInput Plutus.TransactionOutputWithRefScript
   -> Maybe (ScriptLookups a)
 unspentOutputsM = pure <<< unspentOutputs
 
@@ -543,9 +551,8 @@ processLookupsAndConstraints
      . (constr -> ConstraintsM c (Either MkUnbalancedTxError Unit))
     -> Array constr
     -> ConstraintsM c (Either MkUnbalancedTxError Unit)
-  foldConstraints handler = foldM
-    (\_ constr -> runExceptT $ ExceptT $ handler constr)
-    (Right unit)
+  foldConstraints handler =
+    runExceptT <<< traverse_ (ExceptT <<< handler)
 
 -- Helper to run the stack and get back to `QueryM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
@@ -707,7 +714,7 @@ updateUtxoIndex
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   networkId <- lift getNetworkId
-  let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
+  let cTxOutputs = map (fromPlutusTxOutputWithRefScript networkId) txOutputs
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
@@ -728,7 +735,7 @@ addOwnInput _pd (InputConstraint { txOutRef }) = do
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
-    let cTxOutputs = map (fromPlutusTxOutput networkId) txOutputs
+    let cTxOutputs = map (fromPlutusTxOutputWithRefScript networkId) txOutputs
     inst <- liftM TypedValidatorMissing typedValidator
     -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
     -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
@@ -776,6 +783,7 @@ data MkUnbalancedTxError
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | ValidatorHashNotFound ValidatorHash
+  | WrongRefScriptHash (Maybe ScriptHash)
   | OwnPubKeyAndStakeKeyMissing
   | TypedValidatorMissing
   | DatumWrongHash DataHash Datum
@@ -806,7 +814,7 @@ lookupTxOutRef outRef = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
   networkId <- lift getNetworkId
-  pure $ fromPlutusTxOutput networkId txOut
+  pure $ fromPlutusTxOutputWithRefScript networkId txOut
 
 lookupDatum
   :: forall (a :: Type)
@@ -841,6 +849,35 @@ reindexMintRedeemers mpsHash redeemer = do
   pure $
     mintRedeemers # mapWithIndex \ix (_ /\ T.Redeemer red) ->
       T.Redeemer red { index = fromInt ix }
+
+processScriptRefUnspentOut
+  :: forall (scriptHash :: Type) (a :: Type)
+   . Newtype scriptHash ScriptHash
+  => scriptHash
+  -> InputWithScriptRef
+  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+processScriptRefUnspentOut scriptHash = case _ of
+  SpendInput unspentOut -> do
+    _cpsToTxBody <<< _inputs %= Set.insert (_.input <<< unwrap $ unspentOut)
+    checkScriptRef unspentOut
+  RefInput unspentOut -> do
+    let refInput = (unwrap unspentOut).input
+    _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
+    checkScriptRef unspentOut
+  where
+  checkScriptRef
+    :: TransactionUnspentOutput
+    -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+  checkScriptRef (TransactionUnspentOutput { output }) =
+    let
+      refScriptHash :: Maybe ScriptHash
+      refScriptHash = _.referenceScript $ unwrap $ (unwrap output).output
+
+      err :: ConstraintsM a (Either MkUnbalancedTxError Unit)
+      err = pure $ throwError $ WrongRefScriptHash refScriptHash
+    in
+      if Just (unwrap scriptHash) /= refScriptHash then err
+      else pure (Right unit)
 
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output
@@ -892,7 +929,7 @@ processConstraint mpsMap osMap = do
           _cpsToTxBody <<< _inputs %= Set.insert txo
           _valueSpentBalancesInputs <>= provideValue amount
         _ -> throwError $ TxOutRefWrongType txo
-    MustSpendScriptOutput txo red -> runExceptT do
+    MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
@@ -904,7 +941,13 @@ processConstraint mpsMap osMap = do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
               (enterpriseAddressValidatorHash address)
-            plutusScript <- liftEither $ lookupValidator vHash osMap <#> unwrap
+            case scriptRefUnspentOut of
+              Nothing -> do
+                plutusScript <-
+                  except $ unwrap <$> lookupValidator vHash osMap
+                ExceptT $ attachToCps attachPlutusScript plutusScript
+              Just scriptRefUnspentOut' ->
+                ExceptT $ processScriptRefUnspentOut vHash scriptRefUnspentOut'
             -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
             -- Use the datum hash inside the lookup
             -- Note: if we get `Nothing`, we have to throw eventhough that's a
@@ -920,7 +963,6 @@ processConstraint mpsMap osMap = do
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
-            ExceptT $ attachToCps attachPlutusScript plutusScript
             _cpsToTxBody <<< _inputs %= Set.insert txo
             let
               -- Create a redeemer with hardcoded execution units then call Ogmios
@@ -938,9 +980,16 @@ processConstraint mpsMap osMap = do
             _redeemersTxIns <>= Array.singleton (redeemer /\ Just txo)
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
-    MustMintValue mpsHash red tn i -> runExceptT do
-      plutusScript <-
-        liftEither $ lookupMintingPolicy mpsHash mpsMap <#> unwrap
+    MustReferenceOutput refInput -> runExceptT do
+      _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
+    MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
+      case scriptRefUnspentOut of
+        Nothing -> do
+          plutusScript <-
+            except $ unwrap <$> lookupMintingPolicy mpsHash mpsMap
+          ExceptT $ attachToCps attachPlutusScript plutusScript
+        Just scriptRefUnspentOut' ->
+          ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut'
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
@@ -957,7 +1006,6 @@ processConstraint mpsMap osMap = do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
-      ExceptT $ attachToCps attachPlutusScript plutusScript
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -976,7 +1024,7 @@ processConstraint mpsMap osMap = do
       -- Append reindexed mint redeemers to array.
       _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
       _cpsToTxBody <<< _mint <>= map wrap mintVal
-    MustPayToPubKeyAddress pkh skh mDatum plutusValue -> do
+    MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
@@ -993,15 +1041,12 @@ processConstraint mpsMap osMap = do
           txOut = TransactionOutput
             { address
             , amount
-            -- TODO: save correct scriptRef, should be done in
-            -- Constraints API upgrade that follows Vasil
-            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
             , datum: fromMaybe NoOutputDatum datum'
-            , scriptRef: Nothing
+            , scriptRef: scriptRef
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToScript vlh dat datp plutusValue -> do
+    MustPayToScript vlh dat datp scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
@@ -1012,9 +1057,8 @@ processConstraint mpsMap osMap = do
             , amount
             -- TODO: save correct and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
-            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
             , datum: datum'
-            , scriptRef: Nothing
+            , scriptRef: scriptRef
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.

@@ -72,7 +72,7 @@ transactionInputToTxOutRef
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
   :: Ogmios.OgmiosTxOut -> Maybe Transaction.TransactionOutput
-ogmiosTxOutToTransactionOutput { address, value, datum, datumHash } = do
+ogmiosTxOutToTransactionOutput { address, value, datum, datumHash, script } = do
   address' <- ogmiosAddressToAddress address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
   -- and capture failure if we can't hash.
@@ -81,21 +81,20 @@ ogmiosTxOutToTransactionOutput { address, value, datum, datumHash } = do
   pure $ wrap
     { address: address'
     , amount: value
-    -- TODO: populate properly
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
     , datum: toOutputDatum d dh
-    , scriptRef: Nothing
+    , scriptRef: script
     }
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
   :: Transaction.TransactionOutput -> Ogmios.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  (Transaction.TransactionOutput { address, amount: value, datum }) =
+  (Transaction.TransactionOutput { address, amount: value, datum, scriptRef }) =
   { address: addressToOgmiosAddress address
   , value
   , datumHash: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
   , datum: datumToOgmiosDatum =<< outputDatumDatum datum
+  , script: scriptRef
   }
 
 -- | Converts an Ogmios Transaction output to a `ScriptOutput`.
@@ -128,12 +127,14 @@ scriptOutputToOgmiosTxOut
         , value
         , datumHash: Nothing
         , datum: datumToOgmiosDatum d
+        , script: Nothing -- TODO: Update or deprecate `ScriptOutput` 
         }
       UTx.ScriptDatumHash dh ->
         { address
         , value
         , datumHash: Just (datumHashToOgmiosDatumHash dh)
         , datum: Nothing
+        , script: Nothing
         }
 
 -- | Converts an internal transaction output to `ScriptOutput`.

@@ -114,7 +114,7 @@ import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Set (fromFoldable) as Set
@@ -263,9 +263,16 @@ convertTxBody txBody = do
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
+
+  let
+    cslReferenceInputs :: Array Csl.TransactionInput
+    cslReferenceInputs =
+      _txBodyReferenceInputs maybeFfiHelper containerHelper txBody
+        # fromMaybe mempty
+
   referenceInputs <-
-    _txBodyReferenceInputs maybeFfiHelper containerHelper txBody #
-      traverse (traverse (convertInput >>> cslErr "TransactionInput"))
+    traverse (convertInput >>> cslErr "TransactionInput") cslReferenceInputs
+      <#> Set.fromFoldable
 
   certs <- addErrTrace "Tx body certificates"
     $ traverse (traverse convertCertificate)

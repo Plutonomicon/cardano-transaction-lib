@@ -173,12 +173,27 @@ instance Eq CollateralCandidate where
 
 instance Ord CollateralCandidate where
   compare lhs rhs =
-    case on compare (Tuple.snd <<< unwrap) lhs rhs of
+    caseEq (on compare byReturnOutMinAda lhs rhs) $
       -- If two candidate utxo combinations correspond to return outputs with
       -- the same utxo min ada value, order them by the number of
       -- collateral inputs:
-      EQ -> on compare (List.length <<< Tuple.fst <<< unwrap) lhs rhs
-      ordering -> ordering
+      caseEq (on compare byNumOfInputs lhs rhs)
+        -- If two candidate utxo combinations have the same number of inputs, 
+        -- order them by ada value:
+        (on compare byAdaValue lhs rhs)
+    where
+    caseEq :: Ordering -> Ordering -> Ordering
+    caseEq EQ ordering = ordering
+    caseEq ordering _ = ordering
+
+    byReturnOutMinAda :: CollateralCandidate -> ReturnOutMinAdaValue
+    byReturnOutMinAda = Tuple.snd <<< unwrap
+
+    byNumOfInputs :: CollateralCandidate -> Int
+    byNumOfInputs = List.length <<< Tuple.fst <<< unwrap
+
+    byAdaValue :: CollateralCandidate -> BigInt
+    byAdaValue = foldl adaValue' zero <<< Tuple.fst <<< unwrap
 
 mkCollateralCandidate
   :: List TransactionUnspentOutput /\ Maybe ReturnOutMinAdaValue

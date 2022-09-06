@@ -1,15 +1,17 @@
 module Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , Utxo
   , UtxoM(UtxoM)
   ) where
 
 import Prelude
 
+import Cardano.Types.ScriptRef (ScriptRef)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
 import Plutus.Types.Address (Address)
@@ -51,6 +53,24 @@ instance ToData TransactionOutput where
     Constr zero
       [ toData address, toData amount, toData datum, toData referenceScript ]
 
+newtype TransactionOutputWithRefScript = TransactionOutputWithRefScript
+  { output :: TransactionOutput
+  , scriptRef :: Maybe ScriptRef
+  }
+
+derive instance Generic TransactionOutputWithRefScript _
+derive instance Newtype TransactionOutputWithRefScript _
+derive newtype instance Eq TransactionOutputWithRefScript
+
+instance Show TransactionOutputWithRefScript where
+  show = genericShow
+
+instance FromData TransactionOutputWithRefScript where
+  fromData = map (wrap <<< { output: _, scriptRef: Nothing }) <<< fromData
+
+instance ToData TransactionOutputWithRefScript where
+  toData = toData <<< _.output <<< unwrap
+
 newtype UtxoM = UtxoM Utxo
 
 derive instance Generic UtxoM _
@@ -60,4 +80,4 @@ derive newtype instance Eq UtxoM
 instance Show UtxoM where
   show = genericShow
 
-type Utxo = Map TransactionInput TransactionOutput
+type Utxo = Map TransactionInput TransactionOutputWithRefScript

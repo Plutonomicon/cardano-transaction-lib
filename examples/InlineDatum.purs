@@ -37,7 +37,7 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
-  , TransactionOutput(TransactionOutput)
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , OutputDatum(OutputDatum)
   , awaitTxConfirmed
   , balanceAndSignTxE
@@ -151,8 +151,8 @@ readFromCheckDatumIsInline vhash txId = do
   let scriptAddress = scriptHashAddress vhash
   UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
   case snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just (TransactionOutput { datum }) -> do
-      datum `shouldEqual` OutputDatum (Datum plutusData)
+    Just (TransactionOutputWithRefScript { output }) -> do
+      (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)
       logInfo' "Successfully read inline datum."
 
     _ ->

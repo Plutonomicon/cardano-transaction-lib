@@ -64,6 +64,7 @@ module Cardano.Types.Transaction
   , _plutusData
   , _plutusScripts
   , _redeemers
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
   , _totalCollateral
@@ -83,7 +84,6 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
   , decodeAeson
-  , encodeAeson
   , encodeAeson'
   )
 
@@ -105,13 +105,13 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
-import Data.Set (union, toUnfoldable) as Set
+import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeTagged')
+import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeSet, encodeTagged')
 import Serialization.Address
   ( Address
   , NetworkId
@@ -198,7 +198,7 @@ _auxiliaryData = lens' \(Transaction rec@{ auxiliaryData }) ->
 --------------------------------------------------------------------------------
 -- `TxBody`
 --------------------------------------------------------------------------------
--- According to https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl
+-- According to https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl
 -- requiredSigners is an Array over `VKey`s essentially. But some comments at
 -- the bottom say it's Maybe?
 newtype TxBody = TxBody
@@ -212,13 +212,13 @@ newtype TxBody = TxBody
   , auxiliaryDataHash :: Maybe AuxiliaryDataHash
   , validityStartInterval :: Maybe Slot
   , mint :: Maybe Mint
-  , referenceInputs :: Maybe (Array TransactionInput)
   , scriptDataHash :: Maybe ScriptDataHash
   , collateral :: Maybe (Array TransactionInput)
   , requiredSigners :: Maybe (Array RequiredSigner)
   , networkId :: Maybe NetworkId
   , collateralReturn :: Maybe TransactionOutput
   , totalCollateral :: Maybe Coin
+  , referenceInputs :: Set TransactionInput
   }
 
 derive instance Generic TxBody _
@@ -267,19 +267,20 @@ instance Monoid TxBody where
     , auxiliaryDataHash: Nothing
     , validityStartInterval: Nothing
     , mint: Nothing
-    , referenceInputs: Nothing
     , scriptDataHash: Nothing
     , collateral: Nothing
     , requiredSigners: Nothing
     , networkId: Nothing
     , collateralReturn: Nothing
     , totalCollateral: Nothing
+    , referenceInputs: mempty
     }
 
 instance EncodeAeson TxBody where
   encodeAeson' (TxBody r) = encodeAeson' $ r
-    { inputs = encodeAeson (Set.toUnfoldable r.inputs :: Array TransactionInput)
+    { inputs = encodeSet r.inputs
     , withdrawals = encodeMap <$> r.withdrawals
+    , referenceInputs = encodeSet r.referenceInputs
     }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
@@ -662,6 +663,9 @@ _requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
 _networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
+
+_referenceInputs :: Lens' TxBody (Set TransactionInput)
+_referenceInputs = _Newtype <<< prop (SProxy :: SProxy "referenceInputs")
 
 _collateralReturn :: Lens' TxBody (Maybe TransactionOutput)
 _collateralReturn = _Newtype <<< prop (SProxy :: SProxy "collateralReturn")

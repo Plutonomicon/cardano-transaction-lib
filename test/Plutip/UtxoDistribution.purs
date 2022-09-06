@@ -30,7 +30,7 @@ import Contract.Test.Plutip
   )
 import Contract.Transaction
   ( TransactionInput
-  , TransactionOutput(TransactionOutput)
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
@@ -225,12 +225,12 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
       :: Value
       -> TransactionInput
       -> Boolean /\ Utxo
-      -> TransactionOutput
+      -> TransactionOutputWithRefScript
       -> Boolean /\ Utxo
     removeUtxoMatchingValue
       expected
       i
       (found /\ m)
-      o@(TransactionOutput { amount })
-      | not found && expected == amount = true /\ m
+      o@(TransactionOutputWithRefScript { output })
+      | not found && expected == (unwrap output).amount = true /\ m
       | otherwise = found /\ Map.insert i o m
