@@ -3,7 +3,8 @@ module Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
-import Cardano.Types.Transaction (NativeScript(ScriptAll), _vkeys, _witnessSet)
+import Cardano.Types.NativeScript (NativeScript(ScriptAll))
+import Cardano.Types.Transaction (_vkeys, _witnessSet)
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)

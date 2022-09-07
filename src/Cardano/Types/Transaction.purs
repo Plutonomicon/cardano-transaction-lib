@@ -21,18 +21,9 @@ module Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Ipv4(Ipv4)
   , Ipv6(Ipv6)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
   , Nonce(IdentityNonce, HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
@@ -61,6 +52,7 @@ module Cardano.Types.Transaction
   , _bootstraps
   , _certs
   , _collateral
+  , _collateralReturn
   , _fee
   , _inputs
   , _isValid
@@ -71,8 +63,10 @@ module Cardano.Types.Transaction
   , _plutusData
   , _plutusScripts
   , _redeemers
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
+  , _totalCollateral
   , _ttl
   , _update
   , _validityStartInterval
@@ -89,9 +83,10 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
   , decodeAeson
-  , encodeAeson
   , encodeAeson'
   )
+import Cardano.Types.NativeScript (NativeScript)
+import Cardano.Types.ScriptRef (ScriptRef)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -108,13 +103,13 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
-import Data.Set (union, toUnfoldable) as Set
+import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeTagged')
+import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeSet, encodeTagged')
 import Serialization.Address
   ( Address
   , NetworkId
@@ -128,10 +123,11 @@ import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
+import Types.OutputDatum (OutputDatum)
 import Types.PlutusData (PlutusData)
 import Types.RedeemerTag (RedeemerTag)
-import Types.Scripts (PlutusScript)
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Scripts (PlutusScript, Language)
+import Types.Transaction (TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
 
 --------------------------------------------------------------------------------
@@ -200,7 +196,7 @@ _auxiliaryData = lens' \(Transaction rec@{ auxiliaryData }) ->
 --------------------------------------------------------------------------------
 -- `TxBody`
 --------------------------------------------------------------------------------
--- According to https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl
+-- According to https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl
 -- requiredSigners is an Array over `VKey`s essentially. But some comments at
 -- the bottom say it's Maybe?
 newtype TxBody = TxBody
@@ -218,6 +214,9 @@ newtype TxBody = TxBody
   , collateral :: Maybe (Array TransactionInput)
   , requiredSigners :: Maybe (Array RequiredSigner)
   , networkId :: Maybe NetworkId
+  , collateralReturn :: Maybe TransactionOutput
+  , totalCollateral :: Maybe Coin
+  , referenceInputs :: Set TransactionInput
   }
 
 derive instance Generic TxBody _
@@ -242,10 +241,13 @@ instance Semigroup TxBody where
           txB.validityStartInterval
           txB'.validityStartInterval
     , mint: txB.mint <> txB'.mint
+    , referenceInputs: txB.referenceInputs <> txB'.referenceInputs
     , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
     , collateral: lift2 union txB.collateral txB'.collateral
     , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
     , networkId: txB.networkId </> txB'.networkId
+    , collateralReturn: txB.collateralReturn <|> txB.collateralReturn
+    , totalCollateral: txB.totalCollateral <|> txB.totalCollateral
     }
     where
     lowerbound :: Slot -> Slot -> Slot
@@ -267,12 +269,16 @@ instance Monoid TxBody where
     , collateral: Nothing
     , requiredSigners: Nothing
     , networkId: Nothing
+    , collateralReturn: Nothing
+    , totalCollateral: Nothing
+    , referenceInputs: mempty
     }
 
 instance EncodeAeson TxBody where
   encodeAeson' (TxBody r) = encodeAeson' $ r
-    { inputs = encodeAeson (Set.toUnfoldable r.inputs :: Array TransactionInput)
+    { inputs = encodeSet r.inputs
     , withdrawals = encodeMap <$> r.withdrawals
+    , referenceInputs = encodeSet r.referenceInputs
     }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
@@ -351,8 +357,6 @@ type ProtocolParamUpdate =
   , poolPledgeInfluence :: Maybe UnitInterval
   , expansionRate :: Maybe UnitInterval
   , treasuryGrowthRate :: Maybe UnitInterval
-  , d :: Maybe UnitInterval
-  , extraEntropy :: Maybe Nonce
   , protocolVersion :: Maybe ProtocolVersion
   , minPoolCost :: Maybe BigNum
   , adaPerUtxoByte :: Maybe BigNum
@@ -386,19 +390,6 @@ instance Show Costmdls where
 
 instance EncodeAeson Costmdls where
   encodeAeson' = encodeAeson' <<< encodeMap <<< unwrap
-
-data Language = PlutusV1
-
-derive instance Eq Language
-derive instance Ord Language
-derive instance Generic Language _
-
-instance Show Language where
-  show = genericShow
-
-instance EncodeAeson Language where
-  encodeAeson' = case _ of
-    PlutusV1 -> encodeAeson' $ encodeTagged' "PlutusV1" {}
 
 newtype CostModel = CostModel (Array Int.Int)
 
@@ -627,6 +618,7 @@ instance EncodeAeson Certificate where
 --------------------------------------------------------------------------------
 -- `TxBody` Lenses
 --------------------------------------------------------------------------------
+
 _inputs :: Lens' TxBody (Set TransactionInput)
 _inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
 
@@ -669,6 +661,15 @@ _requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
 _networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
+
+_referenceInputs :: Lens' TxBody (Set TransactionInput)
+_referenceInputs = _Newtype <<< prop (SProxy :: SProxy "referenceInputs")
+
+_collateralReturn :: Lens' TxBody (Maybe TransactionOutput)
+_collateralReturn = _Newtype <<< prop (SProxy :: SProxy "collateralReturn")
+
+_totalCollateral :: Lens' TxBody (Maybe Coin)
+_totalCollateral = _Newtype <<< prop (SProxy :: SProxy "totalCollateral")
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet`
@@ -809,6 +810,7 @@ newtype Redeemer = Redeemer
   }
 
 derive instance Generic Redeemer _
+derive instance Newtype Redeemer _
 derive newtype instance Eq Redeemer
 derive newtype instance Ord Redeemer
 derive newtype instance EncodeAeson Redeemer
@@ -844,34 +846,11 @@ instance Monoid AuxiliaryData where
     , plutusScripts: Nothing
     }
 
-data NativeScript
-  = ScriptPubkey Ed25519KeyHash
-  | ScriptAll (Array NativeScript)
-  | ScriptAny (Array NativeScript)
-  | ScriptNOfK Int (Array NativeScript)
-  | TimelockStart Slot
-  | TimelockExpiry Slot
-
-derive instance Eq NativeScript
-derive instance Generic NativeScript _
-
-instance Show NativeScript where
-  show x = genericShow x
-
-instance EncodeAeson NativeScript where
-  encodeAeson' = case _ of
-    ScriptPubkey r -> encodeAeson' $ encodeTagged' "ScriptPubKey" r
-    ScriptAll r -> encodeAeson' $ encodeTagged' "ScriptAll" r
-    ScriptAny r -> encodeAeson' $ encodeTagged' "ScriptAny" r
-    ScriptNOfK n nativeScripts -> encodeAeson' $ encodeTagged' "ScriptPubKey"
-      { n, nativeScripts }
-    TimelockStart r -> encodeAeson' $ encodeTagged' "TimeLockStart" r
-    TimelockExpiry r -> encodeAeson' $ encodeTagged' "TimeLockExpiry" r
-
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
-  , dataHash :: Maybe DataHash
+  , datum :: OutputDatum
+  , scriptRef :: Maybe ScriptRef
   }
 
 derive instance Generic TransactionOutput _

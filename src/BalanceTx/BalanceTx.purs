@@ -14,19 +14,6 @@ import BalanceTx.Error
       , CouldNotGetCollateral
       , CouldNotGetUtxos
       , CouldNotGetWalletAddress
-      , InsufficientTxInputs
-      , UtxoLookupFailedFor
-      , UtxoMinAdaValueCalculationFailed
-      )
-  , Expected(Expected)
-  )
-import BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetCollateral
-      , CouldNotGetUtxos
-      , CouldNotGetWalletAddress
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
       , ReindexRedeemersError
@@ -36,6 +23,19 @@ import BalanceTx.Error
   , Expected(Expected)
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
+import BalanceTx.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CouldNotGetWalletAddress
+      , InsufficientTxInputs
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  )
 import BalanceTx.ExUnitsAndMinFee (evalExUnitsAndMinFee, finalizeTransaction)
 import BalanceTx.Helpers (_body', _redeemersTxIns, _transaction', _unbalancedTx)
 import BalanceTx.Types
@@ -43,9 +43,7 @@ import BalanceTx.Types
   , FinalizedTransaction
   , PrebalancedTransaction(PrebalancedTransaction)
   )
-import BalanceTx.Types
-  ( FinalizedTransaction(FinalizedTransaction)
-  ) as FinalizedTransaction
+import BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
@@ -89,11 +87,12 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (class MonadEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddress) as QueryM
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
@@ -199,13 +198,13 @@ runBalancer utxos changeAddress =
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
     case newMinFee == minFee of
       true -> do
-        finalizedTransaction <- lift $ finalizeTransaction balancedTx
+        finalizedTransaction <- lift $ finalizeTransaction balancedTx utxos -- TODO: all available?
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
@@ -231,16 +230,19 @@ setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
 -- | to cover the utxo min-ada-value requirement.
 addLovelacesToTransactionOutputs
   :: UnattachedUnbalancedTx -> BalanceTxM UnattachedUnbalancedTx
-addLovelacesToTransactionOutputs unbalancedTx =
+addLovelacesToTransactionOutputs unbalancedTx = do
+  coinsPerUtxoByte <- lift $ asks
+    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoByte)
   map (\txOutputs -> unbalancedTx # _body' <<< _outputs .~ txOutputs) $
-    traverse addLovelacesToTransactionOutput
+    traverse (addLovelacesToTransactionOutput coinsPerUtxoByte)
       (unbalancedTx ^. _body' <<< _outputs)
 
 addLovelacesToTransactionOutput
-  :: TransactionOutput -> BalanceTxM TransactionOutput
-addLovelacesToTransactionOutput txOutput = do
-  txOutputMinAda <- ExceptT $ utxoMinAdaValue txOutput
-    <#> note UtxoMinAdaValueCalculationFailed
+  :: Coin -> TransactionOutput -> BalanceTxM TransactionOutput
+addLovelacesToTransactionOutput coinsPerUtxoByte txOutput = do
+  txOutputMinAda <- ExceptT $ liftEffect $
+    utxoMinAdaValue coinsPerUtxoByte txOutput
+      <#> note UtxoMinAdaValueCalculationFailed
   let
     txOutputRec = unwrap txOutput
 
@@ -282,7 +284,11 @@ buildTransactionChangeOutput changeAddress utxos tx =
         `minus` (totalOutputValue txBody <> minFeeValue txBody)
   in
     TransactionOutput
-      { address: changeAddress, amount: changeValue, dataHash: Nothing }
+      { address: changeAddress
+      , amount: changeValue
+      , datum: NoOutputDatum
+      , scriptRef: Nothing
+      }
 
 addTransactionChangeOutput
   :: ChangeAddress
@@ -317,8 +323,10 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
     nonMintedValue :: Value
     nonMintedValue = totalOutputValue txBody `minus` mintValue txBody
 
+  coinsPerUtxoByte <- lift $ asks
+    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoByte)
   txChangeOutput <-
-    addLovelacesToTransactionOutput
+    addLovelacesToTransactionOutput coinsPerUtxoByte
       (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
   let

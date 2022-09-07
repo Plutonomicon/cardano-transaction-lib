@@ -219,4 +219,3 @@ printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString
   printScriptFailures ptr sfs = printRedeemer ptr <> bullet
     (foldMap printScriptFailure sfs)
-

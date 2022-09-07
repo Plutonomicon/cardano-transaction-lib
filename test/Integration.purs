@@ -12,6 +12,7 @@ import QueryM.EraSummaries (getEraSummaries)
 import QueryM.SystemStart (getSystemStart)
 import Test.AffInterface as AffInterface
 import Test.Logging as Logging
+import Test.BalanceTx.Collateral as Collateral
 import Test.PrivateKey as PrivateKey
 import Test.Types.Interval as Types.Interval
 import Test.Utils as Utils
@@ -30,6 +31,7 @@ testPlan = do
     eraSummaries <- getEraSummaries
     sysStart <- getSystemStart
     liftEffect $ f eraSummaries sysStart
+  Collateral.suite
   PrivateKey.suite
   Logging.suite
   where

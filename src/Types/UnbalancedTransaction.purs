@@ -1,6 +1,7 @@
 module Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
+  , ScriptDatum(ScriptDatum, ScriptDatumHash)
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
@@ -27,12 +28,12 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
-import Helpers (encodeMap)
+import Helpers (encodeMap, encodeTagged')
 import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
   )
-import Types.Datum (DataHash)
+import Types.Datum (Datum, DataHash)
 import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
 import Cardano.Types.Value (Value)
@@ -48,11 +49,26 @@ derive newtype instance Ord PaymentPubKey
 instance Show PaymentPubKey where
   show = genericShow
 
+data ScriptDatum
+  = ScriptDatum Datum
+  | ScriptDatumHash DataHash
+
+derive instance Eq ScriptDatum
+derive instance Generic ScriptDatum _
+
+instance EncodeAeson ScriptDatum where
+  encodeAeson' = case _ of
+    ScriptDatum r -> encodeAeson' $ encodeTagged' "ScriptDatum" r
+    ScriptDatumHash r -> encodeAeson' $ encodeTagged' "ScriptDatumHash" r
+
+instance Show ScriptDatum where
+  show = genericShow
+
 -- Plutus uses this type in recent revs but wonder if we even need it.
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
   , value :: Value
-  , datumHash :: DataHash
+  , datum :: ScriptDatum
   }
 
 derive instance Newtype ScriptOutput _

@@ -6,7 +6,7 @@ module NativeScripts
 
 import Prelude
 
-import Cardano.Types.Transaction
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll

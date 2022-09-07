@@ -22,7 +22,7 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (awaitTxConfirmed)
+import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Data.BigInt (fromInt) as BigInt
@@ -77,13 +77,16 @@ foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
 mintingPolicyRdmrInt1 :: Contract () MintingPolicy
-mintingPolicyRdmrInt1 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt1
+mintingPolicyRdmrInt1 = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  redeemerInt1
   PlutusScriptV1
 
 mintingPolicyRdmrInt2 :: Contract () MintingPolicy
-mintingPolicyRdmrInt2 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt2
+mintingPolicyRdmrInt2 = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  redeemerInt2
   PlutusScriptV1
 
 mintingPolicyRdmrInt3 :: Contract () MintingPolicy
-mintingPolicyRdmrInt3 = wrap <<< wrap <$> textEnvelopeBytes redeemerInt3
+mintingPolicyRdmrInt3 = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  redeemerInt3
   PlutusScriptV1

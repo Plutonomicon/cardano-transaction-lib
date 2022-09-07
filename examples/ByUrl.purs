@@ -20,6 +20,7 @@ import Effect.Console as Console
 import Effect.Exception (error)
 import Examples.AlwaysMints as AlwaysMints
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Examples.Datums as Datums
 import Examples.MintsMultipleTokens as MintsMultipleTokens
 import Examples.Pkh2Pkh as Pkh2Pkh
@@ -52,6 +53,7 @@ examples :: Array (String /\ (ConfigParams () -> Effect Unit))
 examples =
   [ "AlwaysMints" /\ AlwaysMints.example
   , "AlwaysSucceeds" /\ AlwaysSucceeds.example
+  , "AlwaysSucceedsV2" /\ AlwaysSucceedsV2.example
   , "Datums" /\ Datums.example
   , "Wallet" /\ Wallet.example
   , "Pkh2Pkh" /\ Pkh2Pkh.example

@@ -62,6 +62,10 @@ exports._txBodyValidityStartInterval = maybeGetter(
 );
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
+exports._txBodyReferenceInputs = maybe => containerhelper => body =>
+  body.reference_inputs()
+    ? maybe.just(containerhelper.unpack(body.reference_inputs()))
+    : maybe.nothing;
 // script_data_hash(): ScriptDataHash | void;
 exports._txBodyScriptDataHash = maybeGetter("script_data_hash");
 // collateral(): Array TransactionInput | void;
@@ -81,6 +85,13 @@ exports._txBodyNetworkId = testnet => mainnet =>
     }
   })("network_id");
 
+// collateral_return(): TransactionOutput | void;
+exports._txBodyCollateralReturn = maybeGetter("collateral_return");
+
+// total_collateral(): BigNum | void
+exports._txBodyTotalCollateral = maybeGetter("total_collateral");
+
+// foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 exports._unpackWithdrawals = containerhelper =>
   containerhelper.unpackKeyIndexed;
 
@@ -161,8 +172,6 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
     poolPledgeInfluence: optional(ppu.pool_pledge_influence()),
     expansionRate: optional(ppu.expansion_rate()),
     treasuryGrowthRate: optional(ppu.treasury_growth_rate()),
-    d: optional(ppu.d()),
-    extraEntropy: optional(ppu.extra_entropy()),
     protocolVersion: optional(ppu.protocol_version()),
     minPoolCost: optional(ppu.min_pool_cost()),
     adaPerUtxoByte: optional(ppu.ada_per_utxo_byte()),
@@ -177,30 +186,11 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
 exports._unpackCostModels = containerhelper => containerhelper.unpackKeyIndexed;
 
 exports._unpackCostModel = cm => {
-  // XXX should OP_COUNT be used instead?
   const res = [];
-  try {
-    for (let op = 0; ; op++) {
-      res.push(cm.get(op).to_str());
-    }
-  } catch (_) {
-    // ignore error
+  for (let op = 0; op < cm.len(); op++) {
+    res.push(cm.get(op).to_str());
   }
   return res;
-};
-
-exports._convertLanguage = errorHelper => langCtors => cslLang => {
-  try {
-    if (cslLang.kind() == lib.LanguageKind.PlutusV1) {
-      return errorHelper.valid(langCtors.plutusV1);
-    } else {
-      return errorHelper.error(
-        "_convertLanguage: Unsupported language kind: " + cslLang.kind()
-      );
-    }
-  } catch (e) {
-    return errorHelper.error("_convertLanguage raised: " + e);
-  }
 };
 
 exports._convertNonce = nonceCtors => cslNonce => {
