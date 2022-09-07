@@ -187,15 +187,22 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, KeyWallet)
+  , Wallet(Gero, Flint, Nami, Lode, KeyWallet)
   , mkGeroWalletAff
   , mkFlintWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
+  , mkLodeWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToGero
+      , ConnectToNami
+      , ConnectToFlint
+      , ConnectToLode
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -350,6 +357,7 @@ mkWalletBySpec = case _ of
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
   ConnectToFlint -> mkFlintWalletAff
+  ConnectToLode -> mkLodeWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -479,9 +487,10 @@ getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getWalletAddress
-    Gero gero -> callCip30Wallet gero _.getWalletAddress
-    Flint flint -> callCip30Wallet flint _.getWalletAddress
+    Nami wallet -> callCip30Wallet wallet _.getWalletAddress
+    Gero wallet -> callCip30Wallet wallet _.getWalletAddress
+    Flint wallet -> callCip30Wallet wallet _.getWalletAddress
+    Lode wallet -> callCip30Wallet wallet _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 signTransaction
@@ -490,6 +499,7 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
+  Lode lode -> callCip30Wallet lode \nw -> flip nw.signTx tx
   KeyWallet kw -> do
     witnessSet <- (unwrap kw).signTx tx
     pure $ Just (tx # _witnessSet <>~ witnessSet)

@@ -131,3 +131,17 @@ Although most users will have some version of Chromium or Google Chrome installe
     };
 }
 ```
+
+## Using custom unauthorized extensions
+
+If an extension is not published on Chrome Web Store, it may not have a stable ID. Look into `manifest.json` `key` property to check - if it is not present, the ID will change on each reload, which makes automation impossible.
+
+To freeze the ID, first unpack the `.crx` archive, load the extension unpacked (in developer mode), and then pack it back. It will give you a new `.crx` as well as a `.pem` file with the same name. The ID can now be derived from this key using this command:
+
+```
+openssl rsa -in key.pem -pubout -outform DER | openssl base64 -A
+```
+
+Unarchive the CRX, put the encoded public key to `key` property of `manifest.json` file, and archive the directory back. You can then reload the browser multiple times and the ID will remain the same.
+
+[More on extension IDS](https://stackoverflow.com/questions/37317779/making-a-unique-extension-id-and-key-for-chrome-extension)

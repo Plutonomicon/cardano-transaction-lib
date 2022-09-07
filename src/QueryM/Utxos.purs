@@ -37,7 +37,7 @@ import Serialization.Address (Address)
 import TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Wallet (Wallet(Gero, Nami, Flint, KeyWallet))
+import Wallet (Wallet(Gero, Nami, Flint, Lode, KeyWallet))
 
 --------------------------------------------------------------------------------
 -- UtxosAt
@@ -72,6 +72,7 @@ mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt
     Nami _ -> cip30UtxosAt
     Gero _ -> cip30UtxosAt
     Flint _ -> cip30UtxosAt
+    Lode _ -> cip30UtxosAt
     KeyWallet _ -> allUtxosAt
 
   -- Gets all utxos at an (internal) Address in terms of (internal)
@@ -138,6 +139,7 @@ getWalletBalance = do
     Nami wallet -> liftAff $ wallet.getBalance wallet.connection
     Gero wallet -> liftAff $ wallet.getBalance wallet.connection
     Flint wallet -> liftAff $ wallet.getBalance wallet.connection
+    Lode wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
       mbAddress <- getWalletAddress
@@ -152,6 +154,7 @@ getWalletUtxos = do
     Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
     Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
     Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
+    Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
     KeyWallet _ -> do
       mbAddress <- getWalletAddress
       map join $ for mbAddress utxosAt
@@ -164,9 +167,10 @@ getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
   mbCollateralUTxOs <- asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
     case _ of
-      Nami nami -> liftAff $ callCip30Wallet nami _.getCollateral
-      Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
-      Flint flint -> liftAff $ callCip30Wallet flint _.getCollateral
+      Nami wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Gero wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Flint wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
         networkId <- asks $ _.config >>> _.networkId
         addr <- liftAff $ (unwrap kw).address networkId

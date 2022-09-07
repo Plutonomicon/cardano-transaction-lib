@@ -7,7 +7,9 @@ import Contract.Config
   , testnetGeroConfig
   , testnetNamiConfig
   , testnetFlintConfig
+  , testnetLodeConfig
   )
+import Contract.Prelude (fst, traverse_, uncurry)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Wallet.KeyFile
@@ -42,8 +44,12 @@ import Wallet.Key (privateKeysToKeyWallet)
 
 foreign import _queryString :: Effect String
 
+foreign import _writeExampleHTML :: String -> Array String -> Effect Unit
+
 main :: Effect Unit
 main = do
+  traverse_ (uncurry _writeExampleHTML) $ map ((_ /\ map fst wallets) <<< fst)
+    examples
   queryString <- last <<< split (Pattern "?") <$> _queryString
   case split (Pattern ":") <$> queryString of
     Just [ exampleName, walletName ] -> do
@@ -79,9 +85,11 @@ wallets =
   [ "nami" /\ testnetNamiConfig
   , "gero" /\ testnetGeroConfig
   , "flint" /\ testnetFlintConfig
+  , "lode" /\ testnetLodeConfig
   , "nami-mock" /\ testnetNamiConfig
   , "gero-mock" /\ testnetGeroConfig
   , "flint-mock" /\ testnetFlintConfig
+  , "lode-mock" /\ testnetLodeConfig
   ]
 
 examples :: Array (String /\ Contract () Unit)
