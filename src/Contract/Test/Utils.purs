@@ -1,68 +1,126 @@
-module Contract.Test.Utils where
+module Contract.Test.Utils
+  ( class ContractAssertions
+  , ContractAssertionFailure
+      ( CouldNotGetTxByHash
+      , CouldNotGetUtxosAtAddress
+      , CouldNotParseMetadata
+      , OutputHasNoDatumHash
+      , TransactionHasNoMetadata
+      , UnexpectedDatumHashInOutput
+      , UnexpectedLovelaceDelta
+      , UnexpectedMetadataValue
+      )
+  , ContractBasicAssertion
+  , ContractWrapAssertion
+  , ExpectedActual(ExpectedActual)
+  , Label
+  , Labeled(Labeled)
+  , assertContract
+  , assertContractExpectedActual
+  , assertContractM
+  , assertContractM'
+  , assertGainAtAddress
+  , assertGainAtAddress'
+  , assertLossAtAddress
+  , assertLossAtAddress'
+  , assertLovelaceDeltaAtAddress
+  , assertOutputHasDatumHash
+  , assertTxHasMetadata
+  , checkBalanceDeltaAtAddress
+  , checkOutputHasDatumHash
+  , label
+  , unlabel
+  , valueAtAddress
+  , withAssertions
+  , wrapAndAssert
+  ) where
 
 import Prelude
 
 import Contract.Address (Address)
-import Contract.Monad (Contract, liftedM, throwContractError)
-import Contract.Transaction (DataHash, TransactionOutput)
+import Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
+import Contract.Transaction
+  ( DataHash
+  , Transaction(Transaction)
+  , TransactionHash
+  , TransactionOutput
+  , getTxByHash
+  )
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value, valueToCoin')
+import Control.Monad.Error.Class (catchError)
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Map (lookup) as Map
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Monoid.Endo (Endo(Endo))
-import Data.Newtype (class Newtype, ala, unwrap)
+import Data.Newtype (ala, unwrap)
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Metadata.FromMetadata (fromMetadata)
+import Metadata.MetadataType (class MetadataType, metadataLabel)
+import Type.Proxy (Proxy(Proxy))
 
 data ContractAssertionFailure
-  = CouldNotGetUtxosAtAddress (Labeled Address)
-  | OutputHasNoDatumHash (Labeled TransactionOutput) DataHash 
-  | UnexpectedLovelaceDelta (Labeled Address) (Expected BigInt) (Actual BigInt)
+  = CouldNotGetTxByHash TransactionHash
+  | CouldNotGetUtxosAtAddress (Labeled Address)
+  | CouldNotParseMetadata Label
+  | OutputHasNoDatumHash (Labeled TransactionOutput) DataHash
+  | TransactionHasNoMetadata TransactionHash (Maybe Label)
+  | UnexpectedDatumHashInOutput (Labeled TransactionOutput)
+      (ExpectedActual DataHash)
+  | UnexpectedLovelaceDelta (Labeled Address) (ExpectedActual BigInt)
+  | UnexpectedMetadataValue Label (ExpectedActual String)
 
 instance Show ContractAssertionFailure where
+  show (CouldNotGetTxByHash txHash) =
+    "Could not get tx by hash " <> show txHash
+
   show (CouldNotGetUtxosAtAddress addr) =
     "Could not get utxos at " <> show addr
+
+  show (CouldNotParseMetadata mdLabel) =
+    "Could not parse " <> show mdLabel <> " metadata"
 
   show (OutputHasNoDatumHash txOutput dataHash) =
     show txOutput <> " output does not have datum hash " <> show dataHash
 
-  show (UnexpectedLovelaceDelta addr expected actual) =
+  show (TransactionHasNoMetadata txHash mdLabel) =
+    "Tx with " <> show txHash <> " does not hold "
+      <> (maybe mempty (flip append " ") (show <$> mdLabel) <> "metadata")
+
+  show (UnexpectedDatumHashInOutput txOutput expectedActual) =
+    "Unexpected datum hash value in output "
+      <> (show txOutput <> show expectedActual)
+
+  show (UnexpectedLovelaceDelta addr expectedActual) =
     "Unexpected lovelace delta at address "
-      <> (show addr <> show (ExpectedActual $ expected /\ actual))
+      <> (show addr <> show expectedActual)
 
-data Labeled (a :: Type) = Labeled a (Maybe String)
+  show (UnexpectedMetadataValue mdLabel expectedActual) =
+    "Unexpected " <> show mdLabel <> " metadata value" <> show expectedActual
 
-label :: forall (a :: Type). a -> String -> Labeled a 
+type Label = String
+
+data Labeled (a :: Type) = Labeled a (Maybe Label)
+
+label :: forall (a :: Type). a -> Label -> Labeled a
 label x l = Labeled x (Just l)
 
-unlabel :: forall (a :: Type). Labeled a -> a 
-unlabel (Labeled x _) = x 
+unlabel :: forall (a :: Type). Labeled a -> a
+unlabel (Labeled x _) = x
 
-instance Show a => Show (Labeled a) where 
+instance Show a => Show (Labeled a) where
   show (Labeled _ (Just l)) = l
-  show (Labeled x Nothing) = show x 
+  show (Labeled x Nothing) = show x
 
-newtype Expected (a :: Type) = Expected a
+data ExpectedActual (a :: Type) = ExpectedActual a a
 
-derive instance Newtype (Expected a) _
+derive instance Functor ExpectedActual
 
-instance Show a => Show (Expected a) where
-  show = append "Expected: " <<< show <<< unwrap
-
-newtype Actual (a :: Type) = Actual a
-
-derive instance Newtype (Actual a) _
-
-instance Show a => Show (Actual a) where
-  show = append "Actual: " <<< show <<< unwrap
-
-newtype ExpectedActual (a :: Type) (b :: Type) =
-  ExpectedActual (Expected a /\ Actual b)
-
-instance (Show a, Show b) => Show (ExpectedActual a b) where
-  show (ExpectedActual (expected /\ actual)) =
-    " (" <> show expected <> ", " <> show actual <> ")"
+instance Show a => Show (ExpectedActual a) where
+  show (ExpectedActual expected actual) =
+    " (Expected: " <> show expected <> ", Actual: " <> show actual <> ")"
 
 --------------------------------------------------------------------------------
 -- Different types of assertions, Assertion composition, Basic functions
@@ -113,32 +171,54 @@ instance
   wrapAndAssert contract (assertionsX /\ assertionsY) =
     wrapAndAssert (wrapAndAssert contract assertionsX) assertionsY
 
-assertContract 
+assertContract
   :: forall (r :: Row Type) (e :: Type)
    . Show e
-  => e 
-  -> Boolean 
-  -> Contract r Unit 
-assertContract msg cond = 
+  => e
+  -> Boolean
+  -> Contract r Unit
+assertContract msg cond =
   if cond then pure unit else throwContractError msg
 
-assertContractM 
-  :: forall (r :: Row Type) (e :: Type) (a :: Type) 
-   . Show e 
-  => e 
+assertContractExpectedActual
+  :: forall (r :: Row Type) (e :: Type) (a :: Type)
+   . Show e
+  => Eq a
+  => (ExpectedActual a -> e)
+  -> a
+  -> a
+  -> Contract r Unit
+assertContractExpectedActual mkAssertionFailure expected actual =
+  assertContract (mkAssertionFailure $ ExpectedActual expected actual)
+    (expected == actual)
+
+assertContractM
+  :: forall (r :: Row Type) (e :: Type) (a :: Type)
+   . Show e
+  => e
   -> Contract r (Maybe a)
   -> Contract r a
-assertContractM msg = liftedM (show msg) 
+assertContractM msg = liftedM (show msg)
+
+assertContractM'
+  :: forall (r :: Row Type) (e :: Type) (a :: Type)
+   . Show e
+  => e
+  -> Maybe a
+  -> Contract r a
+assertContractM' msg = liftContractM (show msg)
 
 -- | `wrapAndAssert` flipped
-withAssertions 
+withAssertions
   :: forall (r :: Row Type) (a :: Type) (assertions :: Type)
-   . ContractAssertions assertions r a 
-  => assertions 
-  -> Contract r a 
+   . ContractAssertions assertions r a
+  => assertions
+  -> Contract r a
   -> Contract r a
 withAssertions = flip wrapAndAssert
 
+--------------------------------------------------------------------------------
+-- Assertions and checks
 --------------------------------------------------------------------------------
 
 valueAtAddress
@@ -175,7 +255,100 @@ assertLovelaceDeltaAtAddress addr getExpected comp =
 
         assertionFailure :: ContractAssertionFailure
         assertionFailure =
-          UnexpectedLovelaceDelta addr (Expected expected) (Actual actual)
+          UnexpectedLovelaceDelta addr (ExpectedActual expected actual)
 
       assertContract assertionFailure (comp actual expected)
       pure result
+
+-- | Requires that the computed amount of lovelace was gained at the address 
+-- | by calling the contract.
+assertGainAtAddress
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (a -> Contract r BigInt)
+  -> ContractWrapAssertion r a
+assertGainAtAddress addr getMinGain =
+  assertLovelaceDeltaAtAddress addr getMinGain eq
+
+-- | Requires that the passed amount of lovelace was gained at the address 
+-- | by calling the contract.
+assertGainAtAddress'
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> BigInt
+  -> ContractWrapAssertion r a
+assertGainAtAddress' addr minGain =
+  assertGainAtAddress addr (const $ pure minGain)
+
+-- | Requires that the computed amount of lovelace was lost at the address 
+-- | by calling the contract.
+assertLossAtAddress
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (a -> Contract r BigInt)
+  -> ContractWrapAssertion r a
+assertLossAtAddress addr getMinLoss =
+  assertLovelaceDeltaAtAddress addr (map negate <<< getMinLoss) eq
+
+-- | Requires that the passed amount of lovelace was lost at the address 
+-- | by calling the contract.
+assertLossAtAddress'
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> BigInt
+  -> ContractWrapAssertion r a
+assertLossAtAddress' addr minLoss =
+  assertLossAtAddress addr (const $ pure minLoss)
+
+assertOutputHasDatumHash
+  :: forall (r :: Row Type)
+   . DataHash
+  -> Labeled TransactionOutput
+  -> Contract r Unit
+assertOutputHasDatumHash expectedDatumHash txOutput = do
+  let mDatumHash = _.dataHash $ unwrap (unlabel txOutput)
+  datumHash <-
+    assertContractM' (OutputHasNoDatumHash txOutput expectedDatumHash)
+      mDatumHash
+  assertContractExpectedActual (UnexpectedDatumHashInOutput txOutput)
+    expectedDatumHash
+    datumHash
+
+checkOutputHasDatumHash
+  :: forall (r :: Row Type)
+   . DataHash
+  -> Labeled TransactionOutput
+  -> Contract r Boolean
+checkOutputHasDatumHash expected txOutput =
+  (assertOutputHasDatumHash expected txOutput *> pure true)
+    `catchError` (const $ pure false)
+
+assertTxHasMetadata
+  :: forall (r :: Row Type) (a :: Type)
+   . MetadataType a
+  => Eq a
+  => Show a
+  => Label
+  -> TransactionHash
+  -> a
+  -> Contract r Unit
+assertTxHasMetadata mdLabel txHash expectedMetadata = do
+  Transaction { auxiliaryData } <-
+    assertContractM (CouldNotGetTxByHash txHash) (getTxByHash txHash)
+
+  generalMetadata <-
+    assertContractM' (TransactionHasNoMetadata txHash Nothing)
+      (map unwrap <<< _.metadata <<< unwrap =<< auxiliaryData)
+
+  rawMetadata <-
+    assertContractM' (TransactionHasNoMetadata txHash (Just mdLabel))
+      (Map.lookup (metadataLabel (Proxy :: Proxy a)) generalMetadata)
+
+  (metadata :: a) <-
+    assertContractM' (CouldNotParseMetadata mdLabel)
+      (fromMetadata rawMetadata)
+
+  let expectedActual = show <$> ExpectedActual expectedMetadata metadata
+  assertContract (UnexpectedMetadataValue mdLabel expectedActual)
+    (metadata == expectedMetadata)
+
