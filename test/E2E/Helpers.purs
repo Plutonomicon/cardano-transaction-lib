@@ -32,7 +32,6 @@ import Contract.Test.E2E
   , namiSign
   , withExample
   ) as E2EHelpers
-import Control.Monad.Error.Class (try)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)

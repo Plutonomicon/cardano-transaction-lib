@@ -101,7 +101,7 @@ mkCip30Mock pKey mSKey = do
           [ byteArrayToHex $ toBytes (asOneOf address) ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- map unwrap $ liftMaybe (error "No UTxOs at address") =<<
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         collateralUtxos <- liftMaybe (error "No UTxOs at address") $
           (unwrap keyWallet).selectCollateral utxos
@@ -120,7 +120,7 @@ mkCip30Mock pKey mSKey = do
         pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- map unwrap $ liftMaybe (error "No UTxOs at address") =<<
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         value <- liftEffect $ convertValue $
           (fold <<< map _.amount <<< map unwrap <<< Map.values)
