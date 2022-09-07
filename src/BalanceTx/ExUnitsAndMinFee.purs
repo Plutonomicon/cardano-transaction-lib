@@ -14,6 +14,7 @@ import BalanceTx.Error
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
+  , UtxoMap
   , _inputs
   , _plutusData
   , _redeemers
@@ -57,12 +58,14 @@ import Untagged.Union (asOneOf)
 evalTxExecutionUnits
   :: Transaction
   -> UnattachedUnbalancedTx
+  -> UtxoMap
   -> BalanceTxM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx unattachedTx = do
+evalTxExecutionUnits tx unattachedTx _utxos = do
   txBytes <- liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
+  -- TODO: convert UtxoMap into something usefull and hand it over to evaluateTxOgmios
   ExceptT $ QueryM.evaluateTxOgmios txBytes
     <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
 
@@ -71,15 +74,18 @@ evalTxExecutionUnits tx unattachedTx = do
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
 -- the minimum fee.
 evalExUnitsAndMinFee
-  :: PrebalancedTransaction -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
-evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) = do
+  :: PrebalancedTransaction
+  -> UtxoMap
+  -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
+evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) utxos = do
   -- Reindex `Spent` script redeemers:
   reindexedUnattachedTx <-
     ExceptT $ reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
   -- Reattach datums and redeemers before evaluating ex units:
   let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
   -- Evaluate transaction ex units:
-  rdmrPtrExUnitsList <- evalTxExecutionUnits attachedTx reindexedUnattachedTx
+  rdmrPtrExUnitsList <-
+    evalTxExecutionUnits attachedTx reindexedUnattachedTx utxos
   let
     -- Set execution units received from the server:
     reindexedUnattachedTxWithExUnits =

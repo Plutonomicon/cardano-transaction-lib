@@ -82,7 +82,7 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -102,21 +102,23 @@ import Types.UnbalancedTransaction (_utxoIndex)
 -- | address.
 balanceTx
   :: UnattachedUnbalancedTx
+  -> UtxoMap
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx unbalancedTx = do
+balanceTx unbalancedTx utxos = do
   QueryM.getWalletAddress >>= case _ of
     Nothing ->
       pure $ Left CouldNotGetWalletAddress
     Just address ->
-      balanceTxWithAddress address unbalancedTx
+      balanceTxWithAddress address unbalancedTx utxos
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the attached wallet).
 balanceTxWithAddress
   :: Address
   -> UnattachedUnbalancedTx
+  -> UtxoMap
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
+balanceTxWithAddress ownAddr unbalancedTx utxos' = runExceptT do
   utxos <- ExceptT $ utxosAt ownAddr
     <#> note CouldNotGetUtxos
 
@@ -140,7 +142,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
   -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos ownAddr
+  ExceptT $ runBalancer availableUtxos utxos' ownAddr
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
@@ -169,10 +171,11 @@ type Iteration = Int
 
 runBalancer
   :: UtxoMap
+  -> UtxoMap
   -> ChangeAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-runBalancer utxos changeAddress =
+runBalancer utxos utxos' changeAddress =
   runExceptT <<<
     (mainLoop one zero <=< addLovelacesToTransactionOutputs)
   where
@@ -199,7 +202,7 @@ runBalancer utxos changeAddress =
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos'
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
