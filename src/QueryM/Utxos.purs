@@ -151,16 +151,18 @@ getWalletBalance = do
         (map fold <<< sequence) <$> for addresses \address ->
           utxosAt address <#> map
             -- Combine `Value`s
-            (fold <<< map _.amount <<< map unwrap <<< Map.values <<< unwrap)
+            (fold <<< map _.amount <<< map unwrap <<< Map.values)
 
 getWalletUtxos :: QueryM (Maybe UtxoMap)
 getWalletUtxos = do
   asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
 
-    Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
-    Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
-    Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
-    Eternl wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoM
+    Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
+      toUtxoMap
+    Eternl wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
+      toUtxoMap
     Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     KeyWallet _ -> do
       mbAddress <- (getWalletAddresses <#> (_ >>= head))

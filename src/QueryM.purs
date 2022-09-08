@@ -492,11 +492,11 @@ getWalletAddresses = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
     Eternl wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Nami wallet -> callCip30Wallet wallet _.getWalletAddress
-    Gero wallet -> callCip30Wallet wallet _.getWalletAddress
-    Flint wallet -> callCip30Wallet wallet _.getWalletAddress
-    Lode wallet -> callCip30Wallet wallet _.getWalletAddress
-    KeyWallet kw -> Just <$> (unwrap kw).address networkId
+    Nami wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
+    KeyWallet kw -> Just <<< pure <$> (unwrap kw).address networkId
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)

@@ -41,8 +41,8 @@ getSelfSigners :: Transaction -> QueryM (Set Ed25519KeyHash)
 getSelfSigners tx = do
 
   walletCollats <- fromMaybe [] <$> getWalletCollateral
-  walletUtxos <- unwrap <$>
-    (liftM (error "CIP-30 wallet missing collateral") =<< getWalletUtxos)
+  walletUtxos <- liftM (error "CIP-30 wallet missing collateral")
+    =<< getWalletUtxos
 
   let
 

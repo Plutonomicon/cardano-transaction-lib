@@ -118,7 +118,7 @@ balanceTxWithAddress
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
 
   -- TODO: we must not use getWalletUtxos! DO NOT merge to develop
-  utxos <- ExceptT $ (note CouldNotGetUtxos <<< map unwrap) <$> getWalletUtxos
+  utxos <- ExceptT $ note CouldNotGetUtxos <$> getWalletUtxos
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
