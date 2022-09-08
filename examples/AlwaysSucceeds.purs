@@ -24,18 +24,17 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction
-  ( TransactionHash
-  , TransactionInput(TransactionInput)
-  , awaitTxConfirmed
-  )
+import Contract.Transaction (TransactionHash, awaitTxConfirmed, lookupTxHash)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Data.Array (head)
 import Data.BigInt as BigInt
+import Data.Lens (view)
 import Data.Map as Map
 import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Plutus.Types.TransactionUnspentOutput (_input)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -78,8 +77,8 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
-  case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
+  case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->
       let
         lookups :: Lookups.ScriptLookups PlutusData
@@ -100,10 +99,6 @@ spendFromAlwaysSucceeds vhash validator txId = do
         <> show txId
         <> " does not have output locked at: "
         <> show scriptAddress
-  where
-  hasTransactionId :: TransactionInput /\ _ -> Boolean
-  hasTransactionId (TransactionInput tx /\ _) =
-    tx.transactionId == txId
 
 foreign import alwaysSucceeds :: String
 

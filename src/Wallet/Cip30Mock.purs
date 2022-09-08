@@ -2,6 +2,9 @@ module Wallet.Cip30Mock where
 
 import Prelude
 
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
@@ -16,6 +19,8 @@ import Data.Lens.Record (prop)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
+import Data.Traversable (traverse)
+import Data.Tuple.Nested ((/\))
 import Deserialization.Transaction (deserializeTransaction)
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -89,6 +94,7 @@ type Cip30Mock =
   , getCollateral :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
   , getBalance :: Effect (Promise String)
+  , getUtxos :: Effect (Promise (Array String))
   }
 
 mkCip30Mock
@@ -101,7 +107,7 @@ mkCip30Mock pKey mSKey = do
           [ byteArrayToHex $ toBytes (asOneOf address) ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- map unwrap $ liftMaybe (error "No UTxOs at address") =<<
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         collateralUtxos <- liftMaybe (error "No UTxOs at address") $
           (unwrap keyWallet).selectCollateral utxos
@@ -120,12 +126,25 @@ mkCip30Mock pKey mSKey = do
         pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- map unwrap $ liftMaybe (error "No UTxOs at address") =<<
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         value <- liftEffect $ convertValue $
           (fold <<< map _.amount <<< map unwrap <<< Map.values)
             utxos
         pure $ byteArrayToHex $ toBytes $ asOneOf value
+    , getUtxos: fromAff do
+        ownAddress <- (unwrap keyWallet).address config.networkId
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
+          runQueryMInRuntime config runtime (utxosAt ownAddress)
+        collateralUtxos <- liftMaybe (error "No UTxOs at address") $
+          (unwrap keyWallet).selectCollateral utxos
+        let
+          nonCollateralUtxos = Map.filter (eq (unwrap collateralUtxos).output)
+            utxos
+        cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
+          $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
+              TransactionUnspentOutput { input, output }
+        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUtxos
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey
