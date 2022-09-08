@@ -56,7 +56,11 @@ data WalletMock = MockFlint | MockGero | MockNami
 -- | it will have to be changed a lot to successfully mimic the behavior of
 -- | multi-address wallets, like Eternl.
 withCip30Mock
-  :: forall r a. KeyWallet -> WalletMock -> Contract r a -> Contract r a
+  :: forall (r :: Row Type) (a :: Type)
+   . KeyWallet
+  -> WalletMock
+  -> Contract r a
+  -> Contract r a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
   cip30Mock <- wrapContract $ mkCip30Mock keyWallet.paymentKey
     keyWallet.stakeKey
