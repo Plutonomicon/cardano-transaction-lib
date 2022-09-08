@@ -7,27 +7,16 @@ import Prelude
 
 import BalanceTx.FakeOutput (fakeOutputWithValue)
 import Cardano.Types.Transaction (TransactionOutput)
-import Cardano.Types.Value (Coin, lovelaceValueOf)
-import Data.BigInt (BigInt)
-import Data.Maybe (Maybe, fromJust)
-import Data.Newtype (unwrap)
-import Effect (Effect)
-import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Partial.Unsafe (unsafePartial)
-import Serialization (convertTxOutput)
 import Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
 import Control.Monad.Error.Class (liftMaybe)
-import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
-import Data.Maybe (Maybe(Nothing), fromJust)
-import Data.Newtype (wrap, unwrap)
-import Effect.Class (liftEffect)
+import Data.Maybe (Maybe, fromJust)
+import Effect (Effect)
 import Effect.Exception (error)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Partial.Unsafe (unsafePartial)
-import QueryM.Ogmios (CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte))
 import Serialization (convertTxOutput)
-import Serialization.Address (addressFromBech32) as Csl
+import QueryM.Ogmios (CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte))
 import Serialization.Types (DataCost)
 import Serialization.Types (TransactionOutput) as Csl
 import Types.BigNum (BigNum)
@@ -51,7 +40,6 @@ utxoMinAdaValue coinsPerUtxoUnit txOutput = do
     CoinsPerUtxoWord (Coin n) -> do
       newCoinsPerWord <$> liftMaybe (error "Failed to convert CoinsPerUtxoWord")
         (BigNum.fromBigInt n)
-  cslTxOutput <- liftEffect $ convertTxOutput txOutput
   pure $ minAdaForOutput maybeFfiHelper cslTxOutput dataCost
     -- useful spy: BigNum.toBigInt >>= (pure <<< spy "utxoMinAdaValue")
     >>= BigNum.toBigInt
