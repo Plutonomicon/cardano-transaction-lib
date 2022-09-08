@@ -22,11 +22,9 @@ import Aeson
   , printJsonDecodeError
   )
 import Control.Monad.Except (throwError)
-import Control.Monad.Error.Class (liftEither)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, note)
 import Data.Newtype (class Newtype, wrap)
-import Effect.Aff (Aff, error)
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.Cbor (CborParseError, toByteArray)
 
@@ -90,11 +88,11 @@ printTextEnvelopeDecodeError = case _ of
   JsonDecodeError err -> printJsonDecodeError err
   CborParseError err -> show err
 
-textEnvelopeBytes :: String -> TextEnvelopeType -> Aff ByteArray
-textEnvelopeBytes json ty =
-  liftEither $ lmap (error <<< printTextEnvelopeDecodeError) do
-    aeson <- lmap JsonDecodeError $ parseJsonStringToAeson json
-    TextEnvelope te <- decodeTextEnvelope aeson
-    unless (te.type_ == ty) $ throwError $ JsonDecodeError $ TypeMismatch $
-      show ty
-    pure te.bytes
+textEnvelopeBytes
+  :: String -> TextEnvelopeType -> Either TextEnvelopeDecodeError ByteArray
+textEnvelopeBytes json ty = do
+  aeson <- lmap JsonDecodeError $ parseJsonStringToAeson json
+  TextEnvelope te <- decodeTextEnvelope aeson
+  unless (te.type_ == ty) $ throwError $ JsonDecodeError $ TypeMismatch $
+    show ty
+  pure te.bytes
