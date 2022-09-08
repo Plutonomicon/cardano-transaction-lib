@@ -40,7 +40,8 @@ foreign import newCoinsPerWord :: BigNum -> DataCost
 
 foreign import newCoinsPerByte :: BigNum -> DataCost
 
-utxoMinAdaValue :: CoinsPerUtxoUnit -> TransactionOutput -> Effect (Maybe BigInt)
+utxoMinAdaValue
+  :: CoinsPerUtxoUnit -> TransactionOutput -> Effect (Maybe BigInt)
 utxoMinAdaValue coinsPerUtxoUnit txOutput = do
   cslTxOutput <- convertTxOutput txOutput
   dataCost <- case coinsPerUtxoUnit of

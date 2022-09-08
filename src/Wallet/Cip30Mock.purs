@@ -115,9 +115,12 @@ mkCip30Mock pKey mSKey = do
           maxCollateralInputs = fromMaybe 3 $ map UInt.toInt $
             pparams.maxCollateralInputs
         collateralUtxos <- liftEffect $
-          (unwrap keyWallet).selectCollateral coinsPerUtxoUnit maxCollateralInputs utxos
+          (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
+            maxCollateralInputs
+            utxos
             >>= liftMaybe (error "No UTxOs at address")
-        cslUnspentOutput <- liftEffect $ traverse convertTransactionUnspentOutput
+        cslUnspentOutput <- liftEffect $ traverse
+          convertTransactionUnspentOutput
           collateralUtxos
         pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUnspentOutput
     , signTx: \str -> unsafePerformEffect $ fromAff do

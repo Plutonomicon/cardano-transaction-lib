@@ -48,7 +48,10 @@ import Serialization.Types (PrivateKey)
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
   , selectCollateral ::
-      CoinsPerUtxoUnit -> Int -> UtxoMap -> Effect (Maybe (Array TransactionUnspentOutput))
+      CoinsPerUtxoUnit
+      -> Int
+      -> UtxoMap
+      -> Effect (Maybe (Array TransactionUnspentOutput))
   , signTx :: Transaction -> Aff TransactionWitnessSet
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
@@ -100,7 +103,10 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         >>> enterpriseAddressToAddress
 
   selectCollateral
-    :: CoinsPerUtxoUnit -> Int -> UtxoMap -> Effect (Maybe (Array TransactionUnspentOutput))
+    :: CoinsPerUtxoUnit
+    -> Int
+    -> UtxoMap
+    -> Effect (Maybe (Array TransactionUnspentOutput))
   selectCollateral coinsPerUtxoByte maxCollateralInputs utxos = map fromFoldable
     <$> Collateral.selectCollateral coinsPerUtxoByte maxCollateralInputs utxos
 

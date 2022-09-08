@@ -108,7 +108,10 @@ mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
 -- |   utxo min ada value, we prefer the one with fewer inputs.
 -- |
 selectCollateral
-  :: CoinsPerUtxoUnit -> Int -> UtxoMap -> Effect (Maybe (List TransactionUnspentOutput))
+  :: CoinsPerUtxoUnit
+  -> Int
+  -> UtxoMap
+  -> Effect (Maybe (List TransactionUnspentOutput))
 selectCollateral coinsPerUtxoUnit maxCollateralInputs =
   -- Sort candidate utxo combinations in ascending order by utxo min ada value
   -- of return output, then select the first utxo combination:
