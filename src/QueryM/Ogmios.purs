@@ -6,6 +6,7 @@ module QueryM.Ogmios
   , ChainTipQR(CtChainOrigin, CtChainPoint)
   , CostModelV1
   , CostModelV2
+  , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
   , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -71,7 +72,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
+  , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
@@ -137,9 +138,9 @@ import Data.String
   , splitAt
   , uncons
   )
-import Data.Tuple (snd, uncurry)
 import Data.String.Common (split) as String
 import Data.Traversable (sequence, traverse, for)
+import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -790,7 +791,8 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minPoolCost" :: BigInt
-  , "coinsPerUtxoByte" :: BigInt
+  , "coinsPerUtxoByte" :: Maybe BigInt
+  , "coinsPerUtxoWord" :: Maybe BigInt
   , "costModels" ::
       { "plutus:v1" :: { | CostModelV1 }
       , "plutus:v2" :: { | CostModelV2 }
@@ -812,6 +814,13 @@ type ProtocolParametersRaw =
   , "maxCollateralInputs" :: Maybe UInt
   }
 
+data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
+
+derive instance Generic CoinsPerUtxoUnit _
+
+instance Show CoinsPerUtxoUnit where
+  show = genericShow
+
 -- Based on `Cardano.Api.ProtocolParameters.ProtocolParameters` from
 -- `cardano-api`.
 newtype ProtocolParameters = ProtocolParameters
@@ -832,7 +841,7 @@ newtype ProtocolParameters = ProtocolParameters
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
-  , coinsPerUtxoByte :: Coin
+  , coinsPerUtxoUnit :: CoinsPerUtxoUnit
   , costModels :: Costmdls
   , prices :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -852,7 +861,12 @@ instance DecodeAeson ProtocolParameters where
   decodeAeson aeson = do
     ps :: ProtocolParametersRaw <- decodeAeson aeson
     prices <- decodePrices ps
-
+    coinsPerUtxoUnit <-
+      maybe
+        (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
+        pure
+        $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
+            (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
     pure $ ProtocolParameters
       { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
       -- The following two parameters were removed from Babbage
@@ -870,7 +884,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
+      , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1"
           , PlutusV2 /\ convertCostModel ps.costModels."plutus:v2"

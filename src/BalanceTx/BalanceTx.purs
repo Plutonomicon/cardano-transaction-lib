@@ -91,6 +91,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddress) as QueryM
 import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
+import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.ScriptLookups (UnattachedUnbalancedTx)
@@ -238,17 +239,17 @@ setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
 addLovelacesToTransactionOutputs
   :: UnattachedUnbalancedTx -> BalanceTxM UnattachedUnbalancedTx
 addLovelacesToTransactionOutputs unbalancedTx = do
-  coinsPerUtxoByte <- lift $ asks
-    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoByte)
+  coinsPerUtxoUnit <- lift $ asks
+    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoUnit)
   map (\txOutputs -> unbalancedTx # _body' <<< _outputs .~ txOutputs) $
-    traverse (addLovelacesToTransactionOutput coinsPerUtxoByte)
+    traverse (addLovelacesToTransactionOutput coinsPerUtxoUnit)
       (unbalancedTx ^. _body' <<< _outputs)
 
 addLovelacesToTransactionOutput
-  :: Coin -> TransactionOutput -> BalanceTxM TransactionOutput
-addLovelacesToTransactionOutput coinsPerUtxoByte txOutput = do
+  :: CoinsPerUtxoUnit -> TransactionOutput -> BalanceTxM TransactionOutput
+addLovelacesToTransactionOutput coinsPerUtxoUnit txOutput = do
   txOutputMinAda <- ExceptT $ liftEffect $
-    utxoMinAdaValue coinsPerUtxoByte txOutput
+    utxoMinAdaValue coinsPerUtxoUnit txOutput
       <#> note UtxoMinAdaValueCalculationFailed
   let
     txOutputRec = unwrap txOutput
@@ -330,10 +331,10 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
     nonMintedValue :: Value
     nonMintedValue = totalOutputValue txBody `minus` mintValue txBody
 
-  coinsPerUtxoByte <- lift $ asks
-    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoByte)
+  coinsPerUtxoUnit <- lift $ asks
+    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoUnit)
   txChangeOutput <-
-    addLovelacesToTransactionOutput coinsPerUtxoByte
+    addLovelacesToTransactionOutput coinsPerUtxoUnit
       (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
   let

@@ -13,7 +13,7 @@ import Cardano.Types.Transaction
   , UtxoMap
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value (Coin, NonAdaAsset)
+import Cardano.Types.Value (NonAdaAsset)
 import Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
@@ -30,6 +30,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Types.Transaction (TransactionInput)
 
 minRequiredCollateral :: BigInt
@@ -45,9 +46,9 @@ maxCandidateUtxos = 10
 --------------------------------------------------------------------------------
 
 collateralReturnMinAdaValue
-  :: Coin -> List TransactionUnspentOutput -> Effect (Maybe BigInt)
-collateralReturnMinAdaValue coinsPerUtxoByte =
-  utxoMinAdaValue coinsPerUtxoByte <<< fakeOutputWithNonAdaAssets <<< foldMap
+  :: CoinsPerUtxoUnit -> List TransactionUnspentOutput -> Effect (Maybe BigInt)
+collateralReturnMinAdaValue coinsPerUtxoUnit =
+  utxoMinAdaValue coinsPerUtxoUnit <<< fakeOutputWithNonAdaAssets <<< foldMap
     nonAdaAsset
 
 type ReturnOutMinAdaValue = BigInt
@@ -107,8 +108,8 @@ mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
 -- |   utxo min ada value, we prefer the one with fewer inputs.
 -- |
 selectCollateral
-  :: Coin -> Int -> UtxoMap -> Effect (Maybe (List TransactionUnspentOutput))
-selectCollateral coinsPerUtxoByte maxCollateralInputs =
+  :: CoinsPerUtxoUnit -> Int -> UtxoMap -> Effect (Maybe (List TransactionUnspentOutput))
+selectCollateral coinsPerUtxoUnit maxCollateralInputs =
   -- Sort candidate utxo combinations in ascending order by utxo min ada value
   -- of return output, then select the first utxo combination:
   map (map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort)
@@ -116,7 +117,7 @@ selectCollateral coinsPerUtxoByte maxCollateralInputs =
     -- the min Ada value of the corresponding collateral return output:
     <<< map (List.mapMaybe mkCollateralCandidate)
     <<< traverse
-      (\x -> Tuple x <$> collateralReturnMinAdaValue coinsPerUtxoByte x)
+      (\x -> Tuple x <$> collateralReturnMinAdaValue coinsPerUtxoUnit x)
     -- Filter out all utxo combinations
     -- with total Ada value < `minRequiredCollateral`:
     <<< List.filter (\x -> foldl adaValue' zero x >= minRequiredCollateral)

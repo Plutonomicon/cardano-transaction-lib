@@ -4,6 +4,7 @@
 module Examples.PlutusV2.AlwaysSucceeds
   ( main
   , example
+  , contract
   , alwaysSucceedsScriptV2
   ) where
 
@@ -35,17 +36,20 @@ import Contract.Transaction
 main :: Effect Unit
 main = example testnetNamiConfig
 
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.PlutusV2.AlwaysSucceeds"
+  validator <- alwaysSucceedsScriptV2
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToAlwaysSucceeds vhash
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromAlwaysSucceeds vhash validator txId
+
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.PlutusV2.AlwaysSucceeds"
-    validator <- alwaysSucceedsScriptV2
-    let vhash = validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToAlwaysSucceeds vhash
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromAlwaysSucceeds vhash validator txId
+  runContract cfg contract
   publishTestFeedback true
 
 foreign import alwaysSucceeds :: String

@@ -2,9 +2,10 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
 module Examples.AlwaysSucceeds
-  ( main
+  ( alwaysSucceedsScript
+  , contract
   , example
-  , alwaysSucceedsScript
+  , main
   , payToAlwaysSucceeds
   , spendFromAlwaysSucceeds
   ) where
@@ -43,17 +44,21 @@ import Plutus.Types.TransactionUnspentOutput (_input)
 main :: Effect Unit
 main = example testnetNamiConfig
 
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.AlwaysSucceeds"
+  validator <- alwaysSucceedsScript
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToAlwaysSucceeds vhash
+  -- If the wallet is cold, you need a high parameter here.
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromAlwaysSucceeds vhash validator txId
+
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.AlwaysSucceeds"
-    validator <- alwaysSucceedsScript
-    let vhash = validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToAlwaysSucceeds vhash
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromAlwaysSucceeds vhash validator txId
+  runContract cfg contract
   publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash

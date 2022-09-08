@@ -28,6 +28,7 @@ import Effect.Aff (Aff)
 import Mote (group, test)
 import QueryM (QueryM, runQueryM)
 import QueryM.Config (testnetTraceQueryConfig)
+import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Utils (Seconds(Seconds))
@@ -40,47 +41,47 @@ suite = do
   group "BalanceTx.Collateral" do
     group "selectCollateral" do
       test "Prefers a single Ada-only inp if it covers minRequiredCollateral" do
-        withParams \coinsPerUtxoByte maxCollateralInputs -> do
+        withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
             TestUtils.measure
               $ liftEffect
-              $ selectCollateral coinsPerUtxoByte maxCollateralInputs
+              $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture1
           collateral `shouldEqual`
             Just (List.singleton $ txUnspentOut zero adaOnlyTxOutputSuf)
 
       test "Prefers an input with the lowest min ada for collateral output" do
-        withParams \coinsPerUtxoByte maxCollateralInputs -> do
+        withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
             TestUtils.measure
               $ liftEffect
-              $ selectCollateral coinsPerUtxoByte maxCollateralInputs
+              $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture2
           collateral `shouldEqual`
             Just (List.singleton $ txUnspentOut zero singleAssetTxOutputSuf)
 
       test "Selects a collateral in less than 2 seconds" do
-        withParams \coinsPerUtxoByte maxCollateralInputs ->
+        withParams \coinsPerUtxoUnit maxCollateralInputs ->
           TestUtils.measureWithTimeout (Seconds 2.0)
-            ( void $ liftEffect $ selectCollateral coinsPerUtxoByte
+            ( void $ liftEffect $ selectCollateral coinsPerUtxoUnit
                 maxCollateralInputs
                 utxosFixture3
             )
 
-withParams :: (Coin -> Int -> QueryM Unit) -> Aff Unit
+withParams :: (CoinsPerUtxoUnit -> Int -> QueryM Unit) -> Aff Unit
 withParams test =
   runQueryM testnetTraceQueryConfig
-    (join (test <$> getCoinsPerUtxoByte <*> getMaxCollateralInputs))
+    (join (test <$> getCoinsPerUtxoUnit <*> getMaxCollateralInputs))
   where
   getMaxCollateralInputs :: QueryM Int
   getMaxCollateralInputs =
     asks $ _.runtime >>> _.pparams <#>
       fromMaybe 3 <<< map UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
-  getCoinsPerUtxoByte :: QueryM Coin
-  getCoinsPerUtxoByte =
+  getCoinsPerUtxoUnit :: QueryM CoinsPerUtxoUnit
+  getCoinsPerUtxoUnit =
     asks (_.runtime >>> _.pparams) <#> unwrap >>>
-      _.coinsPerUtxoByte
+      _.coinsPerUtxoUnit
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.
 adaOnlyTxOutputSuf :: TransactionOutput
