@@ -1,15 +1,27 @@
 module Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
-  , WalletExt(GeroExt, NamiExt)
   , withBrowser
   , parseOptions
   ) where
 
 import Prelude
 
+import Contract.Test.E2E.WalletExt
+  ( WalletConfig(WalletConfig)
+  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt)
+  )
+import Contract.Test.E2E.Helpers
+  ( WalletPassword(WalletPassword)
+  )
+
 import Data.Foldable (fold)
+import Data.Array (catMaybes)
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Tuple (Tuple)
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, bracket)
 import Node.Path (FilePath)
@@ -30,8 +42,6 @@ import Options.Applicative
   )
 import Toppokki as Toppokki
 
-data WalletExt = NamiExt | GeroExt
-
 -- | Parameters for E2E tests
 -- | 'chromeExe' should point to a chromium or google-chrome binary.
 -- | 'namiDir' should point to a directory where Nami is unpacked.
@@ -44,8 +54,7 @@ data WalletExt = NamiExt | GeroExt
 -- | 'noHeadless' is a flag to display the browser during the tests.
 data TestOptions = TestOptions
   { chromeExe :: Maybe FilePath
-  , namiDir :: FilePath
-  , geroDir :: FilePath
+  , wallets :: Map WalletExt WalletConfig
   , chromeUserDataDir :: FilePath
   , noHeadless :: Boolean
   }
@@ -62,15 +71,53 @@ optParser = ado
     , help "Chrome/-ium exe (search in env if not set)"
     , value Nothing
     ]
-  namiDir <- strOption $ fold
+  namiDir <- option (Just <$> str) $ fold
     [ long "nami-dir"
     , metavar "DIR"
     , help "Directory where nami is unpacked"
+    , value Nothing
     ]
-  geroDir <- strOption $ fold
+  namiPassword <- option (Just <<< WalletPassword <$> str) $ fold
+    [ long "nami-password"
+    , metavar "PW"
+    , help "Nami wallet password"
+    , value Nothing
+    ]
+  geroDir <- option (Just <$> str) $ fold
     [ long "gero-dir"
     , metavar "DIR"
     , help "Directory where gero is unpacked"
+    , value Nothing
+    ]
+  geroPassword <- option (Just <<< WalletPassword <$> str) $ fold
+    [ long "gero-password"
+    , metavar "PW"
+    , help "Gero wallet password"
+    , value Nothing
+    ]
+  flintDir <- option (Just <$> str) $ fold
+    [ long "flint-dir"
+    , metavar "DIR"
+    , help "Directory where gero is unpacked"
+    , value Nothing
+    ]
+  flintPassword <- option (Just <<< WalletPassword <$> str) $ fold
+    [ long "flint-password"
+    , metavar "PW"
+    , help "Flint wallet password"
+    , value Nothing
+    ]
+  lodeDir <- option (Just <$> str) $ fold
+    [ long "lode-dir"
+    , metavar "DIR"
+    , help "Directory where lode is unpacked"
+    , value Nothing
+    ]
+  lodePassword <- option (Just <<< WalletPassword <$> str) $ fold
+    [ long "lode-password"
+    , metavar "PW"
+    , help "Lode wallet password"
+    , value Nothing
     ]
   chromeUserDataDir <- strOption $ fold
     [ long "chrome-user-data"
@@ -83,9 +130,23 @@ optParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
+  let
+    wallets = Map.fromFoldable $ catMaybes
+      [ mkConfig NamiExt namiDir namiPassword
+      , mkConfig GeroExt geroDir geroPassword
+      , mkConfig FlintExt flintDir flintPassword
+      , mkConfig LodeExt lodeDir lodePassword
+      ]
   in
     TestOptions
-      { chromeExe, namiDir, geroDir, chromeUserDataDir, noHeadless }
+      { chromeExe, wallets, chromeUserDataDir, noHeadless }
+  where
+  mkConfig
+    :: WalletExt
+    -> Maybe FilePath
+    -> Maybe WalletPassword
+    -> Maybe (Tuple WalletExt WalletConfig)
+  mkConfig ext mfp mpw = map (ext /\ _) $ WalletConfig <$> mfp <*> mpw
 
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info optParser fullDesc
@@ -94,19 +155,28 @@ withBrowser
   :: forall (a :: Type)
    . TestOptions
   -> WalletExt
-  -> (Toppokki.Browser -> Aff a)
+  -> (Maybe Toppokki.Browser -> Aff a)
   -> Aff a
-withBrowser opts ext = bracket (launchWithExtension ext opts) Toppokki.close
+withBrowser opts ext = bracket (launchWithExtension opts ext)
+  ( \mbrowser -> case mbrowser of
+      Nothing -> pure unit
+      Just b -> Toppokki.close b
+  )
 
 launchWithExtension
-  :: WalletExt -> TestOptions -> Aff Toppokki.Browser
+  :: TestOptions
+  -> WalletExt
+  -> Aff (Maybe Toppokki.Browser)
 launchWithExtension
-  walletExt
-  (TestOptions { chromeExe, chromeUserDataDir, namiDir, geroDir, noHeadless }) =
-  Toppokki.launch
+  ( TestOptions
+      { chromeExe, chromeUserDataDir, noHeadless, wallets }
+  )
+  walletExt = case Map.lookup walletExt wallets of
+  Nothing -> pure Nothing
+  Just (WalletConfig path _) -> pure <$> Toppokki.launch
     { args:
-        [ "--disable-extensions-except=" <> extDir
-        , "--load-extension=" <> extDir
+        [ "--disable-extensions-except=" <> path
+        , "--load-extension=" <> path
         ] <> if mode == Headless then [ "--headless=chrome" ] else []
     , headless: mode == Headless
     , userDataDir: chromeUserDataDir
@@ -117,8 +187,3 @@ launchWithExtension
   mode
     | noHeadless = Visible
     | otherwise = Headless
-
-  extDir :: FilePath
-  extDir = case walletExt of
-    GeroExt -> geroDir
-    NamiExt -> namiDir

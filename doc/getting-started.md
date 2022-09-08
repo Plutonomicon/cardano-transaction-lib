@@ -109,7 +109,7 @@ For local development and testing, we provide `Contract.Config.testnetConfig` wh
 
 It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `runContract`.
 
-As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractEnv` environment using Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractEnv` (and by extension, `Contract`).
+As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractEnv` environment uses Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractEnv` (and by extension, `Contract`).
 
 A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
 

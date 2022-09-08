@@ -11,9 +11,10 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
-  , Utxos
-  , _vkeys
   , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet
+  , UtxoMap
+  , _vkeys
   )
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -47,8 +48,8 @@ import Serialization.Types (PrivateKey)
 -------------------------------------------------------------------------------
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
-  , selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
-  , signTx :: Transaction -> Aff Transaction
+  , signTx :: Transaction -> Aff TransactionWitnessSet
+  , selectCollateral :: UtxoMap -> Maybe TransactionUnspentOutput
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
   }
@@ -98,7 +99,7 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         >>> enterpriseAddress
         >>> enterpriseAddressToAddress
 
-  selectCollateral :: Utxos -> Maybe TransactionUnspentOutput
+  selectCollateral :: UtxoMap -> Maybe TransactionUnspentOutput
   selectCollateral utxos = unwrap <<< unwrap <$> flip
     foldMapWithIndex
     utxos
@@ -112,14 +113,14 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         if onlyAda && bigAda then Just $ Min txuo
         else Nothing
 
-  signTx :: Transaction -> Aff Transaction
+  signTx :: Transaction -> Aff TransactionWitnessSet
   signTx (Transaction tx) = liftEffect do
     txBody <- Serialization.convertTxBody tx.body
     hash <- Serialization.hashTransaction txBody
     wit <- Deserialization.WitnessSet.convertVkeyWitness <$>
       Serialization.makeVkeywitness hash (unwrap payKey)
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
-    pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
+    pure witnessSet'
 
 _value :: AdaOut -> Value
 _value

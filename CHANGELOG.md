@@ -61,9 +61,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Hashing.transactionHash` to calculate the hash of the transaction ([#870](https://github.com/Plutonomicon/cardano-transaction-lib/pull/870))
 - Flint wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 - Support for `NativeScript`s in constraints interface: `mustPayToNativeScript` and `mustSpendNativeScriptOutput` functions ([#869](https://github.com/Plutonomicon/cardano-transaction-lib/pull/869))
+- `Contract.Test.Cip30Mock` module to mock CIP-30 wallet interface using `KeyWallet`. The mock can be used for testing without a wallet (even in NodeJS environment). This increases test coverage for CTL code. ([#784](https://github.com/Plutonomicon/cardano-transaction-lib/issues/784))
 - `Plutus.Types.AssocMap.AssocMap` now has `TraversableWithIndex`,  `FoldableWithIndex`,  `FunctorWithIndex` instances ([#943](https://github.com/Plutonomicon/cardano-transaction-lib/pull/943))
 - The return value of `purescriptProject` now includes the project with its compiled `output` and its generated `node_modules` (under the `compiled` and `nodeModules` attributes, respectively) ([#956](https://github.com/Plutonomicon/cardano-transaction-lib/pull/956))
 - `Contract.Utxos.getWalletUtxos` function that calls CIP-30 `getUtxos` method. ([#961](https://github.com/Plutonomicon/cardano-transaction-lib/issues/961))
+- Lode wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
+- Added `Contract.Transaction.lookupTxHash` helper function ([#957](https://github.com/Plutonomicon/cardano-transaction-lib/issues/957))
 
 ### Changed
 
@@ -88,11 +91,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - The `ctlServerConfig` fields of both `ConfigParams` and `PlutipConfig` now take a `Maybe ServerConfig`. In the case of `PlutipConfig`, a `Just` value will spawn the service inside the Plutip test. For the `ConfigParams` type, calls to `applyArgs` will fail when the field is set to `Nothing`.
   - The config accepted by `launchCtlRuntime` and `buildCtlRuntime` now takes a `ctl-server.enable` field. If `false`, `ctl-server` will not be launched.
 - `SlotLength` and `RelativeTime` in `EraSummary` from Ogmios are now of type `Number` instead of `BigInt`. Also add `Maybe` around some functions in `Type.Interval` or changed it's signature to use `Number`. ([#868](https://github.com/Plutonomicon/cardano-transaction-lib/issues/868))
+- Renamed `UtxoM` to `UtxoMap` ([#963](https://github.com/Plutonomicon/cardano-transaction-lib/pull/963))
 
 ### Removed
 
 - `Contract.Monad.traceTestnetContractConfig` - use `Contract.Config.testnetNamiConfig` instead (or other variants of `testnet...Config` for other wallets).
 - `runContract_` - use `void <<< runContract`.
+- `Contract.Aeson` module - use `Aeson` ([#938](https://github.com/Plutonomicon/cardano-transaction-lib/issues/938))
 
 ### Fixed
 
