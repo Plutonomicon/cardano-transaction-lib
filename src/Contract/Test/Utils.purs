@@ -3,6 +3,7 @@ module Contract.Test.Utils
   , ContractAssertionFailure
       ( CouldNotGetTxByHash
       , CouldNotGetUtxosAtAddress
+      , CouldNotHashDatum
       , CouldNotParseMetadata
       , OutputHasNoDatumHash
       , TransactionHasNoMetadata
@@ -24,6 +25,7 @@ module Contract.Test.Utils
   , assertLossAtAddress
   , assertLossAtAddress'
   , assertLovelaceDeltaAtAddress
+  , assertOutputHasDatum
   , assertOutputHasDatumHash
   , assertTxHasMetadata
   , checkBalanceDeltaAtAddress
@@ -38,7 +40,9 @@ module Contract.Test.Utils
 import Prelude
 
 import Contract.Address (Address)
+import Contract.Hashing (datumHash)
 import Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
+import Contract.PlutusData (Datum)
 import Contract.Transaction
   ( DataHash
   , Transaction(Transaction)
@@ -64,6 +68,7 @@ import Type.Proxy (Proxy(Proxy))
 data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash
   | CouldNotGetUtxosAtAddress (Labeled Address)
+  | CouldNotHashDatum Datum
   | CouldNotParseMetadata Label
   | OutputHasNoDatumHash (Labeled TransactionOutput) DataHash
   | TransactionHasNoMetadata TransactionHash (Maybe Label)
@@ -78,6 +83,9 @@ instance Show ContractAssertionFailure where
 
   show (CouldNotGetUtxosAtAddress addr) =
     "Could not get utxos at " <> show addr
+
+  show (CouldNotHashDatum datum) =
+    "Could not hash datum " <> show datum
 
   show (CouldNotParseMetadata mdLabel) =
     "Could not parse " <> show mdLabel <> " metadata"
@@ -313,6 +321,17 @@ assertOutputHasDatumHash expectedDatumHash txOutput = do
   assertContractExpectedActual (UnexpectedDatumHashInOutput txOutput)
     expectedDatumHash
     datumHash
+
+assertOutputHasDatum
+  :: forall (r :: Row Type)
+   . Datum
+  -> Labeled TransactionOutput
+  -> Contract r Unit
+assertOutputHasDatum expectedDatum txOutput = do
+  expectedDatumHash <-
+    assertContractM' (CouldNotHashDatum expectedDatum)
+      (datumHash expectedDatum)
+  assertOutputHasDatumHash expectedDatumHash txOutput
 
 checkOutputHasDatumHash
   :: forall (r :: Row Type)

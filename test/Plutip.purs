@@ -244,32 +244,6 @@ suite = do
               pkh2PkhContract alice
             in unit
 
-    test "runPlutipContract: Examples.ContractTestUtils" do
-      let
-        initialUtxos :: InitialUTxOs
-        initialUtxos =
-          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
-
-        distribution :: InitialUTxOs /\ InitialUTxOs
-        distribution = initialUtxos /\ initialUtxos
-
-      runPlutipContract config distribution \(alice /\ bob) -> do
-        receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          withKeyWallet bob ownPaymentPubKeyHash
-        receiverSkh <- withKeyWallet bob ownStakePubKeyHash
-
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicy
-        tn <- mkTokenName "TheToken"
-
-        withKeyWallet alice $ ContractTestUtils.contract $
-          ContractTestUtils.ContractParams
-            { receiverPkh
-            , receiverSkh
-            , adaToSend: BigInt.fromInt 5_000_000
-            , mintingPolicy
-            , tokensToMint: cs /\ tn /\ one /\ unit
-            }
-
     test "NativeScript: require all signers" do
       let
         distribution
@@ -606,6 +580,33 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice SendsToken.contract
+
+    test "runPlutipContract: Examples.ContractTestUtils" do
+      let
+        initialUtxos :: InitialUTxOs
+        initialUtxos =
+          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution = initialUtxos /\ initialUtxos
+
+      runPlutipContract config distribution \(alice /\ bob) -> do
+        receiverPkh <- liftedM "Unable to get Bob's PKH" $
+          withKeyWallet bob ownPaymentPubKeyHash
+        receiverSkh <- withKeyWallet bob ownStakePubKeyHash
+
+        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+        tn <- mkTokenName "TheToken"
+
+        withKeyWallet alice $ ContractTestUtils.contract $
+          ContractTestUtils.ContractParams
+            { receiverPkh
+            , receiverSkh
+            , adaToSend: BigInt.fromInt 5_000_000
+            , mintingPolicy
+            , tokensToMint: cs /\ tn /\ one /\ unit
+            , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
+            }
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
