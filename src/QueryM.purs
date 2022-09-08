@@ -123,7 +123,6 @@ import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Hashing (blake2bReady) as Hashing
 import Helpers (logString, logWithLevel)
 import JsWebSocket
   ( JsWebSocket
@@ -314,7 +313,6 @@ mkQueryRuntime
   :: QueryConfig
   -> Aff QueryRuntime
 mkQueryRuntime config = do
-  Hashing.blake2bReady
   usedTxOuts <- newUsedTxOuts
   QueryRuntimeModel (ogmiosWs /\ datumCacheWs /\ pparams) wallet <- sequential $
     QueryRuntimeModel
