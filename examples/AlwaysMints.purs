@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main, example, alwaysMintsPolicy) where
+module Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
 
 import Contract.Prelude
 
@@ -28,27 +28,28 @@ import Examples.Helpers
 main :: Effect Unit
 main = example testnetNamiConfig
 
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.AlwaysMints"
+  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
+  tn <- Helpers.mkTokenName "TheToken"
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = Constraints.mustMintValue
+      $ Value.singleton cs tn
+      $ BigInt.fromInt 100
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = Lookups.mintingPolicy mp
+
+  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully!"
+
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
-  runContract cfg $ do
-    logInfo' "Running Examples.AlwaysMints"
-    mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
-    tn <- Helpers.mkTokenName "TheToken"
-
-    let
-      constraints :: Constraints.TxConstraints Void Void
-      constraints = Constraints.mustMintValue
-        $ Value.singleton cs tn
-        $ BigInt.fromInt 100
-
-      lookups :: Lookups.ScriptLookups Void
-      lookups = Lookups.mintingPolicy mp
-
-    txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully!"
-
+  runContract cfg contract
   publishTestFeedback true
 
 foreign import alwaysMints :: String

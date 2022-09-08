@@ -32,8 +32,8 @@ rec {
       controlApiToken = "";
       blockFetcher = {
         firstBlock = {
-          slot = 5702409;
-          id = "f737e8f756b2ece3e361cf252d122cff54562897532d83ba75ab679a7fd859d1";
+          slot = 5854109;
+          id = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
         };
         autoStart = true;
         startFromLast = false;

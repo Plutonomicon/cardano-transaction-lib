@@ -457,8 +457,8 @@ instance Show Epoch where
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: SlotLength -- <= MAX_SAFE_INTEGER (=9,007,199,254,740,992) 
-  -- A slot length, in milliseconds, previously it has 
+  , slotLength :: SlotLength -- <= MAX_SAFE_INTEGER (=9,007,199,254,740,992)
+  -- A slot length, in milliseconds, previously it has
   -- a max limit of 18446744073709552000, now removed.
   , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.

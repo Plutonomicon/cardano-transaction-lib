@@ -14,7 +14,7 @@ import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddresses
+  , getWalletAddress
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   , payPubKeyHashEnterpriseAddress
@@ -146,7 +146,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   unless (null walletsInfo) do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
     ourAddr <- liftedM "Could not get our address"
-      $ withKeyWallet ourWallet (getWalletAddresses <#> (_ >>= head))
+      $ withKeyWallet ourWallet getWalletAddress
     ourUtxos <- liftedM "Could not find our utxos"
       $ utxosAt ourAddr
     ourPkh <- liftedM "Could not get our payment pkh"

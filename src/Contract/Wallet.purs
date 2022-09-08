@@ -13,7 +13,7 @@ module Contract.Wallet
 
 import Prelude
 
-import Contract.Address (getWalletAddresses, getWalletCollateral)
+import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Contract.Monad (Contract, ContractEnv)
 import Control.Monad.Reader (local)
@@ -37,7 +37,10 @@ import Wallet.Spec
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 
 withKeyWallet

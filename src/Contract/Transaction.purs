@@ -111,7 +111,7 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
-import Contract.Address (getWalletAddresses)
+import Contract.Address (getWalletAddress)
 import Contract.Log (logDebug')
 import Contract.Monad
   ( Contract
@@ -405,10 +405,10 @@ balanceTxsWithAddress
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => Array Address
+  => Address
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddress ownAddresses unbalancedTxs =
+balanceTxsWithAddress ownAddress unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -424,7 +424,7 @@ balanceTxsWithAddress ownAddresses unbalancedTxs =
   balanceAndLock unbalancedTx = do
     networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
-      (fromPlutusAddress networkId <$> ownAddresses)
+      (fromPlutusAddress networkId <$> [ ownAddress ])
       unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
@@ -440,7 +440,7 @@ balanceTxs
   -> Contract r (t FinalizedTransaction)
 balanceTxs unbalancedTxs = do
   -- TODO: change to take array of addrs addrs
-  mbOwnAddrs <- getWalletAddresses
+  mbOwnAddrs <- getWalletAddress
   case mbOwnAddrs of
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"

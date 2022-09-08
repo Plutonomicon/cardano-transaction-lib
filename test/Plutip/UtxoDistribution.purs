@@ -17,7 +17,7 @@ import Prelude
 import Contract.Address
   ( Address
   , getNetworkId
-  , getWalletAddresses
+  , getWalletAddress
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   , payPubKeyHashEnterpriseAddress
@@ -36,7 +36,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
-import Data.Array (foldl, head, zip)
+import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
@@ -192,7 +192,7 @@ assertCorrectDistribution
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
     addr <- liftedM "Could not get wallet address"
-      (getWalletAddresses <#> (_ >>= head))
+      getWalletAddress
     utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts
