@@ -14,6 +14,7 @@ import Address (addressToOgmiosAddress)
 import Cardano.Types.Transaction (TransactionOutput, UtxoM(UtxoM), Utxos)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
+import Contract.Prelude (log)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Array (head)
@@ -58,10 +59,35 @@ utxosAt address =
 -- | Queries for UTxO given a transaction input.
 getUtxo
   :: TransactionInput -> QueryM (Maybe TransactionOutput)
-getUtxo ref =
-  mkUtxoQuery
-    (mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref) <#>
-    (_ >>= unwrap >>> Map.lookup ref)
+getUtxo ref = do
+  res <- mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref
+  let out = convertUtxos res
+  pure $ out >>= (Map.lookup ref <<< unwrap)
+
+  where
+  convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoM
+  convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
+    let
+      out'
+        :: Array
+             ( Maybe TransactionInput /\ Maybe
+                 TransactionOutput
+             )
+      out' = Map.toUnfoldable utxoQueryResult
+        <#> bimap
+          txOutRefToTransactionInput
+          ogmiosTxOutToTransactionOutput
+
+      out
+        :: Maybe
+             ( Array
+                 ( TransactionInput /\
+                     TransactionOutput
+                 )
+             )
+      out = out' <#> bisequence # sequence
+    in
+      wrap <<< Map.fromFoldable <$> out
 
 mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoM)
 mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt

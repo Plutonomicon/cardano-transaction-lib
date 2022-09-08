@@ -124,20 +124,6 @@ getWalletAddress = do
         <<< toPlutusAddress
     )
 
-{- ( for addrs
-    ( liftedM "getWalletAddress: failed to deserialize Address"
-        <<< wrapContract
-        <<< pure
-        <<< toPlutusAddress
-    )
-) -}
-
-{- for mbAddrs $
-liftedM "getWalletAddress: failed to deserialize Address"
-  <<< wrapContract
-  <<< pure
-  <<< toPlutusAddress -}
-
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
