@@ -58,10 +58,34 @@ utxosAt address =
 -- | Queries for UTxO given a transaction input.
 getUtxo
   :: TransactionInput -> QueryM (Maybe TransactionOutput)
-getUtxo ref =
-  mkUtxoQuery
-    (mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref) <#>
-    (_ >>= Map.lookup ref)
+getUtxo ref = do
+  res <- mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref
+  pure $ convertUtxos res >>= Map.lookup ref
+
+  where
+  convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoMap
+  convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
+    let
+      out'
+        :: Array
+             ( Maybe TransactionInput /\ Maybe
+                 TransactionOutput
+             )
+      out' = Map.toUnfoldable utxoQueryResult
+        <#> bimap
+          txOutRefToTransactionInput
+          ogmiosTxOutToTransactionOutput
+
+      out
+        :: Maybe
+             ( Array
+                 ( TransactionInput /\
+                     TransactionOutput
+                 )
+             )
+      out = out' <#> bisequence # sequence
+    in
+      Map.fromFoldable <$> out
 
 mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoMap)
 mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt

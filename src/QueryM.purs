@@ -97,8 +97,8 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
-import Data.Lens ((<>~))
 import Data.JSDate (now)
+import Data.Lens ((<>~))
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map (Map)
@@ -122,6 +122,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Console (log)
 import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -1031,7 +1032,10 @@ mkOgmiosRequest
 mkOgmiosRequest jsonWspCall getLs inp = do
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
-  mkRequest listeners' websocket jsonWspCall getLs inp
+  r <- mkRequest listeners' websocket jsonWspCall getLs inp
+  pure r
+
+-- liftEffect $ log $ "response: " <>  show r
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
