@@ -5,6 +5,8 @@ module Serialization
   , convertTxBody
   , convertTxInput
   , convertTxOutput
+  , convertTransactionUnspentOutput
+  , convertValue
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -50,7 +52,9 @@ import Cardano.Types.Transaction
   , URL(URL)
   , Update
   ) as T
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Cardano.Types.Value as Value
 import Data.Foldable (class Foldable)
 import Data.FoldableWithIndex (forWithIndex_)
@@ -124,6 +128,7 @@ import Serialization.Types
   , TransactionOutput
   , TransactionOutputs
   , TransactionWitnessSet
+  , TransactionUnspentOutput
   , UnitInterval
   , Update
   , VRFKeyHash
@@ -193,6 +198,9 @@ foreign import newTransactionWitnessSetFromBytes
 
 foreign import newTransactionUnspentOutputFromBytes
   :: CborBytes -> Effect TransactionUnspentOutput
+
+foreign import newTransactionUnspentOutput
+  :: TransactionInput -> TransactionOutput -> Effect TransactionUnspentOutput
 
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset
@@ -439,6 +447,7 @@ foreign import toBytes
   :: ( Transaction
          |+| TransactionBody
          |+| TransactionOutput
+         |+| TransactionUnspentOutput
          |+| TransactionHash
          |+| DataHash
          |+| PlutusData
@@ -449,6 +458,8 @@ foreign import toBytes
          |+| GenesisHash
          |+| GenesisDelegateHash
          |+| AuxiliaryDataHash
+         |+| Address
+         |+| Value
      -- Add more as needed.
      )
   -> ByteArray
@@ -778,6 +789,14 @@ convertCostmdls (T.Costmdls cs) = do
   plutusV1 <- newPlutusV1
   costmdlsSetCostModel costmdls plutusV1 costModel
   pure costmdls
+
+convertTransactionUnspentOutput
+  :: T.TransactionUnspentOutput -> Effect TransactionUnspentOutput
+convertTransactionUnspentOutput (T.TransactionUnspentOutput { input, output }) =
+  do
+    input' <- convertTxInput input
+    output' <- convertTxOutput output
+    newTransactionUnspentOutput input' output'
 
 hashScriptData
   :: T.Costmdls
