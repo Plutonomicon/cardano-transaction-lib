@@ -19,11 +19,13 @@ exports._packPlutusList = containerHelper => elems =>
 exports._mkConstrPlutusData = n => list => lib.ConstrPlutusData.new(n, list);
 
 exports._bigIntFromString = maybe => str => {
-  try {
-    return maybe.just(lib.BigInt.from_str(str));
-  } catch (_) {
-    return maybe.nothing;
-  }
+    // this is needed because try/catch overuse breaks runtime badly
+    // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
+    if (/^-?[0-9]+$/.test(str)) {
+        return maybe.just(lib.BigInt.from_str(str));
+    } else {
+        return maybe.nothing;
+    }
 };
 
 exports._packMap = first => second => kvs => {

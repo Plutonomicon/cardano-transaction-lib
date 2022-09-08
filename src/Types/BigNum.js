@@ -14,19 +14,38 @@ exports.zero = lib.BigNum.zero();
 exports.one = lib.BigNum.one();
 
 exports.bnAdd = maybe => lhs => rhs => {
-  try {
-    return maybe.just(lhs.checked_add(rhs));
-  } catch (_) {
-    return maybe.nothing;
-  }
+    const check_add = (a, b, limit) => {
+        const r = a + b;
+        if (r < limit) {
+            return r;
+        } else {
+            throw new Error('Overflow detected')
+        }
+    };
+    try {
+        check_add(lhs.to_str(), rhs.to_str(), BitInt('18446744073709551616')); // 2 ^ 64
+        return maybe.just(lhs.checked_add(rhs));
+    } catch (_) {
+        return maybe.nothing;
+    }
 };
 
 exports.bnMul = maybe => lhs => rhs => {
-  try {
-    return maybe.just(lhs.checked_mul(rhs));
-  } catch (_) {
-    return maybe.nothing;
-  }
+    const check_mul = (a, b, limit) => {
+        const r = a * b;
+        if (r < limit) {
+            return r;
+        } else {
+            throw new Error('Overflow detected');
+        }
+    };
+
+    try {
+        check_mul(lhs.to_str(), rhs.to_str(), BigInt('18446744073709551616')); // 2 ^ 64
+        return maybe.just(lhs.checked_mul(rhs));
+    } catch (_) {
+        return maybe.nothing;
+    }
 };
 
 exports._fromString = maybe => str => {
