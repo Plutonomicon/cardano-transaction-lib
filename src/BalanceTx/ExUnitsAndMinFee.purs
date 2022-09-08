@@ -25,7 +25,9 @@ import Cardano.Types.Transaction
   , _plutusData
   , _redeemers
   , _witnessSet
+  , _isValid
   )
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
@@ -33,11 +35,11 @@ import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.Either (Either)
+import Data.Either (Either(Left, Right))
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), (?~), (%~))
-import Data.Map (fromFoldable, toUnfoldable, lookup, filterKeys) as Map
+import Data.Map (fromFoldable, toUnfoldable, lookup, filterKeys, empty) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set as Set
@@ -68,8 +70,12 @@ evalTxExecutionUnits tx unattachedTx = do
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  ExceptT $ QueryM.evaluateTxOgmios txBytes
-    <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
+  eResult <- unwrap <$> lift (QueryM.evaluateTxOgmios txBytes)
+  case eResult of
+    Right a -> pure a
+    Left e | tx ^. _isValid -> throwError $ ExUnitsEvaluationFailed unattachedTx
+      e
+    Left _ -> pure $ wrap $ Map.empty
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.

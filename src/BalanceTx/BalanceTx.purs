@@ -7,6 +7,7 @@ module BalanceTx
 
 import Prelude
 
+import BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
 import BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -51,7 +52,6 @@ import Cardano.Types.Transaction
   , TxBody(TxBody)
   , UtxoMap
   , _body
-  , _collateral
   , _fee
   , _inputs
   , _mint
@@ -81,7 +81,7 @@ import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
 import Data.Map (lookup, toUnfoldable, union) as Map
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -96,6 +96,7 @@ import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
+import Wallet (cip30Wallet)
 
 -- | Balances an unbalanced transaction using utxos from the current wallet's
 -- | address.
@@ -153,9 +154,15 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
   setTransactionCollateral :: Transaction -> BalanceTxM Transaction
   setTransactionCollateral transaction = do
     collateral <-
-      ExceptT $ note CouldNotGetCollateral <<< map (map (_.input <<< unwrap))
-        <$> getWalletCollateral
-    pure $ transaction # _body <<< _collateral ?~ collateral
+      ExceptT $ note CouldNotGetCollateral <$> getWalletCollateral
+    let collaterisedTx = addTxCollateral collateral transaction
+    -- Don't mess with Cip30 collateral
+    isCip30 <- asks $ (_.runtime >>> _.wallet >=> cip30Wallet) >>> isJust
+    if isCip30 then pure collaterisedTx
+    else addTxCollateralReturn
+      collateral
+      collaterisedTx
+      ownAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm

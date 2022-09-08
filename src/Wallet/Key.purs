@@ -9,7 +9,7 @@ module Wallet.Key
 
 import Prelude
 
-import BalanceTx.Collateral (selectCollateral) as Collateral
+import BalanceTx.Collateral.Select (selectCollateral) as Collateral
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
   , UtxoMap

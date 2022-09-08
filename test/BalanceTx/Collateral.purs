@@ -2,7 +2,7 @@ module Test.BalanceTx.Collateral (suite) where
 
 import Prelude
 
-import BalanceTx.Collateral
+import BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
