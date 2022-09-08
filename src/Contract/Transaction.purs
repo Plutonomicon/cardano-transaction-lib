@@ -14,6 +14,7 @@ module Contract.Transaction
   , calculateMinFee
   , calculateMinFeeM
   , getTxByHash
+  , getTxFinalFee
   , module BalanceTxError
   , module ExportQueryM
   , module PTransaction
@@ -126,8 +127,10 @@ import Control.Monad.Error.Class (try, catchError, throwError)
 import Control.Monad.Reader (asks, runReaderT, ReaderT)
 import Control.Monad.Reader.Class (ask)
 import Data.Array.NonEmpty as NonEmptyArray
+import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter (view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -536,6 +539,10 @@ balanceAndSignTxE
    . UnattachedUnbalancedTx
   -> Contract r (Either Error BalancedSignedTransaction)
 balanceAndSignTxE = try <<< internalBalanceAndSignTx
+
+getTxFinalFee :: BalancedSignedTransaction -> BigInt
+getTxFinalFee =
+  unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
 
 scriptOutputToTransactionOutput
   :: NetworkId
