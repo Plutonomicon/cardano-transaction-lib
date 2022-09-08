@@ -45,7 +45,7 @@ import Effect.Class (liftEffect)
 import QueryM (QueryM)
 import QueryM (evaluateTxOgmios) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
+import QueryM.Ogmios (OgmiosTxOutRef, OgmiosTxOut, UtxoQR(..), TxEvaluationResult(TxEvaluationResult)) as Ogmios
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Transaction (setScriptDataHash)
@@ -54,20 +54,28 @@ import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_transaction)
 import Untagged.Union (asOneOf)
+import TxOutput (transactionInputToTxOutRef, transactionOutputToOgmiosTxOut)
 
 evalTxExecutionUnits
   :: Transaction
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> BalanceTxM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx unattachedTx _utxos = do
+evalTxExecutionUnits tx unattachedTx utxos = do
   txBytes <- liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  -- TODO: convert UtxoMap into something usefull and hand it over to evaluateTxOgmios
-  ExceptT $ QueryM.evaluateTxOgmios txBytes
+  ExceptT $ QueryM.evaluateTxOgmios txBytes (utxoMapToUtxoQR utxos)
     <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
+
+-- TODO: Does this function belong to the TxOutput module?
+utxoMapToUtxoQR :: UtxoMap -> Ogmios.UtxoQR
+utxoMapToUtxoQR utxos = Ogmios.UtxoQR $ Map.fromFoldable t
+  where
+  t :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
+  t = (\(inp /\ out) ->
+    (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out)) <$> Map.toUnfoldable utxos
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
