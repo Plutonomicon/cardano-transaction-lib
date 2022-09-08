@@ -77,11 +77,11 @@ import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Foldable (foldl, foldMap)
+import Data.Foldable (foldMap, foldl, foldr)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -91,7 +91,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
-import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, getWalletUtxos)
+import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
@@ -117,8 +117,11 @@ balanceTxWithAddress
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
 
-  -- TODO: we must not use getWalletUtxos! DO NOT merge to develop
-  utxos <- ExceptT $ note CouldNotGetUtxos <$> getWalletUtxos
+  utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
+    ( traverse (note CouldNotGetUtxos) --Maybe -> Either and unwrap UtxoM
+
+        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+    )
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
