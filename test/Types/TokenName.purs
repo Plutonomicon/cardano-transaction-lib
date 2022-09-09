@@ -18,7 +18,7 @@ suite = do
     group "Aeson tests" $ do
       group
         -- Regression tests for https://github.com/Plutonomicon/cardano-transaction-lib/issues/544
-        "Roundtrip tests for invalid UTF byte sequences ()"
+        "Roundtrip tests for invalid UTF byte sequences"
         $ for_ tkNamesWithInvalidUtf8
         $ \mayTkName -> do
             test (show mayTkName <> " should mkToken successfully") $
