@@ -92,7 +92,7 @@ import Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
-import Examples.InlineDatum as InlineDatum
+import Examples.PlutusV2.InlineDatum as InlineDatum
 import Examples.Lose7Ada as AlwaysFails
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
@@ -100,8 +100,8 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import Examples.ReferenceInputs (contract) as ReferenceInputs
-import Examples.ReferenceScripts (contract) as ReferenceScripts
+import Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
+import Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Examples.SendsToken (contract) as SendsToken
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)

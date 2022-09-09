@@ -1,4 +1,4 @@
-module Examples.ReferenceScripts
+module Examples.PlutusV2.ReferenceScripts
   ( main
   , example
   , contract
@@ -44,7 +44,7 @@ example cfg = launchAff_ do
 
 contract :: Contract () Unit
 contract = do
-  logInfo' "Running Examples.ReferenceScripts"
+  logInfo' "Running Examples.PlutusV2.ReferenceScripts"
   validator <- alwaysSucceedsScriptV2
   let
     vhash :: ValidatorHash

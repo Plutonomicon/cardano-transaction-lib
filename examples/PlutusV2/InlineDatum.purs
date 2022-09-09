@@ -1,7 +1,7 @@
 -- | This module demonstrates creating a UTxO whose datum is inline via the
 -- | `Contract` interface. The `checkDatumIsInlineScript` only validates if the
 -- | scripts own input was supplied with an inline datum matching the redeemer.
-module Examples.InlineDatum
+module Examples.PlutusV2.InlineDatum
   ( main
   , example
   , checkDatumIsInlineScript
@@ -58,7 +58,7 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
-    logInfo' "Running Examples.InlineDatum"
+    logInfo' "Running Examples.PlutusV2.InlineDatum"
     validator <- checkDatumIsInlineScript
     let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
