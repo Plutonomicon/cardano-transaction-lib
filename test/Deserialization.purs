@@ -1,4 +1,4 @@
-module Test.Deserialization (suite) where
+module Test.Deserialization (suite, readTxCBors) where
 
 import Prelude
 
@@ -35,6 +35,7 @@ import Mote (group, test)
 import Node.Encoding (Encoding (UTF8))
 import Node.FS.Sync (readdir, readTextFile)
 import Node.Path (FilePath)
+import Node.Path (concat) as Path
 import Serialization (toBytes)
 import Serialization as Serialization
 import Serialization.BigInt as SB
@@ -171,7 +172,7 @@ suite = do
         serialized <- liftEffect $ TS.convertTransaction input
         let expected = TD.convertTransaction serialized
         pure input `shouldEqual` hush expected
-      roundTripTxTests "fixtures/test/transactions"
+      roundTripTxTests $ Path.concat [ ".", "fixtures", "test", "transactions" ]
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
@@ -266,13 +267,16 @@ testNativeScript input = do
   res' `shouldEqual` input
 
 readTxCBors :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m (Array String)
-readTxCBors path = liftEffect $ readdir path >>= traverse (readTextFile UTF8)
+readTxCBors path = do
+  files <- liftEffect $ readdir path
+  let filePaths = (\x -> Path.concat [path, x]) <$> files
+  liftEffect $ traverse (readTextFile UTF8) filePaths
 
 roundTripTxTests :: FilePath -> TestPlanM (Aff Unit) Unit
 roundTripTxTests path = do
   cbors <- readTxCBors path
   flip traverseWithIndex_ cbors $ \n txStr ->
-    test ("serialization is inverse to deserialization #" <> show n) $
+    test ("serialization is inverse to deserialization #" <> show (n+1)) $
       liftEffect do
         txHex <- errMaybe "Cannot unhex transaction" $ hexToByteArray txStr
         binaryFixture <- errMaybe "Cannot deserialised bytes" $ fromBytes txHex
