@@ -18,14 +18,11 @@ module QueryM.DatumCacheWsp
 
 import Prelude
 
-import Aeson (
-  class DecodeAeson,
-  class EncodeAeson, 
-  Aeson, 
-  JsonDecodeError(TypeMismatch), caseAesonArray,  caseAesonObject, decodeAeson, getNestedAeson, stringifyAeson, (.:))
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, decodeAeson, getNestedAeson, stringifyAeson, (.:))
+import Aeson.Decode.Decoders (decodeEither)
 import Base64 (Base64String)
 import Control.Alt ((<|>))
-import Data.Either (Either(Left))
+import Data.Either (Either(Left, Right))
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
@@ -116,9 +113,19 @@ instance DecodeAeson GetDatumsByHashesR where
 
       decodeDatum
         :: Aeson -> Either JsonDecodeError (DataHash /\ Either String Datum)
-      decodeDatum = caseAesonObject (Left $ TypeMismatch "expected object")
-        $ \o -> (/\) <$> map wrap (o .: "hash") <*> 
-            (decodeAeson =<< o .: "value")
+      decodeDatum obj = caseAesonObject (Left $ TypeMismatch "expected object")
+        (\o -> (/\) <$> map wrap (o .: "hash") <*> (decodeValueOption obj)) obj
+
+      decodeValueOption :: 
+        Aeson -> Either JsonDecodeError (Either String Datum)
+      decodeValueOption aes = 
+        do
+        options <- (pure <$> getNestedAeson aes ["value", "Right" ]) 
+          <|> (Left <$> getNestedAeson aes ["value", "Left"])
+        case options of 
+            Left x -> pure $ Left $ show x
+            Right x -> pure <$> decodeAeson x
+
 
       datumsFound =
         map GetDatumsByHashesR <<< decodeDatumArray=<< getNestedAeson
