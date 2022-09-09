@@ -12,10 +12,12 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 exports.hashTransaction = body => () => lib.hash_transaction(body);
 
 exports.newBigNum = maybe => string => {
-  try {
-    return maybe.just(lib.BigNum.from_str(string));
-  } catch (_) {
-    return maybe.nothing;
+  // this is needed because try/catch overuse breaks runtime badly
+  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
+  if (/^-?[0-9]+$/.test(str)) {
+      return maybe.just(lib.BigInt.from_str(str));
+  } else {
+      return maybe.nothing;
   }
 };
 
@@ -83,10 +85,12 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
 exports._publicKeyFromBech32 = maybe => bech32 => {
-  try {
-    return maybe.just(lib.PublicKey.from_bech32(bech32));
-  } catch (_) {
-    return maybe.nothing;
+  // this is needed because try/catch overuse breaks runtime badly
+  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
+  if (/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$/.test(bech32)) {
+      return maybe.just(lib.BigInt.from_str(str));
+  } else {
+      return maybe.nothing;
   }
 };
 
