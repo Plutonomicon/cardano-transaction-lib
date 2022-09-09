@@ -22,7 +22,11 @@ import Serialization.Hash (ScriptHash, nativeScriptHash)
 import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.PlutusScript (convertPlutusScript)
-import Serialization.Types (PlutusData, PlutusScript, Transaction) as Serialization
+import Serialization.Types
+  ( PlutusData
+  , PlutusScript
+  , Transaction
+  ) as Serialization
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
@@ -35,7 +39,7 @@ foreign import blake2b256HashHex :: ByteArray -> String
 
 foreign import hashPlutusData :: Serialization.PlutusData -> ByteArray
 
-foreign import plutusScriptHash :: PlutusScript -> ScriptHash
+foreign import hashPlutusScript :: Serialization.PlutusScript -> ScriptHash
 
 foreign import sha256Hash :: ByteArray -> ByteArray
 
@@ -54,6 +58,9 @@ datumHash =
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
   wrap <<< blake2b256Hash <<< toBytes <<< asOneOf <<< _txBody
+
+plutusScriptHash :: PlutusScript -> ScriptHash
+plutusScriptHash = hashPlutusScript <<< convertPlutusScript
 
 scriptRefHash :: ScriptRef -> Maybe ScriptHash
 scriptRefHash (PlutusScriptRef plutusScript) =
