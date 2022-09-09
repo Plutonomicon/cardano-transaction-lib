@@ -33,6 +33,8 @@ module QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
+  , AdditionalUtxoSet(AdditionalUtxoSet)
+  , utxoMapToAdditionalUtxoSet
   , OgmiosDatum
   , OgmiosScript
   , OgmiosTxIn
@@ -89,6 +91,7 @@ import Cardano.Types.Transaction
   , Language(PlutusV1)
   , Nonce
   , SubCoin
+  , UtxoMap
   )
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value
@@ -145,6 +148,8 @@ import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
+-- TODO: cyclic dependencies
+import TxOutput (transactionInputToTxOutRef, transactionOutputToOgmiosTxOut)
 
 --------------------------------------------------------------------------------
 -- Local State Query Protocol
@@ -231,10 +236,13 @@ submitTxCall = mkOgmiosCallType Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
+evaluateTxCall :: JsonWspCall (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
 evaluateTxCall = mkOgmiosCallType Proxy
   { methodname: "EvaluateTx"
-  , args: { evaluate: _ } <<< cborBytesToHex
+  , args: \(cbor /\ utxoqr) ->
+      { evaluate: cborBytesToHex cbor
+      , additionalUtxoSet: utxoqr
+      }
   }
 
 --------------------------------------------------------------------------------
@@ -1254,6 +1262,26 @@ type ChainPoint =
   -- for details on why we lose a neglible amount of precision.
   , hash :: OgmiosBlockHeaderHash
   }
+
+---------------- ADDITIONAL UTXO MAP REQUEST
+
+newtype AdditionalUtxoSet = AdditionalUtxoSet OgmiosUtxoMap
+
+derive newtype instance Show AdditionalUtxoSet
+
+type OgmiosUtxoMap = Map.Map OgmiosTxOutRef OgmiosTxOut
+
+utxoMapToAdditionalUtxoSet :: UtxoMap -> AdditionalUtxoSet
+utxoMapToAdditionalUtxoSet utxos = AdditionalUtxoSet $ Map.fromFoldable t
+  where
+  t :: Array (OgmiosTxOutRef /\ OgmiosTxOut)
+  t = (\(inp /\ out) ->
+        (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out))
+    <$> Map.toUnfoldable utxos
+
+
+-- TODO:
+-- instance EncodeAeson AdditionalUtxoSet where
 
 ---------------- UTXO QUERY RESPONSE & PARSING
 

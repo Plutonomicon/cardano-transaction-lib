@@ -45,7 +45,7 @@ import Effect.Class (liftEffect)
 import QueryM (QueryM)
 import QueryM (evaluateTxOgmios) as QueryM
 import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
+import QueryM.Ogmios (utxoMapToAdditionalUtxoSet, TxEvaluationResult(TxEvaluationResult)) as Ogmios
 import ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
 import Serialization (convertTransaction, toBytes) as Serialization
 import Transaction (setScriptDataHash)
@@ -60,13 +60,13 @@ evalTxExecutionUnits
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> BalanceTxM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx unattachedTx _utxos = do
+evalTxExecutionUnits tx unattachedTx utxos = do
   txBytes <- liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
   -- TODO: convert UtxoMap into something usefull and hand it over to evaluateTxOgmios
-  ExceptT $ QueryM.evaluateTxOgmios txBytes
+  ExceptT $ QueryM.evaluateTxOgmios txBytes (utxoMapToAdditionalUtxoSet utxos)
     <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
 
 -- Calculates the execution units needed for each script in the transaction
