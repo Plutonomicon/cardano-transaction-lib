@@ -18,7 +18,18 @@ module QueryM.DatumCacheWsp
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, decodeAeson, getNestedAeson, stringifyAeson, (.:))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(..)
+  , caseAesonArray
+  , caseAesonObject
+  , decodeAeson
+  , getNestedAeson
+  , stringifyAeson
+  , (.:)
+  )
 import Aeson.Decode.Decoders (decodeEither)
 import Base64 (Base64String)
 import Control.Alt ((<|>))
@@ -82,7 +93,8 @@ instance DecodeAeson GetDatumByHashR where
     in
       datumFound <|> datumNotFound
 
-newtype GetDatumsByHashesR = GetDatumsByHashesR (Map DataHash (Either String Datum))
+newtype GetDatumsByHashesR = GetDatumsByHashesR
+  (Map DataHash (Either String Datum))
 
 derive instance Newtype GetDatumsByHashesR _
 derive instance Generic GetDatumsByHashesR _
@@ -94,53 +106,56 @@ instance DecodeAeson GetDatumsByHashesR where
   decodeAeson r =
     let
       decodeDatumArray
-        :: Aeson ->Either JsonDecodeError (Map DataHash (Either String Datum))
+        :: Aeson -> Either JsonDecodeError (Map DataHash (Either String Datum))
       decodeDatumArray =
         caseAesonArray (Left $ TypeMismatch "expected array")
           $ (map Map.fromFoldable) <<< traverse decodeDatum
 
       decodeEmptyDatums obj =
-          pure Map.empty *>(caseAesonArray (Left $ TypeMismatch "expected array")
-            $ identity <<< traverse decodeEmptyDatum) obj
+        pure Map.empty *>
+          ( caseAesonArray (Left $ TypeMismatch "expected array")
+              $ identity <<< traverse decodeEmptyDatum
+          ) obj
 
-      decodeEmptyDatum 
+      decodeEmptyDatum
         :: Aeson -> Either JsonDecodeError Unit
       decodeEmptyDatum aes =
-        if stringifyAeson aes == "{}" then 
-          pure unit 
-        else 
+        if stringifyAeson aes == "{}" then
+          pure unit
+        else
           Left $ TypeMismatch "expected empty JSON"
 
       decodeDatum
         :: Aeson -> Either JsonDecodeError (DataHash /\ Either String Datum)
       decodeDatum obj = caseAesonObject (Left $ TypeMismatch "expected object")
-        (\o -> (/\) <$> map wrap (o .: "hash") <*> (decodeValueOption obj)) obj
+        (\o -> (/\) <$> map wrap (o .: "hash") <*> (decodeValueOption obj))
+        obj
 
-      decodeValueOption :: 
-        Aeson -> Either JsonDecodeError (Either String Datum)
-      decodeValueOption aes = 
+      decodeValueOption
+        :: Aeson -> Either JsonDecodeError (Either String Datum)
+      decodeValueOption aes =
         do
-        options <- (pure <$> getNestedAeson aes ["value", "Right" ]) 
-          <|> (Left <$> getNestedAeson aes ["value", "Left"])
-        case options of 
+          options <- (pure <$> getNestedAeson aes [ "value", "Right" ])
+            <|> (Left <$> getNestedAeson aes [ "value", "Left" ])
+          case options of
             Left x -> pure $ Left $ show x
             Right x -> pure <$> decodeAeson x
 
-
       datumsFound =
-        map GetDatumsByHashesR <<< decodeDatumArray=<< getNestedAeson
+        map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
           r
           [ "DatumsFound", "value" ]
 
-      datumsEmpty = 
-        (decodeEmptyDatums =<< getNestedAeson
-          r
-          [ "DatumsFound", "value" ]) $> GetDatumsByHashesR Map.empty
+      datumsEmpty =
+        ( decodeEmptyDatums =<< getNestedAeson
+            r
+            [ "DatumsFound", "value" ]
+        ) $> GetDatumsByHashesR Map.empty
 
       datumsNotFound =
         getNestedAeson r [ "DatumsNotFound" ] $> GetDatumsByHashesR Map.empty
     in
-    datumsFound <|> datumsEmpty <|> datumsNotFound
+      datumsFound <|> datumsEmpty <|> datumsNotFound
 
 -- TODO
 -- This should be changed to `GetTxByHashR Transaction` once we support `getTxById`

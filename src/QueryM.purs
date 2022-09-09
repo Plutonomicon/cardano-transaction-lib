@@ -67,8 +67,15 @@ module QueryM
 
 import Prelude
 
-import Aeson (
-  class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -76,7 +83,11 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (_witnessSet)
 import Cardano.Types.Transaction as Transaction
-import Control.Monad.Error.Class (class MonadError, class MonadThrow, throwError)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
@@ -99,7 +110,16 @@ import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), delay, finally, launchAff_, makeAff, runAff_, supervise)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , delay
+  , finally
+  , launchAff_
+  , makeAff
+  , runAff_
+  , supervise
+  )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, message)
@@ -107,18 +127,51 @@ import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _removeOnWsError, _wsClose, _wsReconnect, _wsSend)
+import JsWebSocket
+  ( JsWebSocket
+  , Url
+  , _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _removeOnWsError
+  , _wsClose
+  , _wsReconnect
+  , _wsSend
+  )
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios (TxHash)
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
-import QueryM.ServerConfig (ServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
+import QueryM.ServerConfig
+  ( Host
+  , ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkServerUrl
+  , mkWsUrl
+  ) as ServerConfig
+import QueryM.ServerConfig
+  ( ServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkWsUrl
+  )
 import QueryM.UniqueId (ListenerId)
 import Serialization (toBytes) as Serialization
-import Serialization.Address (Address, NetworkId, addressPaymentCred, baseAddressDelegationCred, baseAddressFromAddress, stakeCredentialToKeyHash)
+import Serialization.Address
+  ( Address
+  , NetworkId
+  , addressPaymentCred
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , stakeCredentialToKeyHash
+  )
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes (CborBytes)
@@ -132,9 +185,28 @@ import Types.Scripts (PlutusScript)
 import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet (Cip30Connection, Cip30Wallet, Wallet(Gero, Flint, Nami, Lode, KeyWallet), mkGeroWalletAff, mkFlintWalletAff, mkKeyWallet, mkNamiWalletAff, mkLodeWalletAff)
+import Wallet
+  ( Cip30Connection
+  , Cip30Wallet
+  , Wallet(Gero, Flint, Nami, Lode, KeyWallet)
+  , mkGeroWalletAff
+  , mkFlintWalletAff
+  , mkKeyWallet
+  , mkNamiWalletAff
+  , mkLodeWalletAff
+  )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
-import Wallet.Spec (WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint, ConnectToLode), PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue), PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue))
+import Wallet.Spec
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToGero
+      , ConnectToNami
+      , ConnectToFlint
+      , ConnectToLode
+      )
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  )
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -396,17 +468,19 @@ getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
-getDatumsByHashes hashes = 
-  Map.mapMaybe hush <$> (unwrap <$> do
-        mkDatumCacheRequest 
-          DcWsp.getDatumsByHashesCall 
-          _.getDatumsByHashes 
-          hashes)
+getDatumsByHashes hashes =
+  Map.mapMaybe hush <$>
+    ( unwrap <$> do
+        mkDatumCacheRequest
+          DcWsp.getDatumsByHashesCall
+          _.getDatumsByHashes
+          hashes
+    )
 
-getDatumsByHashes' :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
+getDatumsByHashes'
+  :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
 getDatumsByHashes' hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
-
 
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
 checkTxByHashAff datumCacheWs logger =
