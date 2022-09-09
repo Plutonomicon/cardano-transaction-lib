@@ -80,8 +80,7 @@ testOgmiosDatumCacheGetDatumByHash = do
 testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
 testOgmiosDatumCacheGetDatumsByHashes = do
   void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
-    --"f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-    "f9bfa59d0c169785f59df609a0e6c01ebb70d2b2af00f029744797742d4521d5"
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testUtxosAt :: OgmiosAddress -> QueryM Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
