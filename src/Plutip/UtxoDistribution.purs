@@ -98,8 +98,12 @@ instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
   encodeDistribution amounts = amounts
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' listOfInitialUTxOs privateKeyResponses =
-    let wallets = Array.mapMaybe (\utxos -> decodeWallets utxos privateKeyResponses) listOfInitialUTxOs
-    in Just (wallets /\ privateKeyResponses)
+    let
+      wallets = Array.mapMaybe
+        (\utxos -> decodeWallets utxos privateKeyResponses)
+        listOfInitialUTxOs
+    in
+      Just (wallets /\ privateKeyResponses)
   keyWallets _ wallets = wallets
 
 instance
