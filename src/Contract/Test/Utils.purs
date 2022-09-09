@@ -350,13 +350,13 @@ assertTokenDeltaAtAddress addr (cs /\ tn) getExpected comp =
 
 -- | Requires that the computed number of tokens was gained at the address 
 -- | by calling the contract.
-assertTokenGainAtAddress 
+assertTokenGainAtAddress
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName)
   -> (a -> Contract r BigInt)
-  -> ContractWrapAssertion r a 
-assertTokenGainAtAddress addr token getMinGain = 
+  -> ContractWrapAssertion r a
+assertTokenGainAtAddress addr token getMinGain =
   assertTokenDeltaAtAddress addr token getMinGain eq
 
 -- | Requires that the passed number of tokens was gained at the address 
@@ -365,19 +365,19 @@ assertTokenGainAtAddress'
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName /\ BigInt)
-  -> ContractWrapAssertion r a 
-assertTokenGainAtAddress' addr (cs /\ tn /\ minGain) = 
+  -> ContractWrapAssertion r a
+assertTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
   assertTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
 
 -- | Requires that the computed number of tokens was lost at the address 
 -- | by calling the contract.
-assertTokenLossAtAddress 
+assertTokenLossAtAddress
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName)
   -> (a -> Contract r BigInt)
-  -> ContractWrapAssertion r a 
-assertTokenLossAtAddress addr token getMinLoss = 
+  -> ContractWrapAssertion r a
+assertTokenLossAtAddress addr token getMinLoss =
   assertTokenDeltaAtAddress addr token (map negate <<< getMinLoss) eq
 
 -- | Requires that the passed number of tokens was lost at the address 
@@ -386,8 +386,8 @@ assertTokenLossAtAddress'
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName /\ BigInt)
-  -> ContractWrapAssertion r a 
-assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) = 
+  -> ContractWrapAssertion r a
+assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) =
   assertTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
 
 -- | Requires that the transaction output contains the specified datum hash.

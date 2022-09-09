@@ -266,7 +266,7 @@ submitE
   -> Contract r (Either (Array Aeson) TransactionHash)
 submitE tx = do
   cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
-  txHash <- liftAff $ Hashing.transactionHash cslTx
+  let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
   let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
   result <- wrapContract $
