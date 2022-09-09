@@ -127,7 +127,7 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
-import Helpers (showWithParens, encodeMap)
+import Helpers (showWithParens)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
@@ -231,13 +231,10 @@ submitTxCall = mkOgmiosCallType Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall (CborBytes /\ UtxoQR) TxEvaluationR
+evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
 evaluateTxCall = mkOgmiosCallType Proxy
   { methodname: "EvaluateTx"
-  , args: \(cbor /\ utxoqr) ->
-      { evaluate: cborBytesToHex cbor
-      , additionalUtxoSet: utxoqr
-      }
+  , args: { evaluate: _ } <<< cborBytesToHex
   }
 
 --------------------------------------------------------------------------------
@@ -1269,9 +1266,6 @@ derive newtype instance Show UtxoQR
 
 instance DecodeAeson UtxoQR where
   decodeAeson = map UtxoQR <<< parseUtxoQueryResult
-
-instance EncodeAeson UtxoQR where
-  encodeAeson' (UtxoQR r) = encodeAeson' $ encodeMap r
 
 -- the inner type for Utxo Queries
 type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
