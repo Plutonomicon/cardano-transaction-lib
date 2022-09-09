@@ -1,3 +1,5 @@
+-- | This module provides an extensible interface for making various 
+-- | assertions about `Contract`s.
 module Contract.Test.Utils
   ( class ContractAssertions
   , ContractAssertionFailure
@@ -244,6 +246,7 @@ withAssertions = flip wrapAndAssert
 -- Assertions and checks
 --------------------------------------------------------------------------------
 
+-- | Get the total `Value` at an address. Throws an exception if this fails.
 valueAtAddress
   :: forall (r :: Row Type). Labeled Address -> Contract r Value
 valueAtAddress addr =
@@ -345,6 +348,8 @@ assertTokenDeltaAtAddress addr (cs /\ tn) getExpected comp =
       assertContract unexpectedTokenDelta (comp actual expected)
       pure result
 
+-- | Requires that the computed number of tokens was gained at the address 
+-- | by calling the contract.
 assertTokenGainAtAddress 
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
@@ -354,6 +359,8 @@ assertTokenGainAtAddress
 assertTokenGainAtAddress addr token getMinGain = 
   assertTokenDeltaAtAddress addr token getMinGain eq
 
+-- | Requires that the passed number of tokens was gained at the address 
+-- | by calling the contract.
 assertTokenGainAtAddress'
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
@@ -362,6 +369,8 @@ assertTokenGainAtAddress'
 assertTokenGainAtAddress' addr (cs /\ tn /\ minGain) = 
   assertTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
 
+-- | Requires that the computed number of tokens was lost at the address 
+-- | by calling the contract.
 assertTokenLossAtAddress 
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
@@ -371,6 +380,8 @@ assertTokenLossAtAddress
 assertTokenLossAtAddress addr token getMinLoss = 
   assertTokenDeltaAtAddress addr token (map negate <<< getMinLoss) eq
 
+-- | Requires that the passed number of tokens was lost at the address 
+-- | by calling the contract.
 assertTokenLossAtAddress'
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
@@ -379,6 +390,7 @@ assertTokenLossAtAddress'
 assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) = 
   assertTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
 
+-- | Requires that the transaction output contains the specified datum hash.
 assertOutputHasDatumHash
   :: forall (r :: Row Type)
    . DataHash
@@ -393,6 +405,8 @@ assertOutputHasDatumHash expectedDatumHash txOutput = do
     expectedDatumHash
     datumHash
 
+-- | Requires that the transaction output contains the hash of the specified 
+-- | datum.
 assertOutputHasDatum
   :: forall (r :: Row Type)
    . Datum
@@ -413,6 +427,7 @@ checkOutputHasDatumHash expected txOutput =
   (assertOutputHasDatumHash expected txOutput *> pure true)
     `catchError` (const $ pure false)
 
+-- | Requires that the transaction contains the specified metadata.
 assertTxHasMetadata
   :: forall (r :: Row Type) (a :: Type)
    . MetadataType a

@@ -1,3 +1,8 @@
+-- | This module demonstrates how various assertions from `Contract.Test.Utils`
+-- | can be used to test `Contract`s. It creates a transaction with metadata 
+-- | that performs three actions: (1) sends some amount of Ada to the receiver's 
+-- | address, (2) mints the specified non-Ada value (3) then sends it to the 
+-- | owner's address with a datum attached. 
 module Examples.ContractTestUtils
   ( ContractParams(ContractParams)
   , contract
