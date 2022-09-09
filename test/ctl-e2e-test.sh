@@ -30,33 +30,31 @@ unique_temp_dir () {
     echo "$(temp_base)/$(mktemp -du e2e.XXXXXXX)"
 }
 
-run_tests () {
-    local temp_dir="$(unique_temp_dir)"
-    mkdir -p "$temp_dir"
-    unzip "$NAMI_CRX" -d "$temp_dir"/nami > /dev/zero
-    tar xzf "$NAMI_SETTINGS"
-    unzip "$GERO_CRX" -d "$temp_dir"/gero > /dev/zero
-    tar xzf "$GERO_SETTINGS"
-    unzip "$FLINT_CRX" -d "$temp_dir"/flint > /dev/zero
-    tar xzf "$FLINT_SETTINGS"
-    unzip "$LODE_CRX" -d "$temp_dir"/lode > /dev/zero
-    tar xzf "$LODE_SETTINGS"
-    unzip "$ETERNL_CRX" -d "$temp_dir"/eternl > /dev/zero
-    tar xzf "$ETERNL_SETTINGS"
-    rm -f "$CHROME_PROFILE"/SingletonLock
-    spago test --main Test.E2E -a "E2ETest \
-          --lode-dir $temp_dir/lode \
-          --lode-password $LODE_PASSWORD \
-          --eternl-dir $temp_dir/lode \
-          --eternl-password $LODE_PASSWORD \
-          $* --chrome-exe $(find_browser)" || rm -Rf "$temp_dir"
-}
-
 extract_settings() {
     if [ -n "$1" ] && [ -f "$1" ]
     then
         tar xzf "$1"
     fi
+}
+
+run_tests () {
+    local temp_dir="$(unique_temp_dir)"
+    mkdir -p "$temp_dir"
+    unzip "$NAMI_CRX" -d "$temp_dir"/nami > /dev/zero
+    extract_settings "$NAMI_SETTINGS"
+    unzip "$GERO_CRX" -d "$temp_dir"/gero > /dev/zero
+    extract_settings "$GERO_SETTINGS"
+    unzip "$FLINT_CRX" -d "$temp_dir"/flint > /dev/zero
+    extract_settings "$FLINT_SETTINGS"
+    unzip "$LODE_CRX" -d "$temp_dir"/lode > /dev/zero
+    extract_settings "$LODE_SETTINGS"
+    unzip "$ETERNL_CRX" -d "$temp_dir"/eternl > /dev/zero
+    extract_settings "$ETERNL_SETTINGS"
+    rm -f "$CHROME_PROFILE"/SingletonLock
+    spago test --main Test.E2E -a "E2ETest \
+          --eternl-dir $temp_dir/eternl \
+          --eternl-password $ETERNL_PASSWORD \
+          $* --chrome-exe $(find_browser)" || rm -Rf "$temp_dir"
 }
 
 extract_crx() {
@@ -76,6 +74,7 @@ run_browser () {
     extract_settings "$GERO_SETTINGS"
     extract_settings "$LODE_SETTINGS"
     extract_settings "$NAMI_SETTINGS"
+    extract_settings "$ETERNL_SETTINGS"
     extract_crx "$FLINT_CRX" "$temp_dir/flint"
     extract_crx "$GERO_CRX" "$temp_dir/gero"
     extract_crx "$LODE_CRX" "$temp_dir/lode"

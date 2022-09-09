@@ -6,6 +6,8 @@ module Contract.Test.E2E.Helpers
   , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
+  , eternlConfirmAccess
+  , eternlSign
   , geroConfirmAccess
   , geroSign
   , flintConfirmAccess
@@ -210,6 +212,15 @@ inWalletPage extId { browser, jQuery } cont = do
   injectJQuery page jQuery
   cont page
 
+-- TODO
+eternlConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+eternlConfirmAccess _extId _re = pure unit
+
+-- TODO
+eternlSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+eternlSign _extId _wpassword _re = do
+  pure unit
+
 namiConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 namiConfirmAccess extId re = inWalletPage extId re (clickButton "Access")
 
@@ -257,7 +268,6 @@ lodeSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 lodeSign extId gpassword re = do
   delaySec 3.0
   inWalletPage extId re \page -> do
-    void $ Toppokki.unsafeEvaluateStringFunction "console.log('hiii')" page
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page
