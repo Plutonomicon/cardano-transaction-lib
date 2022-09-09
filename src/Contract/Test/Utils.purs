@@ -10,6 +10,7 @@ module Contract.Test.Utils
       , UnexpectedDatumHashInOutput
       , UnexpectedLovelaceDelta
       , UnexpectedMetadataValue
+      , UnexpectedTokenDelta
       )
   , ContractBasicAssertion
   , ContractWrapAssertion
@@ -27,6 +28,11 @@ module Contract.Test.Utils
   , assertLovelaceDeltaAtAddress
   , assertOutputHasDatum
   , assertOutputHasDatumHash
+  , assertTokenDeltaAtAddress
+  , assertTokenGainAtAddress
+  , assertTokenGainAtAddress'
+  , assertTokenLossAtAddress
+  , assertTokenLossAtAddress'
   , assertTxHasMetadata
   , checkBalanceDeltaAtAddress
   , checkOutputHasDatumHash
@@ -51,7 +57,7 @@ import Contract.Transaction
   , getTxByHash
   )
 import Contract.Utxos (utxosAt)
-import Contract.Value (Value, valueToCoin')
+import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
 import Control.Monad.Error.Class (catchError)
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)
@@ -64,6 +70,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Metadata.FromMetadata (fromMetadata)
 import Metadata.MetadataType (class MetadataType, metadataLabel)
 import Type.Proxy (Proxy(Proxy))
+import Types.ByteArray (byteArrayToHex)
 
 data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash
@@ -76,10 +83,11 @@ data ContractAssertionFailure
       (ExpectedActual DataHash)
   | UnexpectedLovelaceDelta (Labeled Address) (ExpectedActual BigInt)
   | UnexpectedMetadataValue Label (ExpectedActual String)
+  | UnexpectedTokenDelta (Labeled Address) TokenName (ExpectedActual BigInt)
 
 instance Show ContractAssertionFailure where
   show (CouldNotGetTxByHash txHash) =
-    "Could not get tx by hash " <> show txHash
+    "Could not get tx by hash " <> showTxHash txHash
 
   show (CouldNotGetUtxosAtAddress addr) =
     "Could not get utxos at " <> show addr
@@ -94,7 +102,7 @@ instance Show ContractAssertionFailure where
     show txOutput <> " output does not have datum hash " <> show dataHash
 
   show (TransactionHasNoMetadata txHash mdLabel) =
-    "Tx with " <> show txHash <> " does not hold "
+    "Tx with id " <> showTxHash txHash <> " does not hold "
       <> (maybe mempty (flip append " ") (show <$> mdLabel) <> "metadata")
 
   show (UnexpectedDatumHashInOutput txOutput expectedActual) =
@@ -107,6 +115,13 @@ instance Show ContractAssertionFailure where
 
   show (UnexpectedMetadataValue mdLabel expectedActual) =
     "Unexpected " <> show mdLabel <> " metadata value" <> show expectedActual
+
+  show (UnexpectedTokenDelta addr tn expectedActual) =
+    "Unexpected token delta " <> show tn <> " at address "
+      <> (show addr <> show expectedActual)
+
+showTxHash :: TransactionHash -> String
+showTxHash = byteArrayToHex <<< unwrap
 
 type Label = String
 
@@ -261,11 +276,11 @@ assertLovelaceDeltaAtAddress addr getExpected comp =
         actual :: BigInt
         actual = valueToCoin' valueAfter - valueToCoin' valueBefore
 
-        assertionFailure :: ContractAssertionFailure
-        assertionFailure =
+        unexpectedLovelaceDelta :: ContractAssertionFailure
+        unexpectedLovelaceDelta =
           UnexpectedLovelaceDelta addr (ExpectedActual expected actual)
 
-      assertContract assertionFailure (comp actual expected)
+      assertContract unexpectedLovelaceDelta (comp actual expected)
       pure result
 
 -- | Requires that the computed amount of lovelace was gained at the address 
@@ -307,6 +322,62 @@ assertLossAtAddress'
   -> ContractWrapAssertion r a
 assertLossAtAddress' addr minLoss =
   assertLossAtAddress addr (const $ pure minLoss)
+
+assertTokenDeltaAtAddress
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (CurrencySymbol /\ TokenName)
+  -> (a -> Contract r BigInt)
+  -> (BigInt -> BigInt -> Boolean)
+  -> ContractWrapAssertion r a
+assertTokenDeltaAtAddress addr (cs /\ tn) getExpected comp =
+  checkBalanceDeltaAtAddress addr
+    \result valueBefore valueAfter -> do
+      expected <- getExpected result
+      let
+        actual :: BigInt
+        actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
+
+        unexpectedTokenDelta :: ContractAssertionFailure
+        unexpectedTokenDelta =
+          UnexpectedTokenDelta addr tn (ExpectedActual expected actual)
+
+      assertContract unexpectedTokenDelta (comp actual expected)
+      pure result
+
+assertTokenGainAtAddress 
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (CurrencySymbol /\ TokenName)
+  -> (a -> Contract r BigInt)
+  -> ContractWrapAssertion r a 
+assertTokenGainAtAddress addr token getMinGain = 
+  assertTokenDeltaAtAddress addr token getMinGain eq
+
+assertTokenGainAtAddress'
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> ContractWrapAssertion r a 
+assertTokenGainAtAddress' addr (cs /\ tn /\ minGain) = 
+  assertTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
+
+assertTokenLossAtAddress 
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (CurrencySymbol /\ TokenName)
+  -> (a -> Contract r BigInt)
+  -> ContractWrapAssertion r a 
+assertTokenLossAtAddress addr token getMinLoss = 
+  assertTokenDeltaAtAddress addr token (map negate <<< getMinLoss) eq
+
+assertTokenLossAtAddress'
+  :: forall (r :: Row Type) (a :: Type)
+   . Labeled Address
+  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> ContractWrapAssertion r a 
+assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) = 
+  assertTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
 
 assertOutputHasDatumHash
   :: forall (r :: Row Type)

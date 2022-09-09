@@ -110,6 +110,7 @@ import Plutus.Types.Value (lovelaceValueOf)
 import Safe.Coerce (coerce)
 import Scripts (nativeScriptHashEnterpriseAddress)
 import Test.AffInterface as AffInterface
+import Test.Fixtures (cip25MetadataFixture1)
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.Logging as Logging
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
@@ -606,6 +607,7 @@ suite = do
             , mintingPolicy
             , tokensToMint: cs /\ tn /\ one /\ unit
             , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
+            , txMetadata: cip25MetadataFixture1
             }
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit

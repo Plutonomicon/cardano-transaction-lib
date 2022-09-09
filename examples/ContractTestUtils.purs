@@ -1,6 +1,5 @@
 module Examples.ContractTestUtils
   ( ContractParams(ContractParams)
-  , NonAdaAsset
   , contract
   ) where
 
@@ -17,6 +16,7 @@ import Contract.Address
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   )
+import Contract.AuxiliaryData (setTxMetadata)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM, liftContractM)
 import Contract.PlutusData (Datum)
@@ -29,7 +29,8 @@ import Contract.Test.Utils
   )
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
-  ( TransactionOutput
+  ( TransactionHash
+  , TransactionOutput
   , awaitTxConfirmed
   , balanceAndSignTxE
   , getTxFinalFee
@@ -47,26 +48,27 @@ import Examples.Helpers
   ( mustPayToPubKeyStakeAddress
   , mustPayWithDatumToPubKeyStakeAddress
   ) as Helpers
+import Metadata.Cip25.V2 (Cip25Metadata)
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   , _output
   )
-
-type NonAdaAsset = Tuple3 CurrencySymbol TokenName BigInt
 
 newtype ContractParams = ContractParams
   { receiverPkh :: PaymentPubKeyHash
   , receiverSkh :: Maybe StakePubKeyHash
   , adaToSend :: BigInt
   , mintingPolicy :: MintingPolicy
-  , tokensToMint :: NonAdaAsset
+  , tokensToMint :: Tuple3 CurrencySymbol TokenName BigInt
   , datumToAttach :: Datum
+  , txMetadata :: Cip25Metadata
   }
 
 derive instance Newtype ContractParams _
 
 type ContractResult =
-  { txFinalFee :: BigInt
+  { txHash :: TransactionHash
+  , txFinalFee :: BigInt
   , outputWithDatumHash :: TransactionOutput
   }
 
@@ -85,13 +87,22 @@ mkAssertions params@(ContractParams p) = do
     $
       [ TestUtils.assertGainAtAddress' (label receiverAddress "Receiver")
           p.adaToSend
+
       , TestUtils.assertLossAtAddress (label senderAddress "Sender")
           \{ txFinalFee } -> pure (p.adaToSend + txFinalFee)
+
+      , TestUtils.assertTokenGainAtAddress' (label senderAddress "Sender")
+          ( uncurry3 (\cs tn amount -> cs /\ tn /\ (one + amount))
+              p.tokensToMint
+          )
       ]
     /\
       [ \{ outputWithDatumHash } ->
           TestUtils.assertOutputHasDatum (p.datumToAttach)
             (label outputWithDatumHash "Sender's output with datum hash")
+
+      , \{ txHash } ->
+          TestUtils.assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
       ]
 
 contract :: ContractParams -> Contract () Unit
@@ -109,7 +120,9 @@ contract params@(ContractParams p) = do
     constraints :: Constraints.TxConstraints Void Void
     constraints = mconcat
       [ Helpers.mustPayToPubKeyStakeAddress p.receiverPkh p.receiverSkh adaValue
+
       , Constraints.mustMintValue nonAdaValue
+
       , Helpers.mustPayWithDatumToPubKeyStakeAddress ownPkh ownSkh
           p.datumToAttach
           nonAdaValue
@@ -121,7 +134,8 @@ contract params@(ContractParams p) = do
   assertions <- mkAssertions params
   void $ TestUtils.withAssertions assertions do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    balancedSignedTx <- liftedE $ balanceAndSignTxE unbalancedTx
+    unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
+    balancedSignedTx <- liftedE $ balanceAndSignTxE unbalancedTxWithMetadata
 
     txId <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txId
@@ -138,7 +152,8 @@ contract params@(ContractParams p) = do
           (find hasDatumHash $ lookupTxHash txId utxos)
 
     pure
-      { txFinalFee: getTxFinalFee balancedSignedTx
+      { txHash: txId
+      , txFinalFee: getTxFinalFee balancedSignedTx
       , outputWithDatumHash
       }
   where
