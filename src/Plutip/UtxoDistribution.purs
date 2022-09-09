@@ -94,6 +94,14 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
         tail
   keyWallets _ wallet = [ wallet ]
 
+instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
+  encodeDistribution amounts = amounts
+  decodeWallets d p = decodeWalletsDefault d p
+  decodeWallets' listOfInitialUTxOs privateKeyResponses =
+    let wallets = Array.mapMaybe (\utxos -> decodeWallets utxos privateKeyResponses) listOfInitialUTxOs
+    in Just (wallets /\ privateKeyResponses)
+  keyWallets _ wallets = wallets
+
 instance
   ( UtxoDistribution headSpec headWallets
   , UtxoDistribution restSpec restWallets
