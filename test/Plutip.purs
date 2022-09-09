@@ -70,7 +70,7 @@ import Contract.Wallet
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array ((!!))
+import Data.Array ((!!), replicate)
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (foldM)
@@ -184,6 +184,26 @@ suite = do
               throw "More than one UTxO in collateral"
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
+    
+    test "runPlutipContract: Array of InitialUTxOs and KeyWallet" do
+      let
+        distribution :: Array InitialUTxOs
+        distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution \wallets -> do
+        traverse_ (\wallet -> do
+          withKeyWallet wallet do
+            getWalletCollateral >>= liftEffect <<< case _ of
+              Nothing -> throw "Unable to get collateral"
+              Just
+                [ TransactionUnspentOutput
+                    { output: TransactionOutput { amount } }
+                ] -> do
+                unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+                  $ throw "Wrong UTxO selected as collateral"
+              Just _ -> do
+                -- not a bug, but unexpected
+                throw "More than one UTxO in collateral"
+        ) wallets
 
     test "runPlutipContract: Pkh2Pkh" do
       let
