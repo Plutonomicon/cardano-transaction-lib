@@ -1,4 +1,4 @@
-module Examples.ReferenceInputs
+module Examples.PlutusV2.ReferenceInputs
   ( main
   , example
   , contract
@@ -77,7 +77,7 @@ example cfg = launchAff_ do
 
 contract :: Contract () Unit
 contract = do
-  logInfo' "Running Examples.ReferenceInputs"
+  logInfo' "Running Examples.PlutusV2.ReferenceInputs"
   validator <- alwaysSucceedsScriptV2
   mp /\ _ <- Helpers.mkCurrencySymbol alwaysMintsPolicyV2
   tokenName <- Helpers.mkTokenName "TheToken"
