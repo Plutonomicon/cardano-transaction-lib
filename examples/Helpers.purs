@@ -9,7 +9,7 @@ import Contract.Prelude
 
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractAffM, liftContractM, liftedE)
+import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
 import Contract.Scripts (MintingPolicy)
@@ -42,7 +42,7 @@ mkCurrencySymbol
   -> Contract r (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
-  cs <- liftContractAffM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
 mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName

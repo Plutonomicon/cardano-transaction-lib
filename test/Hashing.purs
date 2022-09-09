@@ -32,16 +32,16 @@ suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "Hashing" do
     test "blake2b256 hash of an arbitrary byte array" do
-      Hashing.blake2b256Hash inputDataFixture >>=
-        shouldEqual (hexToByteArrayUnsafe blake2b256HexDigestFixture)
+      Hashing.blake2b256Hash inputDataFixture
+        `shouldEqual` (hexToByteArrayUnsafe blake2b256HexDigestFixture)
 
     test "blake2b256 hash of an arbitrary byte array as a hex string" do
-      Hashing.blake2b256HashHex inputDataFixture >>=
-        shouldEqual blake2b256HexDigestFixture
+      Hashing.blake2b256HashHex inputDataFixture
+        `shouldEqual` blake2b256HexDigestFixture
 
     test "blake2b224 hash of a Plutus script" do
-      Hashing.plutusScriptHash plutusScriptFixture >>=
-        shouldEqual (Just plutusScriptHashFixture)
+      Hashing.plutusScriptHash plutusScriptFixture
+        `shouldEqual` plutusScriptHashFixture
 
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
