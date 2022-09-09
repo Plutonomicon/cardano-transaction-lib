@@ -116,7 +116,7 @@ import Cardano.Types.Value
   )
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
-import Data.Array (index, singleton, reverse)
+import Data.Array (index, singleton, reverse, catMaybes)
 import Data.Array (head) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -795,7 +795,7 @@ type ProtocolParametersRaw =
   , "coinsPerUtxoWord" :: Maybe BigInt
   , "costModels" ::
       { "plutus:v1" :: { | CostModelV1 }
-      , "plutus:v2" :: { | CostModelV2 }
+      , "plutus:v2" :: Maybe { | CostModelV2 }
       }
   , "prices" ::
       { "memory" :: PParamRational
@@ -885,9 +885,9 @@ instance DecodeAeson ProtocolParameters where
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoUnit: coinsPerUtxoUnit
-      , costModels: Costmdls $ Map.fromFoldable
-          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1"
-          , PlutusV2 /\ convertCostModel ps.costModels."plutus:v2"
+      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
+          [ pure (PlutusV1 /\ convertCostModel ps.costModels."plutus:v1")
+          , (PlutusV2 /\ _) <<< convertCostModel <$> ps.costModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
