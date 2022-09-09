@@ -6,6 +6,8 @@ module Serialization
   , convertTxInput
   , convertTxOutput
   , defaultCostmdls
+  , convertTransactionUnspentOutput
+  , convertValue
   , toBytes
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -57,7 +59,9 @@ import Cardano.Types.Transaction
   , URL(URL)
   , Update
   ) as T
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Cardano.Types.Value as Value
 import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
@@ -136,6 +140,7 @@ import Serialization.Types
   , TransactionOutput
   , TransactionOutputs
   , TransactionWitnessSet
+  , TransactionUnspentOutput
   , UnitInterval
   , Update
   , VRFKeyHash
@@ -208,6 +213,9 @@ foreign import newTransactionWitnessSetFromBytes
 
 foreign import newTransactionUnspentOutputFromBytes
   :: CborBytes -> Effect TransactionUnspentOutput
+
+foreign import newTransactionUnspentOutput
+  :: TransactionInput -> TransactionOutput -> Effect TransactionUnspentOutput
 
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset
@@ -481,7 +489,9 @@ foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import toBytes
   :: ( Transaction
+         |+| TransactionBody
          |+| TransactionOutput
+         |+| TransactionUnspentOutput
          |+| TransactionHash
          |+| DataHash
          |+| PlutusData
@@ -492,6 +502,8 @@ foreign import toBytes
          |+| GenesisHash
          |+| GenesisDelegateHash
          |+| AuxiliaryDataHash
+         |+| Address
+         |+| Value
      -- Add more as needed.
      )
   -> ByteArray
@@ -855,6 +867,14 @@ convertCostModel (T.CostModel costs) = do
   forWithIndex_ costs $ \operation cost ->
     costModelSetCost costModel operation cost
   pure costModel
+
+convertTransactionUnspentOutput
+  :: T.TransactionUnspentOutput -> Effect TransactionUnspentOutput
+convertTransactionUnspentOutput (T.TransactionUnspentOutput { input, output }) =
+  do
+    input' <- convertTxInput input
+    output' <- convertTxOutput output
+    newTransactionUnspentOutput input' output'
 
 hashScriptData
   :: T.Costmdls

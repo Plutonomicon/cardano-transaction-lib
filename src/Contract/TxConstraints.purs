@@ -15,6 +15,7 @@ import Types.TxConstraints
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustSpendNativeScriptOutput
       , MustReferenceOutput
       , MustMintValue
       , MustPayToPubKeyAddress
@@ -36,6 +37,7 @@ import Types.TxConstraints
   , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
+  , mustPayToNativeScript
   , mustNotBeValid
   , mustPayToScript
   , mustPayToScriptWithScriptRef
@@ -55,6 +57,7 @@ import Types.TxConstraints
   , mustSpendAtLeastTotal
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
+  , mustSpendNativeScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments

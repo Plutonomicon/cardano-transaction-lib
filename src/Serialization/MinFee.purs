@@ -3,22 +3,25 @@ module Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
+import Cardano.Types.NativeScript (NativeScript(ScriptAll))
 import Cardano.Types.Transaction (_vkeys, _witnessSet)
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Lens ((.~))
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Tuple.Nested ((/\))
-import Data.UInt as UInt
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import NativeScripts (getMaximumSigners)
 import QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
 import Serialization as Serialization
+import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Types (ExUnitPrices, Transaction)
 import Types.BigNum (BigNum)
 import Types.BigNum as BigNum
@@ -31,9 +34,7 @@ calculateMinFeeCsl
   -> T.Transaction
   -> m Coin
 calculateMinFeeCsl (ProtocolParameters pparams) txNoSigs = do
-  let
-    tx = addFakeSignatures txNoSigs
-    txFeePerByte = BigInt.fromInt $ UInt.toInt pparams.txFeePerByte
+  let tx = addFakeSignatures txNoSigs
   cslTx <- liftEffect $ Serialization.convertTransaction tx
   minFee <- liftMaybe (error "Unable to calculate min_fee") $
     BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
@@ -44,18 +45,36 @@ calculateMinFeeCsl (ProtocolParameters pparams) txNoSigs = do
   minScriptFee <-
     liftMaybe (error "Unable to calculate min_script_fee") $
       BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
-  pure $ wrap $ minFee + minScriptFee + BigInt.fromInt 3 * txFeePerByte
+  pure $ wrap $ minFee + minScriptFee
 
+-- | Adds fake signatures for each expected signature of a transaction.
 addFakeSignatures :: T.Transaction -> T.Transaction
 addFakeSignatures tx =
   let
-    nRequiredSigners =
+    -- requiredSigners field of a transaction
+    requiredSigners :: Set Ed25519KeyHash
+    requiredSigners =
       tx # unwrap >>> _.body >>> unwrap >>> _.requiredSigners
-        >>> map Array.length
-        >>> fromMaybe 1
+        >>> fromMaybe mempty
+        >>> map unwrap
+        >>> Set.fromFoldable
+
+    -- All possible signers from NativeScript.
+    nsPossibleSigners :: Int
+    nsPossibleSigners = getMaximumSigners requiredSigners $ ScriptAll
+      ( tx # unwrap >>> _.witnessSet >>> unwrap >>> _.nativeScripts >>>
+          fromMaybe mempty
+      )
+
+    -- We want to add space for required signatures (at least one, if
+    -- none specified).
+    nRequiredSigners = tx # unwrap >>> _.body >>> unwrap >>> _.requiredSigners
+      >>> map (map unwrap >>> Array.length)
+      >>> fromMaybe 1
+
   in
     tx # _witnessSet <<< _vkeys .~ Just
-      (Array.replicate nRequiredSigners fakeVkeywitness)
+      (Array.replicate (nRequiredSigners + nsPossibleSigners) fakeVkeywitness)
 
 fakeVkeywitness :: T.Vkeywitness
 fakeVkeywitness = T.Vkeywitness

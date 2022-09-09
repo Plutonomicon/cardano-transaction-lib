@@ -28,37 +28,38 @@ module Plutus.Conversion
   , fromPlutusTxUnspentOutput
   , toPlutusTxUnspentOutput
 
-  -- Plutus UtxoM <-> Cardano UtxoM
-  , fromPlutusUtxoM
-  , toPlutusUtxoM
+  -- Plutus UtxoMap <-> Cardano UtxoMap
+  , fromPlutusUtxoMap
+  , toPlutusUtxoMap
   ) where
 
 import Prelude
 
-import Cardano.Types.ScriptRef (ScriptRef, scriptRefHash)
-import Cardano.Types.Transaction (TransactionOutput, UtxoM) as Cardano
+import Cardano.Types.ScriptRef (ScriptRef)
+import Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Cardano
 import Cardano.Types.Value (Coin) as Cardano
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse)
+import Hashing (scriptRefHash)
+import Serialization.Address (NetworkId)
+import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
-import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
 import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
 import Plutus.Types.Transaction
   ( TransactionOutput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , UtxoM
+  , UtxoMap
   ) as Plutus
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
 import Plutus.Types.Value (Coin) as Plutus
-import Serialization.Address (NetworkId)
 
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin
@@ -146,13 +147,13 @@ toPlutusTxUnspentOutput txUnspentOutput = do
   pure $ wrap { input: rec.input, output }
 
 --------------------------------------------------------------------------------
--- Plutus UtxoM <-> Cardano UtxoM
+-- Plutus UtxoMap <-> Cardano UtxoMap
 --------------------------------------------------------------------------------
 
-fromPlutusUtxoM :: NetworkId -> Plutus.UtxoM -> Cardano.UtxoM
-fromPlutusUtxoM networkId =
-  wrap <<< map (fromPlutusTxOutputWithRefScript networkId) <<< unwrap
+fromPlutusUtxoMap :: NetworkId -> Plutus.UtxoMap -> Cardano.UtxoMap
+fromPlutusUtxoMap networkId =
+  map (fromPlutusTxOutputWithRefScript networkId)
 
-toPlutusUtxoM :: Cardano.UtxoM -> Maybe Plutus.UtxoM
-toPlutusUtxoM =
-  map wrap <<< traverse toPlutusTxOutputWithRefScript <<< unwrap
+toPlutusUtxoMap :: Cardano.UtxoMap -> Maybe Plutus.UtxoMap
+toPlutusUtxoMap =
+  traverse toPlutusTxOutputWithRefScript

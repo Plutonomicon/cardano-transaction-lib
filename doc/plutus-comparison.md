@@ -65,15 +65,28 @@ Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `C
 
 ### Constraints and lookups
 
-CTL has adapted Plutus' constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
+CTL has adapted Plutus' Alonzo-era constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
 
-| Plutus                 | CTL               |
-| ---------------------- | ----------------- |
-| `mustPayToTheScript`   | _removed_         |
-| `mustPayToOtherScript` | `mustPayToScript` |
-| `otherScript`          | `validator`       |
-| `otherData`            | `datum`           |
-|                        |                   |
+| Plutus                 | CTL                           |
+| ---------------------- | ----------------------------- |
+| `mustPayToTheScript`   | _removed_                     |
+| `mustPayToOtherScript` | `mustPayToScript`             |
+| `otherScript`          | `validator`                   |
+| `otherData`            | `datum`                       |
+| _none_                 | `mustPayToNativeScript`       |
+| _none_                 | `mustSpendNativeScriptOutput` |
+
+Additionally, we implement `NativeScript` (multi-signature phase-1 script) support, which is not covered by Plutus.
+
+#### Babbage-era constraints
+
+CIPs 0031-0033 brought several improvements to Plutus and are supported from the Babbage era onwards:
+
+- [Reference inputs](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0031)
+- [Inline datums](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0032)
+- [Reference scripts](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0033)
+
+CTL has upgraded its constraints interface to work with these new features. At the time of writing, however, `plutus-apps` has not yet upgraded their constraints/lookups interface to support these new features. This means a direct comparison between `plutus-apps` and CTL regarding Babbage-era features is not currently possible. It also implies that, moving forward, CTL's constraints implementation will increasingly no longer match that of `plutus-apps`' to the same degree.
 
 ### Typed scripts
 

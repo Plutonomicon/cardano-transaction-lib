@@ -6,6 +6,7 @@ import Data.Maybe (isJust)
 import Data.BigInt as BigInt
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Serialization (convertTransaction, convertTxOutput, toBytes)
@@ -32,7 +33,7 @@ import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Types.PlutusData as PD
 import Untagged.Union (asOneOf)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "cardano-serialization-lib bindings" $ do
     group "conversion between types" $ do

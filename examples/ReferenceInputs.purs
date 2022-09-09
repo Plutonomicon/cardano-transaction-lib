@@ -54,7 +54,7 @@ import Contract.TxConstraints
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Data.BigInt (fromInt) as BigInt
@@ -178,7 +178,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   utxosAt'
     :: Address
     -> Contract () (Map TransactionInput TransactionOutputWithRefScript)
-  utxosAt' = map (unwrap <<< fromMaybe (UtxoM Map.empty)) <<< utxosAt
+  utxosAt' = map (fromMaybe Map.empty) <<< utxosAt
 
 mustPayToPubKeyStakeAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)

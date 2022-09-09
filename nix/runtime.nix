@@ -3,17 +3,20 @@ rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
     network = {
-      name = "testnet";
-      magic = 1097911063; # use `null` for mainnet
+      name = "preprod";
+      magic = 1; # use `null` for mainnet
     };
     node = {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
       # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "1.35.2";
+      tag = "1.35.3";
     };
     ogmios = { port = 1337; };
-    ctlServer = { port = 8081; };
+    ctlServer = {
+      enable = true;
+      port = 8081;
+    };
     postgres = {
       # User-facing port on host machine.
       # Can be set to null in order to not bind postgres port to host.
@@ -29,8 +32,8 @@ rec {
       controlApiToken = "";
       blockFetcher = {
         firstBlock = {
-          slot = 61625527;
-          id = "3afd8895c7b270f8250b744ec8d2b3c53ee2859c9d5711d906c47fe51b800988";
+          slot = 5854109;
+          id = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
         };
         autoStart = true;
         startFromLast = false;
@@ -91,7 +94,6 @@ rec {
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
       nodeSocketPath = "/ipc/node.socket";
-      server = pkgs.ctl-server;
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
         cardano-node = {
@@ -134,21 +136,6 @@ rec {
                   --port ${toString ogmios.port} \
                   --node-socket /ipc/node.socket \
                   --node-config /config/cardano-node/config.json
-              ''
-            ];
-          };
-        };
-        ctl-server = {
-          service = {
-            useHostStore = true;
-            ports = [ (bindPort ctlServer.port) ];
-            depends_on = [ "ogmios" ];
-            volumes = [ "${nodeIpcVol}:/ipc" ];
-            command = [
-              "${pkgs.bash}/bin/sh"
-              "-c"
-              ''
-                ${server}/bin/ctl-server --port ${toString ctlServer.port}
               ''
             ];
           };
@@ -202,6 +189,20 @@ rec {
               ];
             };
           };
+      } // pkgs.lib.optionalAttrs ctlServer.enable {
+        ctl-server = {
+          service = {
+            useHostStore = true;
+            ports = [ (bindPort ctlServer.port) ];
+            command = [
+              "${pkgs.bash}/bin/sh"
+              "-c"
+              ''
+                ${pkgs.ctl-server}/bin/ctl-server --port ${toString ctlServer.port}
+              ''
+            ];
+          };
+        };
       };
     in
     {

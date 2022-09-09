@@ -37,7 +37,6 @@ import Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
-  , getNetworkId
   ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
@@ -68,6 +67,7 @@ import QueryM
   , ownPubKeyHash
   , ownStakePubKeyHash
   ) as QueryM
+import QueryM.NetworkId (getNetworkId) as QueryM
 import QueryM.Utxos (getWalletCollateral) as QueryM
 import Scripts
   ( typedValidatorBaseAddress
@@ -154,7 +154,7 @@ ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId
-getNetworkId = wrapContract Address.getNetworkId
+getNetworkId = wrapContract QueryM.getNetworkId
 
 --------------------------------------------------------------------------------
 -- Helpers via Cardano helpers, these are helpers from the CSL equivalent

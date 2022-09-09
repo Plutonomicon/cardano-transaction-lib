@@ -11,7 +11,7 @@ import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Node.Encoding (Encoding(UTF8))
@@ -32,7 +32,7 @@ main :: Effect Unit
 main = launchAff_ do
   Utils.interpret suite
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "TxOutput ogmiosTxOutToTransactionOutput datums are correctly preserved"
     $ test "Fixture #1"

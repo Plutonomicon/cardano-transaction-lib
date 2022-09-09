@@ -41,7 +41,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt, getWalletBalance)
+import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
@@ -87,7 +87,7 @@ spendFromAlwaysFails
 spendFromAlwaysFails vhash validator txId = do
   balanceBefore <- fold <$> getWalletBalance
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput -> do
       let

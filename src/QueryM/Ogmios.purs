@@ -6,6 +6,7 @@ module QueryM.Ogmios
   , ChainTipQR(CtChainOrigin, CtChainPoint)
   , CostModelV1
   , CostModelV2
+  , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
   , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -14,6 +15,7 @@ module QueryM.Ogmios
   , EraSummaryParameters(EraSummaryParameters)
   , EraSummaryTime(EraSummaryTime)
   , ExecutionUnits
+  , MempoolSnapshotAcquired
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
   , OgmiosTxOut
@@ -46,9 +48,11 @@ module QueryM.Ogmios
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
+  , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
   , evaluateTxCall
+  , mempoolSnapshotHasTxCall
   , mkOgmiosCallType
   , queryChainTipCall
   , queryCurrentEpochCall
@@ -59,6 +63,7 @@ module QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , submitTxCall
+  , slotLengthFactor
   ) where
 
 import Prelude
@@ -67,13 +72,13 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
+  , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
   , encodeAeson
+  , encodeAeson'
   , getField
   , getFieldOptional
   , getFieldOptional'
@@ -126,10 +131,16 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
+import Data.String
+  ( Pattern(Pattern)
+  , indexOf
+  , split
+  , splitAt
+  , uncons
+  )
 import Data.String.Common (split) as String
 import Data.Traversable (sequence, traverse, for)
-import Data.Tuple (uncurry)
+import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -159,74 +170,68 @@ import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 import Heterogeneous.Folding (class HFoldl, hfoldl)
 
--- LOCAL STATE QUERY PROTOCOL
+--------------------------------------------------------------------------------
+-- Local State Query Protocol
 -- https://ogmios.dev/mini-protocols/local-state-query/
+--------------------------------------------------------------------------------
 
 -- | Queries Ogmios for the system start Datetime
 querySystemStartCall :: JsonWspCall Unit SystemStart
-querySystemStartCall = mkOgmiosCallType
+querySystemStartCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "systemStart" }
   }
-  Proxy
 
 -- | Queries Ogmios for the current epoch
 queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
-queryCurrentEpochCall = mkOgmiosCallType
+queryCurrentEpochCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "currentEpoch" }
   }
-  Proxy
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
 queryEraSummariesCall :: JsonWspCall Unit EraSummaries
-queryEraSummariesCall = mkOgmiosCallType
+queryEraSummariesCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
   }
-  Proxy
 
 -- | Queries Ogmios for the current protocol parameters
 queryProtocolParametersCall :: JsonWspCall Unit ProtocolParameters
-queryProtocolParametersCall = mkOgmiosCallType
+queryProtocolParametersCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "currentProtocolParameters" }
   }
-  Proxy
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType
+queryChainTipCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: const { query: "chainTip" }
   }
-  Proxy
 
 -- | Queries Ogmios for utxos at given addresses.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
-queryUtxosCall = mkOgmiosCallType
+queryUtxosCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: { query: _ }
   }
-  Proxy
 
 -- | Queries Ogmios for utxos at given address.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
-queryUtxosAtCall = mkOgmiosCallType
+queryUtxosAtCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
-  Proxy
 
 -- | Queries Ogmios for the utxo with the given output reference.
 queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
-queryUtxoCall = mkOgmiosCallType
+queryUtxoCall = mkOgmiosCallType Proxy
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
   }
-  Proxy
   where
   renameFields
     :: { transactionId :: TransactionHash, index :: UInt }
@@ -235,39 +240,79 @@ queryUtxoCall = mkOgmiosCallType
 
 type OgmiosAddress = String
 
--- LOCAL TX SUBMISSION
+--------------------------------------------------------------------------------
+-- Local Tx Submission Protocol
 -- https://ogmios.dev/mini-protocols/local-tx-submission/
+--------------------------------------------------------------------------------
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonWspCall CborBytes SubmitTxR
-submitTxCall = mkOgmiosCallType
+submitTxCall :: JsonWspCall (TxHash /\ CborBytes) SubmitTxR
+submitTxCall = mkOgmiosCallType Proxy
   { methodname: "SubmitTx"
-  , args: { submit: _ } <<< cborBytesToHex
+  , args: { submit: _ } <<< cborBytesToHex <<< snd
   }
-  Proxy
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
 evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
-evaluateTxCall = mkOgmiosCallType
+evaluateTxCall = mkOgmiosCallType Proxy
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
   }
-  Proxy
 
--- convenience helper
+--------------------------------------------------------------------------------
+-- Local Tx Monitor Protocol
+-- https://ogmios.dev/mini-protocols/local-tx-monitor/
+--------------------------------------------------------------------------------
+
+acquireMempoolSnapshotCall :: JsonWspCall Unit MempoolSnapshotAcquired
+acquireMempoolSnapshotCall =
+  mkOgmiosCallTypeNoArgs Proxy "AwaitAcquire"
+
+mempoolSnapshotHasTxCall
+  :: MempoolSnapshotAcquired -> JsonWspCall TxHash Boolean
+mempoolSnapshotHasTxCall _ = mkOgmiosCallType Proxy
+  { methodname: "HasTx"
+  , args: { id: _ }
+  }
+
+--------------------------------------------------------------------------------
+-- Local Tx Monitor Query Response & Parsing
+--------------------------------------------------------------------------------
+
+newtype MempoolSnapshotAcquired = AwaitAcquired Slot
+
+instance Show MempoolSnapshotAcquired where
+  show (AwaitAcquired slot) = "(AwaitAcquired " <> show slot <> ")"
+
+instance DecodeAeson MempoolSnapshotAcquired where
+  decodeAeson =
+    map AwaitAcquired <<< aesonObject
+      (flip getField "AwaitAcquired" >=> flip getField "slot")
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+mkOgmiosCallTypeNoArgs
+  :: forall (o :: Type). Proxy o -> String -> JsonWspCall Unit o
+mkOgmiosCallTypeNoArgs proxy methodname =
+  mkOgmiosCallType proxy { methodname, args: const {} }
+
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeAeson (JsonWspRequest a)
-  => { methodname :: String, args :: i -> a }
-  -> Proxy o
+  => Proxy o
+  -> { methodname :: String, args :: i -> a }
   -> JsonWspCall i o
-mkOgmiosCallType = mkCallType
-  { "type": "jsonwsp/request"
-  , version: "1.0"
-  , servicename: "ogmios"
-  }
+mkOgmiosCallType = flip
+  ( mkCallType
+      { "type": "jsonwsp/request"
+      , version: "1.0"
+      , servicename: "ogmios"
+      }
+  )
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
@@ -372,8 +417,7 @@ instance EncodeAeson EraSummary where
       }
 
 newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime -- 0-18446744073709552000, The time is relative to the
-  -- start time of the network.
+  { time :: RelativeTime -- The time is relative to the start time of the network.
   , slot :: Slot -- An absolute slot number
   -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
   -- u64 which has precision up to 18446744073709551615 (note 385 difference)
@@ -408,7 +452,7 @@ instance EncodeAeson EraSummaryTime where
 
 -- | A time in seconds relative to another one (typically, system start or era
 -- | start). [ 0 .. 18446744073709552000 ]
-newtype RelativeTime = RelativeTime BigInt
+newtype RelativeTime = RelativeTime Number
 
 derive instance Generic RelativeTime _
 derive instance Newtype RelativeTime _
@@ -436,7 +480,9 @@ instance Show Epoch where
 
 newtype EraSummaryParameters = EraSummaryParameters
   { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: SlotLength -- <= 18446744073709552000 A slot length, in seconds.
+  , slotLength :: SlotLength -- <= MAX_SAFE_INTEGER (=9,007,199,254,740,992)
+  -- A slot length, in milliseconds, previously it has
+  -- a max limit of 18446744073709552000, now removed.
   , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
   -- the ledger in which it is guaranteed that no hard fork can take place.
   -- This should be (at least) the number of slots in which we are guaranteed
@@ -453,9 +499,14 @@ instance Show EraSummaryParameters where
 instance DecodeAeson EraSummaryParameters where
   decodeAeson = aesonObject $ \o -> do
     epochLength <- getField o "epochLength"
-    slotLength <- getField o "slotLength"
+    slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
     safeZone <- fromMaybe zero <$> getField o "safeZone"
     pure $ wrap { epochLength, slotLength, safeZone }
+
+-- | The EraSummaryParameters uses seconds and we use miliseconds
+-- use it to translate between them
+slotLengthFactor :: Number
+slotLengthFactor = 1e3
 
 instance EncodeAeson EraSummaryParameters where
   encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
@@ -477,8 +528,8 @@ derive newtype instance EncodeAeson EpochLength
 instance Show EpochLength where
   show (EpochLength el) = showWithParens "EpochLength" el
 
--- | A slot length, in seconds <= 18446744073709552000
-newtype SlotLength = SlotLength BigInt
+-- | A slot length, in milliseconds
+newtype SlotLength = SlotLength Number
 
 derive instance Generic SlotLength _
 derive instance Newtype SlotLength _
@@ -740,7 +791,8 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minPoolCost" :: BigInt
-  , "coinsPerUtxoByte" :: BigInt
+  , "coinsPerUtxoByte" :: Maybe BigInt
+  , "coinsPerUtxoWord" :: Maybe BigInt
   , "costModels" ::
       { "plutus:v1" :: { | CostModelV1 }
       , "plutus:v2" :: { | CostModelV2 }
@@ -762,6 +814,13 @@ type ProtocolParametersRaw =
   , "maxCollateralInputs" :: Maybe UInt
   }
 
+data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
+
+derive instance Generic CoinsPerUtxoUnit _
+
+instance Show CoinsPerUtxoUnit where
+  show = genericShow
+
 -- Based on `Cardano.Api.ProtocolParameters.ProtocolParameters` from
 -- `cardano-api`.
 newtype ProtocolParameters = ProtocolParameters
@@ -782,7 +841,7 @@ newtype ProtocolParameters = ProtocolParameters
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
-  , coinsPerUtxoByte :: Coin
+  , coinsPerUtxoUnit :: CoinsPerUtxoUnit
   , costModels :: Costmdls
   , prices :: Maybe ExUnitPrices
   , maxTxExUnits :: Maybe ExUnits
@@ -802,7 +861,12 @@ instance DecodeAeson ProtocolParameters where
   decodeAeson aeson = do
     ps :: ProtocolParametersRaw <- decodeAeson aeson
     prices <- decodePrices ps
-
+    coinsPerUtxoUnit <-
+      maybe
+        (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
+        pure
+        $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
+            (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
     pure $ ProtocolParameters
       { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
       -- The following two parameters were removed from Babbage
@@ -820,7 +884,7 @@ instance DecodeAeson ProtocolParameters where
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoByte: Coin ps.coinsPerUtxoByte
+      , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable
           [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1"
           , PlutusV2 /\ convertCostModel ps.costModels."plutus:v2"

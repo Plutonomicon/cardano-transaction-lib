@@ -6,11 +6,12 @@ This document lists common problems encountered by CTL users and developers.
 
 - [Bundling-related](#bundling-related)
 - [Time-related](#time-related)
+- [Ecosystem](#ecosystem)
 - [Miscellaneous](#miscellaneous)
 
 ## Bundling-related
 
-### `lib.something` is not a function, why?
+### Q: `lib.something` is not a function, why?
 
 This is probably because npm is used directly. This is something users have reported when using `npm install` instead of having Nix manage the node dependencies (done automatically with `nix develop`, but if you have `node_modules` present in the working directory it will shadow the ones from the Nix store).
 
@@ -27,6 +28,16 @@ To do anything time-related, it's best to rely on local node chain tip time, ins
 ### Q: Time/slot conversion functions return `Nothing`. Why is that?
 
 Time/slot conversion functions depend on `eraSummaries` [Ogmios local state query](https://ogmios.dev/mini-protocols/local-state-query/), that returns era bounds and slotting parameters details, required for proper slot arithmetic. The most common source of the problem is that Ogmios does not return enough epochs into the future.
+
+### Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`
+
+Ensure your transaction's validity range does not go over `SafeZone` slots of the current era. The reason for this kind of errors is that time-related estimations are slot-based, and future forks may change slot lengths. So there is only a relatively small time window in the future during which it is known that forks cannot occur.
+
+## Ecosystem
+
+### Q: Why `aeson` and not `argonaut`?
+
+Haskell's `aeson` library encodes long integers as JSON numbers, which leads to numeric truncation on decoder side if JS `Number` is used. Unfortunately, `purescript-argonaut` does not allow to use another type, because the truncation happens during `JSON.parse` call. `purescript-aeson` is our custom solution that bypasses this limitation by storing numbers as strings. It exposes a very similar API.
 
 ## Miscellaneous
 
@@ -48,3 +59,29 @@ initdb: error: invalid locale settings; check LANG and LC_* environment variable
 ```
 
 The last line is the the most important part. Postgres will fail if your locale is not configured correctly. We _could_ try to do this in the `shellHook` when creating the project `devShell`, but dealing with locales is non-trivial and could cause more issues than it solves. You can find more information online regarding this error and how to potentially solve it, for example [here](https://stackoverflow.com/questions/41956994/initdb-bin-invalid-locale-settings-check-lang-and-lc-environment-variables) and [here](https://askubuntu.com/questions/114759/warning-setlocale-lc-all-cannot-change-locale).
+
+### How can I write my own Nix derivations using the project returned by `purescriptProject`?
+
+If the different derivation builders that `purescriptProject` gives you out-of-the-box (e.g. `runPursTest`, `bundlePursProject`, etc...) are not sufficient, you can access the compiled project (all of the original `src` argument plus the `output` directory that `purs` produces) and the generated `node_modules` using the `compiled` and `nodeModules` attributes, respectively. These can be used to write your own derivations without needing to recompile the entire project (that is, the generated output can be shared between all of your Nix components). For example:
+
+```nix
+{
+  project = pkgs.purescriptProject { /* snip */ };
+
+  # `purescriptProject` returns a number of specialized builders
+  bundle = project.bundlePursProject { /* snip */ };
+
+  # And attributes allowing you to create your own without
+  # needing to deal with `spago2nix` or recompiling your
+  # project in different components
+  specialPackage = pkgs.runCommand "my-special-package"
+    {
+      NODE_PATH = "${project.nodeModules}/lib/node_modules";
+    }
+    ''
+      cp -r ${project.compiled}/* .
+      # Do more stuff ...
+    '';
+}
+
+```

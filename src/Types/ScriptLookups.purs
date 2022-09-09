@@ -1,30 +1,30 @@
 module Types.ScriptLookups
   ( MkUnbalancedTxError
-      ( TypeCheckFailed
-      , ModifyTx
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , DatumNotFound
-      , MintingPolicyNotFound
-      , MintingPolicyHashNotCurrencySymbol
-      , CannotMakeValue
-      , ValidatorHashNotFound
-      , WrongRefScriptHash
-      , OwnPubKeyAndStakeKeyMissing
-      , TypedValidatorMissing
-      , DatumWrongHash
+      ( CannotConvertPOSIXTimeRange
+      , CannotConvertPaymentPubKeyHash
       , CannotFindDatum
-      , CannotQueryDatum
-      , CannotHashDatum
-      , CannotConvertPOSIXTimeRange
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
-      , TypedTxOutHasNoDatumHash
+      , CannotHashDatum
       , CannotHashMintingPolicy
       , CannotHashValidator
-      , CannotConvertPaymentPubKeyHash
+      , CannotMakeValue
+      , CannotQueryDatum
       , CannotSatisfyAny
+      , DatumNotFound
+      , DatumWrongHash
+      , MintingPolicyHashNotCurrencySymbol
+      , MintingPolicyNotFound
+      , MkTypedTxOutFailed
+      , ModifyTx
+      , OwnPubKeyAndStakeKeyMissing
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , TypeCheckFailed
+      , TypedTxOutHasNoDatumHash
+      , TypedValidatorMissing
+      , ValidatorHashNotFound
+      , WrongRefScriptHash
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
@@ -124,6 +124,7 @@ import QueryM.ProtocolParameters (getProtocolParameters)
 import QueryM.SystemStart (getSystemStart)
 import Scripts
   ( mintingPolicyHash
+  , nativeScriptHashEnterpriseAddress
   , validatorHash
   , validatorHashEnterpriseAddress
   )
@@ -133,6 +134,7 @@ import ToData (class ToData)
 import Transaction
   ( ModifyTxError
   , attachDatum
+  , attachNativeScript
   , attachPlutusScript
   , attachRedeemer
   , setScriptDataHash
@@ -169,23 +171,25 @@ import Types.TxConstraints
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
+  , TxConstraints(TxConstraints)
   , TxConstraint
       ( MustBeSignedBy
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
-      , MustPayToScript
+      , MustNotBeValid
+      , MustPayToNativeScript
       , MustPayToPubKeyAddress
+      , MustPayToScript
       , MustProduceAtLeast
       , MustReferenceOutput
       , MustSatisfyAnyOf
       , MustSpendAtLeast
+      , MustSpendNativeScriptOutput
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
       , MustValidateIn
-      , MustNotBeValid
       )
-  , TxConstraints(TxConstraints)
   )
 import Types.TypedTxOut
   ( TypeCheckError
@@ -980,6 +984,9 @@ processConstraint mpsMap osMap = do
             _redeemersTxIns <>= Array.singleton (redeemer /\ Just txo)
             -- Attach redeemer to witness set.
             ExceptT $ attachToCps attachRedeemer redeemer
+    MustSpendNativeScriptOutput txo ns -> runExceptT do
+      _cpsToTxBody <<< _inputs %= Set.insert txo
+      ExceptT $ attachToCps attachNativeScript ns
     MustReferenceOutput refInput -> runExceptT do
       _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
@@ -1062,6 +1069,19 @@ processConstraint mpsMap osMap = do
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.
+        _cpsToTxBody <<< _outputs %= Array.(:) txOut
+        _valueSpentBalancesOutputs <>= provideValue amount
+    MustPayToNativeScript nsh plutusValue -> do
+      networkId <- getNetworkId
+      let amount = fromPlutusValue plutusValue
+      runExceptT do
+        let
+          txOut = TransactionOutput
+            { address: nativeScriptHashEnterpriseAddress networkId nsh
+            , amount
+            , datum: NoOutputDatum
+            , scriptRef: Nothing
+            }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do

@@ -27,6 +27,7 @@ import Deserialization.UnspentOutput
 import Serialization (convertTransaction) as TS
 import Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
 import Effect (Effect)
+import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
 import Mote (group, test)
@@ -78,7 +79,7 @@ import Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Types.Transaction (TransactionInput) as T
 import Untagged.Union (asOneOf)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "deserialization" $ do
     group "BigInt" do

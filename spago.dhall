@@ -36,6 +36,7 @@ You can edit this file as you like.
   , "js-date"
   , "lattice"
   , "lists"
+  , "math"
   , "maybe"
   , "medea"
   , "media-types"
@@ -50,9 +51,9 @@ You can edit this file as you like.
   , "node-process"
   , "node-streams"
   , "nonempty"
-  , "optparse"
   , "now"
   , "numbers"
+  , "optparse"
   , "ordered-collections"
   , "orders"
   , "parallel"
@@ -68,6 +69,7 @@ You can edit this file as you like.
   , "rationals"
   , "record"
   , "refs"
+  , "safe-coerce"
   , "spec"
   , "spec-quickcheck"
   , "strings"
@@ -86,5 +88,12 @@ You can edit this file as you like.
   , "variant"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "test/**/*.purs", "examples/**/*.purs" ]
+, sources =
+  [ "src/**/*.purs"
+  , "test/**/*.purs"
+  , "examples/**/*.purs"
+  , "templates/ctl-scaffold/src/**/*.purs"
+  , "templates/ctl-scaffold/test/**/*.purs"
+  , "templates/ctl-scaffold/exe/**/*.purs"
+  ]
 }

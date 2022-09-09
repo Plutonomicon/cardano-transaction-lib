@@ -1,14 +1,15 @@
 module Test.E2E (main) where
 
 import Data.Newtype (wrap)
+import Data.TraversableWithIndex (forWithIndex)
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
+import Data.Functor (void)
 import Mote (group)
 import Prelude (Unit, ($), bind, discard, pure)
-import Contract.Test.E2E (TestOptions, parseOptions)
-import Test.E2E.Examples.Gero as Gero
-import Test.E2E.Examples.Pkh2PkhGero as Pkh2PkhGero
+import Contract.Test.E2E (TestOptions(TestOptions), parseOptions)
+import Contract.Test.E2E.WalletExt (WalletConfig(WalletConfig), getWalletByType)
 import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
 import Test.E2E.Examples.AlwaysMints as AlwaysMints
 import Test.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
@@ -28,13 +29,15 @@ main = launchAff_ $ do
     (testPlan options)
 
 -- Requires external services listed in README.md
-testPlan :: TestOptions -> TestPlanM Unit
-testPlan options = group "e2e tests" do
-  Gero.runExample options
-  Pkh2PkhGero.runExample options
-  Pkh2Pkh.runExample options
-  AlwaysMints.runExample options
-  AlwaysSucceeds.runExample options
-  Datums.runExample options
-  MintsMultipleTokens.runExample options
-  SignMultiple.runExample options
+testPlan :: TestOptions -> TestPlanM (Aff Unit) Unit
+testPlan options@(TestOptions { wallets }) = group "e2e tests"
+  $ void
+  $ forWithIndex wallets
+  $ \wallet (WalletConfig _ password) -> do
+      w <- liftEffect $ getWalletByType wallet
+      Pkh2Pkh.runExample w password options
+      AlwaysMints.runExample w password options
+      AlwaysSucceeds.runExample w password options
+      Datums.runExample w password options
+      MintsMultipleTokens.runExample w password options
+      SignMultiple.runExample w password options

@@ -3,6 +3,7 @@ module Transaction
   , attachDatum
   , attachRedeemer
   , attachPlutusScript
+  , attachNativeScript
   , setScriptDataHash
   ) where
 
@@ -13,9 +14,11 @@ import Cardano.Types.Transaction
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
-  , TransactionWitnessSet
+  , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   )
+import Cardano.Types.NativeScript (NativeScript)
+
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)
@@ -129,6 +132,12 @@ attachPlutusScripts ps tx@(Transaction { witnessSet: ws }) = do
   let ps' = ps # map Serialization.PlutusScript.convertPlutusScript
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScripts ps')
+
+attachNativeScript
+  :: NativeScript -> Transaction -> Effect (Either ModifyTxError Transaction)
+attachNativeScript ns tx = do
+  runExceptT $ updateTxWithWitnesses tx $
+    mempty # over TransactionWitnessSet _ { nativeScripts = Just [ ns ] }
 
 convertWitnessesWith
   :: TransactionWitnessSet

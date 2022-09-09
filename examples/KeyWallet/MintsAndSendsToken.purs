@@ -7,24 +7,24 @@ module Examples.KeyWallet.MintsAndSendsToken (main) where
 import Contract.Prelude
 
 import Contract.Log (logInfo')
-import Contract.Monad (liftContractM, liftedE, liftedM)
-import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Examples.AlwaysMints (alwaysMintsPolicy)
+import Examples.Helpers
+  ( buildBalanceSignAndSubmitTx
+  , mkCurrencySymbol
+  , mkTokenName
+  ) as Helpers
 import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 
 main :: Effect Unit
 main = runKeyWalletContract_ \pkh lovelace unlock -> do
   logInfo' "Running Examples.KeyWallet.MintsAndSendsToken"
 
-  mp <- alwaysMintsPolicy
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  tn <- liftContractM "Cannot make token name"
-    $ Value.mkTokenName
-    =<< byteArrayFromAscii "TheToken"
+  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
+  tn <- Helpers.mkTokenName "TheToken"
 
   let
     constraints :: Constraints.TxConstraints Void Void
@@ -37,8 +37,6 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
+  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed txId
   liftEffect unlock

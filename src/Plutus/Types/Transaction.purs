@@ -1,8 +1,7 @@
 module Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
+  , UtxoMap
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , Utxo
-  , UtxoM(UtxoM)
   ) where
 
 import Prelude
@@ -71,13 +70,4 @@ instance FromData TransactionOutputWithRefScript where
 instance ToData TransactionOutputWithRefScript where
   toData = toData <<< _.output <<< unwrap
 
-newtype UtxoM = UtxoM Utxo
-
-derive instance Generic UtxoM _
-derive instance Newtype UtxoM _
-derive newtype instance Eq UtxoM
-
-instance Show UtxoM where
-  show = genericShow
-
-type Utxo = Map TransactionInput TransactionOutputWithRefScript
+type UtxoMap = Map TransactionInput TransactionOutputWithRefScript

@@ -8,36 +8,36 @@ import Prelude
 
 import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
-import Foreign.Object (Object)
+import BalanceTx (printTxEvaluationFailure)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy, filter)
 import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
 import Data.Bifunctor (lmap, bimap)
-import Data.Either (hush, either)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Either (either, hush)
 import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_, traverse)
 import Data.Tuple (snd, fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
-import Effect (Effect)
+import Foreign.Object (Object)
 import Mote (group, skip, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import QueryM.Ogmios as O
-import BalanceTx (printTxEvaluationFailure)
-import TestM (TestPlanM)
 import Test.Utils as Utils
+import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
@@ -142,7 +142,7 @@ printEvaluateTxFailures = launchAff_ do
           )
       )
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do
   groupedFiles <- lift loadFixtures
 

@@ -53,13 +53,11 @@ library
     , base
     , base16-bytestring
     , bytestring
-    , cardano-api
     , cborg
     , containers
     , exceptions
     , extra
     , flat
-    , mtl
     , plutus-ledger-api
     , serialise
     , servant
@@ -70,18 +68,13 @@ library
     , wai-cors
     , warp
     , network
-    , websockets
-    , attoparsec
 
   exposed-modules:
     Api
     Api.Handlers
     Paths_ctl_server
-    Types
-    Utils
-    Ogmios.Query
-    Ogmios.Parser
     Plutus.Instances
+    Types
 
 executable ctl-server
   import:           common-language
@@ -109,17 +102,13 @@ test-suite test
   main-is:        Main.hs
   build-depends:
     , base
-    , bytestring
-    , cardano-api
     , ctl-server
     , hspec
     , hspec-core
     , http-client
-    , http-types
     , plutus-ledger-api
     , servant
     , servant-client
     , servant-server
     , warp
-    , text
     , containers

@@ -27,7 +27,7 @@ import Contract.TxConstraints
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (empty, toUnfoldable) as Map
@@ -77,7 +77,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
 spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
 
   txInput /\ txOutput <-
     liftContractM "Could not find unspent output locked at script address"
@@ -99,4 +99,3 @@ spendFromAlwaysSucceeds vhash txId = do
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
-

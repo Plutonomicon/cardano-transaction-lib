@@ -46,7 +46,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
@@ -96,7 +96,7 @@ spendFromCheckDatumIsInline
   -> Contract () Unit
 spendFromCheckDatumIsInline vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput -> do
       let
@@ -149,7 +149,7 @@ readFromCheckDatumIsInline
   -> Contract () Unit
 readFromCheckDatumIsInline vhash txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just (TransactionOutputWithRefScript { output }) -> do
       (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)

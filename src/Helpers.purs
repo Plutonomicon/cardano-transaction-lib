@@ -203,7 +203,7 @@ logWithLevel lvl msg = when (msg.level >= lvl) $ log =<< prettyFormatter msg
 logString :: LogLevel -> LogLevel -> String -> Effect Unit
 logString cfgLevel level message = do
   timestamp <- now
-  logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
+  logWithLevel cfgLevel { timestamp, message, level, tags: Map.empty }
 
 -- | Used for `EncodeAeson` for datatype errors
 mkErrorRecord

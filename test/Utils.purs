@@ -13,6 +13,7 @@ module Test.Utils
   , measureWithTimeout
   , readAeson
   , toFromAesonTest
+  , toFromAesonTestWith
   , unsafeCall
   ) where
 
@@ -60,16 +61,18 @@ foreign import unsafeCall
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
-interpret :: TestPlanM Unit -> Aff Unit
+interpret :: TestPlanM (Aff Unit) Unit -> Aff Unit
 interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
 
-interpretWithTimeout :: Maybe Milliseconds -> TestPlanM Unit -> Aff Unit
+interpretWithTimeout
+  :: Maybe Milliseconds -> TestPlanM (Aff Unit) Unit -> Aff Unit
 interpretWithTimeout timeout spif = do
   plan <- planT spif
   runSpec' defaultConfig { timeout = timeout } [ consoleReporter ] $
     planToSpec plan
 
-interpretWithConfig :: SpecRunner.Config -> TestPlanM Unit -> Aff Unit
+interpretWithConfig
+  :: SpecRunner.Config -> TestPlanM (Aff Unit) Unit -> Aff Unit
 interpretWithConfig config spif = do
   plan <- planT spif
   runSpec' config [ consoleReporter ] $ planToSpec plan
@@ -164,8 +167,32 @@ toFromAesonTest
   => Show a
   => String
   -> a
-  -> TestPlanM Unit
+  -> TestPlanM (Aff Unit) Unit
 toFromAesonTest desc x = test desc $ aesonRoundTrip x `shouldEqual` Right x
+
+toFromAesonTestWith
+  :: forall (a :: Type)
+   . Eq a
+  => DecodeAeson a
+  => EncodeAeson a
+  => Show a
+  => String
+  -> (a -> a)
+  -> a
+  -> TestPlanM (Aff Unit) Unit
+toFromAesonTestWith desc transform x =
+  test desc $ aesonRoundTripWith transform x `shouldEqual` Right x
+
+aesonRoundTripWith
+  :: forall (a :: Type)
+   . Eq a
+  => Show a
+  => DecodeAeson a
+  => EncodeAeson a
+  => (a -> a)
+  -> a
+  -> Either JsonDecodeError a
+aesonRoundTripWith transform = decodeAeson <<< encodeAeson <<< transform
 
 aesonRoundTrip
   :: forall (a :: Type)
@@ -175,7 +202,7 @@ aesonRoundTrip
   => EncodeAeson a
   => a
   -> Either JsonDecodeError a
-aesonRoundTrip = decodeAeson <<< encodeAeson
+aesonRoundTrip = aesonRoundTripWith identity
 
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
 readAeson = errEither <<< parseJsonStringToAeson

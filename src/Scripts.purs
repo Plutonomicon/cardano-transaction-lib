@@ -8,6 +8,7 @@ module Scripts
   , validatorHash
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
+  , nativeScriptHashEnterpriseAddress
   ) where
 
 import Prelude
@@ -15,6 +16,7 @@ import Prelude
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Hashing (plutusScriptHash)
+import NativeScripts (NativeScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Serialization.Address
   ( Address
@@ -79,6 +81,11 @@ validatorHashEnterpriseAddress network valHash =
       { network
       , paymentCred: scriptHashCredential (unwrap valHash)
       }
+
+-- | Converts a `NativeScriptHash` to an `Address` as an `EnterpriseAddress`.
+nativeScriptHashEnterpriseAddress :: NetworkId -> NativeScriptHash -> Address
+nativeScriptHashEnterpriseAddress network nsHash =
+  validatorHashEnterpriseAddress network (wrap $ unwrap nsHash)
 
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
 stakeValidatorHash :: StakeValidator -> StakeValidatorHash

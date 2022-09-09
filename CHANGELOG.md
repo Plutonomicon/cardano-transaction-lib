@@ -58,7 +58,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Added `privatePaymentKeyToFile` and `privateStakeKeyToFile` to `Wallet.KeyFile` and `Contract.Wallet.KeyFile` for writing keys to files
 - Added `bytesFromPrivateKey` to `Serialization`
 - Improved error handling of transaction evaluation through Ogmios. This helps with debugging during balancing, as it requires the transaction to be evaluated to calculate fees. ([#832](https://github.com/Plutonomicon/cardano-transaction-lib/pull/832))
+- `Contract.Hashing.transactionHash` to calculate the hash of the transaction ([#870](https://github.com/Plutonomicon/cardano-transaction-lib/pull/870))
 - Flint wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
+- Support for `NativeScript`s in constraints interface: `mustPayToNativeScript` and `mustSpendNativeScriptOutput` functions ([#869](https://github.com/Plutonomicon/cardano-transaction-lib/pull/869))
+- `Contract.Test.Cip30Mock` module to mock CIP-30 wallet interface using `KeyWallet`. The mock can be used for testing without a wallet (even in NodeJS environment). This increases test coverage for CTL code. ([#784](https://github.com/Plutonomicon/cardano-transaction-lib/issues/784))
+- `Plutus.Types.AssocMap.AssocMap` now has `TraversableWithIndex`,  `FoldableWithIndex`,  `FunctorWithIndex` instances ([#943](https://github.com/Plutonomicon/cardano-transaction-lib/pull/943))
+- The return value of `purescriptProject` now includes the project with its compiled `output` and its generated `node_modules` (under the `compiled` and `nodeModules` attributes, respectively) ([#956](https://github.com/Plutonomicon/cardano-transaction-lib/pull/956))
+- `Contract.Utxos.getWalletUtxos` function that calls CIP-30 `getUtxos` method. ([#961](https://github.com/Plutonomicon/cardano-transaction-lib/issues/961))
+- Lode wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
+- Added `Contract.Transaction.lookupTxHash` helper function ([#957](https://github.com/Plutonomicon/cardano-transaction-lib/issues/957))
 - `mustNotBeValid` constraint which marks the transaction as invalid, allowing scripts to fail during balancing and for Ogmios to allow submission. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
 - `ReferenceScripts` example, for testing reference scripts ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
 - `ReferenceInputs` example, for testing reference inputs ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
@@ -88,18 +96,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Updated CSL version to v11.0.0 ([#801](https://github.com/Plutonomicon/cardano-transaction-lib/issues/801))
 - Better error message when attempting to initialize a wallet in NodeJS environment ([#778](https://github.com/Plutonomicon/cardano-transaction-lib/issues/778))
 - The [`ctl-scaffold`](https://github.com/mlabs-haskell/ctl-scaffold) repository has been archived and deprecated and its contents moved to `templates.ctl-scaffold` in the CTL flake ([#760](https://github.com/Plutonomicon/cardano-transaction-lib/issues/760)).
-- The CTL `overlay` output has been deprecated and replaced by `overlays.purescript` and `overlays.runtime` ([#796](https://github.com/Plutonomicon/cardano-transaction-lib/issues/796)).
+- The CTL `overlay` output has been deprecated and replaced by `overlays.purescript`, `overlays.runtime`, and `overlays.ctl-server` ([#796](https://github.com/Plutonomicon/cardano-transaction-lib/issues/796) and [#872](https://github.com/Plutonomicon/cardano-transaction-lib/issues/872)).
 - `buildCtlRuntime` and `launchCtlRuntime` now take an `extraServices` argument to add `docker-compose` services to the resulting Arion expression ([#769](https://github.com/Plutonomicon/cardano-transaction-lib/issues/769)).
 - Use `cardano-serialization-lib` for fee calculation, instead of server-side code.
 - `balanceAndSignTx` no longer silently drops error information via `Maybe`. The `Maybe` wrapper is currently maintained for API compatibility, but will be dropped in the future.
 - Made it impossible to write unlawful `EncodeAeson` instances ([#490](https://github.com/Plutonomicon/cardano-transaction-lib/issues/490))
+- The `ctl-server` component of the runtime is now optional and is only required when using the `applyArgs` endpoint ([#872](https://github.com/Plutonomicon/cardano-transaction-lib/issues/872)). Related changes include:
+  - The `ctlServerConfig` fields of both `ConfigParams` and `PlutipConfig` now take a `Maybe ServerConfig`. In the case of `PlutipConfig`, a `Just` value will spawn the service inside the Plutip test. For the `ConfigParams` type, calls to `applyArgs` will fail when the field is set to `Nothing`.
+  - The config accepted by `launchCtlRuntime` and `buildCtlRuntime` now takes a `ctl-server.enable` field. If `false`, `ctl-server` will not be launched.
+- `SlotLength` and `RelativeTime` in `EraSummary` from Ogmios are now of type `Number` instead of `BigInt`. Also add `Maybe` around some functions in `Type.Interval` or changed it's signature to use `Number`. ([#868](https://github.com/Plutonomicon/cardano-transaction-lib/issues/868))
+- Renamed `UtxoM` to `UtxoMap` ([#963](https://github.com/Plutonomicon/cardano-transaction-lib/pull/963))
 - KeyWallet's `selectCollateral` field now allows multiple collateral to be selected, and is provided with `coinsPerUtxoByte` and `maxCollateralInputs` from the protocol parameters. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
 - `mustPayWithDatumToPubKey`, `mustPayWithDatumToPubKeyAddress`, and `mustPayToScript` now expect a `DatumPresence` tag in their arguments to mark whether the datum should be inline or hashed in the transaction output. ((#931)[https://github.com/Plutonomicon/cardano-transaction-lib/pull/931])
 
 ### Removed
 
-- `Contract.Monad.traceTestnetContractConfig` - use `Contract.Config.testnetNamiConfig` instead.
+- `Contract.Monad.traceTestnetContractConfig` - use `Contract.Config.testnetNamiConfig` instead (or other variants of `testnet...Config` for other wallets).
 - `runContract_` - use `void <<< runContract`.
+- `Contract.Aeson` module - use `Aeson` ([#938](https://github.com/Plutonomicon/cardano-transaction-lib/issues/938))
 
 ### Fixed
 
@@ -107,25 +121,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Bug with collateral selection: only the first UTxO provided by wallet was included as collateral [(#723)](https://github.com/Plutonomicon/cardano-transaction-lib/issues/723)
 - Bug with collateral selection for `KeyWallet` when signing multiple transactions ([#709](https://github.com/Plutonomicon/cardano-transaction-lib/pull/709))
 - Bug when zero-valued non-Ada assets were added to the non-Ada change output ([#802](https://github.com/Plutonomicon/cardano-transaction-lib/pull/802))
+- Error recovery logic for `SubmitTx` if the WebSocket connection is dropped ([#870](https://github.com/Plutonomicon/cardano-transaction-lib/pull/870))
 - Properly implemented CIP-25 V2 metadata. Now there's no need to split arbitrary-length strings manually to fit them in 64 PlutusData bytes (CTL handles that). A new `Cip25String` type has been introduced (a smart constructor ensures that byte representation fits 64 bytes, as required by the spec). Additionally, a new `Metadata.Cip25.Common.Cip25TokenName` wrapper over `TokenName` is added to ensure proper encoding of `asset_name`s. There are still some minor differences from the spec:
-
--- We do not split strings in pieces when encoding to JSON
--- We require a `"version": 2` tag.
--- `policy_id` must be 28 bytes
--- `asset_name` is up to 32 bytes.
-
-See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
+  - We do not split strings in pieces when encoding to JSON
+  - We require a `"version": 2` tag
+  - `policy_id` must be 28 bytes
+  - `asset_name` is up to 32 bytes. See https://github.com/cardano-foundation/CIPs/issues/303 for motivation
 - `ogmios-datum-cache` now works on `x86_64-darwin`
 - `TypedValidator` interface ([#808](https://github.com/Plutonomicon/cardano-transaction-lib/issues/808))
 - `Contract.Address.getWalletCollateral` now works with `KeyWallet`.
 - Removed unwanted error messages in case `WebSocket` listeners get cancelled ([#827](https://github.com/Plutonomicon/cardano-transaction-lib/issues/827))
 - Bug in `CostModel` serialization - incorrect `Int` type ([#874](https://github.com/Plutonomicon/cardano-transaction-lib/issues/874))
+- Use logger settings on Contract initialization ([#897](https://github.com/Plutonomicon/cardano-transaction-lib/issues/897))
+- Disallow specifying less than 1 ADA in Plutip UTxO distribution ([#901](https://github.com/Plutonomicon/cardano-transaction-lib/pull/901))
+- Bug in `TransactionMetadatum` deserialization ([#932](https://github.com/Plutonomicon/cardano-transaction-lib/issues/932))
 - Fix excessive logging after the end of `Contract` execution ([#893](https://github.com/Plutonomicon/cardano-transaction-lib/issues/893))
+- Add ability to suppress logs of successful `Contract` executions - with new `suppressLogs` config option the logs will be shown on error ([#768](https://github.com/Plutonomicon/cardano-transaction-lib/issues/768))
+- Fix `runPlutipTest` not passing custom `buildInputs` ([#955](https://github.com/Plutonomicon/cardano-transaction-lib/pull/954))
+- Problem parsing ogmios `SlotLength` and `RelativeTime` in era Summaries if those include non integer values. ([#906](https://github.com/Plutonomicon/cardano-transaction-lib/pull/906))
+- Use `docs-search-0.0.12` that properly lists modules consisting only of re-exports ([#973](https://github.com/Plutonomicon/cardano-transaction-lib/issues/973))
 - Inline datum in Ogmios transaction outputs are now parsed and preserved when converting to CTLs respective type. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 
 ## [2.0.0-alpha] - 2022-07-05
 
-This release adds support for running CTL contracts against Babbage-era nodes. **Note**: this release does not support Babbagge-era features and improvements, e.g. inline datums and reference inputs. Those feature will be implemented in v2.0.0 proper.
+This release adds support for running CTL contracts against Babbage-era nodes. **Note**: this release does not support Babbagge-era features and improvements, e.g. inline datums and reference inputs. Those feature will be implemented in `v2.0.0` proper.
 
 ### Added
 

@@ -38,6 +38,7 @@ module Cardano.Types.Value
   , numNonAdaAssets
   , numNonAdaCurrencySymbols
   , numTokenNames
+  , posNonAdaAsset
   , split
   , sumTokenNameLengths
   , scriptHashAsCurrencySymbol
@@ -413,8 +414,14 @@ mkSingletonValue' curSymbol tokenName amount = do
 
 -- | Normalize `NonAdaAsset` so that it doesn't contain zero-valued tokens.
 normalizeNonAdaAsset :: NonAdaAsset -> NonAdaAsset
-normalizeNonAdaAsset (NonAdaAsset mp) =
-  NonAdaAsset $ Map.filter (not Map.isEmpty) $ Map.filter (notEq zero) <$> mp
+normalizeNonAdaAsset = filterNonAdaAsset (notEq zero)
+
+posNonAdaAsset :: NonAdaAsset -> NonAdaAsset
+posNonAdaAsset = filterNonAdaAsset (\x -> x > zero)
+
+filterNonAdaAsset :: (BigInt -> Boolean) -> NonAdaAsset -> NonAdaAsset
+filterNonAdaAsset p (NonAdaAsset mp) =
+  NonAdaAsset $ Map.filter (not Map.isEmpty) $ Map.filter p <$> mp
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
 -- | Combine two `Map`s.
@@ -533,14 +540,15 @@ isAdaOnly v =
         tn == adaToken
     _ -> false
 
-minus :: Value -> Value -> Maybe Value
-minus x y = do
+minus :: Value -> Value -> Value
+minus lhs rhs =
   let
     negativeValues :: List (CurrencySymbol /\ TokenName /\ BigInt)
-    negativeValues = unsafeFlattenValue y <#>
+    negativeValues = unsafeFlattenValue rhs <#>
       (\(c /\ t /\ a) -> c /\ t /\ negate a)
-  y' <- traverse unflattenValue negativeValues
-  pure $ x <> fold y'
+  in
+    unsafePartial $
+      lhs <> fold (fromJust $ traverse unflattenValue negativeValues)
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- "isValueNat" uses unsafeFlattenValue which guards against zeros, so non-strict

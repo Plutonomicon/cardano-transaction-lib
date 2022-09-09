@@ -7,14 +7,12 @@ module QueryM.WaitUntilSlot
 
 import Prelude
 
-import Control.Monad.Reader (asks)
+import Contract.Log (logTrace')
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
 import Data.Either (hush)
 import Data.Int as Int
-import Data.Log.Level (LogLevel(Trace))
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
 import Effect.Aff (Milliseconds, delay)
@@ -22,7 +20,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Now (now)
-import Helpers (liftEither, liftM, logString)
+import Helpers (liftEither, liftM)
 import QueryM (QueryM, getChainTip)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.Ogmios (EraSummaries, SystemStart)
@@ -69,8 +67,7 @@ waitUntilSlot futureSlot =
                 currentTip@(Chain.Tip (Chain.ChainTip { slot: currentSlot_ }))
                   | currentSlot_ >= futureSlot -> pure currentTip
                   | otherwise -> do
-                      liftAff $ delay $ Milliseconds $ BigInt.toNumber
-                        slotLengthMs
+                      liftAff $ delay $ Milliseconds slotLengthMs
                       getLag eraSummaries sysStart currentSlot_ >>= logLag
                         slotLengthMs
                       fetchRepeatedly
@@ -86,23 +83,21 @@ waitUntilSlot futureSlot =
   retryDelay :: Milliseconds
   retryDelay = wrap 1000.0
 
-  logLag :: BigInt -> Milliseconds -> QueryM Unit
+  logLag :: Number -> Milliseconds -> QueryM Unit
   logLag slotLengthMs (Milliseconds lag) = do
-    logLevel <- asks $ _.config >>> _.logLevel
-    liftEffect $ logString logLevel Trace $
+    logTrace' $
       "waitUntilSlot: current lag: " <> show lag <> " ms, "
-        <> show (lag / BigInt.toNumber slotLengthMs)
+        <> show (lag / slotLengthMs)
         <> " slots."
 
 -- | Calculate difference between estimated POSIX time of given slot
 -- | and current time.
 getLag :: EraSummaries -> SystemStart -> Slot -> QueryM Milliseconds
 getLag eraSummaries sysStart nowSlot = do
-  logLevel <- asks $ _.config >>> _.logLevel
   nowPosixTime <- liftEffect (slotToPosixTime eraSummaries sysStart nowSlot) >>=
     hush >>> liftM (error "Unable to convert Slot to POSIXTime")
   nowMs <- unwrap <<< unInstant <$> liftEffect now
-  liftEffect $ logString logLevel Trace $
+  logTrace' $
     "getLag: current slot: " <> BigNum.toString (unwrap nowSlot)
       <> ", slot time: "
       <> BigInt.toString (unwrap nowPosixTime)
@@ -118,11 +113,10 @@ estimateDelayUntil :: POSIXTime -> QueryM Milliseconds
 estimateDelayUntil futureTimePosix = do
   futureTimeSec <- posixTimeToSeconds futureTimePosix
   nowMs <- unwrap <<< unInstant <$> liftEffect now
-  logLevel <- asks $ _.config >>> _.logLevel
   let
     result = wrap $ mul 1000.0 $ nonNegative $
       unwrap futureTimeSec - nowMs / 1000.0
-  liftEffect $ logString logLevel Trace $
+  logTrace' $
     "estimateDelayUntil: target time: " <> show (unwrap futureTimeSec * 1000.0)
       <> ", system time: "
       <> show nowMs

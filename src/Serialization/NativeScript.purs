@@ -5,9 +5,6 @@ module Serialization.NativeScript
 
 import Prelude
 
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
-
 import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -18,6 +15,8 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as T
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.Address (Slot(Slot)) as T
 import Serialization.Hash (Ed25519KeyHash) as T
