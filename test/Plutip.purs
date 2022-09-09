@@ -47,20 +47,19 @@ import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
-  , NativeScript(ScriptAll, ScriptNOfK, ScriptPubkey)
-  , TransactionInput(TransactionInput)
+  , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
   , balanceTx
-  , signTransaction
   , getTxByHash
+  , signTransaction
   , submit
   , withBalancedAndSignedTxs
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoM(UtxoM), getWalletBalance, utxosAt)
+import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet
@@ -72,15 +71,15 @@ import Contract.Wallet
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array (find)
+import Data.Array ((!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (foldM)
+import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
-import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_, bracket)
@@ -113,16 +112,18 @@ import Plutus.Conversion.Address (toPlutusAddress)
 import Plutus.Types.Transaction (TransactionOutput(TransactionOutput))
 import Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , lookupTxHash
   )
 import Plutus.Types.Value (lovelaceValueOf)
 import Safe.Coerce (coerce)
 import Scripts (nativeScriptHashEnterpriseAddress)
 import Test.AffInterface as AffInterface
 import Test.Plutip.Common (config, privateStakeKey)
+import Test.Plutip.Logging as Logging
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Test.Plutip.Logging as Logging
 import Test.Spec.Runner (defaultConfig)
 import Test.Utils as Utils
 import TestM (TestPlanM)
@@ -338,15 +339,11 @@ suite = do
             networkId <- asks $ unwrap >>> _.config >>> _.networkId
             let
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
-
-              hasTransactionId :: TransactionInput /\ _ -> Boolean
-              hasTransactionId (TransactionInput tx /\ _) =
-                tx.transactionId == txId
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt nsAddrPlutus
+            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
-              fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
+              view _input <$> lookupTxHash txId utxos !! 0
             let
               constraints :: TxConstraints Unit Unit
               constraints =
@@ -444,15 +441,11 @@ suite = do
             networkId <- asks $ unwrap >>> _.config >>> _.networkId
             let
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
-
-              hasTransactionId :: TransactionInput /\ _ -> Boolean
-              hasTransactionId (TransactionInput tx /\ _) =
-                tx.transactionId == txId
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt nsAddrPlutus
+            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
-              fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
+              view _input <$> lookupTxHash txId utxos !! 0
             let
               constraints :: TxConstraints Unit Unit
               constraints =

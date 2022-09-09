@@ -5,6 +5,7 @@ module Contract.Config
   , testnetGeroConfig
   , testnetFlintConfig
   , testnetEternlConfig
+  , testnetLodeConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
@@ -30,6 +31,7 @@ import Wallet.Spec
       , ConnectToGero
       , ConnectToFlint
       , ConnectToEternl
+      , ConnectToLode
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
@@ -71,6 +73,9 @@ testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
 
 testnetEternlConfig :: ConfigParams ()
 testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
+
+testnetLodeConfig :: ConfigParams ()
+testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 
 mainnetConfig :: ConfigParams ()
 mainnetConfig = testnetConfig { networkId = MainnetId }

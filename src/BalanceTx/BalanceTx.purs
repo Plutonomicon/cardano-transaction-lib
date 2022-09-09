@@ -49,7 +49,7 @@ import Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
-  , Utxos
+  , UtxoMap
   , _body
   , _collateral
   , _fee
@@ -118,7 +118,7 @@ balanceTxWithAddress
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
 
   utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
-    ( traverse (note CouldNotGetUtxos >>> map unwrap) --Maybe -> Either and unwrap UtxoM
+    ( traverse (note CouldNotGetUtxos) --Maybe -> Either and unwrap UtxoM
 
         >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
     )
@@ -132,7 +132,7 @@ balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
         setTransactionCollateral =<< lift unbalancedTxWithNetworkId
 
   let
-    allUtxos :: Utxos
+    allUtxos :: UtxoMap
     allUtxos =
       -- Combine utxos at the user address and those from any scripts
       -- involved with the contract in the unbalanced transaction:
@@ -173,7 +173,7 @@ type MinFee = BigInt
 type Iteration = Int
 
 runBalancer
-  :: Utxos
+  :: UtxoMap
   -> ChangeAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
@@ -261,18 +261,21 @@ addLovelacesToTransactionOutput txOutput = do
   pure $ wrap txOutputRec
     { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
 
--- | Generates a change output to return all excess `Value` back to the owner's 
+-- | Generates a change output to return all excess `Value` back to the owner's
 -- | address. Does NOT check if the generated output fulfills the utxo
 -- | min-ada-value requirement (see Prerequisites).
--- | 
--- | Prerequisites: 
--- |   1. Must be called after `addTransactionInputs`, which guarantees that 
+-- |
+-- | Prerequisites:
+-- |   1. Must be called after `addTransactionInputs`, which guarantees that
 -- |   the change output will cover the utxo min-ada-value requirement.
--- | 
+-- |
 -- | TODO: Modify the logic to handle "The Problem of Concurrency"
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/924
 buildTransactionChangeOutput
-  :: ChangeAddress -> Utxos -> UnattachedUnbalancedTx -> TransactionChangeOutput
+  :: ChangeAddress
+  -> UtxoMap
+  -> UnattachedUnbalancedTx
+  -> TransactionChangeOutput
 buildTransactionChangeOutput changeAddress utxos tx =
   let
     txBody :: TxBody
@@ -290,22 +293,25 @@ buildTransactionChangeOutput changeAddress utxos tx =
       { address: changeAddress, amount: changeValue, dataHash: Nothing }
 
 addTransactionChangeOutput
-  :: ChangeAddress -> Utxos -> UnattachedUnbalancedTx -> PrebalancedTransaction
+  :: ChangeAddress
+  -> UtxoMap
+  -> UnattachedUnbalancedTx
+  -> PrebalancedTransaction
 addTransactionChangeOutput changeAddress utxos unbalancedTx =
   PrebalancedTransaction $ unbalancedTx # _body' <<< _outputs %~
     Array.cons (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
--- | Selects a combination of unspent transaction outputs from the wallet's 
--- | utxo set so that the total input value is sufficient to cover all  
--- | transaction outputs, including the change that will be generated 
--- | when using that particular combination of inputs. 
--- | 
+-- | Selects a combination of unspent transaction outputs from the wallet's
+-- | utxo set so that the total input value is sufficient to cover all
+-- | transaction outputs, including the change that will be generated
+-- | when using that particular combination of inputs.
+-- |
 -- | Prerequisites:
--- |   1. Must be called with a transaction with no change output. 
+-- |   1. Must be called with a transaction with no change output.
 -- |   2. The `fee` field of a transaction body must be set.
 addTransactionInputs
   :: ChangeAddress
-  -> Utxos
+  -> UtxoMap
   -> UnattachedUnbalancedTx
   -> BalanceTxM UnattachedUnbalancedTx
 addTransactionInputs changeAddress utxos unbalancedTx = do
@@ -342,7 +348,7 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
 
 collectTransactionInputs
   :: Set TransactionInput
-  -> Utxos
+  -> UtxoMap
   -> Value
   -> Either BalanceTxError (Set TransactionInput)
 collectTransactionInputs originalTxIns utxos value = do
@@ -373,12 +379,12 @@ collectTransactionInputs originalTxIns utxos value = do
     not (Array.null txIns') && txInsValue `geq` value
 
   getTxInsValue
-    :: Utxos -> Array TransactionInput -> Either BalanceTxError Value
+    :: UtxoMap -> Array TransactionInput -> Either BalanceTxError Value
   getTxInsValue utxos' =
     map (Array.foldMap getAmount) <<<
       traverse (\x -> note (UtxoLookupFailedFor x) $ Map.lookup x utxos')
 
-  utxosToTransactionInput :: Utxos -> Array TransactionInput
+  utxosToTransactionInput :: UtxoMap -> Array TransactionInput
   utxosToTransactionInput =
     Array.mapMaybe (hush <<< getPublicKeyTransactionInput) <<< Map.toUnfoldable
 
@@ -413,7 +419,7 @@ getPublicKeyTransactionInput (txOutRef /\ txOut) =
       , onScriptHash: const Nothing
       }
 
-getInputValue :: Utxos -> TxBody -> Value
+getInputValue :: UtxoMap -> TxBody -> Value
 getInputValue utxos (TxBody txBody) =
   Array.foldMap
     getAmount
@@ -423,7 +429,7 @@ getInputValue utxos (TxBody txBody) =
     )
 
 --------------------------------------------------------------------------------
--- Logging Helpers 
+-- Logging Helpers
 --------------------------------------------------------------------------------
 
 -- Logging for Transaction type without returning Transaction
@@ -432,7 +438,7 @@ logTx
    . MonadEffect m
   => MonadLogger m
   => String
-  -> Utxos
+  -> UtxoMap
   -> Transaction
   -> m Unit
 logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
@@ -441,4 +447,3 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
     , "Fees: " <> show body.fee
     ]
-

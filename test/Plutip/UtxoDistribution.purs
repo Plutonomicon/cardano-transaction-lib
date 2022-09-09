@@ -44,7 +44,7 @@ import Data.FoldableWithIndex (foldlWithIndex)
 import Data.List (fromFoldable) as List
 import Data.Map (isEmpty, empty, insert) as Map
 import Data.Maybe (isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -54,7 +54,7 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
 import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Plutus.Types.Transaction (Utxo)
+import Plutus.Types.Transaction (UtxoMap)
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
@@ -180,7 +180,7 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
 assertNoUtxosAtAddress addr = do
-  utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
+  utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
   assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
 
 -- | For each wallet, assert that there is a one-to-one correspondance
@@ -191,9 +191,8 @@ assertCorrectDistribution
   -> Contract r Unit
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
-    addr <- liftedM "Could not get wallet address"
-      getWalletAddress
-    utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
+    addr <- liftedM "Could not get wallet address" getWalletAddress
+    utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts
   where
@@ -202,7 +201,7 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   -- false. Once we've gone through all expected amounts, if all of
   -- them have been found in the utxo set, we expect there to be no
   -- utxos remaining
-  checkDistr :: Utxo -> InitialUTxOs -> Boolean
+  checkDistr :: UtxoMap -> InitialUTxOs -> Boolean
   checkDistr originalUtxos expectedAmounts =
     let
       allFound /\ remainingUtxos =
@@ -213,7 +212,7 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
     -- Remove a single utxo containing the expected ada amount,
     -- returning the updated utxo map and false if it could not be
     -- found
-    findAndRemoveExpected :: Boolean /\ Utxo -> BigInt -> Boolean /\ Utxo
+    findAndRemoveExpected :: Boolean /\ UtxoMap -> BigInt -> Boolean /\ UtxoMap
     findAndRemoveExpected o@(false /\ _) _ = o
     findAndRemoveExpected (_ /\ utxos) expected =
       foldlWithIndex
@@ -226,9 +225,9 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
     removeUtxoMatchingValue
       :: Value
       -> TransactionInput
-      -> Boolean /\ Utxo
+      -> Boolean /\ UtxoMap
       -> TransactionOutput
-      -> Boolean /\ Utxo
+      -> Boolean /\ UtxoMap
     removeUtxoMatchingValue
       expected
       i

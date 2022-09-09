@@ -56,7 +56,11 @@ data WalletMock = MockFlint | MockGero | MockNami
 -- | it will have to be changed a lot to successfully mimic the behavior of
 -- | multi-address wallets, like Eternl.
 withCip30Mock
-  :: forall r a. KeyWallet -> WalletMock -> Contract r a -> Contract r a
+  :: forall (r :: Row Type) (a :: Type)
+   . KeyWallet
+  -> WalletMock
+  -> Contract r a
+  -> Contract r a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
   cip30Mock <- wrapContract $ mkCip30Mock keyWallet.paymentKey
     keyWallet.stakeKey
@@ -101,7 +105,7 @@ mkCip30Mock pKey mSKey = do
           [ byteArrayToHex $ toBytes (asOneOf address) ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- map unwrap $ liftMaybe (error "No UTxOs at address") =<<
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         collateralUtxos <- liftMaybe (error "No UTxOs at address") $
           (unwrap keyWallet).selectCollateral utxos
@@ -120,7 +124,7 @@ mkCip30Mock pKey mSKey = do
         pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- map unwrap $ liftMaybe (error "No UTxOs at address") =<<
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         value <- liftEffect $ convertValue $
           (fold <<< map _.amount <<< map unwrap <<< Map.values)

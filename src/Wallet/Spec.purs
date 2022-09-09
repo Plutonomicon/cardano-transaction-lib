@@ -5,6 +5,7 @@ module Wallet.Spec
       , ConnectToGero
       , ConnectToFlint
       , ConnectToEternl
+      , ConnectToLode
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
@@ -29,3 +30,4 @@ data WalletSpec
   | ConnectToGero
   | ConnectToFlint
   | ConnectToEternl
+  | ConnectToLode

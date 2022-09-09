@@ -5,9 +5,10 @@ import Prelude
 import Contract.Config
   ( ConfigParams
   , testnetEternlConfig
-  , testnetFlintConfig
   , testnetGeroConfig
   , testnetNamiConfig
+  , testnetFlintConfig
+  , testnetLodeConfig
   )
 import Contract.Prelude (fst, traverse_, uncurry)
 import Contract.Monad (Contract, runContract)
@@ -86,9 +87,11 @@ wallets =
   , "gero" /\ testnetGeroConfig
   , "flint" /\ testnetFlintConfig
   , "eternl" /\ testnetEternlConfig
+  , "lode" /\ testnetLodeConfig
   , "nami-mock" /\ testnetNamiConfig
   , "gero-mock" /\ testnetGeroConfig
   , "flint-mock" /\ testnetFlintConfig
+  , "lode-mock" /\ testnetLodeConfig
   ]
 
 examples :: Array (String /\ Contract () Unit)

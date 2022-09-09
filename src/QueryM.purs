@@ -92,7 +92,7 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
-import Data.Array (singleton, head)
+import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -189,12 +189,13 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, Eternl, KeyWallet)
+  , Wallet(Gero, Flint, Nami, Lode, Eternl, KeyWallet)
   , mkGeroWalletAff
   , mkFlintWalletAff
   , mkEternlWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
+  , mkLodeWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
@@ -204,6 +205,7 @@ import Wallet.Spec
       , ConnectToNami
       , ConnectToFlint
       , ConnectToEternl
+      , ConnectToLode
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
@@ -360,6 +362,7 @@ mkWalletBySpec = case _ of
   ConnectToGero -> mkGeroWalletAff
   ConnectToFlint -> mkFlintWalletAff
   ConnectToEternl -> mkEternlWalletAff
+  ConnectToLode -> mkLodeWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -489,11 +492,12 @@ getWalletAddresses :: QueryM (Maybe (Array Address))
 getWalletAddresses = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getWalletAddresses
-    Gero gero -> callCip30Wallet gero _.getWalletAddresses
-    Flint flint -> callCip30Wallet flint _.getWalletAddresses
-    Eternl eternl -> callCip30Wallet eternl _.getWalletAddresses
-    KeyWallet kw -> (Just <<< singleton) <$> (unwrap kw).address networkId
+    Nami wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Eternl wallet -> callCip30Wallet wallet _.getWalletAddresses
+    KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
@@ -502,6 +506,7 @@ signTransaction tx = withMWalletAff case _ of
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
   Eternl eternl -> callCip30Wallet eternl \nw -> flip nw.signTx tx
+  Lode lode -> callCip30Wallet lode \nw -> flip nw.signTx tx
   KeyWallet kw -> do
     witnessSet <- (unwrap kw).signTx tx
     pure $ Just (tx # _witnessSet <>~ witnessSet)
@@ -519,7 +524,7 @@ ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 -- TODO: change to array of StakePubKeyHash
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> (_ >>= head)
+  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash

@@ -50,7 +50,7 @@ import Plutip.Types
   , PrivateKeyResponse(PrivateKeyResponse)
   , UtxoAmount
   )
-import Plutus.Types.Transaction (Utxo)
+import Plutus.Types.Transaction (UtxoMap)
 import Type.Prelude (Proxy(Proxy))
 import Wallet.Key
   ( KeyWallet
@@ -123,7 +123,7 @@ decodeWalletsDefault d p = do
   pure wallets
 
 type WalletInfo =
-  { utxos :: Utxo
+  { utxos :: UtxoMap
   , payPkh :: PaymentPubKeyHash
   , stakePkh :: StakePubKeyHash
   , wallet :: KeyWallet
@@ -153,7 +153,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       $ withKeyWallet ourWallet ownPaymentPubKeyHash
     let
       lookups :: Lookups.ScriptLookups Void
-      lookups = Lookups.unspentOutputs (unwrap ourUtxos)
+      lookups = Lookups.unspentOutputs ourUtxos
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
 
       constraints :: Constraints.TxConstraints Void Void
@@ -203,7 +203,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
         addr <- liftContractM "Could not get wallet address" $
           payPubKeyHashEnterpriseAddress networkId payPkh
         utxos' <- liftedM "Could not find utxos" $ utxosAt addr
-        pure $ { utxos: unwrap utxos', payPkh, stakePkh, wallet } : walletsInfo
+        pure $ { utxos: utxos', payPkh, stakePkh, wallet } : walletsInfo
 
 withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey
 withStakeKey = InitialUTxOsWithStakeKey

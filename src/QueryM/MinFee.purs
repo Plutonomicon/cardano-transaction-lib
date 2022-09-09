@@ -4,7 +4,7 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Transaction
-  , UtxoM
+  , UtxoMap
   , _body
   , _collateral
   , _inputs
@@ -60,12 +60,12 @@ getSelfSigners tx = do
     txCollats :: Set TransactionInput
     txCollats = Set.fromFoldable <<< fromMaybe [] $ tx ^. _body <<< _collateral
 
-  walletCollats <- maybe (wrap Map.empty) toUtxoM <$> getWalletCollateral
+  walletCollats <- maybe Map.empty toUtxoMap <$> getWalletCollateral
 
   (inCollatAddrs :: Set Address) <- setFor txCollats
     ( \txCollat ->
         liftM (error $ "Couldn't get tx output for " <> show txCollat)
-          $ (map (_.address <<< unwrap) <<< Map.lookup txCollat <<< unwrap)
+          $ (map (_.address <<< unwrap) <<< Map.lookup txCollat)
           $ walletCollats
     )
 
@@ -99,52 +99,6 @@ getSelfSigners tx = do
     -> m (Set b)
   setFor txIns f = Set.fromFoldable <$> for (fromFoldable txIns) f
 
-  toUtxoM :: Array TransactionUnspentOutput -> UtxoM
-  toUtxoM = wrap <<< Map.fromFoldable <<< map
+  toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
+  toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
-
--- union input and collateral
-
--- interesect with own addresses
-
--- get unique key hashes
-
-{- walletCollats <- fromMaybe [] <$> getWalletCollateral
-walletUtxos <- unwrap <$>
-  (liftM (error "CIP-30 wallet missing collateral") =<< getWalletUtxos)
-
-let
-
-  walletCollatUtxoM :: Map TransactionInput TransactionOutput
-  walletCollatUtxoM = Map.fromFoldable $ walletCollats
-    <#> unwrap >>>
-      ( case _ of
-          { input, output } -> input /\ output
-      )
-
-  utxosWithCollats :: Map TransactionInput TransactionOutput
-  utxosWithCollats = walletUtxos `Map.union` walletCollatUtxoM
-
-  txCollats :: Set TransactionInput
-  txCollats = Set.fromFoldable <<< fromMaybe [] $ tx ^. _body <<< _collateral
-
-  txInputs :: Set TransactionInput
-  txInputs = tx ^. _body <<< _inputs
-
-  allSelfInputs = (txInputs `Set.intersection` Map.keys walletUtxos)
-    `Set.union` txCollats
-
-  -- Traverse over inputs and collaterals to find required VKeyHashes that
-  -- need to sign the Tx
-  selfSigners = for (fromFoldable allSelfInputs) \ti -> do
-    TransactionOutput { address } <-
-      note ("Couldn't find " <> show ti <> " in  " <> show utxosWithCollats) $
-        Map.lookup ti utxosWithCollats
-    kh <- note "Failed to convert to key hash" $
-      (addressPaymentCred >=> stakeCredentialToKeyHash) address
-    pure $ kh
-
-selfSignerSet <- pure (Set.fromFoldable <$> selfSigners) >>=
-  (lmap error >>> liftEither)
-
-pure selfSignerSet -}
