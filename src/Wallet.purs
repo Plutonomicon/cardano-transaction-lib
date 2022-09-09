@@ -1,13 +1,15 @@
 module Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Lode, KeyWallet)
   , isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
+  , isLodeAvailable
   , mkNamiWalletAff
   , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkLodeWalletAff
   , mkKeyWallet
   , cip30Wallet
   , dummySign
@@ -23,12 +25,16 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
+import Contract.Numeric.Natural (fromInt', minus)
+import Contract.Prelude (liftEffect, wrap)
+import Control.Monad.Error.Class (catchError, throwError)
 import Control.Promise (Promise)
+import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, delay, error)
 import Helpers ((<<>>))
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
@@ -44,47 +50,76 @@ data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
   | Flint Cip30Wallet
+  | Lode Cip30Wallet
   | KeyWallet KeyWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
   mbStakeKey
 
+foreign import _isNamiAvailable :: Effect Boolean
+
 isNamiAvailable :: Effect Boolean
 isNamiAvailable = _isNamiAvailable
 
-foreign import _isNamiAvailable :: Effect Boolean
+foreign import _enableNami :: Effect (Promise Cip30Connection)
 
 mkNamiWalletAff :: Aff Wallet
 mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami
 
-foreign import _enableNami :: Effect (Promise Cip30Connection)
+foreign import _isGeroAvailable :: Effect Boolean
 
 isGeroAvailable :: Effect Boolean
 isGeroAvailable = _isGeroAvailable
 
-foreign import _isGeroAvailable :: Effect Boolean
+foreign import _enableGero :: Effect (Promise Cip30Connection)
 
 mkGeroWalletAff :: Aff Wallet
 mkGeroWalletAff = Gero <$> mkCip30WalletAff "Gero" _enableGero
 
-foreign import _enableGero :: Effect (Promise Cip30Connection)
+foreign import _isFlintAvailable :: Effect Boolean
 
 isFlintAvailable :: Effect Boolean
 isFlintAvailable = _isFlintAvailable
 
-foreign import _isFlintAvailable :: Effect Boolean
+foreign import _enableFlint :: Effect (Promise Cip30Connection)
 
 mkFlintWalletAff :: Aff Wallet
 mkFlintWalletAff = Flint <$> mkCip30WalletAff "Flint" _enableFlint
 
-foreign import _enableFlint :: Effect (Promise Cip30Connection)
+foreign import _isLodeAvailable :: Effect Boolean
+
+isLodeAvailable :: Effect Boolean
+isLodeAvailable = _isLodeAvailable
+
+foreign import _enableLode :: Effect (Promise Cip30Connection)
+
+-- Lode does not inject on page load, so this function retries up to set
+-- number of times, for Lode to be available.
+mkLodeWalletAff :: Aff Wallet
+mkLodeWalletAff = do
+  retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
+    $ liftEffect isLodeAvailable
+
+  catchError
+    (Lode <$> mkCip30WalletAff "Lode" _enableLode)
+    ( \e -> throwError <<< error $ (show e) <>
+        " Note: LodeWallet is injected asynchronously and may be unreliable."
+    )
+
+  where
+  retryNWithIntervalUntil n ms mBool =
+    if n == zero then pure unit
+    else mBool >>=
+      if _ then pure unit
+      else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
   Nami c30 -> Just c30
   Gero c30 -> Just c30
   Flint c30 -> Just c30
+  Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to

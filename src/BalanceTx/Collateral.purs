@@ -90,13 +90,13 @@ addTxCollateralReturn collateral transaction ownAddress =
         , scriptRef: Nothing
         }
 
-    coinsPerUtxoByte <-
-      asks (_.runtime >>> _.pparams) <#> unwrap >>> _.coinsPerUtxoByte
+    coinsPerUtxoUnit <-
+      asks (_.runtime >>> _.pparams) <#> unwrap >>> _.coinsPerUtxoUnit
 
     -- Calculate the required min ada value for the collateral return output:
     minAdaValue <-
       ExceptT $
-        liftEffect (utxoMinAdaValue coinsPerUtxoByte (wrap collReturnOutputRec))
+        liftEffect (utxoMinAdaValue coinsPerUtxoUnit (wrap collReturnOutputRec))
           <#> note CollateralReturnMinAdaValueCalcError
 
     let

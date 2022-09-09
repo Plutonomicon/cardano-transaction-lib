@@ -12,13 +12,13 @@ import Prelude
 import BalanceTx.Collateral.Select (selectCollateral) as Collateral
 import Cardano.Types.Transaction
   ( Transaction(Transaction)
+  , TransactionWitnessSet
   , UtxoMap
   , _vkeys
   )
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Cardano.Types.Value (Coin)
 import Contract.Prelude (class Newtype)
 import Data.Array (fromFoldable)
 import Data.Lens (set)
@@ -28,6 +28,7 @@ import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Serialization as Serialization
 import Serialization.Address
@@ -47,8 +48,11 @@ import Serialization.Types (PrivateKey)
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Aff Address
   , selectCollateral ::
-      Coin -> Int -> UtxoMap -> Effect (Maybe (Array TransactionUnspentOutput))
-  , signTx :: Transaction -> Aff Transaction
+      CoinsPerUtxoUnit
+      -> Int
+      -> UtxoMap
+      -> Effect (Maybe (Array TransactionUnspentOutput))
+  , signTx :: Transaction -> Aff TransactionWitnessSet
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
   }
@@ -99,15 +103,18 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         >>> enterpriseAddressToAddress
 
   selectCollateral
-    :: Coin -> Int -> UtxoMap -> Effect (Maybe (Array TransactionUnspentOutput))
+    :: CoinsPerUtxoUnit
+    -> Int
+    -> UtxoMap
+    -> Effect (Maybe (Array TransactionUnspentOutput))
   selectCollateral coinsPerUtxoByte maxCollateralInputs utxos = map fromFoldable
     <$> Collateral.selectCollateral coinsPerUtxoByte maxCollateralInputs utxos
 
-  signTx :: Transaction -> Aff Transaction
+  signTx :: Transaction -> Aff TransactionWitnessSet
   signTx (Transaction tx) = liftEffect do
     txBody <- Serialization.convertTxBody tx.body
     hash <- Serialization.hashTransaction txBody
     wit <- Deserialization.WitnessSet.convertVkeyWitness <$>
       Serialization.makeVkeywitness hash (unwrap payKey)
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
-    pure $ Transaction $ tx { witnessSet = witnessSet' <> tx.witnessSet }
+    pure witnessSet'
