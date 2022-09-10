@@ -110,11 +110,8 @@ instance DecodeAeson GetDatumsByHashesR where
         caseAesonArray (Left $ TypeMismatch "Array")
           $ (map Map.fromFoldable) <<< traverse decodeDatum
 
-      decodeEmptyDatums obj =
-        pure Map.empty *>
-          ( caseAesonArray (Left $ TypeMismatch "Array")
-              $ identity <<< traverse decodeEmptyDatum
-          ) obj
+      decodeEmptyDatums =
+        caseAesonArray (Left $ TypeMismatch "Array") (traverse decodeEmptyDatum)
 
       decodeEmptyDatum
         :: Aeson -> Either JsonDecodeError Unit
@@ -127,7 +124,7 @@ instance DecodeAeson GetDatumsByHashesR where
       decodeDatum
         :: Aeson -> Either JsonDecodeError (DataHash /\ Either String Datum)
       decodeDatum obj = caseAesonObject (Left $ TypeMismatch "Object")
-        (\o -> (/\) <$> map wrap (o .: "hash") <*> (decodeValueOption obj))
+        (\o -> (/\) <$> map wrap (o .: "hash") <*> decodeValueOption obj)
         obj
 
       decodeValueOption
