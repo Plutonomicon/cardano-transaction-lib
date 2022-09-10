@@ -20,7 +20,8 @@ import Address
   )
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as Transaction
 import Control.Alt ((<|>))
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
+import Control.Alternative (guard)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Deserialization.FromBytes (fromBytes)
@@ -74,10 +75,12 @@ ogmiosTxOutToTransactionOutput
   :: Ogmios.OgmiosTxOut -> Maybe Transaction.TransactionOutput
 ogmiosTxOutToTransactionOutput { address, value, datum, datumHash, script } = do
   address' <- ogmiosAddressToAddress address
-  -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to hash
-  -- and capture failure if we can't hash.
-  d <- traverse ogmiosDatumToDatum datum
+  -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to
+  -- convert and capture failure if we can't.
   dh <- traverse ogmiosDatumHashToDatumHash datumHash
+  -- For compatibility with Alonzo, don't attempt to parse the datum if
+  -- datumHash is set
+  d <- traverse ogmiosDatumToDatum (guard (isNothing datumHash) *> datum)
   pure $ wrap
     { address: address'
     , amount: value
