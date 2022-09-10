@@ -5,6 +5,7 @@
 module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashes'
   , module DataSchema
   , module Datum
   , module ExportQueryM
@@ -71,6 +72,7 @@ import QueryM
 import QueryM
   ( getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashes'
   ) as QueryM
 import ToData
   ( class ToData
@@ -97,6 +99,7 @@ import Types.Redeemer
   , unitRedeemer
   ) as Redeemer
 import IsData (class IsData) as IsData
+import Data.Either (Either)
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash
@@ -106,8 +109,17 @@ getDatumByHash
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
 -- | Get `PlutusData`s given a an `Array` of `DataHash`.
+-- | This function discards all possible error getting a `DataHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
    . Array DataHash
   -> Contract r (Map DataHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
+
+-- | Get `PlutusData`s given a an `Array` of `DataHash`.
+-- | In case of error, the returned string contains the needed information.
+getDatumsByHashes'
+  :: forall (r :: Row Type)
+   . Array DataHash
+  -> Contract r (Map DataHash (Either String Datum.Datum))
+getDatumsByHashes' = wrapContract <<< QueryM.getDatumsByHashes'

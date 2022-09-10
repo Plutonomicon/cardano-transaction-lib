@@ -22,7 +22,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseAesonArray
   , caseAesonObject
   , decodeAeson
@@ -30,7 +30,6 @@ import Aeson
   , stringifyAeson
   , (.:)
   )
-import Aeson.Decode.Decoders (decodeEither)
 import Base64 (Base64String)
 import Control.Alt ((<|>))
 import Data.Either (Either(Left, Right))
@@ -108,12 +107,12 @@ instance DecodeAeson GetDatumsByHashesR where
       decodeDatumArray
         :: Aeson -> Either JsonDecodeError (Map DataHash (Either String Datum))
       decodeDatumArray =
-        caseAesonArray (Left $ TypeMismatch "expected array")
+        caseAesonArray (Left $ TypeMismatch "Array")
           $ (map Map.fromFoldable) <<< traverse decodeDatum
 
       decodeEmptyDatums obj =
         pure Map.empty *>
-          ( caseAesonArray (Left $ TypeMismatch "expected array")
+          ( caseAesonArray (Left $ TypeMismatch "Array")
               $ identity <<< traverse decodeEmptyDatum
           ) obj
 
@@ -127,7 +126,7 @@ instance DecodeAeson GetDatumsByHashesR where
 
       decodeDatum
         :: Aeson -> Either JsonDecodeError (DataHash /\ Either String Datum)
-      decodeDatum obj = caseAesonObject (Left $ TypeMismatch "expected object")
+      decodeDatum obj = caseAesonObject (Left $ TypeMismatch "Object")
         (\o -> (/\) <$> map wrap (o .: "hash") <*> (decodeValueOption obj))
         obj
 
