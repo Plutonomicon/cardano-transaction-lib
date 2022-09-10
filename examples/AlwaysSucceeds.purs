@@ -15,7 +15,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -43,8 +43,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.AlwaysSucceeds"
   validator <- alwaysSucceedsScript
-  vhash <- liftContractAffM "Couldn't hash validator"
-    $ validatorHash validator
+  let vhash = validatorHash validator
   logInfo' "Attempt to lock value"
   txId <- payToAlwaysSucceeds vhash
   -- If the wallet is cold, you need a high parameter here.

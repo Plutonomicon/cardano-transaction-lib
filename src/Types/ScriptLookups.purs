@@ -102,12 +102,10 @@ import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Set (insert) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (sequence, traverse, traverse_)
+import Data.Traversable (traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff)
-import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftEither, liftM)
@@ -515,16 +513,15 @@ processLookupsAndConstraints
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
   -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
   lookups <- use _lookups <#> unwrap
+
   let
     mps = lookups.mps
     scripts = lookups.scripts
-  mpsHashes <- ExceptT $
-    hashScripts mintingPolicyHash CannotHashMintingPolicy mps
-  validatorHashes <- ExceptT $
-    hashScripts validatorHash CannotHashValidator scripts
-  let
+    mpsHashes = map mintingPolicyHash mps
+    validatorHashes = map validatorHash scripts
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
+
   ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
 
   -- Attach mint redeemers to witness set.
@@ -537,17 +534,6 @@ processLookupsAndConstraints
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
   where
-  -- Polymorphic helper to hash an Array of `Validator`s or `MintingPolicy`s
-  -- with a way to error.
-  hashScripts
-    :: forall (script :: Type) (scriptHash :: Type) (c :: Type)
-     . (script -> Aff (Maybe scriptHash))
-    -> (script -> MkUnbalancedTxError)
-    -> Array script
-    -> ConstraintsM c (Either MkUnbalancedTxError (Array scriptHash))
-  hashScripts hasher error =
-    liftAff <<< map sequence <<< traverse (\s -> note (error s) <$> hasher s)
-
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
   foldConstraints
