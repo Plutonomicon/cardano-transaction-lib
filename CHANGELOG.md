@@ -92,7 +92,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - The config accepted by `launchCtlRuntime` and `buildCtlRuntime` now takes a `ctl-server.enable` field. If `false`, `ctl-server` will not be launched.
 - `SlotLength` and `RelativeTime` in `EraSummary` from Ogmios are now of type `Number` instead of `BigInt`. Also add `Maybe` around some functions in `Type.Interval` or changed it's signature to use `Number`. ([#868](https://github.com/Plutonomicon/cardano-transaction-lib/issues/868))
 - Renamed `UtxoM` to `UtxoMap` ([#963](https://github.com/Plutonomicon/cardano-transaction-lib/pull/963))
-- Updated ODC version, this includes a new function `getDatumsByHashes':: QueryM (Map (Either String Datum))` . 
+- Updated ODC version, this includes a new function `getDatumsByHashes':: QueryM (Map DataHash (Either String Datum))`, it returns a `String` whenever ODC have an error retrieving the `DataHash` in turn. 
 
 ### Removed
 
