@@ -1,16 +1,18 @@
 module Serialization.PlutusData
   ( convertPlutusData
   , packPlutusList
+  , toCborBytes
   ) where
 
 import Prelude
 
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
-
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -27,6 +29,7 @@ import Serialization.Types
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
+import Types.CborBytes (CborBytes)
 import Types.PlutusData as T
 
 convertPlutusData :: T.PlutusData -> Maybe PlutusData
@@ -68,6 +71,9 @@ packPlutusList :: Array T.PlutusData -> Maybe PlutusList
 packPlutusList = map (_packPlutusList containerHelper)
   <<< traverse convertPlutusData
 
+toCborBytes :: T.PlutusData -> Maybe CborBytes
+toCborBytes = map (wrap <<< wrap <<< _plutusDataToBytes) <<< convertPlutusData
+
 foreign import _mkPlutusData_bytes :: ByteArray -> PlutusData
 foreign import _mkPlutusData_list :: PlutusList -> PlutusData
 foreign import _mkPlutusData_map :: PlutusMap -> PlutusData
@@ -84,3 +90,5 @@ foreign import _packMap
   -> (forall a b. Tuple a b -> b)
   -> Array (PlutusData /\ PlutusData)
   -> PlutusMap
+
+foreign import _plutusDataToBytes :: PlutusData -> Uint8Array

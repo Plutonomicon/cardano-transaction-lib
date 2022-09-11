@@ -33,3 +33,5 @@ exports._packMap = first => second => kvs => {
   }
   return res;
 };
+
+exports._plutusDataToBytes = data => data.to_bytes();
