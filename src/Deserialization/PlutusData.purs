@@ -1,6 +1,6 @@
 module Deserialization.PlutusData
   ( convertPlutusData
-  , fromCborBytes
+  , deserialiseData
   ) where
 
 import Prelude
@@ -19,6 +19,7 @@ import FfiHelpers
   , containerHelper
   , maybeFfiHelper
   )
+import FromData (class FromData, fromData)
 import Serialization.Types
   ( BigInt
   , ConstrPlutusData
@@ -77,6 +78,9 @@ fromCborBytes = flip bind convertPlutusData
   <<< _plutusDataFromBytes maybeFfiHelper
   <<< unwrap
   <<< unwrap
+
+deserialiseData :: forall a. FromData a => CborBytes -> Maybe a
+deserialiseData = fromData <=< fromCborBytes
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData

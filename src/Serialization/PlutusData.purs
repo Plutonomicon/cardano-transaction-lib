@@ -1,7 +1,7 @@
 module Serialization.PlutusData
   ( convertPlutusData
   , packPlutusList
-  , toCborBytes
+  , serialiseData
   ) where
 
 import Prelude
@@ -26,6 +26,7 @@ import Serialization.Types
   , PlutusList
   , PlutusMap
   )
+import ToData (class ToData, toData)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
@@ -73,6 +74,9 @@ packPlutusList = map (_packPlutusList containerHelper)
 
 toCborBytes :: T.PlutusData -> Maybe CborBytes
 toCborBytes = map (wrap <<< wrap <<< _plutusDataToBytes) <<< convertPlutusData
+
+serialiseData :: forall a. ToData a => a -> Maybe CborBytes
+serialiseData = toCborBytes <<< toData
 
 foreign import _mkPlutusData_bytes :: ByteArray -> PlutusData
 foreign import _mkPlutusData_list :: PlutusList -> PlutusData
