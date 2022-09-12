@@ -67,6 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Utxos.getWalletUtxos` function that calls CIP-30 `getUtxos` method. ([#961](https://github.com/Plutonomicon/cardano-transaction-lib/issues/961))
 - Lode wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 - Added `Contract.Transaction.lookupTxHash` helper function ([#957](https://github.com/Plutonomicon/cardano-transaction-lib/issues/957))
+- Added conversion functions between `PlutusData` and `CborBytes` ([#1001](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1001))
 
 ### Changed
 
