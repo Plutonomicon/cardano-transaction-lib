@@ -75,29 +75,29 @@ type JsonWspResponse (a :: Type) =
   }
 
 -- | A wrapper for tying arguments and response types to request building.
-newtype JsonWspCall :: Type -> Type
-newtype JsonWspCall (i :: Type) = JsonWspCall
+newtype JsonWspCall :: Type -> Type -> Type
+newtype JsonWspCall (i :: Type) (o :: Type) = JsonWspCall
   (i -> Effect { body :: Aeson, id :: String })
 
 -- | Creates a "jsonwsp call" which ties together request input and response output types
 -- | along with a way to create a request object.
 mkCallType
-  :: forall (a :: Type) (i :: Type)
+  :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeAeson (JsonWspRequest a)
   => { type :: String
      , version :: String
      , servicename :: String
      }
   -> { methodname :: String, args :: i -> a }
-  -> JsonWspCall i
+  -> JsonWspCall i o
 mkCallType service { methodname, args } = JsonWspCall $ \i -> do
   req <- mkJsonWspRequest service { methodname, args: args i }
   pure { body: encodeAeson req, id: req.mirror }
 
 -- | Create a JsonWsp request body and id
 buildRequest
-  :: forall (i :: Type)
-   . JsonWspCall i
+  :: forall (i :: Type) (o :: Type)
+   . JsonWspCall i o
   -> i
   -> Effect { body :: Aeson, id :: String }
 buildRequest (JsonWspCall c) = c
