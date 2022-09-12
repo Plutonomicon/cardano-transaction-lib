@@ -100,7 +100,7 @@ mkAssertions params@(ContractParams p) = do
           \{ txFinalFee } -> pure (p.adaToSend + txFinalFee)
 
       , TestUtils.assertTokenGainAtAddress' (label senderAddress "Sender")
-          ( uncurry3 (\cs tn amount -> cs /\ tn /\ (one + amount))
+          ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
               p.tokensToMint
           )
       ]
