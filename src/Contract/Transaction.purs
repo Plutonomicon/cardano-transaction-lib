@@ -457,7 +457,8 @@ balanceTxsWithAddressWithAdditionalUtxos ownAddress unbalancedTxs =
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
-  balanceAndLock :: UnattachedUnbalancedTx -> UtxoMap -> Contract r FinalizedTransaction
+  balanceAndLock
+    :: UnattachedUnbalancedTx -> UtxoMap -> Contract r FinalizedTransaction
   balanceAndLock unbalancedTx utxos = do
     networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
@@ -507,8 +508,8 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
 balanceTxs unbalancedTxs =
- balanceTxsWithAdditionalUtxos $
-   (flip (/\) $ Map.empty) <$> unbalancedTxs
+  balanceTxsWithAdditionalUtxos $
+    (flip (/\) $ Map.empty) <$> unbalancedTxs
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
@@ -569,7 +570,7 @@ balanceAndSignTxWithAdditionalUtxos
    . UnattachedUnbalancedTx
   -> UtxoMap
   -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTxWithAdditionalUtxos tx utxos = 
+balanceAndSignTxWithAdditionalUtxos tx utxos =
   pure <$> internalBalanceAndSignTxWithAdditionalUtxos tx utxos
 
 -- | Balances an unbalanced transaction and signs it.
@@ -607,7 +608,6 @@ internalBalanceAndSignTxWithAdditionalUtxos tx utxos =
       [ x ] -> pure x
       _ -> liftEffect $ throw $
         "Unexpected internal error during transaction signing"
-
 
 -- | Like `balanceAndSignTxE`, but uses an additional `UtxoMap`.
 balanceAndSignTxWithAdditionalUtxosE

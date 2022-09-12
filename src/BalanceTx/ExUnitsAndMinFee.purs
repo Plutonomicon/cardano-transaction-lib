@@ -78,9 +78,11 @@ evalTxExecutionUnits tx unattachedTx utxos = do
   additionalUtxoSet = Ogmios.AdditionalUtxoSet $ Map.fromFoldable utxos'
 
   utxos' :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
-  utxos' = (\(inp /\ out) ->
-        (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out))
-    <$> Map.toUnfoldable utxos
+  utxos' =
+    ( \(inp /\ out) ->
+        (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out)
+    )
+      <$> Map.toUnfoldable utxos
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.

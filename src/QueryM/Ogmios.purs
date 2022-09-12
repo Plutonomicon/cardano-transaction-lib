@@ -1285,14 +1285,14 @@ instance EncodeAeson AdditionalUtxoSet where
       { "txId": inp.txId
       , "index": inp.index
       }
-      /\
-      { "address": out.address
-      , "datumHash": out.datum
-      , "value":
-          { "coins": out.value # valueToCoin # getLovelace
-          , "assets": out.value # getNonAdaAsset # encodeNonAdaAsset
+        /\
+          { "address": out.address
+          , "datumHash": out.datum
+          , "value":
+              { "coins": out.value # valueToCoin # getLovelace
+              , "assets": out.value # getNonAdaAsset # encodeNonAdaAsset
+              }
           }
-      }
 
     encodeNonAdaAsset assets = encodeMap $
       foldl

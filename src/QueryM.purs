@@ -410,7 +410,8 @@ submitTxOgmios txHash tx = do
     _.submit
     inp
 
-evaluateTxOgmios :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
+evaluateTxOgmios
+  :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios cbor utxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
@@ -420,8 +421,6 @@ evaluateTxOgmios cbor utxos = do
     Ogmios.evaluateTxCall
     _.evaluate
     inp
-
-
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -961,7 +960,8 @@ type OgmiosListeners =
   , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
-  , evaluate :: ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
+  , evaluate ::
+      ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
