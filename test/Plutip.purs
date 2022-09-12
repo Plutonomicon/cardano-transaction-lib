@@ -93,6 +93,7 @@ import Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
+import Examples.OneShotMinting (contract) as OneShotMinting
 import Examples.PlutusV2.InlineDatum as InlineDatum
 import Examples.Lose7Ada as AlwaysFails
 import Examples.MintsMultipleTokens
@@ -806,6 +807,16 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
+
+    test "runPlutipContract: Examples.OneShotMinting" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice OneShotMinting.contract
 
     test "runPlutipContract: Examples.ContractTestUtils" do
       let
