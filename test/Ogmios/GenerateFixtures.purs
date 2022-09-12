@@ -98,7 +98,7 @@ data Query = Query (JsonWspCall Unit Aeson) String
 mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
 mkQuery query shown = Query queryCall shown
   where
-  queryCall = mkOgmiosCallType 
+  queryCall = mkOgmiosCallType
     { methodname: "Query"
     , args: const { query }
     }
