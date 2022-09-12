@@ -34,7 +34,7 @@ module QueryM.Ogmios
       , NoCostModelForLanguage
       )
   , AdditionalUtxoSet(AdditionalUtxoSet)
-  , utxoMapToAdditionalUtxoSet
+  , OgmiosUtxoMap
   , OgmiosDatum
   , OgmiosScript
   , OgmiosTxIn
@@ -91,7 +91,6 @@ import Cardano.Types.Transaction
   , Language(PlutusV1)
   , Nonce
   , SubCoin
-  , UtxoMap
   )
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value
@@ -101,6 +100,11 @@ import Cardano.Types.Value
   , mkCurrencySymbol
   , mkNonAdaAsset
   , mkValue
+  , valueToCoin
+  , getLovelace
+  , getNonAdaAsset
+  , getCurrencySymbol
+  , flattenNonAdaValue
   )
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
@@ -130,7 +134,7 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
-import Helpers (showWithParens)
+import Helpers (showWithParens, encodeMap)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
@@ -148,8 +152,6 @@ import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
--- TODO: cyclic dependencies
-import TxOutput (transactionInputToTxOutRef, transactionOutputToOgmiosTxOut)
 
 --------------------------------------------------------------------------------
 -- Local State Query Protocol
@@ -1269,19 +1271,35 @@ newtype AdditionalUtxoSet = AdditionalUtxoSet OgmiosUtxoMap
 
 derive newtype instance Show AdditionalUtxoSet
 
-type OgmiosUtxoMap = Map.Map OgmiosTxOutRef OgmiosTxOut
+type OgmiosUtxoMap = Map OgmiosTxOutRef OgmiosTxOut
 
-utxoMapToAdditionalUtxoSet :: UtxoMap -> AdditionalUtxoSet
-utxoMapToAdditionalUtxoSet utxos = AdditionalUtxoSet $ Map.fromFoldable t
-  where
-  t :: Array (OgmiosTxOutRef /\ OgmiosTxOut)
-  t = (\(inp /\ out) ->
-        (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out))
-    <$> Map.toUnfoldable utxos
+instance EncodeAeson AdditionalUtxoSet where
+  encodeAeson' (AdditionalUtxoSet m) =
+    encodeAeson' $ encode <$> utxos
 
+    where
+    utxos :: Array (OgmiosTxOutRef /\ OgmiosTxOut)
+    utxos = Map.toUnfoldable m
 
--- TODO:
--- instance EncodeAeson AdditionalUtxoSet where
+    encode (inp /\ out) =
+      { "txId": inp.txId
+      , "index": inp.index
+      }
+      /\
+      { "address": out.address
+      , "datumHash": out.datum
+      , "value":
+          { "coins": out.value # valueToCoin # getLovelace
+          , "assets": out.value # getNonAdaAsset # encodeNonAdaAsset
+          }
+      }
+
+    encodeNonAdaAsset assets = encodeMap $
+      foldl
+        -- TODO: use token name
+        (\m (cs /\ _tn /\ n) -> Map.insert (getCurrencySymbol cs) n m)
+        Map.empty
+        (flattenNonAdaValue assets)
 
 ---------------- UTXO QUERY RESPONSE & PARSING
 
