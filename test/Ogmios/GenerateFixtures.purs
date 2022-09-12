@@ -41,7 +41,6 @@ import QueryM
 import QueryM.JsonWsp (JsonWspCall)
 import QueryM.Ogmios (mkOgmiosCallType)
 import QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Type.Prelude (Proxy(Proxy))
 import Types.MultiMap as MultiMap
 import Data.Map as Map
 
