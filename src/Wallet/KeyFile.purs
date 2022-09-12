@@ -1,9 +1,11 @@
 -- | **NodeJS-only module**
 module Wallet.KeyFile
-  ( privatePaymentKeyFromFile
-  , privateStakeKeyFromFile
-  , keyFromFile
+  ( keyFromFile
+  , privatePaymentKeyFromFile
+  , privatePaymentKeyFromString
   , privatePaymentKeyToFile
+  , privateStakeKeyFromFile
+  , privateStakeKeyFromString
   , privateStakeKeyToFile
   , formatStakeKey
   , formatPaymentKey
@@ -17,10 +19,14 @@ import Cardano.TextEnvelope
       ( PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
+  , printTextEnvelopeDecodeError
   , textEnvelopeBytes
   )
-import Data.Newtype (wrap)
+import Control.Monad.Error.Class (liftEither)
+import Data.Bifunctor (lmap)
+import Data.Either (hush)
 import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
@@ -40,7 +46,18 @@ import Wallet.Key
 keyFromFile :: FilePath -> TextEnvelopeType -> Aff ByteArray
 keyFromFile filePath ty = do
   fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
-  textEnvelopeBytes fileContents ty
+  liftEither $ lmap (error <<< printTextEnvelopeDecodeError) $
+    textEnvelopeBytes fileContents ty
+
+privatePaymentKeyFromString :: String -> Maybe PrivatePaymentKey
+privatePaymentKeyFromString jsonString = do
+  bytes <- hush $ textEnvelopeBytes jsonString PaymentSigningKeyShelleyed25519
+  PrivatePaymentKey <$> privateKeyFromBytes (wrap bytes)
+
+privateStakeKeyFromString :: String -> Maybe PrivateStakeKey
+privateStakeKeyFromString jsonString = do
+  bytes <- hush $ textEnvelopeBytes jsonString StakeSigningKeyShelleyed25519
+  PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
 privatePaymentKeyFromFile filePath = do

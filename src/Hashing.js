@@ -1,6 +1,6 @@
 /* global BROWSER_RUNTIME */
 
-const Blake2bWasm = require("blake2b-wasm");
+const Blake2 = require("blakejs");
 const SHA256 = require("jssha/dist/sha256");
 const SHA3 = require("jssha/dist/sha3");
 
@@ -11,54 +11,23 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
-// -----------------------------------------------------------------------------
-// blake2b256Hash, blake2b256HashHex, hashPlutusData, hashPlutusScript
-// -----------------------------------------------------------------------------
-
-const DIGEST_LENGTH_256 = 32;
-const DIGEST_LENGTH_224 = 28;
-const DIGEST_ENCODING_BINARY = "binary";
-const DIGEST_ENCODING_HEX = "hex";
-
-const blake2bHash = bytesToHash => digestLength => digestEncoding => {
-  return new Promise((resolve, reject) => {
-    Blake2bWasm.ready(error => {
-      if (error || !Blake2bWasm.SUPPORTED) {
-        reject(new Error("Failed to calculate Blake2b hash"));
-      } else {
-        const digest = Blake2bWasm(digestLength)
-          .update(Buffer.from(bytesToHash))
-          .digest(digestEncoding);
-        resolve(digest);
-      }
-    });
-  });
+exports.blake2b256Hash = bytesToHash => {
+  return Blake2.blake2b(bytesToHash, null, 32);
 };
 
-exports._blake2b256Hash = bytesToHash => () => {
-  return blake2bHash(bytesToHash)(DIGEST_LENGTH_256)(DIGEST_ENCODING_BINARY);
-};
-
-exports._blake2b256HashHex = bytesToHash => () => {
-  return blake2bHash(bytesToHash)(DIGEST_LENGTH_256)(DIGEST_ENCODING_HEX);
+exports.blake2b256HashHex = bytesToHash => {
+  return Blake2.blake2bHex(bytesToHash, null, 32);
 };
 
 exports.hashPlutusData = plutusData => {
   return lib.hash_plutus_data(plutusData).to_bytes();
 };
 
-exports.hashPlutusScript = plutusScriptBytes => () => {
-  // set Plutus language namespace byte
-  const bytes = new Uint8Array([0x1, ...plutusScriptBytes]);
-  return blake2bHash(bytes)(DIGEST_LENGTH_224)(DIGEST_ENCODING_BINARY);
-};
-
-// -----------------------------------------------------------------------------
-// sha256Hash, sha256HashHex, sha3_256Hash, sha3_256HashHex
-// -----------------------------------------------------------------------------
+exports.hashPlutusScript = script => script.hash();
 
 const SHA256_HASH_VARIANT = "SHA-256";
 const SHA3_256_HASH_VARIANT = "SHA3-256";
+
 const UINT8ARRAY_FORMAT = "UINT8ARRAY";
 const HEX_FORMAT = "HEX";
 

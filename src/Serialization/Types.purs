@@ -12,6 +12,7 @@ module Serialization.Types
   , ConstrPlutusData
   , CostModel
   , Costmdls
+  , DataCost
   , DataHash
   , Ed25519KeyHashes
   , Ed25519Signature
@@ -58,6 +59,7 @@ module Serialization.Types
   , ScriptDataHash
   , ScriptNOfK
   , ScriptPubkey
+  , ScriptRef
   , SingleHostAddr
   , SingleHostName
   , TimelockExpiry
@@ -101,6 +103,7 @@ foreign import data Certificates :: Type
 foreign import data ConstrPlutusData :: Type
 foreign import data CostModel :: Type
 foreign import data Costmdls :: Type
+foreign import data DataCost :: Type
 foreign import data DataHash :: Type
 foreign import data Ed25519KeyHashes :: Type
 foreign import data Ed25519Signature :: Type
@@ -147,6 +150,7 @@ foreign import data ScriptAny :: Type
 foreign import data ScriptDataHash :: Type
 foreign import data ScriptNOfK :: Type
 foreign import data ScriptPubkey :: Type
+foreign import data ScriptRef :: Type
 foreign import data SingleHostAddr :: Type
 foreign import data SingleHostName :: Type
 foreign import data TimelockExpiry :: Type

@@ -80,6 +80,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Cardano.Types.Transaction (_witnessSet)
 import Cardano.Types.Transaction as Transaction
 import Control.Monad.Error.Class
   ( class MonadError
@@ -95,6 +96,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
+import Data.Lens ((<>~))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
@@ -105,6 +107,7 @@ import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple (fst) as Tuple
+import Data.Tuple (fst, snd, Tuple(Tuple))
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
 import Effect.Aff
@@ -178,22 +181,29 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Scripts (PlutusScript)
 import Types.Transaction (TransactionInput)
+import Types.Scripts (PlutusScript(PlutusScript), Language)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, KeyWallet)
+  , Wallet(Gero, Flint, Nami, Lode, KeyWallet)
   , mkGeroWalletAff
   , mkFlintWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
+  , mkLodeWalletAff
   )
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToGero
+      , ConnectToNami
+      , ConnectToFlint
+      , ConnectToLode
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
@@ -348,6 +358,7 @@ mkWalletBySpec = case _ of
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
   ConnectToFlint -> mkFlintWalletAff
+  ConnectToLode -> mkLodeWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -477,9 +488,10 @@ getWalletAddress :: QueryM (Maybe Address)
 getWalletAddress = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
-    Nami nami -> callCip30Wallet nami _.getWalletAddress
-    Gero gero -> callCip30Wallet gero _.getWalletAddress
-    Flint flint -> callCip30Wallet flint _.getWalletAddress
+    Nami wallet -> callCip30Wallet wallet _.getWalletAddress
+    Gero wallet -> callCip30Wallet wallet _.getWalletAddress
+    Flint wallet -> callCip30Wallet wallet _.getWalletAddress
+    Lode wallet -> callCip30Wallet wallet _.getWalletAddress
     KeyWallet kw -> Just <$> (unwrap kw).address networkId
 
 signTransaction
@@ -488,7 +500,10 @@ signTransaction tx = withMWalletAff case _ of
   Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
   Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
   Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
-  KeyWallet kw -> Just <$> (unwrap kw).signTx tx
+  Lode lode -> callCip30Wallet lode \nw -> flip nw.signTx tx
+  KeyWallet kw -> do
+    witnessSet <- (unwrap kw).signTx tx
+    pure $ Just (tx # _witnessSet <>~ witnessSet)
 
 ownPubKeyHash :: QueryM (Maybe PubKeyHash)
 ownPubKeyHash = do
@@ -558,9 +573,9 @@ applyArgs
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = asks (_.ctlServerConfig <<< _.config) >>= case _ of
-  Nothing ->
-    pure
+applyArgs script args =
+  asks (_.ctlServerConfig <<< _.config) >>= case _ of
+    Nothing -> pure
       $ Left
       $
         ClientOtherError
@@ -570,32 +585,36 @@ applyArgs script args = asks (_.ctlServerConfig <<< _.config) >>= case _ of
           \provided host and port. The `ctl-server` packages can be obtained \
           \from `overlays.ctl-server` defined in CTL's flake. Please see \
           \`doc/runtime.md` in the CTL repository for more information"
-  Just config -> case traverse plutusDataToAeson args of
-    Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
-    Just ps -> do
-      let
-        url :: String
-        url = mkHttpUrl config <> "/apply-args"
+    Just config -> case traverse plutusDataToAeson args of
+      Nothing -> pure $ Left $ ClientEncodingError
+        "Failed to convert script args"
+      Just ps -> do
+        let
+          language :: Language
+          language = snd $ unwrap $ unwrap script
 
-        reqBody :: Aeson
-        reqBody = encodeAeson
-          $ Object.fromFoldable
-              [ "script" /\ scriptToAeson (unwrap script)
-              , "args" /\ encodeAeson ps
-              ]
+          url :: String
+          url = mkHttpUrl config <> "/apply-args"
 
-      liftAff (postAeson url reqBody)
-        <#> map wrap <<< handleAffjaxResponse
-    where
-    plutusDataToAeson :: PlutusData -> Maybe Aeson
-    plutusDataToAeson =
-      map
-        ( encodeAeson
-            <<< byteArrayToHex
-            <<< Serialization.toBytes
-            <<< asOneOf
-        )
-        <<< Serialization.convertPlutusData
+          reqBody :: Aeson
+          reqBody = encodeAeson
+            $ Object.fromFoldable
+                [ "script" /\ scriptToAeson (unwrap script)
+                , "args" /\ encodeAeson ps
+                ]
+        liftAff (postAeson url reqBody)
+          <#> map (wrap <<< PlutusScript <<< flip Tuple language) <<<
+            handleAffjaxResponse
+  where
+  plutusDataToAeson :: PlutusData -> Maybe Aeson
+  plutusDataToAeson =
+    map
+      ( encodeAeson
+          <<< byteArrayToHex
+          <<< Serialization.toBytes
+          <<< asOneOf
+      )
+      <<< Serialization.convertPlutusData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
@@ -632,7 +651,7 @@ postAeson url body = Affjax.request $ Affjax.defaultRequest
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
 scriptToAeson :: PlutusScript -> Aeson
-scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps
@@ -1006,9 +1025,10 @@ mkOgmiosRequest
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest = mkRequest
-  (asks $ listeners <<< _.ogmiosWs <<< _.runtime)
-  (asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime)
+mkOgmiosRequest jsonWspCall getLs inp = do
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
@@ -1030,9 +1050,10 @@ mkDatumCacheRequest
   -> (DatumCacheListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkDatumCacheRequest = mkRequest
-  (asks $ listeners <<< _.datumCacheWs <<< _.runtime)
-  (asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime)
+mkDatumCacheRequest jsonWspCall getLs inp = do
+  listeners' <- asks $ listeners <<< _.datumCacheWs <<< _.runtime
+  websocket <- asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds a Datum Cache request action using `Aff`
 mkDatumCacheRequestAff
@@ -1049,15 +1070,13 @@ mkDatumCacheRequestAff datumCacheWs = mkRequestAff
 
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . QueryM listeners
-  -> QueryM JsWebSocket
+   . listeners
+  -> JsWebSocket
   -> JsonWsp.JsonWspCall request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkRequest getListeners getWebSocket jsonWspCall getLs inp = do
-  ws <- getWebSocket
-  listeners' <- getListeners
+mkRequest listeners' ws jsonWspCall getLs inp = do
   logger <- getLogger
   liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
 
