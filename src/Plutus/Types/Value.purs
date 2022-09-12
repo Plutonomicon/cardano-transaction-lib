@@ -22,6 +22,7 @@ module Plutus.Types.Value
   , unionWith
   , valueOf
   , valueToCoin
+  , valueToCoin'
   ) where
 
 import Prelude hiding (eq)
@@ -131,6 +132,10 @@ coinToValue (Coin i) = lovelaceValueOf i
 -- | Get the `Coin` in the given `Value`.
 valueToCoin :: Value -> Coin
 valueToCoin v = Coin $ valueOf v adaSymbol adaToken
+
+-- | Get the `Coin` in the given `Value` as a `BigInt`.
+valueToCoin' :: Value -> BigInt
+valueToCoin' = getLovelace <<< valueToCoin
 
 -- | Check whether an 'Ada' value is zero.
 isCoinZero :: Coin -> Boolean

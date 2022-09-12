@@ -151,7 +151,6 @@ ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
 ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
 
--- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId
 getNetworkId = wrapContract QueryM.getNetworkId

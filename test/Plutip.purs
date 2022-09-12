@@ -87,6 +87,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.ContractTestUtils as ContractTestUtils
 import Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
@@ -125,6 +126,7 @@ import Plutus.Types.Value (lovelaceValueOf)
 import Safe.Coerce (coerce)
 import Scripts (nativeScriptHashEnterpriseAddress)
 import Test.AffInterface as AffInterface
+import Test.Fixtures (cip25MetadataFixture1)
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.Logging as Logging
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
@@ -804,6 +806,34 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
+
+    test "runPlutipContract: Examples.ContractTestUtils" do
+      let
+        initialUtxos :: InitialUTxOs
+        initialUtxos =
+          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution = initialUtxos /\ initialUtxos
+
+      runPlutipContract config distribution \(alice /\ bob) -> do
+        receiverPkh <- liftedM "Unable to get Bob's PKH" $
+          withKeyWallet bob ownPaymentPubKeyHash
+        receiverSkh <- withKeyWallet bob ownStakePubKeyHash
+
+        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+        tn <- mkTokenName "TheToken"
+
+        withKeyWallet alice $ ContractTestUtils.contract $
+          ContractTestUtils.ContractParams
+            { receiverPkh
+            , receiverSkh
+            , adaToSend: BigInt.fromInt 5_000_000
+            , mintingPolicy
+            , tokensToMint: cs /\ tn /\ one /\ unit
+            , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
+            , txMetadata: cip25MetadataFixture1
+            }
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
