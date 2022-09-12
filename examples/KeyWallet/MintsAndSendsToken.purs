@@ -40,4 +40,3 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
   awaitTxConfirmed txId
   liftEffect unlock
-

@@ -20,6 +20,10 @@ module Plutus.Conversion
   , fromPlutusTxOutput
   , toPlutusTxOutput
 
+  -- Plutus TransactionOutputWithRefScript <-> Cardano TransactionOutput
+  , fromPlutusTxOutputWithRefScript
+  , toPlutusTxOutputWithRefScript
+
   -- Plutus TransactionUnspentOutput <-> Cardano TransactionUnspentOutput
   , fromPlutusTxUnspentOutput
   , toPlutusTxUnspentOutput
@@ -31,35 +35,31 @@ module Plutus.Conversion
 
 import Prelude
 
+import Cardano.Types.ScriptRef (ScriptRef)
+import Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Cardano
+import Cardano.Types.Value (Coin) as Cardano
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Traversable (traverse)
-
-import Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  ) as Cardano
-import Cardano.Types.Value (Coin) as Cardano
-
-import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
-import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import Plutus.Types.Transaction (TransactionOutput, UtxoMap) as Plutus
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
-import Plutus.Types.Value (Coin) as Plutus
-
+import Hashing (scriptRefHash)
 import Serialization.Address (NetworkId)
-
+import Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
-
-import Plutus.Conversion.Value
-  ( fromPlutusValue
-  , toPlutusValue
-  ) as Conversion.Value
+import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
+import Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
+import Plutus.Types.Transaction
+  ( TransactionOutput
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  , UtxoMap
+  ) as Plutus
+import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
+import Plutus.Types.Value (Coin) as Plutus
 
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin
@@ -76,15 +76,19 @@ toPlutusCoin = wrap <<< unwrap
 --------------------------------------------------------------------------------
 
 fromPlutusTxOutput
-  :: NetworkId -> Plutus.TransactionOutput -> Cardano.TransactionOutput
-fromPlutusTxOutput networkId plutusTxOut =
+  :: NetworkId
+  -> Maybe ScriptRef
+  -> Plutus.TransactionOutput
+  -> Cardano.TransactionOutput
+fromPlutusTxOutput networkId scriptRef plutusTxOut =
   let
     rec = unwrap plutusTxOut
   in
     wrap
       { address: fromPlutusAddress networkId rec.address
       , amount: fromPlutusValue rec.amount
-      , dataHash: rec.dataHash
+      , datum: rec.datum
+      , scriptRef
       }
 
 toPlutusTxOutput
@@ -92,8 +96,30 @@ toPlutusTxOutput
 toPlutusTxOutput cardanoTxOut = do
   let rec = unwrap cardanoTxOut
   address <- toPlutusAddress rec.address
-  let amount = toPlutusValue rec.amount
-  pure $ wrap { address, amount, dataHash: rec.dataHash }
+  let
+    amount = toPlutusValue rec.amount
+    referenceScript = scriptRefHash =<< rec.scriptRef
+  pure $ wrap
+    { address, amount, datum: rec.datum, referenceScript }
+
+--------------------------------------------------------------------------------
+-- Plutus TransactionOutputWithRefScript <-> Cardano TransactionOutput
+--------------------------------------------------------------------------------
+
+fromPlutusTxOutputWithRefScript
+  :: NetworkId
+  -> Plutus.TransactionOutputWithRefScript
+  -> Cardano.TransactionOutput
+fromPlutusTxOutputWithRefScript
+  networkId
+  (Plutus.TransactionOutputWithRefScript { output, scriptRef }) =
+  fromPlutusTxOutput networkId scriptRef output
+
+toPlutusTxOutputWithRefScript
+  :: Cardano.TransactionOutput -> Maybe Plutus.TransactionOutputWithRefScript
+toPlutusTxOutputWithRefScript cTxOutput =
+  toPlutusTxOutput cTxOutput
+    <#> wrap <<< { output: _, scriptRef: (unwrap cTxOutput).scriptRef }
 
 --------------------------------------------------------------------------------
 -- Plutus TransactionUnspentOutput <-> Cardano TransactionUnspentOutput
@@ -109,7 +135,7 @@ fromPlutusTxUnspentOutput networkId txUnspentOutput =
   in
     wrap
       { input: rec.input
-      , output: fromPlutusTxOutput networkId rec.output
+      , output: fromPlutusTxOutputWithRefScript networkId rec.output
       }
 
 toPlutusTxUnspentOutput
@@ -117,7 +143,7 @@ toPlutusTxUnspentOutput
   -> Maybe Plutus.TransactionUnspentOutput
 toPlutusTxUnspentOutput txUnspentOutput = do
   let rec = unwrap txUnspentOutput
-  output <- toPlutusTxOutput rec.output
+  output <- toPlutusTxOutputWithRefScript rec.output
   pure $ wrap { input: rec.input, output }
 
 --------------------------------------------------------------------------------
@@ -126,8 +152,8 @@ toPlutusTxUnspentOutput txUnspentOutput = do
 
 fromPlutusUtxoMap :: NetworkId -> Plutus.UtxoMap -> Cardano.UtxoMap
 fromPlutusUtxoMap networkId =
-  map (fromPlutusTxOutput networkId)
+  map (fromPlutusTxOutputWithRefScript networkId)
 
 toPlutusUtxoMap :: Cardano.UtxoMap -> Maybe Plutus.UtxoMap
 toPlutusUtxoMap =
-  traverse toPlutusTxOutput
+  traverse toPlutusTxOutputWithRefScript

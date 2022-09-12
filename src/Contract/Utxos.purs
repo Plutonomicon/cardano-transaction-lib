@@ -23,7 +23,6 @@ import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction (UtxoMap)
 import Plutus.Types.Transaction (UtxoMap) as X
 import Plutus.Types.Value (Value)
-import Prim.TypeError (class Warn, Text)
 import QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxos
 
 -- | This module defines query functionality via Ogmios to get utxos.
@@ -36,11 +35,7 @@ import QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxo
 -- | [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/536).
 utxosAt
   :: forall (r :: Row Type)
-   . Warn
-       ( Text
-           "`utxosAt`: Querying for UTxOs by address is deprecated. See https://github.com/Plutonomicon/cardano-transaction-lib/issues/536."
-       )
-  => Address
+   . Address
   -> Contract r (Maybe UtxoMap)
 utxosAt address = do
   networkId <- asks (_.networkId <<< _.config <<< unwrap)

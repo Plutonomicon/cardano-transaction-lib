@@ -8,11 +8,22 @@ module Contract.Scripts
   , module ExportQueryM
   , module ExportScripts
   , module Hash
+  , module NativeScript
   , module TypedValidator
   , module TypesScripts
   ) where
 
 import Aeson (class DecodeAeson)
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as NativeScript
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
 -- the CSL API and converted to use Plutus types.
