@@ -79,7 +79,7 @@ fromCborBytes = flip bind convertPlutusData
   <<< unwrap
   <<< unwrap
 
-deserialiseData :: forall a. FromData a => CborBytes -> Maybe a
+deserialiseData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
 deserialiseData = fromData <=< fromCborBytes
 
 foreign import _PlutusData_constr

@@ -75,7 +75,7 @@ packPlutusList = map (_packPlutusList containerHelper)
 toCborBytes :: T.PlutusData -> Maybe CborBytes
 toCborBytes = map (wrap <<< wrap <<< _plutusDataToBytes) <<< convertPlutusData
 
-serialiseData :: forall a. ToData a => a -> Maybe CborBytes
+serialiseData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
 serialiseData = toCborBytes <<< toData
 
 foreign import _mkPlutusData_bytes :: ByteArray -> PlutusData
