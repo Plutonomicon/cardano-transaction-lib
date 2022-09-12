@@ -5,11 +5,9 @@ module Contract.Test.Utils
   , ContractAssertionFailure
       ( CouldNotGetTxByHash
       , CouldNotGetUtxosAtAddress
-      , CouldNotHashDatum
       , CouldNotParseMetadata
-      , OutputHasNoDatumHash
       , TransactionHasNoMetadata
-      , UnexpectedDatumHashInOutput
+      , UnexpectedDatumInOutput
       , UnexpectedLovelaceDelta
       , UnexpectedMetadataValue
       , UnexpectedTokenDelta
@@ -29,7 +27,6 @@ module Contract.Test.Utils
   , assertLossAtAddress'
   , assertLovelaceDeltaAtAddress
   , assertOutputHasDatum
-  , assertOutputHasDatumHash
   , assertTokenDeltaAtAddress
   , assertTokenGainAtAddress
   , assertTokenGainAtAddress'
@@ -37,7 +34,7 @@ module Contract.Test.Utils
   , assertTokenLossAtAddress'
   , assertTxHasMetadata
   , checkBalanceDeltaAtAddress
-  , checkOutputHasDatumHash
+  , checkOutputHasDatum
   , label
   , unlabel
   , valueAtAddress
@@ -48,14 +45,12 @@ module Contract.Test.Utils
 import Prelude
 
 import Contract.Address (Address)
-import Contract.Hashing (datumHash)
 import Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
-import Contract.PlutusData (Datum)
+import Contract.PlutusData (OutputDatum)
 import Contract.Transaction
-  ( DataHash
-  , Transaction(Transaction)
+  ( Transaction(Transaction)
   , TransactionHash
-  , TransactionOutput
+  , TransactionOutputWithRefScript
   , getTxByHash
   )
 import Contract.Utxos (utxosAt)
@@ -77,12 +72,10 @@ import Types.ByteArray (byteArrayToHex)
 data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash
   | CouldNotGetUtxosAtAddress (Labeled Address)
-  | CouldNotHashDatum Datum
   | CouldNotParseMetadata Label
-  | OutputHasNoDatumHash (Labeled TransactionOutput) DataHash
   | TransactionHasNoMetadata TransactionHash (Maybe Label)
-  | UnexpectedDatumHashInOutput (Labeled TransactionOutput)
-      (ExpectedActual DataHash)
+  | UnexpectedDatumInOutput (Labeled TransactionOutputWithRefScript)
+      (ExpectedActual OutputDatum)
   | UnexpectedLovelaceDelta (Labeled Address) (ExpectedActual BigInt)
   | UnexpectedMetadataValue Label (ExpectedActual String)
   | UnexpectedTokenDelta (Labeled Address) TokenName (ExpectedActual BigInt)
@@ -94,22 +87,15 @@ instance Show ContractAssertionFailure where
   show (CouldNotGetUtxosAtAddress addr) =
     "Could not get utxos at " <> show addr
 
-  show (CouldNotHashDatum datum) =
-    "Could not hash datum " <> show datum
-
   show (CouldNotParseMetadata mdLabel) =
     "Could not parse " <> show mdLabel <> " metadata"
-
-  show (OutputHasNoDatumHash txOutput dataHash) =
-    show txOutput <> " output does not have datum hash " <> show dataHash
 
   show (TransactionHasNoMetadata txHash mdLabel) =
     "Tx with id " <> showTxHash txHash <> " does not hold "
       <> (maybe mempty (flip append " ") (show <$> mdLabel) <> "metadata")
 
-  show (UnexpectedDatumHashInOutput txOutput expectedActual) =
-    "Unexpected datum hash value in output "
-      <> (show txOutput <> show expectedActual)
+  show (UnexpectedDatumInOutput txOutput expectedActual) =
+    "Unexpected datum in output " <> (show txOutput <> show expectedActual)
 
   show (UnexpectedLovelaceDelta addr expectedActual) =
     "Unexpected lovelace delta at address "
@@ -251,7 +237,7 @@ valueAtAddress
   :: forall (r :: Row Type). Labeled Address -> Contract r Value
 valueAtAddress addr =
   assertContractM (CouldNotGetUtxosAtAddress addr) (utxosAt $ unlabel addr)
-    <#> foldMap (_.amount <<< unwrap)
+    <#> foldMap (_.amount <<< unwrap <<< _.output <<< unwrap)
 
 checkBalanceDeltaAtAddress
   :: forall (r :: Row Type) (a :: Type) (b :: Type)
@@ -390,41 +376,28 @@ assertTokenLossAtAddress'
 assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) =
   assertTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
 
--- | Requires that the transaction output contains the specified datum hash.
-assertOutputHasDatumHash
-  :: forall (r :: Row Type)
-   . DataHash
-  -> Labeled TransactionOutput
-  -> Contract r Unit
-assertOutputHasDatumHash expectedDatumHash txOutput = do
-  let mDatumHash = _.dataHash $ unwrap (unlabel txOutput)
-  datumHash <-
-    assertContractM' (OutputHasNoDatumHash txOutput expectedDatumHash)
-      mDatumHash
-  assertContractExpectedActual (UnexpectedDatumHashInOutput txOutput)
-    expectedDatumHash
-    datumHash
-
--- | Requires that the transaction output contains the hash of the specified 
--- | datum.
+-- | Requires that the transaction output contains the the specified datum.
 assertOutputHasDatum
   :: forall (r :: Row Type)
-   . Datum
-  -> Labeled TransactionOutput
+   . OutputDatum
+  -> Labeled TransactionOutputWithRefScript
   -> Contract r Unit
 assertOutputHasDatum expectedDatum txOutput = do
-  expectedDatumHash <-
-    assertContractM' (CouldNotHashDatum expectedDatum)
-      (datumHash expectedDatum)
-  assertOutputHasDatumHash expectedDatumHash txOutput
+  let
+    actualDatum = txOutput # unlabel >>> unwrap >>> _.output >>> unwrap >>>
+      _.datum
+  -- let actualDatum =  (unwrap (unlabel txOutput)).datum
+  assertContractExpectedActual (UnexpectedDatumInOutput txOutput)
+    expectedDatum
+    actualDatum
 
-checkOutputHasDatumHash
+checkOutputHasDatum
   :: forall (r :: Row Type)
-   . DataHash
-  -> Labeled TransactionOutput
+   . OutputDatum
+  -> Labeled TransactionOutputWithRefScript
   -> Contract r Boolean
-checkOutputHasDatumHash expected txOutput =
-  (assertOutputHasDatumHash expected txOutput *> pure true)
+checkOutputHasDatum expected txOutput =
+  (assertOutputHasDatum expected txOutput *> pure true)
     `catchError` (const $ pure false)
 
 -- | Requires that the transaction contains the specified metadata.

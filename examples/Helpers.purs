@@ -3,7 +3,7 @@ module Examples.Helpers
   , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
-  , mustPayWithDatumToPubKeyStakeAddress
+  , mustPayToPubKeyStakeAddressWithDatum
   ) where
 
 import Contract.Prelude
@@ -16,6 +16,7 @@ import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
 import Contract.Scripts (MintingPolicy)
 import Contract.Transaction (TransactionHash, balanceAndSignTxE, submit)
+import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
@@ -63,14 +64,15 @@ mustPayToPubKeyStakeAddress pkh Nothing =
 mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
 
-mustPayWithDatumToPubKeyStakeAddress
+mustPayToPubKeyStakeAddressWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> Datum
+  -> DatumPresence
   -> Value
   -> Constraints.TxConstraints i o
-mustPayWithDatumToPubKeyStakeAddress pkh Nothing =
-  Constraints.mustPayWithDatumToPubKey pkh
-mustPayWithDatumToPubKeyStakeAddress pkh (Just skh) =
-  Constraints.mustPayWithDatumToPubKeyAddress pkh skh
+mustPayToPubKeyStakeAddressWithDatum pkh Nothing dat dp =
+  Constraints.mustPayToPubKeyWithDatum pkh dat dp
+mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) dat dp =
+  Constraints.mustPayToPubKeyAddressWithDatum pkh skh dat dp
