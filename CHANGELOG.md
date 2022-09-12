@@ -9,19 +9,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [[Unreleased]](#unreleased)
   - [Added](#added)
   - [Changed](#changed)
-  - [Fixed](#fixed)
-- [[2.0.0-alpha] - 2022-07-06](#200-alpha---2022-07-06)
-  - [Added](#added-1)
   - [Removed](#removed)
+  - [Fixed](#fixed)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Added](#added-1)
   - [Changed](#changed-1)
+  - [Removed](#removed-1)
   - [Fixed](#fixed-1)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-2)
+  - [Removed](#removed-2)
+  - [Changed](#changed-2)
   - [Fixed](#fixed-2)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-3)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-4)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
+
+
 ## [Unreleased]
+
+### Added
+### Changed
+### Removed
+### Fixed
+
+## [2.0.0] - 2022-09-12
 
 ### Added
 
