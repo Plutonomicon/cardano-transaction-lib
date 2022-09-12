@@ -51,11 +51,15 @@ library
   build-depends:
     , aeson
     , base
+    , base16-bytestring
     , bytestring
+    , cborg
     , containers
     , exceptions
     , extra
+    , flat
     , plutus-ledger-api
+    , serialise
     , servant
     , servant-client
     , servant-docs
@@ -69,6 +73,7 @@ library
     Api
     Api.Handlers
     Paths_ctl_server
+    Plutus.Instances
     Types
 
 executable ctl-server

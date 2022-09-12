@@ -24,15 +24,29 @@ import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
 import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
-import Wallet (isGeroAvailable, isNamiAvailable, isFlintAvailable) as Wallet
+import Wallet
+  ( isGeroAvailable
+  , isNamiAvailable
+  , isFlintAvailable
+  , isLodeAvailable
+  ) as Wallet
 import Wallet (mkKeyWallet, Wallet(KeyWallet))
 import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
+  ( WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToLode
+      )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
 import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 
 withKeyWallet
