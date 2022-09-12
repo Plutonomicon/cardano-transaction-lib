@@ -65,15 +65,28 @@ Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `C
 
 ### Constraints and lookups
 
-CTL has adapted Plutus' constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
+CTL has adapted Plutus' Alonzo-era constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
 
-| Plutus                 | CTL               |
-| ---------------------- | ----------------- |
-| `mustPayToTheScript`   | _removed_         |
-| `mustPayToOtherScript` | `mustPayToScript` |
-| `otherScript`          | `validator`       |
-| `otherData`            | `datum`           |
-|                        |                   |
+| Plutus                 | CTL                           |
+| ---------------------- | ----------------------------- |
+| `mustPayToTheScript`   | _removed_                     |
+| `mustPayToOtherScript` | `mustPayToScript`             |
+| `otherScript`          | `validator`                   |
+| `otherData`            | `datum`                       |
+| _none_                 | `mustPayToNativeScript`       |
+| _none_                 | `mustSpendNativeScriptOutput` |
+
+Additionally, we implement `NativeScript` (multi-signature phase-1 script) support, which is not covered by Plutus.
+
+#### Babbage-era constraints
+
+CIPs 0031-0033 brought several improvements to Plutus and are supported from the Babbage era onwards:
+
+- [Reference inputs](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0031)
+- [Inline datums](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0032)
+- [Reference scripts](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0033)
+
+CTL has upgraded its constraints interface to work with these new features. At the time of writing, however, `plutus-apps` has not yet upgraded their constraints/lookups interface to support these new features. This means a direct comparison between `plutus-apps` and CTL regarding Babbage-era features is not currently possible. It also implies that, moving forward, CTL's constraints implementation will increasingly no longer match that of `plutus-apps`' to the same degree.
 
 ### Typed scripts
 
@@ -91,43 +104,25 @@ class ValidatorTypes (a :: Type) where
 Purescript lacks most of Haskell's more advanced type-level faculties, including type/data families. Purescript does, however, support functional dependencies, allowing us to encode `ValidatorTypes` as follows:
 
 ```purescript
+class ValidatorTypes :: Type -> Type -> Type -> Constraint
 class
-  ( DatumType a b
-  , RedeemerType a b
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
   ) <=
-  ValidatorTypes (a :: Type) (b :: Type)
-  | a -> b
+  ValidatorTypes validator datum redeemer
 
-class DatumType (a :: Type) (b :: Type) | a -> b
+class DatumType :: Type -> Type -> Constraint
+class DatumType validator datum | validator -> datum
 
-class RedeemerType (a :: Type) (b :: Type) | a -> b
+class RedeemerType :: Type -> Type -> Constraint
+class RedeemerType validator redeemer | validator -> redeemer
 ```
 
 ### Working with scripts
 
 #### Using scripts from the frontend
 
-As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is via `Contract.Scripts.PlutusScript`'s `DecodeAeson`, instance which decodes the script as JSON. Note that this method is offered solely for convenience; it merely converts a hexadecimal string into `CborBytes` (a `ByteArray` that represents a value encoded as CBOR), which could also be achieved manually.
-
-Using JSON is probably the simplest way of providing scripts to your CTL contracts. Two possible ways of achieving this:
-
-- Storing the script JSON as part of your build configuration, to be read from disk upon application startup
-- Embedding the scripts into a Purescript module directly, using the JS FFI. For example:
-
-  ```purescript
-  mintingPolicy :: Either JsonDecodeError MintingPolicy
-  mintingPolicy = wrap <$> decodeAeson _mintingPolicy
-
-  foreign import _mintingPolicy :: Aeson
-  ```
-
-  The corresponding FFI module would contain:
-
-  ```js
-  exports._mintingPolicy = "deadbeef";
-  ```
-
-  As shown above, such embedded scripts can be decoded as JSON for greater type safety, rather than attempting to pass types directly across the FFI boundary (which performs no validity checks)
+As noted above, all scripts and various script newtypes (`Validator`, `MintingPolicy`, etc...) must be explicitly passed to CTL. Unlike Plutus, where on- and off-chain code can freely share Haskell values, scripts must be provided to CTL in a serialized format. The easiest way to do this is using `Contract.TextEnvelope.textEnvelope` along with the JS FFI. See the [getting started guide](getting-started.md#using-compiled-scripts) for more details.
 
 #### Applying arguments to parameterized scripts
 

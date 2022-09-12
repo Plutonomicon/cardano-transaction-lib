@@ -1,65 +1,67 @@
-/* global require exports BROWSER_RUNTIME */
+/* global BROWSER_RUNTIME */
 
-var lib;
-if (typeof BROWSER_RUNTIME != 'undefined' && BROWSER_RUNTIME) {
-    lib = require('@emurgo/cardano-serialization-lib-browser');
-} else {
-    lib = require('@emurgo/cardano-serialization-lib-nodejs');
-}
+const getIsWalletAvailableFunctionName = wallet => {
+  const strs = {
+    nami: "isNamiWalletAvailable",
+    gerowallet: "isGeroWalletAvailable",
+    flint: "isFlintWalletAvailable",
+    LodeWallet: "isLodeWalletAvailable",
+  };
 
-// _enableNami :: Effect (Promise Cip30Connection)
-exports._enableNami = () =>
-    window.cardano.nami.enable();
-
-// _enableGero :: Effect (Promise Cip30Connection)
-exports._enableGero = () =>
-    window.cardano.gerowallet.enable();
-
-// _getAddress :: Cip30Connection -> Effect (Promise String)
-exports._getAddress = conn => () =>
-  conn.getUsedAddresses().then((addrs) => addrs[0]);
-
-// _getCollateral
-//   :: MaybeFfiHelper
-//   -> Cip30Connection
-//   -> Effect (Promise String)
-exports._getCollateral = maybe => conn => () =>
-  conn.experimental.getCollateral().then((utxos) => {
-  return utxos.length ? maybe.just(utxos[0]) : maybe.nothing;
-});
-
-// _signTx :: String -> Cip30Connection -> Effect (Promise String)
-exports._signTx = txHex => conn => () => {
-  return conn.signTx(txHex, true)
-      .catch(e => {
-          console.log("Error in signTx: ", e);
-          throw (JSON.stringify(e));
-      });
+  return strs[wallet] || "is?WalletAvailable";
 };
 
-// foreign import _attachSignature
-//   :: ByteArray
-//   -> ByteArray
-//   -> Effect (ByteArray)
-exports._attachSignature = txBytes => witBytes => () => {
-  const tx = lib.Transaction.from_bytes(txBytes);
-  const newWits = lib.TransactionWitnessSet.from_bytes(witBytes);
-  // .vkeys() may return undefined
-  const oldvkeyWits = tx.witness_set().vkeys() || lib.Vkeywitnesses.new();
-  const newvkeyWits = newWits.vkeys() || lib.Vkeywitnesses.new();
-
-  // Add old vkeyWits into the new set as well to make multi-sign possible
-  for (let i = 0; i < oldvkeyWits.len(); i++) {
-    newvkeyWits.add(oldvkeyWits.get(i));
-  }
-
-  const wits = tx.witness_set();
-  // If there are no vkeys in either witness set, we don't want to attach
-  // empty vkeys to tx witnesses
-  // (So in this case oldvkeyWits remain untouched).
-  if (newvkeyWits.len() != 0) {
-    wits.set_vkeys(newvkeyWits);
-  }
-
-  return lib.Transaction.new(tx.body(), wits, tx.auxiliary_data()).to_bytes();
+const wallets = {
+  nami: "nami",
+  flint: "flint",
+  gero: "gerowallet",
+  lode: "LodeWallet",
 };
+
+const nodeEnvError = new Error(
+  "`window` is not an object. Are you trying to run a Contract with" +
+    " connected light wallet in NodeJS environment?"
+);
+
+const checkNotNode = () => {
+  if (typeof window != "object") {
+    throw nodeEnvError;
+  }
+};
+
+const enableWallet = wallet => () => {
+  const isAvailable = isWalletAvailable(wallet)();
+  if (isAvailable) {
+    return window.cardano[wallet].enable().catch(e => {
+      throw new Error(
+        "enableWallet failed: " +
+          (typeof e.info == "string" ? e.info : e.toString())
+      );
+    });
+  } else {
+    throw new Error(
+      "Wallet is not available. Use `" +
+        getIsWalletAvailableFunctionName(wallet) +
+        "` before connecting."
+    );
+  }
+};
+
+exports._enableNami = enableWallet(wallets.nami);
+exports._enableGero = enableWallet(wallets.gero);
+exports._enableFlint = enableWallet(wallets.flint);
+exports._enableLode = enableWallet(wallets.lode);
+
+const isWalletAvailable = walletName => () => {
+  checkNotNode();
+  return (
+    typeof window.cardano != "undefined" &&
+    typeof window.cardano[walletName] != "undefined" &&
+    typeof window.cardano[walletName].enable == "function"
+  );
+};
+
+exports._isNamiAvailable = isWalletAvailable(wallets.nami);
+exports._isGeroAvailable = isWalletAvailable(wallets.gero);
+exports._isFlintAvailable = isWalletAvailable(wallets.flint);
+exports._isLodeAvailable = isWalletAvailable(wallets.lode);

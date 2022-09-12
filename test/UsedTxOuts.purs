@@ -8,8 +8,10 @@ import Data.Array (any, singleton, uncons)
 import Data.Foldable (all)
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap)
+import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
+import Effect.Aff (Aff)
 import Mote (test, group)
 import Partial.Unsafe (unsafePartial)
 import Test.Fixtures
@@ -87,12 +89,12 @@ buildSampleTransaction =
           }
       ]
   in
-    { tx: mkSampleTx txFixture1 (_ { inputs = usedTxOutRefs })
+    { tx: mkSampleTx txFixture1 (_ { inputs = Set.fromFoldable usedTxOutRefs })
     , usedTxOutRefs: unwrap <$> usedTxOutRefs
     , unusedTxOutRefs: unwrap <$> unusedTxOutRefs
     }
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "UsedTxOuts API tests" do
 
@@ -106,7 +108,7 @@ suite =
         -- starts empty
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
         -- lock
-        lockTransactionInputs tx
+        void $ lockTransactionInputs tx
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
@@ -120,7 +122,7 @@ suite =
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
         -- lock
-        lockTransactionInputs tx
+        void $ lockTransactionInputs tx
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
         anyTxOutsLocked unusedTxOutRefs `shouldReturn` false
 
@@ -134,7 +136,7 @@ suite =
         anyTxOutsLocked (usedTxOutRefs <> unusedTxOutRefs) `shouldReturn` false
 
         -- lock
-        lockTransactionInputs tx
+        void $ lockTransactionInputs tx
         allTxOutsLocked usedTxOutRefs `shouldReturn` true
 
         -- unlock 'head'

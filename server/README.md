@@ -1,12 +1,12 @@
 # ctl-server
 
-This is a small Haskell project to provide services to the `cardano-transaction-lib` frontend that cannot be achieved using Purescript
+This is a small Haskell project to provide services to the `cardano-transaction-lib` frontend that cannot be achieved using Purescript. For now we only use the server to apply arguments to Plutus scripts.
 
 ## Goals
 
 We plan on supporting at least the following features:
 
-- [x] Transaction fee estimation via `Cardano.Api`
+- [x] ~~Transaction fee estimation via `Cardano.Api`~~
 - [x] Plutus' `applyArguments` for applying `Data` arguments to scripts
 - [x] ~~Obtaining the hash of scripts (e.g. `validatorHash`, etc...)~~
 
@@ -49,97 +49,4 @@ The server executable can be built with `nix build .#ctl-server:exe:ctl-server` 
 
 ```javascript
 "4d01000033222220051200120011"
-```
-
-## POST /eval-ex-units
-
-### Request:
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The input should contain the CBOR of the tx (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-{"tx":"00"}
-```
-
-### Response:
-
-- Status code 200
-- Headers: []
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The `(RdmrPtr -> ExUnits)` map will be returned as a list of `RdmrPtrExUnits` objects with the following structure (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-[{"exUnitsSteps":0,"rdmrPtrTag":0,"exUnitsMem":0,"rdmrPtrIdx":0}]
-```
-
-## POST /fees
-
-### Request:
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The input should contain the intended number of witnesses and theCBOR of the tx (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-{"tx":"00","count":1}
-```
-
-### Response:
-
-- Status code 200
-- Headers: []
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The `Fee` will be returned encoded as a JSON string (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-"160265"
-```
-
-## POST /finalize
-
-### Request:
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The input should contain CBOR of tx, redeemers, individual Plutusdatums, and Plutus script hashes (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-{"tx":"00","redeemers":"00","datums":["00"]}
-```
-
-### Response:
-
-- Status code 200
-- Headers: []
-
-- Supported content types are:
-
-    - `application/json;charset=utf-8`
-    - `application/json`
-
-- The output is CBOR-encoded Tx (`application/json;charset=utf-8`, `application/json`):
-
-```javascript
-"84a300818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b569a0f5f6"
 ```

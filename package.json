@@ -1,6 +1,6 @@
 {
   "name": "cardano-transaction-lib",
-  "version": "1.1.0",
+  "version": "2.0.0-alpha",
   "description": "",
   "repository": {
     "type": "git",
@@ -10,22 +10,25 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npm run unit-test && npm run integration-test",
+    "test": "npm run unit-test && npm run integration-test && npm run plutip-test",
     "integration-test": "spago run --main Test.Integration",
-    "unit-test": "spago run --main Test.Unit",
+    "unit-test": "spago run --main Ctl.Test.Unit",
+    "plutip-test": "spago run --main Test.Plutip",
     "dev": "make run-dev",
     "build": "make run-build"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@emurgo/cardano-serialization-lib-browser": "10.1.0",
-    "@emurgo/cardano-serialization-lib-nodejs": "10.1.0",
+    "@emurgo/cardano-serialization-lib-browser": "11.0.5",
+    "@emurgo/cardano-serialization-lib-nodejs": "11.0.5",
+    "base64-js": "^1.5.1",
     "big-integer": "1.6.51",
     "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
     "jssha": "3.2.0",
     "node-polyfill-webpack-plugin": "1.1.4",
+    "puppeteer-core": "^15.3.2",
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
     "ws": "8.4.0",
@@ -35,7 +38,10 @@
     "buffer": "6.0.3",
     "html-webpack-plugin": "5.5.0",
     "webpack": "5.67.0",
-    "webpack-cli": "4.9.2",
+    "webpack-cli": "4.10",
     "webpack-dev-server": "4.7.4"
+  },
+  "prettier": {
+    "arrowParens": "avoid"
   }
 }

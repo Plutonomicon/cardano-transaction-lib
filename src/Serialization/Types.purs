@@ -4,7 +4,6 @@ module Serialization.Types
   , AuxiliaryData
   , AuxiliaryDataHash
   , BigInt
-  , BigNum
   , Bip32PublicKey
   , BootstrapWitness
   , BootstrapWitnesses
@@ -13,6 +12,7 @@ module Serialization.Types
   , ConstrPlutusData
   , CostModel
   , Costmdls
+  , DataCost
   , DataHash
   , Ed25519KeyHashes
   , Ed25519Signature
@@ -22,7 +22,6 @@ module Serialization.Types
   , GenesisDelegateHash
   , GenesisHash
   , GenesisKeyDelegation
-  , Int32
   , Ipv4
   , Ipv6
   , Language
@@ -48,8 +47,8 @@ module Serialization.Types
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
-  , ProtocolVersions
   , PublicKey
+  , PrivateKey
   , Redeemer
   , RedeemerTag
   , Redeemers
@@ -60,6 +59,7 @@ module Serialization.Types
   , ScriptDataHash
   , ScriptNOfK
   , ScriptPubkey
+  , ScriptRef
   , SingleHostAddr
   , SingleHostName
   , TimelockExpiry
@@ -87,6 +87,7 @@ module Serialization.Types
 import Prelude
 
 import Data.Function (on)
+import Aeson (class EncodeAeson, encodeAeson')
 import Types.ByteArray (ByteArray, byteArrayToHex)
 
 foreign import data AssetName :: Type
@@ -94,7 +95,6 @@ foreign import data Assets :: Type
 foreign import data AuxiliaryData :: Type
 foreign import data AuxiliaryDataHash :: Type
 foreign import data BigInt :: Type
-foreign import data BigNum :: Type
 foreign import data Bip32PublicKey :: Type
 foreign import data BootstrapWitness :: Type
 foreign import data BootstrapWitnesses :: Type
@@ -103,6 +103,7 @@ foreign import data Certificates :: Type
 foreign import data ConstrPlutusData :: Type
 foreign import data CostModel :: Type
 foreign import data Costmdls :: Type
+foreign import data DataCost :: Type
 foreign import data DataHash :: Type
 foreign import data Ed25519KeyHashes :: Type
 foreign import data Ed25519Signature :: Type
@@ -112,7 +113,6 @@ foreign import data GeneralTransactionMetadata :: Type
 foreign import data GenesisDelegateHash :: Type
 foreign import data GenesisHash :: Type
 foreign import data GenesisKeyDelegation :: Type
-foreign import data Int32 :: Type
 foreign import data Ipv4 :: Type
 foreign import data Ipv6 :: Type
 foreign import data Language :: Type
@@ -138,8 +138,8 @@ foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
 foreign import data ProtocolVersion :: Type
-foreign import data ProtocolVersions :: Type
 foreign import data PublicKey :: Type
+foreign import data PrivateKey :: Type
 foreign import data Redeemer :: Type
 foreign import data RedeemerTag :: Type
 foreign import data Redeemers :: Type
@@ -150,6 +150,7 @@ foreign import data ScriptAny :: Type
 foreign import data ScriptDataHash :: Type
 foreign import data ScriptNOfK :: Type
 foreign import data ScriptPubkey :: Type
+foreign import data ScriptRef :: Type
 foreign import data SingleHostAddr :: Type
 foreign import data SingleHostName :: Type
 foreign import data TimelockExpiry :: Type
@@ -173,18 +174,14 @@ foreign import data Vkeywitness :: Type
 foreign import data Vkeywitnesses :: Type
 foreign import data Withdrawals :: Type
 
-instance Show BigNum where
-  show = _to_str
-
-instance Eq BigNum where
-  eq = eq `on` show
-
 instance Show VRFKeyHash where
   show = _vrfKeyHashBytes >>> byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
 
-foreign import _to_str :: forall a. a -> String
+instance EncodeAeson VRFKeyHash where
+  encodeAeson' = _vrfKeyHashBytes >>> byteArrayToHex >>> encodeAeson'
+
 -- We can't use ToBytes class here, because of cyclic dependencies
 foreign import _vrfKeyHashBytes :: VRFKeyHash -> ByteArray

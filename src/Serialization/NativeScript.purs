@@ -5,11 +5,7 @@ module Serialization.NativeScript
 
 import Prelude
 
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
-import Data.UInt as UInt
-
-import Cardano.Types.Transaction
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -19,6 +15,8 @@ import Cardano.Types.Transaction
       , TimelockExpiry
       )
   ) as T
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.Address (Slot(Slot)) as T
 import Serialization.Hash (Ed25519KeyHash) as T
@@ -32,6 +30,7 @@ import Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
+import Types.BigNum (BigNum)
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
 convertNativeScripts = map packNativeScripts <<< traverse convertNativeScript
@@ -67,11 +66,11 @@ convertScriptNOfK n nss =
 
 convertTimelockStart :: T.Slot -> NativeScript
 convertTimelockStart (T.Slot slot) =
-  nativeScript_new_timelock_start $ mkTimelockStart $ UInt.toInt slot
+  nativeScript_new_timelock_start (mkTimelockStart slot)
 
 convertTimelockExpiry :: T.Slot -> NativeScript
 convertTimelockExpiry (T.Slot slot) =
-  nativeScript_new_timelock_expiry $ mkTimelockExpiry $ UInt.toInt slot
+  nativeScript_new_timelock_expiry (mkTimelockExpiry slot)
 
 packNativeScripts :: Array NativeScript -> NativeScripts
 packNativeScripts = _packNativeScripts containerHelper
@@ -83,8 +82,8 @@ foreign import _packNativeScripts
 foreign import mkScriptAll :: NativeScripts -> ScriptAll
 foreign import mkScriptAny :: NativeScripts -> ScriptAny
 foreign import mkScriptNOfK :: Int -> NativeScripts -> ScriptNOfK
-foreign import mkTimelockStart :: Int -> TimelockStart
-foreign import mkTimelockExpiry :: Int -> TimelockExpiry
+foreign import mkTimelockStart :: BigNum -> TimelockStart
+foreign import mkTimelockExpiry :: BigNum -> TimelockExpiry
 foreign import nativeScript_new_script_pubkey :: ScriptPubkey -> NativeScript
 foreign import nativeScript_new_script_all :: ScriptAll -> NativeScript
 foreign import nativeScript_new_script_any :: ScriptAny -> NativeScript

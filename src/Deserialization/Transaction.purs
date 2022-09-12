@@ -5,7 +5,6 @@ module Deserialization.Transaction
   , _adNativeScripts
   , _adPlutusScripts
   , _convertCert
-  , _convertLanguage
   , _convertMetadatum
   , _convertNonce
   , _txAuxiliaryData
@@ -36,7 +35,7 @@ module Deserialization.Transaction
   , _unpackMint
   , _unpackMintAssets
   , _unpackProtocolParamUpdate
-  , _unpackProtocolVersions
+  , _unpackProtocolVersion
   , _unpackUnitInterval
   , _unpackUpdate
   , _unpackWithdrawals
@@ -47,14 +46,13 @@ module Deserialization.Transaction
   , convertExUnitPrices
   , convertExUnits
   , convertGeneralTransactionMetadata
-  , convertLanguage
   , convertMetadataList
   , convertMetadataMap
   , convertMetadatum
   , convertMint
   , convertNonce
   , convertProtocolParamUpdate
-  , convertProtocolVersions
+  , convertProtocolVersion
   , convertTransaction
   , convertTxBody
   , convertUpdate
@@ -87,7 +85,6 @@ import Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Ipv4(Ipv4)
   , Ipv6(Ipv6)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
@@ -107,7 +104,7 @@ import Cardano.Types.Transaction
   ) as T
 import Cardano.Types.Value
   ( Coin(Coin)
-  , NonAdaAsset(NonAdaAsset)
+  , mkNonAdaAsset
   , scriptHashAsCurrencySymbol
   )
 import Control.Lazy (fix)
@@ -117,24 +114,24 @@ import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Ratio (Ratio, reduce)
+import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse, for)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Data.Variant (Variant, inj)
-import Deserialization.BigNum (bigNumToBigInt')
+import Data.Variant (Variant)
 import Deserialization.Error
   ( Err
   , FromCslRepError
-  , _fromCslRepError
   , addErrTrace
   , cslErr
   , fromCslRepError
   )
 import Deserialization.FromBytes (fromBytes')
+import Deserialization.Language (convertLanguage)
 import Deserialization.UnspentOutput (convertInput, convertOutput)
 import Deserialization.WitnessSet
   ( convertNativeScripts
@@ -144,10 +141,8 @@ import Deserialization.WitnessSet
 import Error (E)
 import FfiHelpers
   ( ContainerHelper
-  , ErrorFfiHelper
   , MaybeFfiHelper
   , containerHelper
-  , errorHelper
   , maybeFfiHelper
   )
 import Serialization (toBytes)
@@ -162,7 +157,6 @@ import Serialization.Types
   ( AssetName
   , AuxiliaryData
   , AuxiliaryDataHash
-  , BigNum
   , Certificate
   , CostModel
   , Costmdls
@@ -186,7 +180,7 @@ import Serialization.Types
   , PoolMetadata
   , PoolParams
   , ProtocolParamUpdate
-  , ProtocolVersions
+  , ProtocolVersion
   , Relay
   , ScriptDataHash
   , SingleHostAddr
@@ -203,6 +197,8 @@ import Serialization.Types
   , Withdrawals
   ) as Csl
 import Type.Row (type (+))
+import Types.BigNum (BigNum) as Csl
+import Types.BigNum (toBigInt') as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int (Int) as Csl
@@ -243,11 +239,12 @@ convertTxBody txBody = do
   inputs <-
     _txBodyInputs containerHelper txBody
       # traverse (convertInput >>> cslErr "TransactionInput")
+      <#> Set.fromFoldable
   outputs <-
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
   fee <-
-    Coin <$> (_txBodyFee txBody # bigNumToBigInt' "Tx fee")
+    Coin <$> (_txBodyFee txBody # BigNum.toBigInt' "Tx fee")
   let
     networkId =
       _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
@@ -262,10 +259,20 @@ convertTxBody txBody = do
     (map <<< map) M.fromFoldable
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
-        (bigNumToBigInt' "txbody withdrawals" >>> map Coin)
+        (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
+
+  let
+    cslReferenceInputs :: Array Csl.TransactionInput
+    cslReferenceInputs =
+      _txBodyReferenceInputs maybeFfiHelper containerHelper txBody
+        # fromMaybe mempty
+
+  referenceInputs <-
+    traverse (convertInput >>> cslErr "TransactionInput") cslReferenceInputs
+      <#> Set.fromFoldable
 
   certs <- addErrTrace "Tx body certificates"
     $ traverse (traverse convertCertificate)
@@ -273,22 +280,29 @@ convertTxBody txBody = do
         maybeFfiHelper
         txBody
 
-  validityStartInterval <-
-    traverse intToSlot $ _txBodyValidityStartInterval maybeFfiHelper txBody
+  collateralReturn <-
+    _txBodyCollateralReturn maybeFfiHelper txBody #
+      traverse (convertOutput >>> cslErr "TransactionOutput")
+
+  totalCollateral <-
+    _txBodyTotalCollateral maybeFfiHelper txBody # traverse
+      (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
 
   pure $ T.TxBody
     { inputs
     , outputs
     , fee
-    , ttl: map Slot <<< UInt.fromNumber' =<< _txBodyTtl maybeFfiHelper txBody
+    , ttl: Slot <$> _txBodyTtl maybeFfiHelper txBody
     , certs
     , withdrawals
     , update
     , auxiliaryDataHash:
         T.AuxiliaryDataHash <<< toBytes <<< asOneOf <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
-    , validityStartInterval
+    , validityStartInterval:
+        Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
     , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
+    , referenceInputs
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
         txBody
@@ -298,17 +312,9 @@ convertTxBody txBody = do
         _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
           (map <<< map) T.RequiredSigner
     , networkId
+    , collateralReturn
+    , totalCollateral
     }
-
-  where
-  intToSlot
-    :: forall (s :: Row Type)
-     . Int
-    -> Either (Variant (fromCslRepError :: String | s)) Slot
-  intToSlot x =
-    cslErr ("validityStartInterval UInt.fromInt': " <> show x)
-      <<< map Slot
-      <<< UInt.fromInt' $ x
 
 convertUpdate :: forall (r :: Row Type). Csl.Update -> Err r T.Update
 convertUpdate u = do
@@ -441,7 +447,7 @@ convertPoolRetirement poolKeyhash epochInt = do
   pure $ T.PoolRetirement { poolKeyhash, epoch }
 
 convertMint :: Csl.Mint -> T.Mint
-convertMint mint = T.Mint $ NonAdaAsset
+convertMint mint = T.Mint $ mkNonAdaAsset
   $
     -- outer map
     M.fromFoldable <<< map (lmap scriptHashAsCurrencySymbol)
@@ -465,23 +471,26 @@ convertProtocolParamUpdate cslPpu = do
     ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
     lbl = (<>) "ProtocolParamUpdate."
 
-  minfeeA <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeA")) ppu.minfeeA
-  minfeeB <- traverse (map Coin <<< bigNumToBigInt' (lbl "minfeeB")) ppu.minfeeB
+  minfeeA <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeA"))
+    ppu.minfeeA
+  minfeeB <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeB"))
+    ppu.minfeeB
   maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
     ppu.maxBlockBodySize
   maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
   maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
     ppu.maxBlockHeaderSize
-  keyDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "keyDeposit"))
+  keyDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "keyDeposit"))
     ppu.keyDeposit
-  poolDeposit <- traverse (map Coin <<< bigNumToBigInt' (lbl "poolDeposit"))
+  poolDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "poolDeposit"))
     ppu.poolDeposit
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
-  protocolVersion <- traverse (convertProtocolVersions (lbl "protocolVersion"))
+  protocolVersion <- traverse (convertProtocolVersion (lbl "protocolVersion"))
     ppu.protocolVersion
-  costModels <- traverse (convertCostModels (lbl "costModels")) ppu.costModels
+  costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
+    ppu.costModels
   maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
     ppu.maxTxExUnits
   maxBlockExUnits <- traverse (convertExUnits (lbl "maxBlockExUnits"))
@@ -501,8 +510,6 @@ convertProtocolParamUpdate cslPpu = do
     , poolPledgeInfluence: _unpackUnitInterval <$> ppu.poolPledgeInfluence
     , expansionRate: _unpackUnitInterval <$> ppu.expansionRate
     , treasuryGrowthRate: _unpackUnitInterval <$> ppu.treasuryGrowthRate
-    , d: _unpackUnitInterval <$> ppu.d
-    , extraEntropy: convertNonce <$> ppu.extraEntropy
     , protocolVersion
     , minPoolCost: ppu.minPoolCost
     , adaPerUtxoByte: ppu.adaPerUtxoByte
@@ -519,39 +526,28 @@ convertNonce = _convertNonce
 
 convertCostModels
   :: forall (r :: Row Type)
-   . String
-  -> Csl.Costmdls
-  -> E (FromCslRepError + r) T.Costmdls
-convertCostModels nm cslCostMdls =
+   . Csl.Costmdls
+  -> Err r T.Costmdls
+convertCostModels cslCostMdls =
   let
     mdls :: Array (Csl.Language /\ Csl.CostModel)
     mdls = _unpackCostModels containerHelper cslCostMdls
   in
     (T.Costmdls <<< M.fromFoldable) <$> traverse
-      (bitraverse (convertLanguage nm) (convertCostModel nm))
+      (bitraverse convertLanguage convertCostModel)
       mdls
-
-convertLanguage
-  :: forall (r :: Row Type)
-   . String
-  -> Csl.Language
-  -> E (FromCslRepError + r) T.Language
-convertLanguage err = _convertLanguage
-  (errorHelper (inj _fromCslRepError <<< \e -> err <> ": " <> e))
-  { plutusV1: T.PlutusV1 }
 
 convertCostModel
   :: forall (r :: Row Type)
-   . String
-  -> Csl.CostModel
+   . Csl.CostModel
   -> E (FromCslRepError + r) T.CostModel
-convertCostModel err = map T.CostModel <<< traverse stringToUInt <<<
+convertCostModel = map T.CostModel <<< traverse stringToInt <<<
   _unpackCostModel
   where
-  stringToUInt
-    :: String -> Either (Variant (fromCslRepError :: String | r)) UInt
-  stringToUInt s = cslErr (err <> ": string (" <> s <> ") -> uint") $
-    UInt.fromString s
+  stringToInt
+    :: String -> Either (Variant (fromCslRepError :: String | r)) Int.Int
+  stringToInt s = cslErr (": string (" <> s <> ") -> int") $
+    Int.fromBigInt =<< BigInt.fromString s
 
 convertAuxiliaryData
   :: forall (r :: Row Type). Csl.AuxiliaryData -> Err r T.AuxiliaryData
@@ -561,7 +557,7 @@ convertAuxiliaryData ad = addErrTrace "convertAuxiliaryData" do
   pure $ T.AuxiliaryData
     { metadata
     , nativeScripts: convertNativeScripts =<< _adNativeScripts maybeFfiHelper ad
-    , plutusScripts: convertPlutusScripts <$> _adPlutusScripts maybeFfiHelper ad
+    , plutusScripts: convertPlutusScripts =<< _adPlutusScripts maybeFfiHelper ad
     }
 
 convertGeneralTransactionMetadata
@@ -575,7 +571,7 @@ convertGeneralTransactionMetadata =
       -- convert tuple type
       traverse
         ( bitraverse
-            ( map TransactionMetadatumLabel <<< bigNumToBigInt'
+            ( map TransactionMetadatumLabel <<< BigNum.toBigInt'
                 "MetadatumLabel: "
             )
             (convertMetadatum "GeneralTransactionMetadata: ")
@@ -591,21 +587,12 @@ convertMetadatum
 convertMetadatum err = fix \_ -> addErrTrace err <<< _convertMetadatum
   ( { error: fromCslRepError
     , from_bytes: pure <<< Bytes
-    , from_int: map Int <<< stringToInt "Metadatum Int"
+    , from_int: pure <<< Int
     , from_text: pure <<< Text
     , from_map: convertMetadataMap convertMetadatum
     , from_list: convertMetadataList convertMetadatum
     }
   )
-
-  where
-  stringToInt
-    :: forall (s :: Row Type)
-     . String
-    -> String
-    -> Either (Variant (fromCslRepError :: String | s)) Int.Int
-  stringToInt s = cslErr (err <> ": string (" <> s <> ") -> bigint") <<<
-    (Int.fromBigInt <=< BigInt.fromString)
 
 convertMetadataList
   :: forall (r :: Row Type)
@@ -652,8 +639,8 @@ cslRatioToRational
   -> { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
   -> E (FromCslRepError + r) (Ratio BigInt)
 cslRatioToRational err { numerator, denominator } = reduce
-  <$> bigNumToBigInt' (err <> " cslRatioToRational") numerator
-  <*> bigNumToBigInt' (err <> " cslRatioToRational") denominator
+  <$> BigNum.toBigInt' (err <> " cslRatioToRational") numerator
+  <*> BigNum.toBigInt' (err <> " cslRatioToRational") denominator
 
 convertExUnits
   :: forall (r :: Row Type)
@@ -665,19 +652,19 @@ convertExUnits nm cslExunits =
     { mem, steps } = _unpackExUnits cslExunits
   in
     { mem: _, steps: _ }
-      <$> bigNumToBigInt' (nm <> " mem") mem
-      <*> bigNumToBigInt' (nm <> " steps") steps
+      <$> BigNum.toBigInt' (nm <> " mem") mem
+      <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
 
-convertProtocolVersions
+convertProtocolVersion
   :: forall (r :: Row Type)
    . String
-  -> Csl.ProtocolVersions
-  -> E (FromCslRepError + r) (Array T.ProtocolVersion)
-convertProtocolVersions nm cslPV =
-  for (_unpackProtocolVersions containerHelper cslPV)
+  -> Csl.ProtocolVersion
+  -> E (FromCslRepError + r) T.ProtocolVersion
+convertProtocolVersion nm cslPV =
+  _unpackProtocolVersion cslPV #
     ( \{ major, minor } ->
         { major: _, minor: _ }
           <$> cslNumberToUInt (nm <> " major") major
@@ -708,9 +695,7 @@ foreign import _unpackProtocolParamUpdate
          Maybe Csl.UnitInterval
      , treasuryGrowthRate ::
          Maybe Csl.UnitInterval
-     , d :: Maybe Csl.UnitInterval
-     , extraEntropy :: Maybe Csl.Nonce
-     , protocolVersion :: Maybe Csl.ProtocolVersions
+     , protocolVersion :: Maybe Csl.ProtocolVersion
      , minPoolCost :: Maybe Csl.BigNum
      , adaPerUtxoByte :: Maybe Csl.BigNum
      , costModels :: Maybe Csl.Costmdls
@@ -736,16 +721,15 @@ foreign import _unpackMetadataList
 type MetadatumHelper (r :: Row Type) =
   { from_map :: Csl.MetadataMap -> Err r TransactionMetadatum
   , from_list :: Csl.MetadataList -> Err r TransactionMetadatum
-  , from_int :: String -> Err r TransactionMetadatum
+  , from_int :: Csl.Int -> Err r TransactionMetadatum
   , from_text :: String -> Err r TransactionMetadatum
   , from_bytes :: ByteArray -> Err r TransactionMetadatum
   , error :: String -> Err r TransactionMetadatum
   }
 
-foreign import _unpackProtocolVersions
-  :: ContainerHelper
-  -> Csl.ProtocolVersions
-  -> Array { major :: Number, minor :: Number }
+foreign import _unpackProtocolVersion
+  :: Csl.ProtocolVersion
+  -> { major :: Number, minor :: Number }
 
 foreign import _unpackExUnits
   :: Csl.ExUnits -> { mem :: Csl.BigNum, steps :: Csl.BigNum }
@@ -804,7 +788,7 @@ foreign import _txBodyOutputs
 foreign import _txBodyFee :: Csl.TransactionBody -> Csl.BigNum
 -- ttl(): number | void;
 foreign import _txBodyTtl
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Number
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
 -- certs(): Certificates | void;
 foreign import _txBodyCerts
@@ -827,11 +811,18 @@ foreign import _txBodyAuxiliaryDataHash
 
 -- validity_start_interval(): number | void
 foreign import _txBodyValidityStartInterval
-  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Int
+  :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
 -- multiassets(): Mint | void
 foreign import _txBodyMultiAssets
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
+
+-- reference_inputs(): TransactionInputs | void;
+foreign import _txBodyReferenceInputs
+  :: MaybeFfiHelper
+  -> ContainerHelper
+  -> Csl.TransactionBody
+  -> Maybe (Array Csl.TransactionInput)
 
 -- script_data_hash(): ScriptDataHash | void
 foreign import _txBodyScriptDataHash
@@ -858,6 +849,18 @@ foreign import _txBodyNetworkId
   -> MaybeFfiHelper
   -> Csl.TransactionBody
   -> Maybe Csl.NetworkId
+
+-- collateral_return(): TransactionOutput | void
+foreign import _txBodyCollateralReturn
+  :: MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.TransactionOutput
+
+-- total_collateral(): BigNum | void
+foreign import _txBodyTotalCollateral
+  :: MaybeFfiHelper
+  -> Csl.TransactionBody
+  -> Maybe Csl.BigNum
 
 foreign import _unpackWithdrawals
   :: ContainerHelper
@@ -900,13 +903,6 @@ foreign import _convertCert
    . CertConvHelper (Err r T.Certificate)
   -> Csl.Certificate
   -> Err r T.Certificate
-
-foreign import _convertLanguage
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> { plutusV1 :: T.Language }
-  -> Csl.Language
-  -> E r T.Language
 
 foreign import poolParamsOperator :: Csl.PoolParams -> Ed25519KeyHash
 foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> Csl.VRFKeyHash

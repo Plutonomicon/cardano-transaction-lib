@@ -1,5 +1,5 @@
 module Types.TypedValidator
-  ( TypedValidator(..)
+  ( TypedValidator(TypedValidator)
   , ValidatorType
   , WrappedValidatorType
   , class DatumType
@@ -46,38 +46,49 @@ import Types.Scripts
 -- it suffices.
 -- | A typeclass that associates a type standing for a connection type with two
 -- | types, the type of the redeemer and the data script for that connection type.
+class ValidatorTypes :: Type -> Type -> Type -> Constraint
 class
-  ( DatumType a b
-  , RedeemerType a b
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
   ) <=
-  ValidatorTypes (a :: Type) (b :: Type)
-  | a -> b
+  ValidatorTypes validator datum redeemer
+
+instance
+  ( DatumType validator datum
+  , RedeemerType validator redeemer
+  ) =>
+  ValidatorTypes validator datum redeemer
 
 -- | The type of the data of this connection type.
-class DatumType (a :: Type) (b :: Type) | a -> b
+class DatumType :: Type -> Type -> Constraint
+class DatumType validator datum | validator -> datum
 
 instance DatumType Void Void
 
-else instance DatumType Any PlutusData
+instance DatumType Any PlutusData
 
--- | Default instance
-else instance DatumType a Unit
+instance DatumType PlutusData Unit
 
 -- | The type of the redeemers of this connection type.
-class RedeemerType (a :: Type) (b :: Type) | a -> b
+class RedeemerType :: Type -> Type -> Constraint
+class RedeemerType validator redeemer | validator -> redeemer
 
 instance RedeemerType Void Void
 
-else instance RedeemerType Any PlutusData
+instance RedeemerType Any PlutusData
 
--- | Default instance
-else instance RedeemerType a Unit
+instance RedeemerType PlutusData Unit
 
 -- Replace `ScriptContext` by `Transaction` which contains all the scripts
 -- anyway:
 -- | The type of validators for the given connection type.
-type ValidatorType (a :: Type) (b :: Type) =
-  DatumType a b => RedeemerType a b => b -> b -> Transaction -> Boolean
+type ValidatorType (validator :: Type) (datum :: Type) (redeemer :: Type) =
+  DatumType validator datum
+  => RedeemerType validator redeemer
+  => datum
+  -> redeemer
+  -> Transaction
+  -> Boolean
 
 type WrappedValidatorType =
   PlutusData -> PlutusData -> PlutusData -> Effect Unit

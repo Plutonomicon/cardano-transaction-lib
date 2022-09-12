@@ -4,12 +4,10 @@ module Deserialization.NativeScript
 
 import Prelude
 
-import Cardano.Types.Transaction as T
+import Cardano.Types.NativeScript as T
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Data.UInt as UInt
-
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -27,6 +25,7 @@ import Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
+import Types.BigNum (BigNum)
 
 convertNativeScript :: NativeScript -> Maybe T.NativeScript
 convertNativeScript ns =
@@ -62,14 +61,14 @@ convertScriptNOfK ns = do
   pure $ T.ScriptNOfK (scriptNOfK_n scriptNOfK) res
 
 convertTimelockStart :: NativeScript -> Maybe T.NativeScript
-convertTimelockStart ns =
-  T.TimelockStart <<< Slot <<< UInt.fromInt <<< timelockStart_slot <$>
-    getTimelockStart maybeFfiHelper ns
+convertTimelockStart =
+  map (T.TimelockStart <<< Slot <<< timelockStart_slot)
+    <<< getTimelockStart maybeFfiHelper
 
 convertTimelockExpiry :: NativeScript -> Maybe T.NativeScript
-convertTimelockExpiry ns = do
-  T.TimelockExpiry <<< Slot <<< UInt.fromInt <<< timelockExpiry_slot <$>
-    getTimelockExpiry maybeFfiHelper ns
+convertTimelockExpiry = do
+  map (T.TimelockExpiry <<< Slot <<< timelockExpiry_slot)
+    <<< getTimelockExpiry maybeFfiHelper
 
 foreign import getScriptPubkey
   :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey
@@ -96,5 +95,5 @@ foreign import scriptNOfKScripts
   :: ContainerHelper -> ScriptNOfK -> Array NativeScript
 
 foreign import scriptNOfK_n :: ScriptNOfK -> Int
-foreign import timelockStart_slot :: TimelockStart -> Int
-foreign import timelockExpiry_slot :: TimelockExpiry -> Int
+foreign import timelockStart_slot :: TimelockStart -> BigNum
+foreign import timelockExpiry_slot :: TimelockExpiry -> BigNum

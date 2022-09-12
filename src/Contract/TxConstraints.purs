@@ -3,7 +3,9 @@
 module Contract.TxConstraints (module TxConstraints) where
 
 import Types.TxConstraints
-  ( InputConstraint(InputConstraint)
+  ( DatumPresence(DatumInline, DatumWitness)
+  , InputConstraint(InputConstraint)
+  , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
@@ -13,11 +15,14 @@ import Types.TxConstraints
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustSpendNativeScriptOutput
+      , MustReferenceOutput
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
       , MustHashDatum
       , MustSatisfyAnyOf
+      , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -27,21 +32,33 @@ import Types.TxConstraints
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
+  , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
+  , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
+  , mustPayToNativeScript
+  , mustNotBeValid
   , mustPayToScript
+  , mustPayToScriptWithScriptRef
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayWithDatumToPubKey
-  , mustPayWithDatumToPubKeyAddress
+  , mustPayToPubKeyAddressWithDatum
+  , mustPayToPubKeyAddressWithDatumAndScriptRef
+  , mustPayToPubKeyAddressWithScriptRef
+  , mustPayToPubKeyWithDatum
+  , mustPayToPubKeyWithDatumAndScriptRef
+  , mustPayToPubKeyWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
+  , mustReferenceOutput
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
+  , mustSpendNativeScriptOutput
+  , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments
   , requiredDatums

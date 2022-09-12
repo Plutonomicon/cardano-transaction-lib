@@ -1,7 +1,8 @@
 module Types.UnbalancedTransaction
-  ( PaymentPubKey(..)
-  , ScriptOutput(..)
-  , UnbalancedTx(..)
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  , ScriptDatum(ScriptDatum, ScriptDatumHash)
+  , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
@@ -11,6 +12,7 @@ module Types.UnbalancedTransaction
 
 import Prelude
 
+import Aeson (class EncodeAeson, encodeAeson')
 import Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
@@ -26,11 +28,12 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
+import Helpers (encodeMap, encodeTagged')
 import Serialization
   ( publicKeyFromBech32
   , publicKeyHash
   )
-import Types.Datum (DataHash)
+import Types.Datum (Datum, DataHash)
 import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
 import Cardano.Types.Value (Value)
@@ -46,16 +49,32 @@ derive newtype instance Ord PaymentPubKey
 instance Show PaymentPubKey where
   show = genericShow
 
+data ScriptDatum
+  = ScriptDatum Datum
+  | ScriptDatumHash DataHash
+
+derive instance Eq ScriptDatum
+derive instance Generic ScriptDatum _
+
+instance EncodeAeson ScriptDatum where
+  encodeAeson' = case _ of
+    ScriptDatum r -> encodeAeson' $ encodeTagged' "ScriptDatum" r
+    ScriptDatumHash r -> encodeAeson' $ encodeTagged' "ScriptDatumHash" r
+
+instance Show ScriptDatum where
+  show = genericShow
+
 -- Plutus uses this type in recent revs but wonder if we even need it.
 newtype ScriptOutput = ScriptOutput
   { validatorHash :: ValidatorHash
   , value :: Value
-  , datumHash :: DataHash
+  , datum :: ScriptDatum
   }
 
 derive instance Newtype ScriptOutput _
 derive instance Generic ScriptOutput _
 derive newtype instance Eq ScriptOutput
+derive newtype instance EncodeAeson ScriptOutput
 
 instance Show ScriptOutput where
   show = genericShow
@@ -81,6 +100,11 @@ derive newtype instance Eq UnbalancedTx
 
 instance Show UnbalancedTx where
   show = genericShow
+
+instance EncodeAeson UnbalancedTx where
+  encodeAeson' (UnbalancedTx r) = encodeAeson' $ r
+    { utxoIndex = encodeMap r.utxoIndex
+    }
 
 _transaction :: Lens' UnbalancedTx Transaction
 _transaction = lens'

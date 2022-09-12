@@ -1,7 +1,9 @@
 module Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
+  , convertPlutusScript
   , convertVkeyWitnesses
+  , convertVkeyWitness
   , convertWitnessSet
   , deserializeWitnessSet
   , plutusScriptBytes
@@ -9,25 +11,25 @@ module Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.NativeScript (NativeScript) as T
 import Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , NativeScript
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
+import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
+import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
-import Deserialization.BigNum (bigNumToBigInt)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Types
-  ( BigNum
-  , BootstrapWitness
+  ( BootstrapWitness
   , BootstrapWitnesses
   , Ed25519Signature
   , ExUnits
@@ -45,13 +47,17 @@ import Serialization.Types
   , Vkey
   , Vkeywitness
   , Vkeywitnesses
+  , Language
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as T
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Deserialization.NativeScript (convertNativeScript)
 import Deserialization.PlutusData (convertPlutusData)
+import Deserialization.Language (convertLanguage)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
@@ -62,17 +68,21 @@ convertWitnessSet ws = do
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
   plutusData <- for (getWitnessSetPlutusData maybeFfiHelper ws)
     convertPlutusList
+  plutusScripts <- for (getPlutusScripts maybeFfiHelper ws) convertPlutusScripts
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     , nativeScripts
     , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
-    , plutusScripts: getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
+    , plutusScripts
     , plutusData
     , redeemers
     }
 
 convertVkeyWitnesses :: Vkeywitnesses -> Array T.Vkeywitness
-convertVkeyWitnesses = extractWitnesses >>> map \witness ->
+convertVkeyWitnesses = extractWitnesses >>> map convertVkeyWitness
+
+convertVkeyWitness :: Vkeywitness -> T.Vkeywitness
+convertVkeyWitness witness =
   let
     vkey = getVkey witness
     publicKey = convertVkey vkey
@@ -98,9 +108,15 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   , attributes: getBootstrapAttributes bootstrap
   }
 
-convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
-convertPlutusScripts = extractPlutusScripts >>> map
-  (plutusScriptBytes >>> S.PlutusScript)
+convertPlutusScripts :: PlutusScripts -> Maybe (Array S.PlutusScript)
+convertPlutusScripts plutusScripts =
+  for (extractPlutusScripts plutusScripts) convertPlutusScript
+
+convertPlutusScript :: PlutusScript -> Maybe S.PlutusScript
+convertPlutusScript plutusScript =
+  hush do
+    language <- convertLanguage $ plutusScriptVersion plutusScript
+    pure $ curry S.PlutusScript (plutusScriptBytes plutusScript) language
 
 convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
 convertPlutusList = extractPlutusData >>> traverse convertPlutusData
@@ -111,7 +127,7 @@ convertRedeemers = extractRedeemers >>> traverse convertRedeemer
 convertRedeemer :: Redeemer -> Maybe T.Redeemer
 convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
-  index <- bigNumToBigInt $ getRedeemerIndex redeemer
+  index <- BigNum.toBigInt $ getRedeemerIndex redeemer
   exUnits <- convertExUnits $ getExUnits redeemer
   data_ <- convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
@@ -131,8 +147,8 @@ convertRedeemerTag tag = case getRedeemerTagKind tag of
 
 convertExUnits :: ExUnits -> Maybe T.ExUnits
 convertExUnits eu = do
-  mem <- bigNumToBigInt $ getExUnitsMem eu
-  steps <- bigNumToBigInt $ getExUnitsSteps eu
+  mem <- BigNum.toBigInt $ getExUnitsMem eu
+  steps <- BigNum.toBigInt $ getExUnitsSteps eu
   pure { mem, steps }
 
 foreign import getVkeywitnesses
@@ -168,6 +184,7 @@ foreign import getPlutusScripts
 
 foreign import extractPlutusScripts :: PlutusScripts -> Array PlutusScript
 foreign import plutusScriptBytes :: PlutusScript -> ByteArray
+foreign import plutusScriptVersion :: PlutusScript -> Language
 foreign import getWitnessSetPlutusData
   :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe PlutusList
 

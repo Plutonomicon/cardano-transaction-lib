@@ -1,14 +1,15 @@
 module Cardano.Types.Value
-  ( Coin(..)
+  ( Coin(Coin)
   , CurrencySymbol
-  , NonAdaAsset(..)
-  , Value(..)
+  , NonAdaAsset
+  , Value(Value)
   , class Negate
   , class Split
   , coinToValue
   , currencyMPSHash
   , eq
   , filterNonAda
+  , flattenNonAdaValue
   , geq
   , getCurrencySymbol
   , getLovelace
@@ -34,12 +35,16 @@ module Cardano.Types.Value
   , mpsSymbol
   , negation
   , numCurrencySymbols
+  , numNonAdaAssets
+  , numNonAdaCurrencySymbols
   , numTokenNames
+  , posNonAdaAsset
   , split
   , sumTokenNameLengths
   , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
+  , unwrapNonAdaAsset
   , valueOf
   , valueToCoin
   , valueToCoin'
@@ -55,6 +60,7 @@ import Aeson
   , encodeAeson'
   , getField
   )
+
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)
@@ -64,9 +70,11 @@ import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List ((:), all, List(Nil))
+import Data.List (nubByEq) as List
 import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -75,20 +83,16 @@ import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
+import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\), type (/\))
 import FromData (class FromData)
-import Helpers (showWithParens)
+import Helpers (encodeMap, showWithParens)
 import Metadata.FromMetadata (class FromMetadata)
 import Metadata.ToMetadata (class ToMetadata)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  , scriptHashToBytes
-  )
+import Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
 import ToData (class ToData)
-import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
-import Types.CborBytes (byteLength)
+import Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
 import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Types.TokenName
   ( TokenName
@@ -128,6 +132,8 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
+derive newtype instance Ord Coin
+derive newtype instance EncodeAeson Coin
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
@@ -229,9 +235,9 @@ mkUnsafeAdaSymbol byteArr =
 --------------------------------------------------------------------------------
 -- NonAdaAsset
 --------------------------------------------------------------------------------
+
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
-derive instance Newtype NonAdaAsset _
 derive newtype instance Eq NonAdaAsset
 
 instance Show NonAdaAsset where
@@ -250,7 +256,7 @@ instance MeetSemilattice NonAdaAsset where
   meet = unionWithNonAda min
 
 instance Negate NonAdaAsset where
-  negation = wrap <<< map (map negate) <<< unwrap
+  negation = NonAdaAsset <<< map (map negate) <<< unwrapNonAdaAsset
 
 instance Split NonAdaAsset where
   split (NonAdaAsset mp) = NonAdaAsset npos /\ NonAdaAsset pos
@@ -265,6 +271,12 @@ instance Split NonAdaAsset where
 
     npos /\ pos = mapThese splitIntl mp
 
+instance EncodeAeson NonAdaAsset where
+  encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeMap $ encodeMap <$> m
+
+unwrapNonAdaAsset :: NonAdaAsset -> Map CurrencySymbol (Map TokenName BigInt)
+unwrapNonAdaAsset (NonAdaAsset mp) = mp
+
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
 -- | `CurrencySymbol` and `TokenName` are safe
@@ -273,15 +285,16 @@ mkSingletonNonAdaAsset
   -> TokenName
   -> BigInt
   -> NonAdaAsset
-mkSingletonNonAdaAsset curSymbol tokenName amount =
-  NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
+mkSingletonNonAdaAsset curSymbol tokenName amount
+  | amount == zero = mempty
+  | otherwise =
+      NonAdaAsset $ Map.singleton curSymbol $ Map.singleton tokenName amount
 
 -- Assume all CurrencySymbol are well-formed at this point, since they come from
 -- mkCurrencySymbol and mkTokenName.
--- | Given the relevant map, create a `NonAdaAsset`. The map should be constructed
--- | safely by definition
+-- | Given the relevant map, create a normalized `NonAdaAsset`.
 mkNonAdaAsset :: Map CurrencySymbol (Map TokenName BigInt) -> NonAdaAsset
-mkNonAdaAsset = NonAdaAsset
+mkNonAdaAsset = normalizeNonAdaAsset <<< NonAdaAsset
 
 mkNonAdaAssetsFromTokenMap'
   :: forall (t :: Type -> Type)
@@ -362,6 +375,12 @@ instance Split Value where
     bimap (flip Value mempty) (flip Value mempty) (split coin)
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
+instance EncodeAeson Value where
+  encodeAeson' (Value coin nonAdaAsset) = encodeAeson'
+    { coin
+    , nonAdaAsset
+    }
+
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.
 mkValue :: Coin -> NonAdaAsset -> Value
@@ -392,6 +411,18 @@ mkSingletonValue' curSymbol tokenName amount = do
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
+
+-- | Normalize `NonAdaAsset` so that it doesn't contain zero-valued tokens.
+normalizeNonAdaAsset :: NonAdaAsset -> NonAdaAsset
+normalizeNonAdaAsset = filterNonAdaAsset (notEq zero)
+
+posNonAdaAsset :: NonAdaAsset -> NonAdaAsset
+posNonAdaAsset = filterNonAdaAsset (\x -> x > zero)
+
+filterNonAdaAsset :: (BigInt -> Boolean) -> NonAdaAsset -> NonAdaAsset
+filterNonAdaAsset p (NonAdaAsset mp) =
+  NonAdaAsset $ Map.filter (not Map.isEmpty) $ Map.filter p <$> mp
+
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-tx/html/src/PlutusTx.AssocMap.html#union
 -- | Combine two `Map`s.
 union :: ∀ k v r. Ord k => Map k v -> Map k r -> Map k (These v r)
@@ -442,7 +473,7 @@ unionNonAda (NonAdaAsset l) (NonAdaAsset r) =
   in
     unBoth <$> combined
 
--- Don't export to `Contract` due to https://github.com/Plutonomicon/cardano-transaction-lib/issues/193
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
 -- | Same as `unionWith` but specifically for `NonAdaAsset`
 unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)
@@ -460,7 +491,8 @@ unionWithNonAda f ls rs =
       That b -> f zero b
       Both a b -> f a b
   in
-    NonAdaAsset $ map unBoth <$> combined
+    normalizeNonAdaAsset $
+      NonAdaAsset (map unBoth <$> combined)
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#unionWith
 -- | Combines `Value` with a binary function on `BigInt`s.
@@ -508,15 +540,15 @@ isAdaOnly v =
         tn == adaToken
     _ -> false
 
--- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
-minus :: Value -> Value -> Maybe Value
-minus x y = do
+minus :: Value -> Value -> Value
+minus lhs rhs =
   let
     negativeValues :: List (CurrencySymbol /\ TokenName /\ BigInt)
-    negativeValues = unsafeFlattenValue y <#>
+    negativeValues = unsafeFlattenValue rhs <#>
       (\(c /\ t /\ a) -> c /\ t /\ negate a)
-  y' <- traverse unflattenValue negativeValues
-  pure $ x <> fold y'
+  in
+    unsafePartial $
+      lhs <> fold (fromJust $ traverse unflattenValue negativeValues)
 
 -- From https://github.com/mlabs-haskell/bot-plutus-interface/blob/master/src/BotPlutusInterface/PreBalance.hs
 -- "isValueNat" uses unsafeFlattenValue which guards against zeros, so non-strict
@@ -601,13 +633,26 @@ valueOf (Value (Coin lovelaces) (NonAdaAsset nonAdaAsset)) curSymbol tokenName =
           Just v -> v
     true -> lovelaces
 
+-- | The number of distinct non-Ada assets.
+numNonAdaAssets :: Value -> BigInt
+numNonAdaAssets (Value _ nonAdaAssets) =
+  length (flattenNonAdaValue nonAdaAssets)
+
+-- | The number of distinct non-Ada currency symbols, i.e. the number of policy
+-- | IDs not including Ada in `Coin`.
+numNonAdaCurrencySymbols :: Value -> BigInt
+numNonAdaCurrencySymbols (Value _ nonAdaAssets) =
+  fromInt <<< length <<< List.nubByEq ((==) `on` fst) $
+    flattenNonAdaValue nonAdaAssets
+
 -- | The number of distinct currency symbols, i.e. the number of policy IDs
 -- | including Ada in `Coin`.
 numCurrencySymbols :: Value -> BigInt
-numCurrencySymbols (Value coin (NonAdaAsset nonAdaAsset)) =
-  case coin == mempty of
-    false -> fromInt $ 1 + length nonAdaAsset
-    true -> fromInt $ length nonAdaAsset -- FIX ME: Should we count this regardless whether it's zero?
+numCurrencySymbols value@(Value coin _)
+  | coin == mempty =
+      numNonAdaCurrencySymbols value
+  | otherwise =
+      one + numNonAdaCurrencySymbols value
 
 -- Don't export this, we don't really care about the v in k,v.
 unsafeAllTokenNames' :: Value -> Map TokenName BigInt

@@ -9,10 +9,12 @@ module Contract.PlutusData
   , module Datum
   , module ExportQueryM
   , module Hashing
+  , module IsData
   , module PlutusData
   , module Redeemer
   , module FromData
   , module ToData
+  , module OutputDatum
   ) where
 
 import Prelude
@@ -86,6 +88,9 @@ import ToData
   ) as ToData
 import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Types.Datum (DataHash)
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  ) as OutputDatum
 import Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as PlutusData
@@ -95,6 +100,7 @@ import Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
+import IsData (class IsData) as IsData
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash

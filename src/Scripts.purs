@@ -8,12 +8,15 @@ module Scripts
   , validatorHash
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
+  , nativeScriptHashEnterpriseAddress
   ) where
 
 import Prelude
+
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Hashing (plutusScriptHash)
+import NativeScripts (NativeScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Serialization.Address
   ( Address
@@ -55,11 +58,11 @@ typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
   validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> Maybe MintingPolicyHash
+mintingPolicyHash :: MintingPolicy -> MintingPolicyHash
 mintingPolicyHash = scriptHash
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
-validatorHash :: Validator -> Maybe ValidatorHash
+validatorHash :: Validator -> ValidatorHash
 validatorHash = scriptHash
 
 -- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
@@ -79,8 +82,13 @@ validatorHashEnterpriseAddress network valHash =
       , paymentCred: scriptHashCredential (unwrap valHash)
       }
 
+-- | Converts a `NativeScriptHash` to an `Address` as an `EnterpriseAddress`.
+nativeScriptHashEnterpriseAddress :: NetworkId -> NativeScriptHash -> Address
+nativeScriptHashEnterpriseAddress network nsHash =
+  validatorHashEnterpriseAddress network (wrap $ unwrap nsHash)
+
 -- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: StakeValidator -> Maybe StakeValidatorHash
+stakeValidatorHash :: StakeValidator -> StakeValidatorHash
 stakeValidatorHash = scriptHash
 
 -- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
@@ -90,9 +98,9 @@ scriptHash
    . Newtype m PlutusScript
   => Newtype n ScriptHash
   => m
-  -> Maybe n
-scriptHash = map wrap <<< plutusScriptHash <<< unwrap
+  -> n
+scriptHash = wrap <<< plutusScriptHash <<< unwrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
-scriptCurrencySymbol = mpsSymbol <=< mintingPolicyHash
+scriptCurrencySymbol = mpsSymbol <<< mintingPolicyHash

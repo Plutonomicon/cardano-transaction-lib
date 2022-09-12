@@ -1,27 +1,32 @@
 module Plutus.Types.Transaction
-  ( TransactionOutput(..)
-  , Utxo
-  , UtxoM(..)
+  ( TransactionOutput(TransactionOutput)
+  , UtxoMap
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   ) where
 
 import Prelude
 
+import Cardano.Types.ScriptRef (ScriptRef)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import FromData (class FromData, fromData)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Value (Value)
+import Serialization.Hash (ScriptHash)
 import ToData (class ToData, toData)
 import Types.PlutusData (PlutusData(Constr))
-import Types.Transaction (DataHash, TransactionInput)
+import Types.Transaction (TransactionInput)
+import Types.OutputDatum (OutputDatum)
 
+-- https://github.com/input-output-hk/plutus/blob/c8d4364d0e639fef4d5b93f7d6c0912d992b54f9/plutus-ledger-api/src/PlutusLedgerApi/V2/Tx.hs#L80
 newtype TransactionOutput = TransactionOutput
   { address :: Address
   , amount :: Value
-  , dataHash :: Maybe DataHash
+  , datum :: OutputDatum
+  , referenceScript :: Maybe ScriptHash
   }
 
 derive instance Generic TransactionOutput _
@@ -32,26 +37,37 @@ instance Show TransactionOutput where
   show = genericShow
 
 instance FromData TransactionOutput where
-  fromData (Constr n [ addr, amt, dh ]) | n == zero =
+  fromData (Constr n [ addr, amt, datum, referenceScript ]) | n == zero =
     TransactionOutput <$>
-      ( { address: _, amount: _, dataHash: _ }
+      ( { address: _, amount: _, datum: _, referenceScript: _ }
           <$> fromData addr
           <*> fromData amt
-          <*> fromData dh
+          <*> fromData datum
+          <*> fromData referenceScript
       )
   fromData _ = Nothing
 
 instance ToData TransactionOutput where
-  toData (TransactionOutput { address, amount, dataHash }) =
-    Constr zero [ toData address, toData amount, toData dataHash ]
+  toData (TransactionOutput { address, amount, datum, referenceScript }) =
+    Constr zero
+      [ toData address, toData amount, toData datum, toData referenceScript ]
 
-newtype UtxoM = UtxoM Utxo
+newtype TransactionOutputWithRefScript = TransactionOutputWithRefScript
+  { output :: TransactionOutput
+  , scriptRef :: Maybe ScriptRef
+  }
 
-derive instance Generic UtxoM _
-derive instance Newtype UtxoM _
-derive newtype instance Eq UtxoM
+derive instance Generic TransactionOutputWithRefScript _
+derive instance Newtype TransactionOutputWithRefScript _
+derive newtype instance Eq TransactionOutputWithRefScript
 
-instance Show UtxoM where
+instance Show TransactionOutputWithRefScript where
   show = genericShow
 
-type Utxo = Map TransactionInput TransactionOutput
+instance FromData TransactionOutputWithRefScript where
+  fromData = map (wrap <<< { output: _, scriptRef: Nothing }) <<< fromData
+
+instance ToData TransactionOutputWithRefScript where
+  toData = toData <<< _.output <<< unwrap
+
+type UtxoMap = Map TransactionInput TransactionOutputWithRefScript

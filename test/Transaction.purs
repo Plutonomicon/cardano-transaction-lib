@@ -25,9 +25,10 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Helpers (fromRightEff)
 import Mote (group, test)
+import Serialization.WitnessSet as Serialization.WitnessSet
+import Test.Fixtures.CostModels (costModelsFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
-import Serialization.WitnessSet as Serialization.WitnessSet
 import Transaction
   ( attachDatum
   , attachRedeemer
@@ -35,16 +36,19 @@ import Transaction
   , setScriptDataHash
   )
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(Integer))
 import Types.Datum (Datum(Datum))
-import Types.Scripts (PlutusScript(PlutusScript))
+import Types.PlutusData (PlutusData(Integer))
 import Types.RedeemerTag (RedeemerTag(Spend))
+import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2))
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "attach datums to tx" $ do
   test "datum should be correctly attached" testAttachDatum
   test "redeemer should be correctly attached" testAttachRedeemer
-  test "scripts should be correctly attached" testAttachScript
+  test "scripts should be correctly attached (PlutusV1)" $ testAttachScript
+    PlutusV1
+  test "scripts should be correctly attached (PlutusV2)" $ testAttachScript
+    PlutusV2
   test "scripts data hash should be correctly set" testSetScriptDataHash
   test "existing witnesses should be preserved" testPreserveWitness
 
@@ -82,8 +86,8 @@ testAttachRedeemer = liftEffect $ do
   datum :: PlutusData
   datum = Integer $ BigInt.fromInt 1
 
-testAttachScript :: Aff Unit
-testAttachScript = liftEffect $
+testAttachScript :: Language -> Aff Unit
+testAttachScript language = liftEffect $
   attachPlutusScript script tx >>= case _ of
     Left e -> throw $ "Failed to attach script: " <> show e
     Right (Transaction { witnessSet: TransactionWitnessSet ws }) ->
@@ -96,14 +100,14 @@ testAttachScript = liftEffect $
   tx = mempty
 
   script :: PlutusScript
-  script = PlutusScript $
-    hexToByteArrayUnsafe "4e4d01000033222220051200120011"
+  script = PlutusScript $ hexToByteArrayUnsafe "4e4d01000033222220051200120011"
+    /\ language
 
 testSetScriptDataHash :: Aff Unit
 testSetScriptDataHash = liftEffect $ do
   redeemer <- mkRedeemer datum2
   Transaction { body: TxBody body } <-
-    setScriptDataHash [ redeemer ] [ datum1 ] tx
+    setScriptDataHash costModelsFixture1 [ redeemer ] [ datum1 ] tx
   case body.scriptDataHash of
     Nothing -> throw "Script data hash wasn't set"
     Just (ScriptDataHash sdh) ->
@@ -111,7 +115,7 @@ testSetScriptDataHash = liftEffect $ do
       -- Verify the hash with some external tool
       byteArrayToHex sdh
         `shouldEqual`
-          "3ed3d611bc67ef89de1ef8200e4af38210be6c1cfa436e2fef90c7ad48a33df9"
+          "e371f3cfb7be11ad70a88072dabdddef06f656efdaa52da2f68b8df4cac01d3a"
   where
   tx :: Transaction
   tx = mempty
@@ -155,7 +159,8 @@ testPreserveWitness = liftEffect $ do
           )
       ) /\
         ( Ed25519Signature
-            "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
+            "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
+            \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
         )
     )
 

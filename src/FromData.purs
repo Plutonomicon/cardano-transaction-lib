@@ -1,5 +1,11 @@
 module FromData
-  ( FromDataError(..)
+  ( FromDataError
+      ( ArgsWantedButGot
+      , FromDataFailed
+      , BigIntToIntFailed
+      , IndexWantedButGot
+      , WantedConstrGot
+      )
   , class FromData
   , class FromDataArgs
   , class FromDataArgsRL
@@ -43,6 +49,8 @@ import TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
   , class GetWithLabel
   )
+import Types.BigNum (BigNum)
+import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.RawBytes (RawBytes)
 import Types.CborBytes (CborBytes)
@@ -174,7 +182,7 @@ else instance (FromData a) => FromDataArgs t constr (G.Argument a) where
     { head: pd, tail: pds } <- note (ArgsWantedButGot constrName 1 pdArgs) $
       uncons pdArgs
     repArg <- note (FromDataFailed constrName pd) $ fromData pd
-    pure $ { head: G.Argument repArg, tail: pds }
+    pure { head: G.Argument repArg, tail: pds }
 
 instance
   ( FromDataArgs t c a
@@ -188,7 +196,7 @@ instance
     { head: repSnd, tail: pdArgs'' } <- fromDataArgs (Proxy :: Proxy t)
       (Proxy :: Proxy c)
       pdArgs'
-    pure $ { head: G.Product repFst repSnd, tail: pdArgs'' }
+    pure { head: G.Product repFst repSnd, tail: pdArgs'' }
 
 -- | FromDataArgsRL instances
 
@@ -266,6 +274,10 @@ instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int 
 
 instance FromData BigInt where
   fromData (Integer n) = Just n
+  fromData _ = Nothing
+
+instance FromData BigNum where
+  fromData (Integer n) = BigNum.fromBigInt n
   fromData _ = Nothing
 
 instance FromData UInt where

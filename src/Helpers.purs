@@ -22,10 +22,15 @@ module Helpers
   , notImplemented
   , showWithParens
   , uIntToBigInt
+  , encodeMap
+  , encodeSet
+  , encodeTagged'
   ) where
 
 import Prelude
 
+import Aeson (class EncodeAeson, Aeson, encodeAeson)
+import Aeson.Encode (encodeTagged, dictionary)
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array (union)
 import Data.BigInt (BigInt)
@@ -42,6 +47,10 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
+import Data.Newtype (unwrap)
+import Data.Op (Op(Op))
+import Data.Set (Set)
+import Data.Set (toUnfoldable) as Set
 import Data.Tuple (snd, uncurry)
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
@@ -194,7 +203,7 @@ logWithLevel lvl msg = when (msg.level >= lvl) $ log =<< prettyFormatter msg
 logString :: LogLevel -> LogLevel -> String -> Effect Unit
 logString cfgLevel level message = do
   timestamp <- now
-  logWithLevel cfgLevel $ { timestamp, message, level, tags: Map.empty }
+  logWithLevel cfgLevel { timestamp, message, level, tags: Map.empty }
 
 -- | Used for `EncodeAeson` for datatype errors
 mkErrorRecord
@@ -219,3 +228,21 @@ showWithParens
   -> a -- the inner type.
   -> String
 showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"
+
+-- | A wrapper around the `dictionary` function from `Aeson.Encode`
+-- | that uses `encodeAeson` for encoding keys and values.
+encodeMap
+  :: forall (k :: Type) (v :: Type)
+   . EncodeAeson k
+  => EncodeAeson v
+  => Map k v
+  -> Aeson
+encodeMap = unwrap $ dictionary (Op encodeAeson) (Op encodeAeson)
+
+-- | A wrapper around `encodeTagged` function from `Aeson.Encode` that uses
+-- | `encodeAeson` for encoding the passed value
+encodeTagged' :: forall (a :: Type). EncodeAeson a => String -> a -> Aeson
+encodeTagged' str x = encodeTagged str x (Op encodeAeson)
+
+encodeSet :: forall (a :: Type). EncodeAeson a => Set a -> Aeson
+encodeSet set = encodeAeson (Set.toUnfoldable set :: Array a)
