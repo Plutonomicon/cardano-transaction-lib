@@ -189,7 +189,8 @@ getWalletCollateral = do
     pparams <- asks $ _.runtime >>> _.pparams
     let
       tooManyCollateralUTxOs =
-        UInt.fromInt (Array.length collateralUTxOs) > (unwrap pparams).maxCollateralInputs
+        UInt.fromInt (Array.length collateralUTxOs) >
+          (unwrap pparams).maxCollateralInputs
     when tooManyCollateralUTxOs do
       liftEffect $ throw tooManyCollateralUTxOsError
   pure mbCollateralUTxOs
