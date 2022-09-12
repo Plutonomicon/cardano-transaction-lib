@@ -3,6 +3,7 @@ module Plutus.Types.TransactionUnspentOutput
   , lookupTxHash
   , _input
   , _output
+  , mkTxUnspentOut
   ) where
 
 import Prelude
@@ -17,19 +18,19 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\))
-import Plutus.Types.Transaction (TransactionOutput, UtxoMap)
+import Plutus.Types.Transaction (TransactionOutputWithRefScript, UtxoMap)
 import Type.Proxy (Proxy(Proxy))
 import Types.Transaction (TransactionHash, TransactionInput)
 
 newtype TransactionUnspentOutput = TransactionUnspentOutput
   { input :: TransactionInput
-  , output :: TransactionOutput
+  , output :: TransactionOutputWithRefScript
   }
 
 _input :: Lens' TransactionUnspentOutput TransactionInput
 _input = _Newtype <<< prop (Proxy :: Proxy "input")
 
-_output :: Lens' TransactionUnspentOutput TransactionOutput
+_output :: Lens' TransactionUnspentOutput TransactionOutputWithRefScript
 _output = _Newtype <<< prop (Proxy :: Proxy "output")
 
 derive instance Generic TransactionUnspentOutput _
@@ -46,3 +47,9 @@ lookupTxHash txHash utxos =
     $ filter (fst >>> unwrap >>> _.transactionId >>> eq txHash)
     $
       Map.toUnfoldable utxos
+
+mkTxUnspentOut
+  :: TransactionInput
+  -> TransactionOutputWithRefScript
+  -> TransactionUnspentOutput
+mkTxUnspentOut input output = TransactionUnspentOutput { input, output }

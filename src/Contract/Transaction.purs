@@ -17,10 +17,14 @@ module Contract.Transaction
   , getTxFinalFee
   , module BalanceTxError
   , module ExportQueryM
+  , module NativeScript
+  , module OutputDatum
   , module PTransaction
   , module PTransactionUnspentOutput
   , module ReindexRedeemersExport
+  , module Scripts
   , module ScriptLookups
+  , module ScriptRef
   , module Transaction
   , module TransactionMetadata
   , module UnbalancedTx
@@ -43,6 +47,19 @@ import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
 import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as NativeScript
+import Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  ) as ScriptRef
 import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -63,16 +80,7 @@ import Cardano.Types.Transaction
   , ExUnitPrices
   , ExUnits
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , Mint(Mint)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
   , Nonce(IdentityNonce, HashNonce)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
@@ -147,9 +155,12 @@ import Plutus.Conversion.Address (fromPlutusAddress)
 import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   ) as PTransaction
 import Plutus.Types.TransactionUnspentOutput
-  ( lookupTxHash
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , lookupTxHash
+  , mkTxUnspentOut
   ) as PTransactionUnspentOutput
 import Plutus.Types.Value (Coin)
 import QueryM
@@ -175,6 +186,16 @@ import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Serialization (convertTransaction, toBytes) as Serialization
 import Serialization.Address (NetworkId)
 import TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  ) as Scripts
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  , outputDatumDataHash
+  , outputDatumDatum
+  ) as OutputDatum
 import Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed

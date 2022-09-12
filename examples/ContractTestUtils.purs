@@ -22,9 +22,10 @@ import Contract.Address
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.AuxiliaryData (setTxMetadata)
+import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM, liftContractM)
-import Contract.PlutusData (Datum)
+import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.Scripts (MintingPolicy)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Utils
@@ -35,13 +36,14 @@ import Contract.Test.Utils
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( TransactionHash
-  , TransactionOutput
+  , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , balanceAndSignTxE
   , getTxFinalFee
   , lookupTxHash
   , submit
   )
+import Contract.TxConstraints (DatumPresence(DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
@@ -51,7 +53,7 @@ import Data.Lens (view)
 import Data.Map (empty) as Map
 import Examples.Helpers
   ( mustPayToPubKeyStakeAddress
-  , mustPayWithDatumToPubKeyStakeAddress
+  , mustPayToPubKeyStakeAddressWithDatum
   ) as Helpers
 import Metadata.Cip25.V2 (Cip25Metadata)
 import Plutus.Types.TransactionUnspentOutput
@@ -74,7 +76,7 @@ derive instance Newtype ContractParams _
 type ContractResult =
   { txHash :: TransactionHash
   , txFinalFee :: BigInt
-  , outputWithDatumHash :: TransactionOutput
+  , outputWithDatumHash :: TransactionOutputWithRefScript
   }
 
 mkAssertions
@@ -88,6 +90,7 @@ mkAssertions params@(ContractParams p) = do
     liftedM "Failed to get sender address" getWalletAddress
   receiverAddress <-
     liftedM "Failed to get receiver address" (getReceiverAddress params)
+  dhash <- liftContractM "Failed to hash datum" $ datumHash $ p.datumToAttach
   pure
     $
       [ TestUtils.assertGainAtAddress' (label receiverAddress "Receiver")
@@ -97,13 +100,13 @@ mkAssertions params@(ContractParams p) = do
           \{ txFinalFee } -> pure (p.adaToSend + txFinalFee)
 
       , TestUtils.assertTokenGainAtAddress' (label senderAddress "Sender")
-          ( uncurry3 (\cs tn amount -> cs /\ tn /\ (one + amount))
+          ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
               p.tokensToMint
           )
       ]
     /\
-      [ \{ outputWithDatumHash } ->
-          TestUtils.assertOutputHasDatum (p.datumToAttach)
+      [ \{ outputWithDatumHash } -> do
+          TestUtils.assertOutputHasDatum (OutputDatumHash dhash)
             (label outputWithDatumHash "Sender's output with datum hash")
 
       , \{ txHash } ->
@@ -128,8 +131,9 @@ contract params@(ContractParams p) = do
 
       , Constraints.mustMintValue nonAdaValue
 
-      , Helpers.mustPayWithDatumToPubKeyStakeAddress ownPkh ownSkh
+      , Helpers.mustPayToPubKeyStakeAddressWithDatum ownPkh ownSkh
           p.datumToAttach
+          DatumWitness
           nonAdaValue
       ]
 
@@ -163,8 +167,10 @@ contract params@(ContractParams p) = do
       }
   where
   hasDatumHash :: TransactionUnspentOutput -> Boolean
-  hasDatumHash =
-    isJust <<< _.dataHash <<< unwrap <<< view _output
+  hasDatumHash = view _output >>> unwrap >>> _.output >>> unwrap >>> _.datum >>>
+    case _ of
+      OutputDatumHash _ -> true
+      _ -> false
 
 getReceiverAddress :: ContractParams -> Contract () (Maybe Address)
 getReceiverAddress (ContractParams { receiverPkh, receiverSkh }) =
