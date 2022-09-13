@@ -2,9 +2,10 @@
 rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
+    # { name = "preprod"; magic = 1; }
     network = {
-      name = "preprod";
-      magic = 1; # use `null` for mainnet
+      name = "preview";
+      magic = 2; # use `null` for mainnet
     };
     node = {
       port = 3001;
