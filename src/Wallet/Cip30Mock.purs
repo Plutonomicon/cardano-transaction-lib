@@ -14,8 +14,10 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap)
+import Data.Traversable (traverse)
+import Data.UInt as UInt
 import Deserialization.Transaction (deserializeTransaction)
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -107,11 +109,20 @@ mkCip30Mock pKey mSKey = do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
-        collateralUtxos <- liftMaybe (error "No UTxOs at address") $
-          (unwrap keyWallet).selectCollateral utxos
-        cslUnspentOutput <- liftEffect $ convertTransactionUnspentOutput
+        let
+          pparams = unwrap $ runtime.pparams
+          coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
+          maxCollateralInputs = fromMaybe 3 $ map UInt.toInt $
+            pparams.maxCollateralInputs
+        collateralUtxos <- liftEffect $
+          (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
+            maxCollateralInputs
+            utxos
+            >>= liftMaybe (error "No UTxOs at address")
+        cslUnspentOutput <- liftEffect $ traverse
+          convertTransactionUnspentOutput
           collateralUtxos
-        pure [ byteArrayToHex $ toBytes $ asOneOf cslUnspentOutput ]
+        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUnspentOutput
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str

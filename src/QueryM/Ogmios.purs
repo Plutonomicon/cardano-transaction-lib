@@ -4,8 +4,9 @@ module QueryM.Ogmios
   ( ChainOrigin(ChainOrigin)
   , ChainPoint
   , ChainTipQR(CtChainOrigin, CtChainPoint)
+  , CostModelV1
+  , CostModelV2
   , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
-  , CostModel
   , CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -80,17 +81,30 @@ import Aeson
   , encodeAeson'
   , getField
   , getFieldOptional
+  , getFieldOptional'
   , isNull
+  , isString
   , stringifyAeson
+  , toString
+  )
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
   )
 import Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
-  , Language(PlutusV1)
   , Nonce
   , SubCoin
   )
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value
   ( Coin(Coin)
@@ -102,15 +116,19 @@ import Cardano.Types.Value
   )
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
-import Data.Array (index, singleton)
+import Data.Array (index, singleton, reverse, catMaybes)
+import Data.Array (head) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
+import Data.Int (fromString) as Int
+import Data.List (List)
+import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String
@@ -129,9 +147,10 @@ import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
 import Helpers (showWithParens)
+import Partial.Unsafe (unsafePartial)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
-import Type.Proxy (Proxy(Proxy))
+import Serialization.Hash (ed25519KeyHashFromBytes)
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
@@ -140,12 +159,15 @@ import Types.Natural (Natural)
 import Types.Natural (fromString) as Natural
 import Types.Rational (Rational, (%))
 import Types.Rational as Rational
+import Types.RawBytes (hexToRawBytes)
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
+import Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
+import Heterogeneous.Folding (class HFoldl, hfoldl)
 
 --------------------------------------------------------------------------------
 -- Local State Query Protocol
@@ -154,35 +176,35 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- | Queries Ogmios for the system start Datetime
 querySystemStartCall :: JsonWspCall Unit SystemStart
-querySystemStartCall = mkOgmiosCallType Proxy
+querySystemStartCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "systemStart" }
   }
 
 -- | Queries Ogmios for the current epoch
 queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
-queryCurrentEpochCall = mkOgmiosCallType Proxy
+queryCurrentEpochCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "currentEpoch" }
   }
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
 queryEraSummariesCall :: JsonWspCall Unit EraSummaries
-queryEraSummariesCall = mkOgmiosCallType Proxy
+queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
   }
 
 -- | Queries Ogmios for the current protocol parameters
 queryProtocolParametersCall :: JsonWspCall Unit ProtocolParameters
-queryProtocolParametersCall = mkOgmiosCallType Proxy
+queryProtocolParametersCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "currentProtocolParameters" }
   }
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType Proxy
+queryChainTipCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "chainTip" }
   }
@@ -190,7 +212,7 @@ queryChainTipCall = mkOgmiosCallType Proxy
 -- | Queries Ogmios for utxos at given addresses.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
-queryUtxosCall = mkOgmiosCallType Proxy
+queryUtxosCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ }
   }
@@ -198,14 +220,14 @@ queryUtxosCall = mkOgmiosCallType Proxy
 -- | Queries Ogmios for utxos at given address.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
-queryUtxosAtCall = mkOgmiosCallType Proxy
+queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
 
 -- | Queries Ogmios for the utxo with the given output reference.
 queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
-queryUtxoCall = mkOgmiosCallType Proxy
+queryUtxoCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
   }
@@ -225,7 +247,7 @@ type OgmiosAddress = String
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
 submitTxCall :: JsonWspCall (TxHash /\ CborBytes) SubmitTxR
-submitTxCall = mkOgmiosCallType Proxy
+submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
   , args: { submit: _ } <<< cborBytesToHex <<< snd
   }
@@ -233,7 +255,7 @@ submitTxCall = mkOgmiosCallType Proxy
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
 evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
-evaluateTxCall = mkOgmiosCallType Proxy
+evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
   }
@@ -245,11 +267,11 @@ evaluateTxCall = mkOgmiosCallType Proxy
 
 acquireMempoolSnapshotCall :: JsonWspCall Unit MempoolSnapshotAcquired
 acquireMempoolSnapshotCall =
-  mkOgmiosCallTypeNoArgs Proxy "AwaitAcquire"
+  mkOgmiosCallTypeNoArgs "AwaitAcquire"
 
 mempoolSnapshotHasTxCall
   :: MempoolSnapshotAcquired -> JsonWspCall TxHash Boolean
-mempoolSnapshotHasTxCall _ = mkOgmiosCallType Proxy
+mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   { methodname: "HasTx"
   , args: { id: _ }
   }
@@ -273,17 +295,16 @@ instance DecodeAeson MempoolSnapshotAcquired where
 --------------------------------------------------------------------------------
 
 mkOgmiosCallTypeNoArgs
-  :: forall (o :: Type). Proxy o -> String -> JsonWspCall Unit o
-mkOgmiosCallTypeNoArgs proxy methodname =
-  mkOgmiosCallType proxy { methodname, args: const {} }
+  :: forall (o :: Type). String -> JsonWspCall Unit o
+mkOgmiosCallTypeNoArgs methodname =
+  mkOgmiosCallType { methodname, args: const {} }
 
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeAeson (JsonWspRequest a)
-  => Proxy o
-  -> { methodname :: String, args :: i -> a }
+  => { methodname :: String, args :: i -> a }
   -> JsonWspCall i o
-mkOgmiosCallType = flip
+mkOgmiosCallType =
   ( mkCallType
       { "type": "jsonwsp/request"
       , version: "1.0"
@@ -771,7 +792,8 @@ type ProtocolParametersRaw =
   , "coinsPerUtxoByte" :: Maybe BigInt
   , "coinsPerUtxoWord" :: Maybe BigInt
   , "costModels" ::
-      { "plutus:v1" :: CostModel
+      { "plutus:v1" :: { | CostModelV1 }
+      , "plutus:v2" :: Maybe { | CostModelV2 }
       }
   , "prices" ::
       { "memory" :: PParamRational
@@ -861,8 +883,10 @@ instance DecodeAeson ProtocolParameters where
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoUnit: coinsPerUtxoUnit
-      , costModels: Costmdls $ Map.fromFoldable
-          [ PlutusV1 /\ convertCostModel ps.costModels."plutus:v1" ]
+      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
+          [ pure (PlutusV1 /\ convertCostModel ps.costModels."plutus:v1")
+          , (PlutusV2 /\ _) <<< convertCostModel <$> ps.costModels."plutus:v2"
+          ]
       , prices: prices
       , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
@@ -883,8 +907,8 @@ instance DecodeAeson ProtocolParameters where
       pure $ Just { memPrice, stepPrice } -- Maybe ExUnits
 
 -- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
-type CostModel =
-  { "addInteger-cpu-arguments-intercept" :: Csl.Int
+type CostModelV1 =
+  ( "addInteger-cpu-arguments-intercept" :: Csl.Int
   , "addInteger-cpu-arguments-slope" :: Csl.Int
   , "addInteger-memory-arguments-intercept" :: Csl.Int
   , "addInteger-memory-arguments-slope" :: Csl.Int
@@ -1050,177 +1074,32 @@ type CostModel =
   , "verifyEd25519Signature-cpu-arguments-intercept" :: Csl.Int
   , "verifyEd25519Signature-cpu-arguments-slope" :: Csl.Int
   , "verifyEd25519Signature-memory-arguments" :: Csl.Int
-  }
+  )
 
-convertCostModel :: CostModel -> T.CostModel
-convertCostModel model = wrap
-  [ model."addInteger-cpu-arguments-intercept"
-  , model."addInteger-cpu-arguments-slope"
-  , model."addInteger-memory-arguments-intercept"
-  , model."addInteger-memory-arguments-slope"
-  , model."appendByteString-cpu-arguments-intercept"
-  , model."appendByteString-cpu-arguments-slope"
-  , model."appendByteString-memory-arguments-intercept"
-  , model."appendByteString-memory-arguments-slope"
-  , model."appendString-cpu-arguments-intercept"
-  , model."appendString-cpu-arguments-slope"
-  , model."appendString-memory-arguments-intercept"
-  , model."appendString-memory-arguments-slope"
-  , model."bData-cpu-arguments"
-  , model."bData-memory-arguments"
-  , model."blake2b_256-cpu-arguments-intercept"
-  , model."blake2b_256-cpu-arguments-slope"
-  , model."blake2b_256-memory-arguments"
-  , model."cekApplyCost-exBudgetCPU"
-  , model."cekApplyCost-exBudgetMemory"
-  , model."cekBuiltinCost-exBudgetCPU"
-  , model."cekBuiltinCost-exBudgetMemory"
-  , model."cekConstCost-exBudgetCPU"
-  , model."cekConstCost-exBudgetMemory"
-  , model."cekDelayCost-exBudgetCPU"
-  , model."cekDelayCost-exBudgetMemory"
-  , model."cekForceCost-exBudgetCPU"
-  , model."cekForceCost-exBudgetMemory"
-  , model."cekLamCost-exBudgetCPU"
-  , model."cekLamCost-exBudgetMemory"
-  , model."cekStartupCost-exBudgetCPU"
-  , model."cekStartupCost-exBudgetMemory"
-  , model."cekVarCost-exBudgetCPU"
-  , model."cekVarCost-exBudgetMemory"
-  , model."chooseData-cpu-arguments"
-  , model."chooseData-memory-arguments"
-  , model."chooseList-cpu-arguments"
-  , model."chooseList-memory-arguments"
-  , model."chooseUnit-cpu-arguments"
-  , model."chooseUnit-memory-arguments"
-  , model."consByteString-cpu-arguments-intercept"
-  , model."consByteString-cpu-arguments-slope"
-  , model."consByteString-memory-arguments-intercept"
-  , model."consByteString-memory-arguments-slope"
-  , model."constrData-cpu-arguments"
-  , model."constrData-memory-arguments"
-  , model."decodeUtf8-cpu-arguments-intercept"
-  , model."decodeUtf8-cpu-arguments-slope"
-  , model."decodeUtf8-memory-arguments-intercept"
-  , model."decodeUtf8-memory-arguments-slope"
-  , model."divideInteger-cpu-arguments-constant"
-  , model."divideInteger-cpu-arguments-model-arguments-intercept"
-  , model."divideInteger-cpu-arguments-model-arguments-slope"
-  , model."divideInteger-memory-arguments-intercept"
-  , model."divideInteger-memory-arguments-minimum"
-  , model."divideInteger-memory-arguments-slope"
-  , model."encodeUtf8-cpu-arguments-intercept"
-  , model."encodeUtf8-cpu-arguments-slope"
-  , model."encodeUtf8-memory-arguments-intercept"
-  , model."encodeUtf8-memory-arguments-slope"
-  , model."equalsByteString-cpu-arguments-constant"
-  , model."equalsByteString-cpu-arguments-intercept"
-  , model."equalsByteString-cpu-arguments-slope"
-  , model."equalsByteString-memory-arguments"
-  , model."equalsData-cpu-arguments-intercept"
-  , model."equalsData-cpu-arguments-slope"
-  , model."equalsData-memory-arguments"
-  , model."equalsInteger-cpu-arguments-intercept"
-  , model."equalsInteger-cpu-arguments-slope"
-  , model."equalsInteger-memory-arguments"
-  , model."equalsString-cpu-arguments-constant"
-  , model."equalsString-cpu-arguments-intercept"
-  , model."equalsString-cpu-arguments-slope"
-  , model."equalsString-memory-arguments"
-  , model."fstPair-cpu-arguments"
-  , model."fstPair-memory-arguments"
-  , model."headList-cpu-arguments"
-  , model."headList-memory-arguments"
-  , model."iData-cpu-arguments"
-  , model."iData-memory-arguments"
-  , model."ifThenElse-cpu-arguments"
-  , model."ifThenElse-memory-arguments"
-  , model."indexByteString-cpu-arguments"
-  , model."indexByteString-memory-arguments"
-  , model."lengthOfByteString-cpu-arguments"
-  , model."lengthOfByteString-memory-arguments"
-  , model."lessThanByteString-cpu-arguments-intercept"
-  , model."lessThanByteString-cpu-arguments-slope"
-  , model."lessThanByteString-memory-arguments"
-  , model."lessThanEqualsByteString-cpu-arguments-intercept"
-  , model."lessThanEqualsByteString-cpu-arguments-slope"
-  , model."lessThanEqualsByteString-memory-arguments"
-  , model."lessThanEqualsInteger-cpu-arguments-intercept"
-  , model."lessThanEqualsInteger-cpu-arguments-slope"
-  , model."lessThanEqualsInteger-memory-arguments"
-  , model."lessThanInteger-cpu-arguments-intercept"
-  , model."lessThanInteger-cpu-arguments-slope"
-  , model."lessThanInteger-memory-arguments"
-  , model."listData-cpu-arguments"
-  , model."listData-memory-arguments"
-  , model."mapData-cpu-arguments"
-  , model."mapData-memory-arguments"
-  , model."mkCons-cpu-arguments"
-  , model."mkCons-memory-arguments"
-  , model."mkNilData-cpu-arguments"
-  , model."mkNilData-memory-arguments"
-  , model."mkNilPairData-cpu-arguments"
-  , model."mkNilPairData-memory-arguments"
-  , model."mkPairData-cpu-arguments"
-  , model."mkPairData-memory-arguments"
-  , model."modInteger-cpu-arguments-constant"
-  , model."modInteger-cpu-arguments-model-arguments-intercept"
-  , model."modInteger-cpu-arguments-model-arguments-slope"
-  , model."modInteger-memory-arguments-intercept"
-  , model."modInteger-memory-arguments-minimum"
-  , model."modInteger-memory-arguments-slope"
-  , model."multiplyInteger-cpu-arguments-intercept"
-  , model."multiplyInteger-cpu-arguments-slope"
-  , model."multiplyInteger-memory-arguments-intercept"
-  , model."multiplyInteger-memory-arguments-slope"
-  , model."nullList-cpu-arguments"
-  , model."nullList-memory-arguments"
-  , model."quotientInteger-cpu-arguments-constant"
-  , model."quotientInteger-cpu-arguments-model-arguments-intercept"
-  , model."quotientInteger-cpu-arguments-model-arguments-slope"
-  , model."quotientInteger-memory-arguments-intercept"
-  , model."quotientInteger-memory-arguments-minimum"
-  , model."quotientInteger-memory-arguments-slope"
-  , model."remainderInteger-cpu-arguments-constant"
-  , model."remainderInteger-cpu-arguments-model-arguments-intercept"
-  , model."remainderInteger-cpu-arguments-model-arguments-slope"
-  , model."remainderInteger-memory-arguments-intercept"
-  , model."remainderInteger-memory-arguments-minimum"
-  , model."remainderInteger-memory-arguments-slope"
-  , model."sha2_256-cpu-arguments-intercept"
-  , model."sha2_256-cpu-arguments-slope"
-  , model."sha2_256-memory-arguments"
-  , model."sha3_256-cpu-arguments-intercept"
-  , model."sha3_256-cpu-arguments-slope"
-  , model."sha3_256-memory-arguments"
-  , model."sliceByteString-cpu-arguments-intercept"
-  , model."sliceByteString-cpu-arguments-slope"
-  , model."sliceByteString-memory-arguments-intercept"
-  , model."sliceByteString-memory-arguments-slope"
-  , model."sndPair-cpu-arguments"
-  , model."sndPair-memory-arguments"
-  , model."subtractInteger-cpu-arguments-intercept"
-  , model."subtractInteger-cpu-arguments-slope"
-  , model."subtractInteger-memory-arguments-intercept"
-  , model."subtractInteger-memory-arguments-slope"
-  , model."tailList-cpu-arguments"
-  , model."tailList-memory-arguments"
-  , model."trace-cpu-arguments"
-  , model."trace-memory-arguments"
-  , model."unBData-cpu-arguments"
-  , model."unBData-memory-arguments"
-  , model."unConstrData-cpu-arguments"
-  , model."unConstrData-memory-arguments"
-  , model."unIData-cpu-arguments"
-  , model."unIData-memory-arguments"
-  , model."unListData-cpu-arguments"
-  , model."unListData-memory-arguments"
-  , model."unMapData-cpu-arguments"
-  , model."unMapData-memory-arguments"
-  , model."verifyEd25519Signature-cpu-arguments-intercept"
-  , model."verifyEd25519Signature-cpu-arguments-slope"
-  , model."verifyEd25519Signature-memory-arguments"
-  ]
+type CostModelV2 =
+  ( "serialiseData-cpu-arguments-intercept" :: Csl.Int
+  , "serialiseData-cpu-arguments-slope" :: Csl.Int
+  , "serialiseData-memory-arguments-intercept" :: Csl.Int
+  , "serialiseData-memory-arguments-slope" :: Csl.Int
+  , "verifyEcdsaSecp256k1Signature-cpu-arguments" :: Csl.Int
+  , "verifyEcdsaSecp256k1Signature-memory-arguments" :: Csl.Int
+  , "verifySchnorrSecp256k1Signature-cpu-arguments-intercept" :: Csl.Int
+  , "verifySchnorrSecp256k1Signature-cpu-arguments-slope" :: Csl.Int
+  , "verifySchnorrSecp256k1Signature-memory-arguments" :: Csl.Int
+  | CostModelV1
+  )
+
+-- This assumes that cost models are stored in lexicographical order
+convertCostModel
+  :: forall costModel
+   . HFoldl (List Csl.Int -> Csl.Int -> List Csl.Int) (List Csl.Int) costModel
+       (List Csl.Int)
+  => costModel
+  -> T.CostModel
+convertCostModel model = wrap $ reverse $ List.toUnfoldable $ hfoldl
+  ((\xs x -> x List.: xs) :: List Csl.Int -> Csl.Int -> List Csl.Int)
+  (mempty :: List Csl.Int)
+  model
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
@@ -1276,6 +1155,7 @@ type ChainPoint =
 -- | Ogmios response for Utxo Query
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
+derive instance Newtype UtxoQR _
 derive newtype instance Show UtxoQR
 
 instance DecodeAeson UtxoQR where
@@ -1336,7 +1216,9 @@ parseTxOutRef = aesonObject $ \o -> do
 type OgmiosTxOut =
   { address :: OgmiosAddress
   , value :: Value
+  , datumHash :: Maybe String
   , datum :: Maybe String
+  , script :: Maybe ScriptRef
   }
 
 -- Ogmios currently supplies the Raw OgmiosAddress in addr1 format, rather than the
@@ -1346,8 +1228,82 @@ parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
 parseTxOut = aesonObject $ \o -> do
   address <- getField o "address"
   value <- parseValue o
-  let datum = hush $ getField o "datumHash"
-  pure { address, value, datum }
+  datumHash <- getFieldOptional' o "datumHash"
+  datum <- getFieldOptional' o "datum"
+  script <- parseScript o
+  pure { address, value, datumHash, datum, script }
+
+parseScript :: Object Aeson -> Either JsonDecodeError (Maybe ScriptRef)
+parseScript outer =
+  getFieldOptional' outer "script" >>= case _ of
+    Nothing -> pure Nothing
+    Just script -> do
+      case (Array.head $ ForeignObject.toUnfoldable script) of
+        Just ("plutus:v1" /\ plutusScript) ->
+          Just <$> parsePlutusScriptWithLang PlutusV1 plutusScript
+
+        Just ("plutus:v2" /\ plutusScript) ->
+          Just <$> parsePlutusScriptWithLang PlutusV2 plutusScript
+
+        Just ("native" /\ nativeScript) ->
+          Just <<< NativeScriptRef <$> parseNativeScript nativeScript
+
+        _ ->
+          Left $ TypeMismatch $
+            "Expected native or Plutus script, got: " <> show script
+  where
+  parsePlutusScriptWithLang
+    :: Language -> Aeson -> Either JsonDecodeError ScriptRef
+  parsePlutusScriptWithLang lang aeson = do
+    let
+      scriptTypeMismatch :: JsonDecodeError
+      scriptTypeMismatch = TypeMismatch
+        $ "Expected hex-encoded Plutus script, got: " <> show aeson
+
+    aeson # caseAesonString (Left scriptTypeMismatch)
+      \hexEncodedScript -> do
+        scriptBytes <- note scriptTypeMismatch (hexToByteArray hexEncodedScript)
+        pure $ PlutusScriptRef $ PlutusScript (scriptBytes /\ lang)
+
+  parseNativeScript :: Aeson -> Either JsonDecodeError NativeScript
+  parseNativeScript aeson
+    | isString aeson = do
+        let
+          pubKeyHashTypeMismatch :: JsonDecodeError
+          pubKeyHashTypeMismatch = TypeMismatch
+            $ "Expected hex-encoded pub key hash, got: " <> show aeson
+
+          pubKeyHashHex :: String
+          pubKeyHashHex = unsafePartial fromJust $ toString aeson
+
+        ScriptPubkey <$> note pubKeyHashTypeMismatch
+          (ed25519KeyHashFromBytes =<< hexToRawBytes pubKeyHashHex)
+
+    | otherwise = aeson # aesonObject \obj -> do
+        let
+          scriptTypeMismatch :: JsonDecodeError
+          scriptTypeMismatch = TypeMismatch
+            $ "Expected native script, got: " <> show aeson
+
+        case (Array.head $ ForeignObject.toUnfoldable obj) of
+          Just ("any" /\ scripts) ->
+            scripts # aesonArray (map ScriptAny <<< traverse parseNativeScript)
+
+          Just ("all" /\ scripts) ->
+            scripts # aesonArray (map ScriptAll <<< traverse parseNativeScript)
+
+          Just ("expiresAt" /\ slot) ->
+            TimelockExpiry <$> decodeAeson slot
+
+          Just ("startsAt" /\ slot) ->
+            TimelockStart <$> decodeAeson slot
+
+          Just (atLeast /\ scripts) -> do
+            n <- note scriptTypeMismatch (Int.fromString atLeast)
+            scripts # aesonArray
+              (map (ScriptNOfK n) <<< traverse parseNativeScript)
+
+          _ -> Left scriptTypeMismatch
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value

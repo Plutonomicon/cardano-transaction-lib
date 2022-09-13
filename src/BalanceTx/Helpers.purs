@@ -37,4 +37,3 @@ _redeemersTxIns
 _redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
   redeemersTxIns /\
     \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }
-

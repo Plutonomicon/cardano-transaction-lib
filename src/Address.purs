@@ -4,15 +4,12 @@ module Address
   , enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
-  , getNetworkId
   , ogmiosAddressToAddress
   ) where
 
 import Prelude
 
-import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe)
-import QueryM (QueryM)
 import QueryM.Ogmios as Ogmios
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
@@ -21,7 +18,6 @@ import Types.Scripts
   )
 import Serialization.Address
   ( Address
-  , NetworkId
   , addressBech32
   , addressFromBech32
   , enterpriseAddressFromAddress
@@ -68,9 +64,3 @@ enterpriseAddressMintingPolicyHash =
 enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 enterpriseAddressStakeValidatorHash =
   map StakeValidatorHash <<< enterpriseAddressScriptHash
-
---------------------------------------------------------------------------------
--- NetworkId
---------------------------------------------------------------------------------
-getNetworkId :: QueryM NetworkId
-getNetworkId = asks $ _.config >>> _.networkId
