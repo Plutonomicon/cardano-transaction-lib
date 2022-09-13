@@ -39,6 +39,7 @@ import Address
   , enterpriseAddressValidatorHash
   ) as Address
 import Contract.Monad (Contract, wrapContract, liftedM)
+import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Plutus.Conversion
@@ -62,9 +63,9 @@ import Plutus.Types.Address
   ) as ExportAddress
 import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import QueryM
-  ( getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
   , ownStakePubKeyHash
   ) as QueryM
 import QueryM.NetworkId (getNetworkId) as QueryM
@@ -116,12 +117,12 @@ import Types.UnbalancedTransaction
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddress
-  for mbAddr $
-    liftedM "getWalletAddress: failed to deserialize Address"
-      <<< wrapContract
-      <<< pure
-      <<< toPlutusAddress
+  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
+  for mbAddr
+    ( liftedM "getWalletAddress: failed to deserialize address" <<< wrapContract
+        <<< pure
+        <<< toPlutusAddress
+    )
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
@@ -142,11 +143,14 @@ getWalletCollateral = do
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
 ownPaymentPubKeyHash
   :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
+-- TODO: change this to Maybe (Array Address)
+ownPaymentPubKeyHash = wrapContract
+  (QueryM.ownPaymentPubKeyHashes <#> (_ >>= head))
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
-ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
+-- TODO: change this to Maybe (Array Address)
+ownPubKeyHash = wrapContract (QueryM.ownPubKeyHashes <#> (_ >>= head))
 
 ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash

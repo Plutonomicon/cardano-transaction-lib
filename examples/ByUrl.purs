@@ -4,13 +4,14 @@ import Prelude
 
 import Contract.Config
   ( ConfigParams
+  , testnetEternlConfig
+  , testnetFlintConfig
   , testnetGeroConfig
   , testnetNamiConfig
-  , testnetFlintConfig
   , testnetLodeConfig
   )
-import Contract.Prelude (fst, traverse_, uncurry)
 import Contract.Monad (Contract, runContract)
+import Contract.Prelude (fst, traverse_, uncurry)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
@@ -20,11 +21,12 @@ import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)
 import Data.Foldable (lookup)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (wrap)
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (delay, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (error)
@@ -60,6 +62,7 @@ main = do
       config <- liftMaybe (error $ "unknown wallet name: " <> walletName) $
         lookup walletName wallets
       launchAff_ do
+        delay $ wrap 3000.0
         paymentKey <- liftMaybe (error "Unable to load private key") $
           privatePaymentKeyFromString paymentKeyStr
         let
@@ -86,6 +89,7 @@ wallets =
   [ "nami" /\ testnetNamiConfig
   , "gero" /\ testnetGeroConfig
   , "flint" /\ testnetFlintConfig
+  , "eternl" /\ testnetEternlConfig
   , "lode" /\ testnetLodeConfig
   , "nami-mock" /\ testnetNamiConfig
   , "gero-mock" /\ testnetGeroConfig

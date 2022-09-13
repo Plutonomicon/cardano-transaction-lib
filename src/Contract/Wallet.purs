@@ -28,6 +28,7 @@ import Wallet
   ( isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
+  , isEternlAvailable
   , isLodeAvailable
   ) as Wallet
 import Wallet (mkKeyWallet, Wallet(KeyWallet))

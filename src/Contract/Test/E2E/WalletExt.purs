@@ -1,6 +1,6 @@
 module Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
-  , WalletExt(FlintExt, GeroExt, LodeExt, NamiExt)
+  , WalletExt(FlintExt, GeroExt, LodeExt, NamiExt, EternlExt)
   , WalletConfig(WalletConfig)
   , module X
   , getWalletByName
@@ -15,6 +15,8 @@ import Contract.Test.E2E.Helpers
   ( ExtensionId(ExtensionId)
   , RunningExample
   , WalletPassword
+  , eternlConfirmAccess
+  , eternlSign
   , flintConfirmAccess
   , flintSign
   , geroConfirmAccess
@@ -34,7 +36,7 @@ import Node.Path (FilePath)
 import Node.Process (lookupEnv)
 import Record as Record
 
-data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt
+data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt
 
 derive instance Eq WalletExt
 derive instance Ord WalletExt
@@ -51,6 +53,7 @@ derive instance Newtype SomeWallet _
 
 getWalletByName :: String -> Effect (Maybe SomeWallet)
 getWalletByName = case _ of
+  "eternl" -> Just <$> getWalletByType EternlExt
   "flint" -> Just <$> getWalletByType FlintExt
   "gero" -> Just <$> getWalletByType GeroExt
   "lode" -> Just <$> getWalletByType LodeExt
@@ -66,6 +69,14 @@ readExtIdEnvVar varName = do
 
 getWalletByType :: WalletExt -> Effect SomeWallet
 getWalletByType walletExt = addName case walletExt of
+  EternlExt -> do
+    id <- readExtIdEnvVar "ETERNL_EXTID"
+    pure
+      { wallet: EternlExt
+      , id
+      , confirmAccess: eternlConfirmAccess
+      , sign: eternlSign
+      }
   FlintExt -> do
     id <- readExtIdEnvVar "FLINT_EXTID"
     pure
@@ -103,9 +114,10 @@ getWalletByType walletExt = addName case walletExt of
 
 walletName :: WalletExt -> String
 walletName = case _ of
+  EternlExt -> "eternl"
+  FlintExt -> "flint"
   GeroExt -> "gero"
   LodeExt -> "lode"
   NamiExt -> "namie"
-  FlintExt -> "flint"
 
 data WalletConfig = WalletConfig FilePath WalletPassword

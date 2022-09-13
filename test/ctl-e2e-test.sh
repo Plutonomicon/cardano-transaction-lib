@@ -30,29 +30,31 @@ unique_temp_dir () {
     echo "$(temp_base)/$(mktemp -du e2e.XXXXXXX)"
 }
 
-run_tests () {
-    local temp_dir="$(unique_temp_dir)"
-    mkdir -p "$temp_dir"
-    unzip "$NAMI_CRX" -d "$temp_dir"/nami > /dev/zero
-    tar xzf "$NAMI_SETTINGS"
-    unzip "$GERO_CRX" -d "$temp_dir"/gero > /dev/zero
-    tar xzf "$GERO_SETTINGS"
-    unzip "$FLINT_CRX" -d "$temp_dir"/flint > /dev/zero
-    tar xzf "$FLINT_SETTINGS"
-    unzip "$LODE_CRX" -d "$temp_dir"/lode > /dev/zero
-    tar xzf "$LODE_SETTINGS"
-    rm -f "$CHROME_PROFILE"/SingletonLock
-    spago test --main Test.E2E -a "E2ETest \
-          --lode-dir $temp_dir/lode \
-          --lode-password $LODE_PASSWORD \
-          $* --chrome-exe $(find_browser)" || rm -Rf "$temp_dir"
-}
-
 extract_settings() {
     if [ -n "$1" ] && [ -f "$1" ]
     then
         tar xzf "$1"
     fi
+}
+
+run_tests () {
+    local temp_dir="$(unique_temp_dir)"
+    mkdir -p "$temp_dir"
+    unzip "$NAMI_CRX" -d "$temp_dir"/nami > /dev/zero
+    extract_settings "$NAMI_SETTINGS"
+    unzip "$GERO_CRX" -d "$temp_dir"/gero > /dev/zero
+    extract_settings "$GERO_SETTINGS"
+    unzip "$FLINT_CRX" -d "$temp_dir"/flint > /dev/zero
+    extract_settings "$FLINT_SETTINGS"
+    unzip "$LODE_CRX" -d "$temp_dir"/lode > /dev/zero
+    extract_settings "$LODE_SETTINGS"
+    unzip "$ETERNL_CRX" -d "$temp_dir"/eternl > /dev/zero
+    extract_settings "$ETERNL_SETTINGS"
+    rm -f "$CHROME_PROFILE"/SingletonLock
+    spago test --main Test.E2E -a "E2ETest \
+          --eternl-dir $temp_dir/eternl \
+          --eternl-password $ETERNL_PASSWORD \
+          $* --chrome-exe $(find_browser)" || rm -Rf "$temp_dir"
 }
 
 extract_crx() {
@@ -65,23 +67,27 @@ extract_crx() {
 
 run_browser () {
     local temp_dir="$(unique_temp_dir)"
+    echo TMP: $temp_dir
     mkdir -p "$temp_dir"
 
     extract_settings "$FLINT_SETTINGS"
     extract_settings "$GERO_SETTINGS"
     extract_settings "$LODE_SETTINGS"
     extract_settings "$NAMI_SETTINGS"
+    extract_settings "$ETERNL_SETTINGS"
     extract_crx "$FLINT_CRX" "$temp_dir/flint"
     extract_crx "$GERO_CRX" "$temp_dir/gero"
     extract_crx "$LODE_CRX" "$temp_dir/lode"
     extract_crx "$NAMI_CRX" "$temp_dir/nami"
+    extract_crx "$ETERNL_CRX" "$temp_dir/eternl"
 
     "$(find_browser)" \
-        --load-extension="$temp_dir"/flint,"$temp_dir"/gero,"$temp_dir"/nami,"$temp_dir"/lode \
+        --load-extension="$temp_dir"/flint,"$temp_dir"/gero,"$temp_dir"/nami,"$temp_dir"/lode,"$temp_dir"/eternl \
         --user-data-dir="$CHROME_PROFILE" || rm -Rf "$temp_dir"
 
 }
 
+# TODO: rename to pack_settings
 extract_settings_nami() {
     local extid="$1"
     local tgt="$2"
@@ -90,6 +96,15 @@ extract_settings_nami() {
 }
 
 extract_settings_gero_flint() {
+    local extid="$1"
+    local tgt="$2"
+
+    tar czf "$tgt" \
+        "$CHROME_PROFILE"/Default/IndexedDB/chrome-extension_"$extid"_0.indexeddb.leveldb \
+        "$CHROME_PROFILE"/Default/Extension\ State
+}
+
+extract_settings_eternl() {
     local extid="$1"
     local tgt="$2"
 
@@ -123,6 +138,11 @@ cmd_settings() {
             CMD=extract_settings_gero_flint
             EXTID="$FLINT_EXTID"
             TARGET="$FLINT_SETTINGS"
+            ;;
+        "eternl")
+            CMD=extract_settings_eternl
+            EXTID="$ETERNL_EXTID"
+            TARGET="$ETERNL_SETTINGS"
             ;;
         "gero")
             CMD=extract_settings_gero_flint
