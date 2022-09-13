@@ -14,7 +14,7 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.UInt as UInt
@@ -112,7 +112,7 @@ mkCip30Mock pKey mSKey = do
         let
           pparams = unwrap $ runtime.pparams
           coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
-          maxCollateralInputs = fromMaybe 3 $ map UInt.toInt $
+          maxCollateralInputs = UInt.toInt $
             pparams.maxCollateralInputs
         collateralUtxos <- liftEffect $
           (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
