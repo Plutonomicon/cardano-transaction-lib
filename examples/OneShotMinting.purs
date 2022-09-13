@@ -1,15 +1,22 @@
-module Examples.OneShotMinting
-  ( contract
-  ) where
+module Examples.OneShotMinting (main, example, contract) where
 
 import Contract.Prelude
 
 import Contract.Address (Address, getWalletAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM, liftContractM)
+import Contract.Monad
+  ( Contract
+  , launchAff_
+  , liftedE
+  , liftedM
+  , liftContractM
+  , runContract
+  )
 import Contract.PlutusData (PlutusData, toData)
 import Contract.Scripts (MintingPolicy, applyArgs)
 import Contract.ScriptLookups as Lookups
+import Contract.Test.E2E (publishTestFeedback)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
@@ -29,6 +36,14 @@ import Examples.Helpers
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+
+main :: Effect Unit
+main = example testnetNamiConfig
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg contract
+  publishTestFeedback true
 
 mkAssertions
   :: Address
