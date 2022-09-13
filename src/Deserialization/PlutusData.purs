@@ -6,13 +6,13 @@ module Deserialization.PlutusData
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Deserialization.BigInt (convertBigInt)
+import Deserialization.FromBytes (fromBytes)
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -73,14 +73,8 @@ convertPlutusInteger pd = T.Integer <$> do
 convertPlutusBytes :: PlutusData -> Maybe T.PlutusData
 convertPlutusBytes pd = T.Bytes <$> _PlutusData_bytes maybeFfiHelper pd
 
-fromCborBytes :: CborBytes -> Maybe T.PlutusData
-fromCborBytes = flip bind convertPlutusData
-  <<< _plutusDataFromBytes maybeFfiHelper
-  <<< unwrap
-  <<< unwrap
-
 deserialiseData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
-deserialiseData = fromData <=< fromCborBytes
+deserialiseData = (fromData <=< convertPlutusData <=< fromBytes) <<< unwrap
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData
@@ -107,6 +101,3 @@ foreign import _unpackPlutusMap
   -> (forall a b. a -> b -> Tuple a b)
   -> PlutusMap
   -> Array (PlutusData /\ PlutusData)
-
-foreign import _plutusDataFromBytes
-  :: MaybeFfiHelper -> Uint8Array -> Maybe PlutusData

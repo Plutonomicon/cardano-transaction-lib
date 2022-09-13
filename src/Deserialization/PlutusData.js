@@ -1,12 +1,5 @@
 /* global BROWSER_RUNTIME */
 
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
-} else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
-}
-
 const plutusDataAs = what => helper => data => {
   const res = data["as_" + what]();
   return res == null ? helper.nothing : helper.just(res);
@@ -30,13 +23,4 @@ exports._unpackPlutusMap = containerHelper => tuple => plutusMap => {
     res.push(tuple(key)(plutusMap.get(key)));
   }
   return res;
-};
-
-exports._plutusDataFromBytes = maybe => bytes => {
-  try {
-    return maybe.just(lib.PlutusData.from_bytes(bytes));
-  } catch (e) {
-    console.log("failed to decode" + bytes, e);
-    return maybe.nothing;
-  }
 };
