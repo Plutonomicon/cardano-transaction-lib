@@ -1,6 +1,6 @@
 module Deserialization.PlutusData
   ( convertPlutusData
-  , deserialiseData
+  , deserializeData
   ) where
 
 import Prelude
@@ -73,8 +73,8 @@ convertPlutusInteger pd = T.Integer <$> do
 convertPlutusBytes :: PlutusData -> Maybe T.PlutusData
 convertPlutusBytes pd = T.Bytes <$> _PlutusData_bytes maybeFfiHelper pd
 
-deserialiseData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
-deserialiseData = (fromData <=< convertPlutusData <=< fromBytes) <<< unwrap
+deserializeData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
+deserializeData = (fromData <=< convertPlutusData <=< fromBytes) <<< unwrap
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData

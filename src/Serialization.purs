@@ -9,7 +9,7 @@ module Serialization
   , convertTransactionUnspentOutput
   , convertValue
   , toBytes
-  , serialiseData
+  , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
@@ -889,6 +889,6 @@ hashScriptData cms rs ps = do
     _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
       (traverse convertPlutusData ps)
 
-serialiseData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
-serialiseData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
+serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
+serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
   toData
