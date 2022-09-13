@@ -34,7 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 ### Changed
 ### Removed
+
 ### Fixed
+
+- Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
 
 ## [2.0.0] - 2022-09-12
 
