@@ -4,7 +4,7 @@ module Deserialization.NativeScript
 
 import Prelude
 
-import Cardano.Types.Transaction as T
+import Cardano.Types.NativeScript as T
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)

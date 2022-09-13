@@ -7,6 +7,7 @@ module BalanceTx
 
 import Prelude
 
+import BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
 import BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -51,7 +52,6 @@ import Cardano.Types.Transaction
   , TxBody(TxBody)
   , UtxoMap
   , _body
-  , _collateral
   , _fee
   , _inputs
   , _mint
@@ -82,20 +82,24 @@ import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
 import Data.Map (lookup, toUnfoldable, union, empty) as Map
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Class (class MonadEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
 import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
+import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
+import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
+import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
+import Wallet (cip30Wallet)
 
 -- | Balances an unbalanced transaction using utxos from the current wallet's
 -- | address.
@@ -117,6 +121,8 @@ balanceTxWithAddress
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
 
+  changeAddr <- ExceptT $ pure $ note CouldNotGetWalletAddress $ head ownAddrs
+
   utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
     ( traverse (note CouldNotGetUtxos) --Maybe -> Either and unwrap UtxoM
 
@@ -129,7 +135,7 @@ balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
         -- Don't set collateral if tx doesn't contain phase-2 scripts:
         lift unbalancedTxWithNetworkId
       false ->
-        setTransactionCollateral =<< lift unbalancedTxWithNetworkId
+        setTransactionCollateral changeAddr =<< lift unbalancedTxWithNetworkId
 
   let
     allUtxos :: UtxoMap
@@ -141,8 +147,6 @@ balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
   availableUtxos <- lift $ filterLockedUtxos allUtxos
 
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
-
-  changeAddr <- ExceptT $ pure $ note CouldNotGetWalletAddress $ head ownAddrs
 
   -- Balance and finalize the transaction:
   ExceptT $ runBalancer availableUtxos changeAddr
@@ -156,12 +160,18 @@ balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
         maybe (asks $ _.networkId <<< _.config) pure
     pure (transaction # _body <<< _networkId ?~ networkId)
 
-  setTransactionCollateral :: Transaction -> BalanceTxM Transaction
-  setTransactionCollateral transaction = do
+  setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
+  setTransactionCollateral changeAddr transaction = do
     collateral <-
-      ExceptT $ note CouldNotGetCollateral <<< map (map (_.input <<< unwrap))
-        <$> getWalletCollateral
-    pure $ transaction # _body <<< _collateral ?~ collateral
+      ExceptT $ note CouldNotGetCollateral <$> getWalletCollateral
+    let collaterisedTx = addTxCollateral collateral transaction
+    -- Don't mess with Cip30 collateral
+    isCip30 <- asks $ (_.runtime >>> _.wallet >=> cip30Wallet) >>> isJust
+    if isCip30 then pure collaterisedTx
+    else addTxCollateralReturn
+      collateral
+      collaterisedTx
+      changeAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -204,13 +214,13 @@ runBalancer utxos changeAddress =
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
     case newMinFee == minFee of
       true -> do
-        finalizedTransaction <- lift $ finalizeTransaction balancedTx
+        finalizedTransaction <- lift $ finalizeTransaction balancedTx utxos -- TODO: all available?
 
         -- someMinFee <- lift $ calculateMinFee (unwrap finalizedTransaction)
 
@@ -239,16 +249,19 @@ setTransactionMinFee minFee = _body' <<< _fee .~ Coin minFee
 -- | to cover the utxo min-ada-value requirement.
 addLovelacesToTransactionOutputs
   :: UnattachedUnbalancedTx -> BalanceTxM UnattachedUnbalancedTx
-addLovelacesToTransactionOutputs unbalancedTx =
+addLovelacesToTransactionOutputs unbalancedTx = do
+  coinsPerUtxoUnit <- lift $ asks
+    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoUnit)
   map (\txOutputs -> unbalancedTx # _body' <<< _outputs .~ txOutputs) $
-    traverse addLovelacesToTransactionOutput
+    traverse (addLovelacesToTransactionOutput coinsPerUtxoUnit)
       (unbalancedTx ^. _body' <<< _outputs)
 
 addLovelacesToTransactionOutput
-  :: TransactionOutput -> BalanceTxM TransactionOutput
-addLovelacesToTransactionOutput txOutput = do
-  txOutputMinAda <- ExceptT $ utxoMinAdaValue txOutput
-    <#> note UtxoMinAdaValueCalculationFailed
+  :: CoinsPerUtxoUnit -> TransactionOutput -> BalanceTxM TransactionOutput
+addLovelacesToTransactionOutput coinsPerUtxoUnit txOutput = do
+  txOutputMinAda <- ExceptT $ liftEffect $
+    utxoMinAdaValue coinsPerUtxoUnit txOutput
+      <#> note UtxoMinAdaValueCalculationFailed
   let
     txOutputRec = unwrap txOutput
 
@@ -290,7 +303,11 @@ buildTransactionChangeOutput changeAddress utxos tx =
         `minus` (totalOutputValue txBody <> minFeeValue txBody)
   in
     TransactionOutput
-      { address: changeAddress, amount: changeValue, dataHash: Nothing }
+      { address: changeAddress
+      , amount: changeValue
+      , datum: NoOutputDatum
+      , scriptRef: Nothing
+      }
 
 addTransactionChangeOutput
   :: ChangeAddress
@@ -325,8 +342,10 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
     nonMintedValue :: Value
     nonMintedValue = totalOutputValue txBody `minus` mintValue txBody
 
+  coinsPerUtxoUnit <- lift $ asks
+    (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoUnit)
   txChangeOutput <-
-    addLovelacesToTransactionOutput
+    addLovelacesToTransactionOutput coinsPerUtxoUnit
       (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
 
   let

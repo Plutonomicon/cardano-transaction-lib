@@ -14,28 +14,37 @@ import BalanceTx.Types
   , FinalizedTransaction(FinalizedTransaction)
   , PrebalancedTransaction(PrebalancedTransaction)
   )
+import Cardano.Types.ScriptRef as ScriptRef
 import Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
+  , TransactionOutput(TransactionOutput)
+  , TxBody(TxBody)
+  , UtxoMap
   , _inputs
   , _plutusData
   , _redeemers
   , _witnessSet
+  , _isValid
   )
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
+import Control.Monad.Error.Class (throwError)
+import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.Either (Either)
+import Data.Either (Either(Left, Right))
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((.~), (?~), (%~))
-import Data.Map (fromFoldable, toUnfoldable) as Map
+import Data.Map (fromFoldable, toUnfoldable, lookup, filterKeys, empty) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Tuple (fst)
+import Data.Set as Set
+import Data.Traversable (foldMap, traverse)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (liftEffect)
 import QueryM (QueryM)
@@ -47,6 +56,7 @@ import Serialization (convertTransaction, toBytes) as Serialization
 import Transaction (setScriptDataHash)
 import Types.Natural (toBigInt) as Natural
 import Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import Types.Scripts (PlutusScript)
 import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_transaction)
 import Untagged.Union (asOneOf)
@@ -60,16 +70,22 @@ evalTxExecutionUnits tx unattachedTx = do
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  ExceptT $ QueryM.evaluateTxOgmios txBytes
-    <#> lmap (ExUnitsEvaluationFailed unattachedTx) <<< unwrap
+  eResult <- unwrap <$> lift (QueryM.evaluateTxOgmios txBytes)
+  case eResult of
+    Right a -> pure a
+    Left e | tx ^. _isValid -> throwError $ ExUnitsEvaluationFailed unattachedTx
+      e
+    Left _ -> pure $ wrap $ Map.empty
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
 -- the minimum fee.
 evalExUnitsAndMinFee
-  :: PrebalancedTransaction -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
-evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) = do
+  :: PrebalancedTransaction
+  -> UtxoMap
+  -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
+evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   -- Reindex `Spent` script redeemers:
   reindexedUnattachedTx <-
     ExceptT $ reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
@@ -83,7 +99,7 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) = do
       updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
   -- Attach datums and redeemers, set the script integrity hash:
   FinalizedTransaction finalizedTx <- lift $
-    finalizeTransaction reindexedUnattachedTxWithExUnits
+    finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
   minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
   pure $ reindexedUnattachedTxWithExUnits /\ minFee
@@ -91,19 +107,37 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) = do
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
 finalizeTransaction
-  :: UnattachedUnbalancedTx -> QueryM FinalizedTransaction
-finalizeTransaction reindexedUnattachedTxWithExUnits =
+  :: UnattachedUnbalancedTx -> UtxoMap -> QueryM FinalizedTransaction
+finalizeTransaction reindexedUnattachedTxWithExUnits utxos = do
   let
+    txBody = reindexedUnattachedTxWithExUnits ^. _body'
     attachedTxWithExUnits =
       reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
     ws = attachedTxWithExUnits ^. _witnessSet # unwrap
     redeemers = fromMaybe mempty ws.redeemers
     datums = wrap <$> fromMaybe mempty ws.plutusData
-  in
-    do
-      costModels <- asks (_.runtime >>> _.pparams >>> unwrap >>> _.costModels)
-      liftEffect $ FinalizedTransaction <$>
-        setScriptDataHash costModels redeemers datums attachedTxWithExUnits
+    scripts = fromMaybe mempty ws.plutusScripts <> getRefPlutusScripts txBody
+    languages = foldMap (unwrap >>> snd >>> Set.singleton) scripts
+  costModels <- asks $ _.runtime >>> _.pparams <#> unwrap >>> _.costModels
+    >>> unwrap
+    >>> Map.filterKeys (flip Set.member languages)
+    >>> wrap
+  liftEffect $ FinalizedTransaction <$>
+    setScriptDataHash costModels redeemers datums attachedTxWithExUnits
+  where
+  getRefPlutusScripts :: TxBody -> Array PlutusScript
+  getRefPlutusScripts (TxBody txBody) =
+    let
+      spendAndRefInputs :: Array TransactionInput
+      spendAndRefInputs =
+        Array.fromFoldable (txBody.inputs <> txBody.referenceInputs)
+    in
+      fromMaybe mempty $ catMaybes <<< map getPlutusScript <$>
+        traverse (flip Map.lookup utxos) spendAndRefInputs
+
+  getPlutusScript :: TransactionOutput -> Maybe PlutusScript
+  getPlutusScript (TransactionOutput { scriptRef }) =
+    ScriptRef.getPlutusScript =<< scriptRef
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
@@ -156,4 +190,3 @@ setRdmrsExecutionUnits rs (Ogmios.TxEvaluationResult xxs) =
                 steps = Natural.toBigInt exUnits.steps
               in
                 Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
-

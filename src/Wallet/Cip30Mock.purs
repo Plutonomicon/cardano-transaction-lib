@@ -10,17 +10,19 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
+import Data.Array as Array
 import Data.Either (hush)
-import Data.Foldable (fold)
+import Data.Foldable (foldMap)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
+import Data.UInt as UInt
 import Deserialization.Transaction (deserializeTransaction)
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -61,7 +63,11 @@ data WalletMock = MockFlint | MockGero | MockNami
 -- | it will have to be changed a lot to successfully mimic the behavior of
 -- | multi-address wallets, like Eternl.
 withCip30Mock
-  :: forall r a. KeyWallet -> WalletMock -> Contract r a -> Contract r a
+  :: forall (r :: Row Type) (a :: Type)
+   . KeyWallet
+  -> WalletMock
+  -> Contract r a
+  -> Contract r a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
   cip30Mock <- wrapContract $ mkCip30Mock keyWallet.paymentKey
     keyWallet.stakeKey
@@ -101,6 +107,19 @@ mkCip30Mock
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> QueryM Cip30Mock
 mkCip30Mock pKey mSKey = do
   { config, runtime } <- ask
+  let
+    getCollateralUtxos utxos = do
+      let
+        pparams = unwrap $ runtime.pparams
+        coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
+        maxCollateralInputs = fromMaybe 3 $ map UInt.toInt $
+          pparams.maxCollateralInputs
+      liftEffect $
+        (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
+          maxCollateralInputs
+          utxos
+          >>= liftMaybe (error "No UTxOs at address")
+
   pure $
     { getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
@@ -109,11 +128,11 @@ mkCip30Mock pKey mSKey = do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
-        collateralUtxos <- liftMaybe (error "No UTxOs at address") $
-          (unwrap keyWallet).selectCollateral utxos
-        cslUnspentOutput <- liftEffect $ convertTransactionUnspentOutput
+        collateralUtxos <- getCollateralUtxos utxos
+        cslUnspentOutput <- liftEffect $ traverse
+          convertTransactionUnspentOutput
           collateralUtxos
-        pure [ byteArrayToHex $ toBytes $ asOneOf cslUnspentOutput ]
+        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUnspentOutput
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
@@ -129,18 +148,21 @@ mkCip30Mock pKey mSKey = do
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         value <- liftEffect $ convertValue $
-          (fold <<< map _.amount <<< map unwrap <<< Map.values)
+          (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
         pure $ byteArrayToHex $ toBytes $ asOneOf value
     , getUtxos: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
-        collateralUtxos <- liftMaybe (error "No UTxOs at address") $
-          (unwrap keyWallet).selectCollateral utxos
+        collateralUtxos <- getCollateralUtxos utxos
         let
-          nonCollateralUtxos = Map.filter (eq (unwrap collateralUtxos).output)
-            utxos
+          -- filter UTxOs that will be used as collateral
+          nonCollateralUtxos =
+            Map.filter
+              (flip Array.elem (collateralUtxos <#> unwrap >>> _.output))
+              utxos
+        -- Convert to CSL representation and serialize
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
