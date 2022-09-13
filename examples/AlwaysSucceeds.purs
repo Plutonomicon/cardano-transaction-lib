@@ -24,7 +24,12 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (TransactionHash, awaitTxConfirmed, lookupTxHash)
+import Contract.Transaction
+  ( TransactionHash
+  , awaitTxConfirmed
+  , lookupTxHash
+  , plutusV1Script
+  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
@@ -60,9 +65,11 @@ payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
   let
     constraints :: TxConstraints Unit Unit
-    constraints = Constraints.mustPayToScript vhash unitDatum
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+    constraints =
+      Constraints.mustPayToScript vhash unitDatum
+        Constraints.DatumWitness
+        $ Value.lovelaceValueOf
+        $ BigInt.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
@@ -102,5 +109,6 @@ spendFromAlwaysSucceeds vhash validator txId = do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
-alwaysSucceedsScript = wrap <<< wrap <$> textEnvelopeBytes alwaysSucceeds
+alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  alwaysSucceeds
   PlutusScriptV1

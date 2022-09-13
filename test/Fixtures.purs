@@ -47,10 +47,12 @@ module Test.Fixtures
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txBinaryFixture5
   , txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
   , txInputFixture1
   , txOutputBinaryFixture1
   , txOutputFixture1
@@ -68,7 +70,18 @@ module Test.Fixtures
 
 import Prelude
 
-import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
+import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  )
+import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef))
 import Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
@@ -89,14 +102,6 @@ import Cardano.Types.Transaction
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
@@ -125,9 +130,10 @@ import Cardano.Types.Value
   )
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Either (fromRight)
+import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
 import Data.Set (Set)
 import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
@@ -172,10 +178,16 @@ import Types.ByteArray
   , hexToByteArrayUnsafe
   )
 import Types.Int as Int
+import Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Types.PlutusData as PD
 import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
 import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Types.Scripts
+  ( MintingPolicyHash(MintingPolicyHash)
+  , PlutusScript
+  , plutusV1Script
+  , plutusV2Script
+  )
 import Types.TokenName (TokenName, mkTokenName)
 import Types.Transaction
   ( TransactionHash(TransactionHash)
@@ -201,7 +213,8 @@ txOutputFixture1 =
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
-    , dataHash: Nothing
+    , datum: NoOutputDatum
+    , scriptRef: Nothing
     }
 
 txOutputFixture2 :: TransactionOutput
@@ -214,7 +227,8 @@ txOutputFixture2 =
     , amount: Value (Coin $ BigInt.fromInt 0) $
         mkSingletonNonAdaAsset currencySymbol1 tokenName1
           (BigInt.fromInt 1000000)
-    , dataHash: Nothing
+    , datum: NoOutputDatum
+    , scriptRef: Nothing
     }
 
 currencySymbol1 :: CurrencySymbol
@@ -267,10 +281,13 @@ mkSampleTx startTx changes =
             , auxiliaryDataHash
             , validityStartInterval
             , mint
+            , referenceInputs
             , scriptDataHash
             , collateral
             , requiredSigners
             , networkId
+            , collateralReturn
+            , totalCollateral
             }
         , witnessSet
         , isValid
@@ -290,10 +307,13 @@ mkSampleTx startTx changes =
             , auxiliaryDataHash
             , validityStartInterval
             , mint
+            , referenceInputs
             , scriptDataHash
             , collateral
             , requiredSigners
             , networkId
+            , collateralReturn
+            , totalCollateral
             }
         , witnessSet
         , isValid
@@ -315,10 +335,13 @@ txFixture1 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -346,10 +369,13 @@ txFixture2 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -378,7 +404,8 @@ txFixture3 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , dataHash: Nothing
+                , datum: NoOutputDatum
+                , scriptRef: Nothing
                 }
             , TransactionOutput
                 { address: keyHashBaseAddress
@@ -389,7 +416,8 @@ txFixture3 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , dataHash: Nothing
+                , datum: NoOutputDatum
+                , scriptRef: Nothing
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
@@ -397,6 +425,7 @@ txFixture3 =
         , certs: Nothing
         , withdrawals: Nothing
         , update: Nothing
+        , referenceInputs: Set.singleton txInputFixture1
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -404,6 +433,8 @@ txFixture3 =
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -454,9 +485,6 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
         , treasuryGrowthRate: Just
             { numerator: bigNumOne, denominator: bigNumOne }
-        , d: Nothing -- Just { numerator: bigNumOne, denominator: bigNumOne }
-        , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
-        --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
         , protocolVersion: Just
             { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
         , minPoolCost: Just bigNumOne
@@ -473,6 +501,12 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         }
     ]
 
+-- Always succeeds
+plutusScriptFixture1 :: PlutusScript
+plutusScriptFixture1 = unsafePartial $ fromJust $ map plutusV1Script $ hush
+  $ decodeAeson
+  $ fromString "4d01000033222220051200120011"
+
 txFixture4 :: Transaction
 txFixture4 =
   Transaction
@@ -488,7 +522,8 @@ txFixture4 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , dataHash: Nothing
+                , datum: OutputDatum $ wrap plutusDataFixture1
+                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
                 }
             , TransactionOutput
                 { address: keyHashBaseAddress
@@ -499,7 +534,8 @@ txFixture4 =
                         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
                     }
                 , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , dataHash: Nothing
+                , datum: NoOutputDatum
+                , scriptRef: Just $ NativeScriptRef nativeScriptFixture5
                 }
             ]
         , fee: Coin $ BigInt.fromInt 177513
@@ -578,10 +614,65 @@ txFixture4 =
         , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
         , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
         , networkId: Just MainnetId
+        , collateralReturn: Just txOutputFixture1
+        , totalCollateral: Just $ Coin $ BigInt.fromInt 5_000_000
+        }
+    , witnessSet: TransactionWitnessSet
+        { vkeys: Nothing
+        , nativeScripts: Nothing
+        , bootstraps: Nothing
+        , plutusScripts: Nothing
+        , plutusData: Nothing
+        , redeemers: Nothing
+        }
+    , isValid: true
+    , auxiliaryData: Nothing
+    }
+
+plutusScriptFixture2 :: PlutusScript
+plutusScriptFixture2 = unsafePartial $ fromJust $ map plutusV2Script $ hush
+  $ decodeAeson
+  $ fromString "4d010000deadbeef33222220051200120011"
+
+txFixture5 :: Transaction
+txFixture5 =
+  Transaction
+    { body: TxBody
+        { inputs: Set.singleton txInputFixture1
+        , outputs:
+            [ TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake:
+                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment:
+                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigInt.fromInt 490234098) mempty
+                , datum: OutputDatum $ wrap plutusDataFixture1
+                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture2
+                }
+            ]
+        , fee: Coin $ BigInt.fromInt 89489324
+        , ttl: Nothing
+        , certs: Nothing
+        , withdrawals: Nothing
+        , update: Nothing
+        , auxiliaryDataHash: Nothing
+        , validityStartInterval: Nothing
+        , mint: Nothing
+        , referenceInputs: mempty
+        , scriptDataHash: Nothing
+        , collateral: Nothing
+        , requiredSigners: Nothing
+        , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing
@@ -624,53 +715,78 @@ txBinaryFixture2 =
 
 txBinaryFixture3 :: String
 txBinaryFixture3 =
-  "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
+  "84a500818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
   \960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45\
   \aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b\
   \8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1\
-  \f823bf257680c3c723ac2d49f975461a000f4240021a0002b5690f01a0f5f6"
+  \f823bf257680c3c723ac2d49f975461a000f4240021a0002b5690f0112818258205d677265fa\
+  \5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad95999600a0f5f6"
 
 txBinaryFixture4 :: String
 txBinaryFixture4 =
-  "84ac00818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
-  \960001828258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45\
-  \aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f975461a0023e8fa8258390030fb3b\
-  \8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1\
-  \f823bf257680c3c723ac2d49f975461a000f4240021a0002b56903187b048882008200581c17\
-  \30b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb382018200581c1730b1b700\
-  \d616d51555538e83d67f13c113ad5f9b22212703482cb383028200581c1730b1b700d616d515\
-  \55538e83d67f13c113ad5f9b22212703482cb3581c1730b1b700d616d51555538e83d67f13c1\
-  \13ad5f9b22212703482cb38a03581c1730b1b700d616d51555538e83d67f13c113ad5f9b2221\
-  \2703482cb3582000000000000000000000000000000000000000000000000000000000000000\
-  \000101d81e820101581de11730b1b700d616d51555538e83d67f13c113ad5f9b22212703482c\
-  \b381581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3838400191f90\
-  \447f000001507b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b8301191f906b6578616d706c652e636f\
-  \6d82026b6578616d706c652e636f6d827468747470733a2f2f6578616d706c652e636f6d2f58\
-  \2094b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a8304581c17\
-  \30b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb3018405581c5d677265fa5b\
-  \b21ce6d8c7502aca70b9316d10e958611f3c6b758f65581c5d677265fa5bb21ce6d8c7502aca\
-  \70b9316d10e958611f3c6b758f65582000000000000000000000000000000000000000000000\
-  \00000000000000000000820682010182068201a18200581c1730b1b700d616d51555538e83d6\
-  \7f13c113ad5f9b22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113\
-  \ad5f9b22212703482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e95861\
-  \1f3c6b758f65b4000101010219271003192710041903e8050106010701080109d81e8201010a\
-  \d81e8201010bd81e8201010e8201011001110112a10098a61a000302590001011a00060bc719\
-  \026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d186419744d\
-  \186419744d186419744d186419744d186419744d18641864186419744d18641a000249f01820\
-  \1a000249f018201a000249f018201a000249f01903e800011a000249f018201a000249f01903\
-  \e800081a000242201a00067e2318760001011a000249f01903e800081a000249f01a0001b798\
-  \18f7011a000249f0192710011a0002155e19052e011903e81a000249f01903e8011a000249f0\
-  \18201a000249f018201a000249f0182001011a000249f0011a000249f0041a000194af18f801\
-  \1a000194af18f8011a0002377c190556011a0002bdea1901f1011a000249f018201a000249f0\
-  \18201a000249f018201a000249f018201a000249f018201a000249f018201a000242201a0006\
-  \7e23187600010119f04c192bd200011a000249f018201a000242201a00067e2318760001011a\
-  \000242201a00067e2318760001011a0025cea81971f704001a000141bb041a000249f0191388\
-  \00011a000249f018201a000302590001011a000249f018201a000249f018201a000249f01820\
-  \1a000249f018201a000249f018201a000249f018201a000249f018201a00330da701011382d8\
-  \1e820101d81e8201011482010115820101160101075820000000000000000000000000000000\
-  \000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685\
-  \128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e9\
-  \35acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
+  "84ae00818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
+  \96000182a40058390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f\
+  \45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546011a0023e8fa028201d818\
+  \418003d8185182014e4d01000033222220051200120011a30058390030fb3b8539951e26f034\
+  \910a5a37f22cb99d94d1d409f69ddbaea9710f45aaf1b2959db6e5ff94dbb1f823bf257680c3\
+  \c723ac2d49f97546011a000f424003d81858468200830301828200581c1c12f03c1ef2e935ac\
+  \c35ec2e6f96c650fd3bfba3e96550504d533618200581c30fb3b8539951e26f034910a5a37f2\
+  \2cb99d94d1d409f69ddbaea971021a0002b56903187b048882008200581c1730b1b700d616d5\
+  \1555538e83d67f13c113ad5f9b22212703482cb382018200581c1730b1b700d616d51555538e\
+  \83d67f13c113ad5f9b22212703482cb383028200581c1730b1b700d616d51555538e83d67f13\
+  \c113ad5f9b22212703482cb3581c1730b1b700d616d51555538e83d67f13c113ad5f9b222127\
+  \03482cb38a03581c1730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb35820\
+  \00000000000000000000000000000000000000000000000000000000000000000101d81e8201\
+  \01581de11730b1b700d616d51555538e83d67f13c113ad5f9b22212703482cb381581c1730b1\
+  \b700d616d51555538e83d67f13c113ad5f9b22212703482cb3838400191f90447f000001507b\
+  \7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b8301191f906b6578616d706c652e636f6d82026b657861\
+  \6d706c652e636f6d827468747470733a2f2f6578616d706c652e636f6d2f582094b8cac47761\
+  \c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a8304581c1730b1b700d616d5\
+  \1555538e83d67f13c113ad5f9b22212703482cb3018405581c5d677265fa5bb21ce6d8c7502a\
+  \ca70b9316d10e958611f3c6b758f65581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958\
+  \611f3c6b758f6558200000000000000000000000000000000000000000000000000000000000\
+  \000000820682010182068201a18200581c1730b1b700d616d51555538e83d67f13c113ad5f9b\
+  \22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113ad5f9b22212703\
+  \482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65b4\
+  \000101010219271003192710041903e8050106010701080109d81e8201010ad81e8201010bd8\
+  \1e8201010e8201011001110112a20098a61a0003236119032c01011903e819023b00011903e8\
+  \195e7104011903e818201a0001ca761928eb041959d818641959d818641959d818641959d818\
+  \641959d818641959d81864186418641959d81864194c5118201a0002acfa182019b551041a00\
+  \0363151901ff00011a00015c3518201a000797751936f404021a0002ff941a0006ea7818dc00\
+  \01011903e8196ff604021a0003bd081a00034ec5183e011a00102e0f19312a011a00032e8019\
+  \01a5011a0002da781903e819cf06011a00013a34182019a8f118201903e818201a00013aac01\
+  \19e143041903e80a1a00030219189c011a00030219189c011a0003207c1901d9011a00033000\
+  \1901ff0119ccf3182019fd40182019ffd5182019581e18201940b318201a00012adf18201a00\
+  \02ff941a0006ea7818dc0001011a00010f92192da7000119eabb18201a0002ff941a0006ea78\
+  \18dc0001011a0002ff941a0006ea7818dc0001011a000c504e197712041a001d6af61a000142\
+  \5b041a00040c660004001a00014fab18201a0003236119032c010119a0de18201a00033d7618\
+  \201979f41820197fb8182019a95d1820197df718201995aa18201a009063b91903fd0a0198af\
+  \1a0003236119032c01011903e819023b00011903e8195e7104011903e818201a0001ca761928\
+  \eb041959d818641959d818641959d818641959d818641959d818641959d81864186418641959\
+  \d81864194c5118201a0002acfa182019b551041a000363151901ff00011a00015c3518201a00\
+  \0797751936f404021a0002ff941a0006ea7818dc0001011903e8196ff604021a0003bd081a00\
+  \034ec5183e011a00102e0f19312a011a00032e801901a5011a0002da781903e819cf06011a00\
+  \013a34182019a8f118201903e818201a00013aac0119e143041903e80a1a00030219189c011a\
+  \00030219189c011a0003207c1901d9011a000330001901ff0119ccf3182019fd40182019ffd5\
+  \182019581e18201940b318201a00012adf18201a0002ff941a0006ea7818dc0001011a00010f\
+  \92192da7000119eabb18201a0002ff941a0006ea7818dc0001011a0002ff941a0006ea7818dc\
+  \0001011a0011b22c1a0005fdde00021a000c504e197712041a001d6af61a0001425b041a0004\
+  \0c660004001a00014fab18201a0003236119032c010119a0de18201a00033d7618201979f418\
+  \20197fb8182019a95d1820197df718201995aa18201b00000004a817c8001b00000004a817c8\
+  \001a009063b91903fd0a1b00000004a817c800001b00000004a817c8001382d81e820101d81e\
+  \8201011482010115820101160101075820000000000000000000000000000000000000000000\
+  \000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685128f1e78ad0c\
+  \4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6\
+  \f96c650fd3bfba3e96550504d533610f01108258390030fb3b8539951e26f034910a5a37f22c\
+  \b99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5\
+  \336100111a004c4b40a0f5f6"
+
+txBinaryFixture5 :: String
+txBinaryFixture5 =
+  "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
+  \96000181a40058390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9710f\
+  \45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546011a1d3860f2028201d818\
+  \418003d818558202524d010000deadbeef33222220051200120011021a05557fac0f01a0f5f6"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe
@@ -795,7 +911,8 @@ utxoFixture1' =
                       )
                 }
             , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
-            , dataHash: Nothing
+            , datum: NoOutputDatum
+            , scriptRef: Nothing
             }
         )
     }

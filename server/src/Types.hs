@@ -15,6 +15,7 @@ import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
+import Plutus.Instances ()
 import Plutus.V1.Ledger.Api qualified as Ledger
 import Plutus.V1.Ledger.Scripts qualified as Ledger.Scripts
 import Servant.Docs qualified as Docs

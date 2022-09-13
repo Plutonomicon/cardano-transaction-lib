@@ -23,9 +23,7 @@ exports.hashPlutusData = plutusData => {
   return lib.hash_plutus_data(plutusData).to_bytes();
 };
 
-exports.plutusScriptHash = script => {
-  return lib.PlutusScript.new(script).hash();
-};
+exports.hashPlutusScript = script => script.hash();
 
 const SHA256_HASH_VARIANT = "SHA-256";
 const SHA3_256_HASH_VARIANT = "SHA3-256";

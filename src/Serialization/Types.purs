@@ -59,6 +59,7 @@ module Serialization.Types
   , ScriptDataHash
   , ScriptNOfK
   , ScriptPubkey
+  , ScriptRef
   , SingleHostAddr
   , SingleHostName
   , TimelockExpiry
@@ -149,6 +150,7 @@ foreign import data ScriptAny :: Type
 foreign import data ScriptDataHash :: Type
 foreign import data ScriptNOfK :: Type
 foreign import data ScriptPubkey :: Type
+foreign import data ScriptRef :: Type
 foreign import data SingleHostAddr :: Type
 foreign import data SingleHostName :: Type
 foreign import data TimelockExpiry :: Type
