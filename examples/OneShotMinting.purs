@@ -1,3 +1,6 @@
+-- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
+-- | used to build scripts with the provided arguments applied. It creates a 
+-- | transaction that mints an NFT using the one-shot minting policy.
 module Examples.OneShotMinting (main, example, contract) where
 
 import Contract.Prelude
@@ -65,20 +68,24 @@ contract = do
   logInfo' "Running Examples.OneShotMinting"
 
   ownAddress <- liftedM "Failed to get own address" getWalletAddress
-  (utxos :: Array _) <-
-    Map.toUnfoldable <$> (liftedM "Failed to get utxo set" $ utxosAt ownAddress)
+  utxos <- liftedM "Failed to get utxo set" $ utxosAt ownAddress
   oref <-
-    liftContractM "Utxo set is empty" $ fst <$> Array.head utxos
+    liftContractM "Utxo set is empty"
+      (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
 
   mp /\ cs <- Helpers.mkCurrencySymbol (oneShotMintingPolicy oref)
   tn <- Helpers.mkTokenName "CTLNFT"
 
   let
     constraints :: Constraints.TxConstraints Void Void
-    constraints = Constraints.mustMintValue (Value.singleton cs tn one)
+    constraints =
+      Constraints.mustMintValue (Value.singleton cs tn one)
+        <> Constraints.mustSpendPubKeyOutput oref
 
     lookups :: Lookups.ScriptLookups Void
-    lookups = Lookups.mintingPolicy mp
+    lookups =
+      Lookups.mintingPolicy mp
+        <> Lookups.unspentOutputs utxos
 
   let assertions = mkAssertions ownAddress (cs /\ tn /\ one)
   void $ TestUtils.withAssertions assertions do
