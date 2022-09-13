@@ -5,9 +5,9 @@ import Prelude
 import Contract.Config
   ( ConfigParams
   , testnetEternlConfig
-  , testnetFlintConfig
   , testnetGeroConfig
   , testnetNamiConfig
+  , testnetFlintConfig
   , testnetLodeConfig
   )
 import Contract.Monad (Contract, runContract)

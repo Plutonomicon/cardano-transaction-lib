@@ -55,7 +55,7 @@ utxosAt address =
     <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxosAt
     $ addressToOgmiosAddress address
 
--- | Queries for UTxO given a transaction input.
+-- | Queries for UTxO given a transaction input filtering out collaterals.
 getUtxo
   :: TransactionInput -> QueryM (Maybe TransactionOutput)
 getUtxo ref = do
@@ -180,7 +180,6 @@ getWalletBalance = do
 getWalletUtxos :: QueryM (Maybe UtxoMap)
 getWalletUtxos = do
   asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
-
     Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
@@ -200,11 +199,11 @@ getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
   mbCollateralUTxOs <- asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
     case _ of
-      Nami nami -> liftAff $ callCip30Wallet nami _.getCollateral
-      Gero gero -> liftAff $ callCip30Wallet gero _.getCollateral
-      Flint flint -> liftAff $ callCip30Wallet flint _.getCollateral
-      Eternl eternl -> liftAff $ callCip30Wallet eternl _.getCollateral
+      Nami wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Gero wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Flint wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
         networkId <- asks $ _.config >>> _.networkId
         addr <- liftAff $ (unwrap kw).address networkId

@@ -92,7 +92,7 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
-import Data.Array (singleton, head)
+import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -498,7 +498,7 @@ getWalletAddresses = do
     Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
     Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
     Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
-    KeyWallet kw -> Just <<< pure <$> (unwrap kw).address networkId
+    KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
@@ -525,7 +525,7 @@ ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 -- TODO: change to array of StakePubKeyHash
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> (_ >>= head)
+  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash

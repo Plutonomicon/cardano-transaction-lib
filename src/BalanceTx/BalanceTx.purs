@@ -83,6 +83,7 @@ import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
 import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
+
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -92,7 +93,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
 import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
-import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
 import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
@@ -120,7 +120,6 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
-
   changeAddr <- ExceptT $ pure $ note CouldNotGetWalletAddress $ head ownAddrs
 
   utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
