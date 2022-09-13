@@ -96,7 +96,12 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
 
 instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
   encodeDistribution amounts = amounts
-  decodeWallets d p = decodeWalletsDefault d p
+  decodeWallets _ privateKeyResponses =
+    Just $
+      ( \(PrivateKeyResponse key) -> privateKeysToKeyWallet
+          (PrivatePaymentKey key)
+          Nothing
+      ) <$> privateKeyResponses
   decodeWallets' listOfInitialUTxOs privateKeyResponses =
     let
       wallets = Array.mapMaybe
