@@ -47,14 +47,17 @@ module Test.Fixtures
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txBinaryFixture5
   , txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
   , txInputFixture1
   , txOutputBinaryFixture1
   , txOutputFixture1
   , txOutputFixture2
+  , unsafeMkCip25String
   , utxoFixture1
   , utxoFixture1'
   , witnessSetFixture1
@@ -63,14 +66,14 @@ module Test.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
-  , unsafeMkCip25String
   ) where
 
 import Prelude
 
 import Aeson (Aeson, aesonNull, parseJsonStringToAeson)
 import Cardano.Types.Transaction
-  ( AuxiliaryDataHash(AuxiliaryDataHash)
+  ( AuxiliaryData(AuxiliaryData)
+  , AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
       ( StakeRegistration
       , StakeDeregistration
@@ -181,6 +184,11 @@ import Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   )
+import Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum(Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  )
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
@@ -234,6 +242,62 @@ txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
   "8258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2\
   \e935acc35ec2e6f96c650fd3bfba3e96550504d5336100"
+
+pkhBech32 :: Bech32String
+pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
+
+stake1 :: StakeCredential
+stake1 = unsafePartial $ fromJust do
+  keyHashCredential <$> ed25519KeyHashFromBech32 pkhBech32
+
+ed25519KeyHash1 :: Ed25519KeyHash
+ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
+
+bigNumOne :: BigNum
+bigNumOne = unsafePartial $ fromJust $ BigNum.fromBigInt $ BigInt.fromInt 1
+
+rewardAddress1 :: RewardAddress
+rewardAddress1 = rewardAddress { network: TestnetId, paymentCred: stake1 }
+
+proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
+proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
+  Map.fromFoldable
+    [ GenesisHash
+        ( hexToByteArrayUnsafe
+            "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+        ) /\
+        { minfeeA: Just $ Coin $ BigInt.fromInt 1
+        , minfeeB: Just $ Coin $ BigInt.fromInt 1
+        , maxBlockBodySize: Just $ UInt.fromInt 10000
+        , maxTxSize: Just $ UInt.fromInt 10000
+        , maxBlockHeaderSize: Just $ UInt.fromInt 1000
+        , keyDeposit: Just $ Coin $ BigInt.fromInt 1
+        , poolDeposit: Just $ Coin $ BigInt.fromInt 1
+        , maxEpoch: Just $ Epoch one
+        , nOpt: Just $ UInt.fromInt 1
+        , poolPledgeInfluence: Just
+            { numerator: bigNumOne, denominator: bigNumOne }
+        , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
+        , treasuryGrowthRate: Just
+            { numerator: bigNumOne, denominator: bigNumOne }
+        , d: Nothing -- Just { numerator: bigNumOne, denominator: bigNumOne }
+        , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
+        --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
+        , protocolVersion: Just
+            { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
+        , minPoolCost: Just bigNumOne
+        , adaPerUtxoByte: Just bigNumOne
+        , costModels: Just costModelsFixture1
+        , executionCosts: Just
+            { memPrice: { numerator: bigNumOne, denominator: bigNumOne }
+            , stepPrice: { numerator: bigNumOne, denominator: bigNumOne }
+            }
+        , maxTxExUnits: Just { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
+        , maxBlockExUnits: Just
+            { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
+        , maxValueSize: Just $ UInt.fromInt 1
+        }
+    ]
 
 -- | Extend this for your needs.
 type SampleTxConfig =
@@ -417,62 +481,6 @@ txFixture3 =
     , auxiliaryData: Nothing
     }
 
-pkhBech32 :: Bech32String
-pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
-
-stake1 :: StakeCredential
-stake1 = unsafePartial $ fromJust do
-  keyHashCredential <$> ed25519KeyHashFromBech32 pkhBech32
-
-ed25519KeyHash1 :: Ed25519KeyHash
-ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
-
-bigNumOne :: BigNum
-bigNumOne = unsafePartial $ fromJust $ BigNum.fromBigInt $ BigInt.fromInt 1
-
-rewardAddress1 :: RewardAddress
-rewardAddress1 = rewardAddress { network: TestnetId, paymentCred: stake1 }
-
-proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
-proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
-  Map.fromFoldable
-    [ GenesisHash
-        ( hexToByteArrayUnsafe
-            "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-        ) /\
-        { minfeeA: Just $ Coin $ BigInt.fromInt 1
-        , minfeeB: Just $ Coin $ BigInt.fromInt 1
-        , maxBlockBodySize: Just $ UInt.fromInt 10000
-        , maxTxSize: Just $ UInt.fromInt 10000
-        , maxBlockHeaderSize: Just $ UInt.fromInt 1000
-        , keyDeposit: Just $ Coin $ BigInt.fromInt 1
-        , poolDeposit: Just $ Coin $ BigInt.fromInt 1
-        , maxEpoch: Just $ Epoch one
-        , nOpt: Just $ UInt.fromInt 1
-        , poolPledgeInfluence: Just
-            { numerator: bigNumOne, denominator: bigNumOne }
-        , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
-        , treasuryGrowthRate: Just
-            { numerator: bigNumOne, denominator: bigNumOne }
-        , d: Nothing -- Just { numerator: bigNumOne, denominator: bigNumOne }
-        , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
-        --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
-        , protocolVersion: Just
-            { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
-        , minPoolCost: Just bigNumOne
-        , adaPerUtxoByte: Just bigNumOne
-        , costModels: Just costModelsFixture1
-        , executionCosts: Just
-            { memPrice: { numerator: bigNumOne, denominator: bigNumOne }
-            , stepPrice: { numerator: bigNumOne, denominator: bigNumOne }
-            }
-        , maxTxExUnits: Just { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
-        , maxBlockExUnits: Just
-            { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
-        , maxValueSize: Just $ UInt.fromInt 1
-        }
-    ]
-
 txFixture4 :: Transaction
 txFixture4 =
   Transaction
@@ -595,6 +603,44 @@ txFixture4 =
     , auxiliaryData: Nothing
     }
 
+txFixture5 :: Transaction
+txFixture5 =
+  Transaction
+    { body: TxBody
+        { inputs: Set.singleton txInputFixture1
+        , outputs: [ txOutputFixture1 ]
+        , fee: Coin $ BigInt.fromInt 177513
+        , ttl: Nothing
+        , certs: Nothing
+        , withdrawals: Nothing
+        , update: Nothing
+        , auxiliaryDataHash: Nothing
+        , validityStartInterval: Nothing
+        , mint: Nothing
+        , scriptDataHash: Nothing
+        , collateral: Nothing
+        , requiredSigners: Nothing
+        , networkId: Just MainnetId
+        }
+    , witnessSet: TransactionWitnessSet
+        { vkeys: Nothing
+        , nativeScripts: Nothing
+        , bootstraps: Nothing
+        , plutusScripts: Nothing
+        , plutusData: Nothing
+        , redeemers: Nothing
+        }
+    , isValid: true
+    , auxiliaryData: Just $ AuxiliaryData
+        { metadata: Just $ GeneralTransactionMetadata
+            ( Map.fromFoldable
+                [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
+            )
+        , nativeScripts: Nothing
+        , plutusScripts: Nothing
+        }
+    }
+
 -- | To quickly check a serialized tx, create a file with the following contents:
 -- |
 -- |
@@ -671,6 +717,13 @@ txBinaryFixture4 =
   \000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685\
   \128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e9\
   \35acc35ec2e6f96c650fd3bfba3e96550504d533610f01a0f5f6"
+
+txBinaryFixture5 :: String
+txBinaryFixture5 =
+  "84a400818258205d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad9599\
+  \960001818258390030fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea9711c12\
+  \f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5336100021a0002b5690f01a0f5a1\
+  \0863666f6f"
 
 utxoFixture1 :: ByteArray
 utxoFixture1 = hexToByteArrayUnsafe

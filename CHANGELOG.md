@@ -65,6 +65,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - The return value of `purescriptProject` now includes the project with its compiled `output` and its generated `node_modules` (under the `compiled` and `nodeModules` attributes, respectively) ([#956](https://github.com/Plutonomicon/cardano-transaction-lib/pull/956))
 - `Contract.Utxos.getWalletUtxos` function that calls CIP-30 `getUtxos` method. ([#961](https://github.com/Plutonomicon/cardano-transaction-lib/issues/961))
 - Added `Contract.Transaction.lookupTxHash` helper function ([#957](https://github.com/Plutonomicon/cardano-transaction-lib/issues/957))
+- Added `Test.Fixtures.txFixture5` and `Test.Fixtures.txBinaryFixture5` to include a `Transaction` fixture that contains metadata
+- Added `Test.Deserialization.txRoundtrip` to reduce boilerplate for the `Transaction` roundtrip tests
+- Added `Test.Serialization.serializeTXs` to reduce boilerplate for the `Transaction` serialization tests
+- Added `Test.Serialization.txSerializedRoundtrip` to test that a `Transaction` remains the same after serialization and deserialization ([#517](https://github.com/Plutonomicon/cardano-transaction-lib/issues/517))
 
 ### Changed
 

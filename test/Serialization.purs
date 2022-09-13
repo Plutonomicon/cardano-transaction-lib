@@ -2,14 +2,20 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-import Data.Maybe (isJust)
+import Cardano.Types.Transaction (Transaction)
 import Data.BigInt as BigInt
+import Data.Either (hush)
+import Data.FoldableWithIndex (traverseWithIndex_)
+import Data.Maybe (isJust)
+import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytesEffect)
+import Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Deserialization.Transaction (convertTransaction) as TD
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Serialization (convertTransaction, convertTxOutput, toBytes)
+import Serialization (convertTransaction) as TS
+import Serialization (convertTxOutput, toBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types (TransactionHash)
 import Test.Fixtures
@@ -17,10 +23,12 @@ import Test.Fixtures
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txBinaryFixture5
   , txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
@@ -83,20 +91,35 @@ suite = do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
-      test "Transaction serialization #1" $ liftEffect do
-        tx <- convertTransaction txFixture1
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture1
-      test "Transaction serialization #2 - tokens" $ liftEffect do
-        tx <- convertTransaction txFixture2
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture2
-      test "Transaction serialization #3 - ada" $ liftEffect do
-        tx <- convertTransaction txFixture3
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture3
-      test "Transaction serialization #4 - ada + mint + certificates" $
-        liftEffect do
-          tx <- convertTransaction txFixture4
-          let bytes = toBytes (asOneOf tx)
-          byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+      serializeTXs
+        [ txFixture1 /\ txBinaryFixture1
+        , txFixture2 /\ txBinaryFixture2
+        , txFixture3 /\ txBinaryFixture3
+        , txFixture4 /\ txBinaryFixture4
+        , txFixture5 /\ txBinaryFixture5
+        ]
+    group "Transaction Roundtrips" $ do
+      txSerializedRoundtrip
+        [ txFixture1, txFixture2, txFixture3, txFixture4, txFixture5 ]
+
+serializeTXs :: Array (Tuple Transaction String) -> TestPlanM (Aff Unit) Unit
+serializeTXs =
+  traverseWithIndex_ $ \n tx ->
+    test ("Transaction serialization #" <> show (n + 1)) $
+      liftEffect do
+        cslTX <- TS.convertTransaction $ fst tx
+        let bytes = toBytes (asOneOf cslTX)
+        byteArrayToHex bytes `shouldEqual` snd tx
+
+txSerializedRoundtrip :: Array Transaction -> TestPlanM (Aff Unit) Unit
+txSerializedRoundtrip =
+  traverseWithIndex_ $ \n tx ->
+    test ("Deserialization is inverse to serialization #" <> show (n + 1)) $
+      liftEffect do
+        cslTX <- liftEffect $ TS.convertTransaction tx
+        let serialized = toBytes (asOneOf cslTX)
+        deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
+          serialized
+        expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
+          TD.convertTransaction deserialized
+        tx `shouldEqual` expected
