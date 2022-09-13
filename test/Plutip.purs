@@ -207,8 +207,9 @@ suite = do
                   Nothing -> throw "Unable to get collateral"
                   Just
                     [ TransactionUnspentOutput
-                        { output: TransactionOutput { amount } }
+                        { output: TransactionOutputWithRefScript { output } }
                     ] -> do
+                    let amount = (unwrap output).amount
                     unless
                       (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
                       $ throw "Wrong UTxO selected as collateral"
