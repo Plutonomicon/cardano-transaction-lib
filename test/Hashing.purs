@@ -25,7 +25,7 @@ import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
 import Types.PlutusData (PlutusData(Integer))
 import Types.RawBytes (hexToRawBytesUnsafe)
-import Types.Scripts (PlutusScript)
+import Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
 import Types.Transaction (DataHash)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -39,9 +39,13 @@ suite =
       Hashing.blake2b256HashHex inputDataFixture
         `shouldEqual` blake2b256HexDigestFixture
 
-    test "blake2b224 hash of a Plutus script" do
-      Hashing.plutusScriptHash plutusScriptFixture
-        `shouldEqual` plutusScriptHashFixture
+    test "blake2b224 hash of a PlutusV1 script" do
+      Hashing.plutusScriptHash plutusV1ScriptFixture
+        `shouldEqual` plutusV1ScriptHashFixture
+
+    test "blake2b224 hash of a PlutusV2 script" do
+      Hashing.plutusScriptHash plutusV2ScriptFixture
+        `shouldEqual` plutusV2ScriptHashFixture
 
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
@@ -98,13 +102,24 @@ datumHashFixture =
     hexToByteArrayUnsafe
       "0ba47e574456db8938e56f889d4c30099256f96008e0d4b6c4688f47ec342c9d"
 
-plutusScriptFixture :: PlutusScript
-plutusScriptFixture =
-  wrap $
+plutusV1ScriptFixture :: PlutusScript
+plutusV1ScriptFixture =
+  plutusV1Script $
     hexToByteArrayUnsafe "4d01000033222220051200120011"
 
-plutusScriptHashFixture :: ScriptHash
-plutusScriptHashFixture =
+plutusV1ScriptHashFixture :: ScriptHash
+plutusV1ScriptHashFixture =
   unsafePartial $ fromJust $ scriptHashFromBytes $
     hexToRawBytesUnsafe
       "67f33146617a5e61936081db3b2117cbf59bd2123748f58ac9678656"
+
+plutusV2ScriptFixture :: PlutusScript
+plutusV2ScriptFixture =
+  plutusV2Script $
+    hexToByteArrayUnsafe "4d01000033222220051200120011"
+
+plutusV2ScriptHashFixture :: ScriptHash
+plutusV2ScriptHashFixture =
+  unsafePartial $ fromJust $ scriptHashFromBytes $
+    hexToRawBytesUnsafe
+      "793f8c8cffba081b2a56462fc219cc8fe652d6a338b62c7b134876e7"

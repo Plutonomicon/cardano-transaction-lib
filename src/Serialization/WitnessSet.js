@@ -23,8 +23,6 @@ exports.newVkeywitness = vkey => signature => () =>
 
 exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
-exports.newPlutusScript = bytes => () => lib.PlutusScript.new(bytes);
-
 exports.newPlutusScripts = () => lib.PlutusScripts.new();
 
 exports.addPlutusScript = scripts => script => () => scripts.add(script);

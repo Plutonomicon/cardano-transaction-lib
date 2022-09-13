@@ -177,15 +177,20 @@ getWalletCollateral = do
         addr <- liftAff $ (unwrap kw).address networkId
         utxos <- utxosAt addr <#> fromMaybe Map.empty
           >>= filterLockedUtxos
-        pure $ Array.singleton <$> (unwrap kw).selectCollateral utxos
+        pparams <- asks $ _.runtime >>> _.pparams <#> unwrap
+        let
+          coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
+          maxCollateralInputs = UInt.toInt $
+            pparams.maxCollateralInputs
+        liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoUnit
+          maxCollateralInputs
+          utxos
   for_ mbCollateralUTxOs \collateralUTxOs -> do
     pparams <- asks $ _.runtime >>> _.pparams
     let
       tooManyCollateralUTxOs =
-        fromMaybe false do
-          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
-          pure $ UInt.fromInt (Array.length collateralUTxOs) >
-            maxCollateralInputs
+        UInt.fromInt (Array.length collateralUTxOs) >
+          (unwrap pparams).maxCollateralInputs
     when tooManyCollateralUTxOs do
       liftEffect $ throw tooManyCollateralUTxOsError
   pure mbCollateralUTxOs

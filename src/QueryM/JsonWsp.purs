@@ -31,7 +31,6 @@ import Effect (Effect)
 import Foreign.Object (Object)
 import QueryM.UniqueId (ListenerId, uniqueId)
 import Record as Record
-import Type.Proxy (Proxy)
 
 -- | Structure of all json wsp websocket requests
 -- described in: https://ogmios.dev/getting-started/basics/
@@ -90,9 +89,8 @@ mkCallType
      , servicename :: String
      }
   -> { methodname :: String, args :: i -> a }
-  -> Proxy o
   -> JsonWspCall i o
-mkCallType service { methodname, args } _ = JsonWspCall $ \i -> do
+mkCallType service { methodname, args } = JsonWspCall $ \i -> do
   req <- mkJsonWspRequest service { methodname, args: args i }
   pure { body: encodeAeson req, id: req.mirror }
 

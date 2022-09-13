@@ -3,7 +3,8 @@ module Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
-import Cardano.Types.Transaction (NativeScript(ScriptAll), _vkeys, _witnessSet)
+import Cardano.Types.NativeScript (NativeScript(ScriptAll))
+import Cardano.Types.Transaction (_vkeys, _witnessSet)
 import Cardano.Types.Transaction as T
 import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
@@ -39,7 +40,7 @@ calculateMinFeeCsl (ProtocolParameters pparams) txNoSigs = do
     BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
       (BigNum.fromUInt pparams.txFeeFixed)
       (BigNum.fromUInt pparams.txFeePerByte)
-  exUnitPrices <- liftMaybe (error "Unable to get ExUnitPrices") pparams.prices
+  let exUnitPrices = pparams.prices
   exUnitPricesCsl <- liftEffect $ Serialization.convertExUnitPrices exUnitPrices
   minScriptFee <-
     liftMaybe (error "Unable to calculate min_script_fee") $

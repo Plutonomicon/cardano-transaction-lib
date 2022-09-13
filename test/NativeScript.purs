@@ -2,7 +2,7 @@ module Test.NativeScript (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction
+import Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
 import Data.Maybe (fromJust)

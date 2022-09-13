@@ -8,6 +8,8 @@ module BalanceTx.Error
       , CouldNotGetCollateral
       , CouldNotGetUtxos
       , CouldNotGetWalletAddress
+      , CollateralReturnError
+      , CollateralReturnMinAdaValueCalcError
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
       , ReindexRedeemersError
@@ -65,6 +67,8 @@ data BalanceTxError
   | CouldNotGetCollateral
   | CouldNotGetUtxos
   | CouldNotGetWalletAddress
+  | CollateralReturnError String
+  | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
   | InsufficientTxInputs Expected Actual
   | ReindexRedeemersError ReindexErrors
@@ -219,4 +223,3 @@ printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString
   printScriptFailures ptr sfs = printRedeemer ptr <> bullet
     (foldMap printScriptFailure sfs)
-
