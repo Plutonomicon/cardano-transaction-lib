@@ -4,12 +4,14 @@ module Examples.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Address (getWalletAddress)
+import Contract.Address (Address, getWalletAddress)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM, liftContractM)
 import Contract.PlutusData (PlutusData, toData)
 import Contract.Scripts (MintingPolicy, applyArgs)
 import Contract.ScriptLookups as Lookups
+import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
+import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -17,14 +19,31 @@ import Contract.TextEnvelope
 import Contract.Transaction (TransactionInput, awaitTxConfirmed, plutusV1Script)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
+import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Data.Array (head, singleton) as Array
+import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
 import Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
+  ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+
+mkAssertions
+  :: Address
+  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> Array (ContractWrapAssertion () { txFinalFee :: BigInt })
+mkAssertions ownAddress nft =
+  let
+    labeledOwnAddress :: Labeled Address
+    labeledOwnAddress = label ownAddress "ownAddress"
+  in
+    [ TestUtils.assertTokenGainAtAddress' labeledOwnAddress nft
+
+    , TestUtils.assertLossAtAddress labeledOwnAddress
+        \{ txFinalFee } -> pure txFinalFee
+    ]
 
 contract :: Contract () Unit
 contract = do
@@ -46,10 +65,14 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  let assertions = mkAssertions ownAddress (cs /\ tn /\ one)
+  void $ TestUtils.withAssertions assertions do
+    { txHash, txFinalFee } <-
+      Helpers.buildBalanceSignAndSubmitTx' lookups constraints
 
-  awaitTxConfirmed txId
-  logInfo' "Tx submitted successfully!"
+    awaitTxConfirmed txHash
+    logInfo' "Tx submitted successfully!"
+    pure { txFinalFee }
 
 foreign import oneShotMinting :: String
 
