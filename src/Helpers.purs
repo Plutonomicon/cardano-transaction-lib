@@ -23,6 +23,7 @@ module Helpers
   , showWithParens
   , uIntToBigInt
   , encodeMap
+  , encodeSet
   , encodeTagged'
   ) where
 
@@ -48,6 +49,8 @@ import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Newtype (unwrap)
 import Data.Op (Op(Op))
+import Data.Set (Set)
+import Data.Set (toUnfoldable) as Set
 import Data.Tuple (snd, uncurry)
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
@@ -240,3 +243,6 @@ encodeMap = unwrap $ dictionary (Op encodeAeson) (Op encodeAeson)
 -- | `encodeAeson` for encoding the passed value
 encodeTagged' :: forall (a :: Type). EncodeAeson a => String -> a -> Aeson
 encodeTagged' str x = encodeTagged str x (Op encodeAeson)
+
+encodeSet :: forall (a :: Type). EncodeAeson a => Set a -> Aeson
+encodeSet set = encodeAeson (Set.toUnfoldable set :: Array a)

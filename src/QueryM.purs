@@ -107,6 +107,7 @@ import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple (fst) as Tuple
+import Data.Tuple (fst, snd, Tuple(Tuple))
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
 import Effect.Aff
@@ -180,8 +181,8 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Scripts (PlutusScript)
 import Types.Transaction (TransactionInput)
+import Types.Scripts (PlutusScript(PlutusScript), Language)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
@@ -572,9 +573,9 @@ applyArgs
   => a
   -> Array PlutusData
   -> QueryM (Either ClientError a)
-applyArgs script args = asks (_.ctlServerConfig <<< _.config) >>= case _ of
-  Nothing ->
-    pure
+applyArgs script args =
+  asks (_.ctlServerConfig <<< _.config) >>= case _ of
+    Nothing -> pure
       $ Left
       $
         ClientOtherError
@@ -584,32 +585,36 @@ applyArgs script args = asks (_.ctlServerConfig <<< _.config) >>= case _ of
           \provided host and port. The `ctl-server` packages can be obtained \
           \from `overlays.ctl-server` defined in CTL's flake. Please see \
           \`doc/runtime.md` in the CTL repository for more information"
-  Just config -> case traverse plutusDataToAeson args of
-    Nothing -> pure $ Left $ ClientEncodingError "Failed to convert script args"
-    Just ps -> do
-      let
-        url :: String
-        url = mkHttpUrl config <> "/apply-args"
+    Just config -> case traverse plutusDataToAeson args of
+      Nothing -> pure $ Left $ ClientEncodingError
+        "Failed to convert script args"
+      Just ps -> do
+        let
+          language :: Language
+          language = snd $ unwrap $ unwrap script
 
-        reqBody :: Aeson
-        reqBody = encodeAeson
-          $ Object.fromFoldable
-              [ "script" /\ scriptToAeson (unwrap script)
-              , "args" /\ encodeAeson ps
-              ]
+          url :: String
+          url = mkHttpUrl config <> "/apply-args"
 
-      liftAff (postAeson url reqBody)
-        <#> map wrap <<< handleAffjaxResponse
-    where
-    plutusDataToAeson :: PlutusData -> Maybe Aeson
-    plutusDataToAeson =
-      map
-        ( encodeAeson
-            <<< byteArrayToHex
-            <<< Serialization.toBytes
-            <<< asOneOf
-        )
-        <<< Serialization.convertPlutusData
+          reqBody :: Aeson
+          reqBody = encodeAeson
+            $ Object.fromFoldable
+                [ "script" /\ scriptToAeson (unwrap script)
+                , "args" /\ encodeAeson ps
+                ]
+        liftAff (postAeson url reqBody)
+          <#> map (wrap <<< PlutusScript <<< flip Tuple language) <<<
+            handleAffjaxResponse
+  where
+  plutusDataToAeson :: PlutusData -> Maybe Aeson
+  plutusDataToAeson =
+    map
+      ( encodeAeson
+          <<< byteArrayToHex
+          <<< Serialization.toBytes
+          <<< asOneOf
+      )
+      <<< Serialization.convertPlutusData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
@@ -646,7 +651,7 @@ postAeson url body = Affjax.request $ Affjax.defaultRequest
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
 scriptToAeson :: PlutusScript -> Aeson
-scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
 
 --------------------------------------------------------------------------------
 -- OgmiosWebSocket Setup and PrimOps

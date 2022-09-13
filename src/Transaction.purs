@@ -11,13 +11,14 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Costmdls
-  , NativeScript
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   )
+import Cardano.Types.NativeScript (NativeScript)
+
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)
@@ -33,6 +34,7 @@ import Effect.Class (liftEffect)
 import Helpers (liftEither)
 import Serialization (hashScriptData, toBytes)
 import Serialization.PlutusData as Serialization.PlutusData
+import Serialization.PlutusScript as Serialization.PlutusScript
 import Serialization.Types as Serialization
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Types.Datum (Datum)
@@ -127,8 +129,7 @@ attachPlutusScripts
   -> Transaction
   -> ExceptT ModifyTxError Effect Transaction
 attachPlutusScripts ps tx@(Transaction { witnessSet: ws }) = do
-  ps' <- traverse (liftEffect <<< Serialization.WitnessSet.convertPlutusScript)
-    ps
+  let ps' = ps # map Serialization.PlutusScript.convertPlutusScript
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusScripts ps')
 

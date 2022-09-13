@@ -145,7 +145,7 @@ Note that a PSchema encodes two pieces of information:
      HasPlutusSchema GType
        ( "G0" := PNil @@ Z
        :+ "G1" := PNil @@ (S Z)
-       :+ "G2" :+ PNil @@ (S (S Z))
+       :+ "G2" := PNil @@ (S (S Z))
        :+ PNil)
 
    The sole purpose of the inner list is to ensure correct translation to and from Plutus Data for record types

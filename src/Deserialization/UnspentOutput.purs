@@ -9,6 +9,7 @@ module Deserialization.UnspentOutput
 
 import Prelude
 
+import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef)) as T
 import Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as T
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -24,12 +25,15 @@ import Cardano.Types.Value
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
+import Deserialization.NativeScript (convertNativeScript)
+import Deserialization.PlutusData (convertPlutusData)
+import Deserialization.WitnessSet (convertPlutusScript)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization (toBytes)
 import Serialization.Address (Address)
@@ -39,6 +43,10 @@ import Serialization.Types
   , Assets
   , DataHash
   , MultiAsset
+  , NativeScript
+  , PlutusData
+  , PlutusScript
+  , ScriptRef
   , TransactionHash
   , TransactionInput
   , TransactionOutput
@@ -48,12 +56,15 @@ import Serialization.Types
 import Types.BigNum (BigNum)
 import Types.BigNum (toBigInt) as BigNum
 import Types.ByteArray (ByteArray)
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
+import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as T
-import Types.TokenName (TokenName, assetNameName, mkTokenName) as T
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput
@@ -77,10 +88,24 @@ convertOutput output = do
   amount <- convertValue $ getAmount output
   let
     address = getAddress output
-    dataHash =
+    mbDataHash =
       getDataHash maybeFfiHelper output <#>
         asOneOf >>> toBytes >>> T.DataHash
-  pure $ T.TransactionOutput { address, amount, dataHash }
+    mbDatum = getPlutusData maybeFfiHelper output
+  datum <- case mbDatum, mbDataHash of
+    Just _, Just _ -> Nothing -- impossible, so it's better to fail
+    Just datumValue, Nothing -> OutputDatum <<< wrap <$> convertPlutusData
+      datumValue
+    Nothing, Just datumHash -> pure $ OutputDatumHash datumHash
+    Nothing, Nothing -> pure NoOutputDatum
+  scriptRef <- getScriptRef maybeFfiHelper output # traverse convertScriptRef
+  pure $ T.TransactionOutput
+    { address, amount, datum, scriptRef }
+
+convertScriptRef :: ScriptRef -> Maybe T.ScriptRef
+convertScriptRef = withScriptRef
+  (convertNativeScript >>> map T.NativeScriptRef)
+  (convertPlutusScript >>> map T.PlutusScriptRef)
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
@@ -122,6 +147,19 @@ foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput
 foreign import getTransactionHash :: TransactionInput -> TransactionHash
 foreign import getTransactionIndex :: TransactionInput -> Int
 foreign import getAddress :: TransactionOutput -> Address
+foreign import getPlutusData
+  :: MaybeFfiHelper -> TransactionOutput -> Maybe PlutusData
+
+foreign import getScriptRef
+  :: MaybeFfiHelper -> TransactionOutput -> Maybe ScriptRef
+
+foreign import withScriptRef
+  :: forall (a :: Type)
+   . (NativeScript -> a)
+  -> (PlutusScript -> a)
+  -> ScriptRef
+  -> a
+
 foreign import getAmount :: TransactionOutput -> Value
 foreign import getCoin :: Value -> BigNum
 foreign import getMultiAsset :: MaybeFfiHelper -> Value -> Maybe MultiAsset
