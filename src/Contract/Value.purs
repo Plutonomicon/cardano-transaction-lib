@@ -47,4 +47,5 @@ import Plutus.Types.Value
   , unionWith
   , valueOf
   , valueToCoin
+  , valueToCoin'
   ) as Value

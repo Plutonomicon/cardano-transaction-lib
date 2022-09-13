@@ -11,6 +11,7 @@ import Cardano.TextEnvelope
   , TextEnvelope(TextEnvelope)
   , TextEnvelopeType
       ( PlutusScriptV1
+      , PlutusScriptV2
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
