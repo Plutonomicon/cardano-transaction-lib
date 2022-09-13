@@ -12,7 +12,7 @@ import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
 import Data.Array as Array
 import Data.Either (hush)
-import Data.Foldable (fold)
+import Data.Foldable (foldMap)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -148,7 +148,7 @@ mkCip30Mock pKey mSKey = do
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         value <- liftEffect $ convertValue $
-          (fold <<< map (_.amount <<< unwrap) <<< Map.values)
+          (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
         pure $ byteArrayToHex $ toBytes $ asOneOf value
     , getUtxos: fromAff do
