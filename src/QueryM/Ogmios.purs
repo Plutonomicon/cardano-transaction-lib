@@ -807,9 +807,9 @@ type ProtocolParametersRaw =
       { "memory" :: BigInt
       , "steps" :: BigInt
       }
-  , "maxValueSize" :: Maybe UInt
-  , "collateralPercentage" :: Maybe UInt
-  , "maxCollateralInputs" :: Maybe UInt
+  , "maxValueSize" :: UInt
+  , "collateralPercentage" :: UInt
+  , "maxCollateralInputs" :: UInt
   }
 
 data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
@@ -841,12 +841,12 @@ newtype ProtocolParameters = ProtocolParameters
   , treasuryCut :: Rational
   , coinsPerUtxoUnit :: CoinsPerUtxoUnit
   , costModels :: Costmdls
-  , prices :: Maybe ExUnitPrices
-  , maxTxExUnits :: Maybe ExUnits
-  , maxBlockExUnits :: Maybe ExUnits
-  , maxValueSize :: Maybe UInt
-  , collateralPercent :: Maybe UInt
-  , maxCollateralInputs :: Maybe UInt
+  , prices :: ExUnitPrices
+  , maxTxExUnits :: ExUnits
+  , maxBlockExUnits :: ExUnits
+  , maxValueSize :: UInt
+  , collateralPercent :: UInt
+  , maxCollateralInputs :: UInt
   }
 
 derive instance Newtype ProtocolParameters _
@@ -888,8 +888,8 @@ instance DecodeAeson ProtocolParameters where
           , (PlutusV2 /\ _) <<< convertCostModel <$> ps.costModels."plutus:v2"
           ]
       , prices: prices
-      , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
-      , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
+      , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
+      , maxBlockExUnits: decodeExUnits ps.maxExecutionUnitsPerBlock
       , maxValueSize: ps.maxValueSize
       , collateralPercent: ps.collateralPercentage
       , maxCollateralInputs: ps.maxCollateralInputs
@@ -900,11 +900,11 @@ instance DecodeAeson ProtocolParameters where
     decodeExUnits { memory, steps } = { mem: memory, steps }
 
     decodePrices
-      :: ProtocolParametersRaw -> Either JsonDecodeError (Maybe ExUnitPrices)
+      :: ProtocolParametersRaw -> Either JsonDecodeError ExUnitPrices
     decodePrices ps = note (TypeMismatch "ExUnitPrices") do
       memPrice <- rationalToSubcoin ps.prices.memory
       stepPrice <- rationalToSubcoin ps.prices.steps
-      pure $ Just { memPrice, stepPrice } -- Maybe ExUnits
+      pure { memPrice, stepPrice } -- ExUnits
 
 -- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
 type CostModelV1 =
