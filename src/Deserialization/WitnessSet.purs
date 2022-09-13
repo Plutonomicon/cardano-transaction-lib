@@ -1,6 +1,7 @@
 module Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
+  , convertPlutusScript
   , convertVkeyWitnesses
   , convertVkeyWitness
   , convertWitnessSet
@@ -10,19 +11,21 @@ module Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.NativeScript (NativeScript) as T
 import Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , NativeScript
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
+import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
+import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Types
@@ -44,6 +47,7 @@ import Serialization.Types
   , Vkey
   , Vkeywitness
   , Vkeywitnesses
+  , Language
   )
 import Types.BigNum (BigNum)
 import Types.BigNum (toBigInt) as BigNum
@@ -53,6 +57,7 @@ import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
 import Deserialization.NativeScript (convertNativeScript)
 import Deserialization.PlutusData (convertPlutusData)
+import Deserialization.Language (convertLanguage)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
@@ -63,11 +68,12 @@ convertWitnessSet ws = do
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
   plutusData <- for (getWitnessSetPlutusData maybeFfiHelper ws)
     convertPlutusList
+  plutusScripts <- for (getPlutusScripts maybeFfiHelper ws) convertPlutusScripts
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     , nativeScripts
     , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
-    , plutusScripts: getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
+    , plutusScripts
     , plutusData
     , redeemers
     }
@@ -102,9 +108,15 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   , attributes: getBootstrapAttributes bootstrap
   }
 
-convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
-convertPlutusScripts = extractPlutusScripts >>> map
-  (plutusScriptBytes >>> S.PlutusScript)
+convertPlutusScripts :: PlutusScripts -> Maybe (Array S.PlutusScript)
+convertPlutusScripts plutusScripts =
+  for (extractPlutusScripts plutusScripts) convertPlutusScript
+
+convertPlutusScript :: PlutusScript -> Maybe S.PlutusScript
+convertPlutusScript plutusScript =
+  hush do
+    language <- convertLanguage $ plutusScriptVersion plutusScript
+    pure $ curry S.PlutusScript (plutusScriptBytes plutusScript) language
 
 convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
 convertPlutusList = extractPlutusData >>> traverse convertPlutusData
@@ -172,6 +184,7 @@ foreign import getPlutusScripts
 
 foreign import extractPlutusScripts :: PlutusScripts -> Array PlutusScript
 foreign import plutusScriptBytes :: PlutusScript -> ByteArray
+foreign import plutusScriptVersion :: PlutusScript -> Language
 foreign import getWitnessSetPlutusData
   :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe PlutusList
 
