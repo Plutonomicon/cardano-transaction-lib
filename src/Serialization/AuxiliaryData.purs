@@ -51,6 +51,9 @@ foreign import setAuxiliaryDataPlutusScripts
 foreign import setAuxiliaryDataGeneralTransactionMetadata
   :: AuxiliaryData -> GeneralTransactionMetadata -> Effect Unit
 
+foreign import setAuxiliaryDataAlonzoFormatPreference
+  :: AuxiliaryData -> Boolean -> Effect Unit
+
 foreign import newGeneralTransactionMetadata
   :: ContainerHelper
   -> Array (BigNum /\ TransactionMetadatum)
@@ -97,6 +100,7 @@ convertAuxiliaryData
     scripts <- newPlutusScripts
     for_ ps (convertPlutusScript >=> addPlutusScript scripts)
     setAuxiliaryDataPlutusScripts ad scripts
+  setAuxiliaryDataAlonzoFormatPreference ad true
   pure ad
 
 convertGeneralTransactionMetadata

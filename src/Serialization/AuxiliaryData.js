@@ -20,6 +20,8 @@ exports.setAuxiliaryDataPlutusScripts = setter("plutus_scripts");
 
 exports.setAuxiliaryDataGeneralTransactionMetadata = setter("metadata");
 
+exports.setAuxiliaryDataAlonzoFormatPreference = setter("prefer_alonzo_format");
+
 exports.newGeneralTransactionMetadata = containerHelper => entries => () =>
   containerHelper.packMap(lib.GeneralTransactionMetadata, entries);
 
