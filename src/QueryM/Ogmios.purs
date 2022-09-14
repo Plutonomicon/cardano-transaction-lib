@@ -139,7 +139,7 @@ import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
 import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
-import Types.ByteArray (ByteArray, hexToByteArray)
+import Types.ByteArray (ByteArray, hexToByteArray, byteArrayToHex)
 import Types.CborBytes (CborBytes, cborBytesToHex)
 import Types.Int as Csl
 import Types.Natural (Natural)
@@ -148,7 +148,7 @@ import Types.Rational (Rational, (%))
 import Types.Rational as Rational
 import Types.RedeemerTag (RedeemerTag)
 import Types.RedeemerTag (fromString) as RedeemerTag
-import Types.TokenName (TokenName, mkTokenName)
+import Types.TokenName (TokenName, mkTokenName, getTokenName)
 import Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -1296,10 +1296,17 @@ instance EncodeAeson AdditionalUtxoSet where
 
     encodeNonAdaAsset assets = encodeMap $
       foldl
-        -- TODO: use token name
-        (\m (cs /\ _tn /\ n) -> Map.insert (getCurrencySymbol cs) n m)
+        (\m' (cs /\ tn /\ n) -> Map.insert (createKey cs tn) n m')
         Map.empty
         (flattenNonAdaValue assets)
+      where
+      createKey cs tn =
+        if tn' == mempty then csHex else csHex <> "." <> tnHex
+        where
+        tn' = getTokenName tn
+        cs' = getCurrencySymbol cs
+        csHex = byteArrayToHex cs'
+        tnHex = byteArrayToHex tn'
 
 ---------------- UTXO QUERY RESPONSE & PARSING
 
