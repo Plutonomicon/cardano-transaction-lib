@@ -9,6 +9,7 @@ module CTL.Internal.Serialization
   , convertTransactionUnspentOutput
   , convertValue
   , toBytes
+  , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
@@ -151,6 +152,7 @@ import CTL.Internal.Serialization.WitnessSet
   , convertRedeemer
   , convertWitnessSet
   )
+import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
@@ -177,7 +179,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
+import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
@@ -899,3 +901,7 @@ hashScriptData cms rs ps = do
     [] -> _hashScriptDataNoDatums rs' cms'
     _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
       (traverse convertPlutusData ps)
+
+serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
+serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
+  toData

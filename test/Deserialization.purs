@@ -4,7 +4,7 @@ import Prelude
 
 import CTL.Contract.Address (ByteArray)
 import CTL.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput) as T
+import CTL.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import CTL.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
@@ -66,6 +66,7 @@ import Test.CTL.Fixtures
   , txFixture3
   , txFixture4
   , txFixture5
+  , txFixture6
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -149,32 +150,13 @@ suite = do
           newTransactionUnspentOutputFromBytes utxoFixture1 >>=
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
-    group "Transaction" do
-      test "deserialization is inverse to serialization #1" do
-        let input = txFixture1
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #2" do
-        let input = txFixture2
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #3" do
-        let input = txFixture3
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #4" do
-        let input = txFixture4
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #5" do
-        let input = txFixture5
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
+    group "Transaction Roundtrips" do
+      test "CSL <-> CTL Transaction roundtrip #1" $ txRoundtrip txFixture1
+      test "CSL <-> CTL Transaction roundtrip #2" $ txRoundtrip txFixture2
+      test "CSL <-> CTL Transaction roundtrip #3" $ txRoundtrip txFixture3
+      test "CSL <-> CTL Transaction roundtrip #4" $ txRoundtrip txFixture4
+      test "CSL <-> CTL Transaction roundtrip #5" $ txRoundtrip txFixture5
+      test "CSL <-> CTL Transaction roundtrip #6" $ txRoundtrip txFixture6
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
@@ -267,3 +249,10 @@ testNativeScript input = do
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input
+
+txRoundtrip :: T.Transaction -> Aff Unit
+txRoundtrip tx = do
+  cslTX <- liftEffect $ TS.convertTransaction tx
+  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
+    TD.convertTransaction cslTX
+  tx `shouldEqual` expected

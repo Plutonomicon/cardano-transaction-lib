@@ -67,9 +67,7 @@ interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
 interpretWithTimeout
   :: Maybe Milliseconds -> TestPlanM (Aff Unit) Unit -> Aff Unit
 interpretWithTimeout timeout spif = do
-  plan <- planT spif
-  runSpec' defaultConfig { timeout = timeout } [ consoleReporter ] $
-    planToSpec plan
+  interpretWithConfig (defaultConfig { timeout = timeout }) spif
 
 interpretWithConfig
   :: SpecRunner.Config -> TestPlanM (Aff Unit) Unit -> Aff Unit

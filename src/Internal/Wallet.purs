@@ -17,8 +17,6 @@ module CTL.Internal.Wallet
 
 import Prelude
 
-import CTL.Contract.Numeric.Natural (fromInt', minus)
-import CTL.Contract.Prelude (liftEffect, wrap)
 import CTL.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
@@ -28,6 +26,7 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkeywitness(Vkeywitness)
   )
 import CTL.Internal.Helpers ((<<>>))
+import CTL.Internal.Types.Natural (fromInt', minus)
 import CTL.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
 import CTL.Internal.Wallet.Cip30
   ( Cip30Connection
@@ -45,10 +44,11 @@ import Control.Monad.Error.Class (catchError, throwError)
 import Control.Promise (Promise)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (over)
+import Data.Newtype (over, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
+import Effect.Class (liftEffect)
 
 data Wallet
   = Nami Cip30Wallet

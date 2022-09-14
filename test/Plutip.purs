@@ -152,9 +152,7 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    -- we don't want to exit because we need to clean up after failure by
-    -- timeout
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = false }
+    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
     $ do
         suite
         UtxoDistribution.suite

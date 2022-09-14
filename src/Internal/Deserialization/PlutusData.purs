@@ -1,16 +1,19 @@
 module CTL.Internal.Deserialization.PlutusData
   ( convertPlutusData
+  , deserializeData
   ) where
 
 import Prelude
 
 import CTL.Internal.Deserialization.BigInt (convertBigInt)
+import CTL.Internal.Deserialization.FromBytes (fromBytes)
 import CTL.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
   , containerHelper
   , maybeFfiHelper
   )
+import CTL.Internal.FromData (class FromData, fromData)
 import CTL.Internal.Serialization.Types
   ( BigInt
   , ConstrPlutusData
@@ -21,11 +24,13 @@ import CTL.Internal.Serialization.Types
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (toBigInt) as BigNum
 import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.CborBytes (CborBytes)
 import CTL.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
+import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -69,6 +74,9 @@ convertPlutusInteger pd = T.Integer <$> do
 
 convertPlutusBytes :: PlutusData -> Maybe T.PlutusData
 convertPlutusBytes pd = T.Bytes <$> _PlutusData_bytes maybeFfiHelper pd
+
+deserializeData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
+deserializeData = (fromData <=< convertPlutusData <=< fromBytes) <<< unwrap
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData

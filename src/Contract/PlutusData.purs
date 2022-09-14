@@ -11,6 +11,8 @@ module CTL.Contract.PlutusData
   , module Hashing
   , module IsData
   , module PlutusData
+  , module Serialization
+  , module Deserialization
   , module Redeemer
   , module FromData
   , module ToData
@@ -20,6 +22,7 @@ module CTL.Contract.PlutusData
 import Prelude
 
 import CTL.Contract.Monad (Contract, wrapContract)
+import CTL.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
 import CTL.Internal.FromData
   ( class FromData
   , class FromDataArgs
@@ -72,6 +75,7 @@ import CTL.Internal.QueryM
   ( getDatumByHash
   , getDatumsByHashes
   ) as QueryM
+import CTL.Internal.Serialization (serializeData) as Serialization
 import CTL.Internal.ToData
   ( class ToData
   , class ToDataArgs
