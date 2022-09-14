@@ -33,6 +33,7 @@ import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Examples.Datums as Datums
 import Examples.MintsMultipleTokens as MintsMultipleTokens
+import Examples.OneShotMinting as OneShotMinting
 import Examples.Pkh2Pkh as Pkh2Pkh
 import Examples.SendsToken as SendsToken
 import Examples.SignMultiple as SignMultiple
@@ -104,6 +105,7 @@ examples =
   , "SendsToken" /\ SendsToken.contract
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
+  , "OneShotMinting" /\ OneShotMinting.contract
   ]
 
 -- Address is:
