@@ -11,14 +11,14 @@ import CTL.Contract.Log (logInfo')
 import CTL.Contract.Monad
   ( Contract
   , launchAff_
+  , liftContractM
   , liftedE
   , liftedM
-  , liftContractM
   , runContract
   )
 import CTL.Contract.PlutusData (PlutusData, toData)
-import CTL.Contract.Scripts (MintingPolicy, applyArgs)
 import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Scripts (MintingPolicy, applyArgs)
 import CTL.Contract.Test.E2E (publishTestFeedback)
 import CTL.Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import CTL.Contract.Test.Utils as TestUtils
@@ -26,19 +26,23 @@ import CTL.Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction (TransactionInput, awaitTxConfirmed, plutusV1Script)
+import CTL.Contract.Transaction
+  ( TransactionInput
+  , awaitTxConfirmed
+  , plutusV1Script
+  )
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (utxosAt)
 import CTL.Contract.Value (CurrencySymbol, TokenName)
 import CTL.Contract.Value (singleton) as Value
-import Data.Array (head, singleton) as Array
-import Data.BigInt (BigInt)
-import Data.Map (toUnfoldable) as Map
 import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.Array (head, singleton) as Array
+import Data.BigInt (BigInt)
+import Data.Map (toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig

@@ -19,6 +19,13 @@ import Aeson
   , getField
   )
 import CTL.Contract.Prim.ByteArray (hexToByteArray)
+import CTL.Internal.FromData (class FromData)
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
+import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
+import CTL.Internal.Serialization.Types (AssetName) as CSL
+import CTL.Internal.ToData (class ToData)
+import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex, byteLength)
+import CTL.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
@@ -31,13 +38,6 @@ import Data.String.CodePoints (drop, take)
 import Data.TextEncoding (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Serialization.Types (AssetName) as CSL
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex, byteLength)
-import CTL.Internal.Types.RawBytes (RawBytes(RawBytes))
 
 newtype TokenName = TokenName RawBytes
 

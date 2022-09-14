@@ -9,13 +9,7 @@ module CTL.Internal.Address
 
 import Prelude
 
-import Data.Maybe (Maybe)
 import CTL.Internal.QueryM.Ogmios as Ogmios
-import CTL.Internal.Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  , StakeValidatorHash(StakeValidatorHash)
-  , ValidatorHash(ValidatorHash)
-  )
 import CTL.Internal.Serialization.Address
   ( Address
   , addressBech32
@@ -25,6 +19,12 @@ import CTL.Internal.Serialization.Address
   , stakeCredentialToScriptHash
   )
 import CTL.Internal.Serialization.Hash (ScriptHash)
+import CTL.Internal.Types.Scripts
+  ( MintingPolicyHash(MintingPolicyHash)
+  , StakeValidatorHash(StakeValidatorHash)
+  , ValidatorHash(ValidatorHash)
+  )
+import Data.Maybe (Maybe)
 
 -- | A module for address related helpers
 

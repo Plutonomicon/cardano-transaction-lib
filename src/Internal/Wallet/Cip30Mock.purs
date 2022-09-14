@@ -3,6 +3,30 @@ module CTL.Internal.Wallet.Cip30Mock where
 import Prelude
 
 import CTL.Contract.Monad (Contract, ContractEnv, wrapContract)
+import CTL.Internal.Deserialization.Transaction (deserializeTransaction)
+import CTL.Internal.Helpers (liftEither)
+import CTL.Internal.QueryM (QueryM, runQueryMInRuntime)
+import CTL.Internal.QueryM.Utxos (utxosAt)
+import CTL.Internal.Serialization
+  ( convertTransactionUnspentOutput
+  , convertValue
+  , toBytes
+  )
+import CTL.Internal.Serialization.WitnessSet (convertWitnessSet)
+import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
+import CTL.Internal.Types.CborBytes (cborBytesFromByteArray)
+import CTL.Internal.Wallet
+  ( Wallet
+  , mkFlintWalletAff
+  , mkGeroWalletAff
+  , mkNamiWalletAff
+  )
+import CTL.Internal.Wallet.Key
+  ( KeyWallet(KeyWallet)
+  , PrivatePaymentKey
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
@@ -18,29 +42,14 @@ import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.UInt as UInt
-import CTL.Internal.Deserialization.Transaction (deserializeTransaction)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
-import CTL.Internal.Helpers (liftEither)
-import CTL.Internal.QueryM (QueryM, runQueryMInRuntime)
-import CTL.Internal.QueryM.Utxos (utxosAt)
-import CTL.Internal.Serialization (convertTransactionUnspentOutput, convertValue, toBytes)
-import CTL.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Type.Proxy (Proxy(Proxy))
-import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import CTL.Internal.Types.CborBytes (cborBytesFromByteArray)
 import Untagged.Union (asOneOf)
-import CTL.Internal.Wallet (Wallet, mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
-import CTL.Internal.Wallet.Key
-  ( KeyWallet(KeyWallet)
-  , PrivatePaymentKey
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
 
 data WalletMock = MockFlint | MockGero | MockNami
 

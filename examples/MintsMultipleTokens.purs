@@ -26,12 +26,12 @@ import CTL.Contract.TextEnvelope
 import CTL.Contract.Transaction (awaitTxConfirmed, plutusV1Script)
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Value as Value
-import Data.BigInt (fromInt) as BigInt
 import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

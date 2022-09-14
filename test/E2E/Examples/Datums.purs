@@ -3,8 +3,8 @@ module Test.CTL.E2E.Examples.Datums (runExample) where
 import Prelude
 
 import CTL.Contract.Test.E2E
-  ( TestOptions
-  , SomeWallet(SomeWallet)
+  ( SomeWallet(SomeWallet)
+  , TestOptions
   , WalletExt(NamiExt)
   , WalletPassword
   )

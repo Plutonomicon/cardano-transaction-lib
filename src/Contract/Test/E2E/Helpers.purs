@@ -25,18 +25,18 @@ import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (for, fold)
+import Data.Traversable (fold, for)
 import Effect (Effect)
-import Effect.Aff (Aff, bracket, launchAff_, delay)
+import Effect.Aff (Aff, bracket, delay, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Effect.Uncurried (mkEffectFn1, EffectFn1)
+import Effect.Uncurried (EffectFn1, mkEffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toppokki
 

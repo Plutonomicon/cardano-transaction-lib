@@ -11,6 +11,8 @@ module CTL.Internal.Error
   , noteE
   ) where
 
+import Data.Maybe
+
 import Control.Monad.Cont (lift)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
@@ -19,7 +21,6 @@ import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Data.Either (Either(Left, Right))
 import Data.Function (($))
 import Data.Identity (Identity)
-import Data.Maybe
 import Data.Newtype (unwrap)
 import Data.Variant (Variant, inj)
 import Debug (class DebugWarning, traceM)

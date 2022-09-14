@@ -8,18 +8,6 @@ module CTL.Internal.QueryM.WaitUntilSlot
 import Prelude
 
 import CTL.Contract.Log (logTrace')
-import Data.Bifunctor (lmap)
-import Data.BigInt as BigInt
-import Data.DateTime.Instant (unInstant)
-import Data.Either (hush)
-import Data.Int as Int
-import Data.Newtype (unwrap, wrap)
-import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
-import Effect.Aff (Milliseconds, delay)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (error)
-import Effect.Now (now)
 import CTL.Internal.Helpers (liftEither, liftM)
 import CTL.Internal.QueryM (QueryM, getChainTip)
 import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
@@ -36,6 +24,18 @@ import CTL.Internal.Types.Interval
   )
 import CTL.Internal.Types.Natural (Natural)
 import CTL.Internal.Types.Natural as Natural
+import Data.Bifunctor (lmap)
+import Data.BigInt as BigInt
+import Data.DateTime.Instant (unInstant)
+import Data.Either (hush)
+import Data.Int as Int
+import Data.Newtype (unwrap, wrap)
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
+import Effect.Aff (Milliseconds, delay)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (error)
+import Effect.Now (now)
 
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> QueryM Chain.Tip

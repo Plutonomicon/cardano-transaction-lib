@@ -23,10 +23,6 @@ import Aeson
   , caseAesonString
   , encodeAeson'
   )
-import Data.Either (Either(Left, Right), note)
-import Data.Function (on)
-import Data.Maybe (Maybe(Nothing, Just), maybe)
-import Data.Newtype (unwrap, wrap)
 import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
@@ -35,8 +31,12 @@ import CTL.Internal.Serialization.Types (NativeScript)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.PlutusData (PlutusData(Bytes))
-import CTL.Internal.Types.RawBytes (RawBytes, rawBytesToHex, hexToRawBytes)
+import CTL.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
 import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
+import Data.Either (Either(Left, Right), note)
+import Data.Function (on)
+import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Newtype (unwrap, wrap)
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
 -- | verification keys

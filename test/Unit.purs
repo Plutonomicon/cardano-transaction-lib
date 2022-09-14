@@ -25,13 +25,13 @@ import Test.CTL.ProtocolParams as ProtocolParams
 import Test.CTL.Serialization as Serialization
 import Test.CTL.Serialization.Address as Serialization.Address
 import Test.CTL.Serialization.Hash as Serialization.Hash
+import Test.CTL.TestM (TestPlanM)
 import Test.CTL.Transaction as Transaction
+import Test.CTL.TxOutput as TxOutput
 import Test.CTL.Types.Interval as Types.Interval
 import Test.CTL.Types.TokenName as Types.TokenName
-import Test.CTL.TxOutput as TxOutput
 import Test.CTL.UsedTxOuts as UsedTxOuts
 import Test.CTL.Utils as Utils
-import Test.CTL.TestM (TestPlanM)
 
 -- Run with `spago test --main Test.CTL.Unit`
 main :: Effect Unit

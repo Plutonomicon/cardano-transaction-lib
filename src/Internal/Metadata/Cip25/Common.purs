@@ -18,13 +18,6 @@ import Aeson
   , encodeAeson'
   , (.:)
   )
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Either (note)
-import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested ((/\))
 import CTL.Internal.FromData (class FromData, fromData)
 import CTL.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
@@ -34,11 +27,22 @@ import CTL.Internal.Metadata.Cip25.Cip25String
   , toMetadataString
   )
 import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.Helpers (errExpectedObject, lookupKey, lookupMetadata)
+import CTL.Internal.Metadata.Helpers
+  ( errExpectedObject
+  , lookupKey
+  , lookupMetadata
+  )
 import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import CTL.Internal.Plutus.Types.AssocMap as AssocMap
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
+import Data.Either (note)
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested ((/\))
 
 nftMetadataLabel :: BigInt
 nftMetadataLabel = BigInt.fromInt 721

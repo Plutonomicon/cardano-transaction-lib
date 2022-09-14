@@ -84,7 +84,9 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef))
+import CTL.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(PlutusScriptRef, NativeScriptRef)
+  )
 import CTL.Internal.Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
@@ -131,18 +133,7 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Data.Array as Array
-import Data.BigInt as BigInt
-import Data.Either (fromRight, hush)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (wrap)
-import Data.Set (Set)
-import Data.Set (singleton) as Set
-import Data.Tuple.Nested ((/\))
-import Data.UInt as UInt
 import CTL.Internal.Deserialization.FromBytes (fromBytes)
-import Effect (Effect)
 import CTL.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
 import CTL.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
 import CTL.Internal.Metadata.Cip25.V2
@@ -150,9 +141,6 @@ import CTL.Internal.Metadata.Cip25.V2
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
   )
-import Node.Encoding (Encoding(UTF8))
-import Node.FS.Sync (readTextFile)
-import Partial.Unsafe (unsafePartial)
 import CTL.Internal.Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
@@ -171,7 +159,6 @@ import CTL.Internal.Serialization.Hash
   , ed25519KeyHashFromBytes
   , scriptHashFromBytes
   )
-import Test.CTL.Fixtures.CostModels (costModelsFixture1)
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
@@ -183,7 +170,10 @@ import CTL.Internal.Types.ByteArray
 import CTL.Internal.Types.Int as Int
 import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import CTL.Internal.Types.PlutusData as PD
-import CTL.Internal.Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
+import CTL.Internal.Types.RawBytes
+  ( hexToRawBytesUnsafe
+  , rawBytesFromIntArrayUnsafe
+  )
 import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import CTL.Internal.Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
@@ -197,6 +187,21 @@ import CTL.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   )
+import Data.Array as Array
+import Data.BigInt as BigInt
+import Data.Either (fromRight, hush)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
+import Data.Set (Set)
+import Data.Set (singleton) as Set
+import Data.Tuple.Nested ((/\))
+import Data.UInt as UInt
+import Effect (Effect)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (readTextFile)
+import Partial.Unsafe (unsafePartial)
+import Test.CTL.Fixtures.CostModels (costModelsFixture1)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =

@@ -9,15 +9,15 @@ module CTL.Internal.Types.Transaction
 import Prelude
 
 import Aeson (class EncodeAeson)
+import CTL.Internal.FromData (class FromData, fromData)
+import CTL.Internal.ToData (class ToData, toData)
+import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import CTL.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import CTL.Internal.Types.PlutusData (PlutusData(Constr))
 
 newtype TransactionInput = TransactionInput
   { transactionId :: TransactionHash

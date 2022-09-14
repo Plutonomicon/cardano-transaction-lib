@@ -4,18 +4,33 @@ import Prelude
 
 import CTL.Contract.Config
   ( ConfigParams
-  , testnetGeroConfig
-  , testnetNamiConfig
   , testnetFlintConfig
+  , testnetGeroConfig
   , testnetLodeConfig
+  , testnetNamiConfig
   )
-import CTL.Contract.Prelude (fst, traverse_, uncurry)
 import CTL.Contract.Monad (Contract, runContract)
+import CTL.Contract.Prelude (fst, traverse_, uncurry)
 import CTL.Contract.Test.E2E (publishTestFeedback)
 import CTL.Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
   )
+import CTL.Examples.AlwaysMints as AlwaysMints
+import CTL.Examples.AlwaysSucceeds as AlwaysSucceeds
+import CTL.Examples.Datums as Datums
+import CTL.Examples.MintsMultipleTokens as MintsMultipleTokens
+import CTL.Examples.OneShotMinting as OneShotMinting
+import CTL.Examples.Pkh2Pkh as Pkh2Pkh
+import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import CTL.Examples.SendsToken as SendsToken
+import CTL.Examples.SignMultiple as SignMultiple
+import CTL.Examples.Wallet as Wallet
+import CTL.Internal.Wallet.Cip30Mock
+  ( WalletMock(MockFlint, MockGero, MockNami)
+  , withCip30Mock
+  )
+import CTL.Internal.Wallet.Key (privateKeysToKeyWallet)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)
 import Data.Foldable (lookup)
@@ -28,21 +43,6 @@ import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (error)
-import CTL.Examples.AlwaysMints as AlwaysMints
-import CTL.Examples.AlwaysSucceeds as AlwaysSucceeds
-import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import CTL.Examples.Datums as Datums
-import CTL.Examples.MintsMultipleTokens as MintsMultipleTokens
-import CTL.Examples.OneShotMinting as OneShotMinting
-import CTL.Examples.Pkh2Pkh as Pkh2Pkh
-import CTL.Examples.SendsToken as SendsToken
-import CTL.Examples.SignMultiple as SignMultiple
-import CTL.Examples.Wallet as Wallet
-import CTL.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami)
-  , withCip30Mock
-  )
-import CTL.Internal.Wallet.Key (privateKeysToKeyWallet)
 
 foreign import _queryString :: Effect String
 

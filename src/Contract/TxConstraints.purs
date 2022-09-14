@@ -37,10 +37,8 @@ import CTL.Internal.Types.TxConstraints
   , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToNativeScript
   , mustNotBeValid
-  , mustPayToScript
-  , mustPayToScriptWithScriptRef
+  , mustPayToNativeScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayToPubKeyAddressWithDatum
@@ -49,15 +47,17 @@ import CTL.Internal.Types.TxConstraints
   , mustPayToPubKeyWithDatum
   , mustPayToPubKeyWithDatumAndScriptRef
   , mustPayToPubKeyWithScriptRef
+  , mustPayToScript
+  , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
+  , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
-  , mustSpendNativeScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments

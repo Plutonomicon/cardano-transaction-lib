@@ -4,6 +4,7 @@ module CTL.Internal.QueryM.Logging
 
 import Prelude
 
+import CTL.Internal.QueryM (Logger, mkLogger)
 import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Log.Level (LogLevel)
@@ -14,7 +15,6 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import CTL.Internal.QueryM (Logger, mkLogger)
 
 -- | Setup internal machinery for log suppression.
 setupLogs

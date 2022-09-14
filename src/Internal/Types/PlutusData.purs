@@ -20,6 +20,7 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Control.Alt ((<|>))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
@@ -29,7 +30,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
-import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 
 -- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData

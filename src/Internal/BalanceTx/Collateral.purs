@@ -23,22 +23,24 @@ import CTL.Internal.Cardano.Types.Transaction
   , _collateralReturn
   , _totalCollateral
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import CTL.Internal.Cardano.Types.Value (Coin, NonAdaAsset)
 import CTL.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
+import CTL.Internal.Serialization.Address (Address)
+import CTL.Internal.Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
+import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
 import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
-import Data.Foldable (foldl, foldMap)
+import Data.Foldable (foldMap, foldl)
 import Data.Lens.Setter ((?~))
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Ord.Max (Max(Max))
 import Effect.Class (liftEffect)
-import CTL.Internal.Serialization.Address (Address)
-import CTL.Internal.Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
-import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral collateral transaction =

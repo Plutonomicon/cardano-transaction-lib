@@ -9,6 +9,10 @@ module CTL.Internal.ReindexRedeemers
 import Prelude
 
 import CTL.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
+import CTL.Internal.Helpers (liftEither)
+import CTL.Internal.QueryM (QueryM)
+import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import CTL.Internal.Types.Transaction (TransactionInput)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Array (elemIndex)
 import Data.BigInt (fromInt)
@@ -19,10 +23,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.Helpers (liftEither)
-import CTL.Internal.QueryM (QueryM)
-import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
-import CTL.Internal.Types.Transaction (TransactionInput)
 
 -- | The only error should be impossible but we keep this here in case the user
 -- | decides to call this function at some point where inputs have been

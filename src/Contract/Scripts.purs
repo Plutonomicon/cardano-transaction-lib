@@ -13,17 +13,9 @@ module CTL.Contract.Scripts
   , module TypesScripts
   ) where
 
+import Prelude
+
 import Aeson (class DecodeAeson)
-import CTL.Internal.Cardano.Types.NativeScript
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  ) as NativeScript
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
 -- the CSL API and converted to use Plutus types.
@@ -38,6 +30,17 @@ import CTL.Contract.Address
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Address
+import CTL.Contract.Monad (Contract, wrapContract)
+import CTL.Internal.Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as NativeScript
 import CTL.Internal.QueryM
   ( ClientError
       ( ClientHttpError
@@ -53,6 +56,7 @@ import CTL.Internal.Scripts
   , validatorHash
   ) as ExportScripts
 import CTL.Internal.Serialization.Hash (ScriptHash) as Hash
+import CTL.Internal.Types.PlutusData (PlutusData)
 import CTL.Internal.Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
@@ -64,24 +68,20 @@ import CTL.Internal.Types.Scripts
   ) as TypesScripts
 import CTL.Internal.Types.Scripts (PlutusScript)
 import CTL.Internal.Types.TypedValidator
-  ( TypedValidator(TypedValidator)
-  , ValidatorType
-  , WrappedValidatorType
-  , class DatumType
+  ( class DatumType
   , class RedeemerType
   , class ValidatorTypes
+  , TypedValidator(TypedValidator)
+  , ValidatorType
+  , WrappedValidatorType
   , forwardingMintingPolicy
   , generalise
   , typedValidatorHash
   , typedValidatorScript
   ) as TypedValidator
-
-import Prelude
-import CTL.Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
-import CTL.Internal.Types.PlutusData (PlutusData)
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

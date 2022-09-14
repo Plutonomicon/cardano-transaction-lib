@@ -97,6 +97,9 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
+import CTL.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  )
 import CTL.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , ExUnitPrices
@@ -104,7 +107,6 @@ import CTL.Internal.Cardano.Types.Transaction
   , Nonce
   , SubCoin
   )
-import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import CTL.Internal.Cardano.Types.Transaction as T
 import CTL.Internal.Cardano.Types.Value
   ( Coin(Coin)
@@ -114,9 +116,30 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkValue
   )
+import CTL.Internal.Helpers (showWithParens)
+import CTL.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
+import CTL.Internal.Serialization.Address (Slot)
+import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
+import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
+import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
+import CTL.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import CTL.Internal.Types.Int as Csl
+import CTL.Internal.Types.Natural (Natural)
+import CTL.Internal.Types.Natural (fromString) as Natural
+import CTL.Internal.Types.Rational (Rational, (%))
+import CTL.Internal.Types.Rational as Rational
+import CTL.Internal.Types.RawBytes (hexToRawBytes)
+import CTL.Internal.Types.RedeemerTag (RedeemerTag)
+import CTL.Internal.Types.RedeemerTag (fromString) as RedeemerTag
+import CTL.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , PlutusScript(PlutusScript)
+  )
+import CTL.Internal.Types.TokenName (TokenName, mkTokenName)
+import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
-import Data.Array (index, singleton, reverse, catMaybes)
+import Data.Array (catMaybes, index, reverse, singleton)
 import Data.Array (head) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -139,35 +162,17 @@ import Data.String
   , uncons
   )
 import Data.String.Common (split) as String
-import Data.Traversable (sequence, traverse, for)
+import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (snd, uncurry)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as ForeignObject
-import CTL.Internal.Helpers (showWithParens)
+import Heterogeneous.Folding (class HFoldl, hfoldl)
 import Partial.Unsafe (unsafePartial)
-import CTL.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
-import CTL.Internal.Serialization.Address (Slot)
-import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
-import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import CTL.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
-import CTL.Internal.Types.Int as Csl
-import CTL.Internal.Types.Natural (Natural)
-import CTL.Internal.Types.Natural (fromString) as Natural
-import CTL.Internal.Types.Rational (Rational, (%))
-import CTL.Internal.Types.Rational as Rational
-import CTL.Internal.Types.RawBytes (hexToRawBytes)
-import CTL.Internal.Types.RedeemerTag (RedeemerTag)
-import CTL.Internal.Types.RedeemerTag (fromString) as RedeemerTag
-import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
-import CTL.Internal.Types.TokenName (TokenName, mkTokenName)
-import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
-import Heterogeneous.Folding (class HFoldl, hfoldl)
 
 --------------------------------------------------------------------------------
 -- Local State Query Protocol

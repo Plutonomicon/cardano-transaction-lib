@@ -2,7 +2,11 @@ module Test.CTL.E2E.Examples.SignMultiple (runExample) where
 
 import Prelude
 
-import CTL.Contract.Test.E2E (SomeWallet(SomeWallet), TestOptions, WalletPassword)
+import CTL.Contract.Test.E2E
+  ( SomeWallet(SomeWallet)
+  , TestOptions
+  , WalletPassword
+  )
 import Effect.Aff (Aff)
 import Test.CTL.E2E.Helpers
   ( delaySec

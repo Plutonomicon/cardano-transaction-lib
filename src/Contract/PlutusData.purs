@@ -20,20 +20,18 @@ module CTL.Contract.PlutusData
 import Prelude
 
 import CTL.Contract.Monad (Contract, wrapContract)
-import Data.Map (Map)
-import Data.Maybe (Maybe)
 import CTL.Internal.FromData
-  ( FromDataError
+  ( class FromData
+  , class FromDataArgs
+  , class FromDataArgsRL
+  , class FromDataWithSchema
+  , FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
       , BigIntToIntFailed
       , IndexWantedButGot
       , WantedConstrGot
       )
-  , class FromData
-  , class FromDataArgs
-  , class FromDataArgsRL
-  , class FromDataWithSchema
   , fromData
   , fromDataArgs
   , fromDataArgsRec
@@ -41,8 +39,17 @@ import CTL.Internal.FromData
   , genericFromData
   ) as FromData
 import CTL.Internal.Hashing (datumHash) as Hashing
+import CTL.Internal.IsData (class IsData) as IsData
 import CTL.Internal.Plutus.Types.DataSchema
-  ( ApPCons
+  ( class AllUnique2
+  , class HasPlutusSchema
+  , class PlutusSchemaToRowListI
+  , class SchemaToRowList
+  , class ValidPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , ApPCons
   , Field
   , I
   , Id
@@ -54,14 +61,6 @@ import CTL.Internal.Plutus.Types.DataSchema
   , PCons
   , PNil
   , PSchema
-  , class AllUnique2
-  , class HasPlutusSchema
-  , class PlutusSchemaToRowListI
-  , class SchemaToRowList
-  , class ValidPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
   ) as DataSchema
 import CTL.Internal.QueryM
   ( DatumCacheListeners
@@ -76,18 +75,18 @@ import CTL.Internal.QueryM
 import CTL.Internal.ToData
   ( class ToData
   , class ToDataArgs
-  , class ToDataWithSchema
   , class ToDataArgsRL
   , class ToDataArgsRLHelper
+  , class ToDataWithSchema
   , genericToData
-  , toDataArgsRec
-  , toDataArgsRec'
   , toData
   , toDataArgs
+  , toDataArgsRec
+  , toDataArgsRec'
   , toDataWithSchema
   ) as ToData
-import CTL.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import CTL.Internal.Types.Datum (DataHash)
+import CTL.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import CTL.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   ) as OutputDatum
@@ -100,7 +99,8 @@ import CTL.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import CTL.Internal.IsData (class IsData) as IsData
+import Data.Map (Map)
+import Data.Maybe (Maybe)
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash

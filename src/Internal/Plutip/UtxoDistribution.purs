@@ -32,6 +32,19 @@ import CTL.Contract.Transaction
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (utxosAt)
 import CTL.Contract.Wallet (withKeyWallet)
+import CTL.Internal.Plutip.Types
+  ( InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , PrivateKeyResponse(PrivateKeyResponse)
+  , UtxoAmount
+  )
+import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
+import CTL.Internal.Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Data.Array as Array
@@ -43,20 +56,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import CTL.Internal.Plutip.Types
-  ( InitialUTxOs
-  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , UtxoAmount
-  )
-import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
 import Type.Prelude (Proxy(Proxy))
-import CTL.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
 
 -- | A type class that implements a type-safe interface for specifying UTXO
 -- | distribution for wallets.

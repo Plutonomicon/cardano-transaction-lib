@@ -68,11 +68,32 @@ import Prelude hiding (join)
 
 import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
 import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Data.Array ((:), concat)
+import CTL.Internal.NativeScripts (NativeScriptHash)
+import CTL.Internal.Plutus.Types.CurrencySymbol
+  ( CurrencySymbol
+  , currencyMPSHash
+  )
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import CTL.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
+import CTL.Internal.Types.Datum (Datum)
+import CTL.Internal.Types.Interval
+  ( POSIXTimeRange
+  , always
+  , intersection
+  , isEmpty
+  )
+import CTL.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
+import CTL.Internal.Types.Redeemer (Redeemer, unitRedeemer)
+import CTL.Internal.Types.Scripts (MintingPolicyHash, ValidatorHash)
+import CTL.Internal.Types.TokenName (TokenName)
+import CTL.Internal.Types.Transaction (DataHash, TransactionInput)
+import Data.Array (concat, (:))
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
 import Data.BigInt (BigInt)
-import Data.Foldable (class Foldable, any, foldl, foldMap, foldr, null)
+import Data.Foldable (class Foldable, any, foldMap, foldl, foldr, null)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Map (fromFoldableWith, toUnfoldable)
@@ -80,19 +101,8 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested ((/\), type (/\))
-import CTL.Internal.NativeScripts (NativeScriptHash)
-import CTL.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, currencyMPSHash)
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import CTL.Internal.Plutus.Types.Value (Value, isZero, flattenNonAdaAssets)
+import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Warn, Text)
-import CTL.Internal.Types.Datum (Datum)
-import CTL.Internal.Types.Interval (POSIXTimeRange, always, intersection, isEmpty)
-import CTL.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
-import CTL.Internal.Types.Redeemer (Redeemer, unitRedeemer)
-import CTL.Internal.Types.Scripts (MintingPolicyHash, ValidatorHash)
-import CTL.Internal.Types.TokenName (TokenName)
-import CTL.Internal.Types.Transaction (DataHash, TransactionInput)
 
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related

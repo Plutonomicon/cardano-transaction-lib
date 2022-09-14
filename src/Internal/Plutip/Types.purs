@@ -34,6 +34,12 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import CTL.Internal.QueryM.ServerConfig (ServerConfig)
+import CTL.Internal.Serialization (privateKeyFromBytes)
+import CTL.Internal.Serialization.Types (PrivateKey)
+import CTL.Internal.Types.ByteArray (hexToByteArray)
+import CTL.Internal.Types.RawBytes (RawBytes(RawBytes))
+import CTL.Internal.Wallet.Key (PrivateStakeKey)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
@@ -45,12 +51,6 @@ import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
-import CTL.Internal.QueryM.ServerConfig (ServerConfig)
-import CTL.Internal.Serialization (privateKeyFromBytes)
-import CTL.Internal.Serialization.Types (PrivateKey)
-import CTL.Internal.Types.ByteArray (hexToByteArray)
-import CTL.Internal.Types.RawBytes (RawBytes(RawBytes))
-import CTL.Internal.Wallet.Key (PrivateStakeKey)
 
 type PlutipConfig =
   { host :: String

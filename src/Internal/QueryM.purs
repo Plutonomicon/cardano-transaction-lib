@@ -82,50 +82,6 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import CTL.Internal.Cardano.Types.Transaction (_witnessSet)
 import CTL.Internal.Cardano.Types.Transaction as Transaction
-import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
-  , throwError
-  )
-import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
-import Control.Monad.Rec.Class (class MonadRec)
-import Control.Parallel (parallel, sequential)
-import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, isRight)
-import Data.Foldable (foldl)
-import Data.HTTP.Method (Method(POST))
-import Data.Lens ((<>~))
-import Data.JSDate (now)
-import Data.Log.Level (LogLevel(Error, Debug))
-import Data.Log.Message (Message)
-import Data.Map (Map)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
-import Data.MediaType.Common (applicationJSON)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
-import Data.Tuple (fst) as Tuple
-import Data.Tuple (fst, snd, Tuple(Tuple))
-import Data.Tuple.Nested ((/\), type (/\))
-import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Canceler(Canceler)
-  , delay
-  , finally
-  , launchAff_
-  , makeAff
-  , runAff_
-  , supervise
-  )
-import Effect.Aff.Class (class MonadAff, liftAff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message)
-import Effect.Ref (Ref)
-import Effect.Ref as Ref
-import Foreign.Object as Object
 import CTL.Internal.Helpers (logString, logWithLevel)
 import CTL.Internal.JsWebSocket
   ( JsWebSocket
@@ -139,7 +95,11 @@ import CTL.Internal.JsWebSocket
   , _wsReconnect
   , _wsSend
   )
-import CTL.Internal.QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
+import CTL.Internal.QueryM.DatumCacheWsp
+  ( GetDatumByHashR
+  , GetDatumsByHashesR
+  , GetTxByHashR
+  )
 import CTL.Internal.QueryM.DatumCacheWsp as DcWsp
 import CTL.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import CTL.Internal.QueryM.JsonWsp as JsonWsp
@@ -180,33 +140,84 @@ import CTL.Internal.Types.Datum (DataHash, Datum)
 import CTL.Internal.Types.MultiMap (MultiMap)
 import CTL.Internal.Types.MultiMap as MultiMap
 import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
+import CTL.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import CTL.Internal.Types.Scripts (Language, PlutusScript(PlutusScript))
 import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.Scripts (PlutusScript(PlutusScript), Language)
-import CTL.Internal.Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
-import Untagged.Union (asOneOf)
+import CTL.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import CTL.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
   , Wallet(Gero, Flint, Nami, Lode, KeyWallet)
-  , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkGeroWalletAff
   , mkKeyWallet
-  , mkNamiWalletAff
   , mkLodeWalletAff
+  , mkNamiWalletAff
   )
-import CTL.Internal.Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
+import CTL.Internal.Wallet.KeyFile
+  ( privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
+  )
 import CTL.Internal.Wallet.Spec
-  ( WalletSpec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
       ( UseKeys
       , ConnectToGero
       , ConnectToNami
       , ConnectToFlint
       , ConnectToLode
       )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
+import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
+import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel (parallel, sequential)
+import Data.Bifunctor (lmap)
+import Data.Either (Either(Left, Right), either, isRight)
+import Data.Foldable (foldl)
+import Data.HTTP.Method (Method(POST))
+import Data.JSDate (now)
+import Data.Lens ((<>~))
+import Data.Log.Level (LogLevel(Error, Debug))
+import Data.Log.Message (Message)
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
+import Data.MediaType.Common (applicationJSON)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (fst) as Tuple
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , delay
+  , finally
+  , launchAff_
+  , makeAff
+  , runAff_
+  , supervise
+  )
+import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error, error, message)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
+import Foreign.Object as Object
+import Untagged.Union (asOneOf)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response

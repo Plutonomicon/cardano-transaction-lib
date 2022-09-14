@@ -9,6 +9,7 @@ module CTL.Internal.Transaction
 
 import Prelude
 
+import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
 import CTL.Internal.Cardano.Types.Transaction
   ( Costmdls
   , Redeemer
@@ -17,8 +18,15 @@ import CTL.Internal.Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   )
-import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
-
+import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import CTL.Internal.Helpers (liftEither)
+import CTL.Internal.Serialization (hashScriptData, toBytes)
+import CTL.Internal.Serialization.PlutusData as Serialization.PlutusData
+import CTL.Internal.Serialization.PlutusScript as Serialization.PlutusScript
+import CTL.Internal.Serialization.Types as Serialization
+import CTL.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import CTL.Internal.Types.Datum (Datum)
+import CTL.Internal.Types.Scripts (PlutusScript)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)
@@ -28,17 +36,8 @@ import Data.Maybe (Maybe(Just))
 import Data.Newtype (over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
-import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import CTL.Internal.Helpers (liftEither)
-import CTL.Internal.Serialization (hashScriptData, toBytes)
-import CTL.Internal.Serialization.PlutusData as Serialization.PlutusData
-import CTL.Internal.Serialization.PlutusScript as Serialization.PlutusScript
-import CTL.Internal.Serialization.Types as Serialization
-import CTL.Internal.Serialization.WitnessSet as Serialization.WitnessSet
-import CTL.Internal.Types.Datum (Datum)
-import CTL.Internal.Types.Scripts (PlutusScript)
 import Untagged.Union (asOneOf)
 
 data ModifyTxError

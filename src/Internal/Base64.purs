@@ -15,11 +15,11 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   )
+import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import CTL.Internal.Types.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, maybe)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Test.QuickCheck (class Arbitrary, arbitrary)
-import CTL.Internal.Types.ByteArray (ByteArray)
 
 newtype Base64String = Base64String String
 

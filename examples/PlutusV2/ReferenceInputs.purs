@@ -20,8 +20,8 @@ import CTL.Contract.Log (logInfo')
 import CTL.Contract.Monad
   ( Contract
   , launchAff_
-  , liftedM
   , liftContractM
+  , liftedM
   , runContract
   )
 import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
@@ -57,15 +57,15 @@ import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (utxosAt)
 import CTL.Contract.Value (TokenName, Value)
 import CTL.Contract.Value (lovelaceValueOf) as Value
-import Data.BigInt (fromInt) as BigInt
-import Data.Map (Map)
-import Data.Map (empty, toUnfoldable) as Map
 import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import CTL.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Data.BigInt (fromInt) as BigInt
+import Data.Map (Map)
+import Data.Map (empty, toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig

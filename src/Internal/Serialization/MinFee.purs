@@ -7,6 +7,14 @@ import CTL.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAll))
 import CTL.Internal.Cardano.Types.Transaction (_vkeys, _witnessSet)
 import CTL.Internal.Cardano.Types.Transaction as T
 import CTL.Internal.Cardano.Types.Value (Coin)
+import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import CTL.Internal.NativeScripts (getMaximumSigners)
+import CTL.Internal.QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
+import CTL.Internal.Serialization as Serialization
+import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
+import CTL.Internal.Serialization.Types (ExUnitPrices, Transaction)
+import CTL.Internal.Types.BigNum (BigNum)
+import CTL.Internal.Types.BigNum as BigNum
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Data.Array as Array
 import Data.Lens ((.~))
@@ -17,14 +25,6 @@ import Data.Set as Set
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.NativeScripts (getMaximumSigners)
-import CTL.Internal.QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
-import CTL.Internal.Serialization as Serialization
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
-import CTL.Internal.Serialization.Types (ExUnitPrices, Transaction)
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum as BigNum
 
 calculateMinFeeCsl
   :: forall (m :: Type -> Type)

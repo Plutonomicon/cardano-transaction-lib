@@ -30,13 +30,31 @@ import Prelude hiding (eq)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
   , encodeAeson
   , encodeAeson'
   , getField
-  , JsonDecodeError(TypeMismatch)
   )
+import CTL.Internal.FromData (class FromData)
+import CTL.Internal.Helpers (showWithParens)
+import CTL.Internal.Plutus.Types.AssocMap (Map(Map)) as Plutus
+import CTL.Internal.Plutus.Types.AssocMap
+  ( keys
+  , lookup
+  , mapThese
+  , singleton
+  , union
+  ) as Plutus.Map
+import CTL.Internal.Plutus.Types.CurrencySymbol
+  ( CurrencySymbol
+  , adaSymbol
+  , mkCurrencySymbol
+  )
+import CTL.Internal.ToData (class ToData)
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
@@ -49,20 +67,6 @@ import Data.Newtype (class Newtype)
 import Data.These (These(Both, That, This), these)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Helpers (showWithParens)
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
-import CTL.Internal.Plutus.Types.AssocMap (Map(Map)) as Plutus
-import CTL.Internal.Plutus.Types.AssocMap
-  ( singleton
-  , lookup
-  , keys
-  , union
-  , mapThese
-  ) as Plutus.Map
-import CTL.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mkCurrencySymbol, adaSymbol)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 

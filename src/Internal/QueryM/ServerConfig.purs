@@ -12,10 +12,10 @@ module CTL.Internal.QueryM.ServerConfig
 
 import Prelude
 
-import Data.Maybe (maybe, Maybe(Nothing))
+import CTL.Internal.JsWebSocket (Url)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import CTL.Internal.JsWebSocket (Url)
 
 type Host = String
 

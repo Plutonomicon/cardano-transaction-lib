@@ -11,6 +11,16 @@ import CTL.Contract.Config
   , testnetConfig
   )
 import CTL.Contract.Monad (Contract, launchAff_, runContract)
+import CTL.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm (Log, Unlock)
+import CTL.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
+  ( levelColor
+  , levelName
+  , logError
+  , mkForm
+  ) as HtmlForm
+import CTL.Internal.Serialization (privateKeyFromBytes)
+import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
+import CTL.Internal.Types.RawBytes (hexToRawBytes)
 import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString) as BigInt
@@ -19,16 +29,6 @@ import Data.Log.Level (LogLevel(Trace))
 import Data.Log.Message (Message)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)
-import CTL.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm (Log, Unlock)
-import CTL.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
-  ( mkForm
-  , levelColor
-  , levelName
-  , logError
-  ) as HtmlForm
-import CTL.Internal.Serialization (privateKeyFromBytes)
-import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
-import CTL.Internal.Types.RawBytes (hexToRawBytes)
 
 runKeyWalletContract_
   :: (PaymentPubKeyHash -> BigInt -> Unlock -> Contract () Unit) -> Effect Unit

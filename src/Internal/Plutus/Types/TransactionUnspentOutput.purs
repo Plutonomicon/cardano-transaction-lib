@@ -8,6 +8,11 @@ module CTL.Internal.Plutus.Types.TransactionUnspentOutput
 
 import Prelude
 
+import CTL.Internal.Plutus.Types.Transaction
+  ( TransactionOutputWithRefScript
+  , UtxoMap
+  )
+import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (filter)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
@@ -18,9 +23,7 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\))
-import CTL.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript, UtxoMap)
 import Type.Proxy (Proxy(Proxy))
-import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 
 newtype TransactionUnspentOutput = TransactionUnspentOutput
   { input :: TransactionInput

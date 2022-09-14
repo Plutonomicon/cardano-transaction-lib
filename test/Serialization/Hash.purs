@@ -1,12 +1,5 @@
 module Test.CTL.Serialization.Hash (suite) where
 
-import Control.Bind (discard, bind)
-import Data.Eq ((==))
-import Data.Function (($))
-import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (wrap)
-import Data.Unit (Unit)
-import Effect.Aff (Aff)
 import CTL.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
@@ -19,10 +12,17 @@ import CTL.Internal.Serialization.Hash
   , scriptHashToBech32Unsafe
   , scriptHashToBytes
   )
-import Test.CTL.Utils (assertTrue, errMaybe)
-import Test.CTL.TestM (TestPlanM)
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Control.Bind (bind, discard)
+import Data.Eq ((==))
+import Data.Function (($))
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
+import Data.Newtype (wrap)
+import Data.Unit (Unit)
+import Effect.Aff (Aff)
+import Test.CTL.TestM (TestPlanM)
+import Test.CTL.Utils (assertTrue, errMaybe)
 
 pkhBech32 :: Bech32String
 pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"

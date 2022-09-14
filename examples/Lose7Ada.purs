@@ -13,7 +13,6 @@ module CTL.Examples.Lose7Ada
 
 import CTL.Contract.Prelude
 
-import CTL.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import CTL.Contract.Address (scriptHashAddress)
 import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
 import CTL.Contract.Log (logInfo')
@@ -36,16 +35,17 @@ import CTL.Contract.Transaction
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , balanceAndSignTxE
-  , submit
   , plutusV1Script
+  , submit
   )
 import CTL.Contract.TxConstraints (TxConstraints)
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (getWalletBalance, utxosAt)
 import CTL.Contract.Value as Value
+import CTL.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
-import Data.Map as Map
 import Data.Foldable (fold)
+import Data.Map as Map
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit

@@ -22,17 +22,16 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
-import Data.Either (hush)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Traversable (for, traverse)
-import Data.Tuple (curry)
-import Data.Tuple.Nested ((/\))
+import CTL.Internal.Deserialization.Language (convertLanguage)
+import CTL.Internal.Deserialization.NativeScript (convertNativeScript)
+import CTL.Internal.Deserialization.PlutusData (convertPlutusData)
 import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import CTL.Internal.Serialization.Types
   ( BootstrapWitness
   , BootstrapWitnesses
   , Ed25519Signature
   , ExUnits
+  , Language
   , NativeScript
   , NativeScripts
   , PlutusData
@@ -47,7 +46,6 @@ import CTL.Internal.Serialization.Types
   , Vkey
   , Vkeywitness
   , Vkeywitnesses
-  , Language
   )
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (toBigInt) as BigNum
@@ -55,9 +53,11 @@ import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.PlutusData (PlutusData) as T
 import CTL.Internal.Types.RedeemerTag as Tag
 import CTL.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
-import CTL.Internal.Deserialization.NativeScript (convertNativeScript)
-import CTL.Internal.Deserialization.PlutusData (convertPlutusData)
-import CTL.Internal.Deserialization.Language (convertLanguage)
+import Data.Either (hush)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Traversable (for, traverse)
+import Data.Tuple (curry)
+import Data.Tuple.Nested ((/\))
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper

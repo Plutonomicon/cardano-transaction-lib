@@ -34,12 +34,12 @@ import CTL.Contract.TxConstraints (TxConstraints)
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (utxosAt)
 import CTL.Contract.Value as Value
+import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
 import Data.Map as Map
-import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 
 main :: Effect Unit
 main = example testnetNamiConfig

@@ -2,10 +2,16 @@ module Test.CTL.TxOutput (suite, main) where
 
 import Prelude
 
-import Aeson (printJsonDecodeError, decodeJsonString)
+import Aeson (decodeJsonString, printJsonDecodeError)
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
+import CTL.Internal.QueryM.Ogmios as O
+import CTL.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
+import CTL.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Data.Bifunctor (bimap)
+import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Map as Map
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
@@ -14,17 +20,11 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
+import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
-import Mote (test, group)
-import CTL.Internal.QueryM.Ogmios as O
 import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
-import CTL.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
-import Data.FoldableWithIndex (traverseWithIndex_)
 import Test.CTL.Utils as Utils
 
 -- Run with `spago test --main Test.CTL.TxOutput`

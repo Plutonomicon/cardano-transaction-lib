@@ -3,8 +3,6 @@ module CTL.Internal.QueryM.Config
   , testnetQueryConfig
   ) where
 
-import Data.Log.Level (LogLevel(Error, Trace))
-import Data.Maybe (Maybe(Just, Nothing))
 import CTL.Internal.QueryM (QueryConfig)
 import CTL.Internal.QueryM.ServerConfig
   ( defaultDatumCacheWsConfig
@@ -12,6 +10,8 @@ import CTL.Internal.QueryM.ServerConfig
   , defaultServerConfig
   )
 import CTL.Internal.Serialization.Address (NetworkId(TestnetId))
+import Data.Log.Level (LogLevel(Error, Trace))
+import Data.Maybe (Maybe(Just, Nothing))
 
 testnetTraceQueryConfig :: QueryConfig
 testnetTraceQueryConfig =

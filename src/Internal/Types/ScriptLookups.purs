@@ -48,8 +48,8 @@ module CTL.Internal.Types.ScriptLookups
 
 import Prelude hiding (join)
 
-import CTL.Internal.Address (enterpriseAddressValidatorHash)
 import Aeson (class EncodeAeson)
+import CTL.Internal.Address (enterpriseAddressValidatorHash)
 import CTL.Internal.Cardano.Types.Transaction
   ( Costmdls
   , Transaction
@@ -58,6 +58,7 @@ import CTL.Internal.Cardano.Types.Transaction
   , TxBody
   , _body
   , _inputs
+  , _isValid
   , _mint
   , _networkId
   , _outputs
@@ -65,55 +66,25 @@ import CTL.Internal.Cardano.Types.Transaction
   , _requiredSigners
   , _scriptDataHash
   , _witnessSet
-  , _isValid
   )
 import CTL.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import CTL.Internal.Cardano.Types.Value
   ( CurrencySymbol
   , Value
+  , getNonAdaAsset
   , isZero
   , mkSingletonValue'
   , mpsSymbol
   , negation
   , split
-  , getNonAdaAsset
   )
-import Control.Alt ((<|>))
-import Control.Monad.Error.Class (catchError, throwError, liftMaybe)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
-import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
-import Control.Monad.Trans.Class (lift)
-import Data.Array ((:), singleton, union) as Array
-import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
-import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), either, note)
-import Data.Foldable (foldM)
-import Data.Generic.Rep (class Generic)
-import Data.Lattice (join)
-import Data.Lens ((%=), (.=), (<>=), (.~), (%~))
-import Data.Lens.Getter (to, use)
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
-import Data.Lens.Types (Lens')
-import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
-import Data.Map (insert, toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe, fromMaybe)
-import Data.Newtype (class Newtype, over, unwrap, wrap)
-import Data.Set (insert) as Set
-import Data.Show.Generic (genericShow)
-import Data.Symbol (SProxy(SProxy))
-import Data.Traversable (traverse_, for)
-import Data.Tuple (fst, snd)
-import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
-import Effect.Class (liftEffect)
 import CTL.Internal.Hashing (datumHash) as Hashing
-import CTL.Internal.Helpers ((<\>), liftM)
+import CTL.Internal.Helpers (liftM, (<\>))
 import CTL.Internal.IsData (class IsData)
-import CTL.Internal.Plutus.Conversion (fromPlutusTxOutputWithRefScript, fromPlutusValue)
+import CTL.Internal.Plutus.Conversion
+  ( fromPlutusTxOutputWithRefScript
+  , fromPlutusValue
+  )
 import CTL.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import CTL.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -139,12 +110,11 @@ import CTL.Internal.Transaction
   , attachRedeemer
   , setScriptDataHash
   )
-import Type.Proxy (Proxy(Proxy))
 import CTL.Internal.Types.Any (Any)
 import CTL.Internal.Types.Datum (DataHash, Datum)
 import CTL.Internal.Types.Interval
-  ( PosixTimeToSlotError
-  , POSIXTimeRange
+  ( POSIXTimeRange
+  , PosixTimeToSlotError
   , posixTimeRangeToTransactionValidity
   )
 import CTL.Internal.Types.OutputDatum
@@ -171,7 +141,6 @@ import CTL.Internal.Types.TxConstraints
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
-  , TxConstraints(TxConstraints)
   , TxConstraint
       ( MustBeSignedBy
       , MustHashDatum
@@ -190,14 +159,15 @@ import CTL.Internal.Types.TxConstraints
       , MustSpendScriptOutput
       , MustValidateIn
       )
+  , TxConstraints(TxConstraints)
   )
 import CTL.Internal.Types.TypedTxOut
   ( TypeCheckError
   , mkTypedTxOut
+  , typeTxOutRef
   , typedTxOutDatumHash
   , typedTxOutRefValue
   , typedTxOutTxOut
-  , typeTxOutRef
   )
 import CTL.Internal.Types.TypedValidator
   ( class DatumType
@@ -212,6 +182,39 @@ import CTL.Internal.Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   )
+import Control.Alt ((<|>))
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Reader.Class (asks)
+import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
+import Control.Monad.Trans.Class (lift)
+import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
+import Data.Array (singleton, union, (:)) as Array
+import Data.Bifunctor (lmap)
+import Data.BigInt (BigInt, fromInt)
+import Data.Either (Either(Left, Right), either, note)
+import Data.Foldable (foldM)
+import Data.Generic.Rep (class Generic)
+import Data.Lattice (join)
+import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
+import Data.Lens.Getter (to, use)
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
+import Data.Lens.Types (Lens')
+import Data.List (List(Nil, Cons))
+import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
+import Data.Map (insert, toUnfoldable) as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Newtype (class Newtype, over, unwrap, wrap)
+import Data.Set (insert) as Set
+import Data.Show.Generic (genericShow)
+import Data.Symbol (SProxy(SProxy))
+import Data.Traversable (for, traverse_)
+import Data.Tuple (fst, snd)
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
+import Effect.Class (liftEffect)
+import Type.Proxy (Proxy(Proxy))
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26

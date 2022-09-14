@@ -79,6 +79,34 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
+import CTL.Internal.FromData (class FromData, genericFromData)
+import CTL.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
+import CTL.Internal.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
+import CTL.Internal.QueryM.Ogmios
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , SystemStart
+  , aesonObject
+  , slotLengthFactor
+  )
+import CTL.Internal.Serialization.Address (Slot(Slot))
+import CTL.Internal.ToData (class ToData, genericToData)
+import CTL.Internal.TypeLevel.Nat (S, Z)
+import CTL.Internal.Types.BigNum
+  ( add
+  , fromBigInt
+  , maxValue
+  , one
+  , toBigIntUnsafe
+  , zero
+  ) as BigNum
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -104,29 +132,8 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
 import Foreign.Object (Object)
-import CTL.Internal.FromData (class FromData, genericFromData)
-import CTL.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
-import CTL.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
-import CTL.Internal.QueryM.Ogmios
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , SystemStart
-  , aesonObject
-  , slotLengthFactor
-  )
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.ToData (class ToData, genericToData)
-import CTL.Internal.TypeLevel.Nat (S, Z)
-import CTL.Internal.Types.BigNum (add, fromBigInt, maxValue, one, toBigIntUnsafe, zero) as BigNum
 
 --------------------------------------------------------------------------------
 -- Interval Type and related

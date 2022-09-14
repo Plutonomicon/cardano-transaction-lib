@@ -3,7 +3,6 @@ module CTL.Internal.Deserialization.Language
   , convertLanguage
   ) where
 
-import Data.Variant (inj)
 import CTL.Internal.Deserialization.Error
   ( FromCslRepError
   , _fromCslRepError
@@ -14,8 +13,9 @@ import CTL.Internal.FfiHelpers
   , errorHelper
   )
 import CTL.Internal.Serialization.Types (Language) as Csl
-import Type.Row (type (+))
 import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as T
+import Data.Variant (inj)
+import Type.Row (type (+))
 
 convertLanguage
   :: forall (r :: Row Type)

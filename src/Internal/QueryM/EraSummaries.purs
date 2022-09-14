@@ -4,6 +4,7 @@ module CTL.Internal.QueryM.EraSummaries
   ) where
 
 import Prelude
+
 import CTL.Internal.QueryM (QueryM, mkOgmiosRequest)
 import CTL.Internal.QueryM.Ogmios (EraSummaries, queryEraSummariesCall) as Ogmios
 

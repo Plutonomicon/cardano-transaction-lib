@@ -30,7 +30,7 @@ module CTL.Internal.Helpers
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson)
-import Aeson.Encode (encodeTagged, dictionary)
+import Aeson.Encode (dictionary, encodeTagged)
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array (union)
 import Data.BigInt (BigInt)

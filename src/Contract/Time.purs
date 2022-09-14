@@ -37,8 +37,8 @@ import CTL.Internal.QueryM.Ogmios
   ) as ExportOgmios
 import CTL.Internal.QueryM.SystemStart (getSystemStart) as SystemStart
 import CTL.Internal.Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
+  ( BlockId(BlockId)
+  , Slot(Slot)
   ) as SerializationAddress
 import CTL.Internal.Types.Interval
   ( AbsTime(AbsTime)

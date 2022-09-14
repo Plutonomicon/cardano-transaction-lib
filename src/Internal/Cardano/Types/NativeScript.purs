@@ -15,12 +15,11 @@ import Aeson
   ( class EncodeAeson
   , encodeAeson'
   )
-
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
+import CTL.Internal.Helpers (encodeTagged')
 import CTL.Internal.Serialization.Address (Slot)
 import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
-import CTL.Internal.Helpers (encodeTagged')
+import Data.Generic.Rep (class Generic)
+import Data.Show.Generic (genericShow)
 
 data NativeScript
   = ScriptPubkey Ed25519KeyHash

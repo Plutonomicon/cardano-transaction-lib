@@ -7,16 +7,16 @@ module CTL.Internal.Types.Redeemer
 
 import Prelude
 
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.Serialization (toBytes)
 import CTL.Internal.Serialization.PlutusData (convertPlutusData)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.PlutusData (PlutusData)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Untagged.Union (asOneOf)
 
 newtype Redeemer = Redeemer PlutusData

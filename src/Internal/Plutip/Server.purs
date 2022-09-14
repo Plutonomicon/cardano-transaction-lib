@@ -26,6 +26,44 @@ import CTL.Contract.Monad
   , liftContractM
   , runContractInEnv
   )
+import CTL.Internal.Plutip.PortCheck (isPortAvailable)
+import CTL.Internal.Plutip.Spawn
+  ( NewOutputAction(Success, NoOp)
+  , killOnExit
+  , spawnAndWaitForOutput
+  )
+import CTL.Internal.Plutip.Types
+  ( ClusterStartupParameters
+  , ClusterStartupRequest(ClusterStartupRequest)
+  , InitialUTxODistribution
+  , InitialUTxOs
+  , PlutipConfig
+  , PostgresConfig
+  , PrivateKeyResponse(PrivateKeyResponse)
+  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
+  , StopClusterRequest(StopClusterRequest)
+  , StopClusterResponse
+  )
+import CTL.Internal.Plutip.Utils (tmpdir)
+import CTL.Internal.Plutip.UtxoDistribution
+  ( class UtxoDistribution
+  , decodeWallets
+  , encodeDistribution
+  , keyWallets
+  , transferFundsFromEnterpriseToBase
+  )
+import CTL.Internal.QueryM
+  ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  , Logger
+  , mkLogger
+  , stopQueryRuntime
+  )
+import CTL.Internal.QueryM as QueryM
+import CTL.Internal.QueryM.Logging (setupLogs)
+import CTL.Internal.QueryM.ProtocolParameters as Ogmios
+import CTL.Internal.QueryM.UniqueId (uniqueId)
+import CTL.Internal.Types.UsedTxOuts (newUsedTxOuts)
+import CTL.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
@@ -61,45 +99,7 @@ import Node.ChildProcess
   , kill
   , spawn
   )
-import CTL.Internal.Plutip.PortCheck (isPortAvailable)
-import CTL.Internal.Plutip.Spawn
-  ( NewOutputAction(Success, NoOp)
-  , killOnExit
-  , spawnAndWaitForOutput
-  )
-import CTL.Internal.Plutip.Types
-  ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxOs
-  , PlutipConfig
-  , PostgresConfig
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
-  , StopClusterRequest(StopClusterRequest)
-  , StopClusterResponse
-  , InitialUTxODistribution
-  )
-import CTL.Internal.Plutip.Utils (tmpdir)
-import CTL.Internal.Plutip.UtxoDistribution
-  ( class UtxoDistribution
-  , decodeWallets
-  , encodeDistribution
-  , keyWallets
-  , transferFundsFromEnterpriseToBase
-  )
-import CTL.Internal.QueryM
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  , Logger
-  , mkLogger
-  , stopQueryRuntime
-  )
-import CTL.Internal.QueryM as QueryM
-import CTL.Internal.QueryM.Logging (setupLogs)
-import CTL.Internal.QueryM.ProtocolParameters as Ogmios
-import CTL.Internal.QueryM.UniqueId (uniqueId)
 import Type.Prelude (Proxy(Proxy))
-import CTL.Internal.Types.UsedTxOuts (newUsedTxOuts)
-import CTL.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 
 -- | Run a single `Contract` in Plutip environment.
 runPlutipContract

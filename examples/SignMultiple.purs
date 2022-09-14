@@ -27,10 +27,10 @@ import CTL.Contract.Transaction
   )
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Value as Value
+import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
 import Effect.Ref as Ref
-import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do

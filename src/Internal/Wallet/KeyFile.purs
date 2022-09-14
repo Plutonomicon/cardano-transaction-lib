@@ -22,6 +22,15 @@ import CTL.Internal.Cardano.TextEnvelope
   , printTextEnvelopeDecodeError
   , textEnvelopeBytes
   )
+import CTL.Internal.Helpers (liftM)
+import CTL.Internal.Serialization (bytesFromPrivateKey, privateKeyFromBytes)
+import CTL.Internal.Serialization.Types (PrivateKey)
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.RawBytes (rawBytesToHex)
+import CTL.Internal.Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Control.Monad.Error.Class (liftEither)
 import Data.Bifunctor (lmap)
 import Data.Either (hush)
@@ -30,18 +39,9 @@ import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import CTL.Internal.Helpers (liftM)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile, writeTextFile)
 import Node.Path (FilePath)
-import CTL.Internal.Serialization (privateKeyFromBytes, bytesFromPrivateKey)
-import CTL.Internal.Serialization.Types (PrivateKey)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.RawBytes (rawBytesToHex)
-import CTL.Internal.Wallet.Key
-  ( PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
-  )
 
 keyFromFile :: FilePath -> TextEnvelopeType -> Aff ByteArray
 keyFromFile filePath ty = do

@@ -88,6 +88,33 @@ import Aeson
 import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
 import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import CTL.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value)
+import CTL.Internal.Helpers
+  ( appendMap
+  , encodeMap
+  , encodeSet
+  , encodeTagged'
+  , (</>)
+  , (<<>>)
+  )
+import CTL.Internal.Serialization.Address
+  ( Address
+  , NetworkId
+  , RewardAddress
+  , Slot(Slot)
+  , StakeCredential
+  )
+import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
+import CTL.Internal.Serialization.Types (VRFKeyHash)
+import CTL.Internal.Types.Aliases (Bech32String)
+import CTL.Internal.Types.BigNum (BigNum)
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.Int as Int
+import CTL.Internal.Types.OutputDatum (OutputDatum)
+import CTL.Internal.Types.PlutusData (PlutusData)
+import CTL.Internal.Types.RedeemerTag (RedeemerTag)
+import CTL.Internal.Types.Scripts (Language, PlutusScript)
+import CTL.Internal.Types.Transaction (TransactionInput)
+import CTL.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Data.Array (union)
@@ -109,26 +136,6 @@ import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import CTL.Internal.Helpers ((</>), (<<>>), appendMap, encodeMap, encodeSet, encodeTagged')
-import CTL.Internal.Serialization.Address
-  ( Address
-  , NetworkId
-  , RewardAddress
-  , Slot(Slot)
-  , StakeCredential
-  )
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
-import CTL.Internal.Serialization.Types (VRFKeyHash)
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int as Int
-import CTL.Internal.Types.OutputDatum (OutputDatum)
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.RedeemerTag (RedeemerTag)
-import CTL.Internal.Types.Scripts (PlutusScript, Language)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 
 --------------------------------------------------------------------------------
 -- `Transaction`

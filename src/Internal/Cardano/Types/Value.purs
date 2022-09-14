@@ -60,7 +60,30 @@ import Aeson
   , encodeAeson'
   , getField
   )
-
+import CTL.Internal.FromData (class FromData)
+import CTL.Internal.Helpers (encodeMap, showWithParens)
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
+import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
+import CTL.Internal.Serialization.Hash
+  ( ScriptHash
+  , scriptHashFromBytes
+  , scriptHashToBytes
+  )
+import CTL.Internal.ToData (class ToData)
+import CTL.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayToHex
+  , byteLength
+  , hexToByteArray
+  )
+import CTL.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import CTL.Internal.Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Array (cons, filter)
@@ -73,9 +96,9 @@ import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
-import Data.List ((:), all, List(Nil))
+import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
-import Data.Map (keys, lookup, Map, toUnfoldable, unions, values)
+import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -84,23 +107,8 @@ import Data.Show.Generic (genericShow)
 import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
-import Data.Tuple.Nested ((/\), type (/\))
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Helpers (encodeMap, showWithParens)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
+import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
-import CTL.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
-import CTL.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
-import CTL.Internal.Types.TokenName
-  ( TokenName
-  , adaToken
-  , getTokenName
-  , mkTokenName
-  , mkTokenNames
-  )
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
 -- combine similar behaviour without satisfying any useful laws. I wonder

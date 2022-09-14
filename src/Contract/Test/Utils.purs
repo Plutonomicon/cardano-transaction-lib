@@ -45,7 +45,7 @@ module CTL.Contract.Test.Utils
 import Prelude
 
 import CTL.Contract.Address (Address)
-import CTL.Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
+import CTL.Contract.Monad (Contract, liftContractM, liftedM, throwContractError)
 import CTL.Contract.PlutusData (OutputDatum)
 import CTL.Contract.Transaction
   ( Transaction(Transaction)
@@ -54,7 +54,16 @@ import CTL.Contract.Transaction
   , getTxByHash
   )
 import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
+import CTL.Contract.Value
+  ( CurrencySymbol
+  , TokenName
+  , Value
+  , valueOf
+  , valueToCoin'
+  )
+import CTL.Internal.Metadata.FromMetadata (fromMetadata)
+import CTL.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
+import CTL.Internal.Types.ByteArray (byteArrayToHex)
 import Control.Monad.Error.Class (catchError)
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)
@@ -64,10 +73,7 @@ import Data.Monoid.Endo (Endo(Endo))
 import Data.Newtype (ala, unwrap)
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.Metadata.FromMetadata (fromMetadata)
-import CTL.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
 import Type.Proxy (Proxy(Proxy))
-import CTL.Internal.Types.ByteArray (byteArrayToHex)
 
 data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash

@@ -5,13 +5,13 @@ module Test.CTL.ProtocolParams
 import Prelude
 
 import Aeson (decodeAeson)
+import CTL.Internal.QueryM.Ogmios (ProtocolParameters)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import CTL.Internal.QueryM.Ogmios (ProtocolParameters)
-import Test.Spec.Assertions (shouldSatisfy)
-import Test.CTL.Utils as Utils
 import Test.CTL.TestM (TestPlanM)
+import Test.CTL.Utils as Utils
+import Test.Spec.Assertions (shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

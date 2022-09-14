@@ -19,21 +19,7 @@ module CTL.Contract.Config
   ) where
 
 import CTL.Contract.Address (NetworkId(MainnetId, TestnetId))
-import CTL.Internal.Serialization (privateKeyFromBytes)
 import CTL.Contract.Monad (ConfigParams)
-import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
-import Data.Maybe (Maybe(Just, Nothing))
-import CTL.Internal.Wallet.Spec
-  ( WalletSpec
-      ( UseKeys
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToLode
-      )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
 import CTL.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
@@ -41,11 +27,25 @@ import CTL.Internal.QueryM.ServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
+import CTL.Internal.Serialization (privateKeyFromBytes)
 import CTL.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
+import CTL.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToLode
+      )
+  )
+import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
+import Data.Maybe (Maybe(Just, Nothing))
 
 testnetConfig :: ConfigParams ()
 testnetConfig =

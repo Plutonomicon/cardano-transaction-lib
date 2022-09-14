@@ -18,12 +18,9 @@ import CTL.Internal.Address
   , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as Transaction
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isNothing)
-import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse)
+import CTL.Internal.Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as Transaction
 import CTL.Internal.Deserialization.FromBytes (fromBytes)
 import CTL.Internal.Deserialization.PlutusData as Deserialization
 import CTL.Internal.QueryM.Ogmios as Ogmios
@@ -40,6 +37,11 @@ import CTL.Internal.Types.OutputDatum
   )
 import CTL.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import CTL.Internal.Types.UnbalancedTransaction as UTx
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isNothing)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
 import Untagged.Union (asOneOf)
 
 -- | A module for helpers of the various transaction output types.

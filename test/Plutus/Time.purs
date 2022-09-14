@@ -4,12 +4,6 @@ module Test.CTL.Plutus.Time
 
 import Prelude
 
-import Data.BigInt as BigInt
-import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
-import Effect.Aff (Aff)
-import Mote (group)
 import CTL.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
@@ -24,8 +18,6 @@ import CTL.Internal.QueryM.Ogmios
   , SystemStart(SystemStart)
   )
 import CTL.Internal.Serialization.Address (Slot(Slot))
-import Test.CTL.Utils (toFromAesonTest, toFromAesonTestWith)
-import Test.CTL.TestM (TestPlanM)
 import CTL.Internal.Types.BigNum as BigNum
 import CTL.Internal.Types.Interval
   ( AbsTime(AbsTime)
@@ -48,6 +40,14 @@ import CTL.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
+import Data.BigInt as BigInt
+import Data.Int as Int
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
+import Effect.Aff (Aff)
+import Mote (group)
+import Test.CTL.TestM (TestPlanM)
+import Test.CTL.Utils (toFromAesonTest, toFromAesonTestWith)
 
 slotFixture :: Slot
 slotFixture = mkSlot 34892625

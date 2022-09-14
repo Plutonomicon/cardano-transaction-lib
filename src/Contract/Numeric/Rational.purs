@@ -4,12 +4,12 @@ module CTL.Contract.Numeric.Rational
   ) where
 
 import CTL.Internal.Types.Rational
-  ( Rational
-  , class RationalComponent
-  , reduce
-  , (%)
-  , recip
-  , numerator
+  ( class RationalComponent
+  , Rational
   , denominator
   , denominatorAsNat
+  , numerator
+  , recip
+  , reduce
+  , (%)
   ) as Rational

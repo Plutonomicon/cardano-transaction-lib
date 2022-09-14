@@ -7,16 +7,15 @@ module CTL.Contract.Test.E2E.Browser
 
 import Prelude
 
+import CTL.Contract.Test.E2E.Helpers
+  ( WalletPassword(WalletPassword)
+  )
 import CTL.Contract.Test.E2E.WalletExt
   ( WalletConfig(WalletConfig)
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt)
   )
-import CTL.Contract.Test.E2E.Helpers
-  ( WalletPassword(WalletPassword)
-  )
-
-import Data.Foldable (fold)
 import Data.Array (catMaybes)
+import Data.Foldable (fold)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
@@ -28,7 +27,9 @@ import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
   , execParser
+  , fullDesc
   , help
+  , info
   , long
   , metavar
   , option
@@ -37,8 +38,6 @@ import Options.Applicative
   , strOption
   , switch
   , value
-  , info
-  , fullDesc
   )
 import Toppokki as Toppokki
 

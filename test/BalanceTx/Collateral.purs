@@ -9,32 +9,42 @@ import CTL.Internal.BalanceTx.Collateral.Select
   )
 import CTL.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import CTL.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
-import CTL.Internal.Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
+import CTL.Internal.Cardano.Types.Value
+  ( lovelaceValueOf
+  , mkSingletonNonAdaAsset
+  ) as Value
+import CTL.Internal.QueryM (QueryM, runQueryM)
+import CTL.Internal.QueryM.Config (testnetTraceQueryConfig)
+import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Control.Monad.Reader.Trans (asks)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt (fromInt, toInt) as UInt
-import Effect.Class (liftEffect)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Mote (group, test)
-import CTL.Internal.QueryM (QueryM, runQueryM)
-import CTL.Internal.QueryM.Config (testnetTraceQueryConfig)
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import Test.CTL.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
-import Test.Spec.Assertions (shouldEqual)
+import Test.CTL.Fixtures
+  ( currencySymbol1
+  , tokenName1
+  , tokenName2
+  , txInputFixture1
+  )
+import Test.CTL.TestM (TestPlanM)
 import Test.CTL.Utils (Seconds(Seconds))
 import Test.CTL.Utils (measure, measureWithTimeout) as TestUtils
-import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

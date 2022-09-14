@@ -37,20 +37,21 @@ import Prelude
 
 import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Cardano
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  ) as Cardano
 import CTL.Internal.Cardano.Types.Value (Coin) as Cardano
-import Data.Maybe (Maybe)
-import Data.Newtype (wrap, unwrap)
-import Data.Traversable (traverse)
 import CTL.Internal.Hashing (scriptRefHash)
-import CTL.Internal.Serialization.Address (NetworkId)
-import CTL.Internal.Plutus.Conversion.Address (fromPlutusAddress, toPlutusAddress)
 import CTL.Internal.Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
+import CTL.Internal.Plutus.Conversion.Address
+  ( fromPlutusAddress
+  , toPlutusAddress
+  )
 import CTL.Internal.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
 import CTL.Internal.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
 import CTL.Internal.Plutus.Types.Transaction
@@ -58,8 +59,14 @@ import CTL.Internal.Plutus.Types.Transaction
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , UtxoMap
   ) as Plutus
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput) as Plutus
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  ) as Plutus
 import CTL.Internal.Plutus.Types.Value (Coin) as Plutus
+import CTL.Internal.Serialization.Address (NetworkId)
+import Data.Maybe (Maybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
 
 --------------------------------------------------------------------------------
 -- Plutus Coin <-> Cardano Coin

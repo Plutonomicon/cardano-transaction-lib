@@ -3,6 +3,14 @@ module Test.CTL.UsedTxOuts (suite) where
 import Prelude
 
 import CTL.Internal.Cardano.Types.Transaction (Transaction)
+import CTL.Internal.Types.Transaction (TransactionHash)
+import CTL.Internal.Types.UsedTxOuts
+  ( isTxOutRefUsed
+  , lockTransactionInputs
+  , newUsedTxOuts
+  , unlockTransactionInputs
+  , unlockTxOutRefs
+  )
 import Control.Monad.Reader (runReaderT)
 import Data.Array (any, singleton, uncons)
 import Data.Foldable (all)
@@ -12,23 +20,15 @@ import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
-import Mote (test, group)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.CTL.Fixtures
   ( mkSampleTx
   , mkTxInput
   , txFixture1
   )
-import Test.Spec.Assertions (shouldReturn)
 import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.Transaction (TransactionHash)
-import CTL.Internal.Types.UsedTxOuts
-  ( isTxOutRefUsed
-  , lockTransactionInputs
-  , newUsedTxOuts
-  , unlockTransactionInputs
-  , unlockTxOutRefs
-  )
+import Test.Spec.Assertions (shouldReturn)
 
 buildSampleTransaction
   :: { tx :: Transaction

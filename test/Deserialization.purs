@@ -2,18 +2,12 @@ module Test.CTL.Deserialization (suite) where
 
 import Prelude
 
+import CTL.Contract.Address (ByteArray)
 import CTL.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput) as T
 import CTL.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import CTL.Contract.Address (ByteArray)
-import Control.Monad.Error.Class (class MonadThrow)
-import Data.Array as Array
-import Data.BigInt as BigInt
-import Data.Either (hush)
-import Data.Maybe (isJust, isNothing)
-import Data.Newtype (unwrap)
 import CTL.Internal.Deserialization.BigInt as DB
 import CTL.Internal.Deserialization.FromBytes (fromBytes)
 import CTL.Internal.Deserialization.NativeScript as NSD
@@ -24,13 +18,11 @@ import CTL.Internal.Deserialization.UnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
+import CTL.Internal.Deserialization.WitnessSet
+  ( convertWitnessSet
+  , deserializeWitnessSet
+  )
 import CTL.Internal.Serialization (convertTransaction) as TS
-import CTL.Internal.Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
-import Effect (Effect)
-import Effect.Aff (Aff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error)
-import Mote (group, test)
 import CTL.Internal.Serialization (toBytes)
 import CTL.Internal.Serialization as Serialization
 import CTL.Internal.Serialization.BigInt as SB
@@ -38,6 +30,19 @@ import CTL.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import CTL.Internal.Serialization.PlutusData as SPD
 import CTL.Internal.Serialization.Types (TransactionUnspentOutput)
 import CTL.Internal.Serialization.WitnessSet as SW
+import CTL.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
+import CTL.Internal.Types.Transaction (TransactionInput) as T
+import Control.Monad.Error.Class (class MonadThrow)
+import Data.Array as Array
+import Data.BigInt as BigInt
+import Data.Either (hush)
+import Data.Maybe (isJust, isNothing)
+import Data.Newtype (unwrap)
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error)
+import Mote (group, test)
 import Test.CTL.Fixtures
   ( nativeScriptFixture1
   , nativeScriptFixture2
@@ -72,11 +77,9 @@ import Test.CTL.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
-import Test.CTL.Utils (errMaybe)
 import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
-import CTL.Internal.Types.Transaction (TransactionInput) as T
+import Test.CTL.Utils (errMaybe)
+import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit

@@ -7,9 +7,6 @@ module CTL.Internal.Plutus.Conversion.Address
 
 import Prelude
 
-import Control.Alt ((<|>))
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (wrap, unwrap)
 import CTL.Internal.Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -24,29 +21,32 @@ import CTL.Internal.Serialization.Address
   , Pointer
   , StakeCredential
   , addressNetworkId
-  , baseAddressFromAddress
-  , baseAddressToAddress
-  , baseAddressPaymentCred
   , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
+  , baseAddressToAddress
+  , enterpriseAddressFromAddress
+  , enterpriseAddressPaymentCred
+  , enterpriseAddressToAddress
+  , paymentKeyHashEnterpriseAddress
+  , paymentKeyHashPointerAddress
+  , paymentKeyHashScriptHashAddress
+  , paymentKeyHashStakeKeyHashAddress
   , pointerAddressFromAddress
-  , pointerAddressToAddress
   , pointerAddressPaymentCred
   , pointerAddressStakePointer
-  , enterpriseAddressFromAddress
-  , enterpriseAddressToAddress
-  , enterpriseAddressPaymentCred
-  , paymentKeyHashStakeKeyHashAddress
-  , scriptHashStakeKeyHashAddress
-  , paymentKeyHashScriptHashAddress
-  , scriptHashScriptHashAddress
-  , paymentKeyHashPointerAddress
-  , scriptHashPointerAddress
-  , paymentKeyHashEnterpriseAddress
+  , pointerAddressToAddress
   , scriptHashEnterpriseAddress
+  , scriptHashPointerAddress
+  , scriptHashScriptHashAddress
+  , scriptHashStakeKeyHashAddress
   , withStakeCredential
   ) as Csl
 import CTL.Internal.Types.PubKeyHash (PubKeyHash(PubKeyHash))
 import CTL.Internal.Types.Scripts (ValidatorHash(ValidatorHash))
+import Control.Alt ((<|>))
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
 
 --------------------------------------------------------------------------------
 -- Plutus Address -> CSL Address

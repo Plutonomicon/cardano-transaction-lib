@@ -3,29 +3,11 @@ module Test.CTL.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude hiding (conj)
 
-import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
-import Control.Lazy (fix)
-import Control.Monad.Error.Class (class MonadThrow)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
-import Data.Generic.Rep as G
-import Data.List as List
-import Data.Maybe (maybe, Maybe(Just, Nothing), fromJust)
-import Data.Newtype (wrap)
-import Data.NonEmpty ((:|))
-import Data.Show.Generic (genericShow)
-import Data.Traversable (for_, traverse_)
-import Data.Tuple (Tuple, uncurry)
-import Data.Tuple.Nested ((/\))
+import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
 import CTL.Internal.Deserialization.FromBytes (fromBytes)
 import CTL.Internal.Deserialization.PlutusData as PDD
-import Effect.Aff (Aff)
-import Effect.Exception (Error)
 import CTL.Internal.FromData (class FromData, fromData, genericFromData)
 import CTL.Internal.Helpers (showWithParens)
-import Mote (group, test)
-import Partial.Unsafe (unsafePartial)
 import CTL.Internal.Plutus.Types.AssocMap (Map(Map))
 import CTL.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -37,21 +19,43 @@ import CTL.Internal.Plutus.Types.DataSchema
   )
 import CTL.Internal.Serialization (toBytes)
 import CTL.Internal.Serialization.PlutusData as PDS
+import CTL.Internal.ToData (class ToData, genericToData, toData)
+import CTL.Internal.TypeLevel.Nat (S, Z)
+import CTL.Internal.TypeLevel.RowList (class AllUniqueLabels)
+import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
+  ( class UniqueIndices
+  , ConsI
+  , NilI
+  )
+import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import CTL.Internal.Types.PlutusData (PlutusData(Constr, Integer))
+import Control.Lazy (fix)
+import Control.Monad.Error.Class (class MonadThrow)
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
+import Data.Generic.Rep as G
+import Data.List as List
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Newtype (wrap)
+import Data.NonEmpty ((:|))
+import Data.Show.Generic (genericShow)
+import Data.Traversable (for_, traverse_)
+import Data.Tuple (Tuple, uncurry)
+import Data.Tuple.Nested ((/\))
+import Effect.Aff (Aff)
+import Effect.Exception (Error)
+import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
+import Test.CTL.TestM (TestPlanM)
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Combinators (conj)
 import Test.QuickCheck.Gen (frequency)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
-import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.ToData (class ToData, genericToData, toData)
 import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
-import CTL.Internal.TypeLevel.Nat (Z, S)
-import CTL.Internal.TypeLevel.RowList (class AllUniqueLabels)
-import CTL.Internal.TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
-import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import CTL.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip

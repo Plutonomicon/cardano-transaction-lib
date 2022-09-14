@@ -19,17 +19,21 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import Data.Either (Either(Left))
-import Data.Maybe (Maybe, fromJust)
-import Data.Newtype (unwrap, wrap)
 import CTL.Internal.FromData (class FromData)
-import Partial.Unsafe (unsafePartial)
-import CTL.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes, scriptHashToBytes)
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
+import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
+import CTL.Internal.Serialization.Hash
+  ( ScriptHash
+  , scriptHashFromBytes
+  , scriptHashToBytes
+  )
 import CTL.Internal.ToData (class ToData)
 import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
+import Data.Either (Either(Left))
+import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (unwrap, wrap)
+import Partial.Unsafe (unsafePartial)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 

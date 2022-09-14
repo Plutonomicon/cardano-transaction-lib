@@ -27,6 +27,40 @@ import Aeson
   , (.:?)
   )
 import Aeson as Aeson
+import CTL.Internal.FromData (class FromData, fromData)
+import CTL.Internal.Metadata.Cip25.Cip25String
+  ( Cip25String
+  , fromDataString
+  , fromMetadataString
+  )
+import CTL.Internal.Metadata.Cip25.Common
+  ( Cip25MetadataFile(Cip25MetadataFile)
+  , Cip25TokenName(Cip25TokenName)
+  , nftMetadataLabel
+  )
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import CTL.Internal.Metadata.Helpers
+  ( errExpectedObject
+  , lookupKey
+  , lookupMetadata
+  )
+import CTL.Internal.Metadata.MetadataType (class MetadataType)
+import CTL.Internal.Metadata.ToMetadata
+  ( class ToMetadata
+  , anyToMetadata
+  , toMetadata
+  )
+import CTL.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
+import CTL.Internal.Serialization.Hash (scriptHashFromBytes)
+import CTL.Internal.ToData (class ToData, toData)
+import CTL.Internal.Types.Int as Int
+import CTL.Internal.Types.PlutusData (PlutusData(Map, Integer))
+import CTL.Internal.Types.RawBytes (hexToRawBytes)
+import CTL.Internal.Types.Scripts (MintingPolicyHash)
+import CTL.Internal.Types.TokenName (mkTokenName)
+import CTL.Internal.Types.TransactionMetadata
+  ( TransactionMetadatum(Int, MetadataMap)
+  )
 import Control.Alt ((<|>))
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
@@ -37,38 +71,14 @@ import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.TextEncoder (encodeUtf8)
 import Data.Traversable (fold, for, sequence, traverse)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object, toUnfoldable) as FO
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Metadata.Cip25.Cip25String
-  ( Cip25String
-  , fromDataString
-  , fromMetadataString
-  )
-import CTL.Internal.Metadata.Cip25.Common
-  ( nftMetadataLabel
-  , Cip25TokenName(Cip25TokenName)
-  , Cip25MetadataFile(Cip25MetadataFile)
-  )
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.Helpers (errExpectedObject, lookupKey, lookupMetadata)
-import CTL.Internal.Metadata.MetadataType (class MetadataType)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata, anyToMetadata)
 import Partial.Unsafe (unsafePartial)
-import CTL.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
-import CTL.Internal.Serialization.Hash (scriptHashFromBytes)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.Int as Int
-import CTL.Internal.Types.PlutusData (PlutusData(Map, Integer))
-import CTL.Internal.Types.RawBytes (hexToRawBytes)
-import CTL.Internal.Types.Scripts (MintingPolicyHash)
-import CTL.Internal.Types.TokenName (mkTokenName)
-import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum(Int, MetadataMap))
 
 -- | ```
 -- | metadata_details =

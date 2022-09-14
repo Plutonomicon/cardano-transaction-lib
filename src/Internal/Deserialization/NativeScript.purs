@@ -5,17 +5,14 @@ module CTL.Internal.Deserialization.NativeScript
 import Prelude
 
 import CTL.Internal.Cardano.Types.NativeScript as T
-import Control.Alt ((<|>))
-import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
 import CTL.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
   , containerHelper
   , maybeFfiHelper
   )
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
 import CTL.Internal.Serialization.Address (Slot(Slot))
+import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
 import CTL.Internal.Serialization.Types
   ( NativeScript
   , ScriptAll
@@ -26,6 +23,9 @@ import CTL.Internal.Serialization.Types
   , TimelockStart
   )
 import CTL.Internal.Types.BigNum (BigNum)
+import Control.Alt ((<|>))
+import Data.Maybe (Maybe)
+import Data.Traversable (traverse)
 
 convertNativeScript :: NativeScript -> Maybe T.NativeScript
 convertNativeScript ns =

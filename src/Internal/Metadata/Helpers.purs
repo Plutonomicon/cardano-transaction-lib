@@ -9,13 +9,15 @@ module CTL.Internal.Metadata.Helpers
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
+import CTL.Internal.Types.ByteArray (byteArrayFromAscii)
+import CTL.Internal.Types.PlutusData (PlutusData(Map, Bytes))
+import CTL.Internal.Types.TransactionMetadata
+  ( TransactionMetadatum(MetadataMap, Text)
+  )
 import Data.Either (Either(Left))
 import Data.Foldable (lookup)
 import Data.Map (lookup) as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
-import CTL.Internal.Types.ByteArray (byteArrayFromAscii)
-import CTL.Internal.Types.PlutusData (PlutusData(Map, Bytes))
-import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum(MetadataMap, Text))
 
 mkKey :: String -> Maybe PlutusData
 mkKey str = Bytes <$> byteArrayFromAscii str

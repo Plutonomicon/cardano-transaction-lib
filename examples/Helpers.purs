@@ -26,9 +26,9 @@ import CTL.Contract.TxConstraints (DatumPresence)
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Value (CurrencySymbol, TokenName, Value)
 import CTL.Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
-import Data.BigInt (BigInt)
 import CTL.Internal.IsData (class IsData)
 import CTL.Internal.Types.TypedValidator (class ValidatorTypes)
+import Data.BigInt (BigInt)
 
 buildBalanceSignAndSubmitTx'
   :: forall (r :: Row Type) (validator :: Type) (datum :: Type)

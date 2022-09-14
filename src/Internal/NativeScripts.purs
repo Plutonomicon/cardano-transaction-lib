@@ -16,6 +16,9 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
+import CTL.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import CTL.Internal.Serialization.Hash as Hashing
+import CTL.Internal.Serialization.NativeScript (convertNativeScript)
 import Data.Array as Array
 import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)
@@ -25,9 +28,6 @@ import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Set (Set)
 import Data.Set as Set
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import CTL.Internal.Serialization.Hash as Hashing
-import CTL.Internal.Serialization.NativeScript (convertNativeScript)
 
 newtype NativeScriptHash = NativeScriptHash ScriptHash
 

@@ -86,9 +86,9 @@ module CTL.Internal.Serialization.Types
 
 import Prelude
 
-import Data.Function (on)
 import Aeson (class EncodeAeson, encodeAeson')
 import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Data.Function (on)
 
 foreign import data AssetName :: Type
 foreign import data Assets :: Type

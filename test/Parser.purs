@@ -9,9 +9,11 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
+import CTL.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import CTL.Internal.QueryM.Ogmios (UtxoQR)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Error.Class (throwError)
 import Data.Array as Array
 import Data.Either (Either, either, isRight)
 import Data.Medea (validate)
@@ -21,13 +23,11 @@ import Data.Traversable (traverse, traverse_)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Node.FS.Aff (readTextFile)
-import Node.Encoding (Encoding(UTF8))
-import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
-import Test.CTL.TestM (TestPlanM, ValidationM, runValidationM)
 import Mote (group, test)
-import CTL.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
-import CTL.Internal.QueryM.Ogmios (UtxoQR)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Aff (readTextFile)
+import Test.CTL.TestM (TestPlanM, ValidationM, runValidationM)
+import Test.Spec.Assertions (shouldNotSatisfy, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

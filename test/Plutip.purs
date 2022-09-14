@@ -67,24 +67,6 @@ import CTL.Contract.Wallet
   , isNamiAvailable
   , withKeyWallet
   )
-import Control.Monad.Error.Class (try)
-import Control.Monad.Reader (asks)
-import Control.Parallel (parallel, sequential)
-import Data.Array ((!!))
-import Data.BigInt as BigInt
-import Data.Either (isLeft)
-import Data.Foldable (foldM, fold)
-import Data.Lens (view)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
-import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse, traverse_)
-import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
-import Effect.Aff (Aff, launchAff_, bracket)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
-import Effect.Ref as Ref
 import CTL.Examples.AlwaysMints (alwaysMintsPolicy)
 import CTL.Examples.AlwaysSucceeds as AlwaysSucceeds
 import CTL.Examples.ContractTestUtils as ContractTestUtils
@@ -93,20 +75,18 @@ import CTL.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
-import CTL.Examples.OneShotMinting (contract) as OneShotMinting
-import CTL.Examples.PlutusV2.InlineDatum as InlineDatum
 import CTL.Examples.Lose7Ada as AlwaysFails
 import CTL.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import CTL.Examples.OneShotMinting (contract) as OneShotMinting
 import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import CTL.Examples.PlutusV2.InlineDatum as InlineDatum
 import CTL.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import CTL.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import CTL.Examples.SendsToken (contract) as SendsToken
-import Mote (group, skip, test)
-import Mote.Monad (mapTest)
 import CTL.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -124,8 +104,34 @@ import CTL.Internal.Plutus.Types.TransactionUnspentOutput
   , lookupTxHash
   )
 import CTL.Internal.Plutus.Types.Value (lovelaceValueOf)
-import Safe.Coerce (coerce)
 import CTL.Internal.Scripts (nativeScriptHashEnterpriseAddress)
+import CTL.Internal.Types.Interval (getSlotLength)
+import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
+import CTL.Internal.Wallet.Cip30Mock
+  ( WalletMock(MockNami, MockGero, MockFlint)
+  , withCip30Mock
+  )
+import Control.Monad.Error.Class (try)
+import Control.Monad.Reader (asks)
+import Control.Parallel (parallel, sequential)
+import Data.Array ((!!))
+import Data.BigInt as BigInt
+import Data.Either (isLeft)
+import Data.Foldable (fold, foldM)
+import Data.Lens (view)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse, traverse_)
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
+import Effect.Aff (Aff, bracket, launchAff_)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
+import Effect.Ref as Ref
+import Mote (group, skip, test)
+import Mote.Monad (mapTest)
+import Safe.Coerce (coerce)
 import Test.CTL.AffInterface as AffInterface
 import Test.CTL.Fixtures
   ( cip25MetadataFixture1
@@ -137,16 +143,10 @@ import Test.CTL.Plutip.Common (config, privateStakeKey)
 import Test.CTL.Plutip.Logging as Logging
 import Test.CTL.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.CTL.Plutip.UtxoDistribution as UtxoDistribution
+import Test.CTL.TestM (TestPlanM)
+import Test.CTL.Utils as Utils
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
-import Test.CTL.Utils as Utils
-import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.Interval (getSlotLength)
-import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
-import CTL.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
-  , withCip30Mock
-  )
 
 -- Run with `spago test --main Test.CTL.Plutip`
 main :: Effect Unit

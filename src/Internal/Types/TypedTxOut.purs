@@ -32,15 +32,10 @@ module CTL.Internal.Types.TypedTxOut
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
+import CTL.Internal.Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  )
 import CTL.Internal.Cardano.Types.Value (Value)
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Data.Either (Either, note)
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
-import Data.Show.Generic (genericShow)
 import CTL.Internal.FromData (class FromData, fromData)
 import CTL.Internal.Hashing (datumHash) as Hashing
 import CTL.Internal.Helpers (liftM)
@@ -50,10 +45,20 @@ import CTL.Internal.Scripts (typedValidatorEnterpriseAddress)
 import CTL.Internal.Serialization.Address (Address, NetworkId)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.Datum (DataHash, Datum(Datum))
-import CTL.Internal.Types.OutputDatum (OutputDatum(OutputDatumHash), outputDatumDataHash)
+import CTL.Internal.Types.OutputDatum
+  ( OutputDatum(OutputDatumHash)
+  , outputDatumDataHash
+  )
 import CTL.Internal.Types.PlutusData (PlutusData)
 import CTL.Internal.Types.Transaction (TransactionInput)
 import CTL.Internal.Types.TypedValidator (class DatumType, TypedValidator)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Data.Either (Either, note)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
+import Data.Show.Generic (genericShow)
 
 -- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.

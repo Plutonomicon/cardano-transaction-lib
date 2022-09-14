@@ -5,12 +5,6 @@ module CTL.Internal.Serialization.PlutusData
 
 import Prelude
 
-import Data.BigInt as BigInt
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
-import Data.Tuple (Tuple, fst, snd)
-import Data.Tuple.Nested (type (/\), (/\))
-
 import CTL.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -28,6 +22,11 @@ import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
 import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.PlutusData as T
+import Data.BigInt as BigInt
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple, fst, snd)
+import Data.Tuple.Nested (type (/\), (/\))
 
 convertPlutusData :: T.PlutusData -> Maybe PlutusData
 convertPlutusData = case _ of

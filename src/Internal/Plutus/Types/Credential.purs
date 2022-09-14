@@ -7,11 +7,9 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Aeson.Decode ((</$\>), (</*\>))
+import Aeson.Decode as Decode
 import Aeson.Encode ((>/\<))
-import Control.Lazy (defer)
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested ((/\))
+import Aeson.Encode as Encode
 import CTL.Internal.FromData (class FromData, genericFromData)
 import CTL.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -21,14 +19,20 @@ import CTL.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
+import CTL.Internal.Serialization.Address
+  ( CertificateIndex
+  , Slot
+  , TransactionIndex
+  )
 import CTL.Internal.ToData (class ToData, genericToData)
 import CTL.Internal.TypeLevel.Nat (S, Z)
-import Aeson.Decode as Decode
-import Aeson.Encode as Encode
-import Data.Map as Map
-import CTL.Internal.Serialization.Address (CertificateIndex, Slot, TransactionIndex)
 import CTL.Internal.Types.PubKeyHash (PubKeyHash)
 import CTL.Internal.Types.Scripts (ValidatorHash)
+import Control.Lazy (defer)
+import Data.Generic.Rep (class Generic)
+import Data.Map as Map
+import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested ((/\))
 
 --------------------------------------------------------------------------------
 -- Credential

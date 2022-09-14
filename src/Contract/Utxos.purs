@@ -14,16 +14,25 @@ import Prelude
 import CTL.Contract.Monad (Contract, liftContractM, wrapContract)
 import CTL.Contract.Prelude (for)
 import CTL.Contract.Transaction (TransactionInput, TransactionOutput)
-import Control.Monad.Reader.Class (asks)
-import Data.Maybe (Maybe)
-import Data.Newtype (unwrap)
-import CTL.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoMap)
+import CTL.Internal.Plutus.Conversion
+  ( fromPlutusAddress
+  , toPlutusTxOutput
+  , toPlutusUtxoMap
+  )
 import CTL.Internal.Plutus.Conversion.Value (toPlutusValue)
 import CTL.Internal.Plutus.Types.Address (Address)
 import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
 import CTL.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import CTL.Internal.Plutus.Types.Value (Value)
-import CTL.Internal.QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxos
+import CTL.Internal.QueryM.Utxos
+  ( getUtxo
+  , getWalletBalance
+  , getWalletUtxos
+  , utxosAt
+  ) as Utxos
+import Control.Monad.Reader.Class (asks)
+import Data.Maybe (Maybe)
+import Data.Newtype (unwrap)
 
 -- | This module defines query functionality via Ogmios to get utxos.
 

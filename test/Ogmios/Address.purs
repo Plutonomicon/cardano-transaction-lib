@@ -3,13 +3,13 @@ module Test.CTL.Ogmios.Address (suite) where
 import Prelude
 
 import CTL.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
+import CTL.Internal.QueryM.Ogmios (OgmiosAddress)
 import Control.Monad.Except (throwError)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff, error)
 import Mote (group, test)
-import CTL.Internal.QueryM.Ogmios (OgmiosAddress)
-import Test.Spec.Assertions (shouldEqual)
 import Test.CTL.TestM (TestPlanM)
+import Test.Spec.Assertions (shouldEqual)
 
 testnetAddrFixture1 :: OgmiosAddress
 testnetAddrFixture1 =

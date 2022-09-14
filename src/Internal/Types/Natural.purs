@@ -15,16 +15,16 @@ module CTL.Internal.Types.Natural
 import Prelude
 
 import Aeson (class DecodeAeson, JsonDecodeError(TypeMismatch), caseAesonBigInt)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromString) as BigInt
-import Data.Either (Either(Left), note)
-import Data.Function (on)
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
 import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.PlutusData (PlutusData(Integer))
+import Data.BigInt (BigInt)
+import Data.BigInt (fromInt, fromString) as BigInt
+import Data.Either (Either(Left), note)
+import Data.Function (on)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 
 newtype Natural = Natural BigInt
 

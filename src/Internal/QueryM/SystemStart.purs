@@ -4,6 +4,7 @@ module CTL.Internal.QueryM.SystemStart
   ) where
 
 import Prelude
+
 import CTL.Internal.QueryM (QueryM, mkOgmiosRequest)
 import CTL.Internal.QueryM.Ogmios (SystemStart, querySystemStartCall) as Ogmios
 

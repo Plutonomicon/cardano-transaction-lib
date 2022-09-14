@@ -14,40 +14,40 @@ module CTL.Contract.Wallet
 import Prelude
 
 import CTL.Contract.Address (getWalletAddress, getWalletCollateral)
-import CTL.Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import CTL.Contract.Monad (Contract, ContractEnv)
-import Control.Monad.Reader (local)
-import Data.Lens (Lens, (.~))
-import Data.Lens.Common (simple)
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(Just))
+import CTL.Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import CTL.Internal.Serialization (privateKeyFromBytes) as Serialization
-import Type.Proxy (Proxy(Proxy))
+import CTL.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import CTL.Internal.Wallet
-  ( isGeroAvailable
-  , isNamiAvailable
-  , isFlintAvailable
+  ( isFlintAvailable
+  , isGeroAvailable
   , isLodeAvailable
+  , isNamiAvailable
   ) as Wallet
-import CTL.Internal.Wallet (mkKeyWallet, Wallet(KeyWallet))
-import CTL.Internal.Wallet.Spec
-  ( WalletSpec
-      ( UseKeys
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToLode
-      )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
 import CTL.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import CTL.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
 import CTL.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
+import CTL.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToLode
+      )
+  )
+import Control.Monad.Reader (local)
+import Data.Lens (Lens, (.~))
+import Data.Lens.Common (simple)
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
+import Data.Maybe (Maybe(Just))
+import Type.Proxy (Proxy(Proxy))
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)

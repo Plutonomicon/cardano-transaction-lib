@@ -3,6 +3,6 @@ module CTL.Contract.Test.Cip30Mock
   ) where
 
 import CTL.Internal.Wallet.Cip30Mock
-  ( withCip30Mock
-  , WalletMock(MockFlint, MockGero, MockNami)
+  ( WalletMock(MockFlint, MockGero, MockNami)
+  , withCip30Mock
   ) as X

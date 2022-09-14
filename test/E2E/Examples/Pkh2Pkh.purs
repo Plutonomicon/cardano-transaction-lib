@@ -2,7 +2,11 @@ module Test.CTL.E2E.Examples.Pkh2Pkh (runExample) where
 
 import Prelude
 
-import CTL.Contract.Test.E2E (TestOptions, SomeWallet(SomeWallet), WalletPassword)
+import CTL.Contract.Test.E2E
+  ( SomeWallet(SomeWallet)
+  , TestOptions
+  , WalletPassword
+  )
 import Effect.Aff (Aff)
 import Test.CTL.E2E.Helpers (runE2ETest)
 import Test.CTL.TestM (TestPlanM)

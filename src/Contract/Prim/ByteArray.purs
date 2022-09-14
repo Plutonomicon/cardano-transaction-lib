@@ -3,9 +3,9 @@ module CTL.Contract.Prim.ByteArray (module ByteArray) where
 
 import CTL.Internal.Types.ByteArray
   ( ByteArray(ByteArray)
+  , byteArrayFromAscii
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayFromAscii
   , byteArrayToHex
   , byteArrayToIntArray
   , byteLength

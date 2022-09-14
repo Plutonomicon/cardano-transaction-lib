@@ -2,17 +2,17 @@ module CTL.Internal.Metadata.FromMetadata where
 
 import Prelude
 
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.Int (Int, toBigInt) as Int
+import CTL.Internal.Types.TransactionMetadata
+  ( TransactionMetadatum(MetadataList, Int, Bytes, Text)
+  )
 import Data.Array (toUnfoldable, uncons) as Array
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
 import Data.Traversable (traverse)
 import Data.Unfoldable (class Unfoldable)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int (Int, toBigInt) as Int
-import CTL.Internal.Types.TransactionMetadata
-  ( TransactionMetadatum(MetadataList, Int, Bytes, Text)
-  )
 
 --------------------------------------------------------------------------------
 -- FromMetadata

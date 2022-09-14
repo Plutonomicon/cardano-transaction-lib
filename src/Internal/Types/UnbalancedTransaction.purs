@@ -14,12 +14,21 @@ import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
 import CTL.Internal.Cardano.Types.Transaction
-  ( Transaction
-  , TransactionOutput
-  , PublicKey(PublicKey)
-  , Vkey(Vkey)
+  ( PublicKey(PublicKey)
   , RequiredSigner(RequiredSigner)
+  , Transaction
+  , TransactionOutput
+  , Vkey(Vkey)
   )
+import CTL.Internal.Cardano.Types.Value (Value)
+import CTL.Internal.Helpers (encodeMap, encodeTagged')
+import CTL.Internal.Serialization
+  ( publicKeyFromBech32
+  , publicKeyHash
+  )
+import CTL.Internal.Types.Datum (DataHash, Datum)
+import CTL.Internal.Types.Scripts (ValidatorHash)
+import CTL.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
@@ -28,15 +37,6 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
-import CTL.Internal.Helpers (encodeMap, encodeTagged')
-import CTL.Internal.Serialization
-  ( publicKeyFromBech32
-  , publicKeyHash
-  )
-import CTL.Internal.Types.Datum (Datum, DataHash)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.Scripts (ValidatorHash)
-import CTL.Internal.Cardano.Types.Value (Value)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`
 newtype PaymentPubKey = PaymentPubKey PublicKey

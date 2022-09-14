@@ -22,11 +22,28 @@ import CTL.Internal.Cardano.Types.Transaction
   , TxBody(TxBody)
   , UtxoMap
   , _inputs
+  , _isValid
   , _plutusData
   , _redeemers
   , _witnessSet
-  , _isValid
   )
+import CTL.Internal.QueryM (QueryM)
+import CTL.Internal.QueryM (evaluateTxOgmios) as QueryM
+import CTL.Internal.QueryM.MinFee (calculateMinFee) as QueryM
+import CTL.Internal.QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
+import CTL.Internal.ReindexRedeemers
+  ( ReindexErrors
+  , reindexSpentScriptRedeemers'
+  )
+import CTL.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import CTL.Internal.Transaction (setScriptDataHash)
+import CTL.Internal.Types.Natural (toBigInt) as Natural
+import CTL.Internal.Types.ScriptLookups
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  )
+import CTL.Internal.Types.Scripts (PlutusScript)
+import CTL.Internal.Types.Transaction (TransactionInput)
+import CTL.Internal.Types.UnbalancedTransaction (_transaction)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
@@ -38,27 +55,15 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right))
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
-import Data.Lens.Setter ((.~), (?~), (%~))
-import Data.Map (fromFoldable, toUnfoldable, lookup, filterKeys, empty) as Map
+import Data.Lens.Setter ((%~), (.~), (?~))
+import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set as Set
 import Data.Traversable (foldMap, traverse)
 import Data.Tuple (fst, snd)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import CTL.Internal.QueryM (QueryM)
-import CTL.Internal.QueryM (evaluateTxOgmios) as QueryM
-import CTL.Internal.QueryM.MinFee (calculateMinFee) as QueryM
-import CTL.Internal.QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
-import CTL.Internal.ReindexRedeemers (ReindexErrors, reindexSpentScriptRedeemers')
-import CTL.Internal.Serialization (convertTransaction, toBytes) as Serialization
-import CTL.Internal.Transaction (setScriptDataHash)
-import CTL.Internal.Types.Natural (toBigInt) as Natural
-import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import CTL.Internal.Types.Scripts (PlutusScript)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.UnbalancedTransaction (_transaction)
 import Untagged.Union (asOneOf)
 
 evalTxExecutionUnits

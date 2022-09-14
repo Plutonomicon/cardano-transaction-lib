@@ -12,8 +12,26 @@ import Prelude
 
 import CTL.Internal.Address (addressToOgmiosAddress)
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import CTL.Internal.Cardano.Types.Value (Value)
+import CTL.Internal.Helpers as Helpers
+import CTL.Internal.QueryM
+  ( QueryM
+  , callCip30Wallet
+  , getWalletAddress
+  , mkOgmiosRequest
+  )
+import CTL.Internal.QueryM.Ogmios as Ogmios
+import CTL.Internal.Serialization.Address (Address)
+import CTL.Internal.TxOutput
+  ( ogmiosTxOutToTransactionOutput
+  , txOutRefToTransactionInput
+  )
+import CTL.Internal.Types.Transaction (TransactionInput)
+import CTL.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
+import CTL.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, KeyWallet))
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Array as Array
@@ -30,14 +48,6 @@ import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import CTL.Internal.Helpers as Helpers
-import CTL.Internal.QueryM (QueryM, callCip30Wallet, getWalletAddress, mkOgmiosRequest)
-import CTL.Internal.QueryM.Ogmios as Ogmios
-import CTL.Internal.Serialization.Address (Address)
-import CTL.Internal.TxOutput (ogmiosTxOutToTransactionOutput, txOutRefToTransactionInput)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import CTL.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, KeyWallet))
 
 --------------------------------------------------------------------------------
 -- UtxosAt

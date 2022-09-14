@@ -13,15 +13,20 @@ module CTL.Internal.Types.TransactionMetadata
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
+import CTL.Internal.Helpers
+  ( appendRightMap
+  , encodeMap
+  , encodeTagged'
+  , showWithParens
+  )
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.Int (Int) as Int
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import CTL.Internal.Helpers (encodeMap, encodeTagged', appendRightMap, showWithParens)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int (Int) as Int
 
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata

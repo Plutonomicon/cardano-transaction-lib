@@ -6,27 +6,32 @@ module CTL.Contract.AuxiliaryData
 
 import Prelude
 
+import CTL.Contract.Monad (Contract)
+import CTL.Contract.ScriptLookups
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  )
 import CTL.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
   )
 import CTL.Internal.Cardano.Types.Transaction
-  ( _body
-  , _auxiliaryData
+  ( _auxiliaryData
   , _auxiliaryDataHash
+  , _body
   ) as Tx
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Lens (lens', (?~))
-import Data.Lens.Getter (view)
-import Data.Lens.Types (Lens')
-import Data.Tuple (Tuple(Tuple))
-import CTL.Contract.Monad (Contract)
-import CTL.Contract.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
-import Effect.Class (liftEffect)
-import CTL.Internal.Metadata.MetadataType (class MetadataType, toGeneralTxMetadata)
+import CTL.Internal.Metadata.MetadataType
+  ( class MetadataType
+  , toGeneralTxMetadata
+  )
 import CTL.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
 import CTL.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import CTL.Internal.Types.UnbalancedTransaction (UnbalancedTx, _transaction)
+import Data.Lens (lens', (?~))
+import Data.Lens.Getter (view)
+import Data.Lens.Types (Lens')
+import Data.Maybe (Maybe, fromMaybe)
+import Data.Tuple (Tuple(Tuple))
+import Effect.Class (liftEffect)
 
 -- These functions involve `UnattachedUnbalancedTx` which in turns involve
 -- `UnbalancedTx`, these involve `ScriptOutput` which is what is currently

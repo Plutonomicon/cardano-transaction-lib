@@ -33,14 +33,12 @@ module CTL.Contract.Address
 
 import Prelude
 
+import CTL.Contract.Monad (Contract, liftedM, wrapContract)
 import CTL.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
-import CTL.Contract.Monad (Contract, wrapContract, liftedM)
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
 import CTL.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
@@ -57,10 +55,12 @@ import CTL.Internal.Plutus.Types.Address
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
-  , toValidatorHash
   , toStakingCredential
+  , toValidatorHash
   ) as ExportAddress
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import CTL.Internal.QueryM
   ( getWalletAddress
   , ownPaymentPubKeyHash
@@ -75,31 +75,35 @@ import CTL.Internal.Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import CTL.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
 import CTL.Internal.Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  , TransactionIndex(TransactionIndex)
-  , CertificateIndex(CertificateIndex)
-  , Pointer
+  ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
+  , CertificateIndex(CertificateIndex)
   , NetworkId(TestnetId, MainnetId)
+  , Pointer
+  , Slot(Slot)
+  , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
+import CTL.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
 import CTL.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
 import CTL.Internal.Serialization.Hash (ScriptHash)
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.Aliases (Bech32String) as TypeAliases
 import CTL.Internal.Types.ByteArray (ByteArray) as ByteArray
 import CTL.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import CTL.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import CTL.Internal.Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
 import CTL.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
-  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
+  , payPubKeyHashRewardAddress
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
@@ -111,6 +115,8 @@ import CTL.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
 
 -- | Get the `Address` of the browser wallet.
 getWalletAddress

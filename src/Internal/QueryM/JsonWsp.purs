@@ -24,12 +24,12 @@ import Aeson
   , getField
   , getFieldOptional
   )
+import CTL.Internal.QueryM.UniqueId (ListenerId, uniqueId)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Effect (Effect)
 import Foreign.Object (Object)
-import CTL.Internal.QueryM.UniqueId (ListenerId, uniqueId)
 import Record as Record
 
 -- | Structure of all json wsp websocket requests

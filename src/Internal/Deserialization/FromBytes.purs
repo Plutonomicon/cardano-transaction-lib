@@ -10,11 +10,6 @@ module CTL.Internal.Deserialization.FromBytes
 
 import Prelude
 
-import Data.Either (Either(Left), hush)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Variant (inj)
-import Effect (Effect)
-import Effect.Exception (throw)
 import CTL.Internal.Error (E)
 import CTL.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
 import CTL.Internal.Serialization.Types
@@ -29,9 +24,14 @@ import CTL.Internal.Serialization.Types
   , VRFKeyHash
   , Value
   )
+import CTL.Internal.Types.ByteArray (ByteArray)
+import Data.Either (Either(Left), hush)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Variant (inj)
+import Effect (Effect)
+import Effect.Exception (throw)
 import Type.Prelude (Proxy(Proxy))
 import Type.Row (type (+))
-import CTL.Internal.Types.ByteArray (ByteArray)
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where

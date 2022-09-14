@@ -2,15 +2,15 @@ module Test.CTL.Types.TokenName (suite) where
 
 import Prelude
 
+import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import CTL.Internal.Types.TokenName (mkTokenName)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import Test.Spec.Assertions (shouldSatisfy)
-import Test.CTL.Utils (toFromAesonTest)
 import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import CTL.Internal.Types.TokenName (mkTokenName)
+import Test.CTL.Utils (toFromAesonTest)
+import Test.Spec.Assertions (shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

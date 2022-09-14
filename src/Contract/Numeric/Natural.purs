@@ -2,8 +2,7 @@
 module CTL.Contract.Numeric.Natural (module Natural) where
 
 import CTL.Internal.Types.Natural
-  ( (^-)
-  , Natural
+  ( Natural
   , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
@@ -12,4 +11,5 @@ import CTL.Internal.Types.Natural
   , fromString
   , minus
   , toBigInt
+  , (^-)
   ) as Natural

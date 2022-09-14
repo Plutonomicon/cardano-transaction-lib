@@ -6,20 +6,20 @@ module CTL.Contract.Wallet.KeyFile
 
 import Prelude
 
-import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
-import Effect.Aff (Aff)
-import Node.Path (FilePath)
 import CTL.Internal.Wallet (Wallet) as Wallet
 import CTL.Internal.Wallet (mkKeyWallet)
 import CTL.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
-  , privateStakeKeyFromFile
   , privatePaymentKeyFromString
-  , privateStakeKeyFromString
   , privatePaymentKeyToFile
+  , privateStakeKeyFromFile
+  , privateStakeKeyFromString
   , privateStakeKeyToFile
   )
+import Data.Maybe (Maybe)
+import Data.Traversable (traverse)
+import Effect.Aff (Aff)
+import Node.Path (FilePath)
 
 -- | Load `PrivateKey`s from `skey` files (the files should be in JSON format as
 -- | accepted by cardano-cli).

@@ -2,9 +2,8 @@ module CTL.Examples.KeyWallet.SignMultiple where
 
 import CTL.Contract.Prelude
 
-import CTL.Contract.Monad (Contract, liftedE, throwContractError)
 import CTL.Contract.Log (logInfo')
-import Control.Monad.Reader (asks)
+import CTL.Contract.Monad (Contract, liftedE, throwContractError)
 import CTL.Contract.ScriptLookups as Lookups
 import CTL.Contract.Transaction
   ( BalancedSignedTransaction
@@ -15,10 +14,11 @@ import CTL.Contract.Transaction
   )
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Value (lovelaceValueOf) as Value
-import Data.Newtype (unwrap)
-import Effect.Ref (read) as Ref
 import CTL.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
+import Control.Monad.Reader (asks)
+import Data.Newtype (unwrap)
+import Effect.Ref (read) as Ref
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do

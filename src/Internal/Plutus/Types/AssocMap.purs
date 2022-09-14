@@ -21,13 +21,16 @@ module CTL.Internal.Plutus.Types.AssocMap
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import Data.Array ((:))
+import CTL.Internal.FromData (class FromData, fromData)
+import CTL.Internal.ToData (class ToData, toData)
+import CTL.Internal.Types.PlutusData (PlutusData(Map)) as PD
 import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
+import Data.Array ((:))
 import Data.Bifunctor (bimap)
 import Data.Foldable
   ( class Foldable
-  , foldlDefault
   , foldMap
+  , foldlDefault
   , foldr
   , foldrDefault
   )
@@ -47,9 +50,6 @@ import Data.Traversable (class Traversable, for, sequence, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex)
 import Data.Tuple (Tuple(Tuple), fst, snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.PlutusData (PlutusData(Map)) as PD
 
 -- Taken from local Hoogle server for the Haskell server which uses
 -- `plutus` rev: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11

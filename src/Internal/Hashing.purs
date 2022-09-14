@@ -13,9 +13,9 @@ module CTL.Internal.Hashing
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
-import Data.Maybe (Maybe(Just))
-import Data.Newtype (wrap, unwrap)
+import CTL.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  )
 import CTL.Internal.Deserialization.Transaction (_txBody)
 import CTL.Internal.Serialization (toBytes)
 import CTL.Internal.Serialization.Hash (ScriptHash, nativeScriptHash)
@@ -31,6 +31,8 @@ import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.Datum (Datum)
 import CTL.Internal.Types.Scripts (PlutusScript)
 import CTL.Internal.Types.Transaction (DataHash, TransactionHash)
+import Data.Maybe (Maybe(Just))
+import Data.Newtype (unwrap, wrap)
 import Untagged.Union (asOneOf)
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray

@@ -7,12 +7,12 @@ module CTL.Internal.FfiHelpers
   , errorHelper
   ) where
 
+import CTL.Internal.Error (E)
 import Data.Either (Either(Left, Right), hush)
 import Data.Function ((<<<), (>>>))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Data.Variant (Variant)
-import CTL.Internal.Error (E)
 
 type MaybeFfiHelper =
   { nothing :: forall (x :: Type). Maybe x

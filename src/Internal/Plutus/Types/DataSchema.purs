@@ -21,8 +21,7 @@ module CTL.Internal.Plutus.Types.DataSchema
   , class ValidPlutusSchema
   ) where
 
-import Type.RowList (Cons, Nil, RowList)
-
+import CTL.Internal.TypeLevel.Nat (Nat)
 import CTL.Internal.TypeLevel.RowList (class AllUniqueLabels)
 import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
   ( class AllUniqueLabelsI
@@ -31,7 +30,7 @@ import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
   , NilI
   , RowListI
   )
-import CTL.Internal.TypeLevel.Nat (Nat)
+import Type.RowList (Cons, Nil, RowList)
 
 {- This modules defines various data types (kinds) which are used to encode enough the *structure* of the Plutus Data that corresponds to a
    given data type at the type level.

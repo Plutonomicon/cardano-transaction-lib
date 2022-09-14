@@ -6,6 +6,9 @@ import Prelude
 
 import Aeson (caseAesonArray, decodeAeson, encodeAeson)
 import CTL.Contract.Address (ByteArray)
+import CTL.Internal.Hashing (datumHash)
+import CTL.Internal.Types.Datum (Datum(Datum))
+import CTL.Internal.Types.PlutusData (PlutusData)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.Either (Either(Right, Left))
 import Data.Newtype (unwrap)
@@ -13,13 +16,10 @@ import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
-import CTL.Internal.Hashing (datumHash)
 import Mote (group, skip, test)
-import Test.Spec.Assertions (shouldEqual)
-import Test.CTL.Utils (errEither, errMaybe, readAeson)
 import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.Datum (Datum(Datum))
-import CTL.Internal.Types.PlutusData (PlutusData)
+import Test.CTL.Utils (errEither, errMaybe, readAeson)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Datum Cache tests" $ do

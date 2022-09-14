@@ -6,30 +6,15 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import CTL.Contract.Monad (ListenerSet)
-import Control.Parallel (parTraverse)
-import Data.Either (Either(Left, Right))
-import Data.Log.Level (LogLevel(Trace, Debug))
-import Data.Traversable (for_, traverse_)
-import Data.Tuple (fst) as Tuple
-import Data.Tuple.Nested (type (/\))
-import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
-import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
-import Effect.Exception (Error)
-import Effect.Ref as Ref
 import CTL.Internal.Helpers (logString)
 import CTL.Internal.JsWebSocket
   ( _mkWebSocket
   , _onWsConnect
   , _onWsError
   , _onWsMessage
-  , _wsSend
   , _wsClose
+  , _wsSend
   )
-import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (writeTextFile)
-import Node.Path (concat)
 import CTL.Internal.QueryM
   ( WebSocket(WebSocket)
   , defaultMessageListener
@@ -42,7 +27,22 @@ import CTL.Internal.QueryM.JsonWsp (JsonWspCall)
 import CTL.Internal.QueryM.Ogmios (mkOgmiosCallType)
 import CTL.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
 import CTL.Internal.Types.MultiMap as MultiMap
+import Control.Parallel (parTraverse)
+import Data.Either (Either(Left, Right))
+import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
+import Data.Traversable (for_, traverse_)
+import Data.Tuple (fst) as Tuple
+import Data.Tuple.Nested (type (/\))
+import Effect (Effect)
+import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
+import Effect.Exception (Error)
+import Effect.Ref as Ref
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Aff (writeTextFile)
+import Node.Path (concat)
 
 -- A simple websocket for testing
 -- TODO Generalize websocket constructors using type classes traversing rows

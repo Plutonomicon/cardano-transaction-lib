@@ -10,11 +10,8 @@ import Aeson
   ( class EncodeAeson
   , encodeAeson'
   )
-import CTL.Internal.Helpers (encodeTagged')
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Show.Generic (genericShow)
 import CTL.Internal.FromData (class FromData, genericFromData)
+import CTL.Internal.Helpers (encodeTagged')
 import CTL.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -26,6 +23,9 @@ import CTL.Internal.ToData (class ToData, genericToData)
 import CTL.Internal.TypeLevel.Nat (S, Z)
 import CTL.Internal.Types.Datum (Datum)
 import CTL.Internal.Types.Transaction (DataHash)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Show.Generic (genericShow)
 
 data OutputDatum = NoOutputDatum | OutputDatumHash DataHash | OutputDatum Datum
 

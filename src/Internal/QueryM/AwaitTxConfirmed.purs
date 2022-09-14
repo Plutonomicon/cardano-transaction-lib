@@ -6,16 +6,6 @@ module CTL.Internal.QueryM.AwaitTxConfirmed
 
 import Prelude
 
-import Data.DateTime.Instant (unInstant)
-import Data.Maybe (isJust, maybe)
-import Data.Newtype (wrap, unwrap)
-import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
-import Effect.Aff (delay)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
-import Effect.Now (now)
 import CTL.Internal.QueryM (QueryM, getChainTip, mkDatumCacheRequest)
 import CTL.Internal.QueryM.DatumCacheWsp (getTxByHash)
 import CTL.Internal.QueryM.Ogmios (TxHash)
@@ -23,6 +13,16 @@ import CTL.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import CTL.Internal.Serialization.Address (Slot)
 import CTL.Internal.Types.BigNum as BigNum
 import CTL.Internal.Types.Chain as Chain
+import Data.DateTime.Instant (unInstant)
+import Data.Maybe (isJust, maybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Number (infinity)
+import Data.Time.Duration (Seconds(Seconds))
+import Effect.Aff (delay)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
+import Effect.Now (now)
 
 awaitTxConfirmed :: TxHash -> QueryM Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)

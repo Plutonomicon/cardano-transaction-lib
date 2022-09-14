@@ -7,7 +7,10 @@ module CTL.Internal.BalanceTx
 
 import Prelude
 
-import CTL.Internal.BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
+import CTL.Internal.BalanceTx.Collateral
+  ( addTxCollateral
+  , addTxCollateralReturn
+  )
 import CTL.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -37,8 +40,16 @@ import CTL.Internal.BalanceTx.Error
       )
   , Expected(Expected)
   )
-import CTL.Internal.BalanceTx.ExUnitsAndMinFee (evalExUnitsAndMinFee, finalizeTransaction)
-import CTL.Internal.BalanceTx.Helpers (_body', _redeemersTxIns, _transaction', _unbalancedTx)
+import CTL.Internal.BalanceTx.ExUnitsAndMinFee
+  ( evalExUnitsAndMinFee
+  , finalizeTransaction
+  )
+import CTL.Internal.BalanceTx.Helpers
+  ( _body'
+  , _redeemersTxIns
+  , _transaction'
+  , _unbalancedTx
+  )
 import CTL.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
@@ -68,6 +79,24 @@ import CTL.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
+import CTL.Internal.QueryM (QueryM)
+import CTL.Internal.QueryM (getWalletAddress) as QueryM
+import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import CTL.Internal.QueryM.Utxos
+  ( filterLockedUtxos
+  , getWalletCollateral
+  , utxosAt
+  )
+import CTL.Internal.Serialization.Address
+  ( Address
+  , addressPaymentCred
+  , withStakeCredential
+  )
+import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
+import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import CTL.Internal.Types.Transaction (TransactionInput)
+import CTL.Internal.Types.UnbalancedTransaction (_utxoIndex)
+import CTL.Internal.Wallet (cip30Wallet)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -76,28 +105,18 @@ import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Foldable (foldl, foldMap)
+import Data.Foldable (foldMap, foldl)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((.~), (?~), (%~))
+import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
 import Data.Map (lookup, toUnfoldable, union) as Map
-import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
+import Data.Maybe (Maybe(Nothing, Just), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
-import CTL.Internal.QueryM (QueryM)
-import CTL.Internal.QueryM (getWalletAddress) as QueryM
-import CTL.Internal.QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import CTL.Internal.Serialization.Address (Address, addressPaymentCred, withStakeCredential)
-import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.UnbalancedTransaction (_utxoIndex)
-import CTL.Internal.Wallet (cip30Wallet)
 
 -- | Balances an unbalanced transaction using utxos from the current wallet's
 -- | address.

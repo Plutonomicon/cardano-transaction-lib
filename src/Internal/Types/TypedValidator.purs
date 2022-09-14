@@ -20,11 +20,6 @@ import Aeson
   , (.:)
   )
 import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import Data.Either (Either(Left))
-import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
-import Data.Show.Generic (genericShow)
-import Effect (Effect)
 import CTL.Internal.Types.Any (Any)
 import CTL.Internal.Types.PlutusData (PlutusData)
 import CTL.Internal.Types.Scripts
@@ -33,6 +28,11 @@ import CTL.Internal.Types.Scripts
   , Validator
   , ValidatorHash
   )
+import Data.Either (Either(Left))
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Show.Generic (genericShow)
+import Effect (Effect)
 
 -- We don't need c, d because a determines the same type b for `DatumType` and
 -- `RedeemerType`. Plutus uses associated typed families, but we don't have

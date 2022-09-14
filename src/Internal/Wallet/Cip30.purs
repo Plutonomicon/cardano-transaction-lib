@@ -10,28 +10,30 @@ import CTL.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import CTL.Internal.Cardano.Types.Value (Value)
-import Control.Monad.Error.Class (liftMaybe)
-import Control.Promise (Promise, toAffE)
-import Control.Promise as Promise
-import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
-import Data.Newtype (unwrap)
-import Data.Traversable (for, traverse)
 import CTL.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import CTL.Internal.Deserialization.UnspentOutput (convertValue)
 import CTL.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Effect (Effect)
-import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
 import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import CTL.Internal.Serialization as Serialization
 import CTL.Internal.Serialization.Address (Address, addressFromBytes)
 import CTL.Internal.Types.ByteArray (byteArrayToHex)
 import CTL.Internal.Types.CborBytes (rawBytesAsCborBytes)
 import CTL.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
+import Control.Monad.Error.Class (liftMaybe)
+import Control.Promise (Promise, toAffE)
+import Control.Promise as Promise
+import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
+import Data.Newtype (unwrap)
+import Data.Traversable (for, traverse)
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Exception (error, throw)
 import Untagged.Union (asOneOf)
 
 type Cip30Wallet =

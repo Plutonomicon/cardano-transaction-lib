@@ -41,9 +41,17 @@ module CTL.Contract.Transaction
   ) where
 
 import Prelude
-import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
+import CTL.Contract.Address (getWalletAddress)
+import CTL.Contract.Log (logDebug')
+import CTL.Contract.Monad
+  ( Contract
+  , liftedE
+  , liftedM
+  , runContractInEnv
+  , wrapContract
+  )
 import CTL.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import CTL.Internal.BalanceTx (FinalizedTransaction)
 import CTL.Internal.BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
@@ -122,33 +130,6 @@ import CTL.Internal.Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import CTL.Contract.Address (getWalletAddress)
-import CTL.Contract.Log (logDebug')
-import CTL.Contract.Monad
-  ( Contract
-  , liftedE
-  , liftedM
-  , wrapContract
-  , runContractInEnv
-  )
-import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Reader (asks, runReaderT, ReaderT)
-import Control.Monad.Reader.Class (ask)
-import Data.Array.NonEmpty as NonEmptyArray
-import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right), hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter (view)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Time.Duration (Seconds)
-import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple.Nested (type (/\))
-import Effect.Aff (bracket)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
 import CTL.Internal.Hashing (transactionHash) as Hashing
 import CTL.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
 import CTL.Internal.Plutus.Conversion.Address (fromPlutusAddress)
@@ -173,24 +154,21 @@ import CTL.Internal.QueryM
       )
   ) as ExportQueryM
 import CTL.Internal.QueryM (signTransaction, submitTxOgmios) as QueryM
-import CTL.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import CTL.Internal.QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   ) as AwaitTx
 import CTL.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
+import CTL.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import CTL.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
-import CTL.Internal.ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
+import CTL.Internal.ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
 import CTL.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import CTL.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import CTL.Internal.Serialization.Address (NetworkId)
 import CTL.Internal.TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import CTL.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , plutusV1Script
-  , plutusV2Script
-  ) as Scripts
 import CTL.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
@@ -225,6 +203,11 @@ import CTL.Internal.Types.ScriptLookups
   , mkUnbalancedTx
   ) as ScriptLookups
 import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import CTL.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  ) as Scripts
 import CTL.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
@@ -233,8 +216,8 @@ import CTL.Internal.Types.Transaction
 import CTL.Internal.Types.Transaction (TransactionHash)
 import CTL.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as TransactionMetadata
 import CTL.Internal.Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput)
@@ -248,6 +231,25 @@ import CTL.Internal.Types.UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
+import Control.Monad.Error.Class (catchError, throwError, try)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
+import Control.Monad.Reader.Class (ask)
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.BigInt (BigInt)
+import Data.Either (Either(Left, Right), hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter (view)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds)
+import Data.Traversable (class Traversable, for_, traverse)
+import Data.Tuple.Nested (type (/\))
+import Effect.Aff (bracket)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (Error, throw)
+import Prim.TypeError (class Warn, Text)
 import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and

@@ -22,12 +22,12 @@ import Aeson
   , parseJsonStringToAeson
   , printJsonDecodeError
   )
+import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
+import CTL.Internal.Types.Cbor (CborParseError, toByteArray)
 import Control.Monad.Except (throwError)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, note)
 import Data.Newtype (class Newtype, wrap)
-import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import CTL.Internal.Types.Cbor (CborParseError, toByteArray)
 
 data TextEnvelopeType
   = PlutusScriptV1

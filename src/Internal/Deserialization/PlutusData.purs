@@ -4,11 +4,6 @@ module CTL.Internal.Deserialization.PlutusData
 
 import Prelude
 
-import Control.Alt ((<|>))
-import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
 import CTL.Internal.Deserialization.BigInt (convertBigInt)
 import CTL.Internal.FfiHelpers
   ( ContainerHelper
@@ -26,7 +21,14 @@ import CTL.Internal.Serialization.Types
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (toBigInt) as BigNum
 import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as T
+import CTL.Internal.Types.PlutusData
+  ( PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as T
+import Control.Alt ((<|>))
+import Data.Maybe (Maybe)
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
 
 convertPlutusData :: PlutusData -> Maybe T.PlutusData
 convertPlutusData pd =

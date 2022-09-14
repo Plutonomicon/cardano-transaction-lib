@@ -7,17 +7,17 @@ module CTL.Internal.Types.Datum
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
+import Aeson.Decode as Decode
 import Aeson.Encode ((>$<))
-import Control.Lazy (defer)
-import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
-import Data.Show.Generic (genericShow)
+import Aeson.Encode as Encode
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.PlutusData (PlutusData)
 import CTL.Internal.Types.Transaction (DataHash(DataHash)) as X
-import Aeson.Decode as Decode
-import Aeson.Encode as Encode
+import Control.Lazy (defer)
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Show.Generic (genericShow)
 
 -- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
 -- | `Redeemer` where the latter is not to be confused with the CSL-stype

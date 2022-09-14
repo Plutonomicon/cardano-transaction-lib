@@ -6,10 +6,10 @@ module CTL.Internal.Types.RedeemerTag
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
+import CTL.Internal.Helpers (encodeTagged')
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
-import CTL.Internal.Helpers (encodeTagged')
 
 -- lives in it's own module due to a name conflict with the `Mint` Type
 data RedeemerTag = Spend | Mint | Cert | Reward

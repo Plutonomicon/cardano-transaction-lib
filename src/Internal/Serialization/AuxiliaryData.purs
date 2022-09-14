@@ -9,15 +9,10 @@ import CTL.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
   ) as T
-import Data.Map as Map
-import Data.Newtype (wrap)
-import Data.Traversable (for, for_, traverse)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
 import CTL.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import CTL.Internal.Helpers (fromJustEff)
 import CTL.Internal.Serialization.NativeScript (convertNativeScripts)
+import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
 import CTL.Internal.Serialization.Types
   ( AuxiliaryData
   , GeneralTransactionMetadata
@@ -25,7 +20,6 @@ import CTL.Internal.Serialization.Types
   , PlutusScripts
   , TransactionMetadatum
   )
-import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
 import CTL.Internal.Serialization.WitnessSet (addPlutusScript, newPlutusScripts)
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
@@ -36,6 +30,12 @@ import CTL.Internal.Types.TransactionMetadata
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T
+import Data.Map as Map
+import Data.Newtype (wrap)
+import Data.Traversable (for, for_, traverse)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
 
 foreign import newAuxiliaryData :: Effect AuxiliaryData
 

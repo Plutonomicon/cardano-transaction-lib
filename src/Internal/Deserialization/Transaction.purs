@@ -107,22 +107,6 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , scriptHashAsCurrencySymbol
   )
-import Control.Lazy (fix)
-import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Bitraversable (bitraverse)
-import Data.Either (Either)
-import Data.Map as M
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (wrap, unwrap)
-import Data.Ratio (Ratio, reduce)
-import Data.Set (fromFoldable) as Set
-import Data.Traversable (traverse, for)
-import Data.Tuple.Nested (type (/\))
-import Data.UInt (UInt)
-import Data.UInt as UInt
-import Data.Variant (Variant)
 import CTL.Internal.Deserialization.Error
   ( Err
   , FromCslRepError
@@ -147,9 +131,9 @@ import CTL.Internal.FfiHelpers
   )
 import CTL.Internal.Serialization (toBytes)
 import CTL.Internal.Serialization.Address
-  ( RewardAddress
+  ( NetworkId(TestnetId, MainnetId)
+  , RewardAddress
   , StakeCredential
-  , NetworkId(TestnetId, MainnetId)
   ) as Csl
 import CTL.Internal.Serialization.Address (Slot(Slot))
 import CTL.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
@@ -196,7 +180,6 @@ import CTL.Internal.Serialization.Types
   , VRFKeyHash
   , Withdrawals
   ) as Csl
-import Type.Row (type (+))
 import CTL.Internal.Types.BigNum (BigNum) as Csl
 import CTL.Internal.Types.BigNum (toBigInt') as BigNum
 import CTL.Internal.Types.ByteArray (ByteArray)
@@ -209,6 +192,23 @@ import CTL.Internal.Types.TransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
+import Control.Lazy (fix)
+import Data.Bifunctor (bimap, lmap)
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
+import Data.Bitraversable (bitraverse)
+import Data.Either (Either)
+import Data.Map as M
+import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Ratio (Ratio, reduce)
+import Data.Set (fromFoldable) as Set
+import Data.Traversable (for, traverse)
+import Data.Tuple.Nested (type (/\))
+import Data.UInt (UInt)
+import Data.UInt as UInt
+import Data.Variant (Variant)
+import Type.Row (type (+))
 import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.

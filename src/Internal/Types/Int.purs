@@ -19,6 +19,8 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   )
+import CTL.Internal.Types.BigNum (BigNum)
+import CTL.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
 import Control.Alternative ((<|>))
 import Data.BigInt as BigInt
 import Data.Either (note)
@@ -26,8 +28,6 @@ import Data.Function (on)
 import Data.Maybe (Maybe, fromJust)
 import Partial.Unsafe (unsafePartial)
 import Prim as Prim
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromInt, fromBigInt) as BigNum
 
 foreign import data Int :: Prim.Type
 

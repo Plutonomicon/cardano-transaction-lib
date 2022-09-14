@@ -4,6 +4,7 @@ module CTL.Internal.QueryM.CurrentEpoch
   ) where
 
 import Prelude
+
 import CTL.Internal.QueryM (QueryM, mkOgmiosRequest)
 import CTL.Internal.QueryM.Ogmios (CurrentEpoch, queryCurrentEpochCall) as Ogmios
 

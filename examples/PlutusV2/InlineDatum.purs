@@ -23,8 +23,8 @@ import CTL.Contract.Monad
   , runContract
   )
 import CTL.Contract.PlutusData
-  ( PlutusData(Integer)
-  , Datum(Datum)
+  ( Datum(Datum)
+  , PlutusData(Integer)
   , Redeemer(Redeemer)
   )
 import CTL.Contract.ScriptLookups as Lookups
@@ -35,14 +35,14 @@ import CTL.Contract.TextEnvelope
   , textEnvelopeBytes
   )
 import CTL.Contract.Transaction
-  ( TransactionHash
+  ( OutputDatum(OutputDatum)
+  , TransactionHash
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , OutputDatum(OutputDatum)
   , awaitTxConfirmed
   , balanceAndSignTxE
-  , submit
   , plutusV2Script
+  , submit
   )
 import CTL.Contract.TxConstraints (TxConstraints)
 import CTL.Contract.TxConstraints as Constraints

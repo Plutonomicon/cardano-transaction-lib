@@ -48,14 +48,10 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
-import Data.Maybe (maybe)
-import Data.Traversable (for_, traverse, traverse_)
-import Data.Tuple.Nested ((/\))
-import Effect (Effect)
-import Effect.Exception (throw)
 import CTL.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import CTL.Internal.Serialization.NativeScript (convertNativeScripts)
 import CTL.Internal.Serialization.PlutusData (convertPlutusData)
+import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
 import CTL.Internal.Serialization.Types
   ( BootstrapWitness
   , Ed25519Signature
@@ -65,14 +61,13 @@ import CTL.Internal.Serialization.Types
   , PlutusScripts
   , PublicKey
   , Redeemer
-  , Redeemers
   , RedeemerTag
+  , Redeemers
   , TransactionWitnessSet
   , Vkey
   , Vkeywitness
   , Vkeywitnesses
   )
-import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
 import CTL.Internal.Serialization.Types (PlutusData) as PDS
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.BigNum (BigNum)
@@ -80,6 +75,11 @@ import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
 import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.PlutusData (PlutusData) as PD
 import CTL.Internal.Types.RedeemerTag as Tag
+import Data.Maybe (maybe)
+import Data.Traversable (for_, traverse, traverse_)
+import Data.Tuple.Nested ((/\))
+import Effect (Effect)
+import Effect.Exception (throw)
 
 setPlutusData :: Array PDS.PlutusData -> TransactionWitnessSet -> Effect Unit
 setPlutusData pd ws = setWitnesses _wsSetPlutusData ws pd

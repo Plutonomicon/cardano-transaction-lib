@@ -10,12 +10,12 @@ import Aeson
   ( class EncodeAeson
   , encodeAeson'
   )
+import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
 import CTL.Internal.Helpers (encodeTagged')
+import CTL.Internal.Types.Scripts (PlutusScript)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
-import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
-import CTL.Internal.Types.Scripts (PlutusScript)
 
 data ScriptRef = NativeScriptRef NativeScript | PlutusScriptRef PlutusScript
 

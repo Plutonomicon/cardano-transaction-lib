@@ -8,19 +8,26 @@ import Prelude
 import CTL.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
 import CTL.Internal.Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
+import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import CTL.Internal.QueryM.Ogmios
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
+  )
+import CTL.Internal.Serialization (convertTxOutput)
+import CTL.Internal.Serialization.Types (DataCost)
+import CTL.Internal.Serialization.Types (TransactionOutput) as Csl
+import CTL.Internal.Types.BigNum (BigNum)
+import CTL.Internal.Types.BigNum
+  ( fromBigInt
+  , maxValue
+  , toBigInt
+  , toBigIntUnsafe
+  ) as BigNum
 import Control.Monad.Error.Class (liftMaybe)
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)
 import Effect (Effect)
 import Effect.Exception (error)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Partial.Unsafe (unsafePartial)
-import CTL.Internal.Serialization (convertTxOutput)
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte))
-import CTL.Internal.Serialization.Types (DataCost)
-import CTL.Internal.Serialization.Types (TransactionOutput) as Csl
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromBigInt, maxValue, toBigInt, toBigIntUnsafe) as BigNum
 
 foreign import minAdaForOutput
   :: MaybeFfiHelper -> Csl.TransactionOutput -> DataCost -> Maybe BigNum

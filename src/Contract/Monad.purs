@@ -27,6 +27,46 @@ module CTL.Contract.Monad
 
 import Prelude
 
+import CTL.Internal.QueryM
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , DispatchIdMap
+  , Host
+  , ListenerSet
+  , Logger
+  , OgmiosListeners
+  , OgmiosWebSocket
+  , QueryConfig
+  , QueryEnv
+  , QueryM
+  , QueryMExtended
+  , QueryRuntime
+  , ServerConfig
+  , WebSocket
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , liftQueryM
+  , mkDatumCacheWebSocketAff
+  , mkHttpUrl
+  , mkLogger
+  , mkOgmiosWebSocketAff
+  , mkWsUrl
+  ) as QueryM
+import CTL.Internal.QueryM
+  ( QueryConfig
+  , QueryEnv
+  , QueryM
+  , QueryMExtended
+  , ServerConfig
+  , liftQueryM
+  , mkQueryRuntime
+  , stopQueryRuntime
+  , withQueryRuntime
+  )
+import CTL.Internal.QueryM.Logging (setupLogs)
+import CTL.Internal.Serialization.Address (NetworkId)
+import CTL.Internal.Wallet.Spec (WalletSpec)
 import Control.Alt (class Alt)
 import Control.Monad.Error.Class
   ( class MonadError
@@ -50,11 +90,11 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Log.Tag
   ( TagSet
-  , tag
-  , intTag
-  , numberTag
   , booleanTag
+  , intTag
   , jsDateTag
+  , numberTag
+  , tag
   , tagSetTag
   ) as Log.Tag
 import Data.Maybe (Maybe(Just), maybe)
@@ -67,46 +107,6 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Prim.TypeError (class Warn, Text)
-import CTL.Internal.QueryM
-  ( DatumCacheListeners
-  , DatumCacheWebSocket
-  , DispatchIdMap
-  , Host
-  , ListenerSet
-  , OgmiosListeners
-  , OgmiosWebSocket
-  , WebSocket
-  , QueryRuntime
-  , QueryConfig
-  , QueryEnv
-  , QueryM
-  , QueryMExtended
-  , ServerConfig
-  , Logger
-  , mkLogger
-  , liftQueryM
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkDatumCacheWebSocketAff
-  , mkHttpUrl
-  , mkOgmiosWebSocketAff
-  , mkWsUrl
-  ) as QueryM
-import CTL.Internal.QueryM
-  ( QueryConfig
-  , QueryEnv
-  , QueryM
-  , QueryMExtended
-  , ServerConfig
-  , mkQueryRuntime
-  , stopQueryRuntime
-  , withQueryRuntime
-  , liftQueryM
-  )
-import CTL.Internal.QueryM.Logging (setupLogs)
-import CTL.Internal.Serialization.Address (NetworkId)
-import CTL.Internal.Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching

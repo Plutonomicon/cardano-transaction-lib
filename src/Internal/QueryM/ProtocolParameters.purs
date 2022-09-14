@@ -4,11 +4,13 @@ module CTL.Internal.QueryM.ProtocolParameters
   , module GetProtocolParametersAff
   ) where
 
-import Prelude (unit)
-
 import CTL.Internal.QueryM (QueryM, mkOgmiosRequest)
 import CTL.Internal.QueryM (getProtocolParametersAff) as GetProtocolParametersAff
-import CTL.Internal.QueryM.Ogmios (queryProtocolParametersCall, ProtocolParameters)
+import CTL.Internal.QueryM.Ogmios
+  ( ProtocolParameters
+  , queryProtocolParametersCall
+  )
+import Prelude (unit)
 
 getProtocolParameters :: QueryM ProtocolParameters
 getProtocolParameters =

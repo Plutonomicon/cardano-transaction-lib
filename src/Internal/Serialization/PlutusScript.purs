@@ -4,10 +4,13 @@ module CTL.Internal.Serialization.PlutusScript
 
 import Prelude
 
-import Data.Tuple.Nested ((/\))
 import CTL.Internal.Serialization.Types (PlutusScript)
 import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript)) as T
+import CTL.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , PlutusScript(PlutusScript)
+  ) as T
+import Data.Tuple.Nested ((/\))
 
 foreign import newPlutusV1Script :: ByteArray -> PlutusScript
 

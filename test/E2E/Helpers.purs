@@ -9,17 +9,6 @@ module Test.CTL.E2E.Helpers
 import Prelude
 
 import CTL.Contract.Test.E2E
-  ( RunningExample
-  , TestOptions
-  , WalletExt
-  , checkSuccess
-  , delaySec
-  , resetTestFeedback
-  , walletName
-  , withBrowser
-  , withExample
-  )
-import CTL.Contract.Test.E2E
   ( E2EOutput
   , RunningExample
   , SomeWallet
@@ -32,6 +21,17 @@ import CTL.Contract.Test.E2E
   , namiSign
   , withExample
   ) as E2EHelpers
+import CTL.Contract.Test.E2E
+  ( RunningExample
+  , TestOptions
+  , WalletExt
+  , checkSuccess
+  , delaySec
+  , resetTestFeedback
+  , walletName
+  , withBrowser
+  , withExample
+  )
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)

@@ -14,15 +14,16 @@ module CTL.Internal.Types.RawBytes
   , hexToRawBytesUnsafe
   ) where
 
+import Prelude
+
+import Aeson (class DecodeAeson, class EncodeAeson)
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
+import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
 import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.ByteArray as BytesArray
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
-import Prelude
-import Aeson (class EncodeAeson, class DecodeAeson)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
 
 -- | An array of Bytes with no information about the content format
 newtype RawBytes = RawBytes ByteArray

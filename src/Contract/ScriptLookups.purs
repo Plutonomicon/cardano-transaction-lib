@@ -15,9 +15,8 @@ module CTL.Contract.ScriptLookups
   ) where
 
 import Prelude
+
 import CTL.Contract.Monad (Contract, wrapContract)
-import Data.Either (Either, hush)
-import Data.Maybe (Maybe)
 import CTL.Internal.IsData (class IsData)
 import CTL.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
@@ -51,22 +50,24 @@ import CTL.Internal.Types.ScriptLookups
   , generalise
   , mintingPolicy
   , mintingPolicyM
-  , validator
-  , validatorM
   , ownPaymentPubKeyHash
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  -- , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
-  -- , unsafePaymentPubKey
+  -- , paymentPubKeyM
   , unspentOutputs
   , unspentOutputsM
+  -- , unsafePaymentPubKey
+  , validator
+  , validatorM
   ) as ScriptLookups
 import CTL.Internal.Types.ScriptLookups (mkUnbalancedTx) as SL
 import CTL.Internal.Types.TxConstraints (TxConstraints)
 import CTL.Internal.Types.TypedValidator (class ValidatorTypes)
+import Data.Either (Either, hush)
+import Data.Maybe (Maybe)
 
 -- | Create an `UnattachedUnbalancedTx` given `ScriptLookups` and
 -- | `TxConstraints`. You will probably want to use this version as it returns

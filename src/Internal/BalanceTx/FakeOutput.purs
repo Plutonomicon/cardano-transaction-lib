@@ -5,12 +5,14 @@ module CTL.Internal.BalanceTx.FakeOutput
 
 import Prelude
 
+import CTL.Internal.Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  )
 import CTL.Internal.Cardano.Types.Value (NonAdaAsset, Value, mkValue)
-import Data.Maybe (Maybe(Nothing), fromJust)
-import Partial.Unsafe (unsafePartial)
 import CTL.Internal.Serialization.Address (addressFromBech32) as Csl
 import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput(TransactionOutput))
+import Data.Maybe (Maybe(Nothing), fromJust)
+import Partial.Unsafe (unsafePartial)
 
 fakeOutputWithValue :: Value -> TransactionOutput
 fakeOutputWithValue amount =

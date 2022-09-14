@@ -13,8 +13,6 @@ module CTL.Internal.Scripts
 
 import Prelude
 
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
 import CTL.Internal.Hashing (plutusScriptHash)
 import CTL.Internal.NativeScripts (NativeScriptHash)
 import CTL.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
@@ -22,10 +20,10 @@ import CTL.Internal.Serialization.Address
   ( Address
   , NetworkId
   , baseAddressToAddress
-  , scriptHashCredential
-  , scriptAddress
-  , enterpriseAddressToAddress
   , enterpriseAddress
+  , enterpriseAddressToAddress
+  , scriptAddress
+  , scriptHashCredential
   )
 import CTL.Internal.Serialization.Hash (ScriptHash)
 import CTL.Internal.Types.Scripts
@@ -38,6 +36,8 @@ import CTL.Internal.Types.Scripts
   , ValidatorHash
   )
 import CTL.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.

@@ -24,19 +24,14 @@ import Aeson
   )
 import Aeson.Decode as Decode
 import Aeson.Encode as Encode
-import Data.Either (Either(Left))
-import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
 import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import Record (get)
 import CTL.Internal.Serialization.Address
   ( Address
   , EnterpriseAddress
-  , RewardAddress
   , NetworkId
+  , RewardAddress
   , baseAddressToAddress
   , enterpriseAddress
   , enterpriseAddressToAddress
@@ -47,6 +42,11 @@ import CTL.Internal.Serialization.Address
   )
 import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
 import CTL.Internal.ToData (class ToData)
+import Data.Either (Either(Left))
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Record (get)
 import Type.Proxy (Proxy(Proxy))
 
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash

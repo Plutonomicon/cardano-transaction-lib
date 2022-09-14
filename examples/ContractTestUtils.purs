@@ -24,10 +24,10 @@ import CTL.Contract.Address
 import CTL.Contract.AuxiliaryData (setTxMetadata)
 import CTL.Contract.Hashing (datumHash)
 import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad (Contract, liftedE, liftedM, liftContractM)
+import CTL.Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import CTL.Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
-import CTL.Contract.Scripts (MintingPolicy)
 import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Scripts (MintingPolicy)
 import CTL.Contract.Test.Utils
   ( ContractBasicAssertion
   , ContractWrapAssertion
@@ -48,9 +48,6 @@ import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (utxosAt)
 import CTL.Contract.Value (CurrencySymbol, TokenName, Value)
 import CTL.Contract.Value (lovelaceValueOf, singleton) as Value
-import Data.BigInt (BigInt)
-import Data.Lens (view)
-import Data.Map (empty) as Map
 import CTL.Examples.Helpers
   ( mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
@@ -60,6 +57,9 @@ import CTL.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   , _output
   )
+import Data.BigInt (BigInt)
+import Data.Lens (view)
+import Data.Map (empty) as Map
 
 newtype ContractParams = ContractParams
   { receiverPkh :: PaymentPubKeyHash

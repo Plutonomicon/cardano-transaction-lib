@@ -13,33 +13,36 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, over)
-import Data.Tuple.Nested ((/\))
 import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Effect (Effect)
-import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import CTL.Internal.Helpers (fromRightEff)
-import Mote (group, test)
 import CTL.Internal.Serialization.WitnessSet as Serialization.WitnessSet
-import Test.CTL.Fixtures.CostModels (costModelsFixture1)
-import Test.Spec.Assertions (shouldEqual)
-import Test.CTL.TestM (TestPlanM)
 import CTL.Internal.Transaction
   ( attachDatum
-  , attachRedeemer
   , attachPlutusScript
+  , attachRedeemer
   , setScriptDataHash
   )
 import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import CTL.Internal.Types.Datum (Datum(Datum))
 import CTL.Internal.Types.PlutusData (PlutusData(Integer))
 import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
-import CTL.Internal.Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2))
+import CTL.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , PlutusScript(PlutusScript)
+  )
+import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (over, unwrap)
+import Data.Tuple.Nested ((/\))
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
+import Mote (group, test)
+import Test.CTL.Fixtures.CostModels (costModelsFixture1)
+import Test.CTL.TestM (TestPlanM)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "attach datums to tx" $ do

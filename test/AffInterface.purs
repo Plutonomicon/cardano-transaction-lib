@@ -2,16 +2,8 @@ module Test.CTL.AffInterface (suite) where
 
 import Prelude
 
-import CTL.Internal.Address (ogmiosAddressToAddress)
 import CTL.Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
-import Control.Monad.Except (throwError)
-import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
-import Data.Newtype (over, wrap)
-import Data.String.CodeUnits (indexOf)
-import Data.String.Pattern (Pattern(Pattern))
-import Effect.Aff (try, error)
-import Mote (group, test)
+import CTL.Internal.Address (ogmiosAddressToAddress)
 import CTL.Internal.QueryM
   ( QueryM
   , getChainTip
@@ -27,11 +19,19 @@ import CTL.Internal.QueryM.SystemStart (getSystemStart)
 import CTL.Internal.QueryM.Utxos (utxosAt)
 import CTL.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import CTL.Internal.Serialization.Address (Slot(Slot))
-import Test.Spec.Assertions (shouldSatisfy)
-import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.BigNum (fromInt, add) as BigNum
+import CTL.Internal.Types.BigNum (add, fromInt) as BigNum
 import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import CTL.Internal.Types.Transaction (DataHash(DataHash))
+import Control.Monad.Except (throwError)
+import Data.Either (Either(Left, Right))
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
+import Data.Newtype (over, wrap)
+import Data.String.CodeUnits (indexOf)
+import Data.String.Pattern (Pattern(Pattern))
+import Effect.Aff (error, try)
+import Mote (group, test)
+import Test.CTL.TestM (TestPlanM)
+import Test.Spec.Assertions (shouldSatisfy)
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =

@@ -38,8 +38,8 @@ import CTL.Internal.Cardano.Types.Transaction
       , GenesisKeyDelegation
       , MoveInstantaneousRewardsCert
       )
-  , Costmdls(Costmdls)
   , CostModel(CostModel)
+  , Costmdls(Costmdls)
   , ExUnitPrices
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
@@ -55,39 +55,35 @@ import CTL.Internal.Cardano.Types.Transaction
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
-  , UnitInterval
   , URL(URL)
+  , UnitInterval
   , Update
   ) as T
 import CTL.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
 import CTL.Internal.Cardano.Types.Value as Value
-import Data.Foldable (class Foldable)
-import Data.Foldable (null) as Foldable
-import Data.FoldableWithIndex (forWithIndex_)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (wrap, unwrap)
-import Data.Traversable (traverse_, for_, for, traverse)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (UInt)
-import Data.UInt as UInt
 import CTL.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import Effect (Effect)
 import CTL.Internal.FfiHelpers
-  ( MaybeFfiHelper
-  , maybeFfiHelper
-  , ContainerHelper
+  ( ContainerHelper
+  , MaybeFfiHelper
   , containerHelper
+  , maybeFfiHelper
   )
 import CTL.Internal.Helpers (fromJustEff)
-import CTL.Internal.Serialization.Address (Address, StakeCredential, RewardAddress)
+import CTL.Internal.Serialization.Address
+  ( Address
+  , RewardAddress
+  , StakeCredential
+  )
 import CTL.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import CTL.Internal.Serialization.AuxiliaryData (convertAuxiliaryData)
 import CTL.Internal.Serialization.BigInt as Serialization
-import CTL.Internal.Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
+import CTL.Internal.Serialization.Hash
+  ( Ed25519KeyHash
+  , ScriptHash
+  , scriptHashFromBytes
+  )
 import CTL.Internal.Serialization.NativeScript (convertNativeScript)
 import CTL.Internal.Serialization.PlutusData (convertPlutusData)
 import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
@@ -139,8 +135,8 @@ import CTL.Internal.Serialization.Types
   , TransactionInputs
   , TransactionOutput
   , TransactionOutputs
-  , TransactionWitnessSet
   , TransactionUnspentOutput
+  , TransactionWitnessSet
   , UnitInterval
   , Update
   , VRFKeyHash
@@ -166,9 +162,21 @@ import CTL.Internal.Types.OutputDatum
   )
 import CTL.Internal.Types.PlutusData as PlutusData
 import CTL.Internal.Types.RawBytes (RawBytes)
+import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import CTL.Internal.Types.TokenName (getTokenName) as TokenName
 import CTL.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
-import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
+import Data.Foldable (class Foldable)
+import Data.Foldable (null) as Foldable
+import Data.FoldableWithIndex (forWithIndex_)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
+import Data.UInt as UInt
+import Effect (Effect)
 import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash

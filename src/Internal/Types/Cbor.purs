@@ -20,14 +20,19 @@ module CTL.Internal.Types.Cbor
 import Prelude
 
 import CTL.Contract.Prelude (foldl)
+import CTL.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayToIntArray
+  , byteLength
+  , subarray
+  )
+import CTL.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
 import Data.Either (Either)
-import Data.UInt (UInt, zshr, shl, (.&.), (.|.))
-import Data.UInt as UInt
 import Data.Newtype (class Newtype)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToIntArray, subarray, byteLength)
-import CTL.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Data.UInt (UInt, shl, zshr, (.&.), (.|.))
+import Data.UInt as UInt
 
 -- | A CBOR data item is encoded as a byte string
 newtype Cbor = Cbor CborBytes

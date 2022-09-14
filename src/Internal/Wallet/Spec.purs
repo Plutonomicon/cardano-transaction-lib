@@ -10,9 +10,9 @@ module CTL.Internal.Wallet.Spec
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   ) where
 
+import CTL.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Maybe (Maybe)
 import Node.Path (FilePath)
-import CTL.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 
 data PrivatePaymentKeySource
   = PrivatePaymentKeyFile FilePath

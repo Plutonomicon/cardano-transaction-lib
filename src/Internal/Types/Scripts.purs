@@ -22,21 +22,21 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson'
+  , fromString
   , getField
   , toStringifiedNumbersJson
-  , fromString
   )
-import Data.Either (Either(Left))
-import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested ((/\), type (/\))
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
 import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
 import CTL.Internal.Serialization.Hash (ScriptHash)
 import CTL.Internal.ToData (class ToData)
 import CTL.Internal.Types.ByteArray (ByteArray)
+import Data.Either (Either(Left))
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
+import Data.Tuple.Nested (type (/\), (/\))
 
 data Language
   = PlutusV1

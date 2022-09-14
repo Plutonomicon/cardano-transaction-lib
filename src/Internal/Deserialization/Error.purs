@@ -10,11 +10,12 @@ module CTL.Internal.Deserialization.Error
   ) where
 
 import Prelude
-import Data.Maybe (Maybe)
-import Data.Either (Either(Left))
-import Data.Variant (Variant, default, inj, onMatch, match)
+
 import CTL.Internal.Deserialization.FromBytes (FromBytesError, _fromBytesError)
 import CTL.Internal.Error (E, NotImplementedError, _notImplementedError, noteE)
+import Data.Either (Either(Left))
+import Data.Maybe (Maybe)
+import Data.Variant (Variant, default, inj, match, onMatch)
 import Effect.Exception (Error, error)
 import Type.Proxy (Proxy(Proxy))
 import Type.Row (type (+))

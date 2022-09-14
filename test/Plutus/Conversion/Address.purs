@@ -2,14 +2,6 @@ module Test.CTL.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Array (range, length, zip)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, wrap)
-import Data.Traversable (for_)
-import Data.Tuple.Nested ((/\))
-import Effect.Aff (Aff)
-import Mote (group, test)
-import Partial.Unsafe (unsafePartial)
 import CTL.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
 import CTL.Internal.Plutus.Types.Address (Address) as Plutus
 import CTL.Internal.Plutus.Types.Credential
@@ -20,13 +12,24 @@ import CTL.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressFromBech32
   )
-import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
-import Test.Spec.Assertions (shouldEqual)
-import Test.CTL.Utils (errMaybe, toFromAesonTest)
-import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Serialization.Hash
+  ( ed25519KeyHashFromBech32
+  , scriptHashFromBech32
+  )
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.BigNum (BigNum)
 import CTL.Internal.Types.BigNum (fromInt) as BigNum
+import Data.Array (length, range, zip)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (class Newtype, wrap)
+import Data.Traversable (for_)
+import Data.Tuple.Nested ((/\))
+import Effect.Aff (Aff)
+import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
+import Test.CTL.TestM (TestPlanM)
+import Test.CTL.Utils (errMaybe, toFromAesonTest)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

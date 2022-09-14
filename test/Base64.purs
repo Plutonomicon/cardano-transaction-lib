@@ -2,13 +2,18 @@ module Test.CTL.Base64 (suite) where
 
 import Prelude
 
-import CTL.Internal.Base64 (fromByteArray, mkBase64String, toByteArray, unBase64String)
+import CTL.Internal.Base64
+  ( fromByteArray
+  , mkBase64String
+  , toByteArray
+  , unBase64String
+  )
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.QuickCheck (quickCheck, (===))
 import Test.CTL.TestM (TestPlanM)
+import Test.QuickCheck (quickCheck, (===))
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

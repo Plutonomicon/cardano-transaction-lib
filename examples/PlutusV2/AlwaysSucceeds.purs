@@ -10,11 +10,6 @@ module CTL.Examples.PlutusV2.AlwaysSucceeds
 
 import CTL.Contract.Prelude
 
-import CTL.Examples.AlwaysSucceeds
-  ( payToAlwaysSucceeds
-  , spendFromAlwaysSucceeds
-  )
-
 import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
 import CTL.Contract.Log (logInfo')
 import CTL.Contract.Monad
@@ -31,6 +26,10 @@ import CTL.Contract.TextEnvelope
 import CTL.Contract.Transaction
   ( awaitTxConfirmed
   , plutusV2Script
+  )
+import CTL.Examples.AlwaysSucceeds
+  ( payToAlwaysSucceeds
+  , spendFromAlwaysSucceeds
   )
 
 main :: Effect Unit

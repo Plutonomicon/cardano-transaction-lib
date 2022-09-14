@@ -15,8 +15,6 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as T
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
 import CTL.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import CTL.Internal.Serialization.Address (Slot(Slot)) as T
 import CTL.Internal.Serialization.Hash (Ed25519KeyHash) as T
@@ -31,6 +29,8 @@ import CTL.Internal.Serialization.Types
   , TimelockStart
   )
 import CTL.Internal.Types.BigNum (BigNum)
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
 
 convertNativeScripts :: Array T.NativeScript -> Maybe NativeScripts
 convertNativeScripts = map packNativeScripts <<< traverse convertNativeScript

@@ -24,27 +24,8 @@ import Prelude
 
 import CTL.Internal.Cardano.Types.Transaction (Redeemer(Redeemer))
 import CTL.Internal.Cardano.Types.Value (Value)
-import Data.Array (catMaybes, filter, uncons) as Array
-import Data.Bifunctor (bimap)
-import Data.BigInt (toString) as BigInt
-import Data.Either (Either(Left, Right), either, isLeft)
-import Data.Foldable (find, foldl, foldMap, length)
-import Data.FoldableWithIndex (foldMapWithIndex)
-import Data.Function (applyN)
-import Data.Generic.Rep (class Generic)
-import Data.Int (toStringAs, decimal, ceil, toNumber)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern))
-import Data.String.CodePoints (length) as String
-import Data.String.Common (joinWith, split) as String
-import Data.String.Utils (padEnd)
-import Data.Tuple (snd)
-import Data.Tuple.Nested (type (/\), (/\))
 import CTL.Internal.QueryM.Ogmios
-  ( TxEvaluationFailure(UnparsedError, ScriptFailures)
-  , RedeemerPointer
+  ( RedeemerPointer
   , ScriptFailure
       ( ExtraRedeemers
       , MissingRequiredDatums
@@ -55,11 +36,32 @@ import CTL.Internal.QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
   ) as Ogmios
 import CTL.Internal.ReindexRedeemers (ReindexErrors)
 import CTL.Internal.Types.Natural (toBigInt) as Natural
-import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import CTL.Internal.Types.ScriptLookups
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  )
 import CTL.Internal.Types.Transaction (TransactionInput)
+import Data.Array (catMaybes, filter, uncons) as Array
+import Data.Bifunctor (bimap)
+import Data.BigInt (toString) as BigInt
+import Data.Either (Either(Left, Right), either, isLeft)
+import Data.Foldable (find, foldMap, foldl, length)
+import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Function (applyN)
+import Data.Generic.Rep (class Generic)
+import Data.Int (ceil, decimal, toNumber, toStringAs)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
+import Data.String (Pattern(Pattern))
+import Data.String.CodePoints (length) as String
+import Data.String.Common (joinWith, split) as String
+import Data.String.Utils (padEnd)
+import Data.Tuple (snd)
+import Data.Tuple.Nested (type (/\), (/\))
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError

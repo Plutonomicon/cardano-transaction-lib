@@ -4,9 +4,9 @@ module CTL.Internal.Deserialization.BigInt
 
 import Prelude
 
+import CTL.Internal.Serialization.Types (BigInt)
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
-import CTL.Internal.Serialization.Types (BigInt)
 
 convertBigInt :: BigInt -> Maybe BigInt.BigInt
 convertBigInt = BigInt.fromString <<< _BigInt_to_str

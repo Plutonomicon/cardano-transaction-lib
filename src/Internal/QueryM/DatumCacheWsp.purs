@@ -31,6 +31,10 @@ import Aeson
   , (.:)
   )
 import CTL.Internal.Base64 (Base64String)
+import CTL.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
+import CTL.Internal.QueryM.UniqueId (ListenerId)
+import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import CTL.Internal.Types.Datum (DataHash, Datum)
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -41,10 +45,6 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
-import CTL.Internal.QueryM.UniqueId (ListenerId)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import CTL.Internal.Types.Datum (Datum, DataHash)
 
 newtype WspFault = WspFault Aeson
 

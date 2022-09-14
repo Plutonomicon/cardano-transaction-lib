@@ -19,6 +19,13 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   )
+import CTL.Internal.FromData (class FromData, fromData)
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
+import CTL.Internal.ToData (class ToData, toData)
+import CTL.Internal.Types.ByteArray (ByteArray, byteLength)
+import CTL.Internal.Types.PlutusData (PlutusData)
+import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum)
 import Control.Alt ((<|>))
 import Data.Array ((:))
 import Data.Array as Array
@@ -30,13 +37,6 @@ import Data.String.CodePoints as String
 import Data.TextDecoder (decodeUtf8)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.ByteArray (ByteArray, byteLength)
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum)
 
 -- | A string type that is used in CIP-25 standard.
 -- | String length in bytes (in UTF-8) is limited by 64, because PlutusData

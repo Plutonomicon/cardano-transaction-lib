@@ -2,11 +2,6 @@ module Test.CTL.Serialization.Address (suite) where
 
 import Prelude
 
-import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (wrap)
-import Effect.Aff (Aff)
-import Effect.Class.Console (log)
-import Mote (group, test)
 import CTL.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
@@ -45,13 +40,18 @@ import CTL.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
-import Test.Spec.Assertions (shouldEqual)
-import Test.CTL.Utils (errMaybe)
-import Test.CTL.TestM (TestPlanM)
 import CTL.Internal.Types.Aliases (Bech32String)
 import CTL.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (wrap)
+import Effect.Aff (Aff)
+import Effect.Class.Console (log)
+import Mote (group, test)
 import Test.CTL.Fixtures (ed25519KeyHashFixture1)
+import Test.CTL.TestM (TestPlanM)
+import Test.CTL.Utils (errMaybe)
+import Test.Spec.Assertions (shouldEqual)
 
 doesNotThrow
   :: forall (f :: Type -> Type) (a :: Type). Applicative f => a -> f a

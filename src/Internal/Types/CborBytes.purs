@@ -15,17 +15,17 @@ module CTL.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   ) where
 
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Prelude
 
+import Aeson (class DecodeAeson, class EncodeAeson)
+import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
+import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
 import CTL.Internal.Types.ByteArray (ByteArray)
 import CTL.Internal.Types.ByteArray as BytesArray
 import CTL.Internal.Types.RawBytes (RawBytes)
 import Data.Maybe (Maybe)
-import Prelude
-import Aeson (class EncodeAeson, class DecodeAeson)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
 
 -- | An array of Bytes containing CBOR data
 newtype CborBytes = CborBytes ByteArray

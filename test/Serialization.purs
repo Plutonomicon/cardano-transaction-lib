@@ -2,16 +2,18 @@ module Test.CTL.Serialization (suite) where
 
 import Prelude
 
-import Data.Maybe (isJust)
-import Data.BigInt as BigInt
-import Data.Tuple.Nested ((/\))
 import CTL.Internal.Deserialization.FromBytes (fromBytesEffect)
-import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
-import Mote (group, test)
 import CTL.Internal.Serialization (convertTransaction, convertTxOutput, toBytes)
 import CTL.Internal.Serialization.PlutusData (convertPlutusData)
 import CTL.Internal.Serialization.Types (TransactionHash)
+import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import CTL.Internal.Types.PlutusData as PD
+import Data.BigInt as BigInt
+import Data.Maybe (isJust)
+import Data.Tuple.Nested ((/\))
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Mote (group, test)
 import Test.CTL.Fixtures
   ( txBinaryFixture1
   , txBinaryFixture2
@@ -26,11 +28,9 @@ import Test.CTL.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Test.CTL.Utils (errMaybe)
 import Test.CTL.TestM (TestPlanM)
-import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import CTL.Internal.Types.PlutusData as PD
+import Test.CTL.Utils (errMaybe)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit

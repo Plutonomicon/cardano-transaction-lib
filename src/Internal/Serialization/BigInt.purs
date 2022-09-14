@@ -3,8 +3,9 @@ module CTL.Internal.Serialization.BigInt
   ) where
 
 import Prelude
-import CTL.Internal.Serialization.Types (BigInt)
+
 import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import CTL.Internal.Serialization.Types (BigInt)
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 

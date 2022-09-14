@@ -29,10 +29,10 @@ import CTL.Contract.TxConstraints
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (utxosAt)
 import CTL.Contract.Value (lovelaceValueOf) as Value
-import Data.BigInt (fromInt) as BigInt
-import Data.Map (empty, toUnfoldable) as Map
 import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import CTL.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Data.BigInt (fromInt) as BigInt
+import Data.Map (empty, toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig

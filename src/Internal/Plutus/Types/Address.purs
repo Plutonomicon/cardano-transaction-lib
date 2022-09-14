@@ -18,11 +18,6 @@ import Aeson
   , encodeAeson'
   , (.:)
   )
-import Data.Either (Either(Left))
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, wrap, unwrap)
-import Data.Show.Generic (genericShow)
 import CTL.Internal.FromData (class FromData, genericFromData)
 import CTL.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
@@ -41,10 +36,15 @@ import CTL.Internal.ToData (class ToData, genericToData)
 import CTL.Internal.TypeLevel.Nat (Z)
 import CTL.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , StakePubKeyHash
   , PubKeyHash
+  , StakePubKeyHash
   )
 import CTL.Internal.Types.Scripts (ValidatorHash)
+import Data.Either (Either(Left))
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 
 --------------------------------------------------------------------------------
 -- Address

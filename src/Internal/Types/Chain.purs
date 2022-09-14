@@ -6,10 +6,10 @@ module CTL.Internal.Types.Chain
 
 import Prelude
 
-import Data.Newtype (class Newtype)
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
 import CTL.Internal.Serialization.Address (Slot)
+import Data.Generic.Rep (class Generic)
+import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
 
 data Tip
   = TipAtGenesis

@@ -9,6 +9,7 @@ module CTL.Internal.Wallet.Key
 
 import Prelude
 
+import CTL.Contract.Prelude (class Newtype)
 import CTL.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
 import CTL.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
@@ -19,15 +20,7 @@ import CTL.Internal.Cardano.Types.Transaction
 import CTL.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Contract.Prelude (class Newtype)
-import Data.Array (fromFoldable)
-import Data.Lens (set)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap)
 import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Effect (Effect)
-import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
 import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import CTL.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import CTL.Internal.Serialization as Serialization
@@ -41,6 +34,13 @@ import CTL.Internal.Serialization.Address
   , keyHashCredential
   )
 import CTL.Internal.Serialization.Types (PrivateKey)
+import Data.Array (fromFoldable)
+import Data.Lens (set)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap)
+import Effect (Effect)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 
 -------------------------------------------------------------------------------
 -- Key backend

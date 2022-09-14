@@ -13,12 +13,18 @@ module CTL.Internal.Types.NatRatio
   ) where
 
 import Prelude
-import Data.BigInt (BigInt)
-import Data.Maybe (Maybe(Nothing))
+
 import CTL.Internal.Types.Natural (Natural)
 import CTL.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
 import CTL.Internal.Types.Rational (Rational)
-import CTL.Internal.Types.Rational ((%), numerator, denominator, denominatorAsNat) as Rational
+import CTL.Internal.Types.Rational
+  ( denominator
+  , denominatorAsNat
+  , numerator
+  , (%)
+  ) as Rational
+import Data.BigInt (BigInt)
+import Data.Maybe (Maybe(Nothing))
 
 -- | `NatRatio` is a newtype over `Rational` with smart constructors to create a
 -- | `NatRatio` safely. Therefore, the data constructor is not exported.

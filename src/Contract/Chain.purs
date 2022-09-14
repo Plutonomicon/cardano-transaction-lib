@@ -24,8 +24,8 @@ import CTL.Internal.Types.Chain
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
   ) as Chain
-import CTL.Internal.Types.Natural (Natural)
 import CTL.Internal.Types.Interval (POSIXTime)
+import CTL.Internal.Types.Natural (Natural)
 
 getTip :: forall (r :: Row Type). Contract r Chain.Tip
 getTip = wrapContract QueryM.getChainTip

@@ -5,25 +5,14 @@ module CTL.Internal.Plutus.Conversion.Value
 
 import Prelude
 
-import Data.Array (head, partition)
-import Data.Foldable (fold)
-import Data.List (List)
-import Data.Map (fromFoldable) as Map
-import Data.Maybe (fromMaybe, fromJust)
-import Data.Newtype (wrap, unwrap)
-import Data.Tuple (snd)
-import Data.Tuple.Nested ((/\))
-import Partial.Unsafe (unsafePartial)
-
 import CTL.Internal.Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
 import CTL.Internal.Cardano.Types.Value
   ( NonAdaAsset
   , flattenNonAdaValue
   , getCurrencySymbol
-  , mkValue
   , mkNonAdaAssetsFromTokenMap
+  , mkValue
   )
-
 import CTL.Internal.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import CTL.Internal.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
 import CTL.Internal.Plutus.Types.Value (Value) as Plutus
@@ -32,8 +21,16 @@ import CTL.Internal.Plutus.Types.Value
   , lovelaceValueOf
   , singleton'
   ) as Plutus.Value
-
 import CTL.Internal.Types.TokenName (adaToken, getTokenName)
+import Data.Array (head, partition)
+import Data.Foldable (fold)
+import Data.List (List)
+import Data.Map (fromFoldable) as Map
+import Data.Maybe (fromJust, fromMaybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Tuple (snd)
+import Data.Tuple.Nested ((/\))
+import Partial.Unsafe (unsafePartial)
 
 -- The underlying `Plutus.Types.AssocMap` of `Plutus.Types.Value` doesn't
 -- have the `Ord` constraint on the keys. Therefore, one should be careful when

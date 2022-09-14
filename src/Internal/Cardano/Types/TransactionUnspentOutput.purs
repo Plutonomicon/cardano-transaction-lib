@@ -6,10 +6,10 @@ import Prelude
 
 import Aeson (class EncodeAeson)
 import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
+import CTL.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import CTL.Internal.Types.Transaction (TransactionInput)
 
 newtype TransactionUnspentOutput = TransactionUnspentOutput
   { input :: TransactionInput

@@ -12,26 +12,28 @@ import CTL.Internal.Cardano.Types.Transaction
   ( TransactionOutput
   , UtxoMap
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import CTL.Internal.Cardano.Types.Value (NonAdaAsset)
 import CTL.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
+import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import CTL.Internal.Types.Transaction (TransactionInput)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
-import Data.Foldable (foldl, foldMap)
+import Data.Foldable (foldMap, foldl)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import CTL.Internal.Types.Transaction (TransactionInput)
 
 minRequiredCollateral :: BigInt
 minRequiredCollateral = BigInt.fromInt 5_000_000

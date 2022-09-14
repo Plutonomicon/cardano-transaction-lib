@@ -11,8 +11,8 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
-import Test.Spec.Assertions (shouldEqual)
 import Test.CTL.TestM (TestPlanM)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

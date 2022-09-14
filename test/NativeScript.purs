@@ -5,20 +5,20 @@ import Prelude
 import CTL.Internal.Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
-import Data.Maybe (fromJust)
-import Data.Set as Set
-import Effect.Aff (Aff)
-import Mote (group, test)
 import CTL.Internal.NativeScripts (getMaximumSigners)
-import Partial.Unsafe (unsafePartial)
 import CTL.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   )
-import Test.Spec.Assertions (shouldEqual)
-import Test.CTL.TestM (TestPlanM)
 import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Data.Maybe (fromJust)
+import Data.Set as Set
+import Effect.Aff (Aff)
+import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
+import Test.CTL.TestM (TestPlanM)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

@@ -19,6 +19,7 @@ module CTL.Internal.Types.UsedTxOuts
   ) where
 
 import CTL.Internal.Cardano.Types.Transaction (Transaction)
+import CTL.Internal.Types.Transaction (TransactionHash)
 import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
 import Control.Applicative (unless)
@@ -28,13 +29,13 @@ import Control.Monad.Error.Class (class MonadError, catchError, throwError)
 import Control.Monad.RWS (ask)
 import Control.Monad.Reader (class MonadAsk)
 import Data.Array (concatMap)
-import Data.Foldable (class Foldable, foldr, all)
+import Data.Foldable (class Foldable, all, foldr)
 import Data.Function (($))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe, fromMaybe, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.Monoid (class Monoid, mempty)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Semigroup (class Semigroup)
 import Data.Set (Set)
 import Data.Set as Set
@@ -45,8 +46,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Prelude (map, not, discard, otherwise, (<>))
-import CTL.Internal.Types.Transaction (TransactionHash)
+import Prelude (discard, map, not, otherwise, (<>))
 
 type TxOutRefCache = Map TransactionHash (Set UInt)
 newtype TxOutRefUnlockKeys = TxOutRefUnlockKeys TxOutRefCache

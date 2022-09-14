@@ -7,15 +7,22 @@ module CTL.Internal.BalanceTx.Helpers
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction (Redeemer, Transaction, TxBody, _body)
-import Data.Lens (Lens', lens')
-import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((.~), (%~))
-import Data.Maybe (Maybe)
-import Data.Tuple.Nested (type (/\), (/\))
-import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
+import CTL.Internal.Cardano.Types.Transaction
+  ( Redeemer
+  , Transaction
+  , TxBody
+  , _body
+  )
+import CTL.Internal.Types.ScriptLookups
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  )
 import CTL.Internal.Types.Transaction (TransactionInput)
 import CTL.Internal.Types.UnbalancedTransaction (UnbalancedTx, _transaction)
+import Data.Lens (Lens', lens')
+import Data.Lens.Getter ((^.))
+import Data.Lens.Setter ((%~), (.~))
+import Data.Maybe (Maybe)
+import Data.Tuple.Nested (type (/\), (/\))
 
 _unbalancedTx :: Lens' UnattachedUnbalancedTx UnbalancedTx
 _unbalancedTx = lens' \(UnattachedUnbalancedTx rec@{ unbalancedTx }) ->

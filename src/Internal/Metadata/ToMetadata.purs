@@ -8,6 +8,11 @@ module CTL.Internal.Metadata.ToMetadata
 
 import Prelude
 
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.Int (Int, fromBigInt) as Int
+import CTL.Internal.Types.TransactionMetadata
+  ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  )
 import Data.Array (fromFoldable) as Array
 import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable)
@@ -18,11 +23,6 @@ import Data.NonEmpty (NonEmpty)
 import Data.Profunctor.Strong ((***))
 import Data.Tuple (Tuple)
 import Partial.Unsafe (unsafePartial)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int (Int, fromBigInt) as Int
-import CTL.Internal.Types.TransactionMetadata
-  ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
-  )
 
 --------------------------------------------------------------------------------
 -- ToMetadata

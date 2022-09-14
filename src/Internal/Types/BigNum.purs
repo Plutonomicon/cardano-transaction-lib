@@ -23,16 +23,16 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson')
 import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
+import CTL.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
+import CTL.Internal.Error (E, noteE)
+import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString, toString) as BigInt
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
-import Data.UInt (fromInt, fromString, toString) as UInt
 import Data.UInt (UInt)
-import CTL.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
-import CTL.Internal.Error (E, noteE)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Data.UInt (fromInt, fromString, toString) as UInt
 import Partial.Unsafe (unsafePartial)
 import Type.Row (type (+))
 

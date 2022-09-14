@@ -9,8 +9,12 @@ module CTL.Internal.Deserialization.UnspentOutput
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef)) as T
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput(TransactionOutput)) as T
+import CTL.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(PlutusScriptRef, NativeScriptRef)
+  ) as T
+import CTL.Internal.Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  ) as T
 import CTL.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
@@ -22,15 +26,6 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkValue
   ) as T
-import Data.Bitraversable (bitraverse, ltraverse)
-import Data.Map (Map)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, traverse)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\))
-import Data.UInt as UInt
 import CTL.Internal.Deserialization.NativeScript (convertNativeScript)
 import CTL.Internal.Deserialization.PlutusData (convertPlutusData)
 import CTL.Internal.Deserialization.WitnessSet (convertPlutusScript)
@@ -65,6 +60,15 @@ import CTL.Internal.Types.Transaction
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as T
+import Data.Bitraversable (bitraverse, ltraverse)
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\))
+import Data.UInt as UInt
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput
