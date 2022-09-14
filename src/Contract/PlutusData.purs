@@ -11,9 +11,12 @@ module Contract.PlutusData
   , module Hashing
   , module IsData
   , module PlutusData
+  , module Serialization
+  , module Deserialization
   , module Redeemer
   , module FromData
   , module ToData
+  , module OutputDatum
   ) where
 
 import Prelude
@@ -21,6 +24,7 @@ import Prelude
 import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
+import Deserialization.PlutusData (deserializeData) as Deserialization
 import FromData
   ( FromDataError
       ( ArgsWantedButGot
@@ -40,6 +44,7 @@ import FromData
   , genericFromData
   ) as FromData
 import Hashing (datumHash) as Hashing
+import IsData (class IsData) as IsData
 import Plutus.Types.DataSchema
   ( ApPCons
   , Field
@@ -68,10 +73,8 @@ import QueryM
   , defaultDatumCacheWsConfig
   , mkDatumCacheWebSocketAff
   ) as ExportQueryM
-import QueryM
-  ( getDatumByHash
-  , getDatumsByHashes
-  ) as QueryM
+import QueryM (getDatumByHash, getDatumsByHashes) as QueryM
+import Serialization (serializeData) as Serialization
 import ToData
   ( class ToData
   , class ToDataArgs
@@ -87,16 +90,16 @@ import ToData
   ) as ToData
 import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Types.Datum (DataHash)
-import Types.PlutusData
-  ( PlutusData(Constr, Map, List, Integer, Bytes)
-  ) as PlutusData
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  ) as OutputDatum
+import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as PlutusData
 import Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import IsData (class IsData) as IsData
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash

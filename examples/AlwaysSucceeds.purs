@@ -2,9 +2,10 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
 module Examples.AlwaysSucceeds
-  ( main
+  ( alwaysSucceedsScript
+  , contract
   , example
-  , alwaysSucceedsScript
+  , main
   , payToAlwaysSucceeds
   , spendFromAlwaysSucceeds
   ) where
@@ -14,7 +15,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -23,7 +24,12 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (TransactionHash, awaitTxConfirmed, lookupTxHash)
+import Contract.Transaction
+  ( TransactionHash
+  , awaitTxConfirmed
+  , lookupTxHash
+  , plutusV1Script
+  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
@@ -38,28 +44,32 @@ import Plutus.Types.TransactionUnspentOutput (_input)
 main :: Effect Unit
 main = example testnetNamiConfig
 
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.AlwaysSucceeds"
+  validator <- alwaysSucceedsScript
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToAlwaysSucceeds vhash
+  -- If the wallet is cold, you need a high parameter here.
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromAlwaysSucceeds vhash validator txId
+
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.AlwaysSucceeds"
-    validator <- alwaysSucceedsScript
-    vhash <- liftContractAffM "Couldn't hash validator"
-      $ validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToAlwaysSucceeds vhash
-    -- If the wallet is cold, you need a high parameter here.
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromAlwaysSucceeds vhash validator txId
+  runContract cfg contract
   publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
   let
     constraints :: TxConstraints Unit Unit
-    constraints = Constraints.mustPayToScript vhash unitDatum
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+    constraints =
+      Constraints.mustPayToScript vhash unitDatum
+        Constraints.DatumWitness
+        $ Value.lovelaceValueOf
+        $ BigInt.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
@@ -99,5 +109,6 @@ spendFromAlwaysSucceeds vhash validator txId = do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
-alwaysSucceedsScript = wrap <<< wrap <$> textEnvelopeBytes alwaysSucceeds
+alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  alwaysSucceeds
   PlutusScriptV1
