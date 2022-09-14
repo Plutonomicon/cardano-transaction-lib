@@ -23,13 +23,14 @@ exports.newBigNum = maybe => string => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit(BigInt(string), 0, 18446744073709551616); // 2 ^ 64
+    check_limit(BigInt(string), BigInt("0"), BigInt("18446744073709551616")); // 2 ^ 64
     return maybe.just(lib.BigNum.from_str(string));
   } catch (_) {
     return maybe.nothing;
   }
 };
 
+console.log(check_limit(BigInt("-1"), BigInt("0"), BigInt("23")));
 exports.newValue = coin => () => lib.Value.new(coin);
 
 exports.newValueFromAssets = multiasset => () =>
@@ -193,7 +194,11 @@ exports._bigIntToInt = maybe => bigInt => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit(bigInt, -18446744073709551616, 18446744073709551616); // 2 ^ 64
+    check_limit(
+      bigInt,
+      BigInt("-18446744073709551616"),
+      BigInt("18446744073709551616")
+    ); // 2 ^ 64
     const str = bigInt.to_str();
     if (str[0] == "-") {
       return maybe.just(

@@ -18,19 +18,11 @@ exports._packPlutusList = containerHelper => elems =>
   containerHelper.pack(lib.PlutusList, elems);
 exports._mkConstrPlutusData = n => list => lib.ConstrPlutusData.new(n, list);
 
-const checkStr = str => {
-  if (BigInt(str)) {
-    return str;
-  } else {
-    throw new Error("Not a number");
-  }
-};
-
 exports._bigIntFromString = maybe => str => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    checkStr(str);
+    BigInt(str);
     return maybe.just(lib.BigInt.from_str(str));
   } catch (_) {
     return maybe.nothing;
