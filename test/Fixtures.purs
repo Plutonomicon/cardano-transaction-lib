@@ -61,6 +61,7 @@ module Test.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   , txOutputFixture2
+  , unappliedScriptFixture
   , unsafeMkCip25String
   , utxoFixture1
   , utxoFixture1'
@@ -70,8 +71,6 @@ module Test.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
-  , unappliedScriptFixture
-  , unsafeMkCip25String
   ) where
 
 import Prelude
@@ -299,9 +298,6 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
         , treasuryGrowthRate: Just
             { numerator: bigNumOne, denominator: bigNumOne }
-        , d: Nothing -- Just { numerator: bigNumOne, denominator: bigNumOne }
-        , extraEntropy: Nothing -- Just $ HashNonce $ hexToByteArrayUnsafe
-        --    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f6500000000"
         , protocolVersion: Just
             { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
         , minPoolCost: Just bigNumOne
@@ -716,10 +712,13 @@ txFixture6 =
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
+        , referenceInputs: mempty
         , scriptDataHash: Nothing
         , collateral: Nothing
         , requiredSigners: Nothing
         , networkId: Just MainnetId
+        , collateralReturn: Nothing
+        , totalCollateral: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: Nothing

@@ -2,11 +2,8 @@ module Test.Deserialization (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction
-  ( NativeScript(ScriptAny)
-  , Transaction
-  , TransactionOutput
-  ) as T
+import Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
+import Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T

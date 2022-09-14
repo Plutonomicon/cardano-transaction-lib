@@ -91,18 +91,18 @@ suite = do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
-      test "Transaction serialization #1" $ serializeTX txFixture1
-        txBinaryFixture1
-      test "Transaction serialization #2 - tokens" $ serializeTX txFixture2
-        txBinaryFixture2
-      test "Transaction serialization #3 - ada" $ serializeTX txFixture3
-        txBinaryFixture3
+      test "Transaction serialization #1" $
+        serializeTX txFixture1 txBinaryFixture1
+      test "Transaction serialization #2 - tokens" $
+        serializeTX txFixture2 txBinaryFixture2
+      test "Transaction serialization #3 - ada" $
+        serializeTX txFixture3 txBinaryFixture3
       test "Transaction serialization #4 - ada + mint + certificates" $
         serializeTX txFixture4 txBinaryFixture4
-      test "Transaction serialization #5 - plutus script" $ serializeTX
-        txFixture5 txBinaryFixture5
-      test "Transaction serialization #6 - metadata" $ serializeTX txFixture6
-        txBinaryFixture6
+      test "Transaction serialization #5 - plutus script" $
+        serializeTX txFixture5 txBinaryFixture5
+      test "Transaction serialization #6 - metadata" $
+        serializeTX txFixture6 txBinaryFixture6
     group "Transaction Roundtrips" $ do
       test "Deserialization is inverse to serialization #1" $
         txSerializedRoundtrip txFixture1
