@@ -15,7 +15,6 @@ import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
 import Deserialization.BigInt as DB
@@ -151,7 +150,11 @@ suite = do
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
     group "Transaction Roundtrips" do
-      txRoundtrip [ txFixture1, txFixture2, txFixture3, txFixture4, txFixture5 ]
+      test "CSL <-> CTL Transaction roundtrip #1" $ txRoundtrip txFixture1
+      test "CSL <-> CTL Transaction roundtrip #2" $ txRoundtrip txFixture2
+      test "CSL <-> CTL Transaction roundtrip #3" $ txRoundtrip txFixture3
+      test "CSL <-> CTL Transaction roundtrip #4" $ txRoundtrip txFixture4
+      test "CSL <-> CTL Transaction roundtrip #5" $ txRoundtrip txFixture5
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
@@ -245,12 +248,9 @@ testNativeScript input = do
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input
 
-txRoundtrip :: Array T.Transaction -> TestPlanM (Aff Unit) Unit
-txRoundtrip =
-  traverseWithIndex_ $ \n tx ->
-    test ("CSL <-> CTL Transaction roundtrip #" <> show (n + 1)) $
-      liftEffect do
-        cslTX <- liftEffect $ TS.convertTransaction tx
-        expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
-          TD.convertTransaction cslTX
-        tx `shouldEqual` expected
+txRoundtrip :: T.Transaction -> Aff Unit
+txRoundtrip tx = do
+  cslTX <- liftEffect $ TS.convertTransaction tx
+  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
+    TD.convertTransaction cslTX
+  tx `shouldEqual` expected

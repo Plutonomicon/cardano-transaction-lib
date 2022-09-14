@@ -5,9 +5,7 @@ import Prelude
 import Cardano.Types.Transaction (Transaction)
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Maybe (isJust)
-import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Deserialization.Transaction (convertTransaction) as TD
@@ -91,35 +89,41 @@ suite = do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
-      serializeTXs
-        [ txFixture1 /\ txBinaryFixture1
-        , txFixture2 /\ txBinaryFixture2
-        , txFixture3 /\ txBinaryFixture3
-        , txFixture4 /\ txBinaryFixture4
-        , txFixture5 /\ txBinaryFixture5
-        ]
+      test "Transaction serialization #1" $ serializeTX txFixture1
+        txBinaryFixture1
+      test "Transaction serialization #2 - tokens" $ serializeTX txFixture2
+        txBinaryFixture2
+      test "Transaction serialization #3 - ada" $ serializeTX txFixture3
+        txBinaryFixture3
+      test "Transaction serialization #4 - ada + mint + certificates" $
+        serializeTX txFixture4 txBinaryFixture4
+      test "Transaction serialization #5 - metadata" $ serializeTX txFixture5
+        txBinaryFixture5
     group "Transaction Roundtrips" $ do
-      txSerializedRoundtrip
-        [ txFixture1, txFixture2, txFixture3, txFixture4, txFixture5 ]
+      test "Deserialization is inverse to serialization #1" $
+        txSerializedRoundtrip txFixture1
+      test "Deserialization is inverse to serialization #2" $
+        txSerializedRoundtrip txFixture2
+      test "Deserialization is inverse to serialization #3" $
+        txSerializedRoundtrip txFixture3
+      test "Deserialization is inverse to serialization #4" $
+        txSerializedRoundtrip txFixture4
+      test "Deserialization is inverse to serialization #5" $
+        txSerializedRoundtrip txFixture5
 
-serializeTXs :: Array (Tuple Transaction String) -> TestPlanM (Aff Unit) Unit
-serializeTXs =
-  traverseWithIndex_ $ \n tx ->
-    test ("Transaction serialization #" <> show (n + 1)) $
-      liftEffect do
-        cslTX <- TS.convertTransaction $ fst tx
-        let bytes = toBytes (asOneOf cslTX)
-        byteArrayToHex bytes `shouldEqual` snd tx
+serializeTX :: Transaction -> String -> Aff Unit
+serializeTX tx fixture =
+  liftEffect $ do
+    cslTX <- TS.convertTransaction $ tx
+    let bytes = toBytes (asOneOf cslTX)
+    byteArrayToHex bytes `shouldEqual` fixture
 
-txSerializedRoundtrip :: Array Transaction -> TestPlanM (Aff Unit) Unit
-txSerializedRoundtrip =
-  traverseWithIndex_ $ \n tx ->
-    test ("Deserialization is inverse to serialization #" <> show (n + 1)) $
-      liftEffect do
-        cslTX <- liftEffect $ TS.convertTransaction tx
-        let serialized = toBytes (asOneOf cslTX)
-        deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
-          serialized
-        expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
-          TD.convertTransaction deserialized
-        tx `shouldEqual` expected
+txSerializedRoundtrip :: Transaction -> Aff Unit
+txSerializedRoundtrip tx = do
+  cslTX <- liftEffect $ TS.convertTransaction tx
+  let serialized = toBytes (asOneOf cslTX)
+  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
+    serialized
+  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
+    TD.convertTransaction deserialized
+  tx `shouldEqual` expected
