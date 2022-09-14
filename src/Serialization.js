@@ -11,17 +11,24 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 
 exports.hashTransaction = body => () => lib.hash_transaction(body);
 
-exports.newBigNum = maybe => string => {
-  // this is needed because try/catch overuse breaks runtime badly
-  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
-  if (/^-?[0-9]+$/.test(str)) {
-      return maybe.just(lib.BigInt.from_str(str));
+const check_limit = (num, lower_limit, upper_limit) => {
+  if (lower_limit <= num && num < upper_limit) {
+    return num;
   } else {
-      return maybe.nothing;
+    throw new Error("Overflow detected");
   }
 };
 
-console.log(/^-?[0-9]+$/.test("123"));
+exports.newBigNum = maybe => string => {
+  // this is needed because try/catch overuse breaks runtime badly
+  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
+  try {
+    check_limit(BigInt(string), 0, 18446744073709551616); // 2 ^ 64
+    return maybe.just(lib.BigNum.from_str(string));
+  } catch (_) {
+    return maybe.nothing;
+  }
+};
 
 exports.newValue = coin => () => lib.Value.new(coin);
 
@@ -89,11 +96,14 @@ exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 exports._publicKeyFromBech32 = maybe => bech32 => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
-  // prefixes defined in CIP-5: https://github.com/cardano-foundation/CIPs/tree/master/CIP-0005 
-  if (/^(acct|acct_shared|addr|addr_shared|policy|pool|root|root_shared|stake|stake_shared)_x?vk1[0-9a-z]+$/.test(bech32)) {
-      return maybe.just(lib.BigInt.from_str(bech32));
-  } else {
-      return maybe.nothing;
+  try {
+    if (/^ed25519_pk1[0-9a-z]+$/.test(bech32)) {
+      return maybe.just(lib.PublicKey.from_str(bech32));
+    } else {
+      throw new Error("Wrong prefix");
+    }
+  } catch (_) {
+    return maybe.nothing;
   }
 };
 
@@ -161,15 +171,19 @@ exports.newMint = () => lib.Mint.new();
 exports._bigIntToInt = maybe => bigInt => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
-  const str = bigInt.to_str();
-  if (/^-[0-9]+$/.test(str)) {
-  return maybe.just(lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
-  );
-  } else if (/^[0-9]+$/.test(str)) {
-    return maybe.just(lib.Int.new(lib.BigNum.from_str(str)));
+  try {
+    check_limit(bigInt, -18446744073709551616, 18446744073709551616); // 2 ^ 64
+    const str = bigInt.to_str();
+    if (str[0] == "-") {
+      return maybe.just(
+        lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
+      );
     } else {
-      return maybe.nothing;
+      return maybe.just(lib.Int.new(lib.BigNum.from_str(str)));
     }
+  } catch (_) {
+    return maybe.nothing;
+  }
 };
 
 exports.newMintAssets = lib.MintAssets.new;
