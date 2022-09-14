@@ -19,6 +19,7 @@ module Test.Fixtures
   , cip25MetadataJsonFixture3
   , currencySymbol1
   , ed25519KeyHashFixture1
+  , fullyAppliedScriptFixture
   , mkSampleTx
   , mkTxInput
   , nativeScriptFixture1
@@ -30,6 +31,7 @@ module Test.Fixtures
   , nativeScriptFixture7
   , ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
+  , partiallyAppliedScriptFixture
   , plutusDataFixture1
   , plutusDataFixture2
   , plutusDataFixture3
@@ -65,6 +67,7 @@ module Test.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
+  , unappliedScriptFixture
   , unsafeMkCip25String
   ) where
 
@@ -185,6 +188,7 @@ import Types.RedeemerTag (RedeemerTag(Spend))
 import Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , PlutusScript
+  , Validator
   , plutusV1Script
   , plutusV2Script
   )
@@ -1347,3 +1351,28 @@ redeemerFixture1 = Redeemer
       , steps: BigInt.fromInt 1
       }
   }
+
+unappliedScriptFixture :: Validator
+unappliedScriptFixture =
+  wrap $ plutusV1Script $ hexToByteArrayUnsafe $
+    "586f010000333222323233222233222225335300c33225335300e0021001100f333500b223\
+    \33573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010\
+    \091326353008009498cd4015d680119a802bae001120012001120011200112200212200120\
+    \0101"
+
+partiallyAppliedScriptFixture :: Validator
+partiallyAppliedScriptFixture =
+  wrap $ plutusV1Script $ hexToByteArrayUnsafe $
+    "58750100003333222323233222233222225335300c33225335300e0021001100f333500b22\
+    \333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010\
+    \091326353008009498cd4015d680119a802bae001120012001120011200112200212200120\
+    \014c010218200001"
+
+fullyAppliedScriptFixture :: Validator
+fullyAppliedScriptFixture =
+  wrap $ plutusV1Script $ hexToByteArrayUnsafe $
+    "587f01000033333222323233222233222225335300c33225335300e0021001100f333500b2\
+    \2333573466e1c00800404003c0152002333500b22333573466e3c00800404003c011220100\
+    \10091326353008009498cd4015d680119a802bae0011200120011200112001122002122001\
+    \20014c01021820004c010544746573740001"
+
