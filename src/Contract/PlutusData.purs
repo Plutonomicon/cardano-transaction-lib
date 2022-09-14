@@ -112,7 +112,7 @@ getDatumByHash
   -> Contract r (Maybe Datum.Datum)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
--- | Get `PlutusData`s given a an `Array` of `DataHash`.
+-- | Get `PlutusData`s given an `Array` of `DataHash`.
 -- | This function discards all possible error getting a `DataHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
@@ -120,7 +120,7 @@ getDatumsByHashes
   -> Contract r (Map DataHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
--- | Get `PlutusData`s given a an `Array` of `DataHash`.
+-- | Get `PlutusData`s given an `Array` of `DataHash`.
 -- | In case of error, the returned string contains the needed information.
 getDatumsByHashes'
   :: forall (r :: Row Type)
