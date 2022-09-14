@@ -9,6 +9,7 @@ module Serialization
   , convertTransactionUnspentOutput
   , convertValue
   , toBytes
+  , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
@@ -22,12 +23,7 @@ module Serialization
 
 import Prelude
 
-import Cardano.Types.ScriptRef
-  ( ScriptRef
-      ( NativeScriptRef
-      , PlutusScriptRef
-      )
-  ) as T
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef)) as T
 import Cardano.Types.Transaction
   ( Certificate
       ( StakeRegistration
@@ -155,6 +151,7 @@ import Serialization.WitnessSet
   , convertRedeemer
   , convertWitnessSet
   )
+import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
@@ -166,10 +163,10 @@ import Types.OutputDatum
   )
 import Types.PlutusData as PlutusData
 import Types.RawBytes (RawBytes)
+import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
-import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
-import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
+import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
@@ -891,3 +888,7 @@ hashScriptData cms rs ps = do
     [] -> _hashScriptDataNoDatums rs' cms'
     _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
       (traverse convertPlutusData ps)
+
+serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
+serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
+  toData
