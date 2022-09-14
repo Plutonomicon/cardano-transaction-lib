@@ -119,16 +119,16 @@ instance DecodeAeson GetDatumsByHashesR where
         :: Aeson -> Either JsonDecodeError (Either String Datum)
       decodeValueOption aes =
         do
-          options <- (pure <$> getNestedAeson aes [ "value",  "Right" ])
-            <|> (Left <$> getNestedAeson aes [ "value", "Left" , "error" ])
+          options <- (pure <$> getNestedAeson aes [ "value", "Right" ])
+            <|> (Left <$> getNestedAeson aes [ "value", "Left", "error" ])
           case options of
             Left x -> pure $ Left $ show x
             Right x -> pure <$> decodeAeson x
 
     in
-        map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
-          r
-          [ "value" ]
+      map GetDatumsByHashesR <<< decodeDatumArray =<< getNestedAeson
+        r
+        [ "value" ]
 
 -- TODO
 -- This should be changed to `GetTxByHashR Transaction` once we support `getTxById`
