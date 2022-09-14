@@ -121,7 +121,7 @@ import Wallet.Spec (WalletSpec)
 -- | All useful functions written in `QueryM` should be lifted into the
 -- | `Contract` monad and available in the same namespace. If anything is
 -- | missing, please contact us.
-newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r a)
+newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r Aff a)
 
 -- Many of these derivations of depending on the underlying `ReaderT` and
 -- asychronous effects,`Aff`.

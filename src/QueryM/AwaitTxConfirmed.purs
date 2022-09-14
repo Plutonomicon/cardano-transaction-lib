@@ -6,6 +6,7 @@ module QueryM.AwaitTxConfirmed
 
 import Prelude
 
+import Control.Parallel (parOneOf, parallel, sequential)
 import Data.DateTime.Instant (unInstant)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (wrap, unwrap)
@@ -36,6 +37,10 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
   getNowMs :: QueryM Number
   getNowMs = unwrap <<< unInstant <$> liftEffect now
 
+  -- findTx :: Aff Boolean
+  -- findTx = liftAff <<< isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
+  --     _.getTxByHash
+  --     txHash
   go :: Number -> QueryM Unit
   go timeoutTime = do
     isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash

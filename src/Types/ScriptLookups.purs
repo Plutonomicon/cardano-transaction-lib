@@ -110,6 +110,7 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
+import Effect.Aff(Aff)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftM)
 import IsData (class IsData)
@@ -500,7 +501,7 @@ requireValue required = ValueSpentBalances { required, provided: mempty }
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
-  StateT (ConstraintProcessingState a) (QueryMExtended ()) b
+  StateT (ConstraintProcessingState a) (QueryMExtended () Aff) b
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall v. (FromData (DatumType v), ToData (DatumType v), ToData (RedeemerType v))`
@@ -1120,7 +1121,7 @@ processConstraint mpsMap osMap = do
     -> DatumPresence
     -> ExceptT
          MkUnbalancedTxError
-         (StateT (ConstraintProcessingState a) (QueryMExtended ()))
+         (StateT (ConstraintProcessingState a) (QueryMExtended () Aff))
          OutputDatum
   outputDatum dat = case _ of
     DatumInline -> pure $ OutputDatum dat
