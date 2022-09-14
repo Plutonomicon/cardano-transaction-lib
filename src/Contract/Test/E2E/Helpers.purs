@@ -32,7 +32,7 @@ import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (for, fold)
 import Effect (Effect)
-import Effect.Aff (Aff, bracket, launchAff_, delay)
+import Effect.Aff (Aff, bracket, delay, launchAff_, try)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw)
@@ -102,7 +102,6 @@ waitForWalletPage extId timeout browser =
         "Wallet popup did not open. Did you provide extension ID correctly? "
           <> "Provided ID: "
           <> unwrap extId
-
     Just page -> pure page
 
 showOutput :: Ref (Array E2EOutput) -> Effect String
@@ -212,14 +211,23 @@ inWalletPage extId { browser, jQuery } cont = do
   injectJQuery page jQuery
   cont page
 
--- TODO
 eternlConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
-eternlConfirmAccess _extId _re = pure unit
+eternlConfirmAccess extId re = do
+  -- ignore possible failure
+  void $ try $
+    inWalletPage extId re \page -> do
+      delaySec 1.0
+      clickButton "Connect to Site" page
 
--- TODO
 eternlSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
-eternlSign _extId _wpassword _re = do
-  pure unit
+eternlSign extId wpassword re = do
+  delaySec 1.0
+  inWalletPage extId re \page -> do
+    void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
+      {}
+      page
+    typeInto (inputType "password") (unwrap wpassword) page
+    clickButton "Confirm" page
 
 namiConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 namiConfirmAccess extId re = inWalletPage extId re (clickButton "Access")
