@@ -17,6 +17,7 @@ import QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashes'
   , submitTxOgmios
   )
 import QueryM.CurrentEpoch (getCurrentEpoch)
@@ -71,6 +72,8 @@ suite = do
       testOgmiosDatumCacheGetDatumByHash
     test "Can process GetDatumsByHashes" do
       testOgmiosDatumCacheGetDatumsByHashes
+    test "Can process GetDatumsByHashes'" do
+      testOgmiosDatumCacheGetDatumsByHashes'
 
 testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
 testOgmiosDatumCacheGetDatumByHash = do
@@ -81,6 +84,12 @@ testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
 testOgmiosDatumCacheGetDatumsByHashes = do
   void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+
+testOgmiosDatumCacheGetDatumsByHashes' :: QueryM Unit
+testOgmiosDatumCacheGetDatumsByHashes' = do
+  void $ getDatumsByHashes' $ pure $ DataHash $ hexToByteArrayUnsafe
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+
 
 testUtxosAt :: OgmiosAddress -> QueryM Unit
 testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
