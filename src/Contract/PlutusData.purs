@@ -5,7 +5,7 @@
 module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashes'
+  , getDatumsByHashesWithErrors
   , module DataSchema
   , module Datum
   , module ExportQueryM
@@ -73,7 +73,7 @@ import QueryM
 import QueryM
   ( getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashes'
+  , getDatumsByHashesWithErrors
   ) as QueryM
 import ToData
   ( class ToData
@@ -122,8 +122,8 @@ getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
 
 -- | Get `PlutusData`s given an `Array` of `DataHash`.
 -- | In case of error, the returned string contains the needed information.
-getDatumsByHashes'
+getDatumsByHashesWithErrors
   :: forall (r :: Row Type)
    . Array DataHash
   -> Contract r (Map DataHash (Either String Datum.Datum))
-getDatumsByHashes' = wrapContract <<< QueryM.getDatumsByHashes'
+getDatumsByHashesWithErrors = wrapContract <<< QueryM.getDatumsByHashesWithErrors
