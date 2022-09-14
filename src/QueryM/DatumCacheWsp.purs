@@ -43,7 +43,6 @@ import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import QueryM.JsonWsp (JsonWspCall, mkCallType)
 import QueryM.UniqueId (ListenerId)
-import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (ByteArray, byteArrayToHex)
 import Types.Datum (Datum, DataHash)
 
@@ -195,4 +194,4 @@ mkDatumCacheCallType method args = mkCallType
   , servicename: "ogmios"
   }
   { methodname: datumCacheMethodToString method, args }
-  Proxy
+

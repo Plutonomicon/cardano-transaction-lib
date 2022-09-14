@@ -17,7 +17,7 @@ import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just))
 import Data.Newtype (wrap, unwrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -76,7 +76,7 @@ withParams test =
   getMaxCollateralInputs :: QueryM Int
   getMaxCollateralInputs =
     asks $ _.runtime >>> _.pparams <#>
-      fromMaybe 3 <<< map UInt.toInt <<< _.maxCollateralInputs <<< unwrap
+      UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
   getCoinsPerUtxoUnit :: QueryM CoinsPerUtxoUnit
   getCoinsPerUtxoUnit =
