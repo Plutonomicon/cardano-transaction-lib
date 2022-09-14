@@ -12,6 +12,8 @@ module Contract.PlutusData
   , module Hashing
   , module IsData
   , module PlutusData
+  , module Serialization
+  , module Deserialization
   , module Redeemer
   , module FromData
   , module ToData
@@ -23,6 +25,7 @@ import Prelude
 import Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
+import Deserialization.PlutusData (deserializeData) as Deserialization
 import FromData
   ( FromDataError
       ( ArgsWantedButGot
@@ -42,6 +45,7 @@ import FromData
   , genericFromData
   ) as FromData
 import Hashing (datumHash) as Hashing
+import IsData (class IsData) as IsData
 import Plutus.Types.DataSchema
   ( ApPCons
   , Field
@@ -75,6 +79,7 @@ import QueryM
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   ) as QueryM
+import Serialization (serializeData) as Serialization
 import ToData
   ( class ToData
   , class ToDataArgs
@@ -93,16 +98,13 @@ import Types.Datum (DataHash)
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   ) as OutputDatum
-import Types.PlutusData
-  ( PlutusData(Constr, Map, List, Integer, Bytes)
-  ) as PlutusData
+import Types.PlutusData (PlutusData(Constr, Map, List, Integer, Bytes)) as PlutusData
 import Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import IsData (class IsData) as IsData
 import Data.Either (Either)
 
 -- | Get a `PlutusData` given a `DatumHash`.
