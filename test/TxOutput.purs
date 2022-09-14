@@ -27,7 +27,7 @@ import CTL.Internal.Types.OutputDatum
 import Data.FoldableWithIndex (traverseWithIndex_)
 import Test.CTL.Utils as Utils
 
--- Run with `spago test --main Test.TxOutput`
+-- Run with `spago test --main Test.CTL.TxOutput`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret suite

@@ -28,7 +28,7 @@ The services are NOT run by `docker-compose` as is the case with `launchCtlRunti
 
 ## Testing contracts
 
-The main entry point to the testing interface is `Contract.Test.Plutip.runPlutipContract` function:
+The main entry point to the testing interface is `CTL.Contract.Test.Plutip.runPlutipContract` function:
 
 ```purescript
 runPlutipContract
@@ -75,7 +75,7 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 {
   some-plutip-test = project.runPlutipTest {
     name = "some-plutip-test";
-    testMain = "MyProject.Test.Plutip";
+    testMain = "Test.MyProject.Plutip";
     # If you don't need `ctl-server`, you can set the following
     # to `false`. Make sure to leave it as `true` (the default)
     # if you are calling `applyArgs` in your contracts. This

@@ -104,17 +104,17 @@ of CTL:
 ```PureScript
 module ExampleModule where
 
-import Contract.Prelude
-import Contract.Monad (Contract, liftedE, liftedM, logInfo')
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
-import Contract.PlutusData (PlutusData)
-import Contract.Transaction
+import CTL.Contract.Prelude
+import CTL.Contract.Monad (Contract, liftedE, liftedM, logInfo')
+import CTL.Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
+import CTL.Contract.PlutusData (PlutusData)
+import CTL.Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , TransactionHash
   , balanceAndSignTx
   , submit
   )
-import Types.TxConstraints (TxConstraints)
-import Types.Transaction (TransactionHash)
+import CTL.Contract.TxConstraints (TxConstraints)
 
 buildBalanceSignAndSubmitTx
   :: ScriptLookups PlutusData
@@ -230,10 +230,10 @@ contract.
 
 ```PureScript
 -- PureScript
-import Contract.PlutusData (PlutusData, unitDatum)
-import Contract.ScriptLookups as Lookups
-import Contract.TxConstraints as Constraints
-import Contract.Prelude
+import CTL.Contract.PlutusData (PlutusData, unitDatum)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Prelude
 import Data.BigInt as BigInt
 
 give :: ValidatorHash -> Contract () TransactionHash
@@ -279,16 +279,15 @@ To talk about the grab contract in CTL we need to talk about some
 functions and types of CTL first. 
 
 ```PureScript
-module Plutus.Types.Transaction ... 
+module CTL.Internal.Plutus.Types.Transaction ... 
 .
 .
 .
-type Utxo = Map TransactionInput TransactionOutput
-newtype UtxoM = UtxoM Utxo
+type UtxoMap = Map TransactionInput TransactionOutputWithRefScript
 ```
 
 ```PureScript
-module Contract.Utxos ...
+module CTL.Contract.Utxos ...
 .
 .
 .
@@ -296,7 +295,7 @@ module Contract.Utxos ...
 -- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
-utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoM)
+utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoMap)
 ```
 
 
@@ -317,7 +316,7 @@ grab
   -> Contract () Unit
 grab vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
       let

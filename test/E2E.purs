@@ -20,7 +20,7 @@ import Test.Spec.Runner as SpecRunner
 import Test.CTL.Utils as Utils
 import Test.CTL.TestM (TestPlanM)
 
--- Run with `spago test --main Test.E2E`
+-- Run with `spago test --main Test.CTL.E2E`
 main :: Effect Unit
 main = launchAff_ $ do
   options <- liftEffect parseOptions

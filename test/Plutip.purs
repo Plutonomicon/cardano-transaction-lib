@@ -148,7 +148,7 @@ import CTL.Internal.Wallet.Cip30Mock
   , withCip30Mock
   )
 
--- Run with `spago test --main Test.Plutip`
+-- Run with `spago test --main Test.CTL.Plutip`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig

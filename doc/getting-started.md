@@ -46,7 +46,7 @@ You will also need to become familiar with [CTL's runtime](./runtime.md) as its 
 
 ### The `Contract` interface
 
-CTL's public interface is contained in the `Contract.*` namespace. We recommend to always prefer imports from the `Contract` namespace. That is, **avoid importing any CTL modules not contained in `Contract`**, which should be considered internal. Importing non-`Contract` modules will make your code more brittle and susceptible to breakages when upgrading CTL versions.
+CTL's public interface is contained in the `CTL.Contract.*` namespace. We recommend to always prefer imports from the `Contract` namespace. That is, **avoid importing any CTL modules in `CTL.Internal.*`**. Importing internal modules will make your code more brittle and susceptible to breakages when upgrading CTL versions.
 
 For example, avoid the following:
 
@@ -55,8 +55,8 @@ For example, avoid the following:
 -- Anything not in in the `Contract` namespace should be considered an
 -- **internal** CTL module
 
-import Types.TokenName (TokenName)
-import Types.Scripts (MintingPolicy)
+import CTL.Internal.Types.TokenName (TokenName)
+import CTL.Internal.Types.Scripts (MintingPolicy)
 
 ```
 
@@ -64,8 +64,8 @@ Instead, prefer:
 
 ```purescript
 
-import Contract.Value (TokenName)
-import Contract.Scripts (MintingPolicy)
+import CTL.Contract.Value (TokenName)
+import CTL.Contract.Scripts (MintingPolicy)
 
 ```
 

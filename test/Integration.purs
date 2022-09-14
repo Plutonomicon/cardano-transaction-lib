@@ -21,7 +21,7 @@ import Test.CTL.Types.Interval as Types.Interval
 import Test.CTL.Utils as Utils
 import Test.CTL.TestM (TestPlanM)
 
--- Run with `spago test --main Test.Integration`
+-- Run with `spago test --main Test.CTL.Integration`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan
