@@ -151,7 +151,6 @@ import Partial.Unsafe (unsafePartial)
 import QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Serialization.Address (Slot)
 import Serialization.Hash (ed25519KeyHashFromBytes)
-import Type.Proxy (Proxy(Proxy))
 import Types.BigNum (fromBigInt) as BigNum
 import Types.ByteArray (ByteArray, hexToByteArray)
 import Types.CborBytes (CborBytes, cborBytesToHex)
@@ -177,35 +176,35 @@ import Heterogeneous.Folding (class HFoldl, hfoldl)
 
 -- | Queries Ogmios for the system start Datetime
 querySystemStartCall :: JsonWspCall Unit SystemStart
-querySystemStartCall = mkOgmiosCallType Proxy
+querySystemStartCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "systemStart" }
   }
 
 -- | Queries Ogmios for the current epoch
 queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
-queryCurrentEpochCall = mkOgmiosCallType Proxy
+queryCurrentEpochCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "currentEpoch" }
   }
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
 queryEraSummariesCall :: JsonWspCall Unit EraSummaries
-queryEraSummariesCall = mkOgmiosCallType Proxy
+queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
   }
 
 -- | Queries Ogmios for the current protocol parameters
 queryProtocolParametersCall :: JsonWspCall Unit ProtocolParameters
-queryProtocolParametersCall = mkOgmiosCallType Proxy
+queryProtocolParametersCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "currentProtocolParameters" }
   }
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType Proxy
+queryChainTipCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "chainTip" }
   }
@@ -213,7 +212,7 @@ queryChainTipCall = mkOgmiosCallType Proxy
 -- | Queries Ogmios for utxos at given addresses.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
-queryUtxosCall = mkOgmiosCallType Proxy
+queryUtxosCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ }
   }
@@ -221,14 +220,14 @@ queryUtxosCall = mkOgmiosCallType Proxy
 -- | Queries Ogmios for utxos at given address.
 -- | NOTE. querying for utxos by address is deprecated, should use output reference instead
 queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
-queryUtxosAtCall = mkOgmiosCallType Proxy
+queryUtxosAtCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton
   }
 
 -- | Queries Ogmios for the utxo with the given output reference.
 queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
-queryUtxoCall = mkOgmiosCallType Proxy
+queryUtxoCall = mkOgmiosCallType
   { methodname: "Query"
   , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
   }
@@ -248,7 +247,7 @@ type OgmiosAddress = String
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
 submitTxCall :: JsonWspCall (TxHash /\ CborBytes) SubmitTxR
-submitTxCall = mkOgmiosCallType Proxy
+submitTxCall = mkOgmiosCallType
   { methodname: "SubmitTx"
   , args: { submit: _ } <<< cborBytesToHex <<< snd
   }
@@ -256,7 +255,7 @@ submitTxCall = mkOgmiosCallType Proxy
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
 evaluateTxCall :: JsonWspCall CborBytes TxEvaluationR
-evaluateTxCall = mkOgmiosCallType Proxy
+evaluateTxCall = mkOgmiosCallType
   { methodname: "EvaluateTx"
   , args: { evaluate: _ } <<< cborBytesToHex
   }
@@ -268,11 +267,11 @@ evaluateTxCall = mkOgmiosCallType Proxy
 
 acquireMempoolSnapshotCall :: JsonWspCall Unit MempoolSnapshotAcquired
 acquireMempoolSnapshotCall =
-  mkOgmiosCallTypeNoArgs Proxy "AwaitAcquire"
+  mkOgmiosCallTypeNoArgs "AwaitAcquire"
 
 mempoolSnapshotHasTxCall
   :: MempoolSnapshotAcquired -> JsonWspCall TxHash Boolean
-mempoolSnapshotHasTxCall _ = mkOgmiosCallType Proxy
+mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   { methodname: "HasTx"
   , args: { id: _ }
   }
@@ -296,17 +295,16 @@ instance DecodeAeson MempoolSnapshotAcquired where
 --------------------------------------------------------------------------------
 
 mkOgmiosCallTypeNoArgs
-  :: forall (o :: Type). Proxy o -> String -> JsonWspCall Unit o
-mkOgmiosCallTypeNoArgs proxy methodname =
-  mkOgmiosCallType proxy { methodname, args: const {} }
+  :: forall (o :: Type). String -> JsonWspCall Unit o
+mkOgmiosCallTypeNoArgs methodname =
+  mkOgmiosCallType { methodname, args: const {} }
 
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeAeson (JsonWspRequest a)
-  => Proxy o
-  -> { methodname :: String, args :: i -> a }
+  => { methodname :: String, args :: i -> a }
   -> JsonWspCall i o
-mkOgmiosCallType = flip
+mkOgmiosCallType =
   ( mkCallType
       { "type": "jsonwsp/request"
       , version: "1.0"
@@ -809,9 +807,9 @@ type ProtocolParametersRaw =
       { "memory" :: BigInt
       , "steps" :: BigInt
       }
-  , "maxValueSize" :: Maybe UInt
-  , "collateralPercentage" :: Maybe UInt
-  , "maxCollateralInputs" :: Maybe UInt
+  , "maxValueSize" :: UInt
+  , "collateralPercentage" :: UInt
+  , "maxCollateralInputs" :: UInt
   }
 
 data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
@@ -843,12 +841,12 @@ newtype ProtocolParameters = ProtocolParameters
   , treasuryCut :: Rational
   , coinsPerUtxoUnit :: CoinsPerUtxoUnit
   , costModels :: Costmdls
-  , prices :: Maybe ExUnitPrices
-  , maxTxExUnits :: Maybe ExUnits
-  , maxBlockExUnits :: Maybe ExUnits
-  , maxValueSize :: Maybe UInt
-  , collateralPercent :: Maybe UInt
-  , maxCollateralInputs :: Maybe UInt
+  , prices :: ExUnitPrices
+  , maxTxExUnits :: ExUnits
+  , maxBlockExUnits :: ExUnits
+  , maxValueSize :: UInt
+  , collateralPercent :: UInt
+  , maxCollateralInputs :: UInt
   }
 
 derive instance Newtype ProtocolParameters _
@@ -890,8 +888,8 @@ instance DecodeAeson ProtocolParameters where
           , (PlutusV2 /\ _) <<< convertCostModel <$> ps.costModels."plutus:v2"
           ]
       , prices: prices
-      , maxTxExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerTransaction
-      , maxBlockExUnits: Just $ decodeExUnits ps.maxExecutionUnitsPerBlock
+      , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
+      , maxBlockExUnits: decodeExUnits ps.maxExecutionUnitsPerBlock
       , maxValueSize: ps.maxValueSize
       , collateralPercent: ps.collateralPercentage
       , maxCollateralInputs: ps.maxCollateralInputs
@@ -902,11 +900,11 @@ instance DecodeAeson ProtocolParameters where
     decodeExUnits { memory, steps } = { mem: memory, steps }
 
     decodePrices
-      :: ProtocolParametersRaw -> Either JsonDecodeError (Maybe ExUnitPrices)
+      :: ProtocolParametersRaw -> Either JsonDecodeError ExUnitPrices
     decodePrices ps = note (TypeMismatch "ExUnitPrices") do
       memPrice <- rationalToSubcoin ps.prices.memory
       stepPrice <- rationalToSubcoin ps.prices.steps
-      pure $ Just { memPrice, stepPrice } -- Maybe ExUnits
+      pure { memPrice, stepPrice } -- ExUnits
 
 -- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
 type CostModelV1 =
