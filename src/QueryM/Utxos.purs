@@ -212,7 +212,7 @@ getWalletCollateral = do
         pparams <- asks $ _.runtime >>> _.pparams <#> unwrap
         let
           coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
-          maxCollateralInputs = fromMaybe 3 $ map UInt.toInt $
+          maxCollateralInputs = UInt.toInt $
             pparams.maxCollateralInputs
         liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoUnit
           maxCollateralInputs
@@ -221,10 +221,8 @@ getWalletCollateral = do
     pparams <- asks $ _.runtime >>> _.pparams
     let
       tooManyCollateralUTxOs =
-        fromMaybe false do
-          maxCollateralInputs <- (unwrap pparams).maxCollateralInputs
-          pure $ UInt.fromInt (Array.length collateralUTxOs) >
-            maxCollateralInputs
+        UInt.fromInt (Array.length collateralUTxOs) >
+          (unwrap pparams).maxCollateralInputs
     when tooManyCollateralUTxOs do
       liftEffect $ throw tooManyCollateralUTxOsError
   pure mbCollateralUTxOs

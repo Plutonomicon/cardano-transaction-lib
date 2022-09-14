@@ -41,7 +41,7 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
     BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
       (BigNum.fromUInt pparams.txFeeFixed)
       (BigNum.fromUInt pparams.txFeePerByte)
-  exUnitPrices <- liftMaybe (error "Unable to get ExUnitPrices") pparams.prices
+  let exUnitPrices = pparams.prices
   exUnitPricesCsl <- liftEffect $ Serialization.convertExUnitPrices exUnitPrices
   minScriptFee <-
     liftMaybe (error "Unable to calculate min_script_fee") $

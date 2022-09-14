@@ -123,7 +123,6 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Console (log)
 import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref

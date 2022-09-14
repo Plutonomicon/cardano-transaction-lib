@@ -159,7 +159,7 @@ foreign import _getCollateral
 getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
 getCip30Collateral =
   flip catchError
-    (\e -> throwError $ error "Wallet doesn't implement `getCollateral`.") <<<
+    (\_ -> throwError $ error "Wallet doesn't implement `getCollateral`.") <<<
     _getCollateral maybeFfiHelper
 
 foreign import _signTx
