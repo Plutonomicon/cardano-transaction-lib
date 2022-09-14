@@ -83,6 +83,8 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (_witnessSet)
 import Cardano.Types.Transaction as Transaction
+import Control.Alt(class Alt)
+import Control.Alternative(class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -93,6 +95,7 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
+import Control.Plus(class Plus)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -272,6 +275,9 @@ derive newtype instance Functor m => Functor (QueryMExtended r m)
 derive newtype instance Apply m => Apply (QueryMExtended r m)
 derive newtype instance Applicative m => Applicative (QueryMExtended r m)
 derive newtype instance Bind m => Bind (QueryMExtended r m)
+derive newtype instance Alt m => Alt (QueryMExtended r m)
+derive newtype instance Plus m => Plus (QueryMExtended r m)
+derive newtype instance Alternative m => Alternative (QueryMExtended r m)
 derive newtype instance Monad (QueryMExtended r Aff)
 derive newtype instance MonadEffect (QueryMExtended r Aff)
 derive newtype instance MonadAff (QueryMExtended r Aff)
