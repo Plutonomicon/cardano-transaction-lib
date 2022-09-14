@@ -1,4 +1,4 @@
-module Test.Utils
+module Test.CTL.Utils
   ( module ExportSeconds
   , aesonRoundTrip
   , assertTrue
@@ -52,7 +52,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (defaultConfig, runSpec')
 import Test.Spec.Runner as SpecRunner
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
 foreign import unsafeCall

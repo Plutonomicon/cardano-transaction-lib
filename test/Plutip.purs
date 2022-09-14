@@ -1,12 +1,12 @@
 -- | `plutip-server` PR:
 -- | https://github.com/mlabs-haskell/plutip/pull/79 (run with `cabal run plutip-server`)
-module Test.Plutip
+module Test.CTL.Plutip
   ( main
   ) where
 
 import Prelude
 
-import Contract.Address
+import CTL.Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
@@ -15,35 +15,35 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
-import Contract.Chain (currentTime)
-import Contract.Hashing (nativeScriptHash)
-import Contract.Log (logInfo')
-import Contract.Monad
+import CTL.Contract.Chain (currentTime)
+import CTL.Contract.Hashing (nativeScriptHash)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad
   ( Contract
   , liftContractM
   , liftedE
   , liftedM
   , wrapContract
   )
-import Contract.PlutusData
+import CTL.Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
   )
-import Contract.Prelude (mconcat)
-import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, validatorHash)
-import Contract.Test.Plutip
+import CTL.Contract.Prelude (mconcat)
+import CTL.Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Scripts (applyArgs, validatorHash)
+import CTL.Contract.Test.Plutip
   ( InitialUTxOs
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
   , withStakeKey
   )
-import Contract.Time (getEraSummaries)
-import Contract.Transaction
+import CTL.Contract.Time (getEraSummaries)
+import CTL.Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
@@ -56,12 +56,12 @@ import Contract.Transaction
   , submit
   , withBalancedAndSignedTxs
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
-import Contract.Value (Coin(Coin), coinToValue)
-import Contract.Value as Value
-import Contract.Wallet
+import CTL.Contract.TxConstraints (TxConstraints)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Utxos (getWalletBalance, utxosAt)
+import CTL.Contract.Value (Coin(Coin), coinToValue)
+import CTL.Contract.Value as Value
+import CTL.Contract.Wallet
   ( isFlintAvailable
   , isGeroAvailable
   , isNamiAvailable
@@ -85,65 +85,65 @@ import Effect.Aff (Aff, launchAff_, bracket)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Examples.AlwaysMints (alwaysMintsPolicy)
-import Examples.AlwaysSucceeds as AlwaysSucceeds
-import Examples.ContractTestUtils as ContractTestUtils
-import Examples.Helpers
+import CTL.Examples.AlwaysMints (alwaysMintsPolicy)
+import CTL.Examples.AlwaysSucceeds as AlwaysSucceeds
+import CTL.Examples.ContractTestUtils as ContractTestUtils
+import CTL.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
-import Examples.OneShotMinting (contract) as OneShotMinting
-import Examples.PlutusV2.InlineDatum as InlineDatum
-import Examples.Lose7Ada as AlwaysFails
-import Examples.MintsMultipleTokens
+import CTL.Examples.OneShotMinting (contract) as OneShotMinting
+import CTL.Examples.PlutusV2.InlineDatum as InlineDatum
+import CTL.Examples.Lose7Ada as AlwaysFails
+import CTL.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
-import Examples.SendsToken (contract) as SendsToken
+import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import CTL.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
+import CTL.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import CTL.Examples.SendsToken (contract) as SendsToken
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
-import Plutip.Server
+import CTL.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Plutus.Conversion.Address (toPlutusAddress)
-import Plutus.Types.Transaction
+import CTL.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import CTL.Internal.Plutus.Conversion.Address (toPlutusAddress)
+import CTL.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import Plutus.Types.TransactionUnspentOutput
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , _input
   , lookupTxHash
   )
-import Plutus.Types.Value (lovelaceValueOf)
+import CTL.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Safe.Coerce (coerce)
-import Scripts (nativeScriptHashEnterpriseAddress)
-import Test.AffInterface as AffInterface
-import Test.Fixtures
+import CTL.Internal.Scripts (nativeScriptHashEnterpriseAddress)
+import Test.CTL.AffInterface as AffInterface
+import Test.CTL.Fixtures
   ( cip25MetadataFixture1
   , fullyAppliedScriptFixture
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
-import Test.Plutip.Common (config, privateStakeKey)
-import Test.Plutip.Logging as Logging
-import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
-import Test.Plutip.UtxoDistribution as UtxoDistribution
+import Test.CTL.Plutip.Common (config, privateStakeKey)
+import Test.CTL.Plutip.Logging as Logging
+import Test.CTL.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.CTL.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
-import Test.Utils as Utils
-import TestM (TestPlanM)
-import Types.Interval (getSlotLength)
-import Types.UsedTxOuts (TxOutRefCache)
-import Wallet.Cip30Mock
+import Test.CTL.Utils as Utils
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.Interval (getSlotLength)
+import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
+import CTL.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )

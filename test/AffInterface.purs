@@ -1,9 +1,9 @@
-module Test.AffInterface (suite) where
+module Test.CTL.AffInterface (suite) where
 
 import Prelude
 
-import Address (ogmiosAddressToAddress)
-import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
+import CTL.Internal.Address (ogmiosAddressToAddress)
+import CTL.Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
 import Control.Monad.Except (throwError)
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
@@ -12,26 +12,26 @@ import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Effect.Aff (try, error)
 import Mote (group, test)
-import QueryM
+import CTL.Internal.QueryM
   ( QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
   , submitTxOgmios
   )
-import QueryM.CurrentEpoch (getCurrentEpoch)
-import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (OgmiosAddress)
-import QueryM.ProtocolParameters (getProtocolParameters)
-import QueryM.SystemStart (getSystemStart)
-import QueryM.Utxos (utxosAt)
-import QueryM.WaitUntilSlot (waitUntilSlot)
-import Serialization.Address (Slot(Slot))
+import CTL.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
+import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
+import CTL.Internal.QueryM.Ogmios (OgmiosAddress)
+import CTL.Internal.QueryM.ProtocolParameters (getProtocolParameters)
+import CTL.Internal.QueryM.SystemStart (getSystemStart)
+import CTL.Internal.QueryM.Utxos (utxosAt)
+import CTL.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
+import CTL.Internal.Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldSatisfy)
-import TestM (TestPlanM)
-import Types.BigNum (fromInt, add) as BigNum
-import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.Transaction (DataHash(DataHash))
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.BigNum (fromInt, add) as BigNum
+import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import CTL.Internal.Types.Transaction (DataHash(DataHash))
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =

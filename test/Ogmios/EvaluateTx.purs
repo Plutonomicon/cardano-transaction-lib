@@ -1,4 +1,4 @@
-module Test.Ogmios.EvaluateTx (suite) where
+module Test.CTL.Ogmios.EvaluateTx (suite) where
 
 import Prelude
 
@@ -10,15 +10,15 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.Fixtures
+import Test.CTL.Fixtures
   ( ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   )
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import TestM (TestPlanM)
-import Types.Natural (fromInt')
-import Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import QueryM.Ogmios (TxEvaluationResult, ExecutionUnits, RedeemerPointer)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.Natural (fromInt')
+import CTL.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
+import CTL.Internal.QueryM.Ogmios (TxEvaluationResult, ExecutionUnits, RedeemerPointer)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

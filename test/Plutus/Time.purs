@@ -1,4 +1,4 @@
-module Test.Plutus.Time
+module Test.CTL.Plutus.Time
   ( suite
   ) where
 
@@ -10,7 +10,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Mote (group)
-import QueryM.Ogmios
+import CTL.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -23,11 +23,11 @@ import QueryM.Ogmios
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
   )
-import Serialization.Address (Slot(Slot))
-import Test.Utils (toFromAesonTest, toFromAesonTestWith)
-import TestM (TestPlanM)
-import Types.BigNum as BigNum
-import Types.Interval
+import CTL.Internal.Serialization.Address (Slot(Slot))
+import Test.CTL.Utils (toFromAesonTest, toFromAesonTestWith)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.BigNum as BigNum
+import CTL.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)
   , POSIXTime(POSIXTime)

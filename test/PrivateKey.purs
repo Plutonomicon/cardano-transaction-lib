@@ -1,16 +1,16 @@
-module Test.PrivateKey where
+module Test.CTL.PrivateKey where
 
-import Contract.Config (testnetConfig)
+import CTL.Contract.Config (testnetConfig)
 import Prelude
 
-import Cardano.Types.Transaction
+import CTL.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
   )
-import Contract.Monad (runContract)
-import Contract.Transaction (signTransaction)
+import CTL.Contract.Monad (runContract)
+import CTL.Contract.Transaction (signTransaction)
 import Data.Lens (_2, _Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
@@ -21,17 +21,17 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Node.FS.Sync (unlink)
-import Serialization (publicKeyFromPrivateKey, publicKeyHash)
-import Test.Fixtures (txFixture1)
+import CTL.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
+import Test.CTL.Fixtures (txFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
-import Wallet.Spec
+import CTL.Internal.Wallet.Spec
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , PrivateStakeKeySource(PrivateStakeKeyFile)
   , WalletSpec(UseKeys)
   )
-import Wallet.KeyFile
+import CTL.Internal.Wallet.KeyFile
   ( privatePaymentKeyToFile
   , privatePaymentKeyFromFile
   , privateStakeKeyFromFile

@@ -1,7 +1,7 @@
 -- | Node-only module. Allows to work with Skeys stored in files.
-module Contract.Wallet.KeyFile
+module CTL.Contract.Wallet.KeyFile
   ( mkKeyWalletFromFiles
-  , module Wallet.KeyFile
+  , module CTL.Internal.Wallet.KeyFile
   ) where
 
 import Prelude
@@ -10,9 +10,9 @@ import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Effect.Aff (Aff)
 import Node.Path (FilePath)
-import Wallet (Wallet) as Wallet
-import Wallet (mkKeyWallet)
-import Wallet.KeyFile
+import CTL.Internal.Wallet (Wallet) as Wallet
+import CTL.Internal.Wallet (mkKeyWallet)
+import CTL.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
   , privatePaymentKeyFromString

@@ -1,25 +1,25 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
+module CTL.Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope
+import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad (Contract, launchAff_, runContract)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Scripts (MintingPolicy)
+import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
-import Contract.TxConstraints as Constraints
-import Contract.Value as Value
+import CTL.Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Value as Value
 import Data.BigInt as BigInt
-import Examples.Helpers
+import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName

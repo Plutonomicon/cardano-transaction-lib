@@ -1,6 +1,6 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
-module Contract.Transaction
+module CTL.Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -44,10 +44,10 @@ import Prelude
 import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
-import BalanceTx (BalanceTxError) as BalanceTxError
-import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
-import Cardano.Types.NativeScript
+import CTL.Internal.BalanceTx (BalanceTxError) as BalanceTxError
+import CTL.Internal.BalanceTx (FinalizedTransaction)
+import CTL.Internal.BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
+import CTL.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -57,10 +57,10 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
-import Cardano.Types.ScriptRef
+import CTL.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as ScriptRef
-import Cardano.Types.Transaction
+import CTL.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -121,10 +121,10 @@ import Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Cardano.Types.Transaction (Transaction)
-import Contract.Address (getWalletAddress)
-import Contract.Log (logDebug')
-import Contract.Monad
+import CTL.Internal.Cardano.Types.Transaction (Transaction)
+import CTL.Contract.Address (getWalletAddress)
+import CTL.Contract.Log (logDebug')
+import CTL.Contract.Monad
   ( Contract
   , liftedE
   , liftedM
@@ -149,21 +149,21 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
-import Hashing (transactionHash) as Hashing
-import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
-import Plutus.Conversion.Address (fromPlutusAddress)
-import Plutus.Types.Address (Address)
-import Plutus.Types.Transaction
+import CTL.Internal.Hashing (transactionHash) as Hashing
+import CTL.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import CTL.Internal.Plutus.Conversion.Address (fromPlutusAddress)
+import CTL.Internal.Plutus.Types.Address (Address)
+import CTL.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   ) as PTransaction
-import Plutus.Types.TransactionUnspentOutput
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , lookupTxHash
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
-import Plutus.Types.Value (Coin)
-import QueryM
+import CTL.Internal.Plutus.Types.Value (Coin)
+import CTL.Internal.QueryM
   ( ClientError
       ( ClientHttpError
       , ClientHttpResponseError
@@ -172,31 +172,31 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (signTransaction, submitTxOgmios) as QueryM
-import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.AwaitTxConfirmed
+import CTL.Internal.QueryM (signTransaction, submitTxOgmios) as QueryM
+import CTL.Internal.QueryM.MinFee (calculateMinFee) as QueryM
+import CTL.Internal.QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   ) as AwaitTx
-import QueryM.GetTxByHash (getTxByHash) as QueryM
-import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
-import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address (NetworkId)
-import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.Scripts
+import CTL.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
+import CTL.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
+import CTL.Internal.ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
+import CTL.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import CTL.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import CTL.Internal.Serialization.Address (NetworkId)
+import CTL.Internal.TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import CTL.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , plutusV1Script
   , plutusV2Script
   ) as Scripts
-import Types.OutputDatum
+import CTL.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   ) as OutputDatum
-import Types.ScriptLookups
+import CTL.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
       , ModifyTx
@@ -224,26 +224,26 @@ import Types.ScriptLookups
       )
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.ScriptLookups (UnattachedUnbalancedTx)
-import Types.Transaction
+import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import CTL.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as Transaction
-import Types.Transaction (TransactionHash)
-import Types.TransactionMetadata
+import CTL.Internal.Types.Transaction (TransactionHash)
+import CTL.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
   ) as TransactionMetadata
-import Types.UnbalancedTransaction
+import CTL.Internal.Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput)
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Types.UsedTxOuts
+import CTL.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs

@@ -1,19 +1,19 @@
-module Test.Plutip.Common
+module Test.CTL.Plutip.Common
   ( config
   , privateStakeKey
   ) where
 
 import Prelude
 
-import Contract.Wallet (privateKeyFromBytes)
+import CTL.Contract.Wallet (privateKeyFromBytes)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
-import Plutip.Types (PlutipConfig)
-import Types.RawBytes (hexToRawBytes)
-import Wallet.Key (PrivateStakeKey)
+import CTL.Internal.Plutip.Types (PlutipConfig)
+import CTL.Internal.Types.RawBytes (hexToRawBytes)
+import CTL.Internal.Wallet.Key (PrivateStakeKey)
 
 config :: PlutipConfig
 config =

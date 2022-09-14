@@ -1,7 +1,7 @@
 -- | A module that defines the different Utxo `Data.Map`s from transaction
 -- | input to transaction output. Furthermore, a helper to get the utxos at
 -- | a given `Address` is defined.
-module Contract.Utxos
+module CTL.Contract.Utxos
   ( getUtxo
   , getWalletBalance
   , getWalletUtxos
@@ -11,19 +11,19 @@ module Contract.Utxos
 
 import Prelude
 
-import Contract.Monad (Contract, liftContractM, wrapContract)
-import Contract.Prelude (for)
-import Contract.Transaction (TransactionInput, TransactionOutput)
+import CTL.Contract.Monad (Contract, liftContractM, wrapContract)
+import CTL.Contract.Prelude (for)
+import CTL.Contract.Transaction (TransactionInput, TransactionOutput)
 import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
-import Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoMap)
-import Plutus.Conversion.Value (toPlutusValue)
-import Plutus.Types.Address (Address)
-import Plutus.Types.Transaction (UtxoMap)
-import Plutus.Types.Transaction (UtxoMap) as X
-import Plutus.Types.Value (Value)
-import QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxos
+import CTL.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoMap)
+import CTL.Internal.Plutus.Conversion.Value (toPlutusValue)
+import CTL.Internal.Plutus.Types.Address (Address)
+import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
+import CTL.Internal.Plutus.Types.Transaction (UtxoMap) as X
+import CTL.Internal.Plutus.Types.Value (Value)
+import CTL.Internal.QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxos
 
 -- | This module defines query functionality via Ogmios to get utxos.
 

@@ -1,6 +1,6 @@
 -- | Augmented version of Contract.Test.E2E.Helpers, with some functions that
 -- | are only useful for testing CTL itself.
-module Test.E2E.Helpers
+module Test.CTL.E2E.Helpers
   ( module E2EHelpers
   , runE2ETest
   , exampleUrl
@@ -8,7 +8,7 @@ module Test.E2E.Helpers
 
 import Prelude
 
-import Contract.Test.E2E
+import CTL.Contract.Test.E2E
   ( RunningExample
   , TestOptions
   , WalletExt
@@ -19,7 +19,7 @@ import Contract.Test.E2E
   , withBrowser
   , withExample
   )
-import Contract.Test.E2E
+import CTL.Contract.Test.E2E
   ( E2EOutput
   , RunningExample
   , SomeWallet
@@ -38,7 +38,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Mote (test)
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
 

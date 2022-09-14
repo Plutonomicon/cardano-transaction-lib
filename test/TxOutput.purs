@@ -1,9 +1,9 @@
-module Test.TxOutput (suite, main) where
+module Test.CTL.TxOutput (suite, main) where
 
 import Prelude
 
 import Aeson (printJsonDecodeError, decodeJsonString)
-import Cardano.Types.Transaction (TransactionOutput)
+import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Data.Bifunctor (bimap)
 import Data.Map as Map
@@ -18,14 +18,14 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
 import Mote (test, group)
-import QueryM.Ogmios as O
-import TestM (TestPlanM)
-import TxOutput (ogmiosTxOutToTransactionOutput)
-import Types.OutputDatum
+import CTL.Internal.QueryM.Ogmios as O
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
+import CTL.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Data.FoldableWithIndex (traverseWithIndex_)
-import Test.Utils as Utils
+import Test.CTL.Utils as Utils
 
 -- Run with `spago test --main Test.TxOutput`
 main :: Effect Unit

@@ -2,7 +2,7 @@
 -- | from `DatumHash` along with related `PlutusData` newtype wrappers such as
 -- | `Datum` and `Redeemer`. It also contains typeclasses like `FromData` and
 -- | `ToData`.
-module Contract.PlutusData
+module CTL.Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
   , module DataSchema
@@ -19,10 +19,10 @@ module Contract.PlutusData
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
+import CTL.Contract.Monad (Contract, wrapContract)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
-import FromData
+import CTL.Internal.FromData
   ( FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
@@ -40,8 +40,8 @@ import FromData
   , fromDataWithSchema
   , genericFromData
   ) as FromData
-import Hashing (datumHash) as Hashing
-import Plutus.Types.DataSchema
+import CTL.Internal.Hashing (datumHash) as Hashing
+import CTL.Internal.Plutus.Types.DataSchema
   ( ApPCons
   , Field
   , I
@@ -63,17 +63,17 @@ import Plutus.Types.DataSchema
   , type (:=)
   , type (@@)
   ) as DataSchema
-import QueryM
+import CTL.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
   , defaultDatumCacheWsConfig
   , mkDatumCacheWebSocketAff
   ) as ExportQueryM
-import QueryM
+import CTL.Internal.QueryM
   ( getDatumByHash
   , getDatumsByHashes
   ) as QueryM
-import ToData
+import CTL.Internal.ToData
   ( class ToData
   , class ToDataArgs
   , class ToDataWithSchema
@@ -86,21 +86,21 @@ import ToData
   , toDataArgs
   , toDataWithSchema
   ) as ToData
-import Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
-import Types.Datum (DataHash)
-import Types.OutputDatum
+import CTL.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
+import CTL.Internal.Types.Datum (DataHash)
+import CTL.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   ) as OutputDatum
-import Types.PlutusData
+import CTL.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as PlutusData
-import Types.Redeemer
+import CTL.Internal.Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import IsData (class IsData) as IsData
+import CTL.Internal.IsData (class IsData) as IsData
 
 -- | Get a `PlutusData` given a `DatumHash`.
 getDatumByHash

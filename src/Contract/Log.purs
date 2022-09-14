@@ -1,4 +1,4 @@
-module Contract.Log
+module CTL.Contract.Log
   ( logTrace
   , logTrace'
   , logDebug

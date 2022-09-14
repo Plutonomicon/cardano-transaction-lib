@@ -1,12 +1,12 @@
-module Examples.PlutusV2.ReferenceInputs
+module CTL.Examples.PlutusV2.ReferenceInputs
   ( main
   , example
   , contract
   ) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Address
+import CTL.Contract.Address
   ( Address
   , PaymentPubKeyHash
   , StakePubKeyHash
@@ -15,18 +15,18 @@ import Contract.Address
   , ownStakePubKeyHash
   , scriptHashAddress
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Log (logInfo')
-import Contract.Monad
+import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad
   ( Contract
   , launchAff_
   , liftedM
   , liftContractM
   , runContract
   )
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts
+import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Scripts
   ( MintingPolicy
   , MintingPolicyHash
   , PlutusScript
@@ -34,12 +34,12 @@ import Contract.Scripts
   , mintingPolicyHash
   , validatorHash
   )
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope
+import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV2)
   , textEnvelopeBytes
   )
-import Contract.Transaction
+import CTL.Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
   , TransactionInput(TransactionInput)
@@ -48,24 +48,24 @@ import Contract.Transaction
   , mkTxUnspentOut
   , plutusV2Script
   )
-import Contract.TxConstraints
+import CTL.Contract.TxConstraints
   ( DatumPresence(DatumWitness)
   , InputWithScriptRef(RefInput)
   , TxConstraints
   )
-import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
-import Contract.Value (TokenName, Value)
-import Contract.Value (lovelaceValueOf) as Value
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Utxos (utxosAt)
+import CTL.Contract.Value (TokenName, Value)
+import CTL.Contract.Value (lovelaceValueOf) as Value
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (Map)
 import Data.Map (empty, toUnfoldable) as Map
-import Examples.Helpers
+import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
-import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import CTL.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
 main = example testnetNamiConfig

@@ -1,5 +1,5 @@
 -- | A custom Prelude that re-exports Purescript's prelude and further expands.
-module Contract.Prelude
+module CTL.Contract.Prelude
   ( mconcat
   , module Aff
   , module Helpers
@@ -316,7 +316,7 @@ import Effect.Class (liftEffect) as Effect
 import Effect.Class.Console (log) as Console
 import Effect.Aff (Aff) as Aff
 import Effect.Aff.Class (liftAff) as Aff
-import Helpers -- Could maybe move this somewhere better:
+import CTL.Internal.Helpers -- Could maybe move this somewhere better:
   ( (</>)
   , (<<>>)
   , (<\>)

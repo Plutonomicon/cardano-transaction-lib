@@ -1,16 +1,16 @@
-module Test.Fixtures.CostModels
+module Test.CTL.Fixtures.CostModels
   ( costModelsFixture1
   ) where
 
 import Prelude
 
 import Data.Bifunctor (lmap)
-import Cardano.Types.Transaction (Costmdls)
+import CTL.Internal.Cardano.Types.Transaction (Costmdls)
 import Control.Monad.Error.Class (liftEither)
 import Effect.Unsafe (unsafePerformEffect)
-import Serialization (defaultCostmdls)
-import Deserialization.Transaction (convertCostModels)
-import Deserialization.Error (toError)
+import CTL.Internal.Serialization (defaultCostmdls)
+import CTL.Internal.Deserialization.Transaction (convertCostModels)
+import CTL.Internal.Deserialization.Error (toError)
 
 costModelsFixture1 :: Costmdls
 costModelsFixture1 = unsafePerformEffect

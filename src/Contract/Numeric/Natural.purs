@@ -1,7 +1,7 @@
 -- | Arbitrary precision natural numbers (backed by `BigInt`).
-module Contract.Numeric.Natural (module Natural) where
+module CTL.Contract.Numeric.Natural (module Natural) where
 
-import Types.Natural
+import CTL.Internal.Types.Natural
   ( (^-)
   , Natural
   , binaryOnBigInt

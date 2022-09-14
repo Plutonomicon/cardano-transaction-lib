@@ -1,4 +1,4 @@
-module Contract.Test.E2E.WalletExt
+module CTL.Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
   , WalletExt(FlintExt, GeroExt, LodeExt, NamiExt)
   , WalletConfig(WalletConfig)
@@ -10,8 +10,8 @@ module Contract.Test.E2E.WalletExt
 
 import Prelude
 
-import Contract.Test.E2E.Helpers (ExtensionId(ExtensionId)) as X
-import Contract.Test.E2E.Helpers
+import CTL.Contract.Test.E2E.Helpers (ExtensionId(ExtensionId)) as X
+import CTL.Contract.Test.E2E.Helpers
   ( ExtensionId(ExtensionId)
   , RunningExample
   , WalletPassword

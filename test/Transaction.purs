@@ -1,8 +1,8 @@
-module Test.Transaction (suite) where
+module Test.CTL.Transaction (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction
+import CTL.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
@@ -18,28 +18,28 @@ import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, over)
 import Data.Tuple.Nested ((/\))
-import Deserialization.WitnessSet as Deserialization.WitnessSet
+import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff)
+import CTL.Internal.Helpers (fromRightEff)
 import Mote (group, test)
-import Serialization.WitnessSet as Serialization.WitnessSet
-import Test.Fixtures.CostModels (costModelsFixture1)
+import CTL.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import Test.CTL.Fixtures.CostModels (costModelsFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Transaction
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Transaction
   ( attachDatum
   , attachRedeemer
   , attachPlutusScript
   , setScriptDataHash
   )
-import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.Datum (Datum(Datum))
-import Types.PlutusData (PlutusData(Integer))
-import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2))
+import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import CTL.Internal.Types.Datum (Datum(Datum))
+import CTL.Internal.Types.PlutusData (PlutusData(Integer))
+import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import CTL.Internal.Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2))
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "attach datums to tx" $ do

@@ -1,4 +1,4 @@
-module Examples.Helpers
+module CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
@@ -7,28 +7,28 @@ module Examples.Helpers
   , mustPayToPubKeyStakeAddressWithDatum
   ) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
-import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE)
-import Contract.PlutusData (Datum)
-import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
-import Contract.Scripts (MintingPolicy)
-import Contract.Transaction
+import CTL.Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad (Contract, liftContractM, liftedE)
+import CTL.Contract.PlutusData (Datum)
+import CTL.Contract.Prim.ByteArray (byteArrayFromAscii)
+import CTL.Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
+import CTL.Contract.Scripts (MintingPolicy)
+import CTL.Contract.Transaction
   ( TransactionHash
   , balanceAndSignTxE
   , getTxFinalFee
   , submit
   )
-import Contract.TxConstraints (DatumPresence)
-import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName, Value)
-import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
+import CTL.Contract.TxConstraints (DatumPresence)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Value (CurrencySymbol, TokenName, Value)
+import CTL.Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
 import Data.BigInt (BigInt)
-import IsData (class IsData)
-import Types.TypedValidator (class ValidatorTypes)
+import CTL.Internal.IsData (class IsData)
+import CTL.Internal.Types.TypedValidator (class ValidatorTypes)
 
 buildBalanceSignAndSubmitTx'
   :: forall (r :: Row Type) (validator :: Type) (datum :: Type)

@@ -1,4 +1,4 @@
-module Contract.Test.E2E.Browser
+module CTL.Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
   , withBrowser
@@ -7,11 +7,11 @@ module Contract.Test.E2E.Browser
 
 import Prelude
 
-import Contract.Test.E2E.WalletExt
+import CTL.Contract.Test.E2E.WalletExt
   ( WalletConfig(WalletConfig)
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt)
   )
-import Contract.Test.E2E.Helpers
+import CTL.Contract.Test.E2E.Helpers
   ( WalletPassword(WalletPassword)
   )
 

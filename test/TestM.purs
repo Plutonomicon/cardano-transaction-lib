@@ -1,4 +1,4 @@
-module TestM where
+module Test.CTL.TestM where
 
 import Prelude
 import Control.Alt (class Alt)

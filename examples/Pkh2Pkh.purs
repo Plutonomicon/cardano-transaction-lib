@@ -1,21 +1,21 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main, contract, example) where
+module CTL.Examples.Pkh2Pkh (main, contract, example) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
-import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction (awaitTxConfirmedWithTimeout)
-import Contract.TxConstraints as Constraints
-import Contract.Value as Value
+import CTL.Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad (Contract, launchAff_, liftedM, runContract)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.Transaction (awaitTxConfirmedWithTimeout)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Value as Value
 import Data.BigInt as BigInt
-import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig

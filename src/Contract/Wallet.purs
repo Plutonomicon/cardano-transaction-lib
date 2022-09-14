@@ -1,37 +1,37 @@
 -- | A module with Wallet-related functionality.
-module Contract.Wallet
+module CTL.Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
-  , module Contract.Address
+  , module CTL.Contract.Address
   , module Contract.Utxos
   , module Serialization
   , module Wallet
-  , module Wallet.Key
-  , module Wallet.KeyFile
-  , module Wallet.Spec
+  , module CTL.Internal.Wallet.Key
+  , module CTL.Internal.Wallet.KeyFile
+  , module CTL.Internal.Wallet.Spec
   ) where
 
 import Prelude
 
-import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Utxos (getWalletUtxos) as Contract.Utxos
-import Contract.Monad (Contract, ContractEnv)
+import CTL.Contract.Address (getWalletAddress, getWalletCollateral)
+import CTL.Contract.Utxos (getWalletUtxos) as Contract.Utxos
+import CTL.Contract.Monad (Contract, ContractEnv)
 import Control.Monad.Reader (local)
 import Data.Lens (Lens, (.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import Serialization (privateKeyFromBytes) as Serialization
+import CTL.Internal.Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
-import Wallet
+import CTL.Internal.Wallet
   ( isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
   , isLodeAvailable
   ) as Wallet
-import Wallet (mkKeyWallet, Wallet(KeyWallet))
-import Wallet.Spec
+import CTL.Internal.Wallet (mkKeyWallet, Wallet(KeyWallet))
+import CTL.Internal.Wallet.Spec
   ( WalletSpec
       ( UseKeys
       , ConnectToNami
@@ -42,12 +42,12 @@ import Wallet.Spec
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
-import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key
+import CTL.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
+import CTL.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
+import CTL.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)

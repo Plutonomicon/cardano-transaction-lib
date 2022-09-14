@@ -1,4 +1,4 @@
-module Test.Types.Interval
+module Test.CTL.Types.Interval
   ( suite
   , eraSummariesFixture
   , systemStartFixture
@@ -21,12 +21,12 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
-import QueryM.Ogmios (EraSummaries, SystemStart)
-import Serialization.Address (Slot(Slot))
+import CTL.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import CTL.Internal.Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Types.BigNum (fromInt) as BigNum
-import Types.Interval
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.BigNum (fromInt) as BigNum
+import CTL.Internal.Types.Interval
   ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , POSIXTime(POSIXTime)
   , posixTimeToSlot

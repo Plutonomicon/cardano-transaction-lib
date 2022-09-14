@@ -1,23 +1,23 @@
 -- | This module contains everything needed for `Contract` testing in Plutip
 -- | environment.
-module Contract.Test.Plutip
+module CTL.Contract.Test.Plutip
   ( module X
   ) where
 
-import Plutip.Server
+import CTL.Internal.Plutip.Server
   ( runPlutipContract
   , withPlutipContractEnv
   ) as X
-import Contract.Monad (runContractInEnv) as X
-import Plutip.UtxoDistribution
+import CTL.Contract.Monad (runContractInEnv) as X
+import CTL.Internal.Plutip.UtxoDistribution
   ( class UtxoDistribution
   , withStakeKey
   ) as X
-import Plutip.Types
+import CTL.Internal.Plutip.Types
   ( PlutipConfig
   , PostgresConfig
   , UtxoAmount
   , InitialUTxOs
   , InitialUTxODistribution
   ) as X
-import Contract.Wallet (withKeyWallet) as X
+import CTL.Contract.Wallet (withKeyWallet) as X

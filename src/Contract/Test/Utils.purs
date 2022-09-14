@@ -1,6 +1,6 @@
 -- | This module provides an extensible interface for making various 
 -- | assertions about `Contract`s.
-module Contract.Test.Utils
+module CTL.Contract.Test.Utils
   ( class ContractAssertions
   , ContractAssertionFailure
       ( CouldNotGetTxByHash
@@ -44,17 +44,17 @@ module Contract.Test.Utils
 
 import Prelude
 
-import Contract.Address (Address)
-import Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
-import Contract.PlutusData (OutputDatum)
-import Contract.Transaction
+import CTL.Contract.Address (Address)
+import CTL.Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
+import CTL.Contract.PlutusData (OutputDatum)
+import CTL.Contract.Transaction
   ( Transaction(Transaction)
   , TransactionHash
   , TransactionOutputWithRefScript
   , getTxByHash
   )
-import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
+import CTL.Contract.Utxos (utxosAt)
+import CTL.Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
 import Control.Monad.Error.Class (catchError)
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)
@@ -64,10 +64,10 @@ import Data.Monoid.Endo (Endo(Endo))
 import Data.Newtype (ala, unwrap)
 import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
-import Metadata.FromMetadata (fromMetadata)
-import Metadata.MetadataType (class MetadataType, metadataLabel)
+import CTL.Internal.Metadata.FromMetadata (fromMetadata)
+import CTL.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (byteArrayToHex)
+import CTL.Internal.Types.ByteArray (byteArrayToHex)
 
 data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash

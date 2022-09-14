@@ -1,10 +1,10 @@
-module Contract.ProtocolParameters
+module CTL.Contract.ProtocolParameters
   ( getProtocolParameters
   ) where
 
-import QueryM.ProtocolParameters (getProtocolParameters) as QueryM
-import Contract.Monad (Contract, wrapContract)
-import QueryM.Ogmios (ProtocolParameters)
+import CTL.Internal.QueryM.ProtocolParameters (getProtocolParameters) as QueryM
+import CTL.Contract.Monad (Contract, wrapContract)
+import CTL.Internal.QueryM.Ogmios (ProtocolParameters)
 
 getProtocolParameters :: forall (r :: Row Type). Contract r ProtocolParameters
 getProtocolParameters = wrapContract QueryM.getProtocolParameters

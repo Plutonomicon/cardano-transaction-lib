@@ -1,4 +1,4 @@
-module Ctl.Test.Unit (main, testPlan) where
+module Test.CTL.Unit (main, testPlan) where
 
 import Prelude
 
@@ -6,34 +6,34 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
-import Test.Base64 as Base64
-import Test.ByteArray as ByteArray
-import Test.Data as Data
-import Test.Deserialization as Deserialization
-import Test.Hashing as Hashing
-import Test.Metadata.Cip25 as Cip25
-import Test.NativeScript as NativeScript
-import Test.Ogmios.Address as Ogmios.Address
-import Test.Ogmios.Aeson as Ogmios.Aeson
-import Test.Ogmios.EvaluateTx as Ogmios.EvaluateTx
-import Test.OgmiosDatumCache as OgmiosDatumCache
-import Test.Parser as Parser
-import Test.Plutus.Conversion.Address as Plutus.Conversion.Address
-import Test.Plutus.Conversion.Value as Plutus.Conversion.Value
-import Test.Plutus.Time as Plutus.Time
-import Test.ProtocolParams as ProtocolParams
-import Test.Serialization as Serialization
-import Test.Serialization.Address as Serialization.Address
-import Test.Serialization.Hash as Serialization.Hash
-import Test.Transaction as Transaction
-import Test.Types.Interval as Types.Interval
-import Test.Types.TokenName as Types.TokenName
-import Test.TxOutput as TxOutput
-import Test.UsedTxOuts as UsedTxOuts
-import Test.Utils as Utils
-import TestM (TestPlanM)
+import Test.CTL.Base64 as Base64
+import Test.CTL.ByteArray as ByteArray
+import Test.CTL.Data as Data
+import Test.CTL.Deserialization as Deserialization
+import Test.CTL.Hashing as Hashing
+import Test.CTL.Metadata.Cip25 as Cip25
+import Test.CTL.NativeScript as NativeScript
+import Test.CTL.Ogmios.Address as Ogmios.Address
+import Test.CTL.Ogmios.Aeson as Ogmios.Aeson
+import Test.CTL.Ogmios.EvaluateTx as Ogmios.EvaluateTx
+import Test.CTL.OgmiosDatumCache as OgmiosDatumCache
+import Test.CTL.Parser as Parser
+import Test.CTL.Plutus.Conversion.Address as Plutus.Conversion.Address
+import Test.CTL.Plutus.Conversion.Value as Plutus.Conversion.Value
+import Test.CTL.Plutus.Time as Plutus.Time
+import Test.CTL.ProtocolParams as ProtocolParams
+import Test.CTL.Serialization as Serialization
+import Test.CTL.Serialization.Address as Serialization.Address
+import Test.CTL.Serialization.Hash as Serialization.Hash
+import Test.CTL.Transaction as Transaction
+import Test.CTL.Types.Interval as Types.Interval
+import Test.CTL.Types.TokenName as Types.TokenName
+import Test.CTL.TxOutput as TxOutput
+import Test.CTL.UsedTxOuts as UsedTxOuts
+import Test.CTL.Utils as Utils
+import Test.CTL.TestM (TestPlanM)
 
--- Run with `spago test --main Ctl.Test.Unit`
+-- Run with `spago test --main Test.CTL.Unit`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan

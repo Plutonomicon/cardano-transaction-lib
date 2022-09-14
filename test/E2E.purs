@@ -1,4 +1,4 @@
-module Test.E2E (main) where
+module Test.CTL.E2E (main) where
 
 import Data.Newtype (wrap)
 import Data.TraversableWithIndex (forWithIndex)
@@ -8,17 +8,17 @@ import Effect.Class (liftEffect)
 import Data.Functor (void)
 import Mote (group)
 import Prelude (Unit, ($), bind, discard, pure)
-import Contract.Test.E2E (TestOptions(TestOptions), parseOptions)
-import Contract.Test.E2E.WalletExt (WalletConfig(WalletConfig), getWalletByType)
-import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
-import Test.E2E.Examples.AlwaysMints as AlwaysMints
-import Test.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Test.E2E.Examples.Datums as Datums
-import Test.E2E.Examples.MintsMultipleTokens as MintsMultipleTokens
-import Test.E2E.Examples.SignMultiple as SignMultiple
+import CTL.Contract.Test.E2E (TestOptions(TestOptions), parseOptions)
+import CTL.Contract.Test.E2E.WalletExt (WalletConfig(WalletConfig), getWalletByType)
+import Test.CTL.E2E.Examples.Pkh2Pkh as Pkh2Pkh
+import Test.CTL.E2E.Examples.AlwaysMints as AlwaysMints
+import Test.CTL.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Test.CTL.E2E.Examples.Datums as Datums
+import Test.CTL.E2E.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Test.CTL.E2E.Examples.SignMultiple as SignMultiple
 import Test.Spec.Runner as SpecRunner
-import Test.Utils as Utils
-import TestM (TestPlanM)
+import Test.CTL.Utils as Utils
+import Test.CTL.TestM (TestPlanM)
 
 -- Run with `spago test --main Test.E2E`
 main :: Effect Unit

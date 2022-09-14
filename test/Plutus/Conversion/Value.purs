@@ -1,4 +1,4 @@
-module Test.Plutus.Conversion.Value (suite) where
+module Test.CTL.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
@@ -11,16 +11,16 @@ import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Conversion (fromPlutusValue, toPlutusValue)
-import Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
-import Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
-import Plutus.Types.Value (Value) as Plutus
-import Plutus.Types.Value as Plutus.Value
-import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
+import CTL.Internal.Plutus.Conversion (fromPlutusValue, toPlutusValue)
+import CTL.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
+import CTL.Internal.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
+import CTL.Internal.Plutus.Types.Value (Value) as Plutus
+import CTL.Internal.Plutus.Types.Value as Plutus.Value
+import Test.CTL.Fixtures (currencySymbol1, tokenName1, tokenName2)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Cardano.Types.Value (Value) as Types
-import Cardano.Types.Value as Value
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Cardano.Types.Value (Value) as Types
+import CTL.Internal.Cardano.Types.Value as Value
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

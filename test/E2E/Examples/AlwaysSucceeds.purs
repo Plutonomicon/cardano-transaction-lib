@@ -1,14 +1,14 @@
-module Test.E2E.Examples.AlwaysSucceeds (runExample) where
+module Test.CTL.E2E.Examples.AlwaysSucceeds (runExample) where
 
 import Prelude
 
-import Contract.Test.E2E (SomeWallet(SomeWallet), TestOptions, WalletPassword)
+import CTL.Contract.Test.E2E (SomeWallet(SomeWallet), TestOptions, WalletPassword)
 import Effect.Aff (Aff)
-import Test.E2E.Helpers
+import Test.CTL.E2E.Helpers
   ( delaySec
   , runE2ETest
   )
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 import Effect.Console (log)
 import Effect.Class (liftEffect)
 

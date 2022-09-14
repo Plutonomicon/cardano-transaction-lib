@@ -1,5 +1,5 @@
 -- | Tests for `ToData`/`FromData`
-module Test.Data (suite, tests, uniqueIndicesTests) where
+module Test.CTL.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude hiding (conj)
 
@@ -18,16 +18,16 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (Tuple, uncurry)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytes)
-import Deserialization.PlutusData as PDD
+import CTL.Internal.Deserialization.FromBytes (fromBytes)
+import CTL.Internal.Deserialization.PlutusData as PDD
 import Effect.Aff (Aff)
 import Effect.Exception (Error)
-import FromData (class FromData, fromData, genericFromData)
-import Helpers (showWithParens)
+import CTL.Internal.FromData (class FromData, fromData, genericFromData)
+import CTL.Internal.Helpers (showWithParens)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Types.AssocMap (Map(Map))
-import Plutus.Types.DataSchema
+import CTL.Internal.Plutus.Types.AssocMap (Map(Map))
+import CTL.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
@@ -35,23 +35,23 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Serialization (toBytes)
-import Serialization.PlutusData as PDS
+import CTL.Internal.Serialization (toBytes)
+import CTL.Internal.Serialization.PlutusData as PDS
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Combinators (conj)
 import Test.QuickCheck.Gen (frequency)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
-import TestM (TestPlanM)
-import ToData (class ToData, genericToData, toData)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.ToData (class ToData, genericToData, toData)
 import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
-import TypeLevel.Nat (Z, S)
-import TypeLevel.RowList (class AllUniqueLabels)
-import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
-import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(Constr, Integer))
+import CTL.Internal.TypeLevel.Nat (Z, S)
+import CTL.Internal.TypeLevel.RowList (class AllUniqueLabels)
+import CTL.Internal.TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
+import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import CTL.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip

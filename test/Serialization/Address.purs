@@ -1,4 +1,4 @@
-module Test.Serialization.Address (suite) where
+module Test.CTL.Serialization.Address (suite) where
 
 import Prelude
 
@@ -7,7 +7,7 @@ import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Mote (group, test)
-import Serialization.Address
+import CTL.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
   , addressBytes
@@ -39,19 +39,19 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   )
-import Serialization.Hash
+import CTL.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe)
-import TestM (TestPlanM)
-import Types.Aliases (Bech32String)
-import Types.BigNum (fromInt, fromStringUnsafe) as BigNum
-import Types.RawBytes (hexToRawBytesUnsafe)
-import Test.Fixtures (ed25519KeyHashFixture1)
+import Test.CTL.Utils (errMaybe)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.Aliases (Bech32String)
+import CTL.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
+import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Test.CTL.Fixtures (ed25519KeyHashFixture1)
 
 doesNotThrow
   :: forall (f :: Type -> Type) (a :: Type). Applicative f => a -> f a

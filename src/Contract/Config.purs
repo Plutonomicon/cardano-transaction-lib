@@ -1,5 +1,5 @@
 -- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ConfigParams`.
-module Contract.Config
+module CTL.Contract.Config
   ( testnetConfig
   , testnetNamiConfig
   , testnetGeroConfig
@@ -8,22 +8,22 @@ module Contract.Config
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
-  , module Contract.Address
-  , module Contract.Monad
+  , module CTL.Contract.Address
+  , module CTL.Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
-  , module Serialization
-  , module QueryM.ServerConfig
-  , module Wallet.Spec
-  , module Wallet.Key
+  , module CTL.Internal.Serialization
+  , module CTL.Internal.QueryM.ServerConfig
+  , module CTL.Internal.Wallet.Spec
+  , module CTL.Internal.Wallet.Key
   ) where
 
-import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Serialization (privateKeyFromBytes)
-import Contract.Monad (ConfigParams)
+import CTL.Contract.Address (NetworkId(MainnetId, TestnetId))
+import CTL.Internal.Serialization (privateKeyFromBytes)
+import CTL.Contract.Monad (ConfigParams)
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Maybe (Maybe(Just, Nothing))
-import Wallet.Spec
+import CTL.Internal.Wallet.Spec
   ( WalletSpec
       ( UseKeys
       , ConnectToNami
@@ -34,14 +34,14 @@ import Wallet.Spec
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
-import QueryM.ServerConfig
+import CTL.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
-import Wallet.Key
+import CTL.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )

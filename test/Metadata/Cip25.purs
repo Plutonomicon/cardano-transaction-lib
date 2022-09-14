@@ -1,4 +1,4 @@
-module Test.Metadata.Cip25 (suite) where
+module Test.CTL.Metadata.Cip25 (suite) where
 
 import Prelude
 
@@ -9,17 +9,17 @@ import Data.TextDecoder (decodeUtf8)
 import Data.TextEncoding (encodeUtf8)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import FromData (fromData)
-import Metadata.Cip25.Cip25String
+import CTL.Internal.FromData (fromData)
+import CTL.Internal.Metadata.Cip25.Cip25String
   ( fromDataString
   , toCip25Strings
   , toDataString
   , fromMetadataString
   , toMetadataString
   )
-import Metadata.MetadataType (fromGeneralTxMetadata, toGeneralTxMetadata)
+import CTL.Internal.Metadata.MetadataType (fromGeneralTxMetadata, toGeneralTxMetadata)
 import Mote (group, test)
-import Test.Fixtures
+import Test.CTL.Fixtures
   ( cip25MetadataFixture1
   , cip25MetadataFixture2
   , cip25MetadataFixture3
@@ -31,8 +31,8 @@ import Test.QuickCheck ((===))
 import Test.QuickCheck.Combinators ((==>))
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
-import TestM (TestPlanM)
-import ToData (toData)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.ToData (toData)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

@@ -1,11 +1,11 @@
-module Contract.TextEnvelope
+module CTL.Contract.TextEnvelope
   ( module TextEnvelope
   , textEnvelopeBytes
   ) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Cardano.TextEnvelope
+import CTL.Internal.Cardano.TextEnvelope
   ( decodeTextEnvelope
   , printTextEnvelopeDecodeError
   , TextEnvelope(TextEnvelope)
@@ -17,12 +17,12 @@ import Cardano.TextEnvelope
       )
   , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   ) as TextEnvelope
-import Cardano.TextEnvelope (printTextEnvelopeDecodeError)
-import Cardano.TextEnvelope (textEnvelopeBytes, TextEnvelopeType) as TE
-import Contract.Monad (Contract)
+import CTL.Internal.Cardano.TextEnvelope (printTextEnvelopeDecodeError)
+import CTL.Internal.Cardano.TextEnvelope (textEnvelopeBytes, TextEnvelopeType) as TE
+import CTL.Contract.Monad (Contract)
 import Data.Bifunctor (lmap)
 import Effect.Exception (error)
-import Types.ByteArray (ByteArray)
+import CTL.Internal.Types.ByteArray (ByteArray)
 
 textEnvelopeBytes :: String -> TE.TextEnvelopeType -> Contract () ByteArray
 textEnvelopeBytes json ty =

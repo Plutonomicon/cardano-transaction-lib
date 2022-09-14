@@ -1,4 +1,4 @@
-module Test.Hashing (suite) where
+module Test.CTL.Hashing (suite) where
 
 import Prelude
 
@@ -6,7 +6,7 @@ import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
-import Hashing
+import CTL.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
   , datumHash
@@ -18,15 +18,15 @@ import Hashing
   ) as Hashing
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Hash (ScriptHash, scriptHashFromBytes)
-import Test.Fixtures (plutusDataFixture7)
+import CTL.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Test.CTL.Fixtures (plutusDataFixture7)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(Integer))
-import Types.RawBytes (hexToRawBytesUnsafe)
-import Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
-import Types.Transaction (DataHash)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
+import CTL.Internal.Types.PlutusData (PlutusData(Integer))
+import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import CTL.Internal.Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
+import CTL.Internal.Types.Transaction (DataHash)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =

@@ -1,7 +1,7 @@
 -- | A module for various script types, most of which are newtype wrappers
 -- | over `PlutusScript`. Corresponding hashes are also included as newtype
 -- | wrappers over `ScriptHash`.
-module Contract.Scripts
+module CTL.Contract.Scripts
   ( applyArgs
   , applyArgsM
   , module Address
@@ -14,7 +14,7 @@ module Contract.Scripts
   ) where
 
 import Aeson (class DecodeAeson)
-import Cardano.Types.NativeScript
+import CTL.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -27,7 +27,7 @@ import Cardano.Types.NativeScript
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
 -- the CSL API and converted to use Plutus types.
-import Contract.Address
+import CTL.Contract.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
@@ -38,22 +38,22 @@ import Contract.Address
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Address
-import QueryM
+import CTL.Internal.QueryM
   ( ClientError
       ( ClientHttpError
       , ClientDecodeJsonError
       , ClientEncodingError
       )
   ) as ExportQueryM
-import QueryM (applyArgs) as QueryM
-import Scripts
+import CTL.Internal.QueryM (applyArgs) as QueryM
+import CTL.Internal.Scripts
   ( mintingPolicyHash
   , scriptHash
   , stakeValidatorHash
   , validatorHash
   ) as ExportScripts
-import Serialization.Hash (ScriptHash) as Hash
-import Types.Scripts
+import CTL.Internal.Serialization.Hash (ScriptHash) as Hash
+import CTL.Internal.Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
@@ -62,8 +62,8 @@ import Types.Scripts
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
   ) as TypesScripts
-import Types.Scripts (PlutusScript)
-import Types.TypedValidator
+import CTL.Internal.Types.Scripts (PlutusScript)
+import CTL.Internal.Types.TypedValidator
   ( TypedValidator(TypedValidator)
   , ValidatorType
   , WrappedValidatorType
@@ -77,11 +77,11 @@ import Types.TypedValidator
   ) as TypedValidator
 
 import Prelude
-import Contract.Monad (Contract, wrapContract)
+import CTL.Contract.Monad (Contract, wrapContract)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
-import Types.PlutusData (PlutusData)
+import CTL.Internal.Types.PlutusData (PlutusData)
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied

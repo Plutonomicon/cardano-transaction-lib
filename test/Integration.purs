@@ -1,25 +1,25 @@
-module Test.Integration (main, testPlan) where
+module Test.CTL.Integration (main, testPlan) where
 
 import Prelude
 
-import Contract.Config (testnetConfig)
-import Contract.Monad (runContract, wrapContract)
+import CTL.Contract.Config (testnetConfig)
+import CTL.Contract.Monad (runContract, wrapContract)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Mote (skip)
-import QueryM (runQueryM)
-import QueryM.Config (testnetTraceQueryConfig)
-import QueryM.EraSummaries (getEraSummaries)
-import QueryM.SystemStart (getSystemStart)
-import Test.AffInterface as AffInterface
-import Test.Logging as Logging
-import Test.BalanceTx.Collateral as Collateral
-import Test.PrivateKey as PrivateKey
-import Test.Types.Interval as Types.Interval
-import Test.Utils as Utils
-import TestM (TestPlanM)
+import CTL.Internal.QueryM (runQueryM)
+import CTL.Internal.QueryM.Config (testnetTraceQueryConfig)
+import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
+import CTL.Internal.QueryM.SystemStart (getSystemStart)
+import Test.CTL.AffInterface as AffInterface
+import Test.CTL.Logging as Logging
+import Test.CTL.BalanceTx.Collateral as Collateral
+import Test.CTL.PrivateKey as PrivateKey
+import Test.CTL.Types.Interval as Types.Interval
+import Test.CTL.Utils as Utils
+import Test.CTL.TestM (TestPlanM)
 
 -- Run with `spago test --main Test.Integration`
 main :: Effect Unit

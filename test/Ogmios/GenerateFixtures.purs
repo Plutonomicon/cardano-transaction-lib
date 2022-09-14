@@ -1,11 +1,11 @@
-module Test.Ogmios.GenerateFixtures
+module Test.CTL.Ogmios.GenerateFixtures
   ( main
   ) where
 
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
-import Contract.Monad (ListenerSet)
+import CTL.Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
@@ -18,8 +18,8 @@ import Effect.Class (liftEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (Error)
 import Effect.Ref as Ref
-import Helpers (logString)
-import JsWebSocket
+import CTL.Internal.Helpers (logString)
+import CTL.Internal.JsWebSocket
   ( _mkWebSocket
   , _onWsConnect
   , _onWsError
@@ -30,7 +30,7 @@ import JsWebSocket
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
-import QueryM
+import CTL.Internal.QueryM
   ( WebSocket(WebSocket)
   , defaultMessageListener
   , defaultOgmiosWsConfig
@@ -38,10 +38,10 @@ import QueryM
   , mkRequestAff
   , queryDispatch
   )
-import QueryM.JsonWsp (JsonWspCall)
-import QueryM.Ogmios (mkOgmiosCallType)
-import QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Types.MultiMap as MultiMap
+import CTL.Internal.QueryM.JsonWsp (JsonWspCall)
+import CTL.Internal.QueryM.Ogmios (mkOgmiosCallType)
+import CTL.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
+import CTL.Internal.Types.MultiMap as MultiMap
 import Data.Map as Map
 
 -- A simple websocket for testing

@@ -1,10 +1,10 @@
-module Test.Logging (suite) where
+module Test.CTL.Logging (suite) where
 
 import Prelude
 
-import Contract.Config (testnetConfig)
-import Contract.Log (logWarn')
-import Contract.Monad (runContract)
+import CTL.Contract.Config (testnetConfig)
+import CTL.Contract.Log (logWarn')
+import CTL.Contract.Monad (runContract)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
@@ -12,7 +12,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

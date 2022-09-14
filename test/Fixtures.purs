@@ -9,7 +9,7 @@
 -- const byteArrayToHex = arr => Buffer.from(arr).toString('hex');
 -- console.log(byteArrayToHex(something.to_bytes()))
 -- ```
-module Test.Fixtures
+module Test.CTL.Fixtures
   ( addressString1
   , cip25MetadataFixture1
   , cip25MetadataFixture2
@@ -74,7 +74,7 @@ module Test.Fixtures
 import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
-import Cardano.Types.NativeScript
+import CTL.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -84,8 +84,8 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef))
-import Cardano.Types.Transaction
+import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef))
+import CTL.Internal.Cardano.Types.Transaction
   ( AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
       ( StakeRegistration
@@ -120,10 +120,10 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Cardano.Types.TransactionUnspentOutput
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Cardano.Types.Value
+import CTL.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , Value(Value)
@@ -141,11 +141,11 @@ import Data.Set (Set)
 import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import Deserialization.FromBytes (fromBytes)
+import CTL.Internal.Deserialization.FromBytes (fromBytes)
 import Effect (Effect)
-import Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
-import Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
-import Metadata.Cip25.V2
+import CTL.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
+import CTL.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
+import CTL.Internal.Metadata.Cip25.V2
   ( Cip25Metadata(Cip25Metadata)
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
@@ -153,7 +153,7 @@ import Metadata.Cip25.V2
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Address
+import CTL.Internal.Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
   , RewardAddress
@@ -164,36 +164,36 @@ import Serialization.Address
   , keyHashCredential
   , rewardAddress
   )
-import Serialization.Hash
+import CTL.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   , scriptHashFromBytes
   )
-import Test.Fixtures.CostModels (costModelsFixture1)
-import Types.Aliases (Bech32String)
-import Types.BigNum (BigNum)
-import Types.BigNum (fromBigInt, fromInt) as BigNum
-import Types.ByteArray
+import Test.CTL.Fixtures.CostModels (costModelsFixture1)
+import CTL.Internal.Types.Aliases (Bech32String)
+import CTL.Internal.Types.BigNum (BigNum)
+import CTL.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
+import CTL.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
-import Types.Int as Int
-import Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
-import Types.PlutusData as PD
-import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
-import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts
+import CTL.Internal.Types.Int as Int
+import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
+import CTL.Internal.Types.PlutusData as PD
+import CTL.Internal.Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
+import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import CTL.Internal.Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , PlutusScript
   , Validator
   , plutusV1Script
   , plutusV2Script
   )
-import Types.TokenName (TokenName, mkTokenName)
-import Types.Transaction
+import CTL.Internal.Types.TokenName (TokenName, mkTokenName)
+import CTL.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   )

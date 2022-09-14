@@ -3,7 +3,7 @@
 -- | balance, and submit a failing smart-contract transaction. It creates a
 -- | transaction that pays two Ada to the `AlwaysFails` script address, and
 -- | then attempts to spend the two Ada, failing and losing the collateral.
-module Examples.Lose7Ada
+module CTL.Examples.Lose7Ada
   ( main
   , example
   , alwaysFailsScript
@@ -11,27 +11,27 @@ module Examples.Lose7Ada
   , spendFromAlwaysFails
   ) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import BalanceTx.Collateral (minRequiredCollateral)
-import Contract.Address (scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Log (logInfo')
-import Contract.Monad
+import CTL.Internal.BalanceTx.Collateral (minRequiredCollateral)
+import CTL.Contract.Address (scriptHashAddress)
+import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
   , runContract
   )
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope
+import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction
+import CTL.Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
@@ -39,10 +39,10 @@ import Contract.Transaction
   , submit
   , plutusV1Script
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
-import Contract.Value as Value
+import CTL.Contract.TxConstraints (TxConstraints)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Utxos (getWalletBalance, utxosAt)
+import CTL.Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Foldable (fold)

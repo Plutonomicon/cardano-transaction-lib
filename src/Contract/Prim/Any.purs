@@ -1,5 +1,5 @@
 -- | For converting a subset of polymorphic types to that which will work with
 -- | `PlutusData`.
-module Contract.Prim.Any (module Any) where
+module CTL.Contract.Prim.Any (module Any) where
 
-import Types.Any (Any) as Any
+import CTL.Internal.Types.Any (Any) as Any

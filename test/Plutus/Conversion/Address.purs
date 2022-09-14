@@ -1,4 +1,4 @@
-module Test.Plutus.Conversion.Address (suite) where
+module Test.CTL.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
@@ -10,23 +10,23 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
-import Plutus.Types.Address (Address) as Plutus
-import Plutus.Types.Credential
+import CTL.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import CTL.Internal.Plutus.Types.Address (Address) as Plutus
+import CTL.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
-import Serialization.Address
+import CTL.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressFromBech32
   )
-import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
+import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe, toFromAesonTest)
-import TestM (TestPlanM)
-import Types.Aliases (Bech32String)
-import Types.BigNum (BigNum)
-import Types.BigNum (fromInt) as BigNum
+import Test.CTL.Utils (errMaybe, toFromAesonTest)
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.Aliases (Bech32String)
+import CTL.Internal.Types.BigNum (BigNum)
+import CTL.Internal.Types.BigNum (fromInt) as BigNum
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

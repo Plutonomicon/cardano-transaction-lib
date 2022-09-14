@@ -1,4 +1,4 @@
-module Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
+module CTL.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   ( Form
   , Log
   , Unlock
@@ -8,7 +8,7 @@ module Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   , mkForm
   ) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
 import Data.Log.Level (LogLevel(Trace, Debug, Warn, Info, Error))
 import Effect.Exception (Error)

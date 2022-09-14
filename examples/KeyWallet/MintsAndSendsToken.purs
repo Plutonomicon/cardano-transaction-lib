@@ -2,22 +2,22 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a token using the `AlwaysMints` policy and sends it along with
 -- | the selected amount to the specified address.
-module Examples.KeyWallet.MintsAndSendsToken (main) where
+module CTL.Examples.KeyWallet.MintsAndSendsToken (main) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Log (logInfo')
-import Contract.ScriptLookups as Lookups
-import Contract.Transaction (awaitTxConfirmed)
-import Contract.TxConstraints as Constraints
-import Contract.Value as Value
-import Examples.AlwaysMints (alwaysMintsPolicy)
-import Examples.Helpers
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Transaction (awaitTxConfirmed)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Value as Value
+import CTL.Examples.AlwaysMints (alwaysMintsPolicy)
+import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
-import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import CTL.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 
 main :: Effect Unit
 main = runKeyWalletContract_ \pkh lovelace unlock -> do

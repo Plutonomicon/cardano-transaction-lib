@@ -1,14 +1,14 @@
 -- | This module balances and signs two transactions at once and demonstrates
 -- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
-module Examples.SignMultiple (example, contract, main) where
+module CTL.Examples.SignMultiple (example, contract, main) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
-import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Log (logInfo')
-import Contract.Monad
+import CTL.Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
@@ -16,21 +16,21 @@ import Contract.Monad
   , runContract
   , throwContractError
   )
-import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
   , submit
   , withBalancedAndSignedTxs
   )
-import Contract.TxConstraints as Constraints
-import Contract.Value as Value
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Value as Value
 import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
 import Effect.Ref as Ref
-import Types.UsedTxOuts (TxOutRefCache)
+import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do

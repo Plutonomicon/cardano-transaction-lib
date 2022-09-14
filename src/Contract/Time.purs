@@ -1,5 +1,5 @@
 -- | A module containing time-related datatypes and helpers.
-module Contract.Time
+module CTL.Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
@@ -9,21 +9,21 @@ module Contract.Time
   , module SerializationAddress
   ) where
 
-import Contract.Chain
+import CTL.Contract.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
   , getTip
   ) as Chain
-import Contract.Monad (Contract, wrapContract)
-import QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
-import QueryM.EraSummaries (getEraSummaries) as EraSummaries
-import QueryM.Ogmios
+import CTL.Contract.Monad (Contract, wrapContract)
+import CTL.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
+import CTL.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
+import CTL.Internal.QueryM.Ogmios
   ( CurrentEpoch
   , EraSummaries
   , SystemStart
   )
-import QueryM.Ogmios
+import CTL.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -35,12 +35,12 @@ import QueryM.Ogmios
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
   ) as ExportOgmios
-import QueryM.SystemStart (getSystemStart) as SystemStart
-import Serialization.Address
+import CTL.Internal.QueryM.SystemStart (getSystemStart) as SystemStart
+import CTL.Internal.Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
   ) as SerializationAddress
-import Types.Interval
+import CTL.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)

@@ -1,9 +1,9 @@
 -- | Arbitrary precision rational numbers (backed by `BigInt`).
-module Contract.Numeric.Rational
+module CTL.Contract.Numeric.Rational
   ( module Rational
   ) where
 
-import Types.Rational
+import CTL.Internal.Types.Rational
   ( Rational
   , class RationalComponent
   , reduce

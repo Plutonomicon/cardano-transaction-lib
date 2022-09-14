@@ -1,4 +1,4 @@
-module Test.ProtocolParams
+module Test.CTL.ProtocolParams
   ( suite
   ) where
 
@@ -8,10 +8,10 @@ import Aeson (decodeAeson)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import QueryM.Ogmios (ProtocolParameters)
+import CTL.Internal.QueryM.Ogmios (ProtocolParameters)
 import Test.Spec.Assertions (shouldSatisfy)
-import Test.Utils as Utils
-import TestM (TestPlanM)
+import Test.CTL.Utils as Utils
+import Test.CTL.TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

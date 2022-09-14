@@ -1,4 +1,4 @@
-module Test.Plutip.UtxoDistribution
+module Test.CTL.Plutip.UtxoDistribution
   ( ArbitraryUtxoDistr
   , assertContract
   , assertCorrectDistribution
@@ -14,7 +14,7 @@ module Test.Plutip.UtxoDistribution
 
 import Prelude
 
-import Contract.Address
+import CTL.Contract.Address
   ( Address
   , getNetworkId
   , getWalletAddress
@@ -22,19 +22,19 @@ import Contract.Address
   , ownStakePubKeyHash
   , payPubKeyHashEnterpriseAddress
   )
-import Contract.Monad (Contract, liftedM)
-import Contract.Test.Plutip
+import CTL.Contract.Monad (Contract, liftedM)
+import CTL.Contract.Test.Plutip
   ( class UtxoDistribution
   , InitialUTxOs
   , runPlutipContract
   )
-import Contract.Transaction
+import CTL.Contract.Transaction
   ( TransactionInput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import Contract.Utxos (utxosAt)
-import Contract.Value (Value, lovelaceValueOf)
-import Contract.Wallet (KeyWallet, withKeyWallet)
+import CTL.Contract.Utxos (utxosAt)
+import CTL.Contract.Value (Value, lovelaceValueOf)
+import CTL.Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
@@ -52,10 +52,10 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
-import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Plutus.Types.Transaction (UtxoMap)
-import Test.Plutip.Common (config, privateStakeKey)
+import CTL.Internal.Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
+import CTL.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
+import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
+import Test.CTL.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
@@ -66,7 +66,7 @@ import Test.QuickCheck.Gen
   , resize
   , sized
   )
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
 suite :: TestPlanM (Aff Unit) Unit

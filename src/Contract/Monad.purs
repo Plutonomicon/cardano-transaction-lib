@@ -1,5 +1,5 @@
 -- | A module defining the `Contract` monad.
-module Contract.Monad
+module CTL.Contract.Monad
   ( Contract(Contract)
   , ContractEnv(ContractEnv)
   , ConfigParams
@@ -67,7 +67,7 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Prim.TypeError (class Warn, Text)
-import QueryM
+import CTL.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
@@ -75,8 +75,15 @@ import QueryM
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
-  , ServerConfig
   , WebSocket
+  , QueryRuntime
+  , QueryConfig
+  , QueryEnv
+  , QueryM
+  , QueryMExtended
+  , ServerConfig
+  , Logger
+  , mkLogger
   , liftQueryM
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
@@ -86,21 +93,20 @@ import QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
-import QueryM
+import CTL.Internal.QueryM
   ( QueryConfig
   , QueryEnv
   , QueryM
   , QueryMExtended
-  , QueryRuntime
-  , Logger
-  , mkLogger
+  , ServerConfig
   , mkQueryRuntime
   , stopQueryRuntime
   , withQueryRuntime
+  , liftQueryM
   )
-import QueryM.Logging (setupLogs)
-import Serialization.Address (NetworkId)
-import Wallet.Spec (WalletSpec)
+import CTL.Internal.QueryM.Logging (setupLogs)
+import CTL.Internal.Serialization.Address (NetworkId)
+import CTL.Internal.Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -168,7 +174,7 @@ type DefaultContractEnv = ContractEnv ()
 derive instance Newtype (ContractEnv r) _
 
 wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
-wrapContract = wrap <<< QueryM.liftQueryM
+wrapContract = wrap <<< liftQueryM
 
 -- | Same as `ask`, but points to the user config record.
 askConfig
@@ -201,9 +207,9 @@ asksConfig f = do
 -- | contains multiple contracts that can be run in parallel, reusing the same
 -- | environment (see `withContractEnv`)
 type ConfigParams (r :: Row Type) =
-  { ogmiosConfig :: QueryM.ServerConfig
-  , datumCacheConfig :: QueryM.ServerConfig
-  , ctlServerConfig :: Maybe QueryM.ServerConfig
+  { ogmiosConfig :: ServerConfig
+  , datumCacheConfig :: ServerConfig
+  , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec

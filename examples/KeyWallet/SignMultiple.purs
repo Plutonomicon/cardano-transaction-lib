@@ -1,24 +1,24 @@
-module Examples.KeyWallet.SignMultiple where
+module CTL.Examples.KeyWallet.SignMultiple where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Monad (Contract, liftedE, throwContractError)
-import Contract.Log (logInfo')
+import CTL.Contract.Monad (Contract, liftedE, throwContractError)
+import CTL.Contract.Log (logInfo')
 import Control.Monad.Reader (asks)
-import Contract.ScriptLookups as Lookups
-import Contract.Transaction
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
   , submit
   , withBalancedAndSignedTxs
   )
-import Contract.TxConstraints as Constraints
-import Contract.Value (lovelaceValueOf) as Value
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Value (lovelaceValueOf) as Value
 import Data.Newtype (unwrap)
 import Effect.Ref (read) as Ref
-import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
-import Types.UsedTxOuts (TxOutRefCache)
+import CTL.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do

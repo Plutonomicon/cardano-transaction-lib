@@ -1,4 +1,4 @@
-module Test.ByteArray where
+module Test.CTL.ByteArray where
 
 import Prelude
 import Data.Maybe (Maybe(Just))
@@ -10,9 +10,9 @@ import Test.QuickCheck.Laws.Data.Eq (checkEq)
 import Test.QuickCheck.Laws.Data.Monoid (checkMonoid)
 import Test.QuickCheck.Laws.Data.Ord (checkOrd)
 import Test.QuickCheck.Laws.Data.Semigroup (checkSemigroup)
-import TestM (TestPlanM)
+import Test.CTL.TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray
+import CTL.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe

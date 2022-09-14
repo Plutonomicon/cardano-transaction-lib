@@ -1,5 +1,5 @@
 -- | A module for Address-related functionality and querying own wallet.
-module Contract.Address
+module CTL.Contract.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
@@ -33,25 +33,25 @@ module Contract.Address
 
 import Prelude
 
-import Address
+import CTL.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
-import Contract.Monad (Contract, wrapContract, liftedM)
+import CTL.Contract.Monad (Contract, wrapContract, liftedM)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
-import Plutus.Conversion
+import CTL.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
   , toPlutusTxUnspentOutput
   )
-import Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import Plutus.Types.Address
+import CTL.Internal.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
+import CTL.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   )
-import Plutus.Types.Address
+import CTL.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
@@ -60,23 +60,23 @@ import Plutus.Types.Address
   , toValidatorHash
   , toStakingCredential
   ) as ExportAddress
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import QueryM
+import CTL.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.QueryM
   ( getWalletAddress
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   ) as QueryM
-import QueryM.NetworkId (getNetworkId) as QueryM
-import QueryM.Utxos (getWalletCollateral) as QueryM
-import Scripts
+import CTL.Internal.QueryM.NetworkId (getNetworkId) as QueryM
+import CTL.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
+import CTL.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId), addressBech32)
-import Serialization.Address
+import CTL.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
+import CTL.Internal.Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
   , TransactionIndex(TransactionIndex)
@@ -85,18 +85,18 @@ import Serialization.Address
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(TestnetId, MainnetId)
   ) as SerializationAddress
-import Serialization.Hash (Ed25519KeyHash) as Hash
-import Serialization.Hash (ScriptHash)
-import Types.Aliases (Bech32String)
-import Types.Aliases (Bech32String) as TypeAliases
-import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash
+import CTL.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
+import CTL.Internal.Serialization.Hash (ScriptHash)
+import CTL.Internal.Types.Aliases (Bech32String)
+import CTL.Internal.Types.Aliases (Bech32String) as TypeAliases
+import CTL.Internal.Types.ByteArray (ByteArray) as ByteArray
+import CTL.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
-import Types.PubKeyHash
+import CTL.Internal.Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
+import CTL.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
   , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
@@ -105,9 +105,9 @@ import Types.PubKeyHash
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import Types.Scripts (StakeValidatorHash, ValidatorHash)
-import Types.TypedValidator (TypedValidator)
-import Types.UnbalancedTransaction
+import CTL.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
+import CTL.Internal.Types.TypedValidator (TypedValidator)
+import CTL.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction

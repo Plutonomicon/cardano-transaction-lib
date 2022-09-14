@@ -1,4 +1,4 @@
-module Test.Parser where
+module Test.CTL.Parser where
 
 import Prelude
 
@@ -24,10 +24,10 @@ import Effect.Exception (error, throw)
 import Node.FS.Aff (readTextFile)
 import Node.Encoding (Encoding(UTF8))
 import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
-import TestM (TestPlanM, ValidationM, runValidationM)
+import Test.CTL.TestM (TestPlanM, ValidationM, runValidationM)
 import Mote (group, test)
-import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
-import QueryM.Ogmios (UtxoQR)
+import CTL.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import CTL.Internal.QueryM.Ogmios (UtxoQR)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

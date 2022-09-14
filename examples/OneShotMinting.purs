@@ -1,14 +1,14 @@
 -- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
 -- | used to build scripts with the provided arguments applied. It creates a 
 -- | transaction that mints an NFT using the one-shot minting policy.
-module Examples.OneShotMinting (main, example, contract) where
+module CTL.Examples.OneShotMinting (main, example, contract) where
 
-import Contract.Prelude
+import CTL.Contract.Prelude
 
-import Contract.Address (Address, getWalletAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Log (logInfo')
-import Contract.Monad
+import CTL.Contract.Address (Address, getWalletAddress)
+import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
+import CTL.Contract.Log (logInfo')
+import CTL.Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
@@ -16,25 +16,25 @@ import Contract.Monad
   , liftContractM
   , runContract
   )
-import Contract.PlutusData (PlutusData, toData)
-import Contract.Scripts (MintingPolicy, applyArgs)
-import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
-import Contract.Test.Utils as TestUtils
-import Contract.TextEnvelope
+import CTL.Contract.PlutusData (PlutusData, toData)
+import CTL.Contract.Scripts (MintingPolicy, applyArgs)
+import CTL.Contract.ScriptLookups as Lookups
+import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
+import CTL.Contract.Test.Utils as TestUtils
+import CTL.Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (TransactionInput, awaitTxConfirmed, plutusV1Script)
-import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName)
-import Contract.Value (singleton) as Value
+import CTL.Contract.Transaction (TransactionInput, awaitTxConfirmed, plutusV1Script)
+import CTL.Contract.TxConstraints as Constraints
+import CTL.Contract.Utxos (utxosAt)
+import CTL.Contract.Value (CurrencySymbol, TokenName)
+import CTL.Contract.Value (singleton) as Value
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
-import Examples.Helpers
+import CTL.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
   , mkTokenName

@@ -1,17 +1,17 @@
-module Test.BalanceTx.Collateral (suite) where
+module Test.CTL.BalanceTx.Collateral (suite) where
 
 import Prelude
 
-import BalanceTx.Collateral.Select
+import CTL.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
   )
-import BalanceTx.FakeOutput (fakeOutputWithValue)
-import Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value (Coin(Coin), Value(Value))
-import Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
+import CTL.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
+import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import CTL.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
+import CTL.Internal.Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
 import Control.Monad.Reader.Trans (asks)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
@@ -26,15 +26,15 @@ import Data.UInt (fromInt, toInt) as UInt
 import Effect.Class (liftEffect)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import QueryM (QueryM, runQueryM)
-import QueryM.Config (testnetTraceQueryConfig)
-import QueryM.Ogmios (CoinsPerUtxoUnit)
-import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
+import CTL.Internal.QueryM (QueryM, runQueryM)
+import CTL.Internal.QueryM.Config (testnetTraceQueryConfig)
+import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Test.CTL.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (Seconds(Seconds))
-import Test.Utils (measure, measureWithTimeout) as TestUtils
-import TestM (TestPlanM)
-import Types.Transaction (TransactionHash, TransactionInput)
+import Test.CTL.Utils (Seconds(Seconds))
+import Test.CTL.Utils (measure, measureWithTimeout) as TestUtils
+import Test.CTL.TestM (TestPlanM)
+import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
