@@ -5,7 +5,11 @@ module Serialization
   , convertTxBody
   , convertTxInput
   , convertTxOutput
+  , defaultCostmdls
+  , convertTransactionUnspentOutput
+  , convertValue
   , toBytes
+  , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
@@ -19,6 +23,7 @@ module Serialization
 
 import Prelude
 
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef)) as T
 import Cardano.Types.Transaction
   ( Certificate
       ( StakeRegistration
@@ -30,10 +35,10 @@ import Cardano.Types.Transaction
       , MoveInstantaneousRewardsCert
       )
   , Costmdls(Costmdls)
+  , CostModel(CostModel)
   , ExUnitPrices
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
-  , Language(PlutusV1)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
   , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
@@ -50,9 +55,12 @@ import Cardano.Types.Transaction
   , URL(URL)
   , Update
   ) as T
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
 import Cardano.Types.Value as Value
 import Data.Foldable (class Foldable)
+import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
@@ -76,7 +84,9 @@ import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
+import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
+import Serialization.PlutusScript (convertPlutusScript)
 import Serialization.Types
   ( AssetName
   , Assets
@@ -105,17 +115,19 @@ import Serialization.Types
   , NativeScript
   , NetworkId
   , PlutusData
+  , PlutusScript
   , PoolMetadata
+  , PrivateKey
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
-  , PrivateKey
   , Redeemer
   , Redeemers
   , Relay
   , Relays
   , ScriptDataHash
+  , ScriptRef
   , Transaction
   , TransactionBody
   , TransactionHash
@@ -124,6 +136,7 @@ import Serialization.Types
   , TransactionOutput
   , TransactionOutputs
   , TransactionWitnessSet
+  , TransactionUnspentOutput
   , UnitInterval
   , Update
   , VRFKeyHash
@@ -134,22 +147,26 @@ import Serialization.Types
   , Withdrawals
   )
 import Serialization.WitnessSet
-  ( convertWitnessSet
+  ( convertExUnits
   , convertRedeemer
-  , convertExUnits
+  , convertWitnessSet
   )
+import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
 import Types.CborBytes (CborBytes)
 import Types.Int as Csl
-import Types.Int as Int
+import Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
 import Types.PlutusData as PlutusData
 import Types.RawBytes (RawBytes)
+import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
-import Untagged.Union (type (|+|), UndefinedOr, maybeToUor)
+import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
@@ -194,6 +211,9 @@ foreign import newTransactionWitnessSetFromBytes
 foreign import newTransactionUnspentOutputFromBytes
   :: CborBytes -> Effect TransactionUnspentOutput
 
+foreign import newTransactionUnspentOutput
+  :: TransactionInput -> TransactionOutput -> Effect TransactionUnspentOutput
+
 foreign import newMultiAsset :: Effect MultiAsset
 foreign import insertMultiAsset
   :: MultiAsset -> ScriptHash -> Assets -> Effect Unit
@@ -203,6 +223,18 @@ foreign import insertAssets :: Assets -> AssetName -> BigNum -> Effect Unit
 foreign import newAssetName :: ByteArray -> Effect AssetName
 foreign import transactionOutputSetDataHash
   :: TransactionOutput -> DataHash -> Effect Unit
+
+foreign import transactionOutputSetPlutusData
+  :: TransactionOutput -> PlutusData -> Effect Unit
+
+foreign import transactionOutputSetScriptRef
+  :: TransactionOutput -> ScriptRef -> Effect Unit
+
+foreign import scriptRefNewNativeScript
+  :: NativeScript -> ScriptRef
+
+foreign import scriptRefNewPlutusScript
+  :: PlutusScript -> ScriptRef
 
 foreign import newVkeywitnesses :: Effect Vkeywitnesses
 foreign import makeVkeywitness
@@ -228,6 +260,7 @@ foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
+foreign import defaultCostmdls :: Effect Costmdls
 foreign import newCostmdls :: Effect Costmdls
 foreign import costmdlsSetCostModel
   :: Costmdls -> Language -> CostModel -> Effect Unit
@@ -235,6 +268,7 @@ foreign import costmdlsSetCostModel
 foreign import newCostModel :: Effect CostModel
 foreign import costModelSetCost :: CostModel -> Int -> Csl.Int -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
+foreign import newPlutusV2 :: Effect Language
 
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
@@ -244,6 +278,11 @@ foreign import _hashScriptDataNoDatums
 
 foreign import newRedeemers :: Effect Redeemers
 foreign import addRedeemer :: Redeemers -> Redeemer -> Effect Unit
+foreign import setTxBodyReferenceInputs
+  :: TransactionBody
+  -> TransactionInputs
+  -> Effect Unit
+
 foreign import newScriptDataHashFromBytes :: CborBytes -> Effect ScriptDataHash
 foreign import setTxBodyScriptDataHash
   :: TransactionBody -> ScriptDataHash -> Effect Unit
@@ -259,6 +298,16 @@ foreign import insertMintAsset :: MintAssets -> AssetName -> Int -> Effect Unit
 foreign import setTxBodyNetworkId :: TransactionBody -> NetworkId -> Effect Unit
 foreign import networkIdTestnet :: Effect NetworkId
 foreign import networkIdMainnet :: Effect NetworkId
+
+foreign import setTxBodyCollateralReturn
+  :: TransactionBody
+  -> TransactionOutput
+  -> Effect Unit
+
+foreign import setTxBodyTotalCollateral
+  :: TransactionBody
+  -> BigNum
+  -> Effect Unit
 
 foreign import setTxBodyTtl :: TransactionBody -> BigNum -> Effect Unit
 
@@ -315,7 +364,7 @@ foreign import newMoveInstantaneousRewardToStakeCreds
 
 foreign import newMIRToStakeCredentials
   :: ContainerHelper
-  -> Array (StakeCredential /\ Int.Int)
+  -> Array (StakeCredential /\ Csl.Int)
   -> Effect MIRToStakeCredentials
 
 foreign import newMoveInstantaneousRewardsCertificate
@@ -439,6 +488,7 @@ foreign import toBytes
   :: ( Transaction
          |+| TransactionBody
          |+| TransactionOutput
+         |+| TransactionUnspentOutput
          |+| TransactionHash
          |+| DataHash
          |+| PlutusData
@@ -449,6 +499,8 @@ foreign import toBytes
          |+| GenesisHash
          |+| GenesisDelegateHash
          |+| AuxiliaryDataHash
+         |+| Address
+         |+| Value
      -- Add more as needed.
      )
   -> ByteArray
@@ -461,6 +513,11 @@ convertTxBody (T.TxBody body) = do
     (unwrap body.fee)
   txBody <- newTransactionBody inputs outputs fee
   for_ body.ttl $ unwrap >>> setTxBodyTtl txBody
+  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
+  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
+  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval $
     unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
       transactionBodySetValidityStartInterval txBody
@@ -469,15 +526,22 @@ convertTxBody (T.TxBody body) = do
   for_ body.auxiliaryDataHash $
     unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash
     ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
         setTxBodyScriptDataHash txBody
     )
-  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
-  for_ body.mint $ convertMint >=> setTxBodyMint txBody
-  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  for_ body.requiredSigners $
+    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  for_ body.collateralReturn $ convertTxOutput >=> setTxBodyCollateralReturn
+    txBody
+  for_ body.totalCollateral $
+    unwrap >>> BigNum.fromBigInt >>> fromJustEff "Failed to convert fee" >=>
+      setTxBodyTotalCollateral txBody
+  if Foldable.null body.referenceInputs then pure unit
+  else convertTxInputs body.referenceInputs >>= setTxBodyReferenceInputs txBody
   pure txBody
 
 convertTransaction :: T.Transaction -> Effect Transaction
@@ -732,13 +796,29 @@ convertTxOutputs arrOutputs = do
   pure outputs
 
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
-convertTxOutput (T.TransactionOutput { address, amount, dataHash }) = do
+convertTxOutput
+  (T.TransactionOutput { address, amount, datum, scriptRef }) = do
   value <- convertValue amount
   txo <- newTransactionOutput address value
-  for_ (unwrap <$> dataHash) \bytes -> do
-    for_ (fromBytes bytes) $
-      transactionOutputSetDataHash txo
+  case datum of
+    NoOutputDatum -> pure unit
+    OutputDatumHash dataHash -> do
+      for_ (fromBytes $ unwrap dataHash) $
+        transactionOutputSetDataHash txo
+    OutputDatum datumValue -> do
+      transactionOutputSetPlutusData txo
+        =<< fromJustEff "convertTxOutput"
+          (convertPlutusData $ unwrap datumValue)
+  for_ scriptRef $
+    convertScriptRef >=> transactionOutputSetScriptRef txo
   pure txo
+
+convertScriptRef :: T.ScriptRef -> Effect ScriptRef
+convertScriptRef (T.NativeScriptRef nativeScript) = do
+  scriptRefNewNativeScript <$> fromJustEff "convertScriptRef"
+    (convertNativeScript nativeScript)
+convertScriptRef (T.PlutusScriptRef plutusScript) = do
+  pure $ scriptRefNewPlutusScript $ convertPlutusScript plutusScript
 
 convertValue :: Value.Value -> Effect Value
 convertValue val = do
@@ -769,15 +849,29 @@ convertValue val = do
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
 convertCostmdls (T.Costmdls cs) = do
-  costs <- map unwrap <<< fromJustEff "`PlutusV1` not found in `Costmdls`"
-    $ Map.lookup T.PlutusV1 cs
+  costmdls <- newCostmdls
+  forWithIndex_ cs \language costModel -> do
+    language' <- case language of
+      S.PlutusV1 -> newPlutusV1
+      S.PlutusV2 -> newPlutusV2
+    costModel' <- convertCostModel costModel
+    costmdlsSetCostModel costmdls language' costModel'
+  pure costmdls
+
+convertCostModel :: T.CostModel -> Effect CostModel
+convertCostModel (T.CostModel costs) = do
   costModel <- newCostModel
   forWithIndex_ costs $ \operation cost ->
     costModelSetCost costModel operation cost
-  costmdls <- newCostmdls
-  plutusV1 <- newPlutusV1
-  costmdlsSetCostModel costmdls plutusV1 costModel
-  pure costmdls
+  pure costModel
+
+convertTransactionUnspentOutput
+  :: T.TransactionUnspentOutput -> Effect TransactionUnspentOutput
+convertTransactionUnspentOutput (T.TransactionUnspentOutput { input, output }) =
+  do
+    input' <- convertTxInput input
+    output' <- convertTxOutput output
+    newTransactionUnspentOutput input' output'
 
 hashScriptData
   :: T.Costmdls
@@ -794,3 +888,7 @@ hashScriptData cms rs ps = do
     [] -> _hashScriptDataNoDatums rs' cms'
     _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
       (traverse convertPlutusData ps)
+
+serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
+serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
+  toData
