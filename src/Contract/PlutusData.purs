@@ -126,4 +126,5 @@ getDatumsByHashesWithErrors
   :: forall (r :: Row Type)
    . Array DataHash
   -> Contract r (Map DataHash (Either String Datum.Datum))
-getDatumsByHashesWithErrors = wrapContract <<< QueryM.getDatumsByHashesWithErrors
+getDatumsByHashesWithErrors = wrapContract <<<
+  QueryM.getDatumsByHashesWithErrors
