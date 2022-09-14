@@ -110,7 +110,7 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Effect.Aff(Aff)
+import Effect.Aff (Aff)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftM)
 import IsData (class IsData)

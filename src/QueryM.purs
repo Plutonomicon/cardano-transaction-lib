@@ -83,8 +83,8 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types.Transaction (_witnessSet)
 import Cardano.Types.Transaction as Transaction
-import Control.Alt(class Alt)
-import Control.Alternative(class Alternative)
+import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -92,10 +92,15 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks, runReaderT, withReaderT)
+import Control.Monad.Reader.Trans
+  ( ReaderT(ReaderT)
+  , asks
+  , runReaderT
+  , withReaderT
+  )
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
-import Control.Plus(class Plus)
+import Control.Plus (class Plus)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -266,7 +271,8 @@ type QueryM = QueryMExtended () Aff
 
 type ParQueryM = QueryMExtended () ParAff
 
-newtype QueryMExtended (r :: Row Type) (m :: Type -> Type) (a :: Type) = QueryMExtended
+newtype QueryMExtended (r :: Row Type) (m :: Type -> Type) (a :: Type) =
+  QueryMExtended
     (ReaderT (QueryEnv r) m a)
 
 derive instance Newtype (QueryMExtended r m a) _
@@ -280,8 +286,18 @@ derive newtype instance Alternative m => Alternative (QueryMExtended r m)
 derive newtype instance Monad (QueryMExtended r Aff)
 derive newtype instance MonadEffect (QueryMExtended r Aff)
 derive newtype instance MonadAff (QueryMExtended r Aff)
-derive newtype instance (Semigroup a, Apply m) => Semigroup (QueryMExtended r m a)
-derive newtype instance (Monoid a, Applicative m) => Monoid (QueryMExtended r m a)
+derive newtype instance
+  ( Semigroup a
+  , Apply m
+  ) =>
+  Semigroup (QueryMExtended r m a)
+
+derive newtype instance
+  ( Monoid a
+  , Applicative m
+  ) =>
+  Monoid (QueryMExtended r m a)
+
 derive newtype instance MonadThrow Error (QueryMExtended r Aff)
 derive newtype instance MonadError Error (QueryMExtended r Aff)
 derive newtype instance MonadRec (QueryMExtended r Aff)
@@ -309,7 +325,8 @@ instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
     QueryMExtended $ ReaderT \env ->
       sequential $ runReaderT a env
 
-liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r Aff a
+liftQueryM
+  :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r Aff a
 liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
   where
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
@@ -546,7 +563,9 @@ ownStakePubKeyHash = do
       (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
-  :: forall (r :: Row Type) (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+  :: forall (r :: Row Type) (a :: Type)
+   . (Wallet -> Aff (Maybe a))
+  -> QueryM (Maybe a)
 withMWalletAff act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
   (liftAff <<< act)
 

@@ -12,7 +12,7 @@ import Control.Monad.Except.Trans (ExceptT)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Effect.Aff(Aff)
+import Effect.Aff (Aff)
 import QueryM (QueryMExtended)
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 
