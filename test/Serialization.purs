@@ -22,11 +22,13 @@ import Test.Fixtures
   , txBinaryFixture3
   , txBinaryFixture4
   , txBinaryFixture5
+  , txBinaryFixture6
   , txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
   , txFixture5
+  , txFixture6
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
@@ -97,8 +99,10 @@ suite = do
         txBinaryFixture3
       test "Transaction serialization #4 - ada + mint + certificates" $
         serializeTX txFixture4 txBinaryFixture4
-      test "Transaction serialization #5 - metadata" $ serializeTX txFixture5
-        txBinaryFixture5
+      test "Transaction serialization #5 - plutus script" $ serializeTX
+        txFixture5 txBinaryFixture5
+      test "Transaction serialization #6 - metadata" $ serializeTX txFixture6
+        txBinaryFixture6
     group "Transaction Roundtrips" $ do
       test "Deserialization is inverse to serialization #1" $
         txSerializedRoundtrip txFixture1
@@ -110,6 +114,8 @@ suite = do
         txSerializedRoundtrip txFixture4
       test "Deserialization is inverse to serialization #5" $
         txSerializedRoundtrip txFixture5
+      test "Deserialization is inverse to serialization #6" $
+        txSerializedRoundtrip txFixture6
 
 serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =

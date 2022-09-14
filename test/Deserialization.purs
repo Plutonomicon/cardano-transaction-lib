@@ -64,6 +64,7 @@ import Test.Fixtures
   , txFixture3
   , txFixture4
   , txFixture5
+  , txFixture6
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -155,6 +156,7 @@ suite = do
       test "CSL <-> CTL Transaction roundtrip #3" $ txRoundtrip txFixture3
       test "CSL <-> CTL Transaction roundtrip #4" $ txRoundtrip txFixture4
       test "CSL <-> CTL Transaction roundtrip #5" $ txRoundtrip txFixture5
+      test "CSL <-> CTL Transaction roundtrip #6" $ txRoundtrip txFixture6
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
