@@ -40,6 +40,7 @@ import Data.List (List, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
+import Data.Traversable (sequence)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
@@ -102,13 +103,10 @@ instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
           (PrivatePaymentKey key)
           Nothing
       ) <$> privateKeyResponses
-  decodeWallets' listOfInitialUTxOs privateKeyResponses =
-    let
-      wallets = Array.mapMaybe
-        (\utxos -> decodeWallets utxos privateKeyResponses)
-        listOfInitialUTxOs
-    in
-      Just (wallets /\ privateKeyResponses)
+  decodeWallets' listOfInitialUTxOs privateKeyResponses = do
+    wallets <- sequence $ (\utxos -> decodeWallets utxos privateKeyResponses)
+      <$> listOfInitialUTxOs
+    pure (wallets /\ privateKeyResponses)
   keyWallets _ wallets = wallets
 
 instance
