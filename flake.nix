@@ -17,7 +17,7 @@
     };
 
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/7c7ae3799e182f0a2417cfdbf5569c119c165323";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ff989fbfab09e2ede804ad9903c144e92369c8a6";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
