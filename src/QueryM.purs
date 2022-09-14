@@ -469,7 +469,8 @@ getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
-getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashesWithErrors hashes
+getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashesWithErrors
+  hashes
 
 getDatumsByHashesWithErrors
   :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
