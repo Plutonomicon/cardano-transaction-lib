@@ -30,7 +30,7 @@ module QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashes'
+  , getDatumsByHashesWithErrors
   , getLogger
   , getProtocolParametersAff
   , getWalletAddress
@@ -469,11 +469,11 @@ getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
-getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashes' hashes
+getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashesWithErrors hashes
 
-getDatumsByHashes'
+getDatumsByHashesWithErrors
   :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
-getDatumsByHashes' hashes = unwrap <$> do
+getDatumsByHashesWithErrors hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean

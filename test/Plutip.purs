@@ -30,7 +30,7 @@ import Contract.PlutusData
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashes'
+  , getDatumsByHashesWithErrors
   )
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
@@ -526,7 +526,7 @@ suite = do
           , mkDatumHash
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
-        logInfo' <<< show =<< getDatumsByHashes'
+        logInfo' <<< show =<< getDatumsByHashesWithErrors
           [ mkDatumHash
               "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
           , mkDatumHash
