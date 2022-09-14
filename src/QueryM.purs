@@ -189,7 +189,6 @@ import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
 import Types.Transaction (TransactionInput)
 import Types.Scripts (PlutusScript(PlutusScript), Language)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
-import Undefined(undefined)
 import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection

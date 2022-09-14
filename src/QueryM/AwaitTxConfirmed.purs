@@ -6,17 +6,15 @@ module QueryM.AwaitTxConfirmed
 
 import Prelude
 
-import Control.Parallel (parOneOf, parallel, sequential)
-import Data.DateTime.Instant (unInstant)
+import Control.Parallel (parOneOf)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
+import Data.Time.Duration (Seconds(Seconds), Milliseconds)
 import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Effect.Now (now)
 import QueryM (QueryM, getChainTip, mkDatumCacheRequest)
 import QueryM.DatumCacheWsp (getTxByHash)
 import QueryM.Ogmios (TxHash)
@@ -29,30 +27,33 @@ awaitTxConfirmed :: TxHash -> QueryM Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
 awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
-awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
-  nowMs <- getNowMs
-  let timeoutTime = nowMs + unwrap timeoutSeconds * 1000.0
-  go timeoutTime
+awaitTxConfirmedWithTimeout timeoutSeconds txHash =
+  let timeout :: Milliseconds
+      timeout = wrap $ unwrap timeoutSeconds * 1000.0
+      delayTime :: Milliseconds
+      delayTime = wrap 1000.0
+  in parOneOf [
+       findTx delayTime,
+       waitAndFail timeout
+     ]
   where
-  getNowMs :: QueryM Number
-  getNowMs = unwrap <<< unInstant <$> liftEffect now
-
-  -- findTx :: Aff Boolean
-  -- findTx = liftAff <<< isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
-  --     _.getTxByHash
-  --     txHash
-  go :: Number -> QueryM Unit
-  go timeoutTime = do
+  -- Try to find the TX indefinitely, with a waiting period between each
+  -- request
+  findTx :: Milliseconds -> QueryM Unit
+  findTx delayTime = do
     isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
       _.getTxByHash
       txHash
-    nowMs <- getNowMs
-    when (nowMs >= timeoutTime) do
+    if isTxFound
+        then pure unit
+        else liftAff (delay delayTime) *> findTx delayTime
+  -- Wait until the timeout elapses and fail
+  waitAndFail :: Milliseconds -> QueryM Unit
+  waitAndFail timeout = do
+      liftAff $ delay $ timeout
       liftEffect $ throw $
         "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
         \confirmed"
-    liftAff $ delay $ wrap 1000.0
-    if isTxFound then pure unit else go timeoutTime
 
 awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
