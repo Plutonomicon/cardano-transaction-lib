@@ -118,6 +118,6 @@ walletName = case _ of
   FlintExt -> "flint"
   GeroExt -> "gero"
   LodeExt -> "lode"
-  NamiExt -> "namie"
+  NamiExt -> "nami"
 
 data WalletConfig = WalletConfig FilePath WalletPassword

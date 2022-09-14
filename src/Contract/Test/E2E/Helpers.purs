@@ -25,6 +25,7 @@ import Contract.Test.E2E.Feedback (testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)
+import Data.Either (hush)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
@@ -35,11 +36,12 @@ import Effect (Effect)
 import Effect.Aff (Aff, bracket, delay, launchAff_, try)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
+import Helpers (liftedM)
 import Toppokki as Toppokki
 
 data OutputType = PageError | Console | RequestFailed
@@ -73,14 +75,17 @@ typeInto selector text page = toAffE $ _typeInto selector text page
 -- | Find the popup page of the wallet. This works for both Nami and Gero
 -- | by looking for a page with a button. If there is a button on the main page
 -- | this needs to be modified.
-findWalletPage :: ExtensionId -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
-findWalletPage (ExtensionId extId) browser = do
+findWalletPage :: Pattern -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
+findWalletPage pattern browser = do
   pages <- Toppokki.pages browser
   head <<< fold <$> for pages \page -> do
-    url <- pageUrl page
+    eiPageUrl <- map hush $ try $ pageUrl page
     pure $
-      if String.contains (Pattern extId) url then [ page ]
-      else []
+      case eiPageUrl of
+        Nothing -> []
+        Just url
+          | String.contains pattern url -> [ page ]
+          | otherwise -> []
 
 pageUrl :: Toppokki.Page -> Aff String
 pageUrl page = do
@@ -91,18 +96,33 @@ pageUrl page = do
 -- | Wait until the wallet page pops up. Timout should be at least a few seconds.
 -- | The 'String' param is the text of jQuery, which will be injected.
 waitForWalletPage
-  :: ExtensionId -> Number -> Toppokki.Browser -> Aff Toppokki.Page
-waitForWalletPage extId timeout browser =
-  findWalletPage extId browser >>= case _ of
+  :: Pattern -> Number -> Toppokki.Browser -> Aff Toppokki.Page
+waitForWalletPage pattern timeout browser =
+  findWalletPage pattern browser >>= case _ of
     Nothing -> do
       if timeout > 0.0 then do
         delaySec 0.1
-        waitForWalletPage extId (timeout - 0.1) browser
+        waitForWalletPage pattern (timeout - 0.1) browser
       else liftEffect $ throw $
         "Wallet popup did not open. Did you provide extension ID correctly? "
-          <> "Provided ID: "
-          <> unwrap extId
+          <> "Provided pattern: "
+          <> unwrap pattern
     Just page -> pure page
+
+waitForWalletPageClose
+  :: Pattern -> Number -> Toppokki.Browser -> Aff Unit
+waitForWalletPageClose pattern timeout browser =
+  findWalletPage pattern browser >>= case _ of
+    Nothing -> do
+      pure unit
+    Just _page -> do
+      if timeout > 0.0 then do
+        delaySec 0.1
+        waitForWalletPageClose pattern (timeout - 0.1) browser
+      else liftEffect $ throw $
+        "Wallet popup did not close. Did you provide extension ID correctly? "
+          <> "Provided pattern: "
+          <> unwrap pattern
 
 showOutput :: Ref (Array E2EOutput) -> Effect String
 showOutput ref =
@@ -202,46 +222,80 @@ derive instance Newtype ExtensionId _
 
 inWalletPage
   :: forall (a :: Type)
-   . ExtensionId
+   . Pattern
   -> RunningExample
+  -> Number
   -> (Toppokki.Page -> Aff a)
   -> Aff a
-inWalletPage extId { browser, jQuery } cont = do
-  page <- waitForWalletPage extId 10.0 browser
+inWalletPage pattern { browser, jQuery } timeout cont = do
+  page <- waitForWalletPage pattern timeout browser
   injectJQuery page jQuery
   cont page
 
+-- | Provide an extension ID and a pattern to match.
+-- | First, we wait for a popup with given extension ID.
+-- | If the URL matches the pattern, the action is executed.
+-- | Otherwise, `Nothing` is returned.
+inWalletPageOptional
+  :: forall (a :: Type)
+   . ExtensionId
+  -> Pattern
+  -> RunningExample
+  -> Number
+  -> (Toppokki.Page -> Aff a)
+  -> Aff (Maybe a)
+inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
+  page <- waitForWalletPage (Pattern $ unwrap extId) timeout browser
+  url <- liftedM (error "inWalletPageOptional: page closed")
+    $ map hush
+    $ try
+    $ pageUrl page
+  if
+    String.contains pattern url then do
+    injectJQuery page jQuery
+    Just <$> cont page
+  else do
+    pure Nothing
+
 eternlConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 eternlConfirmAccess extId re = do
-  -- ignore possible failure
-  void $ try $
-    inWalletPage extId re \page -> do
-      delaySec 1.0
-      clickButton "Connect to Site" page
+  void $ inWalletPageOptional extId pattern re confirmAccessTimeout \page -> do
+    delaySec 1.0
+    clickButton "Connect to Site" page
+  waitForWalletPageClose pattern 10.0 re.browser
+  where
+  pattern :: Pattern
+  pattern = wrap $ unwrap extId <> "/www/index.html#/connect/"
 
 eternlSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 eternlSign extId wpassword re = do
   delaySec 1.0
-  inWalletPage extId re \page -> do
+  inWalletPage pattern re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page
+    delaySec 0.1
     typeInto (inputType "password") (unwrap wpassword) page
-    clickButton "Confirm" page
+    void $ doJQ (wrap "span.capitalize:contains(\"sign\")") click page
+  where
+  pattern :: Pattern
+  pattern = wrap $ unwrap extId <> "/www/index.html#/signtx"
 
 namiConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
-namiConfirmAccess extId re = inWalletPage extId re (clickButton "Access")
+namiConfirmAccess extId re =
+  inWalletPage (wrap $ unwrap extId) re confirmAccessTimeout
+    (clickButton "Access")
 
 namiSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 namiSign extId wpassword re = do
-  inWalletPage extId re \nami -> do
+  inWalletPage (wrap $ unwrap extId) re signTimeout \nami -> do
     clickButton "Sign" nami
     reactSetValue password (unwrap wpassword) nami
     clickButton "Confirm" nami
 
 geroConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 geroConfirmAccess extId re = do
-  inWalletPage extId re \page -> do
+  inWalletPage (wrap $ unwrap extId) re confirmAccessTimeout \page -> do
     delaySec 0.1
     void $ doJQ (inputType "radio") click page
     void $ doJQ (buttonWithText "Continue") click page
@@ -251,7 +305,7 @@ geroConfirmAccess extId re = do
 
 geroSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 geroSign extId gpassword re =
-  inWalletPage extId re \gero -> do
+  inWalletPage (wrap $ unwrap extId) re signTimeout \gero -> do
     void $ doJQ (byId "confirm-swap") click gero
     typeInto (byId "wallet-password") (unwrap gpassword) gero
     clickButton "Next" gero
@@ -268,20 +322,26 @@ flintSign _ _ _ = do
 
 lodeConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 lodeConfirmAccess extId re = do
-  inWalletPage extId re \page -> do
+  inWalletPage (Pattern $ unwrap extId) re confirmAccessTimeout \page -> do
     delaySec 0.1
     void $ doJQ (buttonWithText "Access") click page
 
 lodeSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 lodeSign extId gpassword re = do
   delaySec 3.0
-  inWalletPage extId re \page -> do
+  inWalletPage (wrap $ unwrap extId) re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page
     typeInto (inputType "password") (unwrap gpassword) page
     delaySec 0.1
     clickButton "Approve" page
+
+confirmAccessTimeout :: Number
+confirmAccessTimeout = 10.0
+
+signTimeout :: Number
+signTimeout = 50.0
 
 -- | A String representing a jQuery selector, e.g. "#my-id" or ".my-class"
 newtype Selector = Selector String
