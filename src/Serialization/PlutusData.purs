@@ -10,7 +10,6 @@ import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
-
 import FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
