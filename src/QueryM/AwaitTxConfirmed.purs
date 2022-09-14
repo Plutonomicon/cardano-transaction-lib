@@ -10,7 +10,7 @@ import Control.Parallel (parOneOf)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds), Milliseconds)
+import Data.Time.Duration (Seconds(Seconds), Milliseconds, fromDuration)
 import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -29,13 +29,16 @@ awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   let timeout :: Milliseconds
-      timeout = wrap $ unwrap timeoutSeconds * 1000.0
+      timeout = fromDuration timeoutSeconds
       delayTime :: Milliseconds
       delayTime = wrap 1000.0
-  in parOneOf [
-       findTx delayTime,
-       waitAndFail timeout
-     ]
+  -- If timeout is infinity, do not use a timeout at all
+  in if unwrap timeoutSeconds == infinity
+       then findTx delayTime
+       else parOneOf [
+           findTx delayTime,
+           waitAndFail timeout
+       ]
   where
   -- Try to find the TX indefinitely, with a waiting period between each
   -- request
