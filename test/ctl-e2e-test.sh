@@ -39,7 +39,8 @@ pack_settings () {
     tar czf "$SETTINGS_ARCHIVE" \
         "$CHROME_PROFILE"/Default/IndexedDB/ \
         "$CHROME_PROFILE"/Default/Local\ Storage/ \
-        "$CHROME_PROFILE"/Default/Extension\ State
+        "$CHROME_PROFILE"/Default/Extension\ State \
+        "$CHROME_PROFILE"/Default/Local\ Extension\ Settings
 }
 
 unpack_settings () {
@@ -60,6 +61,8 @@ run_tests () {
     spago test --main Test.E2E -a "E2ETest \
           --eternl-dir $temp_dir/eternl \
           --eternl-password $ETERNL_PASSWORD \
+          --lode-dir $temp_dir/lode \
+          --lode-password $LODE_PASSWORD \
           $* --chrome-exe $(find_browser)" || rm -Rf "$temp_dir"
 }
 
