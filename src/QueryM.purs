@@ -81,8 +81,6 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Cardano.Types.Transaction (_witnessSet)
-import Cardano.Types.Transaction as Transaction
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -99,7 +97,6 @@ import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
-import Data.Lens ((<>~))
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map (Map)
