@@ -1,4 +1,4 @@
--- | TODO docstring
+-- | CTL query layer monad
 module QueryM
   ( ClientError
       ( ClientHttpError
@@ -508,6 +508,7 @@ ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
 ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 
 -- TODO: change to array of StakePubKeyHash
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
   mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
@@ -1028,8 +1029,6 @@ mkOgmiosRequest jsonWspCall getLs inp = do
   websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   r <- mkRequest listeners' websocket jsonWspCall getLs inp
   pure r
-
--- liftEffect $ log $ "response: " <>  show r
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff

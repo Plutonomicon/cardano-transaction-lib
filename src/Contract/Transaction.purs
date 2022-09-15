@@ -488,7 +488,8 @@ balanceTxs unbalancedTxs = do
       balanceTxsWithAddresses ownAddrs unbalancedTxs
   where
   -- TODO: this is a helper function to get array of wallet ownAddresses
-  -- should be remove when Contract's api changes to multi address
+  -- should be removed when Contract's api changes to multi-address
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
   walletAddresses = do
     mbAddrs <- wrapContract QueryM.getWalletAddresses
     for mbAddrs \addrs ->

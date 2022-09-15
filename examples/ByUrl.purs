@@ -63,6 +63,7 @@ main = do
       config <- liftMaybe (error $ "unknown wallet name: " <> walletName) $
         lookup walletName wallets
       launchAff_ do
+        -- For Eternl, that does not initialize instantly
         delay $ wrap 3000.0
         paymentKey <- liftMaybe (error "Unable to load private key") $
           privatePaymentKeyFromString paymentKeyStr

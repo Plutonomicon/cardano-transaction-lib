@@ -116,6 +116,7 @@ balanceTx unbalancedTx = do
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the attached wallet).
 -- TODO rename to balanceTxWithAddresses
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 balanceTxWithAddress
   :: Array Address
   -> UnattachedUnbalancedTx
@@ -221,8 +222,6 @@ runBalancer utxos changeAddress =
     case newMinFee == minFee of
       true -> do
         finalizedTransaction <- lift $ finalizeTransaction balancedTx utxos -- TODO: all available?
-
-        -- someMinFee <- lift $ calculateMinFee (unwrap finalizedTransaction)
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction

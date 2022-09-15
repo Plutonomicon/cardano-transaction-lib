@@ -1,4 +1,4 @@
---github:neovim/neovim?dir=contrib | This module demonstrates how the `Contract` interface can be used to build,
+-- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
 module Examples.Pkh2Pkh (main, contract, example) where
