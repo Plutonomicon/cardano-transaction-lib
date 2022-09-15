@@ -172,7 +172,8 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (signTransaction, submitTxOgmios, getWalletAddresses) as QueryM
+import QueryM (submitTxOgmios, getWalletAddresses) as QueryM
+import QueryM.Sign (signTransaction) as QueryM
 import QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout

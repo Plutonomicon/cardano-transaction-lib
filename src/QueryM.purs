@@ -55,11 +55,12 @@ module QueryM
   , runQueryM
   , runQueryMWithSettings
   , runQueryMInRuntime
-  , signTransaction
   , scriptToAeson
   , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
+  , withMWalletAff
+  , withMWallet
   , withQueryRuntime
   , callCip30Wallet
   ) where
@@ -499,18 +500,6 @@ getWalletAddresses = do
     Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
     KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
 
-signTransaction
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
-  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
-  Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
-  Eternl eternl -> callCip30Wallet eternl \nw -> flip nw.signTx tx
-  Lode lode -> callCip30Wallet lode \nw -> flip nw.signTx tx
-  KeyWallet kw -> do
-    witnessSet <- (unwrap kw).signTx tx
-    pure $ Just (tx # _witnessSet <>~ witnessSet)
-
 ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
 ownPubKeyHashes = do
   mbAddress <- getWalletAddresses
@@ -532,8 +521,12 @@ ownStakePubKeyHash = do
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
-  (liftAff <<< act)
+withMWalletAff act = withMWallet (liftAff <<< act)
+
+withMWallet
+  :: forall (a :: Type). (Wallet -> QueryM (Maybe a)) -> QueryM (Maybe a)
+withMWallet act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
+  act
 
 callCip30Wallet
   :: forall (a :: Type)
