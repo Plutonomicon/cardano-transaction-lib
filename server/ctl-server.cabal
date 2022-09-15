@@ -85,7 +85,6 @@ executable ctl-server
   main-is:          Main.hs
   build-depends:
     , base
-    , cardano-api
     , ctl-server
     , http-types
     , optparse-applicative

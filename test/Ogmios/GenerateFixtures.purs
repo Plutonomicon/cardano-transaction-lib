@@ -41,7 +41,6 @@ import QueryM
 import QueryM.JsonWsp (JsonWspCall)
 import QueryM.Ogmios (mkOgmiosCallType)
 import QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Type.Prelude (Proxy(Proxy))
 import Types.MultiMap as MultiMap
 import Data.Map as Map
 
@@ -98,7 +97,7 @@ data Query = Query (JsonWspCall Unit Aeson) String
 mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
 mkQuery query shown = Query queryCall shown
   where
-  queryCall = mkOgmiosCallType Proxy
+  queryCall = mkOgmiosCallType
     { methodname: "Query"
     , args: const { query }
     }

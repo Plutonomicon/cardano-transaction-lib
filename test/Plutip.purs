@@ -20,7 +20,7 @@ import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
-  ( PlutusData(Integer)
+  ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
@@ -28,7 +28,7 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (validatorHash)
+import Contract.Scripts (applyArgs, validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , runContractInEnv
@@ -88,6 +88,8 @@ import Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
+import Examples.OneShotMinting (contract) as OneShotMinting
+import Examples.PlutusV2.InlineDatum as InlineDatum
 import Examples.Lose7Ada as AlwaysFails
 import Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
@@ -95,7 +97,6 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import Examples.PlutusV2.InlineDatum as InlineDatum
 import Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Examples.SendsToken (contract) as SendsToken
@@ -121,7 +122,12 @@ import Plutus.Types.Value (lovelaceValueOf)
 import Safe.Coerce (coerce)
 import Scripts (nativeScriptHashEnterpriseAddress)
 import Test.AffInterface as AffInterface
-import Test.Fixtures (cip25MetadataFixture1)
+import Test.Fixtures
+  ( cip25MetadataFixture1
+  , fullyAppliedScriptFixture
+  , partiallyAppliedScriptFixture
+  , unappliedScriptFixture
+  )
 import Test.Plutip.Common (config, privateStakeKey)
 import Test.Plutip.Logging as Logging
 import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
@@ -141,9 +147,7 @@ import Wallet.Cip30Mock
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    -- we don't want to exit because we need to clean up after failure by
-    -- timeout
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = false }
+    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
     $ do
         suite
         UtxoDistribution.suite
@@ -802,6 +806,16 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
 
+    test "runPlutipContract: Examples.OneShotMinting" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice OneShotMinting.contract
+
     test "runPlutipContract: Examples.ContractTestUtils" do
       let
         initialUtxos :: InitialUTxOs
@@ -829,6 +843,26 @@ suite = do
             , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
             , txMetadata: cip25MetadataFixture1
             }
+
+  group "applyArgs" do
+    test "returns the same script when called without args" do
+      runPlutipContract config unit \_ -> do
+        result <- liftedE $ applyArgs unappliedScriptFixture mempty
+        result `shouldEqual` unappliedScriptFixture
+
+    test "returns the correct partially applied Plutus script" do
+      runPlutipContract config unit \_ -> do
+        let args = [ Integer (BigInt.fromInt 32) ]
+        result <- liftedE $ applyArgs unappliedScriptFixture args
+        result `shouldEqual` partiallyAppliedScriptFixture
+
+    test "returns the correct fully applied Plutus script" do
+      runPlutipContract config unit \_ -> do
+        bytes <-
+          liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
+        let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
+        result <- liftedE $ applyArgs unappliedScriptFixture args
+        result `shouldEqual` fullyAppliedScriptFixture
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
