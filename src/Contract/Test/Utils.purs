@@ -11,6 +11,7 @@ module Contract.Test.Utils
       , UnexpectedDatumInOutput
       , UnexpectedLovelaceDelta
       , UnexpectedMetadataValue
+      , UnexpectedRefScriptInOutput
       , UnexpectedTokenDelta
       )
   , ContractBasicAssertion
@@ -29,6 +30,7 @@ module Contract.Test.Utils
   , assertLossAtAddress'
   , assertLovelaceDeltaAtAddress
   , assertOutputHasDatum
+  , assertOutputHasRefScript
   , assertTokenDeltaAtAddress
   , assertTokenGainAtAddress
   , assertTokenGainAtAddress'
@@ -36,7 +38,9 @@ module Contract.Test.Utils
   , assertTokenLossAtAddress'
   , assertTxHasMetadata
   , checkBalanceDeltaAtAddress
-  --, checkOutputHasDatum:
+  , checkOutputHasDatum
+  , checkOutputHasRefScript
+  , checkTxHasMetadata
   , label
   , unlabel
   , valueAtAddress
@@ -47,34 +51,37 @@ module Contract.Test.Utils
 import Prelude
 
 import Contract.Address (Address)
-import Contract.Monad (Contract, liftedM, liftContractM, throwContractError)
+import Contract.Monad (Contract, throwContractError)
 import Contract.PlutusData (OutputDatum)
 import Contract.Transaction
-  ( Transaction(Transaction)
+  ( ScriptRef
+  , Transaction(Transaction)
   , TransactionHash
   , TransactionOutputWithRefScript
   , getTxByHash
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
-import Control.Monad.Error.Class (catchError)
 import Control.Monad.Except.Trans (ExceptT, except, runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer.Trans (WriterT, runWriterT, tell)
 import Data.Array (mapWithIndex)
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), isRight)
 import Data.Foldable (foldMap, null)
+import Data.Lens.Getter ((^.))
 import Data.Map (lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Monoid.Endo (Endo(Endo))
-import Data.Newtype (class Newtype, ala, unwrap, wrap)
+import Data.Newtype (class Newtype, ala, unwrap)
 import Data.Semigroup.Last (Last(Last))
 import Data.String.Common (joinWith) as String
 import Data.Traversable (traverse_)
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Metadata.FromMetadata (fromMetadata)
 import Metadata.MetadataType (class MetadataType, metadataLabel)
+import Plutus.Types.Transaction (_datum, _output, _scriptRef)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
 
@@ -123,6 +130,8 @@ data ContractAssertionFailure
       (ExpectedActual OutputDatum)
   | UnexpectedLovelaceDelta (Labeled Address) (ExpectedActual BigInt)
   | UnexpectedMetadataValue Label (ExpectedActual String)
+  | UnexpectedRefScriptInOutput (Labeled TransactionOutputWithRefScript)
+      (ExpectedActual (Maybe ScriptRef))
   | UnexpectedTokenDelta (Labeled Address) TokenName (ExpectedActual BigInt)
   | CustomFailure String
 
@@ -153,7 +162,7 @@ instance Show ContractAssertionFailure where
       <> (maybe mempty (flip append " ") (show <$> mdLabel) <> "metadata")
 
   show (UnexpectedDatumInOutput txOutput expectedActual) =
-    "Unexpected datum in output " <> (show txOutput <> show expectedActual)
+    "Unexpected datum in output " <> show txOutput <> show expectedActual
 
   show (UnexpectedLovelaceDelta addr expectedActual) =
     "Unexpected lovelace delta at address "
@@ -161,6 +170,10 @@ instance Show ContractAssertionFailure where
 
   show (UnexpectedMetadataValue mdLabel expectedActual) =
     "Unexpected " <> show mdLabel <> " metadata value" <> show expectedActual
+
+  show (UnexpectedRefScriptInOutput txOutput expectedActual) =
+    "Unexpected reference script in output "
+      <> (show txOutput <> show expectedActual)
 
   show (UnexpectedTokenDelta addr tn expectedActual) =
     "Unexpected token delta " <> show tn <> " at address "
@@ -180,6 +193,9 @@ label x l = Labeled x (Just l)
 
 unlabel :: forall (a :: Type). Labeled a -> a
 unlabel (Labeled x _) = x
+
+noLabel :: forall (a :: Type). a -> Labeled a
+noLabel = flip Labeled Nothing
 
 instance Show a => Show (Labeled a) where
   show (Labeled _ (Just l)) = l
@@ -277,7 +293,6 @@ assertContractExpectedActual mkAssertionFailure expected actual =
   assertContract (mkAssertionFailure $ ExpectedActual expected actual)
     (expected == actual)
 
--- | `wrapAndAssert` flipped
 withAssertions
   :: forall (r :: Row Type) (a :: Type) (assertions :: Type)
    . ContractAssertions assertions r a
@@ -289,6 +304,13 @@ withAssertions assertions contract = do
     runWriterT $ wrapAndAssert (lift contract) assertions
   if null failures then pure result
   else throwContractError (ContractAssertionFailures failures)
+
+mkCheckFromAssertion
+  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+   . ContractAssertionM r w a
+  -> Contract r Boolean
+mkCheckFromAssertion =
+  map (fst <<< fst) <<< runWriterT <<< runWriterT <<< map isRight <<< runExceptT
 
 --------------------------------------------------------------------------------
 -- Assertions and checks
@@ -442,32 +464,90 @@ assertTokenLossAtAddress'
 assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) =
   assertTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
 
--- | Requires that the transaction output contains the the specified datum.
+assertOutputHasDatum'
+  :: forall (r :: Row Type)
+   . OutputDatum
+  -> Labeled TransactionOutputWithRefScript
+  -> ContractAssertionM r Unit Unit
+assertOutputHasDatum' expectedDatum txOutput = do
+  let actualDatum = unlabel txOutput ^. _output <<< _datum
+  assertContractExpectedActual (UnexpectedDatumInOutput txOutput)
+    expectedDatum
+    actualDatum
+
 assertOutputHasDatum
   :: forall (r :: Row Type)
    . OutputDatum
   -> Labeled TransactionOutputWithRefScript
   -> ContractTestM r Unit
-assertOutputHasDatum expectedDatum txOutput =
-  runContractAssertionM' do
-    let
-      actualDatum :: OutputDatum
-      actualDatum =
-        txOutput # unlabel >>> unwrap >>> _.output >>> unwrap >>> _.datum
-    assertContractExpectedActual (UnexpectedDatumInOutput txOutput)
-      expectedDatum
-      actualDatum
+assertOutputHasDatum expectedDatum =
+  runContractAssertionM' <<< assertOutputHasDatum' expectedDatum
 
-{-
 checkOutputHasDatum
   :: forall (r :: Row Type)
    . OutputDatum
-  -> Labeled TransactionOutputWithRefScript
+  -> TransactionOutputWithRefScript
   -> Contract r Boolean
-checkOutputHasDatum expected txOutput =
-  (assertOutputHasDatum expected txOutput *> pure true)
-    `catchError` (const $ pure false)
--}
+checkOutputHasDatum expectedDatum txOutput =
+  mkCheckFromAssertion $
+    assertOutputHasDatum' expectedDatum (noLabel txOutput)
+
+assertOutputHasRefScript'
+  :: forall (r :: Row Type)
+   . ScriptRef
+  -> Labeled TransactionOutputWithRefScript
+  -> ContractAssertionM r Unit Unit
+assertOutputHasRefScript' expectedRefScript txOutput = do
+  let actualRefScript = unlabel txOutput ^. _scriptRef
+  assertContractExpectedActual (UnexpectedRefScriptInOutput txOutput)
+    (Just expectedRefScript)
+    actualRefScript
+
+assertOutputHasRefScript
+  :: forall (r :: Row Type)
+   . ScriptRef
+  -> Labeled TransactionOutputWithRefScript
+  -> ContractTestM r Unit
+assertOutputHasRefScript expectedRefScript =
+  runContractAssertionM' <<< assertOutputHasRefScript' expectedRefScript
+
+checkOutputHasRefScript
+  :: forall (r :: Row Type)
+   . ScriptRef
+  -> TransactionOutputWithRefScript
+  -> Contract r Boolean
+checkOutputHasRefScript expectedRefScript txOutput =
+  mkCheckFromAssertion $
+    assertOutputHasRefScript' expectedRefScript (noLabel txOutput)
+
+assertTxHasMetadata'
+  :: forall (r :: Row Type) (a :: Type)
+   . MetadataType a
+  => Eq a
+  => Show a
+  => Label
+  -> TransactionHash
+  -> a
+  -> ContractAssertionM r Unit Unit
+assertTxHasMetadata' mdLabel txHash expectedMetadata = do
+  Transaction { auxiliaryData } <-
+    assertContractM (CouldNotGetTxByHash txHash) (getTxByHash txHash)
+
+  generalMetadata <-
+    assertContractM' (TransactionHasNoMetadata txHash Nothing)
+      (map unwrap <<< _.metadata <<< unwrap =<< auxiliaryData)
+
+  rawMetadata <-
+    assertContractM' (TransactionHasNoMetadata txHash (Just mdLabel))
+      (Map.lookup (metadataLabel (Proxy :: Proxy a)) generalMetadata)
+
+  (metadata :: a) <-
+    assertContractM' (CouldNotParseMetadata mdLabel)
+      (fromMetadata rawMetadata)
+
+  let expectedActual = show <$> ExpectedActual expectedMetadata metadata
+  assertContract (UnexpectedMetadataValue mdLabel expectedActual)
+    (metadata == expectedMetadata)
 
 -- | Requires that the transaction contains the specified metadata.
 assertTxHasMetadata
@@ -479,24 +559,16 @@ assertTxHasMetadata
   -> TransactionHash
   -> a
   -> ContractTestM r Unit
-assertTxHasMetadata mdLabel txHash expectedMetadata =
-  runContractAssertionM' do
-    Transaction { auxiliaryData } <-
-      assertContractM (CouldNotGetTxByHash txHash) (getTxByHash txHash)
+assertTxHasMetadata mdLabel txHash =
+  runContractAssertionM' <<< assertTxHasMetadata' mdLabel txHash
 
-    generalMetadata <-
-      assertContractM' (TransactionHasNoMetadata txHash Nothing)
-        (map unwrap <<< _.metadata <<< unwrap =<< auxiliaryData)
-
-    rawMetadata <-
-      assertContractM' (TransactionHasNoMetadata txHash (Just mdLabel))
-        (Map.lookup (metadataLabel (Proxy :: Proxy a)) generalMetadata)
-
-    (metadata :: a) <-
-      assertContractM' (CouldNotParseMetadata mdLabel)
-        (fromMetadata rawMetadata)
-
-    let expectedActual = show <$> ExpectedActual expectedMetadata metadata
-    assertContract (UnexpectedMetadataValue mdLabel expectedActual)
-      (metadata == expectedMetadata)
-
+checkTxHasMetadata
+  :: forall (r :: Row Type) (a :: Type)
+   . MetadataType a
+  => Eq a
+  => Show a
+  => TransactionHash
+  -> a
+  -> Contract r Boolean
+checkTxHasMetadata txHash =
+  mkCheckFromAssertion <<< assertTxHasMetadata' mempty txHash
