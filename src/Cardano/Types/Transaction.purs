@@ -101,7 +101,7 @@ import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
@@ -110,6 +110,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeSet, encodeTagged')
+import FromData (class FromData, fromData)
 import Serialization.Address
   ( Address
   , NetworkId
@@ -118,7 +119,14 @@ import Serialization.Address
   , StakeCredential
   )
 import Serialization.Hash (Ed25519KeyHash)
+import Serialization.Keys
+  ( bech32FromPublicKey
+  , bytesFromPublicKey
+  , publicKeyFromBech32
+  , publicKeyFromBytes
+  )
 import Serialization.Types (VRFKeyHash)
+import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
@@ -788,6 +796,14 @@ derive instance Newtype PublicKey _
 derive newtype instance Eq PublicKey
 derive newtype instance Ord PublicKey
 derive newtype instance EncodeAeson PublicKey
+
+customToData :: PublicKey -> Maybe PlutusData
+customToData = map toData <<< bytesFromPublicKey <=< publicKeyFromBech32 <<<
+  unwrap
+
+instance FromData PublicKey where
+  fromData = map (wrap <<< bech32FromPublicKey) <<< publicKeyFromBytes <=<
+    fromData
 
 instance Show PublicKey where
   show = genericShow

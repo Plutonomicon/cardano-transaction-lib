@@ -103,6 +103,17 @@ exports._publicKeyFromBech32 = maybe => bech32 => {
   }
 };
 
+const bytesFromKey = maybe => key => {
+  try {
+    return maybe.just(key.as_bytes());
+  } catch (err) {
+    return maybe.nothing;
+  }
+};
+
+exports._bytesFromPublicKey = bytesFromKey;
+exports._bytesFromPrivateKey = bytesFromKey;
+
 exports.publicKeyFromPrivateKey = private_key => () => {
   return private_key.to_public();
 };
@@ -111,14 +122,6 @@ exports._privateKeyFromBytes = maybe => bytes => {
   try {
     return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
   } catch (_) {
-    return maybe.nothing;
-  }
-};
-
-exports._bytesFromPrivateKey = maybe => key => {
-  try {
-    return maybe.just(key.as_bytes());
-  } catch (err) {
     return maybe.nothing;
   }
 };
