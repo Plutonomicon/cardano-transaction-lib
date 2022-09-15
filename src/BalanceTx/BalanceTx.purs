@@ -80,7 +80,7 @@ import Data.Foldable (foldl, foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union, empty) as Map
+import Data.Map (lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
