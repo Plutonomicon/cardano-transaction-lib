@@ -8,20 +8,6 @@ import Prelude
 import BalanceTx.Error
   ( BalanceTxError(ExUnitsEvaluationFailed, ReindexRedeemersError)
   )
--- <<<<<<< HEAD
--- import Cardano.Types.Transaction
---   ( Redeemer(Redeemer)
---   , Transaction
---   , UtxoMap
---   , _inputs
---   , _plutusData
---   , _redeemers
---   , _witnessSet
---   )
--- import Control.Monad.Reader.Class (asks)
--- import Control.Monad.Trans.Class (lift)
--- =======
--- >>>>>>> upstream/develop
 import BalanceTx.Helpers (_body', _redeemersTxIns)
 import BalanceTx.Types
   ( BalanceTxM
