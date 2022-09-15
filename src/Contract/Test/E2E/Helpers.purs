@@ -27,7 +27,7 @@ import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)
 import Data.Either (fromRight, hush)
 import Data.Foldable (intercalate)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
@@ -262,22 +262,25 @@ inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
 
 eternlConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 eternlConfirmAccess extId re = do
-  void $ inWalletPageOptional extId pattern re confirmAccessTimeout \page -> do
-    delaySec 1.0
-    void $ Toppokki.pageWaitForSelector (wrap "span.capitalize") {} page
-    clickButton "Connect to Site" page
-  waitForWalletPageClose pattern 10.0 re.browser
+  wasInPage <- isJust <$> inWalletPageOptional extId pattern re
+    confirmAccessTimeout
+    \page -> do
+      delaySec 1.0
+      void $ Toppokki.pageWaitForSelector (wrap "span.capitalize") {} page
+      clickButton "Connect to Site" page
+  when wasInPage do
+    waitForWalletPageClose pattern 10.0 re.browser
   where
   pattern :: Pattern
   pattern = wrap $ unwrap extId <> "/www/index.html#/connect/"
 
 eternlSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 eternlSign extId wpassword re = do
-  delaySec 1.0
   inWalletPage pattern re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page
+    -- TODO: why does it require a delay?
     delaySec 0.1
     typeInto (inputType "password") (unwrap wpassword) page
     void $ doJQ (wrap "span.capitalize:contains(\"sign\")") click page
@@ -326,20 +329,38 @@ flintSign _ _ _ = do
 
 lodeConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 lodeConfirmAccess extId re = do
-  inWalletPage (Pattern $ unwrap extId) re confirmAccessTimeout \page -> do
+  wasOnAccessPage <- inWalletPage pattern re confirmAccessTimeout \page -> do
     delaySec 0.1
-    void $ doJQ (buttonWithText "Access") click page
+    isOnAccessPage <- isJQuerySelectorAvailable (buttonWithText "Access") page
+      re.jQuery
+    when isOnAccessPage do
+      void $ doJQ (buttonWithText "Access") click page
+    pure isOnAccessPage
+  when wasOnAccessPage do
+    waitForWalletPageClose pattern 10.0 re.browser
+  where
+  pattern = Pattern $ unwrap extId
 
 lodeSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 lodeSign extId gpassword re = do
-  delaySec 3.0
   inWalletPage (wrap $ unwrap extId) re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page
+    isOnSignPage <- isJQuerySelectorAvailable (buttonWithText "Approve") page
+      re.jQuery
+    unless isOnSignPage do
+      liftEffect $ throw $ "lodeSign: unable to find signing page"
     typeInto (inputType "password") (unwrap gpassword) page
     delaySec 0.1
     clickButton "Approve" page
+
+isJQuerySelectorAvailable :: Selector -> Toppokki.Page -> String -> Aff Boolean
+isJQuerySelectorAvailable selector page jQuery = do
+  injectJQuery page jQuery
+  unsafeFromForeign <$> Toppokki.unsafeEvaluateStringFunction
+    ("!!$('" <> unwrap selector <> "').length")
+    page
 
 confirmAccessTimeout :: Number
 confirmAccessTimeout = 10.0
