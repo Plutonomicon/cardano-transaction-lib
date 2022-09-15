@@ -12,6 +12,11 @@ import CTL.Contract.Config
 import CTL.Contract.Monad (Contract, runContract)
 import CTL.Contract.Prelude (fst, traverse_, uncurry)
 import CTL.Contract.Test.E2E (publishTestFeedback)
+import CTL.Contract.Wallet.Cip30Mock
+  ( WalletMock(MockFlint, MockGero, MockNami)
+  , withCip30Mock
+  )
+import CTL.Contract.Wallet.Key (privateKeysToKeyWallet)
 import CTL.Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
@@ -26,11 +31,6 @@ import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import CTL.Examples.SendsToken as SendsToken
 import CTL.Examples.SignMultiple as SignMultiple
 import CTL.Examples.Wallet as Wallet
-import CTL.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami)
-  , withCip30Mock
-  )
-import CTL.Internal.Wallet.Key (privateKeysToKeyWallet)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)
 import Data.Foldable (lookup)

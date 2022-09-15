@@ -1,4 +1,4 @@
-module CTL.Internal.Plutus.Types.Value
+module CTL.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
@@ -39,22 +39,22 @@ import Aeson
   )
 import CTL.Internal.FromData (class FromData)
 import CTL.Internal.Helpers (showWithParens)
-import CTL.Internal.Plutus.Types.AssocMap (Map(Map)) as Plutus
-import CTL.Internal.Plutus.Types.AssocMap
+import CTL.Internal.ToData (class ToData)
+import CTL.Internal.Types.ByteArray (ByteArray)
+import CTL.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
+import CTL.Plutus.Types.AssocMap (Map(Map)) as Plutus
+import CTL.Plutus.Types.AssocMap
   ( keys
   , lookup
   , mapThese
   , singleton
   , union
   ) as Plutus.Map
-import CTL.Internal.Plutus.Types.CurrencySymbol
+import CTL.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol
   )
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)

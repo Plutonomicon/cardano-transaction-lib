@@ -15,6 +15,7 @@ import CTL.Contract.Transaction
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Value (lovelaceValueOf) as Value
 import CTL.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+-- TODO Re-export into Contract or drop the usage
 import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Control.Monad.Reader (asks)
 import Data.Newtype (unwrap)

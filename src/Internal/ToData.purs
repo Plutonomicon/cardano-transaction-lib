@@ -15,10 +15,6 @@ module CTL.Internal.ToData
 import Prelude
 
 import CTL.Internal.Helpers (uIntToBigInt)
-import CTL.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , class ValidPlutusSchema
-  )
 import CTL.Internal.TypeLevel.Nat (class KnownNat, natVal)
 import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
@@ -31,6 +27,10 @@ import CTL.Internal.Types.ByteArray (ByteArray(ByteArray))
 import CTL.Internal.Types.CborBytes (CborBytes)
 import CTL.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 import CTL.Internal.Types.RawBytes (RawBytes)
+import CTL.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , class ValidPlutusSchema
+  )
 import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.BigInt (BigInt, fromInt)

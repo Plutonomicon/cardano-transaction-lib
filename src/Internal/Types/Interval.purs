@@ -81,14 +81,6 @@ import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
 import CTL.Internal.FromData (class FromData, genericFromData)
 import CTL.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
-import CTL.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
 import CTL.Internal.QueryM.Ogmios
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -107,6 +99,14 @@ import CTL.Internal.Types.BigNum
   , toBigIntUnsafe
   , zero
   ) as BigNum
+import CTL.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)

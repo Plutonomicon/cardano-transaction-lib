@@ -12,17 +12,17 @@ import Aeson
   )
 import CTL.Internal.FromData (class FromData, genericFromData)
 import CTL.Internal.Helpers (encodeTagged')
-import CTL.Internal.Plutus.Types.DataSchema
+import CTL.Internal.ToData (class ToData, genericToData)
+import CTL.Internal.TypeLevel.Nat (S, Z)
+import CTL.Internal.Types.Datum (Datum)
+import CTL.Internal.Types.Transaction (DataHash)
+import CTL.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
   , type (@@)
   , PNil
   )
-import CTL.Internal.ToData (class ToData, genericToData)
-import CTL.Internal.TypeLevel.Nat (S, Z)
-import CTL.Internal.Types.Datum (Datum)
-import CTL.Internal.Types.Transaction (DataHash)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)

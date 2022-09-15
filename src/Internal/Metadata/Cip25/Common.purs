@@ -33,9 +33,9 @@ import CTL.Internal.Metadata.Helpers
   , lookupMetadata
   )
 import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import CTL.Internal.Plutus.Types.AssocMap as AssocMap
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
+import CTL.Plutus.Types.AssocMap as AssocMap
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (note)

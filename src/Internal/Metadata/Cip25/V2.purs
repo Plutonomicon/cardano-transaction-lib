@@ -50,7 +50,6 @@ import CTL.Internal.Metadata.ToMetadata
   , anyToMetadata
   , toMetadata
   )
-import CTL.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import CTL.Internal.Serialization.Hash (scriptHashFromBytes)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.Int as Int
@@ -61,6 +60,7 @@ import CTL.Internal.Types.TokenName (mkTokenName)
 import CTL.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
+import CTL.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Control.Alt ((<|>))
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)

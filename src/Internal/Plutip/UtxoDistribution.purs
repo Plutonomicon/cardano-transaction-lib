@@ -38,13 +38,13 @@ import CTL.Internal.Plutip.Types
   , PrivateKeyResponse(PrivateKeyResponse)
   , UtxoAmount
   )
-import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
 import CTL.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
+import CTL.Plutus.Types.Transaction (UtxoMap)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Data.Array as Array

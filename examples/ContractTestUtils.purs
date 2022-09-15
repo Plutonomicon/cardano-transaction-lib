@@ -52,8 +52,9 @@ import CTL.Examples.Helpers
   ( mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
   ) as Helpers
+-- TODO Re-export into Contract or drop the usage
 import CTL.Internal.Metadata.Cip25.V2 (Cip25Metadata)
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput
+import CTL.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   , _output
   )

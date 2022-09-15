@@ -1,4 +1,4 @@
-module CTL.Internal.Plutus.Types.TransactionUnspentOutput
+module CTL.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , lookupTxHash
   , _input
@@ -8,11 +8,11 @@ module CTL.Internal.Plutus.Types.TransactionUnspentOutput
 
 import Prelude
 
-import CTL.Internal.Plutus.Types.Transaction
+import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import CTL.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript
   , UtxoMap
   )
-import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (filter)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')

@@ -1,4 +1,4 @@
-module CTL.Internal.Plutus.Types.Transaction
+module CTL.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -8,13 +8,13 @@ import Prelude
 
 import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Plutus.Types.Address (Address)
-import CTL.Internal.Plutus.Types.Value (Value)
 import CTL.Internal.Serialization.Hash (ScriptHash)
 import CTL.Internal.ToData (class ToData, toData)
 import CTL.Internal.Types.OutputDatum (OutputDatum)
 import CTL.Internal.Types.PlutusData (PlutusData(Constr))
 import CTL.Internal.Types.Transaction (TransactionInput)
+import CTL.Plutus.Types.Address (Address)
+import CTL.Plutus.Types.Value (Value)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))

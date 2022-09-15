@@ -12,10 +12,10 @@ import CTL.Contract.Prelude
 import CTL.Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import CTL.Contract.Log (logInfo')
 import CTL.Contract.Monad (Contract, liftContractM, liftedE)
-import CTL.Contract.PlutusData (Datum)
+import CTL.Contract.PlutusData (class IsData, Datum)
 import CTL.Contract.Prim.ByteArray (byteArrayFromAscii)
 import CTL.Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
-import CTL.Contract.Scripts (MintingPolicy)
+import CTL.Contract.Scripts (class ValidatorTypes, MintingPolicy)
 import CTL.Contract.Transaction
   ( TransactionHash
   , balanceAndSignTxE
@@ -26,8 +26,6 @@ import CTL.Contract.TxConstraints (DatumPresence)
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Value (CurrencySymbol, TokenName, Value)
 import CTL.Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
-import CTL.Internal.IsData (class IsData)
-import CTL.Internal.Types.TypedValidator (class ValidatorTypes)
 import Data.BigInt (BigInt)
 
 buildBalanceSignAndSubmitTx'

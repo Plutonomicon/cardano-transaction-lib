@@ -8,15 +8,6 @@ import CTL.Internal.Deserialization.FromBytes (fromBytes)
 import CTL.Internal.Deserialization.PlutusData as PDD
 import CTL.Internal.FromData (class FromData, fromData, genericFromData)
 import CTL.Internal.Helpers (showWithParens)
-import CTL.Internal.Plutus.Types.AssocMap (Map(Map))
-import CTL.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
 import CTL.Internal.Serialization (toBytes)
 import CTL.Internal.Serialization.PlutusData as PDS
 import CTL.Internal.ToData (class ToData, genericToData, toData)
@@ -29,6 +20,15 @@ import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
   )
 import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import CTL.Internal.Types.PlutusData (PlutusData(Constr, Integer))
+import CTL.Plutus.Types.AssocMap (Map(Map))
+import CTL.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.BigInt (BigInt)

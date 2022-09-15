@@ -4,11 +4,11 @@ import Prelude
 
 import CTL.Internal.Cardano.Types.Value (Value) as Types
 import CTL.Internal.Cardano.Types.Value as Value
-import CTL.Internal.Plutus.Conversion (fromPlutusValue, toPlutusValue)
-import CTL.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
-import CTL.Internal.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
-import CTL.Internal.Plutus.Types.Value (Value) as Plutus
-import CTL.Internal.Plutus.Types.Value as Plutus.Value
+import CTL.Plutus.Conversion (fromPlutusValue, toPlutusValue)
+import CTL.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
+import CTL.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
+import CTL.Plutus.Types.Value (Value) as Plutus
+import CTL.Plutus.Types.Value as Plutus.Value
 import Data.Array (length, range, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)

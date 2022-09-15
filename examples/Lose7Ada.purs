@@ -42,6 +42,7 @@ import CTL.Contract.TxConstraints (TxConstraints)
 import CTL.Contract.TxConstraints as Constraints
 import CTL.Contract.Utxos (getWalletBalance, utxosAt)
 import CTL.Contract.Value as Value
+-- TODO Re-export into Contract or drop the usage
 import CTL.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)

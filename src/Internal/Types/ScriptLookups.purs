@@ -81,14 +81,6 @@ import CTL.Internal.Cardano.Types.Value
 import CTL.Internal.Hashing (datumHash) as Hashing
 import CTL.Internal.Helpers (liftM, (<\>))
 import CTL.Internal.IsData (class IsData)
-import CTL.Internal.Plutus.Conversion
-  ( fromPlutusTxOutputWithRefScript
-  , fromPlutusValue
-  )
-import CTL.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
 import CTL.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
 import CTL.Internal.QueryM.ProtocolParameters (getProtocolParameters)
@@ -181,6 +173,14 @@ import CTL.Internal.Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
+  )
+import CTL.Plutus.Conversion
+  ( fromPlutusTxOutputWithRefScript
+  , fromPlutusValue
+  )
+import CTL.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
+import CTL.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)

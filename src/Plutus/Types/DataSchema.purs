@@ -1,4 +1,4 @@
-module CTL.Internal.Plutus.Types.DataSchema
+module CTL.Plutus.Types.DataSchema
   ( PSchema
   , class HasPlutusSchema
   , PNil

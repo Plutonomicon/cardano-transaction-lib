@@ -69,14 +69,6 @@ import Prelude hiding (join)
 import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
 import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import CTL.Internal.NativeScripts (NativeScriptHash)
-import CTL.Internal.Plutus.Types.CurrencySymbol
-  ( CurrencySymbol
-  , currencyMPSHash
-  )
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import CTL.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
 import CTL.Internal.Types.Datum (Datum)
 import CTL.Internal.Types.Interval
   ( POSIXTimeRange
@@ -89,6 +81,14 @@ import CTL.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import CTL.Internal.Types.Scripts (MintingPolicyHash, ValidatorHash)
 import CTL.Internal.Types.TokenName (TokenName)
 import CTL.Internal.Types.Transaction (DataHash, TransactionInput)
+import CTL.Plutus.Types.CurrencySymbol
+  ( CurrencySymbol
+  , currencyMPSHash
+  )
+import CTL.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import CTL.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
 import Data.Array (concat, (:))
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)

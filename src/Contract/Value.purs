@@ -6,7 +6,15 @@ module CTL.Contract.Value
   , module Value
   ) where
 
-import CTL.Internal.Plutus.Types.CurrencySymbol
+import CTL.Internal.Scripts (scriptCurrencySymbol) as Scripts
+import CTL.Internal.Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  ) as TokenName
+import CTL.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , currencyMPSHash
@@ -15,7 +23,7 @@ import CTL.Internal.Plutus.Types.CurrencySymbol
   , mpsSymbol
   , scriptHashAsCurrencySymbol
   ) as CurrencySymbol
-import CTL.Internal.Plutus.Types.Value
+import CTL.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
@@ -41,11 +49,3 @@ import CTL.Internal.Plutus.Types.Value
   , valueToCoin
   , valueToCoin'
   ) as Value
-import CTL.Internal.Scripts (scriptCurrencySymbol) as Scripts
-import CTL.Internal.Types.TokenName
-  ( TokenName
-  , adaToken
-  , getTokenName
-  , mkTokenName
-  , mkTokenNames
-  ) as TokenName

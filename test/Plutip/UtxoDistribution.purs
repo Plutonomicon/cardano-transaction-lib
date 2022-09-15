@@ -39,7 +39,7 @@ import CTL.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
 import CTL.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import CTL.Internal.Plutus.Types.Transaction (UtxoMap)
+import CTL.Plutus.Types.Transaction (UtxoMap)
 import Control.Lazy (fix)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)

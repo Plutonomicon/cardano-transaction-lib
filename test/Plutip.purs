@@ -94,16 +94,6 @@ import CTL.Internal.Plutip.Server
   , stopPlutipCluster
   )
 import CTL.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import CTL.Internal.Plutus.Conversion.Address (toPlutusAddress)
-import CTL.Internal.Plutus.Types.Transaction
-  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  )
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  , _input
-  , lookupTxHash
-  )
-import CTL.Internal.Plutus.Types.Value (lovelaceValueOf)
 import CTL.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import CTL.Internal.Types.Interval (getSlotLength)
 import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
@@ -111,6 +101,16 @@ import CTL.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )
+import CTL.Plutus.Conversion.Address (toPlutusAddress)
+import CTL.Plutus.Types.Transaction
+  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  )
+import CTL.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , lookupTxHash
+  )
+import CTL.Plutus.Types.Value (lovelaceValueOf)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)

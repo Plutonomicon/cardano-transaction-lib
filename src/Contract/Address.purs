@@ -39,28 +39,6 @@ import CTL.Internal.Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
-import CTL.Internal.Plutus.Conversion
-  ( fromPlutusAddress
-  , toPlutusAddress
-  , toPlutusTxUnspentOutput
-  )
-import CTL.Internal.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import CTL.Internal.Plutus.Types.Address
-  ( Address
-  , AddressWithNetworkTag(AddressWithNetworkTag)
-  )
-import CTL.Internal.Plutus.Types.Address
-  ( Address
-  , AddressWithNetworkTag(AddressWithNetworkTag)
-  , pubKeyHashAddress
-  , scriptHashAddress
-  , toPubKeyHash
-  , toStakingCredential
-  , toValidatorHash
-  ) as ExportAddress
-import CTL.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
 import CTL.Internal.QueryM
   ( getWalletAddress
   , ownPaymentPubKeyHash
@@ -115,6 +93,28 @@ import CTL.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
+import CTL.Plutus.Conversion
+  ( fromPlutusAddress
+  , toPlutusAddress
+  , toPlutusTxUnspentOutput
+  )
+import CTL.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
+import CTL.Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  )
+import CTL.Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  , pubKeyHashAddress
+  , scriptHashAddress
+  , toPubKeyHash
+  , toStakingCredential
+  , toValidatorHash
+  ) as ExportAddress
+import CTL.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 

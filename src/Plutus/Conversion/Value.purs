@@ -1,4 +1,4 @@
-module CTL.Internal.Plutus.Conversion.Value
+module CTL.Plutus.Conversion.Value
   ( fromPlutusValue
   , toPlutusValue
   ) where
@@ -13,15 +13,15 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAssetsFromTokenMap
   , mkValue
   )
-import CTL.Internal.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
-import CTL.Internal.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
-import CTL.Internal.Plutus.Types.Value (Value) as Plutus
-import CTL.Internal.Plutus.Types.Value
+import CTL.Internal.Types.TokenName (adaToken, getTokenName)
+import CTL.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
+import CTL.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
+import CTL.Plutus.Types.Value (Value) as Plutus
+import CTL.Plutus.Types.Value
   ( getValue
   , lovelaceValueOf
   , singleton'
   ) as Plutus.Value
-import CTL.Internal.Types.TokenName (adaToken, getTokenName)
 import Data.Array (head, partition)
 import Data.Foldable (fold)
 import Data.List (List)
