@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 - `Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
+- `balanceTx` variants that allow to specify additional UTxOs: `balanceTxWithAdditionalUtxos`, `balanceTxWithAddressAndAdditionalUtxos`, `balanceTxsWithAddressAndAdditionalUtxos`. ([#1000](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1000))
 
 ### Changed
 ### Removed

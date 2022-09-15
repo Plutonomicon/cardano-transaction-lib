@@ -6,16 +6,15 @@ module Contract.Transaction
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , balanceAndSignTx
-  , balanceAndSignTxWithAdditionalUtxos
-  , balanceAndSignTxs
-  , balanceAndSignTxsWithAdditionalUtxos
   , balanceAndSignTxE
-  , balanceAndSignTxWithAdditionalUtxosE
+  , balanceAndSignTxs
   , balanceTx
+  , balanceTxM
   , balanceTxWithAdditionalUtxos
   , balanceTxWithAddress
-  , balanceTxWithAddressWithAdditionalUtxos
-  , balanceTxM
+  , balanceTxWithAddressAndAdditionalUtxos
+  , balanceTxsWithAddress
+  , balanceTxsWithAddressAndAdditionalUtxos
   , calculateMinFee
   , calculateMinFeeM
   , getTxByHash
@@ -42,8 +41,6 @@ module Contract.Transaction
   , withBalancedTx
   , withBalancedAndSignedTxs
   , withBalancedAndSignedTx
-  , balanceTxsWithAddress
-  , balanceTxsWithAddressWithAdditionalUtxos
   ) where
 
 import Prelude
@@ -346,13 +343,13 @@ balanceTx
 balanceTx tx = balanceTxWithAdditionalUtxos tx Map.empty
 
 -- | Like `balanceTxWithAddress`, but uses an additional `UtxoMap`.
-balanceTxWithAddressWithAdditionalUtxos
+balanceTxWithAddressAndAdditionalUtxos
   :: forall (r :: Row Type)
    . Address
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddressWithAdditionalUtxos addr tx utxos = do
+balanceTxWithAddressAndAdditionalUtxos addr tx utxos = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
   wrapContract $ BalanceTx.balanceTxWithAddress
     (fromPlutusAddress networkId addr)
@@ -366,7 +363,7 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTxWithAddress addr tx =
-  balanceTxWithAddressWithAdditionalUtxos addr tx Map.empty
+  balanceTxWithAddressAndAdditionalUtxos addr tx Map.empty
 
 -- Helper to avoid repetition
 withTransactions
@@ -461,7 +458,7 @@ withBalancedAndSignedTx = withSingleTransaction
   unwrap
 
 -- | Like `balanceTxsWithAddress`, but uses an additional `UtxoMap`.
-balanceTxsWithAddressWithAdditionalUtxos
+balanceTxsWithAddressAndAdditionalUtxos
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
@@ -469,7 +466,7 @@ balanceTxsWithAddressWithAdditionalUtxos
   => Address
   -> t (UnattachedUnbalancedTx /\ UtxoMap)
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddressWithAdditionalUtxos ownAddress unbalancedTxs =
+balanceTxsWithAddressAndAdditionalUtxos ownAddress unbalancedTxs =
   unlockAllOnError $ traverse (uncurry balanceAndLock) unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -503,7 +500,7 @@ balanceTxsWithAddress
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
 balanceTxsWithAddress ownAddress unbalancedTxs =
-  balanceTxsWithAddressWithAdditionalUtxos ownAddress $
+  balanceTxsWithAddressAndAdditionalUtxos ownAddress $
     (flip (/\) $ Map.empty) <$> unbalancedTxs
 
 -- | Like `balanceTxs`, but uses an additional `UtxoMap`.
@@ -520,7 +517,7 @@ balanceTxsWithAdditionalUtxos unbalancedTxs = do
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"
     Just ownAddress ->
-      balanceTxsWithAddressWithAdditionalUtxos ownAddress unbalancedTxs
+      balanceTxsWithAddressAndAdditionalUtxos ownAddress unbalancedTxs
 
 -- | Balances each transaction and locks the used inputs
 -- | so that they cannot be reused by subsequent transactions.
@@ -588,15 +585,6 @@ balanceAndSignTxs
 balanceAndSignTxs txs = balanceTxs txs >>= traverse
   (liftedM "error signing a transaction" <<< signTransaction')
 
--- | Like `balanceAndSignTx`, but uses an additional `UtxoMap`.
-balanceAndSignTxWithAdditionalUtxos
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
-  -> UtxoMap
-  -> Contract r (Maybe BalancedSignedTransaction)
-balanceAndSignTxWithAdditionalUtxos tx utxos =
-  pure <$> internalBalanceAndSignTxWithAdditionalUtxos tx utxos
-
 -- | Balances an unbalanced transaction and signs it.
 -- |
 -- | The return type includes the balanced transaction to be used with `submit`
@@ -632,15 +620,6 @@ internalBalanceAndSignTxWithAdditionalUtxos tx utxos =
       [ x ] -> pure x
       _ -> liftEffect $ throw $
         "Unexpected internal error during transaction signing"
-
--- | Like `balanceAndSignTxE`, but uses an additional `UtxoMap`.
-balanceAndSignTxWithAdditionalUtxosE
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
-  -> UtxoMap
-  -> Contract r (Either Error BalancedSignedTransaction)
-balanceAndSignTxWithAdditionalUtxosE tx utxos =
-  try $ internalBalanceAndSignTxWithAdditionalUtxos tx utxos
 
 -- TODO Deprecate `balanceAndSignTxE` once `Maybe` is dropped from
 -- `balanceAndSignTx`, like in `internalBalanceAndSignTx`.
