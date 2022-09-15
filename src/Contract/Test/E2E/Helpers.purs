@@ -25,7 +25,7 @@ import Contract.Test.E2E.Feedback (testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)
-import Data.Either (hush)
+import Data.Either (fromRight, hush)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, wrap, unwrap)
@@ -211,7 +211,7 @@ waitForTestFeedback ex@{ main, errors } timeout
 
 checkSuccess :: RunningExample -> Aff Boolean
 checkSuccess ex@{ main, errors } = do
-  waitForTestFeedback ex 50.0
+  waitForTestFeedback ex 80.0
   feedback <- testFeedbackIsTrue main
   unless feedback $ liftEffect $ showOutput errors >>= log
   pure feedback
@@ -245,22 +245,26 @@ inWalletPageOptional
   -> (Toppokki.Page -> Aff a)
   -> Aff (Maybe a)
 inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
-  page <- waitForWalletPage (Pattern $ unwrap extId) timeout browser
-  url <- liftedM (error "inWalletPageOptional: page closed")
-    $ map hush
-    $ try
-    $ pageUrl page
-  if
-    String.contains pattern url then do
-    injectJQuery page jQuery
-    Just <$> cont page
-  else do
-    pure Nothing
+  try acquirePage <#> fromRight Nothing
+  where
+  acquirePage = do
+    page <- waitForWalletPage (Pattern $ unwrap extId) timeout browser
+    url <- liftedM (error "inWalletPageOptional: page closed")
+      $ map hush
+      $ try
+      $ pageUrl page
+    if
+      String.contains pattern url then do
+      injectJQuery page jQuery
+      Just <$> cont page
+    else do
+      pure Nothing
 
 eternlConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 eternlConfirmAccess extId re = do
   void $ inWalletPageOptional extId pattern re confirmAccessTimeout \page -> do
     delaySec 1.0
+    void $ Toppokki.pageWaitForSelector (wrap "span.capitalize") {} page
     clickButton "Connect to Site" page
   waitForWalletPageClose pattern 10.0 re.browser
   where

@@ -115,6 +115,7 @@ balanceTx unbalancedTx = do
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the attached wallet).
+-- TODO rename to balanceTxWithAddresses
 balanceTxWithAddress
   :: Array Address
   -> UnattachedUnbalancedTx
