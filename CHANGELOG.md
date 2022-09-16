@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 - `Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
+- `Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 
 ### Changed

@@ -102,6 +102,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
@@ -812,7 +813,7 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
 
-    test "runPlutipContract: Examples.OneShotMinting" do
+    test "runPlutipContract: OneShotMinting" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -821,6 +822,16 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice OneShotMinting.contract
+
+    test "runPlutipContract: OneShotMinting PlutusV2" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice OneShotMintingV2.contract
 
     test "runPlutipContract: Examples.ContractTestUtils" do
       let
