@@ -242,22 +242,21 @@ suite = do
 
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution = aliceUtxos /\ bobUtxos
-      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
-        do
-          runContractInEnv env $
-            checkUtxoDistribution distribution wallets
-          sequential ado
-            parallel $ runContractInEnv env $ withKeyWallet alice do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet bob ownStakePubKeyHash
-              pkh2PkhContract pkh stakePkh
-            parallel $ runContractInEnv env $ withKeyWallet bob do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet alice ownStakePubKeyHash
-              pkh2PkhContract pkh stakePkh
-            in unit
+
+      runPlutipContract config distribution \wallets@(alice /\ bob) -> do
+        checkUtxoDistribution distribution wallets
+        sequential ado
+          parallel $ withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
+              ownPaymentPubKeyHash
+            stakePkh <- withKeyWallet bob ownStakePubKeyHash
+            pkh2PkhContract pkh stakePkh
+          parallel $ withKeyWallet bob do
+            pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
+              ownPaymentPubKeyHash
+            stakePkh <- withKeyWallet alice ownStakePubKeyHash
+            pkh2PkhContract pkh stakePkh
+          in unit
 
     test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
       let
@@ -272,17 +271,16 @@ suite = do
         distribution =
           withStakeKey privateStakeKey aliceUtxos
             /\ withStakeKey privateStakeKey bobUtxos
-      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+      runPlutipContract config distribution \wallets@(alice /\ bob) ->
         do
-          runContractInEnv env $
-            checkUtxoDistribution distribution wallets
+          checkUtxoDistribution distribution wallets
           sequential ado
-            parallel $ runContractInEnv env $ withKeyWallet alice do
+            parallel $ withKeyWallet alice do
               pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
                 ownPaymentPubKeyHash
               stakePkh <- withKeyWallet bob ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
-            parallel $ runContractInEnv env $ withKeyWallet bob do
+            parallel $ withKeyWallet bob do
               pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
                 ownPaymentPubKeyHash
               stakePkh <- withKeyWallet alice ownStakePubKeyHash
