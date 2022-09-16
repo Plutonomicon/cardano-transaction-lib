@@ -33,6 +33,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- added class instances:
+  - `UtxoDistribution (Array InitialUTxOs) (Array KeyWallet)`
+  - `UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet)`
+  - corresponding tests ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018))
 - `Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
 - `Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 
