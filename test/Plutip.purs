@@ -113,7 +113,11 @@ import Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import Plutip.Types
+  ( StopClusterResponse(StopClusterSuccess)
+  , InitialUTxOsWithStakeKey
+  )
+import Plutip.UtxoDistribution (class UtxoDistribution)
 import Plutus.Conversion.Address (toPlutusAddress)
 import Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -147,6 +151,7 @@ import Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )
+import Wallet.Key (KeyWallet)
 
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
@@ -199,29 +204,46 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
+    let
+      arrayTest
+        :: forall a
+         . UtxoDistribution (Array a) (Array KeyWallet)
+        => Array a
+        -> Aff Unit
+      arrayTest distribution = do
+        runPlutipContract config distribution \wallets -> do
+          traverse_
+            ( \wallet -> do
+                withKeyWallet wallet do
+                  getWalletCollateral >>= liftEffect <<< case _ of
+                    Nothing -> throw "Unable to get collateral"
+                    Just
+                      [ TransactionUnspentOutput
+                          { output: TransactionOutputWithRefScript { output } }
+                      ] -> do
+                      let amount = (unwrap output).amount
+                      unless
+                        ( amount == lovelaceValueOf
+                            (BigInt.fromInt 1_000_000_000)
+                        )
+                        $ throw "Wrong UTxO selected as collateral"
+                    Just _ -> do
+                      -- not a bug, but unexpected
+                      throw "More than one UTxO in collateral"
+            )
+            wallets
     test "runPlutipContract: Array of InitialUTxOs and KeyWallet" do
       let
         distribution :: Array InitialUTxOs
         distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
-      runPlutipContract config distribution \wallets -> do
-        traverse_
-          ( \wallet -> do
-              withKeyWallet wallet do
-                getWalletCollateral >>= liftEffect <<< case _ of
-                  Nothing -> throw "Unable to get collateral"
-                  Just
-                    [ TransactionUnspentOutput
-                        { output: TransactionOutputWithRefScript { output } }
-                    ] -> do
-                    let amount = (unwrap output).amount
-                    unless
-                      (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
-                      $ throw "Wrong UTxO selected as collateral"
-                  Just _ -> do
-                    -- not a bug, but unexpected
-                    throw "More than one UTxO in collateral"
-          )
-          wallets
+      arrayTest distribution
+
+    test "runPlutipContract: Array of InitialUTxOsWithStakeKey and KeyWallet" do
+      let
+        distribution :: Array InitialUTxOsWithStakeKey
+        distribution = withStakeKey privateStakeKey <$> replicate 2
+          [ BigInt.fromInt 1_000_000_000 ]
+      arrayTest distribution
 
     test "runPlutipContract: Pkh2Pkh" do
       let
