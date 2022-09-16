@@ -1,6 +1,7 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
   ( Contract(Contract)
+  , ParContract
   , ContractEnv(ContractEnv)
   , ConfigParams
   , DefaultContractEnv
@@ -28,6 +29,7 @@ module Contract.Monad
 import Prelude
 
 import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -44,6 +46,7 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus, empty)
 import Data.Either (Either(Left, Right), either, hush)
 import Data.Log.Level (LogLevel)
@@ -62,7 +65,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_) as Aff
-import Effect.Aff (Aff, try)
+import Effect.Aff (Aff, ParAff, try)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
@@ -100,6 +103,7 @@ import QueryM
   )
 import QueryM.Logging (setupLogs)
 import Serialization.Address (NetworkId)
+import Undefined (undefined)
 import Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
@@ -148,6 +152,38 @@ instance MonadAsk (ContractEnv r) (Contract r) where
 instance MonadReader (ContractEnv r) (Contract r) where
   -- Use the underlying `local` after dimapping and unwrapping:
   local f contract = Contract $ local (dimap wrap unwrap f) (unwrap contract)
+
+instance Parallel (ParContract r) (Contract r) where
+  parallel :: Contract r ~> ParContract r
+  parallel = wrap <<< parallel <<< unwrap
+  sequential :: ParContract r ~> Contract r
+  sequential = wrap <<< sequential <<< unwrap
+
+-- | The `ParContract` applicative is a newtype wrapper over `ParQueryM`, which
+-- | is a `ReaderT` on `QueryConfig` over _parallel_ asynchronous effects,
+-- | `ParAff`. As expected, it's `Applicative` instance combines effects in
+-- | parallel. It's similar in functionality to `Contract`, but it notably lacks
+-- | a `Monad` instance and all the associated monadic functionalities
+-- | (like `MonadThrow`, `MonadError`, etc). This datatype is a requirement for
+-- | the `Parallel` instance that `Contract` contains. As such, there is little
+-- | point in using it directly, since all the methods in `Control.Parallel`
+-- | can be run directly on `Contract`. Also, there are no functions for
+-- | directly executing a `ParContract`; all `ParContract`s must eventually
+-- | be converted to `Contract`s before execution.
+newtype ParContract (r :: Row Type) (a :: Type) = ParContract
+  (QueryMExtended r ParAff a)
+
+-- All of these derivations depend on the underlying `ReaderT` and parallel
+-- asynchronous effect monad, `ParAff`.
+derive instance Newtype (ParContract r a) _
+derive newtype instance Functor (ParContract r)
+derive newtype instance Apply (ParContract r)
+derive newtype instance Applicative (ParContract r)
+derive newtype instance Alt (ParContract r)
+derive newtype instance Plus (ParContract r)
+derive newtype instance Alternative (ParContract r)
+derive newtype instance Semigroup a => Semigroup (ParContract r a)
+derive newtype instance Monoid a => Monoid (ParContract r a)
 
 -- | `ContractEnv` is a trivial wrapper over `QueryEnv`.
 newtype ContractEnv (r :: Row Type) = ContractEnv (QueryEnv r)
