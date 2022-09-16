@@ -17,7 +17,6 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (delay, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Effect.Exception (throw)
 import Helpers (liftedM)
 import QueryM (QueryM, callCip30Wallet, getWalletAddresses, withMWallet)
@@ -70,10 +69,6 @@ delayUntilUtxosSynchronized ownInputUtxos =
   where
   go attempts = do
     walletUtxos <- getWalletUtxos <#> fromMaybe Map.empty
-
-    liftEffect <<< log $ "wallet utxos:" <> show walletUtxos
-    liftEffect <<< log $ "ownInputsUtxo" <> show ownInputUtxos
-
     unless (ownInputUtxos `Map.isSubmap` walletUtxos) do
       liftAff $ delay $ wrap $ 1000.0
       when (attempts == 0) do
