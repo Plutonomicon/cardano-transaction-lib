@@ -21,8 +21,6 @@ import Data.Set (fromFoldable, intersection, union) as Set
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
-import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Helpers (liftM, liftedM)
 import QueryM (QueryM, getWalletAddresses)
 import QueryM.ProtocolParameters (getProtocolParameters)
@@ -82,8 +80,6 @@ getSelfSigners tx = do
   vkeys <- setFor txOwnAddrs $
     liftM (error "Could not convert address to key hash")
       <<< (addressPaymentCred >=> stakeCredentialToKeyHash)
-
-  liftEffect <<< log $ "Self signers: " <> show vkeys
 
   pure vkeys
 
