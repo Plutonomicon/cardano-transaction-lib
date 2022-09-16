@@ -156,7 +156,7 @@ type ContractWrapAssertion (r :: Row Type) (a :: Type) =
 class ContractAssertions (f :: Type) (r :: Row Type) (a :: Type) where
   -- | Wrap a contract in an assertion. The wrapped contract itself
   -- | becomes a contract which can be wrapped, allowing for
-  -- | compositionala of assertions.
+  -- | composition of assertions.
   -- |
   -- | No guarantees are made about the order in which assertions are
   -- | made. Assertions with side effects should not be used.
