@@ -303,7 +303,6 @@ derive newtype instance MonadError Error (QueryMExtended r Aff)
 derive newtype instance MonadRec (QueryMExtended r Aff)
 derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r Aff)
 derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r Aff)
---derive newtype instance Parallel f m => Parallel (QueryMExtended r f) (QueryMExtended r m)
 
 instance MonadLogger (QueryMExtended r Aff) where
   log msg = do
@@ -317,13 +316,9 @@ instance MonadLogger (QueryMExtended r Aff) where
 -- unwrap manually
 instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
   parallel :: QueryMExtended r Aff ~> QueryMExtended r ParAff
-  parallel (QueryMExtended a) =
-    QueryMExtended $ ReaderT \env ->
-      parallel $ runReaderT a env
+  parallel = wrap <<< parallel <<< unwrap
   sequential :: QueryMExtended r ParAff ~> QueryMExtended r Aff
-  sequential (QueryMExtended a) =
-    QueryMExtended $ ReaderT \env ->
-      sequential $ runReaderT a env
+  sequential = wrap <<< sequential <<< unwrap
 
 liftQueryM
   :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r Aff a
