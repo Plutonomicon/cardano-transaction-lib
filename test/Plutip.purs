@@ -102,6 +102,7 @@ import Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   )
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Examples.SendsToken (contract) as SendsToken
@@ -835,7 +836,7 @@ suite = do
           withKeyWallet bob ownPaymentPubKeyHash
         receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
         tn <- mkTokenName "TheToken"
 
         withKeyWallet alice $ ContractTestUtils.contract $
