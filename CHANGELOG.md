@@ -33,9 +33,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- Support passsing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. To achieve this the following class instances were added ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)):
+- Support passsing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests.
+To achieve this the following class instances were added ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)):
   - `UtxoDistribution (Array InitialUTxOs) (Array KeyWallet)`
   - `UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet)`
+
+  Example usage:
+    ```
+    let distribution :: Array InitialUTxOs
+        distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+    runPlutipContract config distribution \wallets -> do
+      traverse_
+        ( \wallet -> do
+            withKeyWallet wallet do
+              <your contract here>
+    ```
 - `Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
 - `Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 
