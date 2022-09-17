@@ -155,9 +155,9 @@ instance MonadReader (ContractEnv r) (Contract r) where
 
 instance Parallel (ParContract r) (Contract r) where
   parallel :: Contract r ~> ParContract r
-  parallel = wrap <<< parallel <<< unwrap
+  parallel = ParContract <<< parallel <<< unwrap
   sequential :: ParContract r ~> Contract r
-  sequential = wrap <<< sequential <<< unwrap
+  sequential (ParContract a) = wrap $ sequential a
 
 -- | The `ParContract` applicative is a newtype wrapper over `ParQueryM`, which
 -- | is a `ReaderT` on `QueryConfig` over _parallel_ asynchronous effects,
@@ -173,9 +173,6 @@ instance Parallel (ParContract r) (Contract r) where
 newtype ParContract (r :: Row Type) (a :: Type) = ParContract
   (QueryMExtended r ParAff a)
 
--- All of these derivations depend on the underlying `ReaderT` and parallel
--- asynchronous effect monad, `ParAff`.
-derive instance Newtype (ParContract r a) _
 derive newtype instance Functor (ParContract r)
 derive newtype instance Apply (ParContract r)
 derive newtype instance Applicative (ParContract r)
