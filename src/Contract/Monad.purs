@@ -103,7 +103,6 @@ import QueryM
   )
 import QueryM.Logging (setupLogs)
 import Serialization.Address (NetworkId)
-import Undefined (undefined)
 import Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
