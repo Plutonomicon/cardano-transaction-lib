@@ -28,37 +28,36 @@ awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
 awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash =
-  let
-    timeout :: Milliseconds
-    timeout = fromDuration timeoutSeconds
-
-    delayTime :: Milliseconds
-    delayTime = wrap 1000.0
   -- If timeout is infinity, do not use a timeout at all
-  in
-    if unwrap timeoutSeconds == infinity then findTx delayTime
-    else parOneOf
-      [ findTx delayTime
-      , waitAndFail timeout
-      ]
+  if unwrap timeoutSeconds == infinity then void findTx
+  else do
+    txFound <- parOneOf [ findTx, waitAndFail ]
+    if txFound then pure unit
+    else liftEffect $ throw $
+      "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
+      \confirmed"
   where
   -- Try to find the TX indefinitely, with a waiting period between each
   -- request
-  findTx :: Milliseconds -> QueryM Unit
-  findTx delayTime = do
+  findTx :: QueryM Boolean
+  findTx = do
     isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
       _.getTxByHash
       txHash
-    if isTxFound then pure unit
-    else liftAff (delay delayTime) *> findTx delayTime
+    if isTxFound then pure true
+    else liftAff (delay delayTime) *> findTx
 
-  -- Wait until the timeout elapses and fail
-  waitAndFail :: Milliseconds -> QueryM Unit
-  waitAndFail timeout = do
+  -- Wait until the timeout elapses and return false
+  waitAndFail :: QueryM Boolean
+  waitAndFail = do
     liftAff $ delay $ timeout
-    liftEffect $ throw $
-      "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
-      \confirmed"
+    pure false
+
+  timeout :: Milliseconds
+  timeout = fromDuration timeoutSeconds
+
+  delayTime :: Milliseconds
+  delayTime = wrap 1000.0
 
 awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
