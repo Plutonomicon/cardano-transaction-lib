@@ -37,9 +37,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
-  , runContractInEnv
   , runPlutipContract
-  , withPlutipContractEnv
   , withStakeKey
   )
 import Contract.Time (getEraSummaries)
@@ -162,13 +160,6 @@ suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutip" do
     Logging.suite
-
-    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
-      let
-        distribution = withStakeKey privateStakeKey
-          [ BigInt.fromInt 1_000_000_000 ]
-      runPlutipContract config distribution \_ ->
-        AwaitTxConfirmedWithTimeout.contract
 
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
@@ -294,6 +285,13 @@ suite = do
               stakePkh <- withKeyWallet alice ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
             in unit
+
+    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution \_ ->
+        AwaitTxConfirmedWithTimeout.contract
 
     test "NativeScript: require all signers" do
       let
