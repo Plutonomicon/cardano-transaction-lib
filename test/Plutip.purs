@@ -87,6 +87,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Examples.ContractTestUtils as ContractTestUtils
 import Examples.Helpers
   ( mkCurrencySymbol
@@ -161,6 +162,13 @@ suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutip" do
     Logging.suite
+
+    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution \_ ->
+        AwaitTxConfirmedWithTimeout.contract
 
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
