@@ -32,11 +32,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ## [Unreleased]
 
 ### Added
+
 - `Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
-- `Parallel` instance to `QueryM` monad. Parallel capabilities are in the associated `ParQueryM` datatype, which is a type synonym of `QueryMExtended r ParAff`. ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
+- `Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
+- `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
 ### Changed
 ### Removed
 ### Fixed
+
 - `awaitTxConfirmedWithTimeout` not respecting its timeout ([#1021](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1021))
 
 ## [2.0.0] - 2022-09-12
