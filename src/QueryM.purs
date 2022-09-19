@@ -1143,8 +1143,16 @@ mkRequestAff' listeners' webSocket logger jsonWspCall getLs inp = do
         )
       respLs.addRequest id (sBody /\ getRequestInputToStore inp)
       wsStatus <- _wsIsOpen webSocket
-      if wsStatus then _wsSend webSocket (logger Debug) sBody
-      else logger Error "WebSocket is closed, could not submit request."
+
+      let
+        closedWS = logger Error "WebSocket is closed, could not submit request."
+        submitReq = _wsSend webSocket (logger Debug) sBody
+      -- Uncomment this code fragment to test `SubmitTx` request resend logic:
+      -- when (isJust $ getRequestInputToStore inp) $
+      --   _wsReconnect webSocket
+
+      if wsStatus then submitReq else closedWS
+
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
