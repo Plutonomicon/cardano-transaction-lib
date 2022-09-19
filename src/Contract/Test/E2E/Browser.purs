@@ -40,6 +40,7 @@ import Options.Applicative
   )
 import Options.Applicative.Types (optional)
 import Toppokki as Toppokki
+import Undefined (undefined)
 
 -- | Parameters for E2E tests
 -- | 'chromeExe' should point to a chromium or google-chrome binary.
@@ -199,9 +200,7 @@ launchWithExtension
   -> WalletExt
   -> Aff (Maybe Toppokki.Browser)
 launchWithExtension
-  ( TestOptions
-      { chromeExe, chromeUserDataDir, noHeadless, wallets }
-  )
+  { chromeExe, chromeUserDataDir, noHeadless, wallets }
   walletExt = case Map.lookup walletExt wallets of
   Nothing -> pure Nothing
   Just (WalletConfig path _) -> pure <$> Toppokki.launch
@@ -210,8 +209,8 @@ launchWithExtension
         , "--load-extension=" <> path
         ] <> if mode == Headless then [ "--headless=chrome" ] else []
     , headless: mode == Headless
-    , userDataDir: chromeUserDataDir
-    , executablePath: fromMaybe "" chromeExe
+    , userDataDir: "" -- TODO: chromeUserDataDir
+    , executablePath: "" -- TODO: fromMaybe "" chromeExe
     }
   where
   mode :: Mode

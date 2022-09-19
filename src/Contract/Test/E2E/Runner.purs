@@ -6,15 +6,20 @@ import Contract.Test.E2E.Types
 import Prelude
 
 import Contract.Test.E2E.Browser (TestOptions)
-import Contract.Test.E2E.WalletExt (WalletConfig(WalletConfig), WalletExt)
-import Data.Array (intercalate, mapMaybe)
+import Contract.Test.E2E.WalletExt
+  ( WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  )
+import Data.Array (catMaybes, mapMaybe)
 import Data.Either (Either(Left, Right))
+import Data.List (intercalate)
 import Data.Map (Map)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String as String
 import Data.Traversable (for_)
+import Data.Tuple (Tuple(Tuple))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
@@ -42,22 +47,20 @@ import Node.Stream (onDataString)
 import Undefined (undefined)
 
 type E2ETestRuntime =
-  { chromeExe :: FilePath
-  , wallets :: Map WalletExt WalletConfig
+  { wallets :: Map WalletExt ExtensionParams
   , chromeUserDataDir :: FilePath
   , noHeadless :: Boolean
   , tempDir :: FilePath
-  , browserPath :: FilePath
+  , browserPath :: String
   }
 
-mkRuntime :: TestOptions -> Aff E2ETestRuntime
-mkRuntime = undefined
-
-main :: Effect Unit
-main = launchAff_ do
-  browserPath <- findBrowser
-  tempDir <- createTempDir browserPath
-  chromeUserDataDir <- findChromeProfile
+readRuntime :: TestOptions -> Aff E2ETestRuntime
+readRuntime testOptions = do
+  browserPath <- maybe findBrowser pure testOptions.chromeExe
+  mbTempDir <- liftEffect (lookupEnv "E2E_TMPDIR")
+  tempDir <- createTempDir mbTempDir browserPath
+  chromeUserDataDir <- maybe findChromeProfile pure
+    testOptions.chromeUserDataDir
   settingsArchive <- liftEffect findSettingsArchive
   liftEffect $ Console.log tempDir
   nami <- liftEffect $ readExtensionParams "NAMI"
@@ -65,8 +68,42 @@ main = launchAff_ do
   gero <- liftEffect $ readExtensionParams "GERO"
   lode <- liftEffect $ readExtensionParams "LODE"
   eternl <- liftEffect $ readExtensionParams "ETERNL"
-  let extensions = { nami, flint, gero, lode, eternl }
-  runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions
+  pure
+    { browserPath
+    , wallets: --  :: Map WalletExt WalletConfig
+
+        Map.fromFoldable $ catMaybes
+          [ Tuple NamiExt <$> nami
+          , Tuple FlintExt <$> flint
+          , Tuple GeroExt <$> gero
+          , Tuple LodeExt <$> lode
+          , Tuple EternlExt <$> eternl
+          ]
+    , chromeUserDataDir
+    , noHeadless: testOptions.noHeadless
+    , tempDir
+    }
+
+initializeRuntime :: E2ETestRuntime -> Aff Unit
+initializeRuntime = undefined
+
+-- unpack wallets, settings
+
+main :: Effect Unit
+main = launchAff_ do
+  -- browserPath <- findBrowser
+  -- tempDir <- createTempDir mbDir browserPath
+  -- chromeUserDataDir <- findChromeProfile
+  -- settingsArchive <- liftEffect findSettingsArchive
+  -- liftEffect $ Console.log tempDir
+  -- nami <- liftEffect $ readExtensionParams "NAMI"
+  -- flint <- liftEffect $ readExtensionParams "FLINT"
+  -- gero <- liftEffect $ readExtensionParams "GERO"
+  -- lode <- liftEffect $ readExtensionParams "LODE"
+  -- eternl <- liftEffect $ readExtensionParams "ETERNL"
+  -- let extensions = { nami, flint, gero, lode, eternl }
+  -- runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions
+  pure unit
 
 findSettingsArchive :: Effect SettingsArchive
 findSettingsArchive =
@@ -82,22 +119,12 @@ runBrowser
   -> Aff Unit
 runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions = do
   unpackSettings settingsArchive chromeUserDataDir
-  for_ extensions.nami $ extractExtension tempDir
-  for_ extensions.gero $ extractExtension tempDir
-  for_ extensions.flint $ extractExtension tempDir
-  for_ extensions.lode $ extractExtension tempDir
-  for_ extensions.eternl $ extractExtension tempDir
+  for_ extensions $ extractExtension tempDir
   let
     extPath ext = tempDir <> "/" <> ext.extensionId
 
     extensionsList :: String
-    extensionsList = intercalate "," $ mapMaybe (map extPath)
-      [ extensions.flint
-      , extensions.gero
-      , extensions.lode
-      , extensions.nami
-      , extensions.eternl
-      ]
+    extensionsList = intercalate "," $ map extPath $ Map.values extensions
   void $ spawnAndCollectOutput browserPath
     [ "--load-extension=" <> extensionsList
     , "--user-data-dir=" <> chromeUserDataDir
@@ -175,12 +202,14 @@ findBrowser =
     pure res
 
 -- | Find a suitable temp directory for E2E tests. Apps installed with `snap`
--- | don't work in $TMPDIR, because of lacking read access.
-createTempDir :: BrowserPath -> Aff TempDir
-createTempDir browserPath = do
-  liftEffect (lookupEnv "E2E_TMPDIR") >>= maybe createTmpDir pure
+-- | don't work in $E2E_TMPDIR, because of lacking read access.
+createTempDir :: Maybe FilePath -> BrowserPath -> Aff TempDir
+createTempDir mbDir browserPath = do
+  maybe createNew ensureExists mbDir
   where
-  createTmpDir = do
+  ensureExists dir =
+    dir <$ spawnAndCollectOutput "mkdir" [ "-p", dir ] defaultSpawnOptions
+  createNew = do
     let
       isBrowserFromSnap = String.contains (Pattern "/snap") browserPath
     uniqPart <- execAndCollectOutput "mktemp -du e2e.XXXXXXX"

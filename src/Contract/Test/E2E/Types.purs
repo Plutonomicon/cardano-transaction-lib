@@ -1,6 +1,9 @@
 module Contract.Test.E2E.Types where
 
 import Data.Maybe
+import Prelude
+
+import Data.Map (Map)
 
 type BrowserPath = String
 
@@ -16,10 +19,9 @@ type ExtensionParams =
   , extensionId :: String
   }
 
-type Extensions =
-  { nami :: Maybe ExtensionParams
-  , flint :: Maybe ExtensionParams
-  , gero :: Maybe ExtensionParams
-  , lode :: Maybe ExtensionParams
-  , eternl :: Maybe ExtensionParams
-  }
+data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt
+
+derive instance Eq WalletExt
+derive instance Ord WalletExt
+
+type Extensions = Map WalletExt ExtensionParams

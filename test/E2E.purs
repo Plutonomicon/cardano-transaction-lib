@@ -8,7 +8,7 @@ import Effect.Class (liftEffect)
 import Data.Functor (void)
 import Mote (group)
 import Prelude (Unit, ($), bind, discard, pure)
-import Contract.Test.E2E (TestOptions(TestOptions), parseOptions)
+import Contract.Test.E2E (TestOptions, parseOptions)
 import Contract.Test.E2E.WalletExt (WalletConfig(WalletConfig), getWalletByType)
 import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
 import Test.E2E.Examples.AlwaysMints as AlwaysMints
@@ -30,7 +30,7 @@ main = launchAff_ $ do
 
 -- Requires external services listed in README.md
 testPlan :: TestOptions -> TestPlanM (Aff Unit) Unit
-testPlan options@(TestOptions { wallets }) = group "e2e tests"
+testPlan options@{ wallets } = group "e2e tests"
   $ void
   $ forWithIndex wallets
   $ \wallet (WalletConfig _ password) -> do
