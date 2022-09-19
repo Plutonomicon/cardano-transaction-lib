@@ -114,6 +114,8 @@ import Types.UnbalancedTransaction
   ) as ExportUnbalancedTransaction
 
 -- | Get the `Address` of the browser wallet.
+-- TODO: change this to Maybe (Array Address)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
@@ -150,10 +152,12 @@ ownPaymentPubKeyHash = wrapContract
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
--- TODO: change this to Maybe (Array Address)
+-- TODO: change this to Maybe (Array PubKeyHash)
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownPubKeyHash = wrapContract (QueryM.ownPubKeyHashes <#> (_ >>= head))
 
+-- TODO: change this to Maybe (Array StakePubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
 
