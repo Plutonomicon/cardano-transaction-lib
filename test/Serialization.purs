@@ -117,6 +117,7 @@ suite = do
         txSerializedRoundtrip txFixture5
       test "Deserialization is inverse to serialization #6" $
         txSerializedRoundtrip txFixture6
+    group "BigNum tests" $ do
       test "BigNum ok" $ do
         let bn = "18446744073709551615"
         (newBigNum maybeFfiHelper bn) `shouldSatisfy` isJust
