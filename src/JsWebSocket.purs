@@ -5,11 +5,12 @@ module JsWebSocket
   , _mkWebSocket
   , _onWsConnect
   , _onWsError
-  , _removeOnWsError
   , _onWsMessage
-  , _wsSend
-  , _wsReconnect
+  , _removeOnWsError
   , _wsClose
+  , _wsIsOpen
+  , _wsReconnect
+  , _wsSend
   ) where
 
 import Prelude
@@ -58,3 +59,5 @@ foreign import _wsReconnect
   :: JsWebSocket -> Effect Unit
 
 foreign import _wsClose :: JsWebSocket -> Effect Unit
+
+foreign import _wsIsOpen :: JsWebSocket -> Effect Boolean

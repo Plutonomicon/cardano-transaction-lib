@@ -66,3 +66,7 @@ exports._wsReconnect = ws => () => {
 };
 
 exports._wsClose = ws => () => ws.close();
+
+exports._wsIsOpen = ws => () => {
+  return ws.readyState == ws.OPEN;
+};
