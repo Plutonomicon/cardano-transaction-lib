@@ -25,7 +25,6 @@ import Test.ProtocolParams as ProtocolParams
 import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
-import Test.Serialization.PlutusData as Serialization.PlutusData
 import Test.Transaction as Transaction
 import Test.Types.Interval as Types.Interval
 import Test.Types.TokenName as Types.TokenName
@@ -55,7 +54,6 @@ testPlan = do
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite
-  Serialization.PlutusData.suite
   Transaction.suite
   TxOutput.suite
   UsedTxOuts.suite
