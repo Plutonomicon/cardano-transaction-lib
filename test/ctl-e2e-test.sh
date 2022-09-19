@@ -34,7 +34,6 @@ extract_crx() {
     fi
 }
 
-
 pack_settings () {
     tar czf "$SETTINGS_ARCHIVE" \
         "$CHROME_PROFILE"/Default/IndexedDB/ \

@@ -1,22 +1,19 @@
 module Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
-  , TestOptions(TestOptions)
+  , TestOptions
   , withBrowser
   , parseOptions
   ) where
 
 import Prelude
 
+import Contract.Test.E2E.Helpers (WalletPassword(WalletPassword))
 import Contract.Test.E2E.WalletExt
   ( WalletConfig(WalletConfig)
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
   )
-import Contract.Test.E2E.Helpers
-  ( WalletPassword(WalletPassword)
-  )
-
-import Data.Foldable (fold)
 import Data.Array (catMaybes)
+import Data.Foldable (fold)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
@@ -28,18 +25,20 @@ import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
   , execParser
+  , fullDesc
   , help
+  , info
   , long
   , metavar
   , option
   , showDefault
+  , showDefaultWith
   , str
   , strOption
   , switch
   , value
-  , info
-  , fullDesc
   )
+import Options.Applicative.Types (optional)
 import Toppokki as Toppokki
 
 -- | Parameters for E2E tests
@@ -52,11 +51,13 @@ import Toppokki as Toppokki
 -- |    'make e2e-test' then takes care to unpack Nami and Gero settings to there,
 -- |    so that wallet data is available.
 -- | 'noHeadless' is a flag to display the browser during the tests.
-data TestOptions = TestOptions
+-- TODO: rename to E2ETestOptions
+type TestOptions =
   { chromeExe :: Maybe FilePath
   , wallets :: Map WalletExt WalletConfig
-  , chromeUserDataDir :: FilePath
+  , chromeUserDataDir :: Maybe FilePath
   , noHeadless :: Boolean
+  , tempDir :: Maybe FilePath
   }
 
 data Mode = Headless | Visible
@@ -131,12 +132,30 @@ optParser = ado
     , help "Lode wallet password"
     , value Nothing
     ]
-  chromeUserDataDir <- strOption $ fold
+  chromeUserDataDir <- optional $ option str $ fold
     [ long "chrome-user-data"
     , help "Chrome/-ium user data dir"
     , value "test-data/chrome-user-data"
     , showDefault
     , metavar "DIR"
+    ]
+  tempDir <- option (Just <$> str) $ fold
+    [ long "tmp-dir"
+    , help "Temporary data directory"
+    , value Nothing
+    , showDefaultWith case _ of
+        Nothing -> "None"
+        Just a -> show a
+    , metavar "DIR"
+    ]
+  browserPath <- option (Just <$> str) $ fold
+    [ long "browser"
+    , help "Browser binary to use"
+    , value Nothing
+    , showDefaultWith case _ of
+        Nothing -> "E2E_BROWSER env variable value"
+        Just a -> show a
+    , metavar "BINARY"
     ]
   noHeadless <- switch $ fold
     [ long "no-headless"
@@ -151,8 +170,7 @@ optParser = ado
       , mkConfig EternlExt eternlDir eternlPassword
       ]
   in
-    TestOptions
-      { chromeExe, wallets, chromeUserDataDir, noHeadless }
+    { chromeExe, wallets, chromeUserDataDir, noHeadless, tempDir }
   where
   mkConfig
     :: WalletExt
