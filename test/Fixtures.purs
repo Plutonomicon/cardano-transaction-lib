@@ -134,10 +134,8 @@ import Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Data.Array (singleton)
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Bitraversable (bisequence)
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
