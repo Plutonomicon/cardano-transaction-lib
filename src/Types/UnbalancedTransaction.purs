@@ -14,27 +14,26 @@ import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
 import Cardano.Types.Transaction
-  ( Transaction
-  , TransactionOutput
-  , PublicKey(PublicKey)
-  , Vkey(Vkey)
+  ( PublicKey
   , RequiredSigner(RequiredSigner)
+  , Transaction
+  , TransactionOutput
+  , Vkey(Vkey)
+  , convertPubKey
   )
+import Cardano.Types.Value (Value)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
-import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import Helpers (encodeMap, encodeTagged')
-import Deserialization.Keys (publicKeyFromBech32)
 import Serialization (publicKeyHash)
 import Types.Datum (Datum, DataHash)
-import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)
-import Cardano.Types.Value (Value)
+import Types.Transaction (TransactionInput)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`
 newtype PaymentPubKey = PaymentPubKey PublicKey
@@ -80,9 +79,9 @@ instance Show ScriptOutput where
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 
-payPubKeyRequiredSigner :: PaymentPubKey -> Maybe RequiredSigner
-payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
-  RequiredSigner <<< publicKeyHash <$> publicKeyFromBech32 bech32
+payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
+payPubKeyRequiredSigner (PaymentPubKey pk) =
+  RequiredSigner <<< publicKeyHash $ convertPubKey pk
 
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledger.

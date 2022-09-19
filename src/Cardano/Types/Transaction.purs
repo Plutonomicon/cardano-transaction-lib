@@ -30,7 +30,10 @@ module Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(PublicKey)
+  , PublicKey
+  , mkPubKey
+  , mkPubKeyFromCslPubKey
+  , convertPubKey
   , Redeemer(Redeemer)
   , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , RequiredSigner(RequiredSigner)
@@ -90,7 +93,7 @@ import Cardano.Types.ScriptRef (ScriptRef)
 import Cardano.Types.Value (Coin, NonAdaAsset, Value)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
-import Data.Array (drop, union)
+import Data.Array (union)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -101,13 +104,11 @@ import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
-import Data.String.CodeUnits (fromCharArray, toCharArray)
 import Data.Symbol (SProxy(SProxy))
-import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
@@ -125,14 +126,15 @@ import Serialization.Address
   )
 import Serialization.Hash (Ed25519KeyHash)
 import Serialization.Keys (bech32FromPublicKey, bytesFromPublicKey)
-import Serialization.Types (VRFKeyHash)
+import Serialization.Types (VRFKeyHash, PublicKey) as S
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.ByteArray (ByteArray)
 import Types.Int as Int
 import Types.OutputDatum (OutputDatum)
-import Types.PlutusData (PlutusData(..))
+import Types.PlutusData (PlutusData)
+import Types.RawBytes (RawBytes)
 import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript, Language)
 import Types.Transaction (TransactionInput)
@@ -581,7 +583,7 @@ data Certificate
   | StakeDelegation StakeCredential Ed25519KeyHash
   | PoolRegistration
       { operator :: Ed25519KeyHash
-      , vrfKeyhash :: VRFKeyHash
+      , vrfKeyhash :: S.VRFKeyHash
       , pledge :: BigNum
       , cost :: BigNum
       , margin :: UnitInterval
@@ -597,7 +599,7 @@ data Certificate
   | GenesisKeyDelegation
       { genesisHash :: GenesisHash
       , genesisDelegateHash :: GenesisDelegateHash
-      , vrfKeyhash :: VRFKeyHash
+      , vrfKeyhash :: S.VRFKeyHash
       }
   | MoveInstantaneousRewardsCert MoveInstantaneousReward
 
@@ -789,23 +791,37 @@ derive newtype instance EncodeAeson Vkey
 instance Show Vkey where
   show = genericShow
 
-newtype PublicKey = PublicKey Bech32String
+newtype PublicKey = PublicKey RawBytes
 
-derive instance Generic PublicKey _
-derive instance Newtype PublicKey _
+mkPubKey :: Bech32String -> Maybe PublicKey
+mkPubKey = map (PublicKey <<< bytesFromPublicKey) <<< publicKeyFromBech32
+
+mkPubKeyFromCslPubKey :: S.PublicKey -> PublicKey
+mkPubKeyFromCslPubKey = PublicKey <<< bytesFromPublicKey
+
+convertPubKey :: PublicKey -> S.PublicKey
+convertPubKey (PublicKey bs) = unsafePartial $ fromJust <<< fromBytes <<< unwrap
+  $ bs
+
+-- avoid wrap and unwrap being used unsafely
+
+-- derive instance Generic PublicKey _
+-- derive instance Newtype PublicKey _
 derive newtype instance Eq PublicKey
 derive newtype instance Ord PublicKey
 derive newtype instance EncodeAeson PublicKey
 
 instance ToData PublicKey where
-  toData = unsafePartial $ fromJust <<<
-    (map toData <<< bytesFromPublicKey <=< publicKeyFromBech32 <<< unwrap)
+  toData = toData <<< bytesFromPublicKey <<< convertPubKey
+
+{- unsafePartial $ fromJust <<<
+(map toData <<< bytesFromPublicKey <=< publicKeyFromBech32 <<< unwrap) -}
 
 instance FromData PublicKey where
-  fromData = map (wrap <<< bech32FromPublicKey) <<< fromBytes <=< fromData
+  fromData = map mkPubKeyFromCslPubKey <<< fromBytes <=< fromData
 
 instance Show PublicKey where
-  show = genericShow
+  show pk = "PublicKey " <> (bech32FromPublicKey <<< convertPubKey $ pk)
 
 newtype Ed25519Signature = Ed25519Signature Bech32String
 

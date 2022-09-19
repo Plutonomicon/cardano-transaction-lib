@@ -42,20 +42,22 @@ import Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
+import Cardano.Types.Transaction (convertPubKey)
 import Data.Maybe (maybe)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
+import Deserialization.FromBytes (fromBytes')
 import Effect (Effect)
 import Effect.Exception (throw)
 import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)
+import Serialization.PlutusScript (convertPlutusScript)
 import Serialization.Types
   ( BootstrapWitness
   , Ed25519Signature
@@ -72,7 +74,6 @@ import Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
-import Serialization.PlutusScript (convertPlutusScript)
 import Serialization.Types (PlutusData) as PDS
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
@@ -173,8 +174,7 @@ convertEd25519Signature (T.Ed25519Signature bech32) =
   newEd25519Signature bech32
 
 convertVkey :: T.Vkey -> Effect Vkey
-convertVkey (T.Vkey (T.PublicKey pk)) =
-  newPublicKey pk >>= newVkeyFromPublicKey
+convertVkey (T.Vkey pk) = newVkeyFromPublicKey $ convertPubKey pk
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature

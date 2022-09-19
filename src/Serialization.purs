@@ -161,7 +161,6 @@ import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Types.PlutusData as PlutusData
-import Types.RawBytes (RawBytes)
 import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T

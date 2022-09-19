@@ -74,35 +74,30 @@ privateStakeKeyFromFile filePath = do
 
 privatePaymentKeyToFile :: FilePath -> PrivatePaymentKey -> Aff Unit
 privatePaymentKeyToFile filePath key =
-  liftM (error "failed to format key") (formatPaymentKey key) >>=
-    liftEffect <<< (writeTextFile Encoding.UTF8 filePath)
+  liftEffect <<< (writeTextFile Encoding.UTF8 filePath) $ formatPaymentKey key
 
 privateStakeKeyToFile :: FilePath -> PrivateStakeKey -> Aff Unit
 privateStakeKeyToFile filePath key =
-  liftM (error "failed to format key") (formatStakeKey key) >>=
-    liftEffect <<< (writeTextFile Encoding.UTF8 filePath)
+  liftEffect <<< (writeTextFile Encoding.UTF8 filePath) $ formatStakeKey key
 
-formatPaymentKey :: PrivatePaymentKey -> Maybe String
+formatPaymentKey :: PrivatePaymentKey -> String
 formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show
-  <$>
+  $
     { "type": "PaymentSigningKeyShelley_ed25519"
     , description: "Payment Signing Key"
-    , cborHex: _
+    , cborHex: keyToCbor key
     }
-  <$> keyToCbor key
 
-formatStakeKey :: PrivateStakeKey -> Maybe String
+formatStakeKey :: PrivateStakeKey -> String
 formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show
-  <$>
+  $
     { "type": "StakeSigningKeyShelley_ed25519"
     , description: "Stake Signing Key"
-    , cborHex: _
+    , cborHex: keyToCbor key
     }
-  <$> keyToCbor key
 
-keyToCbor :: PrivateKey -> Maybe String
-keyToCbor = ((rawBytesToHex >>> (magicPrefix <> _)) <$> _) <<<
-  bytesFromPrivateKey
+keyToCbor :: PrivateKey -> String
+keyToCbor = (magicPrefix <> _) <<< rawBytesToHex <<< bytesFromPrivateKey
 
 magicPrefix :: String
 magicPrefix = "5820"

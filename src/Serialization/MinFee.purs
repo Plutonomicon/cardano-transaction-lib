@@ -10,7 +10,7 @@ import Cardano.Types.Value (Coin)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Data.Array as Array
 import Data.Lens ((.~))
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -19,6 +19,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import NativeScripts (getMaximumSigners)
+import Partial.Unsafe (unsafePartial)
 import QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
 import Serialization as Serialization
 import Serialization.Hash (Ed25519KeyHash)
@@ -79,7 +80,8 @@ addFakeSignatures tx =
 fakeVkeywitness :: T.Vkeywitness
 fakeVkeywitness = T.Vkeywitness
   ( ( T.Vkey
-        ( T.PublicKey
+        ( unsafePartial $ fromJust $ T.mkPubKey
+            -- This should not fail assuming the hardcoded bech32 key is valid.
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
     )
