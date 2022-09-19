@@ -68,6 +68,7 @@ import Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -83,7 +84,6 @@ import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
 import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
-
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -92,8 +92,8 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (QueryM)
 import QueryM (getWalletAddresses) as QueryM
-import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
 import QueryM.Ogmios (CoinsPerUtxoUnit)
+import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.ScriptLookups (UnattachedUnbalancedTx)
