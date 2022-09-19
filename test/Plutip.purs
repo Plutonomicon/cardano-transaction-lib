@@ -18,13 +18,7 @@ import Contract.Address
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractM
-  , liftedE
-  , liftedM
-  , wrapContract
-  )
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
@@ -62,7 +56,8 @@ import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet
-  ( isFlintAvailable
+  ( getWalletUtxos
+  , isFlintAvailable
   , isGeroAvailable
   , isNamiAvailable
   , withKeyWallet
@@ -971,6 +966,18 @@ suite = do
             Just _ -> do
               -- not a bug, but unexpected
               throw "More than one UTxO in collateral"
+
+    test "CIP-30 mock: get own UTxOs" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        utxos <- withCip30Mock alice MockNami do
+          getWalletUtxos
+        utxos `shouldSatisfy` isJust
 
     test "CIP-30 mock: get own address" do
       let
