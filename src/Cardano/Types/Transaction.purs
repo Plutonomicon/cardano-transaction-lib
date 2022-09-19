@@ -798,10 +798,8 @@ derive newtype instance Ord PublicKey
 derive newtype instance EncodeAeson PublicKey
 
 instance ToData PublicKey where
-  -- toData = unsafePartial $ fromJust <<< customToData
-  toData = Bytes <<< wrap <<< encodeUtf8 <<< fromCharArray <<< drop 10
-    <<< toCharArray
-    <<< unwrap
+  toData = unsafePartial $ fromJust <<<
+    (map toData <<< bytesFromPublicKey <=< publicKeyFromBech32 <<< unwrap)
 
 instance FromData PublicKey where
   fromData = map (wrap <<< bech32FromPublicKey) <<< fromBytes <=< fromData
