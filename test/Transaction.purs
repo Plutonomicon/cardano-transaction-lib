@@ -4,7 +4,6 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
@@ -12,18 +11,21 @@ import Cardano.Types.Transaction
   , TxBody(TxBody)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkPubKey
   )
+import Data.Array (singleton)
 import Data.BigInt as BigInt
+import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, over)
 import Data.Tuple.Nested ((/\))
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, error)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff)
+import Helpers (fromRightEff, liftM)
 import Mote (group, test)
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Test.Fixtures.CostModels (costModelsFixture1)
@@ -128,6 +130,7 @@ testSetScriptDataHash = liftEffect $ do
 
 testPreserveWitness :: Aff Unit
 testPreserveWitness = liftEffect $ do
+  vk <- liftM (error "Invalid Vkeywitness") mVk
   Transaction { witnessSet: TransactionWitnessSet { plutusData, vkeys } } <-
     fromRightEff =<< attachDatum datum tx
   case plutusData /\ vkeys of
@@ -135,6 +138,7 @@ testPreserveWitness = liftEffect $ do
       pd `shouldEqual` unwrap datum
       vk' <- Deserialization.WitnessSet.convertVkeyWitnesses <$>
         Serialization.WitnessSet.convertVkeywitnesses vs
+
       vk' `shouldEqual` [ vk ]
     Just _ /\ Just _ -> throw "Incorrect number of witnesses"
     Nothing /\ _ -> throw "Datum wasn't attached"
@@ -148,20 +152,21 @@ testPreserveWitness = liftEffect $ do
   datum = Datum $ Integer $ BigInt.fromInt 1
 
   initialWitnessSet :: TransactionWitnessSet
-  initialWitnessSet = over TransactionWitnessSet _ { vkeys = Just [ vk ] }
+  initialWitnessSet = over TransactionWitnessSet _ { vkeys = singleton <$> mVk }
     $ mempty
 
-  vk :: Vkeywitness
-  vk = Vkeywitness
-    ( ( Vkey
-          ( PublicKey
-              "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-          )
-      ) /\
-        ( Ed25519Signature
-            "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
-            \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
+  mVk :: Maybe Vkeywitness
+  mVk = map Vkeywitness $ bisequence
+    ( map Vkey
+        ( mkPubKey
+            "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
+        /\
+          pure
+            ( Ed25519Signature
+                "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
+                \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
+            )
     )
 
 mkRedeemer :: PlutusData -> Effect Redeemer

@@ -95,14 +95,6 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
-const bytesFromKey = maybe => key => {
-  try {
-    return maybe.just(key.as_bytes());
-  } catch (err) {
-    return maybe.nothing;
-  }
-};
-
 exports.publicKeyFromPrivateKey = private_key => () => {
   return private_key.to_public();
 };

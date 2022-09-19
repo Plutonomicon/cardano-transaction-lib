@@ -85,7 +85,7 @@ import Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(PublicKey)
+  , PublicKey
   , Redeemer
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
@@ -120,6 +120,7 @@ import Cardano.Types.Transaction
   , _vkeys
   , _withdrawals
   , _witnessSet
+  , mkPubKey
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
 import Contract.Address (getWalletAddress)

@@ -91,13 +91,13 @@ import Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
+      ( MoveInstantaneousRewardsCert
       , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
+      , PoolRetirement
+      , PoolRegistration
+      , StakeDelegation
+      , StakeDeregistration
+      , StakeRegistration
       )
   , Ed25519Signature(Ed25519Signature)
   , Epoch(Epoch)
@@ -107,13 +107,12 @@ import Cardano.Types.Transaction
   , Ipv6(Ipv6)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MoveInstantaneousReward(ToStakeCreds, ToOtherPot)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , PublicKey(PublicKey)
   , Redeemer(Redeemer)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
   , RequiredSigner(RequiredSigner)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -122,6 +121,7 @@ import Cardano.Types.Transaction
   , URL(URL)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkPubKey
   )
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -134,8 +134,10 @@ import Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
+import Data.Array (singleton)
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Bitraversable (bisequence)
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -1064,21 +1066,21 @@ witnessSetFixture2Value =
     , plutusData: Nothing
     , plutusScripts: Nothing
     , redeemers: Nothing
-    , vkeys: Just
-        [ Vkeywitness
-            ( ( Vkey
-                  ( PublicKey
-                      "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-                  )
-              )
+    , vkeys: singleton <$>
+        ( map Vkeywitness $ bisequence
+            ( map Vkey
+                ( mkPubKey
+                    "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
+                )
                 /\
-                  ( Ed25519Signature
-                      "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
-                      \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
-                      \kzs9m6t6x"
-                  )
+                  pure
+                    ( Ed25519Signature
+                        "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
+                        \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
+                        \kzs9m6t6x"
+                    )
             )
-        ]
+        )
     }
 
 witnessSetFixture3 :: ByteArray
@@ -1134,20 +1136,21 @@ witnessSetFixture3Value =
           ]
     , plutusScripts: Nothing
     , redeemers: Nothing
-    , vkeys: Just
-        [ Vkeywitness
-            ( ( Vkey
-                  ( PublicKey
-                      "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-                  )
-              ) /\
-                ( Ed25519Signature
-                    "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
-                    \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
-                    \6faxl6"
+    , vkeys: singleton <$>
+        ( map Vkeywitness $ bisequence
+            ( map Vkey
+                ( mkPubKey
+                    "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
+                /\
+                  pure
+                    ( Ed25519Signature
+                        "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
+                        \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
+                        \6faxl6"
+                    )
             )
-        ]
+        )
     }
 
 witnessSetFixture4 :: ByteArray

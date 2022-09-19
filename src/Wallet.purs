@@ -19,22 +19,23 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkPubKey
   )
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Promise (Promise)
 import Data.Int (toNumber)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Class (liftEffect)
 import Helpers ((<<>>))
+import Partial.Unsafe (unsafePartial)
 import Types.Natural (fromInt', minus)
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection) as Cip30Wallet
 import Wallet.Cip30 (Cip30Wallet, Cip30Connection, mkCip30WalletAff)
@@ -139,7 +140,8 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
   vk :: Vkeywitness
   vk = Vkeywitness
     ( Vkey
-        ( PublicKey
+        -- This should not fail assuming the hardcoded bech32 key is valid.
+        ( unsafePartial $ fromJust $ mkPubKey
             "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e"
         )
         /\ Ed25519Signature

@@ -16,17 +16,20 @@ import Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkPubKeyFromCslPubKey
   ) as T
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
+import Deserialization.Language (convertLanguage)
+import Deserialization.NativeScript (convertNativeScript)
+import Deserialization.PlutusData (convertPlutusData)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization.Types
   ( BootstrapWitness
@@ -55,9 +58,6 @@ import Types.ByteArray (ByteArray)
 import Types.PlutusData (PlutusData) as T
 import Types.RedeemerTag as Tag
 import Types.Scripts (PlutusScript(PlutusScript)) as S
-import Deserialization.NativeScript (convertNativeScript)
-import Deserialization.PlutusData (convertPlutusData)
-import Deserialization.Language (convertLanguage)
 
 deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
 deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
@@ -91,7 +91,7 @@ convertVkeyWitness witness =
     T.Vkeywitness $ publicKey /\ signature
 
 convertVkey :: Vkey -> T.Vkey
-convertVkey = T.Vkey <<< T.PublicKey <<< publicKeyToBech32 <<< vkeyPublicKey
+convertVkey = T.Vkey <<< T.mkPubKeyFromCslPubKey <<< vkeyPublicKey
 
 convertSignature :: Ed25519Signature -> T.Ed25519Signature
 convertSignature = T.Ed25519Signature <<< signatureToBech32
