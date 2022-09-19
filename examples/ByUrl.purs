@@ -39,7 +39,6 @@ import Examples.Pkh2Pkh as Pkh2Pkh
 import Examples.SendsToken as SendsToken
 import Examples.SignMultiple as SignMultiple
 import Examples.Wallet as Wallet
-import Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Wallet.Cip30Mock
   ( WalletMock(MockFlint, MockGero, MockNami)
   , withCip30Mock
@@ -109,7 +108,6 @@ examples =
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
-  , "AwaitTxConfirmedWithTimeout" /\ AwaitTxConfirmedWithTimeout.contract
   ]
 
 -- Address is:
