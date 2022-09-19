@@ -40,13 +40,13 @@ runPlutipContract
   -> Aff a
 ```
 
-`distr` is a specification of how many wallets and with how much funds should be created. It should either be a `unit` (for no wallets) or nested tuples containing `Array BigInt` - each element of the array specifies an UTxO amount in Lovelaces (0.000001 Ada).
+`distr` is a specification of how many wallets and with how much funds should be created. It should either be a `unit` (for no wallets), nested tuples containing `Array BigInt` or an `Array` of `Array BigInt`, where each element of the `Array BigInt` specifies an UTxO amount in Lovelaces (0.000001 Ada).
 
-The `wallets` argument is either a `Unit` or a tuple of `KeyWallet`s (with the same nesting level as in `distr`, which is guaranteed by `UtxoDistribution`).
+The `wallets` argument is either a `Unit`, a tuple of `KeyWallet`s (with the same nesting level as in `distr`, which is guaranteed by `UtxoDistribution`) or an `Array KeyWallet`.
 
 `wallets` should be pattern-matched on, and its components should be passed to `withKeyWallet`:
 
-An example `Contract` with two actors:
+An example `Contract` with two actors using nested tuples:
 
 ```purescript
 let
@@ -61,6 +61,23 @@ runPlutipContract config distribution \(alice /\ bob) -> do
     pure unit -- sign, balance, submit, etc.
   withKeyWallet bob do
     pure unit -- sign, balance, submit, etc.
+```
+
+An example `Contract` with two actors using `Array`:
+
+```purescript
+let
+  distribution :: Array (Array BigInt)
+  distribution = 
+    [ [ BigInt.fromInt 1_000_000_000, BigInt.fromInt 2_000_000_000]
+    , [ BigInt.fromInt 2_000_000_000 ]
+    ]
+runPlutipContract config distribution \wallets -> do
+  traverse_ ( \wallet -> do
+                withKeyWallet wallet do
+                  pure unit -- sign, balance, submit, etc.
+            )
+            wallets
 ```
 
 In most cases at least two UTxOs per wallet are needed (one of which will be used as collateral, so it should exceed `5_000_000` Lovelace).
