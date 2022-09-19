@@ -4,7 +4,7 @@ module Contract.Wallet
   , withKeyWallet
   , module Contract.Address
   , module Contract.Utxos
-  , module Serialization
+  , module Deserialization.Keys
   , module Wallet
   , module Wallet.Key
   , module Wallet.KeyFile
@@ -22,7 +22,7 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import Serialization (privateKeyFromBytes) as Serialization
+import Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
 import Type.Proxy (Proxy(Proxy))
 import Wallet
   ( isGeroAvailable

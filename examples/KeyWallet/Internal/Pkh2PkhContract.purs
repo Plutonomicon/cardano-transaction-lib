@@ -26,7 +26,7 @@ import Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   , levelName
   , logError
   ) as HtmlForm
-import Serialization (privateKeyFromBytes)
+import Deserialization.Keys (privateKeyFromBytes)
 import Serialization.Hash (ed25519KeyHashFromBech32)
 import Types.RawBytes (hexToRawBytes)
 

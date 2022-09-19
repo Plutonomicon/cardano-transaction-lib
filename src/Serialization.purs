@@ -1,6 +1,5 @@
 module Serialization
-  ( bytesFromPrivateKey
-  , convertExUnitPrices
+  ( convertExUnitPrices
   , convertTransaction
   , convertTxBody
   , convertTxInput
@@ -15,10 +14,9 @@ module Serialization
   , hashScriptData
   , hashTransaction
   , publicKeyHash
-  , publicKeyFromBech32
   , publicKeyFromPrivateKey
-  , privateKeyFromBytes
   , makeVkeywitness
+  , module Serialization.Keys
   ) where
 
 import Prelude
@@ -87,6 +85,7 @@ import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
 import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.PlutusScript (convertPlutusScript)
+import Serialization.Keys (bytesFromPrivateKey)
 import Serialization.Types
   ( AssetName
   , Assets
@@ -243,17 +242,9 @@ foreign import makeVkeywitness
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
-foreign import _publicKeyFromBech32
-  :: MaybeFfiHelper -> Bech32String -> Maybe PublicKey
 
 foreign import publicKeyFromPrivateKey
   :: PrivateKey -> Effect PublicKey
-
-foreign import _privateKeyFromBytes
-  :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
-
-foreign import _bytesFromPrivateKey
-  :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
@@ -656,15 +647,6 @@ convertWithdrawals mp =
     for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
       Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
         (BigNum.fromBigInt v)
-
-publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
-publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
-
-privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
-privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
-
-bytesFromPrivateKey :: PrivateKey -> Maybe RawBytes
-bytesFromPrivateKey = _bytesFromPrivateKey maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do

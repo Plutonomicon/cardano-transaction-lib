@@ -95,14 +95,6 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
-exports._publicKeyFromBech32 = maybe => bech32 => {
-  try {
-    return maybe.just(lib.PublicKey.from_bech32(bech32));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
 const bytesFromKey = maybe => key => {
   try {
     return maybe.just(key.as_bytes());
@@ -111,19 +103,8 @@ const bytesFromKey = maybe => key => {
   }
 };
 
-exports._bytesFromPublicKey = bytesFromKey;
-exports._bytesFromPrivateKey = bytesFromKey;
-
 exports.publicKeyFromPrivateKey = private_key => () => {
   return private_key.to_public();
-};
-
-exports._privateKeyFromBytes = maybe => bytes => {
-  try {
-    return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
-  } catch (_) {
-    return maybe.nothing;
-  }
 };
 
 exports.publicKeyHash = pk => pk.hash();

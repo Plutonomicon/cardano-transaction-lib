@@ -12,14 +12,14 @@ module Contract.Config
   , module Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
-  , module Serialization
+  , module Deserialization.Keys
   , module QueryM.ServerConfig
   , module Wallet.Spec
   , module Wallet.Key
   ) where
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Serialization (privateKeyFromBytes)
+import Deserialization.Keys (privateKeyFromBytes)
 import Contract.Monad (ConfigParams)
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Maybe (Maybe(Just, Nothing))

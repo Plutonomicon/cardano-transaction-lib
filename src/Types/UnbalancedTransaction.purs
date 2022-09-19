@@ -29,10 +29,8 @@ import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
 import Helpers (encodeMap, encodeTagged')
-import Serialization
-  ( publicKeyFromBech32
-  , publicKeyHash
-  )
+import Deserialization.Keys (publicKeyFromBech32)
+import Serialization (publicKeyHash)
 import Types.Datum (Datum, DataHash)
 import Types.Transaction (TransactionInput)
 import Types.Scripts (ValidatorHash)

@@ -22,6 +22,7 @@ import Serialization.Types
   , Mint
   , NativeScript
   , PlutusData
+  , PublicKey
   , Transaction
   , TransactionHash
   , TransactionUnspentOutput
@@ -66,6 +67,9 @@ instance FromBytes VRFKeyHash where
 
 instance FromBytes Value where
   fromBytes' = _fromBytesValue eh
+
+instance FromBytes PublicKey where
+  fromBytes' = _fromBytesPublicKey eh
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
@@ -136,3 +140,6 @@ foreign import _fromBytesVRFKeyHash
 
 foreign import _fromBytesValue
   :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Value
+
+foreign import _fromBytesPublicKey
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PublicKey

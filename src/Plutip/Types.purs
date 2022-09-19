@@ -46,7 +46,7 @@ import Data.String as String
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import QueryM.ServerConfig (ServerConfig)
-import Serialization (privateKeyFromBytes)
+import Deserialization.Keys (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
 import Types.ByteArray (hexToByteArray)
 import Types.RawBytes (RawBytes(RawBytes))
