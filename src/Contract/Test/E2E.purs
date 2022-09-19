@@ -7,7 +7,7 @@ module Contract.Test.E2E
 
 import Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
-  , TestOptions(TestOptions)
+  , TestOptions
   , withBrowser
   , parseOptions
   ) as Browser

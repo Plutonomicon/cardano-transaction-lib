@@ -1,6 +1,5 @@
 module Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
-  , WalletExt(FlintExt, GeroExt, LodeExt, NamiExt, EternlExt)
   , WalletConfig(WalletConfig)
   , module X
   , getWalletByName
@@ -35,11 +34,10 @@ import Effect.Exception (error)
 import Node.Path (FilePath)
 import Node.Process (lookupEnv)
 import Record as Record
-
-data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt
-
-derive instance Eq WalletExt
-derive instance Ord WalletExt
+import Contract.Test.E2E.Types
+import Contract.Test.E2E.Types
+  ( WalletExt(FlintExt, GeroExt, LodeExt, NamiExt, EternlExt)
+  ) as X
 
 newtype SomeWallet = SomeWallet
   { wallet :: WalletExt
