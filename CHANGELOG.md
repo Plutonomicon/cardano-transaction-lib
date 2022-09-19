@@ -53,7 +53,10 @@ To achieve this the following class instances were added ([#1018](https://github
 
 ### Changed
 ### Removed
+
 ### Fixed
+
+- Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
 
 ## [2.0.0] - 2022-09-12
 
