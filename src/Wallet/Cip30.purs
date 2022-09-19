@@ -34,6 +34,7 @@ import Types.CborBytes (rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
 import Untagged.Union (asOneOf)
 
+-- Please update Cip30Mock when you add or remove methods in this handle.
 type Cip30Wallet =
   { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
     connection :: Cip30Connection

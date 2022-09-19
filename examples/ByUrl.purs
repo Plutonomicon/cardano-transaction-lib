@@ -33,6 +33,7 @@ import Effect.Exception (error)
 import Examples.AlwaysMints as AlwaysMints
 import Examples.AlwaysSucceeds as AlwaysSucceeds
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Examples.Datums as Datums
 import Examples.MintsMultipleTokens as MintsMultipleTokens
 import Examples.OneShotMinting as OneShotMinting
@@ -111,6 +112,7 @@ examples =
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
+  , "OneShotMintingV2" /\ OneShotMintingV2.contract
   ]
 
 -- Address is:
