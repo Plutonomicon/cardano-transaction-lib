@@ -105,6 +105,23 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 }
 ```
 
-## Limitations
+## Using addresses with staking key components
 
-- Plutip does not currently provide staking keys. However, arbitrary staking keys can be used if the application does not depend on staking (because payment keys and stake keys don't have to be connected in any way). It's also possible to omit staking keys in many cases by using `mustPayToPubKey` instead of `mustPayToPubKeyAddress`.
+It's possible to use stake keys with Plutip. `Contract.Test.Plutip.withStakeKey` function can be used to modify the distribution spec:
+
+```purescript
+let
+  privateStakeKey :: PrivateStakeKey
+  privateStakeKey = wrap $ unsafePartial $ fromJust
+    $ privateKeyFromBytes =<< hexToRawBytes
+      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+  aliceUtxos =
+    [ BigInt.fromInt 2_000_000_000
+    , BigInt.fromInt 2_000_000_000
+    ]
+  distribution = withStakeKey privateStakeKey aliceUtxos
+```
+
+Although stake keys serve no real purpose in plutip context, they allow to use base addresses, and thus allow to have the same code for plutip testing, in-browser tests and production.
+
+Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
