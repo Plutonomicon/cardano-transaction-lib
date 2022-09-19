@@ -2,11 +2,10 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-import Data.Maybe (isJust, isNothing)
 import Cardano.Types.Transaction (Transaction)
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Deserialization.Transaction (convertTransaction) as TD
