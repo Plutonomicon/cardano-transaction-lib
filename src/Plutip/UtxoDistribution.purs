@@ -40,6 +40,8 @@ import Data.List (List, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
@@ -93,6 +95,37 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
       privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
         tail
   keyWallets _ wallet = [ wallet ]
+
+instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
+  encodeDistribution amounts = amounts
+  decodeWallets _ privateKeyResponses =
+    Just $
+      ( \(PrivateKeyResponse key) -> privateKeysToKeyWallet
+          (PrivatePaymentKey key)
+          Nothing
+      ) <$> privateKeyResponses
+  decodeWallets' listOfInitialUTxOs privateKeyResponses = do
+    wallets <- traverse (\utxos -> decodeWallets utxos privateKeyResponses)
+      listOfInitialUTxOs
+    pure (wallets /\ privateKeyResponses)
+  keyWallets _ wallets = wallets
+
+instance UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet) where
+  encodeDistribution listOfInitialUTxOsWithStakeKey =
+    (\(InitialUTxOsWithStakeKey _ amounts) -> amounts) <$>
+      listOfInitialUTxOsWithStakeKey
+  decodeWallets listOfInitialUTxOsWithStakeKey privateKeyResponses =
+    Just $
+      ( \(Tuple (PrivateKeyResponse key) (InitialUTxOsWithStakeKey stakeKey _)) ->
+          privateKeysToKeyWallet
+            (PrivatePaymentKey key)
+            (Just stakeKey)
+      ) <$> Array.zip privateKeyResponses listOfInitialUTxOsWithStakeKey
+  decodeWallets' listOfInitialUTxOsWithStakeKey privateKeyResponses = do
+    wallets <- traverse (\utxos -> decodeWallets utxos privateKeyResponses)
+      listOfInitialUTxOsWithStakeKey
+    pure (wallets /\ privateKeyResponses)
+  keyWallets _ wallets = wallets
 
 instance
   ( UtxoDistribution headSpec headWallets
