@@ -1066,21 +1066,20 @@ witnessSetFixture2Value =
     , plutusData: Nothing
     , plutusScripts: Nothing
     , redeemers: Nothing
-    , vkeys: singleton <$>
-        ( map Vkeywitness $ bisequence
-            ( map Vkey
-                ( mkPubKey
+    , vkeys: Just
+        [ Vkeywitness
+            ( Vkey
+                ( unsafePartial $ fromJust $ mkPubKey
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
-                  pure
-                    ( Ed25519Signature
-                        "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
-                        \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
-                        \kzs9m6t6x"
-                    )
+                  ( Ed25519Signature
+                      "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
+                      \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
+                      \kzs9m6t6x"
+                  )
             )
-        )
+        ]
     }
 
 witnessSetFixture3 :: ByteArray
@@ -1136,21 +1135,20 @@ witnessSetFixture3Value =
           ]
     , plutusScripts: Nothing
     , redeemers: Nothing
-    , vkeys: singleton <$>
-        ( map Vkeywitness $ bisequence
-            ( map Vkey
-                ( mkPubKey
+    , vkeys: Just
+        [ Vkeywitness
+            ( Vkey
+                ( unsafePartial $ fromJust $ mkPubKey
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
-                  pure
-                    ( Ed25519Signature
-                        "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
-                        \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
-                        \6faxl6"
-                    )
+                  ( Ed25519Signature
+                      "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
+                      \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
+                      \6faxl6"
+                  )
             )
-        )
+        ]
     }
 
 witnessSetFixture4 :: ByteArray
