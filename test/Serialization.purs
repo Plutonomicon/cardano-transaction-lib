@@ -2,14 +2,15 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.BigInt as BigInt
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytesEffect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import FfiHelpers (maybeFfiHelper)
 import Mote (group, test)
-import Serialization (convertTransaction, convertTxOutput, toBytes)
+import Serialization (newBigNum, convertTransaction, convertTxOutput, toBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types (TransactionHash)
 import Test.Fixtures
@@ -106,3 +107,10 @@ suite = do
         tx <- convertTransaction txFixture5
         let bytes = toBytes (asOneOf tx)
         byteArrayToHex bytes `shouldEqual` txBinaryFixture5
+      test "BigNum ok" $ do
+        let bn = "18446744073709551615"
+        (newBigNum maybeFfiHelper bn) `shouldSatisfy` isJust
+      test "BigNum owerflow" $ do
+        let bn' = "18446744073709551616"
+        (newBigNum maybeFfiHelper bn') `shouldSatisfy` isNothing
+

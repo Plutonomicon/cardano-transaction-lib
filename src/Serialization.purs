@@ -19,6 +19,7 @@ module Serialization
   , publicKeyFromPrivateKey
   , privateKeyFromBytes
   , makeVkeywitness
+  , newBigNum
   ) where
 
 import Prelude

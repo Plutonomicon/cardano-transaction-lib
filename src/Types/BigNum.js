@@ -81,7 +81,4 @@ exports._fromString = maybe => str => {
   }
 };
 
-console.log(check_limit("22", 13));
-console.log(check_limit_with_func(1, 2, BigInt("4"), add));
-
 exports.toString = bn => bn.to_str();
