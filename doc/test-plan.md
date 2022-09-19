@@ -37,14 +37,13 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
   - **Note**: This constraint is also included in our Plutip stake key integration, as with `mustSpendPubKeyOutput`
 - [ ] `mustHashDatum`
 - [ ] `mustIncludeDatum`
-- [ ] `mustPayWithDatumToPubKey`
-- [ ] `mustPayWithDatumToPubKeyAddress`
+- [x] `mustPayToPubKeyWithDatum`
+- [x] `mustPayToPubKeyAddressWithDatum`
 - [ ] `mustProduceAtLeastTotal`. Also implies
   - [ ] `mustProduceAtLeast`
 - [ ] `mustSatisfyAnyOf`
 - [ ] `mustSpendAtLeastTotal`. Also implies
   - [ ] `mustSpendAtLeast`
-- [ ] `mustSpendPubKeyOutput`
 - [ ] `mustValidateIn`
 
 The following constraints were added for `PlutusV2` features as part of our `v2.0.0` release. They do not have direct correspondances in `plutus-apps`:
@@ -86,7 +85,7 @@ In addition to the constraints/lookups listed above, there are several other cri
 - `Contract.Scripts.*`
   - [x] `validatorHash`
   - [x] `mintingPolicy`
-  - [ ] `applyArgs`
+  - [x] `applyArgs`
 - `Contract.Hashing.*`
   - [x] `datumHash`
   - [x] `plutusScriptHash`
