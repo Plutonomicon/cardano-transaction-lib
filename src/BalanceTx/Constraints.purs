@@ -21,19 +21,21 @@ import Data.Lens.Record (prop)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
-import Plutus.Types.Transaction (UtxoMap)
-import Serialization.Address (Address)
+import Plutus.Conversion (fromPlutusAddress)
+import Plutus.Types.Address (Address) as Plutus
+import Plutus.Types.Transaction (UtxoMap) as Plutus
+import Serialization.Address (Address, NetworkId)
 import Type.Proxy (Proxy(Proxy))
 
 newtype BalanceTxConstraints = BalanceTxConstraints
-  { additionalUtxos :: UtxoMap
+  { additionalUtxos :: Plutus.UtxoMap
   , maxChangeOutputTokenQuantity :: Maybe BigInt
   , ownAddress :: Maybe Address
   }
 
 derive instance Newtype BalanceTxConstraints _
 
-_additionalUtxos :: Lens' BalanceTxConstraints UtxoMap
+_additionalUtxos :: Lens' BalanceTxConstraints Plutus.UtxoMap
 _additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
 
 _maxChangeOutputTokenQuantity :: Lens' BalanceTxConstraints (Maybe BigInt)
@@ -51,6 +53,9 @@ derive instance Newtype BalanceTxConstraintsBuilder _
 instance Semigroup BalanceTxConstraintsBuilder where
   append = over2 BalanceTxConstraintsBuilder (>>>)
 
+instance Monoid BalanceTxConstraintsBuilder where
+  mempty = wrap identity
+
 buildBalanceTxConstraints :: BalanceTxConstraintsBuilder -> BalanceTxConstraints
 buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
   where
@@ -61,13 +66,15 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     , ownAddress: Nothing
     }
 
-mustBalanceTxWithAddress :: Address -> BalanceTxConstraintsBuilder 
-mustBalanceTxWithAddress = wrap <<< setJust _ownAddress
+mustBalanceTxWithAddress
+  :: NetworkId -> Plutus.Address -> BalanceTxConstraintsBuilder
+mustBalanceTxWithAddress networkId =
+  wrap <<< setJust _ownAddress <<< fromPlutusAddress networkId
 
 mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
 mustGenChangeOutsWithMaxTokenQuantity =
-  wrap <<< setJust _maxChangeOutputTokenQuantity
+  wrap <<< setJust _maxChangeOutputTokenQuantity <<< max one
 
-mustUseAdditionalUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
+mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
 

@@ -9,7 +9,10 @@ module Contract.Transaction
   , balanceAndSignTxs
   , balanceAndSignTxE
   , balanceTx
-  , balanceTxWithAddress
+  , balanceTxs
+  , balanceTxsWithConstraints
+  , balanceTxsWithConstraints'
+  , balanceTxWithConstraints
   , balanceTxM
   , calculateMinFee
   , calculateMinFeeM
@@ -37,7 +40,6 @@ module Contract.Transaction
   , withBalancedTx
   , withBalancedAndSignedTxs
   , withBalancedAndSignedTx
-  , balanceTxsWithAddress
   ) where
 
 import Prelude
@@ -46,7 +48,8 @@ import Prim.TypeError (class Warn, Text)
 import Aeson (class EncodeAeson, Aeson)
 import BalanceTx (BalanceTxError) as BalanceTxError
 import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
+import BalanceTx (balanceTx, balanceTxWithConstraints) as BalanceTx
+import BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -144,7 +147,8 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple (fst)
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -317,24 +321,23 @@ withUsedTxouts
   -> Contract r a
 withUsedTxouts f = asks (_.usedTxOuts <<< _.runtime <<< unwrap) >>= runReaderT f
 
--- | Attempts to balance an `UnattachedUnbalancedTx`.
+-- | Attempts to balance an `UnattachedUnbalancedTx` using the default 
+-- | constraints.
 balanceTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTx = wrapContract <<< BalanceTx.balanceTx
 
--- | Attempts to balance an `UnattachedUnbalancedTx`.
-balanceTxWithAddress
+-- | Like `balanceTx`, but allows to specify constraints to be considered when
+-- | balancing a transaction.
+balanceTxWithConstraints
   :: forall (r :: Row Type)
-   . Address
+   . BalanceTxConstraintsBuilder
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddress addr tx = do
-  networkId <- asks $ unwrap >>> _.config >>> _.networkId
-  wrapContract $ BalanceTx.balanceTxWithAddress
-    (fromPlutusAddress networkId addr)
-    tx
+balanceTxWithConstraints constraints =
+  wrapContract <<< BalanceTx.balanceTxWithConstraints constraints
 
 -- Helper to avoid repetition
 withTransactions
@@ -428,53 +431,54 @@ withBalancedAndSignedTx = withSingleTransaction
   internalBalanceAndSignTx
   unwrap
 
--- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
--- | internally.
-balanceTxsWithAddress
-  :: forall
-       (t :: Type -> Type)
-       (r :: Row Type)
+-- | Like `balanceTxs`, but allows to specify separate sets of balancing 
+-- | constraints for each transaction.
+balanceTxsWithConstraints'
+  :: forall (r :: Row Type) (t :: Type -> Type)
    . Traversable t
-  => Address
-  -> t UnattachedUnbalancedTx
+  => t (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddress ownAddress unbalancedTxs =
+balanceTxsWithConstraints' unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
   unlockAllOnError f = catchError f $ \e -> do
     for_ unbalancedTxs $
-      withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx
+      withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx <<< fst
     throwError e
 
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
 
-  balanceAndLock :: UnattachedUnbalancedTx -> Contract r FinalizedTransaction
-  balanceAndLock unbalancedTx = do
-    networkId <- asks $ unwrap >>> _.config >>> _.networkId
-    balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
-      (fromPlutusAddress networkId ownAddress)
-      unbalancedTx
+  balanceAndLock
+    :: UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder
+    -> Contract r FinalizedTransaction
+  balanceAndLock (unbalancedTx /\ constraints) = do
+    balancedTx <-
+      liftedE $ wrapContract $
+        BalanceTx.balanceTxWithConstraints constraints unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
 
--- | Balances each transaction and locks the used inputs
--- | so that they cannot be reused by subsequent transactions.
+-- | Like `balanceTxs`, but allows to specify a single set of balancing 
+-- | constraints for all transactions.
+balanceTxsWithConstraints
+  :: forall (r :: Row Type) (t :: Type -> Type)
+   . Traversable t
+  => BalanceTxConstraintsBuilder
+  -> t UnattachedUnbalancedTx
+  -> Contract r (t FinalizedTransaction)
+balanceTxsWithConstraints constraints =
+  balanceTxsWithConstraints' <<< map (_ /\ constraints)
+
+-- | Balances each transaction using the default constraints and locks the used 
+-- | inputs so that they cannot be reused by subsequent transactions.
 balanceTxs
-  :: forall
-       (t :: Type -> Type)
-       (r :: Row Type)
+  :: forall (r :: Row Type) (t :: Type -> Type)
    . Traversable t
   => t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxs unbalancedTxs = do
-  mbOwnAddress <- getWalletAddress
-  case mbOwnAddress of
-    Nothing -> liftEffect $ throw $
-      "Failed to get own Address"
-    Just ownAddress ->
-      balanceTxsWithAddress ownAddress unbalancedTxs
+balanceTxs = balanceTxsWithConstraints mempty
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
