@@ -113,4 +113,6 @@ suite = do
       test "BigNum owerflow" $ do
         let bn' = "18446744073709551616"
         (newBigNum maybeFfiHelper bn') `shouldSatisfy` isNothing
-
+      test "BigNum negative" $ do
+        let bnNeg = "-1"
+        (newBigNum maybeFfiHelper bnNeg) `shouldSatisfy` isNothing

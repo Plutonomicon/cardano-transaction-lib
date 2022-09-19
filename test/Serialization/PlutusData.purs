@@ -1,16 +1,14 @@
 module Test.Serialization.PlutusData (suite) where
 
-import Prelude (not, Unit, ($))
+import Prelude (Unit, ($))
 
 import Types.PlutusData as T
 import Serialization.PlutusData (convertPlutusData)
-import Data.Maybe (Maybe(Just), isNothing, isJust)
-import Data.Eq ((==))
+import Data.Maybe (isJust)
 import Effect.Aff (Aff)
 
 import Test.Utils (assertTrue)
 import TestM (TestPlanM)
-import Test.Spec.Assertions (shouldSatisfy)
 import Data.BigInt as BigInt
 
 -- test convertPlutusData
