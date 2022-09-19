@@ -2,11 +2,8 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-<<<<<<< HEAD
 import Data.Maybe (isJust, isNothing)
-=======
 import Cardano.Types.Transaction (Transaction)
->>>>>>> develop
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust)
@@ -17,12 +14,8 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import FfiHelpers (maybeFfiHelper)
 import Mote (group, test)
-<<<<<<< HEAD
-import Serialization (newBigNum, convertTransaction, convertTxOutput, toBytes)
-=======
 import Serialization (convertTransaction) as TS
-import Serialization (convertTxOutput, toBytes)
->>>>>>> develop
+import Serialization (newBigNum, convertTxOutput, toBytes)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types (TransactionHash)
 import Test.Fixtures
