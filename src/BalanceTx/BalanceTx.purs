@@ -2,12 +2,17 @@ module BalanceTx
   ( module BalanceTxErrorExport
   , module FinalizedTransaction
   , balanceTx
-  , balanceTxWithAddress
+  , balanceTxWithConstraints
   ) where
 
 import Prelude
 
 import BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
+import BalanceTx.Constraints (BalanceTxConstraints, BalanceTxConstraintsBuilder)
+import BalanceTx.Constraints
+  ( buildBalanceTxConstraints
+  , _ownAddress
+  ) as Constraints
 import BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -99,27 +104,31 @@ import Types.Transaction (TransactionInput)
 import Types.UnbalancedTransaction (_utxoIndex)
 import Wallet (cip30Wallet)
 
--- | Balances an unbalanced transaction using utxos from the current wallet's
--- | address.
+-- | Balances an unbalanced transaction using the default constraints.
 balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx unbalancedTx = do
-  QueryM.getWalletAddress >>= case _ of
-    Nothing ->
-      pure $ Left CouldNotGetWalletAddress
-    Just address ->
-      balanceTxWithAddress address unbalancedTx
+balanceTx = balanceTxWithConstraints mempty
 
--- | Like `balanceTx`, but allows to provide an address that is treated like
--- | user's own (while `balanceTx` gets it from the attached wallet).
-balanceTxWithAddress
-  :: Address
+-- | Like `balanceTx`, but allows to specify constraints to be considered when
+-- | balancing a transaction.
+balanceTxWithConstraints
+  :: BalanceTxConstraintsBuilder
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
-  utxos <- ExceptT $ utxosAt ownAddr
-    <#> note CouldNotGetUtxos
+balanceTxWithConstraints constraintsBuilder unbalancedTx = runExceptT do
+  let
+    constraints :: BalanceTxConstraints
+    constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
+
+    getWalletAddress :: BalanceTxM Address
+    getWalletAddress =
+      ExceptT $ QueryM.getWalletAddress <#> note CouldNotGetWalletAddress
+
+  ownAddr <-
+    maybe getWalletAddress pure (constraints ^. Constraints._ownAddress)
+
+  utxos <- ExceptT $ utxosAt ownAddr <#> note CouldNotGetUtxos
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -127,7 +136,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         -- Don't set collateral if tx doesn't contain phase-2 scripts:
         lift unbalancedTxWithNetworkId
       false ->
-        setTransactionCollateral =<< lift unbalancedTxWithNetworkId
+        setTransactionCollateral ownAddr =<< lift unbalancedTxWithNetworkId
 
   let
     allUtxos :: UtxoMap
@@ -152,8 +161,8 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         maybe (asks $ _.networkId <<< _.config) pure
     pure (transaction # _body <<< _networkId ?~ networkId)
 
-  setTransactionCollateral :: Transaction -> BalanceTxM Transaction
-  setTransactionCollateral transaction = do
+  setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
+  setTransactionCollateral ownAddr transaction = do
     collateral <-
       ExceptT $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
