@@ -122,13 +122,12 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
-  changeAddr <- ExceptT $ pure $ note CouldNotGetWalletAddress $ head ownAddrs
+  changeAddr <- liftMaybe CouldNotGetWalletAddress $ head ownAddrs
 
   utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
-    ( traverse (note CouldNotGetUtxos) --Maybe -> Either and unwrap UtxoM
+    traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
 
-        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
-    )
+      >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
