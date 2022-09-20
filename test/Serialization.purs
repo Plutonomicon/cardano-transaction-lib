@@ -2,18 +2,29 @@ module Test.Serialization (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction (Transaction)
+import Cardano.Types.Transaction
+  ( PublicKey
+  , Transaction
+  , convertPubKey
+  , mkPubKey
+  , mkPubKeyFromCslPubKey
+  )
+import Control.Monad.Error.Class (throwError)
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.Maybe (isJust)
+import Data.Maybe (Maybe, isJust, isNothing, maybe)
+import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Deserialization.Transaction (convertTransaction) as TD
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Exception (error)
+import Helpers (liftM)
 import Mote (group, test)
 import Serialization (convertTransaction) as TS
 import Serialization (convertTxOutput, toBytes)
+import Serialization.Keys (bytesFromPublicKey)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.Types (TransactionHash)
 import Test.Fixtures
@@ -32,7 +43,7 @@ import Test.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
@@ -43,6 +54,22 @@ suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "cardano-serialization-lib bindings" $ do
     group "conversion between types" $ do
+      test "PublicKey serialization" do
+        let
+          pkStr =
+            "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
+          mPk = mkPubKey pkStr
+
+        pk <- liftM
+          (error $ "Failed to create PubKey from bech32string: " <> pkStr)
+          mPk
+
+        let
+          pkBytes = bytesFromPublicKey $ convertPubKey pk
+          (pk'' :: Maybe PublicKey) = mkPubKeyFromCslPubKey <$> fromBytes
+            (unwrap pkBytes)
+
+        pk'' `shouldSatisfy` isJust
       test "newTransactionHash" do
         let
           txString =
