@@ -24,7 +24,7 @@ import Prelude
 import Contract.Test.E2E.Feedback (testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Promise (Promise, toAffE)
-import Data.Array (any, elem, head)
+import Data.Array (any, elem)
 import Data.Either (fromRight, hush)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
