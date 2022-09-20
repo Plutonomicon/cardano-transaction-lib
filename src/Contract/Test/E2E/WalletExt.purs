@@ -1,6 +1,5 @@
 module Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
-  , WalletConfig(WalletConfig)
   , module X
   , getWalletByName
   , getWalletByType
@@ -117,5 +116,3 @@ walletName = case _ of
   GeroExt -> "gero"
   LodeExt -> "lode"
   NamiExt -> "nami"
-
-data WalletConfig = WalletConfig FilePath WalletPassword
