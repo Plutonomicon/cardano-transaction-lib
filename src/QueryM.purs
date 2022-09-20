@@ -1027,8 +1027,7 @@ mkOgmiosRequest
 mkOgmiosRequest jsonWspCall getLs inp = do
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
-  r <- mkRequest listeners' websocket jsonWspCall getLs inp
-  pure r
+  mkRequest listeners' websocket jsonWspCall getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff

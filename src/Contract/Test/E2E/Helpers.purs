@@ -72,20 +72,29 @@ retrieveJQuery = toAffE <<< _retrieveJQuery
 typeInto :: Selector -> String -> Toppokki.Page -> Aff Unit
 typeInto selector text page = toAffE $ _typeInto selector text page
 
--- | Find the popup page of the wallet. This works for both Nami and Gero
--- | by looking for a page with a button. If there is a button on the main page
--- | this needs to be modified.
+-- | Find the popup page of the wallet.
+-- | Accepts a URL pattern that identifies the extension popup (e.g. extension
+-- | ID). Throws if there is more than one page matching the pattern.
 findWalletPage :: Pattern -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
 findWalletPage pattern browser = do
   pages <- Toppokki.pages browser
-  head <<< fold <$> for pages \page -> do
-    eiPageUrl <- map hush $ try $ pageUrl page
-    pure $
-      case eiPageUrl of
-        Nothing -> []
-        Just url
-          | String.contains pattern url -> [ page ]
-          | otherwise -> []
+  walletPages <- fold <$> for pages \page -> do
+    try (pageUrl page) <#> hush >>> case _ of
+      Nothing -> []
+      Just url
+        | String.contains pattern url -> [ page ]
+        | otherwise -> []
+  case walletPages of
+    [] -> pure Nothing
+    [ page ] -> pure $ Just page
+    _ -> do
+      urls <- for pages pageUrl
+      liftEffect $ throw $
+        "findWalletPage: more than one page found when trying to find "
+          <> "the wallet popup. URLs: "
+          <> intercalate ", " urls
+          <> "; URL pattern: "
+          <> show (unwrap pattern)
 
 pageUrl :: Toppokki.Page -> Aff String
 pageUrl page = do
