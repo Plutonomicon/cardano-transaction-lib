@@ -36,7 +36,6 @@ import Contract.Test.E2E.Helpers
 
 import Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
-  , WalletConfig(WalletConfig)
   , WalletExt(FlintExt, GeroExt, NamiExt)
   , getWalletByName
   , getWalletByType

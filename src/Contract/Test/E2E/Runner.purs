@@ -2,31 +2,33 @@
 -- | It is a replacement for a shell script.
 module Contract.Test.E2E.Runner where
 
-import Contract.Test.E2E.Types
 import Prelude
 
-import Contract.Test.E2E.Browser (TestOptions)
 import Contract.Test.E2E.Options
-  ( E2ECommand(RunE2ETests, RunBrowser, PackSettings, UnpackSettings)
-  , MainOptions_
-  , BrowserOptions
+  ( BrowserOptions
+  , E2ECommand(UnpackSettings, PackSettings, RunBrowser, RunE2ETests)
+  , ExtensionOptions
+  , SettingsOptions
   )
 import Contract.Test.E2E.WalletExt
-  ( WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  ( ExtensionId(ExtensionId)
+  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
   )
-import Data.Array (catMaybes, mapMaybe)
+import Control.Alt ((<|>))
+import Data.Array (catMaybes)
 import Data.Either (Either(Left, Right))
 import Data.List (intercalate)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (unwrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String (Pattern(Pattern))
+import Data.String (Pattern(Pattern), trim)
 import Data.String as String
 import Data.Traversable (for_)
 import Data.Tuple (Tuple(Tuple))
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (Error, error, throw)
@@ -44,16 +46,22 @@ import Node.ChildProcess
   )
 import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
-import Node.FS.Aff (stat)
+import Node.FS.Aff (exists, stat)
 import Node.FS.Stats (isDirectory)
-import Node.Path (FilePath)
+import Node.Path (FilePath, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
-import Prim.Row as Row
 import Record.Builder (build, delete)
 import Type.Proxy (Proxy(Proxy))
-import Type.Row (type (+))
-import Undefined (undefined)
+import Contract.Test.E2E.Types
+  ( BrowserPath
+  , ChromeUserDataDir
+  , ExtensionParams
+  , Extensions
+  , SettingsArchive
+  , TempDir
+  , WalletPassword(WalletPassword)
+  )
 
 type E2ETestRuntime =
   { wallets :: Map WalletExt ExtensionParams
@@ -63,20 +71,32 @@ type E2ETestRuntime =
   , settingsArchive :: FilePath
   }
 
+type SettingsRuntime =
+  { chromeUserDataDir :: FilePath
+  , settingsArchive :: FilePath
+  }
+
 readRuntime :: BrowserOptions -> Aff E2ETestRuntime
 readRuntime testOptions = do
   browserPath <- maybe findBrowser pure testOptions.chromeExe
-  mbTempDir <- liftEffect (lookupEnv "E2E_TMPDIR")
+  mbTempDir <- maybe (liftEffect lookupTempDir) (pure <<< Just)
+    testOptions.tempDir
   tempDir <- createTempDir mbTempDir browserPath
   chromeUserDataDir <- maybe findChromeProfile pure
     testOptions.chromeUserDataDir
-  settingsArchive <- liftEffect findSettingsArchive
-  liftEffect $ Console.log tempDir
+  ensureChromeUserDataDir chromeUserDataDir
+  settingsArchive <- maybe (liftEffect findSettingsArchive) pure
+    testOptions.settingsArchive
   nami <- liftEffect $ readExtensionParams "NAMI"
+    (Map.lookup NamiExt testOptions.wallets)
   flint <- liftEffect $ readExtensionParams "FLINT"
+    (Map.lookup FlintExt testOptions.wallets)
   gero <- liftEffect $ readExtensionParams "GERO"
+    (Map.lookup GeroExt testOptions.wallets)
   lode <- liftEffect $ readExtensionParams "LODE"
+    (Map.lookup LodeExt testOptions.wallets)
   eternl <- liftEffect $ readExtensionParams "ETERNL"
+    (Map.lookup EternlExt testOptions.wallets)
   pure
     { browserPath
     , wallets:
@@ -92,26 +112,15 @@ readRuntime testOptions = do
     , settingsArchive
     }
 
-initializeRuntime :: E2ETestRuntime -> Aff Unit
-initializeRuntime = undefined
+ensureChromeUserDataDir :: FilePath -> Aff Unit
+ensureChromeUserDataDir chromeUserDataDir = do
+  liftEffect $ Console.log "hiii"
+  void $ spawnAndCollectOutput "mkdir" [ "-p", chromeUserDataDir ]
+    defaultSpawnOptions
+    defaultErrorReader
 
--- unpack wallets, settings
-
-main :: Effect Unit
-main = launchAff_ do
-  -- browserPath <- findBrowser
-  -- tempDir <- createTempDir mbDir browserPath
-  -- chromeUserDataDir <- findChromeProfile
-  -- settingsArchive <- liftEffect findSettingsArchive
-  -- liftEffect $ Console.log tempDir
-  -- nami <- liftEffect $ readExtensionParams "NAMI"
-  -- flint <- liftEffect $ readExtensionParams "FLINT"
-  -- gero <- liftEffect $ readExtensionParams "GERO"
-  -- lode <- liftEffect $ readExtensionParams "LODE"
-  -- eternl <- liftEffect $ readExtensionParams "ETERNL"
-  -- let extensions = { nami, flint, gero, lode, eternl }
-  -- runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions
-  pure unit
+lookupTempDir :: Effect (Maybe String)
+lookupTempDir = lookupEnv "E2E_TMPDIR"
 
 runE2E :: E2ECommand -> Aff Unit
 runE2E = case _ of
@@ -121,16 +130,29 @@ runE2E = case _ of
     pure unit
   RunBrowser browserOptions -> do
     runtime <- readRuntime browserOptions
+    liftEffect $ Console.log $ show runtime
     runBrowser runtime.tempDir runtime.chromeUserDataDir runtime.browserPath
       runtime.settingsArchive
       runtime.wallets
-    pure unit
-  PackSettings settingsOptions -> undefined
-  UnpackSettings settingsOptions -> undefined
+  PackSettings opts -> do
+    rt <- readSettingsRuntime opts
+    packSettings rt.settingsArchive rt.chromeUserDataDir
+  UnpackSettings opts -> do
+    rt <- readSettingsRuntime opts
+    unpackSettings rt.settingsArchive rt.chromeUserDataDir
+
+readSettingsRuntime :: SettingsOptions -> Aff SettingsRuntime
+readSettingsRuntime { chromeUserDataDir, settingsArchive } = do
+  d <- maybe findChromeProfile pure chromeUserDataDir
+  a <- maybe (liftEffect findSettingsArchive) pure settingsArchive
+  pure { settingsArchive: a, chromeUserDataDir: d }
 
 findSettingsArchive :: Effect SettingsArchive
 findSettingsArchive =
-  liftedM (error "Unable to find settings (specify E2E_SETTINGS_ARCHIVE)") $
+  liftedM
+    ( error
+        "Unable to find settings archive (specify E2E_SETTINGS_ARCHIVE or --settings-archive)"
+    ) $
     lookupEnv "E2E_SETTINGS_ARCHIVE"
 
 runBrowser
@@ -144,7 +166,7 @@ runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions = do
   unpackSettings settingsArchive chromeUserDataDir
   for_ extensions $ extractExtension tempDir
   let
-    extPath ext = tempDir <> "/" <> ext.extensionId
+    extPath ext = tempDir <> "/" <> unwrap ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
@@ -153,15 +175,23 @@ runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions = do
     , "--user-data-dir=" <> chromeUserDataDir
     ]
     defaultSpawnOptions
+    defaultErrorReader
 
 extractExtension :: TempDir -> ExtensionParams -> Aff Unit
 extractExtension tempDir extension = do
   void $ spawnAndCollectOutput "unzip"
     [ extension.crx
     , "-d"
-    , tempDir <> "/" <> extension.extensionId
+    , tempDir <> "/" <> unwrap extension.extensionId
     ]
     defaultSpawnOptions
+    errorReader
+  where
+  errorReader = case _ of
+    Normally 0 -> Nothing
+    Normally 1 -> Nothing
+    Normally code -> Just $ "(code: " <> show code <> ")"
+    BySignal signal -> Just $ show signal
 
 findChromeProfile :: Aff ChromeUserDataDir
 findChromeProfile = do
@@ -169,48 +199,74 @@ findChromeProfile = do
     $ liftEffect
     $
       lookupEnv "E2E_CHROME_USER_DATA"
+  doesExist <- exists chromeUserDataDir
+  unless doesExist do
+    ensureChromeUserDataDir chromeUserDataDir
   isDir <- isDirectory <$> stat chromeUserDataDir
   unless isDir do
     liftEffect $ throw $ chromeUserDataDir <>
       " is not a directory (E2E_CHROME_USER_DATA)"
   pure chromeUserDataDir
 
-readExtensionParams :: String -> Effect (Maybe ExtensionParams)
-readExtensionParams extensionName = do
-  mbCrx <- lookupEnv $ extensionName <> "_CRX"
-  mbPassword <- lookupEnv $ extensionName <> "_PASSWORD"
-  mbExtId <- lookupEnv $ extensionName <> "_EXTID"
-  case mbCrx, mbPassword, mbExtId of
-    Nothing, Nothing, Nothing -> pure Nothing
-    Just crx, Just password, Just extensionId -> pure $ Just
-      { crx, password, extensionId }
-    _, _, _ -> throw $ "Please ensure that either none or all of"
-      <> extensionName
-      <> "_CRX, "
-      <> extensionName
-      <> "_PASSWORD and "
-      <> extensionName
-      <> "_EXTID are provided"
+readExtensionParams
+  :: String -> Maybe ExtensionOptions -> Effect (Maybe ExtensionParams)
+readExtensionParams extensionName mbCliOptions = do
+  crxFile <- lookupEnv $ extensionName <> "_CRX"
+  password <- map WalletPassword <$> lookupEnv (extensionName <> "_PASSWORD")
+  extensionId <- map ExtensionId <$> lookupEnv (extensionName <> "_EXTID")
+  let
+    envOptions :: ExtensionOptions
+    envOptions = { crxFile, password, extensionId }
+
+    mergedOptions :: ExtensionOptions
+    mergedOptions = case mbCliOptions of
+      Nothing -> envOptions
+      Just cliOptions -> mergeExtensionOptions cliOptions envOptions
+  toExtensionParams mergedOptions
+  where
+  mergeExtensionOptions
+    :: ExtensionOptions -> ExtensionOptions -> ExtensionOptions
+  mergeExtensionOptions a b =
+    { crxFile: a.crxFile <|> b.crxFile
+    , password: a.password <|> b.password
+    , extensionId: a.extensionId <|> b.extensionId
+    }
+
+  toExtensionParams :: ExtensionOptions -> Effect (Maybe ExtensionParams)
+  toExtensionParams { crxFile, password, extensionId } =
+    case crxFile, password, extensionId of
+      Nothing, Nothing, Nothing -> pure Nothing
+      Just crx, Just pwd, Just extId -> pure $ Just
+        { crx, password: pwd, extensionId: extId }
+      _, _, _ -> throw $ "Please ensure that either none or all of"
+        <> extensionName
+        <> "_CRX, "
+        <> extensionName
+        <> "_PASSWORD and "
+        <> extensionName
+        <> "_EXTID are provided"
 
 packSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 packSettings settingsArchive chromeProfile = do
   void $ spawnAndCollectOutput "tar"
     [ "czf"
-    , settingsArchive
+    , relative chromeProfile settingsArchive
     , "./Default/IndexedDB/"
     , "./Default/Local Storage/"
     , "./Default/Extension State"
     , "./Default/Local Extension Settings"
     ]
     defaultSpawnOptions { cwd = Just chromeProfile }
+    defaultErrorReader
 
 unpackSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 unpackSettings settingsArchive chromeProfile = do
   void $ spawnAndCollectOutput "tar"
     [ "xzf"
-    , settingsArchive
+    , relative chromeProfile settingsArchive
     ]
     defaultSpawnOptions { cwd = Just chromeProfile }
+    defaultErrorReader
 
 findBrowser :: Aff BrowserPath
 findBrowser =
@@ -232,6 +288,7 @@ createTempDir mbDir browserPath = do
   where
   ensureExists dir =
     dir <$ spawnAndCollectOutput "mkdir" [ "-p", dir ] defaultSpawnOptions
+      defaultErrorReader
   createNew = do
     let
       isBrowserFromSnap = String.contains (Pattern "/snap") browserPath
@@ -249,10 +306,11 @@ execAndCollectOutput_
   -> (Either Error String -> Effect Unit)
   -> Effect Canceler
 execAndCollectOutput_ shellCmd cont = do
+  Console.log $ shellCmd
   child <- exec shellCmd defaultExecOptions (const $ pure unit)
   ref <- Ref.new ""
   ChildProcess.onExit child case _ of
-    Normally 0 -> Ref.read ref >>= Right >>> cont
+    Normally 0 -> Ref.read ref >>= trim >>> Right >>> cont
     exitStatus -> do
       output <- Ref.read ref
       cont $ Left
@@ -273,20 +331,39 @@ spawnAndCollectOutput_
   :: String
   -> Array String
   -> SpawnOptions
+  -> (Exit -> Maybe String)
   -> (Either Error String -> Effect Unit)
   -> Effect Canceler
-spawnAndCollectOutput_ cmd args opts cont = do
+spawnAndCollectOutput_ cmd args opts errorReader cont = do
+  Console.log $ cmd
+  Console.log $ show args
   child <- spawn cmd args opts
   ref <- Ref.new ""
-  ChildProcess.onExit child $ case _ of
-    Normally 0 -> do
-      cont <<< Right =<< Ref.read ref
-    _ -> cont $ Left $ error "Process exited with non-zero status"
+  ChildProcess.onExit child $ errorReader >>> case _ of
+    Nothing -> do
+      cont <<< Right <<< trim =<< Ref.read ref
+    Just errorStr -> do
+      output <- Ref.read ref
+      cont $ Left $ error $
+        "Process exited with non-zero status (" <> errorStr
+          <> "). Output collected so far: "
+          <> output
   onDataString (stdout child) Encoding.UTF8
     \str -> do
       void $ Ref.modify (_ <> str) ref
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child
 
-spawnAndCollectOutput :: String -> Array String -> SpawnOptions -> Aff String
-spawnAndCollectOutput cmd args opts = makeAff
-  (spawnAndCollectOutput_ cmd args opts)
+spawnAndCollectOutput
+  :: String
+  -> Array String
+  -> SpawnOptions
+  -> (Exit -> Maybe String)
+  -> Aff String
+spawnAndCollectOutput cmd args opts errorReader = makeAff
+  (spawnAndCollectOutput_ cmd args opts errorReader)
+
+defaultErrorReader :: Exit -> Maybe String
+defaultErrorReader =
+  case _ of
+    Normally 0 -> Nothing
+    exitStatus -> Just $ show exitStatus

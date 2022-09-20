@@ -2,8 +2,6 @@
 module Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample
-  , ExtensionId(ExtensionId)
-  , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
   , eternlConfirmAccess
@@ -17,6 +15,7 @@ module Contract.Test.E2E.Helpers
   , namiConfirmAccess
   , namiSign
   , withExample
+  , module X
   ) where
 
 import Prelude
@@ -27,8 +26,10 @@ import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)
 import Data.Either (fromRight, hush)
 import Data.Foldable (intercalate)
+import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Show.Generic (genericShow)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (for, fold)
@@ -43,6 +44,14 @@ import Effect.Uncurried (mkEffectFn1, EffectFn1)
 import Foreign (Foreign, unsafeFromForeign)
 import Helpers (liftedM)
 import Toppokki as Toppokki
+import Contract.Test.E2E.Types
+  ( ExtensionId(ExtensionId)
+  , WalletPassword(WalletPassword)
+  ) as X
+import Contract.Test.E2E.Types
+  ( ExtensionId(ExtensionId)
+  , WalletPassword(WalletPassword)
+  )
 
 data OutputType = PageError | Console | RequestFailed
 
@@ -59,10 +68,6 @@ type RunningExample =
   , main :: Toppokki.Page
   , errors :: Ref (Array E2EOutput)
   }
-
-newtype WalletPassword = WalletPassword String
-
-derive instance Newtype WalletPassword _
 
 -- | Download jQuery
 retrieveJQuery :: Toppokki.Page -> Aff String
@@ -215,10 +220,6 @@ checkSuccess ex@{ main, errors } = do
   feedback <- testFeedbackIsTrue main
   unless feedback $ liftEffect $ showOutput errors >>= log
   pure feedback
-
-newtype ExtensionId = ExtensionId String
-
-derive instance Newtype ExtensionId _
 
 inWalletPage
   :: forall (a :: Type)
