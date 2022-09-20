@@ -83,7 +83,6 @@ import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
 import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
-
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set

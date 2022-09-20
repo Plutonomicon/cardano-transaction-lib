@@ -6,6 +6,11 @@ import Contract.Test.E2E.Types
 import Prelude
 
 import Contract.Test.E2E.Browser (TestOptions)
+import Contract.Test.E2E.Options
+  ( E2ECommand(RunE2ETests, RunBrowser, PackSettings, UnpackSettings)
+  , MainOptions_
+  , BrowserOptions
+  )
 import Contract.Test.E2E.WalletExt
   ( WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
   )
@@ -44,17 +49,21 @@ import Node.FS.Stats (isDirectory)
 import Node.Path (FilePath)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
+import Prim.Row as Row
+import Record.Builder (build, delete)
+import Type.Proxy (Proxy(Proxy))
+import Type.Row (type (+))
 import Undefined (undefined)
 
 type E2ETestRuntime =
   { wallets :: Map WalletExt ExtensionParams
   , chromeUserDataDir :: FilePath
-  , noHeadless :: Boolean
   , tempDir :: FilePath
   , browserPath :: String
+  , settingsArchive :: FilePath
   }
 
-readRuntime :: TestOptions -> Aff E2ETestRuntime
+readRuntime :: BrowserOptions -> Aff E2ETestRuntime
 readRuntime testOptions = do
   browserPath <- maybe findBrowser pure testOptions.chromeExe
   mbTempDir <- liftEffect (lookupEnv "E2E_TMPDIR")
@@ -70,8 +79,7 @@ readRuntime testOptions = do
   eternl <- liftEffect $ readExtensionParams "ETERNL"
   pure
     { browserPath
-    , wallets: --  :: Map WalletExt WalletConfig
-
+    , wallets:
         Map.fromFoldable $ catMaybes
           [ Tuple NamiExt <$> nami
           , Tuple FlintExt <$> flint
@@ -80,8 +88,8 @@ readRuntime testOptions = do
           , Tuple EternlExt <$> eternl
           ]
     , chromeUserDataDir
-    , noHeadless: testOptions.noHeadless
     , tempDir
+    , settingsArchive
     }
 
 initializeRuntime :: E2ETestRuntime -> Aff Unit
@@ -105,10 +113,25 @@ main = launchAff_ do
   -- runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions
   pure unit
 
+runE2E :: E2ECommand -> Aff Unit
+runE2E = case _ of
+  RunE2ETests testOptions -> do
+    runtime <- readRuntime $
+      build (delete (Proxy :: Proxy "noHeadless")) testOptions
+    pure unit
+  RunBrowser browserOptions -> do
+    runtime <- readRuntime browserOptions
+    runBrowser runtime.tempDir runtime.chromeUserDataDir runtime.browserPath
+      runtime.settingsArchive
+      runtime.wallets
+    pure unit
+  PackSettings settingsOptions -> undefined
+  UnpackSettings settingsOptions -> undefined
+
 findSettingsArchive :: Effect SettingsArchive
 findSettingsArchive =
-  liftedM (error "Unable to find settings (specify SETTINGS_ARCHIVE)") $
-    lookupEnv "SETTINGS_ARCHIVE"
+  liftedM (error "Unable to find settings (specify E2E_SETTINGS_ARCHIVE)") $
+    lookupEnv "E2E_SETTINGS_ARCHIVE"
 
 runBrowser
   :: TempDir
@@ -142,14 +165,14 @@ extractExtension tempDir extension = do
 
 findChromeProfile :: Aff ChromeUserDataDir
 findChromeProfile = do
-  chromeUserDataDir <- liftedM (error "Unable to get CHROME_USER_DATA")
+  chromeUserDataDir <- liftedM (error "Unable to get E2E_CHROME_USER_DATA")
     $ liftEffect
     $
-      lookupEnv "CHROME_PROFILE"
+      lookupEnv "E2E_CHROME_USER_DATA"
   isDir <- isDirectory <$> stat chromeUserDataDir
   unless isDir do
     liftEffect $ throw $ chromeUserDataDir <>
-      " is not a directory (CHROME_USER_DATA)"
+      " is not a directory (E2E_CHROME_USER_DATA)"
   pure chromeUserDataDir
 
 readExtensionParams :: String -> Effect (Maybe ExtensionParams)

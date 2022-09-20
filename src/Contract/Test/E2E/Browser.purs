@@ -1,8 +1,6 @@
 module Contract.Test.E2E.Browser
-  ( Mode(Headless, Visible)
-  , TestOptions
-  , withBrowser
-  , parseOptions
+  ( withBrowser
+  , module X
   ) where
 
 import Prelude
@@ -41,147 +39,12 @@ import Options.Applicative
 import Options.Applicative.Types (optional)
 import Toppokki as Toppokki
 import Undefined (undefined)
-
--- | Parameters for E2E tests
--- | 'chromeExe' should point to a chromium or google-chrome binary.
--- | 'namiDir' should point to a directory where Nami is unpacked.
--- | 'geroDir' should point to a directory where Gero is unpacked.
--- |    both Nami and Gero must be provided to run the full suite of tests.
--- | 'chromeUserDataDir' should point to a chromium profile directory. If
--- |    not provided, test-data/chrome-user-data is used.
--- |    'make e2e-test' then takes care to unpack Nami and Gero settings to there,
--- |    so that wallet data is available.
--- | 'noHeadless' is a flag to display the browser during the tests.
--- TODO: rename to E2ETestOptions
-type TestOptions =
-  { chromeExe :: Maybe FilePath
-  , wallets :: Map WalletExt WalletConfig
-  , chromeUserDataDir :: Maybe FilePath
-  , noHeadless :: Boolean
-  , tempDir :: Maybe FilePath
-  }
-
-data Mode = Headless | Visible
-
-derive instance Eq Mode
-
-optParser :: Parser TestOptions
-optParser = ado
-  chromeExe <- option (Just <$> str) $ fold
-    [ long "chrome-exe"
-    , metavar "FILE"
-    , help "Chrome/-ium exe (search in env if not set)"
-    , value Nothing
-    ]
-  eternlDir <- option (Just <$> str) $ fold
-    [ long "eternl-dir"
-    , metavar "DIR"
-    , help "Directory where Eternl is unpacked"
-    , value Nothing
-    ]
-  eternlPassword <- option (Just <<< WalletPassword <$> str) $ fold
-    [ long "eternl-password"
-    , metavar "PW"
-    , help "Eternl wallet password"
-    , value Nothing
-    ]
-  namiDir <- option (Just <$> str) $ fold
-    [ long "nami-dir"
-    , metavar "DIR"
-    , help "Directory where nami is unpacked"
-    , value Nothing
-    ]
-  namiPassword <- option (Just <<< WalletPassword <$> str) $ fold
-    [ long "nami-password"
-    , metavar "PW"
-    , help "Nami wallet password"
-    , value Nothing
-    ]
-  geroDir <- option (Just <$> str) $ fold
-    [ long "gero-dir"
-    , metavar "DIR"
-    , help "Directory where gero is unpacked"
-    , value Nothing
-    ]
-  geroPassword <- option (Just <<< WalletPassword <$> str) $ fold
-    [ long "gero-password"
-    , metavar "PW"
-    , help "Gero wallet password"
-    , value Nothing
-    ]
-  flintDir <- option (Just <$> str) $ fold
-    [ long "flint-dir"
-    , metavar "DIR"
-    , help "Directory where gero is unpacked"
-    , value Nothing
-    ]
-  flintPassword <- option (Just <<< WalletPassword <$> str) $ fold
-    [ long "flint-password"
-    , metavar "PW"
-    , help "Flint wallet password"
-    , value Nothing
-    ]
-  lodeDir <- option (Just <$> str) $ fold
-    [ long "lode-dir"
-    , metavar "DIR"
-    , help "Directory where lode is unpacked"
-    , value Nothing
-    ]
-  lodePassword <- option (Just <<< WalletPassword <$> str) $ fold
-    [ long "lode-password"
-    , metavar "PW"
-    , help "Lode wallet password"
-    , value Nothing
-    ]
-  chromeUserDataDir <- optional $ option str $ fold
-    [ long "chrome-user-data"
-    , help "Chrome/-ium user data dir"
-    , value "test-data/chrome-user-data"
-    , showDefault
-    , metavar "DIR"
-    ]
-  tempDir <- option (Just <$> str) $ fold
-    [ long "tmp-dir"
-    , help "Temporary data directory"
-    , value Nothing
-    , showDefaultWith case _ of
-        Nothing -> "None"
-        Just a -> show a
-    , metavar "DIR"
-    ]
-  browserPath <- option (Just <$> str) $ fold
-    [ long "browser"
-    , help "Browser binary to use"
-    , value Nothing
-    , showDefaultWith case _ of
-        Nothing -> "E2E_BROWSER env variable value"
-        Just a -> show a
-    , metavar "BINARY"
-    ]
-  noHeadless <- switch $ fold
-    [ long "no-headless"
-    , help "Show visible browser window"
-    ]
-  let
-    wallets = Map.fromFoldable $ catMaybes
-      [ mkConfig NamiExt namiDir namiPassword
-      , mkConfig GeroExt geroDir geroPassword
-      , mkConfig FlintExt flintDir flintPassword
-      , mkConfig LodeExt lodeDir lodePassword
-      , mkConfig EternlExt eternlDir eternlPassword
-      ]
-  in
-    { chromeExe, wallets, chromeUserDataDir, noHeadless, tempDir }
-  where
-  mkConfig
-    :: WalletExt
-    -> Maybe FilePath
-    -> Maybe WalletPassword
-    -> Maybe (Tuple WalletExt WalletConfig)
-  mkConfig ext mfp mpw = map (ext /\ _) $ WalletConfig <$> mfp <*> mpw
-
-parseOptions :: Effect TestOptions
-parseOptions = execParser $ info optParser fullDesc
+import Contract.Test.E2E.Options
+import Contract.Test.E2E.Options
+  ( Mode(Headless, Visible)
+  , TestOptions
+  , parseOptions
+  ) as X
 
 withBrowser
   :: forall (a :: Type)
