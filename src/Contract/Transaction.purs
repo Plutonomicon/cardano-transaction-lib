@@ -125,7 +125,6 @@ import Cardano.Types.Transaction
   , _witnessSet
   ) as Transaction
 import Cardano.Types.Transaction (Transaction)
-import Contract.Address (getWalletAddress)
 import Contract.Log (logDebug')
 import Contract.Monad
   ( Contract
@@ -142,7 +141,7 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
@@ -155,8 +154,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Hashing (transactionHash) as Hashing
 import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
-import Plutus.Conversion.Address (fromPlutusAddress)
-import Plutus.Types.Address (Address)
 import Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
