@@ -120,13 +120,13 @@ suite = do
     group "BigNum tests" $ do
       test "BigNum ok" $ do
         let bn = "18446744073709551615"
-        (newBigNum maybeFfiHelper bn) `shouldSatisfy` isJust
+        newBigNum maybeFfiHelper bn `shouldSatisfy` isJust
       test "BigNum owerflow" $ do
         let bn' = "18446744073709551616"
-        (newBigNum maybeFfiHelper bn') `shouldSatisfy` isNothing
+        newBigNum maybeFfiHelper bn' `shouldSatisfy` isNothing
       test "BigNum negative" $ do
         let bnNeg = "-1"
-        (newBigNum maybeFfiHelper bnNeg) `shouldSatisfy` isNothing
+        newBigNum maybeFfiHelper bnNeg `shouldSatisfy` isNothing
 
 serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
