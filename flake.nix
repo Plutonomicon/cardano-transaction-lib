@@ -301,32 +301,13 @@
           pkgs = nixpkgsFor system;
         in
         (psProjectFor pkgs).checks
-        // self.hsFlake.${system}.checks
-        // {
-          formatting-check = pkgs.runCommand "formatting-check"
-            {
-              nativeBuildInputs = with pkgs; [
-                easy-ps.purs-tidy
-                haskellPackages.fourmolu
-                nixpkgs-fmt
-                nodePackages.prettier
-                nodePackages.eslint
-                fd
-              ];
-            }
-            ''
-              cd ${self}
-              make check-format
-              touch $out
-            '';
-        });
+        );
 
       check = perSystem (system:
         (nixpkgsFor system).runCommand "combined-check"
           {
             combined =
-              builtins.attrValues self.checks.${system}
-              ++ builtins.attrValues self.packages.${system};
+              builtins.attrValues self.checks.${system};
           }
           ''
             echo $combined
