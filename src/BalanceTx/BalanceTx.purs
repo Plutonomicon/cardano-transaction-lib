@@ -8,11 +8,8 @@ module BalanceTx
 import Prelude
 
 import BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
-import BalanceTx.Constraints (BalanceTxConstraints, BalanceTxConstraintsBuilder)
-import BalanceTx.Constraints
-  ( buildBalanceTxConstraints
-  , _ownAddress
-  ) as Constraints
+import BalanceTx.Constraints (BalanceTxConstraintsBuilder)
+import BalanceTx.Constraints (_ownAddress) as Constraints
 import BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -48,6 +45,10 @@ import BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
   , PrebalancedTransaction(PrebalancedTransaction)
+  , askConstraints
+  , liftEitherQueryM
+  , liftQueryM
+  , withBalanceTxConstraints
   )
 import BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import BalanceTx.UtxoMinAda (utxoMinAdaValue)
@@ -116,42 +117,44 @@ balanceTxWithConstraints
   :: BalanceTxConstraintsBuilder
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints constraintsBuilder unbalancedTx = runExceptT do
-  let
-    constraints :: BalanceTxConstraints
-    constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
+balanceTxWithConstraints constraintsBuilder unbalancedTx =
+  withBalanceTxConstraints constraintsBuilder $ runExceptT do
+    let
+      getWalletAddress :: BalanceTxM Address
+      getWalletAddress =
+        liftEitherQueryM $
+          QueryM.getWalletAddress <#> note CouldNotGetWalletAddress
 
-    getWalletAddress :: BalanceTxM Address
-    getWalletAddress =
-      ExceptT $ QueryM.getWalletAddress <#> note CouldNotGetWalletAddress
+    constraints <- askConstraints
 
-  ownAddr <-
-    maybe getWalletAddress pure (constraints ^. Constraints._ownAddress)
+    ownAddr <-
+      maybe getWalletAddress pure (constraints ^. Constraints._ownAddress)
 
-  utxos <- ExceptT $ utxosAt ownAddr <#> note CouldNotGetUtxos
+    utxos <- liftEitherQueryM $ utxosAt ownAddr <#> note CouldNotGetUtxos
 
-  unbalancedCollTx <-
-    case Array.null (unbalancedTx ^. _redeemersTxIns) of
-      true ->
-        -- Don't set collateral if tx doesn't contain phase-2 scripts:
-        lift unbalancedTxWithNetworkId
-      false ->
-        setTransactionCollateral ownAddr =<< lift unbalancedTxWithNetworkId
+    unbalancedCollTx <-
+      case Array.null (unbalancedTx ^. _redeemersTxIns) of
+        true ->
+          -- Don't set collateral if tx doesn't contain phase-2 scripts:
+          liftQueryM unbalancedTxWithNetworkId
+        false ->
+          setTransactionCollateral ownAddr
+            =<< liftQueryM unbalancedTxWithNetworkId
 
-  let
-    allUtxos :: UtxoMap
-    allUtxos =
-      -- Combine utxos at the user address and those from any scripts
-      -- involved with the contract in the unbalanced transaction:
-      utxos `Map.union` (unbalancedTx ^. _unbalancedTx <<< _utxoIndex)
+    let
+      allUtxos :: UtxoMap
+      allUtxos =
+        -- Combine utxos at the user address and those from any scripts
+        -- involved with the contract in the unbalanced transaction:
+        utxos `Map.union` (unbalancedTx ^. _unbalancedTx <<< _utxoIndex)
 
-  availableUtxos <- lift $ filterLockedUtxos allUtxos
+    availableUtxos <- liftQueryM $ filterLockedUtxos allUtxos
 
-  logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
+    logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
-  -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos ownAddr
-    (unbalancedTx # _transaction' .~ unbalancedCollTx)
+    -- Balance and finalize the transaction:
+    runBalancer availableUtxos ownAddr
+      (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
   unbalancedTxWithNetworkId = do
@@ -164,7 +167,7 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx = runExceptT do
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
   setTransactionCollateral ownAddr transaction = do
     collateral <-
-      ExceptT $ note CouldNotGetCollateral <$> getWalletCollateral
+      liftEitherQueryM $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
     -- Don't mess with Cip30 collateral
     isCip30 <- asks $ (_.runtime >>> _.wallet >=> cip30Wallet) >>> isJust
@@ -187,10 +190,9 @@ runBalancer
   :: UtxoMap
   -> ChangeAddress
   -> UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError FinalizedTransaction)
+  -> BalanceTxM FinalizedTransaction
 runBalancer utxos changeAddress =
-  runExceptT <<<
-    (mainLoop one zero <=< addLovelacesToTransactionOutputs)
+  mainLoop one zero <=< addLovelacesToTransactionOutputs
   where
   mainLoop
     :: Iteration
@@ -221,7 +223,8 @@ runBalancer utxos changeAddress =
 
     case newMinFee == minFee of
       true -> do
-        finalizedTransaction <- lift $ finalizeTransaction balancedTx utxos -- TODO: all available?
+        finalizedTransaction <-
+          liftQueryM $ finalizeTransaction balancedTx utxos -- TODO: all available?
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
