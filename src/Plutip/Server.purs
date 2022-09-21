@@ -43,7 +43,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, catchError, error, try, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -150,8 +150,8 @@ withPlutipContractEnv plutipCfg distr cont = do
       liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
         ", must be at least 1_000_000 Lovelace"
     bracket
-      (startPlutipCluster plutipCfg distrArray)
-      (const $ void $ stopPlutipCluster plutipCfg)
+      (flip catchError (const $ throwError $ error "C") $ startPlutipCluster plutipCfg distrArray)
+      (const $ void $ flip catchError (const $ throwError $ error "B") $ stopPlutipCluster plutipCfg)
       cc
 
   withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
@@ -365,11 +365,13 @@ startPlutipServer cfg = do
   liftEffect $ killOnExit p
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
-  void
+  flip catchError (const $ throwError $ error "A") $ void
     $ recovering defaultRetryPolicy
         ([ \_ _ -> pure true ])
     $ const
     $ stopPlutipCluster cfg
+  -- delay (wrap 1.0)
+  -- void $ stopPlutipCluster cfg
   pure p
 
 startPostgresServer
