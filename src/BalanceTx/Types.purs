@@ -3,6 +3,7 @@ module BalanceTx.Types
   , BalanceTxMContext
   , FinalizedTransaction(FinalizedTransaction)
   , PrebalancedTransaction(PrebalancedTransaction)
+  , askCoinsPerUtxoUnit
   , askConstraints
   , liftEitherQueryM
   , liftQueryM
@@ -20,7 +21,7 @@ import Control.Monad.Reader.Trans (asks, withReaderT)
 import Control.Monad.Trans.Class (lift)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, over)
+import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import QueryM
   ( DefaultQueryEnv
@@ -29,12 +30,17 @@ import QueryM
   , QueryMExtended(QueryMExtended)
   )
 import QueryM (liftQueryM) as QueryM
+import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Types.ScriptLookups (UnattachedUnbalancedTx)
 
 type BalanceTxMContext = (constraints :: BalanceTxConstraints)
 
 type BalanceTxM (a :: Type) =
   ExceptT BalanceTxError (QueryMExtended BalanceTxMContext) a
+
+askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
+askCoinsPerUtxoUnit =
+  asks (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.runtime)
 
 askConstraints :: BalanceTxM BalanceTxConstraints
 askConstraints = asks (_.constraints <<< _.extraConfig)
