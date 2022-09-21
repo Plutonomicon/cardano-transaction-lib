@@ -161,11 +161,6 @@
               # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
-            ctl-unit-test = project.runPursTest {
-              name = "ctl-unit-test";
-              testMain = "Ctl.Test.Unit";
-              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
-            };
           };
 
           devShell = project.devShell;
@@ -368,8 +363,6 @@
 
       hydraJobs = perSystem (system:
         self.checks.${system}
-        // self.packages.${system}
-        // self.devShells.${system}
       );
     };
 }
