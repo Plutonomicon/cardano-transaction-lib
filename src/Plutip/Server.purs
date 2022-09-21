@@ -43,7 +43,16 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
+import Effect.Aff
+  ( Aff
+  , Milliseconds(Milliseconds)
+  , bracket
+  , throwError
+  , catchError
+  , error
+  , message
+  , try
+  )
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -258,41 +267,42 @@ startPlutipCluster
   :: PlutipConfig
   -> InitialUTxODistribution
   -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
-startPlutipCluster cfg keysToGenerate = do
-  let url = mkServerEndpointUrl cfg "start"
-  res <- do
-    response <- liftAff
-      ( Affjax.request
-          Affjax.defaultRequest
-            { content = Just
-                $ RequestBody.String
-                $ stringifyAeson
-                $ encodeAeson
-                $ ClusterStartupRequest
-                    { keysToGenerate }
-            , responseFormat = Affjax.ResponseFormat.string
-            , headers = [ Header.ContentType (wrap "application/json") ]
-            , url = url
-            , method = Left Method.POST
-            }
-      )
-    pure $ response # either
-      (Left <<< ClientHttpError)
-      ( lmap ClientDecodeJsonError
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
-  either (liftEffect <<< throw <<< show) pure res >>=
-    case _ of
-      ClusterStartupFailure _ -> do
-        liftEffect $ throw "Failed to start up cluster"
-      ClusterStartupSuccess response@{ privateKeys } ->
-        case Array.uncons privateKeys of
-          Nothing ->
-            liftEffect $ throw $
-              "Impossible happened: insufficient private keys provided by plutip. Please report as bug."
-          Just { head: PrivateKeyResponse ourKey, tail } ->
-            pure $ PrivatePaymentKey ourKey /\ response { privateKeys = tail }
+startPlutipCluster cfg keysToGenerate =
+  rethrowWithContext "Failed to start plutip cluster." do
+    let url = mkServerEndpointUrl cfg "start"
+    res <- do
+      response <- liftAff
+        ( Affjax.request
+            Affjax.defaultRequest
+              { content = Just
+                  $ RequestBody.String
+                  $ stringifyAeson
+                  $ encodeAeson
+                  $ ClusterStartupRequest
+                      { keysToGenerate }
+              , responseFormat = Affjax.ResponseFormat.string
+              , headers = [ Header.ContentType (wrap "application/json") ]
+              , url = url
+              , method = Left Method.POST
+              }
+        )
+      pure $ response # either
+        (Left <<< ClientHttpError)
+        ( lmap ClientDecodeJsonError
+            <<< (decodeAeson <=< parseJsonStringToAeson)
+            <<< _.body
+        )
+    either (liftEffect <<< throw <<< show) pure res >>=
+      case _ of
+        ClusterStartupFailure _ -> do
+          liftEffect $ throw "Failed to start up cluster"
+        ClusterStartupSuccess response@{ privateKeys } ->
+          case Array.uncons privateKeys of
+            Nothing ->
+              liftEffect $ throw $
+                "Impossible happened: insufficient private keys provided by plutip. Please report as bug."
+            Just { head: PrivateKeyResponse ourKey, tail } ->
+              pure $ PrivatePaymentKey ourKey /\ response { privateKeys = tail }
 
 -- | Calculate the initial utxos needed for `ourKey` to cover
 -- | transaction costs for the given initial distribution
@@ -308,30 +318,31 @@ ourInitialUtxos utxoDistribution =
     ]
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse
-stopPlutipCluster cfg = do
-  let url = mkServerEndpointUrl cfg "stop"
-  res <- do
-    response <- liftAff
-      ( Affjax.request
-          Affjax.defaultRequest
-            { content = Just
-                $ RequestBody.String
-                $ stringifyAeson
-                $ encodeAeson
-                $ StopClusterRequest
-            , responseFormat = Affjax.ResponseFormat.string
-            , headers = [ Header.ContentType (wrap "application/json") ]
-            , url = url
-            , method = Left Method.POST
-            }
-      )
-    pure $ response # either
-      (Left <<< ClientHttpError)
-      ( lmap ClientDecodeJsonError
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
-  either (liftEffect <<< throw <<< show) pure res
+stopPlutipCluster cfg =
+  rethrowWithContext "Failed to stop plutip cluster." do
+    let url = mkServerEndpointUrl cfg "stop"
+    res <- do
+      response <- liftAff
+        ( Affjax.request
+            Affjax.defaultRequest
+              { content = Just
+                  $ RequestBody.String
+                  $ stringifyAeson
+                  $ encodeAeson
+                  $ StopClusterRequest
+              , responseFormat = Affjax.ResponseFormat.string
+              , headers = [ Header.ContentType (wrap "application/json") ]
+              , url = url
+              , method = Left Method.POST
+              }
+        )
+      pure $ response # either
+        (Left <<< ClientHttpError)
+        ( lmap ClientDecodeJsonError
+            <<< (decodeAeson <=< parseJsonStringToAeson)
+            <<< _.body
+        )
+    either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
 startOgmios cfg params = do
@@ -369,6 +380,7 @@ startPlutipServer cfg = do
     $ recovering defaultRetryPolicy
         ([ \_ _ -> pure true ])
     $ const
+    $ rethrowWithContext "Failed to test plutip-server connection."
     $ stopPlutipCluster cfg
   pure p
 
@@ -529,3 +541,7 @@ defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do
   "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
+
+rethrowWithContext :: forall (a :: Type). String -> Aff a -> Aff a
+rethrowWithContext ctx = flip catchError \e -> throwError $ error
+  (ctx <> "\n" <> message e)
