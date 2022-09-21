@@ -3,6 +3,9 @@ module CTL.Internal.Wallet.Cip30Mock where
 import Prelude
 
 import CTL.Contract.Monad (Contract, ContractEnv, wrapContract)
+import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import CTL.Internal.Deserialization.Transaction (deserializeTransaction)
 import CTL.Internal.Helpers (liftEither)
 import CTL.Internal.QueryM (QueryM, runQueryMInRuntime)
@@ -31,8 +34,9 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
+import Data.Array as Array
 import Data.Either (hush)
-import Data.Foldable (fold)
+import Data.Foldable (foldMap)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -41,6 +45,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
+import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -104,12 +109,26 @@ type Cip30Mock =
   , getCollateral :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
   , getBalance :: Effect (Promise String)
+  , getUtxos :: Effect (Promise (Array String))
   }
 
 mkCip30Mock
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> QueryM Cip30Mock
 mkCip30Mock pKey mSKey = do
   { config, runtime } <- ask
+  let
+    getCollateralUtxos utxos = do
+      let
+        pparams = unwrap $ runtime.pparams
+        coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
+        maxCollateralInputs = UInt.toInt $
+          pparams.maxCollateralInputs
+      liftEffect $
+        (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
+          maxCollateralInputs
+          utxos
+          >>= liftMaybe (error "No UTxOs at address")
+
   pure $
     { getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
@@ -118,16 +137,7 @@ mkCip30Mock pKey mSKey = do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
-        let
-          pparams = unwrap $ runtime.pparams
-          coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
-          maxCollateralInputs = UInt.toInt $
-            pparams.maxCollateralInputs
-        collateralUtxos <- liftEffect $
-          (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
-            maxCollateralInputs
-            utxos
-            >>= liftMaybe (error "No UTxOs at address")
+        collateralUtxos <- getCollateralUtxos utxos
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
           collateralUtxos
@@ -147,9 +157,25 @@ mkCip30Mock pKey mSKey = do
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         value <- liftEffect $ convertValue $
-          (fold <<< map _.amount <<< map unwrap <<< Map.values)
+          (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
         pure $ byteArrayToHex $ toBytes $ asOneOf value
+    , getUtxos: fromAff do
+        ownAddress <- (unwrap keyWallet).address config.networkId
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
+          runQueryMInRuntime config runtime (utxosAt ownAddress)
+        collateralUtxos <- getCollateralUtxos utxos
+        let
+          -- filter UTxOs that will be used as collateral
+          nonCollateralUtxos =
+            Map.filter
+              (flip Array.elem (collateralUtxos <#> unwrap >>> _.output))
+              utxos
+        -- Convert to CSL representation and serialize
+        cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
+          $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
+              TransactionUnspentOutput { input, output }
+        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUtxos
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey

@@ -62,7 +62,8 @@ import CTL.Contract.Utxos (getWalletBalance, utxosAt)
 import CTL.Contract.Value (Coin(Coin), coinToValue)
 import CTL.Contract.Value as Value
 import CTL.Contract.Wallet
-  ( isFlintAvailable
+  ( getWalletUtxos
+  , isFlintAvailable
   , isGeroAvailable
   , isNamiAvailable
   , withKeyWallet
@@ -84,6 +85,7 @@ import CTL.Examples.MintsMultipleTokens
 import CTL.Examples.OneShotMinting (contract) as OneShotMinting
 import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import CTL.Examples.PlutusV2.InlineDatum as InlineDatum
+import CTL.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import CTL.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import CTL.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import CTL.Examples.SendsToken (contract) as SendsToken
@@ -93,7 +95,12 @@ import CTL.Internal.Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
+import CTL.Internal.Plutip.Types
+  ( InitialUTxOsWithStakeKey
+  , StopClusterResponse(StopClusterSuccess)
+  )
 import CTL.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import CTL.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
 import CTL.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import CTL.Internal.Types.Interval (getSlotLength)
 import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
@@ -101,6 +108,7 @@ import CTL.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )
+import CTL.Internal.Wallet.Key (KeyWallet)
 import CTL.Plutus.Conversion.Address (toPlutusAddress)
 import CTL.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -114,7 +122,7 @@ import CTL.Plutus.Types.Value (lovelaceValueOf)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array ((!!))
+import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (fold, foldM)
@@ -198,6 +206,47 @@ suite = do
               throw "More than one UTxO in collateral"
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
+
+    let
+      arrayTest
+        :: forall a
+         . UtxoDistribution (Array a) (Array KeyWallet)
+        => Array a
+        -> Aff Unit
+      arrayTest distribution = do
+        runPlutipContract config distribution \wallets -> do
+          traverse_
+            ( \wallet -> do
+                withKeyWallet wallet do
+                  getWalletCollateral >>= liftEffect <<< case _ of
+                    Nothing -> throw "Unable to get collateral"
+                    Just
+                      [ TransactionUnspentOutput
+                          { output: TransactionOutputWithRefScript { output } }
+                      ] -> do
+                      let amount = (unwrap output).amount
+                      unless
+                        ( amount == lovelaceValueOf
+                            (BigInt.fromInt 1_000_000_000)
+                        )
+                        $ throw "Wrong UTxO selected as collateral"
+                    Just _ -> do
+                      -- not a bug, but unexpected
+                      throw "More than one UTxO in collateral"
+            )
+            wallets
+    test "runPlutipContract: Array of InitialUTxOs and KeyWallet" do
+      let
+        distribution :: Array InitialUTxOs
+        distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+      arrayTest distribution
+
+    test "runPlutipContract: Array of InitialUTxOsWithStakeKey and KeyWallet" do
+      let
+        distribution :: Array InitialUTxOsWithStakeKey
+        distribution = withStakeKey privateStakeKey <$> replicate 2
+          [ BigInt.fromInt 1_000_000_000 ]
+      arrayTest distribution
 
     test "runPlutipContract: Pkh2Pkh" do
       let
@@ -811,7 +860,7 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
 
-    test "runPlutipContract: Examples.OneShotMinting" do
+    test "runPlutipContract: OneShotMinting" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -820,6 +869,16 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice OneShotMinting.contract
+
+    test "runPlutipContract: OneShotMinting PlutusV2" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice OneShotMintingV2.contract
 
     test "runPlutipContract: Examples.ContractTestUtils" do
       let
@@ -914,6 +973,18 @@ suite = do
             Just _ -> do
               -- not a bug, but unexpected
               throw "More than one UTxO in collateral"
+
+    test "CIP-30 mock: get own UTxOs" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        utxos <- withCip30Mock alice MockNami do
+          getWalletUtxos
+        utxos `shouldSatisfy` isJust
 
     test "CIP-30 mock: get own address" do
       let

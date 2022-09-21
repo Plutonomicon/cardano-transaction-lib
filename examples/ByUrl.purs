@@ -28,6 +28,7 @@ import CTL.Examples.MintsMultipleTokens as MintsMultipleTokens
 import CTL.Examples.OneShotMinting as OneShotMinting
 import CTL.Examples.Pkh2Pkh as Pkh2Pkh
 import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import CTL.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import CTL.Examples.SendsToken as SendsToken
 import CTL.Examples.SignMultiple as SignMultiple
 import CTL.Examples.Wallet as Wallet
@@ -106,6 +107,7 @@ examples =
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
+  , "OneShotMintingV2" /\ OneShotMintingV2.contract
   ]
 
 -- Address is:
