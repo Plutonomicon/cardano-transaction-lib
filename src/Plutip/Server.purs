@@ -43,7 +43,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, catchError, error, try, delay)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, catchError, error, try)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
