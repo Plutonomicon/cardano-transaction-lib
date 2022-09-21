@@ -178,6 +178,30 @@ suite = do
 
     flip mapTest AffInterface.suite
       (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
+    flip mapTest AffInterface.suite
+      (runPlutipContract config unit <<< const <<< wrapContract)
 
   skip $ group "Plutip skip " do
     test "runPlutipContract" do
