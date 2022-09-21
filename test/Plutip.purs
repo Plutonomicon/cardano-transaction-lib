@@ -177,7 +177,8 @@ suite = do
     flip mapTest AffInterface.suite
       (runPlutipContract config unit <<< const <<< wrapContract)
 
-    skip $ test "runPlutipContract" do
+  skip $ group "Plutip skip " do
+    test "runPlutipContract" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
