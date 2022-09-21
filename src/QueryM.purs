@@ -24,6 +24,7 @@ module QueryM
   , QueryRuntime
   , RequestBody
   , WebSocket(WebSocket)
+  , Hooks
   , allowError
   , applyArgs
   , evaluateTxOgmios
@@ -94,7 +95,7 @@ import Control.Parallel (parallel, sequential)
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
-import Data.Foldable (foldl)
+import Data.Foldable (foldl, for_)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
@@ -121,9 +122,10 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message)
+import Effect.Exception (Error, error, message, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
+import Foreign (Foreign)
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
 import JsWebSocket
@@ -180,8 +182,8 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Transaction (TransactionInput)
 import Types.Scripts (PlutusScript(PlutusScript), Language)
+import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
 import Wallet
@@ -214,6 +216,13 @@ import Wallet.Spec
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
+type Hooks =
+  { beforeSign :: Maybe (Effect Unit)
+  , beforeInit :: Maybe (Effect Unit)
+  , onSuccess :: Maybe (Effect Unit)
+  , onError :: Maybe (Error -> Effect Unit)
+  }
+
 -- | `QueryConfig` contains a complete specification on how to initialize a
 -- | `QueryM` environment.
 -- | It includes:
@@ -231,6 +240,7 @@ type QueryConfig =
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
   , suppressLogs :: Boolean
+  , hooks :: Hooks
   }
 
 -- | Reusable part of `QueryRuntime` that can be shared between many `QueryM`
@@ -304,8 +314,9 @@ withQueryRuntime
   -> Aff a
 withQueryRuntime config action = do
   runtime <- mkQueryRuntime config
-  supervise (action runtime) `flip finally` do
-    liftEffect $ stopQueryRuntime runtime
+  supervise (action runtime) `flip finally` liftEffect do
+    for_ config.hooks.onSuccess (void <<< try)
+    stopQueryRuntime runtime
 
 -- | Close the websockets in `QueryRuntime`, effectively making it unusable
 stopQueryRuntime
@@ -324,6 +335,7 @@ mkQueryRuntime
   :: QueryConfig
   -> Aff QueryRuntime
 mkQueryRuntime config = do
+  for_ config.hooks.beforeInit (void <<< liftEffect <<< try)
   usedTxOuts <- newUsedTxOuts
   QueryRuntimeModel (ogmiosWs /\ datumCacheWs /\ pparams) wallet <- sequential $
     QueryRuntimeModel

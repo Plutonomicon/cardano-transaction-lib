@@ -23,7 +23,6 @@ import Contract.Monad
   , runContract
   )
 import Contract.Scripts (Validator, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV2)
   , textEnvelopeBytes
@@ -50,7 +49,6 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 foreign import alwaysSucceeds :: String
 

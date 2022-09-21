@@ -18,7 +18,6 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -73,7 +72,6 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 foreign import redeemerInt1 :: String
 foreign import redeemerInt2 :: String

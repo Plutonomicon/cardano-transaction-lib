@@ -29,7 +29,6 @@ import Contract.PlutusData
   )
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV2)
   , textEnvelopeBytes
@@ -66,7 +65,6 @@ example cfg = launchAff_ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromCheckDatumIsInline vhash validator txId
-  publishTestFeedback true
 
 plutusData :: PlutusData
 plutusData = Integer $ BigInt.fromInt 31415927

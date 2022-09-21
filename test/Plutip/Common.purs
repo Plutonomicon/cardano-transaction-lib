@@ -48,6 +48,7 @@ config =
       }
   , suppressLogs: true
   , customLogger: Nothing
+  , hooks: mempty
   }
 
 privateStakeKey :: PrivateStakeKey

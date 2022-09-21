@@ -13,12 +13,6 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Mote (group)
 import Prelude (Unit, bind, discard, pure, show, ($))
-import Test.E2E.Examples.AlwaysMints as AlwaysMints
-import Test.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Test.E2E.Examples.Datums as Datums
-import Test.E2E.Examples.MintsMultipleTokens as MintsMultipleTokens
-import Test.E2E.Examples.Pkh2Pkh as Pkh2Pkh
-import Test.E2E.Examples.SignMultiple as SignMultiple
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)

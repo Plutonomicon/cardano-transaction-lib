@@ -45,6 +45,7 @@ import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
+import QueryM (Hooks)
 import QueryM.ServerConfig (ServerConfig)
 import Serialization (privateKeyFromBytes)
 import Serialization.Types (PrivateKey)
@@ -65,6 +66,7 @@ type PlutipConfig =
   , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (Message -> Aff Unit)
   , suppressLogs :: Boolean
+  , hooks :: Hooks
   }
 
 type PostgresConfig =

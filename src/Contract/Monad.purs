@@ -87,12 +87,13 @@ import QueryM
   , mkWsUrl
   ) as QueryM
 import QueryM
-  ( QueryConfig
+  ( Logger
+  , QueryConfig
   , QueryEnv
   , QueryM
   , QueryMExtended
   , QueryRuntime
-  , Logger
+  , Hooks
   , mkLogger
   , mkQueryRuntime
   , stopQueryRuntime
@@ -212,6 +213,7 @@ type ConfigParams (r :: Row Type) =
   , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
   , extraConfig :: { | r }
+  , hooks :: Hooks
   }
 
 -- | Interprets a contract into an `Aff` context.
@@ -262,6 +264,7 @@ mkContractEnv
     , walletSpec
     , customLogger
     , suppressLogs
+    , hooks
     } = do
   let
     config =
@@ -273,6 +276,7 @@ mkContractEnv
       , walletSpec
       , customLogger
       , suppressLogs
+      , hooks
       }
   runtime <- mkQueryRuntime
     config
@@ -313,6 +317,7 @@ withContractEnv
     , walletSpec
     , customLogger
     , suppressLogs
+    , hooks
     }
   action = do
   { addLogEntry, printLogs } <-
@@ -330,6 +335,7 @@ withContractEnv
           if suppressLogs then Just $ liftEffect <<< addLogEntry
           else customLogger
       , suppressLogs
+      , hooks
       }
 
   withQueryRuntime config \runtime -> do
