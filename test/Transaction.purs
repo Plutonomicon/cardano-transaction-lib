@@ -3,30 +3,29 @@ module Test.Transaction (suite) where
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , Redeemer(Redeemer)
+  ( Redeemer(Redeemer)
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
   , mkPubKey
   )
-import Data.Array (singleton)
 import Data.BigInt as BigInt
-import Data.Bitraversable (bisequence)
 import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap, over)
 import Data.Tuple.Nested ((/\))
 import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
-import Effect.Aff (Aff, error)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff, liftM)
+import Helpers (fromRightEff)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Test.Fixtures.CostModels (costModelsFixture1)
 import Test.Spec.Assertions (shouldEqual)
@@ -130,7 +129,6 @@ testSetScriptDataHash = liftEffect $ do
 
 testPreserveWitness :: Aff Unit
 testPreserveWitness = liftEffect $ do
-  vk <- liftM (error "Invalid Vkeywitness") mVk
   Transaction { witnessSet: TransactionWitnessSet { plutusData, vkeys } } <-
     fromRightEff =<< attachDatum datum tx
   case plutusData /\ vkeys of
@@ -152,21 +150,20 @@ testPreserveWitness = liftEffect $ do
   datum = Datum $ Integer $ BigInt.fromInt 1
 
   initialWitnessSet :: TransactionWitnessSet
-  initialWitnessSet = over TransactionWitnessSet _ { vkeys = singleton <$> mVk }
+  initialWitnessSet = over TransactionWitnessSet _ { vkeys = Just [ vk ] }
     $ mempty
 
-  mVk :: Maybe Vkeywitness
-  mVk = map Vkeywitness $ bisequence
-    ( map Vkey
-        ( mkPubKey
+  vk :: Vkeywitness
+  vk = Vkeywitness
+    ( Vkey
+        ( unsafePartial $ fromJust <<< mkPubKey $
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
         /\
-          pure
-            ( Ed25519Signature
-                "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
-                \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
-            )
+          ( unsafePartial $ fromJust <<< mkEd25519Signature $
+              "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
+              \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
+          )
     )
 
 mkRedeemer :: PlutusData -> Effect Redeemer

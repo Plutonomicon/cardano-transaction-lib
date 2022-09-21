@@ -7,7 +7,6 @@ module Serialization
   , defaultCostmdls
   , convertTransactionUnspentOutput
   , convertValue
-  , toBytes
   , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -16,6 +15,7 @@ module Serialization
   , publicKeyHash
   , publicKeyFromPrivateKey
   , makeVkeywitness
+  , module Serialization.ToBytes
   , module Serialization.Keys
   ) where
 
@@ -81,16 +81,16 @@ import Serialization.Address (Address, StakeCredential, RewardAddress)
 import Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Serialization.AuxiliaryData (convertAuxiliaryData)
 import Serialization.BigInt as Serialization
+import Serialization.ToBytes (toBytes)
 import Serialization.Hash (ScriptHash, Ed25519KeyHash, scriptHashFromBytes)
+import Serialization.Keys (bytesFromPrivateKey)
 import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.PlutusScript (convertPlutusScript)
-import Serialization.Keys (bytesFromPrivateKey)
 import Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
-  , AuxiliaryDataHash
   , BigInt
   , Certificate
   , Certificates
@@ -134,8 +134,8 @@ import Serialization.Types
   , TransactionInputs
   , TransactionOutput
   , TransactionOutputs
-  , TransactionWitnessSet
   , TransactionUnspentOutput
+  , TransactionWitnessSet
   , UnitInterval
   , Update
   , VRFKeyHash
@@ -151,7 +151,6 @@ import Serialization.WitnessSet
   , convertWitnessSet
   )
 import ToData (class ToData, toData)
-import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
 import Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Types.ByteArray (ByteArray)
@@ -246,7 +245,6 @@ foreign import publicKeyFromPrivateKey
   :: PrivateKey -> Effect PublicKey
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
-foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
@@ -472,28 +470,6 @@ foreign import newProposedProtocolParameterUpdates
   -> Effect ProposedProtocolParameterUpdates
 
 foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
-
--- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
-foreign import toBytes
-  :: ( Transaction
-         |+| TransactionBody
-         |+| TransactionOutput
-         |+| TransactionUnspentOutput
-         |+| TransactionHash
-         |+| DataHash
-         |+| PlutusData
-         |+| TransactionWitnessSet
-         |+| NativeScript
-         |+| ScriptDataHash
-         |+| Redeemers
-         |+| GenesisHash
-         |+| GenesisDelegateHash
-         |+| AuxiliaryDataHash
-         |+| Address
-         |+| Value
-     -- Add more as needed.
-     )
-  -> ByteArray
 
 convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do

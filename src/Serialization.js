@@ -101,12 +101,7 @@ exports.publicKeyFromPrivateKey = private_key => () => {
 
 exports.publicKeyHash = pk => pk.hash();
 
-exports.newEd25519Signature = bech32 => () =>
-  lib.Ed25519Signature.from_bech32(bech32);
-
 exports.transactionWitnessSetSetVkeys = setter("vkeys");
-
-exports.toBytes = sth => sth.to_bytes();
 
 exports.newCostmdls = () => lib.Costmdls.new();
 

@@ -19,6 +19,7 @@ import Error (E)
 import FfiHelpers (ErrorFfiHelper, errorHelper)
 import Serialization.Types
   ( DataHash
+  , Ed25519Signature
   , Mint
   , NativeScript
   , PlutusData
@@ -70,6 +71,9 @@ instance FromBytes Value where
 
 instance FromBytes PublicKey where
   fromBytes' = _fromBytesPublicKey eh
+
+instance FromBytes Ed25519Signature where
+  fromBytes' = _fromBytesEd25519Signature eh
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
@@ -143,3 +147,10 @@ foreign import _fromBytesValue
 
 foreign import _fromBytesPublicKey
   :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PublicKey
+
+foreign import _fromBytesEd25519Signature
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper r
+  -> ByteArray
+  -> E r Ed25519Signature
+

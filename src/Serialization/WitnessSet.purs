@@ -11,10 +11,8 @@ module Serialization.WitnessSet
   , convertBootstrap
   , convertVkeywitnesses
   , convertVkeywitness
-  , convertEd25519Signature
   , convertVkey
   , newTransactionWitnessSet
-  , newEd25519Signature
   , newPublicKey
   , newVkeyFromPublicKey
   , newVkeywitnesses
@@ -40,7 +38,8 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( BootstrapWitness
-  , Ed25519Signature(Ed25519Signature)
+  , Ed25519Signature
+  , convertEd25519Signature
   , ExUnits
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
@@ -48,12 +47,12 @@ import Cardano.Types.Transaction
   , Vkeywitness(Vkeywitness)
   ) as T
 import Cardano.Types.Transaction (convertPubKey)
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Exception (throw)
-import FfiHelpers (ContainerHelper, containerHelper)
+import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.PlutusScript (convertPlutusScript)
@@ -153,7 +152,7 @@ convertExUnits { mem, steps } =
 convertBootstrap :: T.BootstrapWitness -> Effect BootstrapWitness
 convertBootstrap { vkey, signature, chainCode, attributes } = do
   vkey' <- convertVkey vkey
-  signature' <- convertEd25519Signature signature
+  let signature' = T.convertEd25519Signature signature
   newBootstrapWitness vkey' signature' chainCode attributes
 
 convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
@@ -165,18 +164,13 @@ convertVkeywitnesses arr = do
 convertVkeywitness :: T.Vkeywitness -> Effect Vkeywitness
 convertVkeywitness (T.Vkeywitness (vkey /\ signature)) = do
   vkey' <- convertVkey vkey
-  signature' <- convertEd25519Signature signature
+  let signature' = T.convertEd25519Signature signature
   newVkeywitness vkey' signature'
-
-convertEd25519Signature :: T.Ed25519Signature -> Effect Ed25519Signature
-convertEd25519Signature (T.Ed25519Signature bech32) =
-  newEd25519Signature bech32
 
 convertVkey :: T.Vkey -> Effect Vkey
 convertVkey (T.Vkey pk) = newVkeyFromPublicKey $ convertPubKey pk
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
-foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import newPublicKey :: Bech32String -> Effect PublicKey
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 foreign import newVkeywitnesses :: Effect Vkeywitnesses

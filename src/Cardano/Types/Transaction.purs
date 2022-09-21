@@ -13,7 +13,10 @@ module Cardano.Types.Transaction
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
+  , Ed25519Signature
+  , mkEd25519Signature
+  , mkFromCslEd25519Signature
+  , convertEd25519Signature
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
@@ -32,7 +35,7 @@ module Cardano.Types.Transaction
   , ProtocolVersion
   , PublicKey
   , mkPubKey
-  , mkPubKeyFromCslPubKey
+  , mkFromCslPubKey
   , convertPubKey
   , Redeemer(Redeemer)
   , Relay(SingleHostAddr, SingleHostName, MultiHostName)
@@ -104,7 +107,7 @@ import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
@@ -113,7 +116,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Deserialization.FromBytes (fromBytes)
-import Deserialization.Keys (publicKeyFromBech32)
+import Deserialization.Keys (ed25519SignatureFromBech32, publicKeyFromBech32)
 import FromData (class FromData, fromData)
 import Helpers ((</>), (<<>>), appendMap, encodeMap, encodeSet, encodeTagged')
 import Partial.Unsafe (unsafePartial)
@@ -125,8 +128,13 @@ import Serialization.Address
   , StakeCredential
   )
 import Serialization.Hash (Ed25519KeyHash)
-import Serialization.Keys (bech32FromPublicKey, bytesFromPublicKey)
-import Serialization.Types (VRFKeyHash, PublicKey) as S
+import Serialization.Keys
+  ( bech32FromEd25519Signature
+  , bech32FromPublicKey
+  , bytesFromPublicKey
+  )
+import Serialization.ToBytes (toBytes)
+import Serialization.Types (VRFKeyHash, PublicKey, Ed25519Signature) as S
 import ToData (class ToData, toData)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)
@@ -139,6 +147,7 @@ import Types.RedeemerTag (RedeemerTag)
 import Types.Scripts (PlutusScript, Language)
 import Types.Transaction (TransactionInput)
 import Types.TransactionMetadata (GeneralTransactionMetadata)
+import Untagged.Union (asOneOf)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -796,8 +805,8 @@ newtype PublicKey = PublicKey RawBytes
 mkPubKey :: Bech32String -> Maybe PublicKey
 mkPubKey = map (PublicKey <<< bytesFromPublicKey) <<< publicKeyFromBech32
 
-mkPubKeyFromCslPubKey :: S.PublicKey -> PublicKey
-mkPubKeyFromCslPubKey = PublicKey <<< bytesFromPublicKey
+mkFromCslPubKey :: S.PublicKey -> PublicKey
+mkFromCslPubKey = PublicKey <<< bytesFromPublicKey
 
 convertPubKey :: PublicKey -> S.PublicKey
 convertPubKey (PublicKey bs) = unsafePartial $ fromJust <<< fromBytes <<< unwrap
@@ -818,20 +827,33 @@ instance ToData PublicKey where
 (map toData <<< bytesFromPublicKey <=< publicKeyFromBech32 <<< unwrap) -}
 
 instance FromData PublicKey where
-  fromData = map mkPubKeyFromCslPubKey <<< fromBytes <=< fromData
+  fromData = map mkFromCslPubKey <<< fromBytes <=< fromData
 
 instance Show PublicKey where
   show pk = "PublicKey " <> (bech32FromPublicKey <<< convertPubKey $ pk)
 
-newtype Ed25519Signature = Ed25519Signature Bech32String
+newtype Ed25519Signature = Ed25519Signature RawBytes
 
-derive instance Generic Ed25519Signature _
+mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
+mkEd25519Signature = map (Ed25519Signature <<< wrap <<< toBytes <<< asOneOf) <<<
+  ed25519SignatureFromBech32
+
+mkFromCslEd25519Signature :: S.Ed25519Signature -> Ed25519Signature
+mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< toBytes <<< asOneOf
+
+convertEd25519Signature :: Ed25519Signature -> S.Ed25519Signature
+convertEd25519Signature (Ed25519Signature bs) = unsafePartial
+  $ fromJust <<< fromBytes <<< unwrap
+  $ bs
+
+-- derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
 derive newtype instance Ord Ed25519Signature
 derive newtype instance EncodeAeson Ed25519Signature
 
 instance Show Ed25519Signature where
-  show = genericShow
+  show sig = "Ed25519Signature " <>
+    (bech32FromEd25519Signature <<< convertEd25519Signature $ sig) -- <<< bech32FromEd25519Signature <<< convertEd25519Signature
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
