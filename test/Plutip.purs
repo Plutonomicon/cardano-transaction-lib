@@ -163,6 +163,7 @@ main = launchAff_ do
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   -- RERUN TILL FAILURE
+  -- RERUN TILL FAILURE
   group "Plutip" do
     skip $ Logging.suite
 
