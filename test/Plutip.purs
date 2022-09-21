@@ -99,7 +99,6 @@ import CTL.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey
   , StopClusterResponse(StopClusterSuccess)
   )
-import CTL.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import CTL.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
 import CTL.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import CTL.Internal.Types.Interval (getSlotLength)
