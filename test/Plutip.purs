@@ -156,14 +156,14 @@ main = launchAff_ do
     defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
     $ do
         suite
-        UtxoDistribution.suite
+        -- UtxoDistribution.suite
 
 -- 
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Plutip" do
-    Logging.suite
+    skip $ Logging.suite
 
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
@@ -177,7 +177,7 @@ suite = do
     flip mapTest AffInterface.suite
       (runPlutipContract config unit <<< const <<< wrapContract)
 
-    test "runPlutipContract" do
+    skip $ test "runPlutipContract" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
@@ -923,7 +923,7 @@ suite = do
         result <- liftedE $ applyArgs unappliedScriptFixture args
         result `shouldEqual` fullyAppliedScriptFixture
 
-  group "CIP-30 mock + Plutip" do
+  skip $ group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
       let
         distribution :: InitialUTxOs
