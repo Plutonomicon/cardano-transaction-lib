@@ -39,7 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- Reorganised the library into new namespaces. Namely: library, tests, and examples are now under `CTL.*`, `Test.CTL.*`, and `CTL.Examples.*` respectively. All library modules that were not in `Contract.*` and `Plutus.*` have been moved into `CTL.Internal.*`. Documentation and comments have been updated to use these new names, but not previous entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
+- Reorganised the library into new namespaces. Namely: library, tests, and examples are now under `CTL.*`, `Test.CTL.*`, and `CTL.Examples.*` respectively. All library modules that were not in `Contract.*` and `Plutus.*` have been moved into `CTL.Internal.*`. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 
 ### Removed
 
