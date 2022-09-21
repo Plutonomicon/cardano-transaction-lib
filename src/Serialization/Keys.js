@@ -9,7 +9,8 @@ exports.publicKeyFromPrivateKey = private_key => () => {
   return private_key.to_public();
 };
 
-const bech32FromKey = key => key.to_bech32();
+const bech32FromX = key => key.to_bech32();
 
-exports._bech32FromPublicKey = bech32FromKey;
-exports._bech32FromPrivateKey = bech32FromKey;
+exports.bech32FromPublicKey = bech32FromX;
+exports.bech32FromPrivateKey = bech32FromX;
+exports.bech32FromEd25519Signature = bech32FromX;

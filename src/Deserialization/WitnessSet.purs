@@ -14,14 +14,14 @@ import Prelude
 import Cardano.Types.NativeScript (NativeScript) as T
 import Cardano.Types.Transaction
   ( BootstrapWitness
-  , Ed25519Signature(Ed25519Signature)
   , ExUnits
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  , mkPubKeyFromCslPubKey
+  , mkFromCslPubKey
   ) as T
+import Cardano.Types.Transaction (mkFromCslEd25519Signature)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
@@ -86,15 +86,15 @@ convertVkeyWitness witness =
   let
     vkey = getVkey witness
     publicKey = convertVkey vkey
-    signature = convertSignature $ getSignature witness
+    signature = mkFromCslEd25519Signature $ getSignature witness
   in
     T.Vkeywitness $ publicKey /\ signature
 
 convertVkey :: Vkey -> T.Vkey
-convertVkey = T.Vkey <<< T.mkPubKeyFromCslPubKey <<< vkeyPublicKey
+convertVkey = T.Vkey <<< T.mkFromCslPubKey <<< vkeyPublicKey
 
-convertSignature :: Ed25519Signature -> T.Ed25519Signature
-convertSignature = T.Ed25519Signature <<< signatureToBech32
+{- convertSignature :: Ed25519Signature -> T.Ed25519Signature
+convertSignature = T.Ed25519Signature <<< signatureToBech32 -}
 
 convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
 convertNativeScripts nativeScripts =
@@ -103,7 +103,7 @@ convertNativeScripts nativeScripts =
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
   { vkey: convertVkey $ getBootstrapVkey bootstrap
-  , signature: convertSignature $ getBootstrapSignature bootstrap
+  , signature: mkFromCslEd25519Signature $ getBootstrapSignature bootstrap
   , chainCode: getBootstrapChainCode bootstrap
   , attributes: getBootstrapAttributes bootstrap
   }

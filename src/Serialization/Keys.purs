@@ -3,18 +3,13 @@ module Serialization.Keys
   , bytesFromPublicKey
   , bech32FromPublicKey
   , bech32FromPrivateKey
+  , bech32FromEd25519Signature
   ) where
 
 import Effect (Effect)
-import Serialization.Types (PublicKey, PrivateKey)
+import Serialization.Types (PublicKey, PrivateKey, Ed25519Signature)
 import Types.Aliases (Bech32String)
 import Types.RawBytes (RawBytes)
-
-bech32FromPublicKey :: PublicKey -> Bech32String
-bech32FromPublicKey = _bech32FromPublicKey
-
-bech32FromPrivateKey :: PrivateKey -> Bech32String
-bech32FromPrivateKey = _bech32FromPrivateKey
 
 foreign import publicKeyFromPrivateKey
   :: PrivateKey -> Effect PublicKey
@@ -25,8 +20,11 @@ foreign import bytesFromPrivateKey
 foreign import bytesFromPublicKey
   :: PublicKey -> RawBytes
 
-foreign import _bech32FromPublicKey
+foreign import bech32FromPublicKey
   :: PublicKey -> Bech32String
 
-foreign import _bech32FromPrivateKey
+foreign import bech32FromPrivateKey
   :: PrivateKey -> Bech32String
+
+foreign import bech32FromEd25519Signature
+  :: Ed25519Signature -> Bech32String

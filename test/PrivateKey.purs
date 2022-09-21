@@ -1,41 +1,42 @@
 module Test.PrivateKey where
 
-import Contract.Config (testnetConfig)
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , Transaction(Transaction)
+  ( Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
   )
+import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
 import Contract.Transaction (signTransaction)
 import Data.Lens (_2, _Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Node.FS.Sync (unlink)
+import Partial.Unsafe (unsafePartial)
 import Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Test.Fixtures (txFixture1)
 import Test.Spec.Assertions (shouldEqual)
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
-import Wallet.Spec
-  ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
-  , PrivateStakeKeySource(PrivateStakeKeyFile)
-  , WalletSpec(UseKeys)
-  )
 import Wallet.KeyFile
   ( privatePaymentKeyToFile
   , privatePaymentKeyFromFile
   , privateStakeKeyFromFile
   , privateStakeKeyToFile
+  )
+import Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
+  , PrivateStakeKeySource(PrivateStakeKeyFile)
+  , WalletSpec(UseKeys)
   )
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -68,7 +69,7 @@ suite = do
               <<<
                 _2
         mbSignature `shouldEqual` Just
-          ( Ed25519Signature
+          ( unsafePartial $ fromJust $ mkEd25519Signature
               "ed25519_sig1w7nkmvk57r6094j9u85r4pddve0hg3985ywl9yzwecx03aa9fnfspl9zmtngmqmczd284lnusjdwkysgukxeq05a548dyepr6vn62qs744wxz"
           )
     test "privateKeyToFile round-trips" do

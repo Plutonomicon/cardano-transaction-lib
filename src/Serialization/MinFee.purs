@@ -86,7 +86,7 @@ fakeVkeywitness = T.Vkeywitness
         )
     )
       /\
-        ( T.Ed25519Signature
+        ( unsafePartial $ fromJust $ T.mkEd25519Signature
             "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
             \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
             \kzs9m6t6x"

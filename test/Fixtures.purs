@@ -99,7 +99,7 @@ import Cardano.Types.Transaction
       , StakeDeregistration
       , StakeRegistration
       )
-  , Ed25519Signature(Ed25519Signature)
+  , Ed25519Signature
   , Epoch(Epoch)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
@@ -121,6 +121,7 @@ import Cardano.Types.Transaction
   , URL(URL)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
   , mkPubKey
   )
 import Cardano.Types.TransactionUnspentOutput
@@ -1071,7 +1072,7 @@ witnessSetFixture2Value =
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
-                  ( Ed25519Signature
+                  ( unsafePartial $ fromJust <<< mkEd25519Signature $
                       "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
                       \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
                       \kzs9m6t6x"
@@ -1140,7 +1141,7 @@ witnessSetFixture3Value =
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
-                  ( Ed25519Signature
+                  ( unsafePartial $ fromJust <<< mkEd25519Signature $
                       "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
                       \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
                       \6faxl6"

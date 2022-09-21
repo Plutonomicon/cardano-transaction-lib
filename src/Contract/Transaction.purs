@@ -75,7 +75,7 @@ import Cardano.Types.Transaction
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
+  , Ed25519Signature
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits

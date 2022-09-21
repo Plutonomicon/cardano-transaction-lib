@@ -7,12 +7,11 @@ import Cardano.Types.Transaction
   , Transaction
   , convertPubKey
   , mkPubKey
-  , mkPubKeyFromCslPubKey
+  , mkFromCslPubKey
   )
-import Control.Monad.Error.Class (throwError)
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.Maybe (Maybe, isJust, isNothing, maybe)
+import Data.Maybe (Maybe, isJust)
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Deserialization.FromBytes (fromBytes, fromBytesEffect)
@@ -43,7 +42,7 @@ import Test.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
@@ -66,7 +65,7 @@ suite = do
 
         let
           pkBytes = bytesFromPublicKey $ convertPubKey pk
-          (pk'' :: Maybe PublicKey) = mkPubKeyFromCslPubKey <$> fromBytes
+          (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> fromBytes
             (unwrap pkBytes)
 
         pk'' `shouldSatisfy` isJust
