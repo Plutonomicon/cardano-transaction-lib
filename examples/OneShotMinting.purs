@@ -1,7 +1,13 @@
 -- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
 -- | used to build scripts with the provided arguments applied. It creates a 
 -- | transaction that mints an NFT using the one-shot minting policy.
-module CTL.Examples.OneShotMinting (main, example, contract) where
+module CTL.Examples.OneShotMinting
+  ( contract
+  , example
+  , main
+  , mkContractWithAssertions
+  , mkOneShotMintingPolicy
+  ) where
 
 import CTL.Contract.Prelude
 
@@ -17,8 +23,9 @@ import CTL.Contract.Monad
   , runContract
   )
 import CTL.Contract.PlutusData (PlutusData, toData)
+import CTL.Contract.Prim.ByteArray (ByteArray)
 import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (MintingPolicy, applyArgs)
+import CTL.Contract.Scripts (MintingPolicy, PlutusScript, applyArgs)
 import CTL.Contract.Test.E2E (publishTestFeedback)
 import CTL.Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import CTL.Contract.Test.Utils as TestUtils
@@ -68,8 +75,15 @@ mkAssertions ownAddress nft =
     ]
 
 contract :: Contract () Unit
-contract = do
-  logInfo' "Running Examples.OneShotMinting"
+contract =
+  mkContractWithAssertions "Examples.OneShotMinting" oneShotMintingPolicy
+
+mkContractWithAssertions
+  :: String
+  -> (TransactionInput -> Contract () MintingPolicy)
+  -> Contract () Unit
+mkContractWithAssertions exampleName mkMintingPolicy = do
+  logInfo' ("Running " <> exampleName)
 
   ownAddress <- liftedM "Failed to get own address" getWalletAddress
   utxos <- liftedM "Failed to get utxo set" $ utxosAt ownAddress
@@ -77,7 +91,7 @@ contract = do
     liftContractM "Utxo set is empty"
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
 
-  mp /\ cs <- Helpers.mkCurrencySymbol (oneShotMintingPolicy oref)
+  mp /\ cs <- Helpers.mkCurrencySymbol (mkMintingPolicy oref)
   tn <- Helpers.mkTokenName "CTLNFT"
 
   let
@@ -103,10 +117,18 @@ contract = do
 foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
-oneShotMintingPolicy oref = do
+oneShotMintingPolicy =
+  mkOneShotMintingPolicy oneShotMinting PlutusScriptV1 plutusV1Script
+
+mkOneShotMintingPolicy
+  :: String
+  -> TextEnvelopeType
+  -> (ByteArray -> PlutusScript)
+  -> TransactionInput
+  -> Contract () MintingPolicy
+mkOneShotMintingPolicy json ty mkPlutusScript oref = do
   unappliedMintingPolicy <-
-    map (wrap <<< plutusV1Script)
-      (textEnvelopeBytes oneShotMinting PlutusScriptV1)
+    map (wrap <<< mkPlutusScript) (textEnvelopeBytes json ty)
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
