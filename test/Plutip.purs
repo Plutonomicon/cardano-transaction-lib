@@ -156,7 +156,7 @@ main = launchAff_ do
     defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
     $ do
         suite
-        -- UtxoDistribution.suite
+        skip $ UtxoDistribution.suite
 
 -- 
 
