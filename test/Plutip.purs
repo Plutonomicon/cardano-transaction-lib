@@ -904,7 +904,7 @@ suite = do
             , txMetadata: cip25MetadataFixture1
             }
 
-  group "applyArgs" do
+  skip $ group "applyArgs" do
     test "returns the same script when called without args" do
       runPlutipContract config unit \_ -> do
         result <- liftedE $ applyArgs unappliedScriptFixture mempty
