@@ -49,11 +49,13 @@ import Undefined (undefined)
 
 withBrowser
   :: forall (a :: Type)
-   . TestOptions
+   . Boolean
+  -> E2ETestRuntime
   -> WalletExt
   -> (Maybe Toppokki.Browser -> Aff a)
   -> Aff a
-withBrowser opts ext = bracket (launchWithExtension opts ext)
+withBrowser noHeadless opts ext = bracket
+  (launchWithExtension noHeadless opts ext)
   ( \mbrowser -> case mbrowser of
       Nothing -> pure unit
       Just b -> Toppokki.close b

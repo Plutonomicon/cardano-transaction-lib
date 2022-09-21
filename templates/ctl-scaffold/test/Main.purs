@@ -53,4 +53,5 @@ config =
       }
   , customLogger: Nothing
   , suppressLogs: false
+  , hooks: mempty
   }

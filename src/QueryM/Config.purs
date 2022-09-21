@@ -5,6 +5,7 @@ module QueryM.Config
 
 import Data.Log.Level (LogLevel(Error, Trace))
 import Data.Maybe (Maybe(Just, Nothing))
+import Prelude (mempty)
 import QueryM (QueryConfig)
 import QueryM.ServerConfig
   ( defaultDatumCacheWsConfig
@@ -23,6 +24,7 @@ testnetTraceQueryConfig =
   , walletSpec: Nothing
   , customLogger: Nothing
   , suppressLogs: false
+  , hooks: mempty
   }
 
 testnetQueryConfig :: QueryConfig

@@ -1,5 +1,5 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
--- | balance, and submit transactions. It creates two transactions: one that 
+-- | balance, and submit transactions. It creates two transactions: one that
 -- | mints a token and one that sends that token to the owner's address.
 
 module Examples.SendsToken (main, example, contract) where
@@ -12,7 +12,6 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (TransactionHash, awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
@@ -31,7 +30,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 contract :: Contract () Unit
 contract = do

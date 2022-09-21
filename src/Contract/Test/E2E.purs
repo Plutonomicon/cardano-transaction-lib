@@ -1,6 +1,5 @@
 module Contract.Test.E2E
   ( module Browser
-  , module Feedback
   , module Helpers
   , module WalletExt
   ) where
@@ -12,18 +11,13 @@ import Contract.Test.E2E.Browser
   , parseOptions
   ) as Browser
 
-import Contract.Test.E2E.Feedback
-  ( publishTestFeedback
-  , retrieveTestFeedback
-  , resetTestFeedback
-  , testFeedbackIsTrue
-  ) as Feedback
+-- import Contract.Test.E2E.Feedback
+--   ( ) as Feedback
 
 import Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample
   , WalletPassword(WalletPassword)
-  , checkSuccess
   , delaySec
   , flintConfirmAccess
   , flintSign

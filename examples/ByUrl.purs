@@ -12,7 +12,7 @@ import Contract.Config
   )
 import Contract.Monad (Contract, runContract)
 import Contract.Prelude (fst, traverse_, uncurry)
-import Contract.Test.E2E (publishTestFeedback)
+import Contract.Test.E2E.Feedback.Hooks (feedbackHooks)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
@@ -32,11 +32,11 @@ import Effect.Console as Console
 import Effect.Exception (error)
 import Examples.AlwaysMints as AlwaysMints
 import Examples.AlwaysSucceeds as AlwaysSucceeds
-import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Examples.Datums as Datums
 import Examples.MintsMultipleTokens as MintsMultipleTokens
 import Examples.OneShotMinting as OneShotMinting
 import Examples.Pkh2Pkh as Pkh2Pkh
+import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Examples.SendsToken as SendsToken
 import Examples.SignMultiple as SignMultiple
 import Examples.Wallet as Wallet
@@ -76,14 +76,12 @@ main = do
             _ -> Nothing
         case mbWalletMock of
           Just walletMock -> do
-            runContract config { walletSpec = Nothing }
+            runContract config { walletSpec = Nothing, hooks = feedbackHooks }
               $ withCip30Mock (privateKeysToKeyWallet paymentKey mbStakeKey)
                   walletMock
                   exampleContract
-            publishTestFeedback true
           Nothing -> do
-            runContract config exampleContract
-            publishTestFeedback true
+            runContract config { hooks = feedbackHooks } exampleContract
     _ -> liftEffect $ Console.error "Error parsing query string"
 
 wallets :: Array (String /\ ConfigParams ())

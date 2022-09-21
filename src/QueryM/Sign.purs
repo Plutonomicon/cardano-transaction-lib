@@ -6,18 +6,19 @@ import Prelude
 
 import Cardano.Types.Transaction (_body, _inputs, _witnessSet)
 import Cardano.Types.Transaction as Transaction
+import Control.Monad.Reader (asks)
 import Data.Array (elem, fromFoldable)
 import Data.Lens ((<>~))
 import Data.Lens.Getter ((^.))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse)
+import Data.Traversable (for_, traverse)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (delay, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (throw, try)
 import Helpers (liftedM)
 import QueryM (QueryM, callCip30Wallet, getWalletAddresses, withMWallet)
 import QueryM.Utxos (getUtxo, getWalletUtxos)
@@ -26,20 +27,23 @@ import Wallet (Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami))
 
 signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWallet case _ of
-  Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
-  Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
-  Flint flint -> liftAff $ callCip30Wallet flint \nw -> flip nw.signTx tx
-  Eternl eternl -> do
-    let
-      txInputs :: Array TransactionInput
-      txInputs = fromFoldable $ tx ^. _body <<< _inputs
-    walletWaitForInputs txInputs
-    liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
-  Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
-  KeyWallet kw -> liftAff do
-    witnessSet <- (unwrap kw).signTx tx
-    pure $ Just (tx # _witnessSet <>~ witnessSet)
+signTransaction tx = do
+  config <- asks (_.config)
+  for_ config.hooks.beforeSign (void <<< liftEffect <<< try)
+  withMWallet case _ of
+    Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
+    Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
+    Flint flint -> liftAff $ callCip30Wallet flint \nw -> flip nw.signTx tx
+    Eternl eternl -> do
+      let
+        txInputs :: Array TransactionInput
+        txInputs = fromFoldable $ tx ^. _body <<< _inputs
+      walletWaitForInputs txInputs
+      liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
+    Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
+    KeyWallet kw -> liftAff do
+      witnessSet <- (unwrap kw).signTx tx
+      pure $ Just (tx # _witnessSet <>~ witnessSet)
 
 -- | Waits till all provided inputs of a given transaction appear in the UTxO
 -- | set provided by the wallet.

@@ -17,7 +17,6 @@ import Contract.Monad
   , throwContractError
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
@@ -88,4 +87,3 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true

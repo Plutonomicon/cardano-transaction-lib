@@ -2,7 +2,6 @@
 module Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample
-  , checkSuccess
   , delaySec
   , eternlConfirmAccess
   , eternlSign
@@ -20,7 +19,6 @@ module Contract.Test.E2E.Helpers
 
 import Prelude
 
-import Contract.Test.E2E.Feedback (testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)
@@ -198,28 +196,6 @@ withExample
   -> Aff a
 withExample url browser = bracket (startExample url browser)
   (const $ pure unit)
-
-waitForTestFeedback :: RunningExample -> Number -> Aff Unit
-waitForTestFeedback ex@{ main, errors } timeout
-  | timeout <= 0.0 = pure unit
-  | otherwise =
-      do
-        done <-
-          testFeedbackIsTrue main <|>
-            any isError <$> liftEffect (Ref.read errors)
-        delaySec 1.0
-        when (not done) $ waitForTestFeedback ex (timeout - 1.0)
-      where
-      isError :: E2EOutput -> Boolean
-      isError (E2EOutput { outputType }) = outputType `elem`
-        [ PageError, RequestFailed ]
-
-checkSuccess :: RunningExample -> Aff Boolean
-checkSuccess ex@{ main, errors } = do
-  waitForTestFeedback ex 80.0
-  feedback <- testFeedbackIsTrue main
-  unless feedback $ liftEffect $ showOutput errors >>= log
-  pure feedback
 
 inWalletPage
   :: forall (a :: Type)
