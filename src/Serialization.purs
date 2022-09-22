@@ -163,7 +163,7 @@ import Types.PlutusData as PlutusData
 import Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Types.TokenName (getTokenName) as TokenName
 import Types.Transaction (TransactionInput(TransactionInput)) as T
-import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
+import Untagged.Union (UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 

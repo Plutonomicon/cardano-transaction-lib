@@ -38,21 +38,20 @@ import Prelude
 
 import Cardano.Types.Transaction
   ( BootstrapWitness
-  , Ed25519Signature
-  , convertEd25519Signature
   , ExUnits
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , convertEd25519Signature
   ) as T
 import Cardano.Types.Transaction (convertPubKey)
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (maybe)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Exception (throw)
-import FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper)
+import FfiHelpers (ContainerHelper, containerHelper)
 import Serialization.NativeScript (convertNativeScripts)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.PlutusScript (convertPlutusScript)

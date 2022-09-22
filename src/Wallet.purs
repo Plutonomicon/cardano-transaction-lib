@@ -18,8 +18,7 @@ module Wallet
 import Prelude
 
 import Cardano.Types.Transaction
-  ( Ed25519Signature
-  , Transaction(Transaction)
+  ( Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
