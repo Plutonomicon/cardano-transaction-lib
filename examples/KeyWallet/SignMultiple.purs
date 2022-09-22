@@ -17,6 +17,7 @@ import Contract.Value (lovelaceValueOf) as Value
 import Control.Monad.Reader (asks)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 -- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Data.Newtype (unwrap)
 import Effect.Ref (read) as Ref

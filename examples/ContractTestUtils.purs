@@ -53,6 +53,7 @@ import Ctl.Examples.Helpers
   , mustPayToPubKeyStakeAddressWithDatum
   ) as Helpers
 -- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
 import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
