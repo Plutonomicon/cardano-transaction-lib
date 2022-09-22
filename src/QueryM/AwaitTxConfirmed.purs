@@ -6,16 +6,15 @@ module QueryM.AwaitTxConfirmed
 
 import Prelude
 
-import Data.DateTime.Instant (unInstant)
+import Control.Parallel (parOneOf)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
+import Data.Time.Duration (Seconds(Seconds), Milliseconds, fromDuration)
 import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Effect.Now (now)
 import QueryM (QueryM, getChainTip, mkDatumCacheRequest)
 import QueryM.DatumCacheWsp (getTxByHash)
 import QueryM.Ogmios (TxHash)
@@ -28,26 +27,37 @@ awaitTxConfirmed :: TxHash -> QueryM Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
 awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
-awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
-  nowMs <- getNowMs
-  let timeoutTime = nowMs + unwrap timeoutSeconds * 1000.0
-  go timeoutTime
+awaitTxConfirmedWithTimeout timeoutSeconds txHash =
+  -- If timeout is infinity, do not use a timeout at all
+  if unwrap timeoutSeconds == infinity then void findTx
+  else do
+    txFound <- parOneOf [ findTx, waitAndFail ]
+    if txFound then pure unit
+    else liftEffect $ throw $
+      "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
+      \confirmed"
   where
-  getNowMs :: QueryM Number
-  getNowMs = unwrap <<< unInstant <$> liftEffect now
-
-  go :: Number -> QueryM Unit
-  go timeoutTime = do
+  -- Try to find the TX indefinitely, with a waiting period between each
+  -- request
+  findTx :: QueryM Boolean
+  findTx = do
     isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
       _.getTxByHash
       txHash
-    nowMs <- getNowMs
-    when (nowMs >= timeoutTime) do
-      liftEffect $ throw $
-        "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
-        \confirmed"
-    liftAff $ delay $ wrap 1000.0
-    if isTxFound then pure unit else go timeoutTime
+    if isTxFound then pure true
+    else liftAff (delay delayTime) *> findTx
+
+  -- Wait until the timeout elapses and return false
+  waitAndFail :: QueryM Boolean
+  waitAndFail = do
+    liftAff $ delay $ timeout
+    pure false
+
+  timeout :: Milliseconds
+  timeout = fromDuration timeoutSeconds
+
+  delayTime :: Milliseconds
+  delayTime = wrap 1000.0
 
 awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
