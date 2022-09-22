@@ -99,7 +99,6 @@ import Cardano.Types.Transaction
       , StakeDeregistration
       , StakeRegistration
       )
-  , Ed25519Signature
   , Epoch(Epoch)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
