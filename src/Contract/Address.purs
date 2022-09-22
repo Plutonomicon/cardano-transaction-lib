@@ -7,6 +7,7 @@ module Contract.Address
   , addressWithNetworkTagToBech32
   , addressToBech32
   , getWalletAddress
+  , getWalletAddressWithNetworkTag
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
@@ -43,10 +44,11 @@ import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Plutus.Conversion
   ( fromPlutusAddress
+  , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
+  , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
 import Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -116,12 +118,20 @@ import Types.UnbalancedTransaction
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddress
+  mbAddr <- wrapContract QueryM.getWalletAddress
   for mbAddr $
     liftedM "getWalletAddress: failed to deserialize Address"
-      <<< wrapContract
       <<< pure
       <<< toPlutusAddress
+
+getWalletAddressWithNetworkTag
+  :: forall (r :: Row Type). Contract r (Maybe AddressWithNetworkTag)
+getWalletAddressWithNetworkTag = do
+  mbAddr <- wrapContract QueryM.getWalletAddress
+  for mbAddr $
+    liftedM "getWalletAddressWithNetworkTag: failed to deserialize Address"
+      <<< pure
+      <<< toPlutusAddressWithNetworkTag
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
@@ -135,7 +145,6 @@ getWalletCollateral = do
   for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
-      <<< wrapContract
       <<< pure
       <<< toPlutusTxUnspentOutput
 

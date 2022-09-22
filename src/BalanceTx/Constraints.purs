@@ -3,6 +3,7 @@ module BalanceTx.Constraints
   , BalanceTxConstraintsBuilder(BalanceTxConstraintsBuilder)
   , buildBalanceTxConstraints
   , mustBalanceTxWithAddress
+  , mustBalanceTxWithAddress'
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustUseAdditionalUtxos
   , _additionalUtxos
@@ -22,7 +23,10 @@ import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Plutus.Conversion (fromPlutusAddress)
-import Plutus.Types.Address (Address) as Plutus
+import Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  ) as Plutus
 import Plutus.Types.Transaction (UtxoMap) as Plutus
 import Serialization.Address (Address, NetworkId)
 import Type.Proxy (Proxy(Proxy))
@@ -70,6 +74,12 @@ mustBalanceTxWithAddress
   :: NetworkId -> Plutus.Address -> BalanceTxConstraintsBuilder
 mustBalanceTxWithAddress networkId =
   wrap <<< setJust _ownAddress <<< fromPlutusAddress networkId
+
+mustBalanceTxWithAddress'
+  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
+mustBalanceTxWithAddress'
+  (Plutus.AddressWithNetworkTag { address, networkId }) =
+  mustBalanceTxWithAddress networkId address
 
 mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
 mustGenChangeOutsWithMaxTokenQuantity =

@@ -82,6 +82,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.BalanceTxConstraints as BalanceTxConstraints
 import Examples.ContractTestUtils as ContractTestUtils
 import Examples.Helpers
   ( mkCurrencySymbol
@@ -114,7 +115,7 @@ import Plutip.Types
   , InitialUTxOsWithStakeKey
   )
 import Plutip.UtxoDistribution (class UtxoDistribution)
-import Plutus.Conversion.Address (toPlutusAddress)
+import Plutus.Conversion (toPlutusAddress)
 import Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
@@ -900,6 +901,20 @@ suite = do
             , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
             , txMetadata: cip25MetadataFixture1
             }
+
+    test "runPlutipContract: Examples.BalanceTxConstraints" do
+      let
+        initialUtxos :: InitialUTxOs
+        initialUtxos =
+          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution = initialUtxos /\ initialUtxos
+
+      runPlutipContract config distribution \(alice /\ bob) ->
+        withKeyWallet alice $ BalanceTxConstraints.contract $
+          BalanceTxConstraints.ContractParams
+            { aliceKeyWallet: alice, bobKeyWallet: bob }
 
   group "applyArgs" do
     test "returns the same script when called without args" do
