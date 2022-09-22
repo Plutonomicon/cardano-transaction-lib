@@ -34,6 +34,7 @@ module Contract.Test.Utils
   , assertTokenLossAtAddress'
   , assertTxHasMetadata
   , checkBalanceDeltaAtAddress
+  , checkNewUtxosAtAddress
   , checkOutputHasDatum
   , label
   , unlabel
@@ -56,9 +57,10 @@ import Contract.Transaction
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
 import Control.Monad.Error.Class (catchError)
+import Data.Array (fromFoldable) as Array
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)
-import Data.Map (lookup) as Map
+import Data.Map (filterKeys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Monoid.Endo (Endo(Endo))
 import Data.Newtype (ala, unwrap)
@@ -66,6 +68,7 @@ import Data.Traversable (traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Metadata.FromMetadata (fromMetadata)
 import Metadata.MetadataType (class MetadataType, metadataLabel)
+import Plutus.Types.Transaction (UtxoMap)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray (byteArrayToHex)
 
@@ -232,11 +235,16 @@ withAssertions = flip wrapAndAssert
 -- Assertions and checks
 --------------------------------------------------------------------------------
 
+utxosAtAddress
+  :: forall (r :: Row Type). Labeled Address -> Contract r UtxoMap
+utxosAtAddress addr =
+  assertContractM (CouldNotGetUtxosAtAddress addr) (utxosAt $ unlabel addr)
+
 -- | Get the total `Value` at an address. Throws an exception if this fails.
 valueAtAddress
   :: forall (r :: Row Type). Labeled Address -> Contract r Value
 valueAtAddress addr =
-  assertContractM (CouldNotGetUtxosAtAddress addr) (utxosAt $ unlabel addr)
+  utxosAtAddress addr
     <#> foldMap (_.amount <<< unwrap <<< _.output <<< unwrap)
 
 checkBalanceDeltaAtAddress
@@ -250,6 +258,17 @@ checkBalanceDeltaAtAddress addr check contract = do
   res <- contract
   valueAfter <- valueAtAddress addr
   check res valueBefore valueAfter
+
+checkNewUtxosAtAddress
+  :: forall (r :: Row Type) (a :: Type) (b :: Type)
+   . Labeled Address
+  -> TransactionHash
+  -> (Array TransactionOutputWithRefScript -> Contract r b)
+  -> Contract r b
+checkNewUtxosAtAddress addr txHash check =
+  utxosAtAddress addr >>= \utxos ->
+    check $ Array.fromFoldable $ Map.values $
+      Map.filterKeys (\oref -> (unwrap oref).transactionId == txHash) utxos
 
 assertLovelaceDeltaAtAddress
   :: forall (r :: Row Type) (a :: Type)
