@@ -76,7 +76,12 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId), addressBech32, addressFromBech32, addressNetworkId)
+import Serialization.Address
+  ( NetworkId(MainnetId)
+  , addressBech32
+  , addressFromBech32
+  , addressNetworkId
+  )
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
