@@ -20,6 +20,8 @@ module Ctl.Internal.Types.Cbor
 import Prelude
 
 import Contract.Prelude (foldl)
+import Control.Monad.Except (Except, runExcept, throwError)
+import Control.Monad.State.Trans (StateT, evalStateT, get, put)
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayToIntArray
@@ -27,8 +29,6 @@ import Ctl.Internal.Types.ByteArray
   , subarray
   )
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
-import Control.Monad.Except (Except, runExcept, throwError)
-import Control.Monad.State.Trans (StateT, evalStateT, get, put)
 import Data.Either (Either)
 import Data.Newtype (class Newtype)
 import Data.UInt (UInt, shl, zshr, (.&.), (.|.))

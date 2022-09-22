@@ -30,12 +30,12 @@ import Aeson
   , stringifyAeson
   , (.:)
   )
+import Control.Alt ((<|>))
 import Ctl.Internal.Base64 (Base64String)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)

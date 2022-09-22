@@ -32,6 +32,8 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
+import Control.Alternative (guard)
+import Control.Monad.Reader (asks)
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
@@ -45,8 +47,6 @@ import Ctl.Internal.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Ctl.Plutus.Types.Transaction (UtxoMap)
-import Control.Alternative (guard)
-import Control.Monad.Reader (asks)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))

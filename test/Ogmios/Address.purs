@@ -2,9 +2,9 @@ module Test.Ctl.Ogmios.Address (suite) where
 
 import Prelude
 
+import Control.Monad.Except (throwError)
 import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
-import Control.Monad.Except (throwError)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff, error)
 import Mote (group, test)

@@ -52,6 +52,9 @@ import Contract.Monad
   , runContractInEnv
   , wrapContract
   )
+import Control.Monad.Error.Class (catchError, throwError, try)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
+import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
 import Ctl.Internal.BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
@@ -231,9 +234,6 @@ import Ctl.Plutus.Types.TransactionUnspentOutput
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
 import Ctl.Plutus.Types.Value (Coin)
-import Control.Monad.Error.Class (catchError, throwError, try)
-import Control.Monad.Reader (ReaderT, asks, runReaderT)
-import Control.Monad.Reader.Class (ask)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)

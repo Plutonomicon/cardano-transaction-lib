@@ -14,6 +14,7 @@ module Ctl.Internal.Wallet.KeyFile
 import Prelude
 
 import Aeson (encodeAeson)
+import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelopeType
       ( PaymentSigningKeyShelleyed25519
@@ -31,7 +32,6 @@ import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Control.Monad.Error.Class (liftEither)
 import Data.Bifunctor (lmap)
 import Data.Either (hush)
 import Data.Maybe (Maybe)

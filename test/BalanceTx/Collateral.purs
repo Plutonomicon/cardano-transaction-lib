@@ -2,6 +2,7 @@ module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
+import Control.Monad.Reader.Trans (asks)
 import Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
@@ -21,7 +22,6 @@ import Ctl.Internal.QueryM (QueryM, runQueryM)
 import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
-import Control.Monad.Reader.Trans (asks)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List

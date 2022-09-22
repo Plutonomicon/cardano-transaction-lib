@@ -14,10 +14,10 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
+import Control.Monad.Reader (asks)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 -- TODO Re-export into Contract or drop the usage
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
-import Control.Monad.Reader (asks)
 import Data.Newtype (unwrap)
 import Effect.Ref (read) as Ref
 

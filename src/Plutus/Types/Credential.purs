@@ -10,6 +10,7 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>/\<))
 import Aeson.Encode as Encode
+import Control.Lazy (defer)
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Serialization.Address
   ( CertificateIndex
@@ -28,7 +29,6 @@ import Ctl.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Show.Generic (genericShow)

@@ -4,11 +4,11 @@ module Test.Ctl.Fixtures.CostModels
 
 import Prelude
 
+import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls)
 import Ctl.Internal.Deserialization.Error (toError)
 import Ctl.Internal.Deserialization.Transaction (convertCostModels)
 import Ctl.Internal.Serialization (defaultCostmdls)
-import Control.Monad.Error.Class (liftEither)
 import Data.Bifunctor (lmap)
 import Effect.Unsafe (unsafePerformEffect)
 

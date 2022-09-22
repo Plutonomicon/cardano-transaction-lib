@@ -64,6 +64,7 @@ module Ctl.Internal.Deserialization.Transaction
 
 import Prelude
 
+import Control.Lazy (fix)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -192,7 +193,6 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
-import Control.Lazy (fix)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt

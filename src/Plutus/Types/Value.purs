@@ -37,6 +37,7 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Control.Apply (lift3)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.ToData (class ToData)
@@ -55,7 +56,6 @@ import Ctl.Plutus.Types.CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol
   )
-import Control.Apply (lift3)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))

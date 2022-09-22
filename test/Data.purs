@@ -4,6 +4,8 @@ module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
+import Control.Lazy (fix)
+import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData as PDD
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
@@ -29,8 +31,6 @@ import Ctl.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Control.Lazy (fix)
-import Control.Monad.Error.Class (class MonadThrow)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))

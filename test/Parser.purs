@@ -9,11 +9,11 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Ctl.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
-import Ctl.Internal.QueryM.Ogmios (UtxoQR)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
+import Ctl.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import Ctl.Internal.QueryM.Ogmios (UtxoQR)
 import Data.Array as Array
 import Data.Either (Either, either, isRight)
 import Data.Medea (validate)

@@ -9,6 +9,7 @@ module Ctl.Internal.Transaction
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
@@ -27,7 +28,6 @@ import Ctl.Internal.Serialization.Types as Serialization
 import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
-import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)
 import Data.Foldable (null)

@@ -79,6 +79,9 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
+import Control.Lazy (defer)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
 import Ctl.Internal.QueryM.Ogmios
@@ -107,9 +110,6 @@ import Ctl.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Control.Lazy (defer)
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)

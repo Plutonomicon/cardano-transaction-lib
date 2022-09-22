@@ -3,6 +3,7 @@ module Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
+import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAll))
 import Ctl.Internal.Cardano.Types.Transaction (_vkeys, _witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as T
@@ -15,7 +16,6 @@ import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.Types (ExUnitPrices, Transaction)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
-import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Data.Array as Array
 import Data.Lens ((.~))
 import Data.Maybe (Maybe(Just), fromMaybe)

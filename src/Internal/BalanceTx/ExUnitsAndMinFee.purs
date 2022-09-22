@@ -5,6 +5,10 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 
 import Prelude
 
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except.Trans (ExceptT(ExceptT))
+import Control.Monad.Reader.Class (asks)
+import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(ExUnitsEvaluationFailed, ReindexRedeemersError)
   )
@@ -44,10 +48,6 @@ import Ctl.Internal.Types.ScriptLookups
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT))
-import Control.Monad.Reader.Class (asks)
-import Control.Monad.Trans.Class (lift)
 import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
 import Data.Bifunctor (lmap)

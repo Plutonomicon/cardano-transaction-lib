@@ -4,6 +4,7 @@ module Ctl.Internal.Deserialization.NativeScript
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Ctl.Internal.Cardano.Types.NativeScript as T
 import Ctl.Internal.FfiHelpers
   ( ContainerHelper
@@ -23,7 +24,6 @@ import Ctl.Internal.Serialization.Types
   , TimelockStart
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 

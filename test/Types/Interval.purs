@@ -7,6 +7,8 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.BigNum (fromInt) as BigNum
@@ -16,8 +18,6 @@ import Ctl.Internal.Types.Interval
   , posixTimeToSlot
   , slotToPosixTime
   )
-import Control.Monad.Error.Class (liftEither)
-import Control.Monad.Except (throwError)
 import Data.Bifunctor (lmap)
 import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)

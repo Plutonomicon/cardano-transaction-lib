@@ -8,11 +8,11 @@ import Prelude
 
 import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
-import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
-import Ctl.Internal.QueryM.Ogmios as O
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.QueryM.Ogmios as O
 import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (bimap, lmap)

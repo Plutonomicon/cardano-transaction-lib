@@ -7,6 +7,11 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Logger.Class as Logger
+import Control.Monad.Reader.Class (asks)
+import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
@@ -97,11 +102,6 @@ import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
 import Ctl.Internal.Wallet (cip30Wallet)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Logger.Class as Logger
-import Control.Monad.Reader.Class (asks)
-import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)

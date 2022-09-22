@@ -10,6 +10,8 @@ module Ctl.Internal.QueryM.Utxos
 
 import Prelude
 
+import Control.Monad.Reader (withReaderT)
+import Control.Monad.Reader.Trans (ReaderT, asks)
 import Ctl.Internal.Address (addressToOgmiosAddress)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
@@ -32,8 +34,6 @@ import Ctl.Internal.TxOutput
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, KeyWallet))
-import Control.Monad.Reader (withReaderT)
-import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Array as Array
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bisequence)

@@ -17,6 +17,8 @@ module Ctl.Internal.Wallet
 
 import Prelude
 
+import Control.Monad.Error.Class (catchError, throwError)
+import Control.Promise (Promise)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
@@ -40,8 +42,6 @@ import Ctl.Internal.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
-import Control.Monad.Error.Class (catchError, throwError)
-import Control.Promise (Promise)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (over, wrap)

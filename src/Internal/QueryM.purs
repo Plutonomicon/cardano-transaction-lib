@@ -80,6 +80,16 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
+import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
+import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Cardano.Types.Transaction (_witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as Transaction
 import Ctl.Internal.Helpers (logString, logWithLevel)
@@ -173,16 +183,6 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
-import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
-  , throwError
-  )
-import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
-import Control.Monad.Rec.Class (class MonadRec)
-import Control.Parallel (parallel, sequential)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)

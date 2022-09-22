@@ -7,6 +7,7 @@ module Ctl.Plutus.Conversion.Address
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -44,7 +45,6 @@ import Ctl.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
-import Control.Alt ((<|>))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 

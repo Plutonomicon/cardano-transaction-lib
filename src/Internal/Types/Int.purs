@@ -19,9 +19,9 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   )
+import Control.Alternative ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
-import Control.Alternative ((<|>))
 import Data.BigInt as BigInt
 import Data.Either (note)
 import Data.Function (on)

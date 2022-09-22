@@ -68,6 +68,9 @@ import Contract.Wallet
   , isNamiAvailable
   , withKeyWallet
   )
+import Control.Monad.Error.Class (try)
+import Control.Monad.Reader (asks)
+import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
@@ -118,9 +121,6 @@ import Ctl.Plutus.Types.TransactionUnspentOutput
   , lookupTxHash
   )
 import Ctl.Plutus.Types.Value (lovelaceValueOf)
-import Control.Monad.Error.Class (try)
-import Control.Monad.Reader (asks)
-import Control.Parallel (parallel, sequential)
 import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)

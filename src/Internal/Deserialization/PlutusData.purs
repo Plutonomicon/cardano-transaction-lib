@@ -5,6 +5,7 @@ module Ctl.Internal.Deserialization.PlutusData
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Ctl.Internal.Deserialization.BigInt (convertBigInt)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.FfiHelpers
@@ -28,7 +29,6 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
-import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)

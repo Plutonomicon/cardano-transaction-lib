@@ -11,6 +11,7 @@ import Contract.Config
   , testnetConfig
   )
 import Contract.Monad (Contract, launchAff_, runContract)
+import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm (Log, Unlock)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   ( levelColor
@@ -21,7 +22,6 @@ import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
 import Ctl.Internal.Serialization (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
-import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString) as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)

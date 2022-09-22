@@ -2,6 +2,7 @@ module Test.Ctl.UsedTxOuts (suite) where
 
 import Prelude
 
+import Control.Monad.Reader (runReaderT)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts
@@ -11,7 +12,6 @@ import Ctl.Internal.Types.UsedTxOuts
   , unlockTransactionInputs
   , unlockTxOutRefs
   )
-import Control.Monad.Reader (runReaderT)
 import Data.Array (any, singleton, uncons)
 import Data.Foldable (all)
 import Data.Maybe (fromJust)
