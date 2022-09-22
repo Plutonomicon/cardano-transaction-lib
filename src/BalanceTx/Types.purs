@@ -23,6 +23,8 @@ import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
+import Effect.Aff (Aff)
+
 import QueryM
   ( DefaultQueryEnv
   , QueryEnv
@@ -36,7 +38,7 @@ import Types.ScriptLookups (UnattachedUnbalancedTx)
 type BalanceTxMContext = (constraints :: BalanceTxConstraints)
 
 type BalanceTxM (a :: Type) =
-  ExceptT BalanceTxError (QueryMExtended BalanceTxMContext) a
+  ExceptT BalanceTxError (QueryMExtended BalanceTxMContext Aff) a
 
 askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
 askCoinsPerUtxoUnit =
@@ -55,7 +57,7 @@ liftEitherQueryM = ExceptT <<< QueryM.liftQueryM
 withBalanceTxConstraints
   :: forall (a :: Type)
    . BalanceTxConstraintsBuilder
-  -> QueryMExtended BalanceTxMContext a
+  -> QueryMExtended BalanceTxMContext Aff a
   -> QueryM a
 withBalanceTxConstraints constraintsBuilder =
   over QueryMExtended (withReaderT setQueryEnv)

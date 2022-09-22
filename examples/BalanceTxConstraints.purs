@@ -18,7 +18,11 @@ import Contract.BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
 import Contract.ScriptLookups as Lookups
-import Contract.Test.Utils (ContractBasicAssertion, Labeled, label)
+import Contract.Test.Utils
+  ( ContractAssertionFailure(CustomFailure)
+  , ContractBasicAssertion
+  , label
+  )
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( Transaction
@@ -53,17 +57,23 @@ assertChangeOutputsPartitionedCorrectly
 assertChangeOutputsPartitionedCorrectly
   { txHash, changeAddress: addr, mintedToken: cs /\ tn } = do
   let labeledAddr = label addr "changeAddress"
-  TestUtils.checkNewUtxosAtAddress labeledAddr txHash \changeOutputs ->
-    TestUtils.assertContract "Change outputs were not partitioned correctly" $
+  TestUtils.runContractAssertionM' $
+    TestUtils.checkNewUtxosAtAddress labeledAddr txHash \changeOutputs -> do
       let
-        values :: Array Value
-        values =
-          changeOutputs <#> _.amount <<< unwrap <<< _.output <<< unwrap
+        assertionFailure :: ContractAssertionFailure
+        assertionFailure =
+          CustomFailure "Change outputs were not partitioned correctly"
 
-        tokenQuantities :: Array BigInt
-        tokenQuantities =
-          Array.sort $ values <#> \v -> Value.valueOf v cs tn
-      in
+      TestUtils.assertContract assertionFailure do
+        let
+          values :: Array Value
+          values =
+            changeOutputs <#> _.amount <<< unwrap <<< _.output <<< unwrap
+
+          tokenQuantities :: Array BigInt
+          tokenQuantities =
+            Array.sort $ values <#> \v -> Value.valueOf v cs tn
+
         tokenQuantities == map fromInt [ 3, 4, 4 ]
 
 contract :: ContractParams -> Contract () Unit
