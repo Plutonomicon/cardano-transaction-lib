@@ -1,4 +1,4 @@
-module Ctl.Plutus.Types.CurrencySymbol
+module Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , currencyMPSHash

@@ -21,16 +21,16 @@ import Ctl.Internal.QueryM.Utxos
   , getWalletUtxos
   , utxosAt
   ) as Utxos
-import Ctl.Plutus.Conversion
+import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusTxOutput
   , toPlutusUtxoMap
   )
-import Ctl.Plutus.Conversion.Value (toPlutusValue)
-import Ctl.Plutus.Types.Address (Address)
-import Ctl.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Plutus.Types.Transaction (UtxoMap) as X
-import Ctl.Plutus.Types.Value (Value)
+import Ctl.Internal.Plutus.Conversion.Value (toPlutusValue)
+import Ctl.Internal.Plutus.Types.Address (Address)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
+import Ctl.Internal.Plutus.Types.Value (Value)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 

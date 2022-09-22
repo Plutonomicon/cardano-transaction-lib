@@ -1,4 +1,4 @@
-module Test.Ctl.Plutus.Time
+module Test.Ctl.Internal.Plutus.Time
   ( suite
   ) where
 

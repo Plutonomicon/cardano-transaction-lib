@@ -1,4 +1,4 @@
-module Ctl.Plutus.Types.Transaction
+module Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -13,8 +13,8 @@ import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Ctl.Plutus.Types.Address (Address)
-import Ctl.Plutus.Types.Value (Value)
+import Ctl.Internal.Plutus.Types.Address (Address)
+import Ctl.Internal.Plutus.Types.Value (Value)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))

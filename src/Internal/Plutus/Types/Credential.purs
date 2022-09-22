@@ -1,4 +1,4 @@
-module Ctl.Plutus.Types.Credential
+module Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   ) where
@@ -21,7 +21,7 @@ import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
 import Ctl.Internal.Types.Scripts (ValidatorHash)
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

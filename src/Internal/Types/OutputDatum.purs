@@ -16,7 +16,7 @@ import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Transaction (DataHash)
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

@@ -1,4 +1,4 @@
-module Test.Ctl.Plutus.Conversion.Address (suite) where
+module Test.Ctl.Internal.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
@@ -13,9 +13,9 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromInt) as BigNum
-import Ctl.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
-import Ctl.Plutus.Types.Address (Address) as Plutus
-import Ctl.Plutus.Types.Credential
+import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address) as Plutus
+import Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )

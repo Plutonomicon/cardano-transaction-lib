@@ -93,17 +93,17 @@ import Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
-import Ctl.Plutus.Conversion
+import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
   , toPlutusTxUnspentOutput
   )
-import Ctl.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import Ctl.Plutus.Types.Address
+import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   )
-import Ctl.Plutus.Types.Address
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
@@ -112,7 +112,7 @@ import Ctl.Plutus.Types.Address
   , toStakingCredential
   , toValidatorHash
   ) as ExportAddress
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Data.Maybe (Maybe)

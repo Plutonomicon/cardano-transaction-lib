@@ -61,7 +61,7 @@ import Ctl.Internal.Types.TokenName (mkTokenName)
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
-import Ctl.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
+import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty

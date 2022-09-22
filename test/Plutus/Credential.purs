@@ -1,4 +1,4 @@
-module Test.Ctl.Plutus.Credential
+module Test.Ctl.Internal.Plutus.Credential
   ( suite
   , creds
   ) where
@@ -10,7 +10,7 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashFromBech32
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Plutus.Types.Credential
+import Ctl.Internal.Plutus.Types.Credential
   ( Credential(ScriptCredential, PubKeyCredential)
   )
 import Data.Maybe (fromJust)

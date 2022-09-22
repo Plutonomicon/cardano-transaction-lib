@@ -4,7 +4,7 @@
 -- | Conversion functions come in pairs and must be named as follows:
 -- | `fromPlutusType` and `toPlutusType`, where `Type` is to
 -- | be replaced by the name of the actual type.
-module Ctl.Plutus.Conversion
+module Ctl.Internal.Plutus.Conversion
   (
     -- Plutus Address <-> CSL Address
     module Conversion.Address
@@ -43,27 +43,27 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
 import Ctl.Internal.Cardano.Types.Value (Coin) as Cardano
 import Ctl.Internal.Hashing (scriptRefHash)
 import Ctl.Internal.Serialization.Address (NetworkId)
-import Ctl.Plutus.Conversion.Address
+import Ctl.Internal.Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
-import Ctl.Plutus.Conversion.Address
+import Ctl.Internal.Plutus.Conversion.Address
   ( fromPlutusAddress
   , toPlutusAddress
   )
-import Ctl.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import Ctl.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
-import Ctl.Plutus.Types.Transaction
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
+import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , UtxoMap
   ) as Plutus
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Plutus
-import Ctl.Plutus.Types.Value (Coin) as Plutus
+import Ctl.Internal.Plutus.Types.Value (Coin) as Plutus
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)

@@ -54,7 +54,7 @@ import Ctl.Examples.Helpers
   ) as Helpers
 -- TODO Re-export into Contract or drop the usage
 import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   , _output
   )

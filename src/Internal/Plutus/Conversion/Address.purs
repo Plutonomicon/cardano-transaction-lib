@@ -1,4 +1,4 @@
-module Ctl.Plutus.Conversion.Address
+module Ctl.Internal.Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
@@ -37,11 +37,11 @@ import Ctl.Internal.Serialization.Address
   ) as Csl
 import Ctl.Internal.Types.PubKeyHash (PubKeyHash(PubKeyHash))
 import Ctl.Internal.Types.Scripts (ValidatorHash(ValidatorHash))
-import Ctl.Plutus.Types.Address
+import Ctl.Internal.Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
   ) as Plutus
-import Ctl.Plutus.Types.Credential
+import Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )

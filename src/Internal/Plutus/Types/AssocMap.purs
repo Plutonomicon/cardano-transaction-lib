@@ -1,4 +1,4 @@
-module Ctl.Plutus.Types.AssocMap
+module Ctl.Internal.Plutus.Types.AssocMap
   ( Map(Map)
   , delete
   , elems

@@ -32,7 +32,7 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , class ValidPlutusSchema
   )

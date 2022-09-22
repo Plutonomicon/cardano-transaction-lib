@@ -22,8 +22,8 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   )
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
-import Ctl.Plutus.Types.AssocMap (Map(Map))
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.AssocMap (Map(Map))
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
