@@ -18,13 +18,7 @@ import Contract.Address
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractM
-  , liftedE
-  , liftedM
-  , wrapContract
-  )
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
@@ -37,9 +31,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
-  , runContractInEnv
   , runPlutipContract
-  , withPlutipContractEnv
   , withStakeKey
   )
 import Contract.Time (getEraSummaries)
@@ -62,7 +54,8 @@ import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet
-  ( isFlintAvailable
+  ( getWalletUtxos
+  , isFlintAvailable
   , isGeroAvailable
   , isNamiAvailable
   , withKeyWallet
@@ -70,7 +63,7 @@ import Contract.Wallet
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
-import Data.Array ((!!))
+import Data.Array ((!!), replicate)
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (foldM, fold)
@@ -87,6 +80,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Examples.ContractTestUtils as ContractTestUtils
 import Examples.Helpers
   ( mkCurrencySymbol
@@ -115,7 +109,11 @@ import Plutip.Server
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import Plutip.Types
+  ( StopClusterResponse(StopClusterSuccess)
+  , InitialUTxOsWithStakeKey
+  )
+import Plutip.UtxoDistribution (class UtxoDistribution)
 import Plutus.Conversion.Address (toPlutusAddress)
 import Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -149,6 +147,7 @@ import Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )
+import Wallet.Key (KeyWallet)
 
 -- Run with `spago test --main Test.Plutip`
 main :: Effect Unit
@@ -201,6 +200,47 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
+    let
+      arrayTest
+        :: forall a
+         . UtxoDistribution (Array a) (Array KeyWallet)
+        => Array a
+        -> Aff Unit
+      arrayTest distribution = do
+        runPlutipContract config distribution \wallets -> do
+          traverse_
+            ( \wallet -> do
+                withKeyWallet wallet do
+                  getWalletCollateral >>= liftEffect <<< case _ of
+                    Nothing -> throw "Unable to get collateral"
+                    Just
+                      [ TransactionUnspentOutput
+                          { output: TransactionOutputWithRefScript { output } }
+                      ] -> do
+                      let amount = (unwrap output).amount
+                      unless
+                        ( amount == lovelaceValueOf
+                            (BigInt.fromInt 1_000_000_000)
+                        )
+                        $ throw "Wrong UTxO selected as collateral"
+                    Just _ -> do
+                      -- not a bug, but unexpected
+                      throw "More than one UTxO in collateral"
+            )
+            wallets
+    test "runPlutipContract: Array of InitialUTxOs and KeyWallet" do
+      let
+        distribution :: Array InitialUTxOs
+        distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+      arrayTest distribution
+
+    test "runPlutipContract: Array of InitialUTxOsWithStakeKey and KeyWallet" do
+      let
+        distribution :: Array InitialUTxOsWithStakeKey
+        distribution = withStakeKey privateStakeKey <$> replicate 2
+          [ BigInt.fromInt 1_000_000_000 ]
+      arrayTest distribution
+
     test "runPlutipContract: Pkh2Pkh" do
       let
         distribution :: InitialUTxOs
@@ -244,22 +284,21 @@ suite = do
 
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution = aliceUtxos /\ bobUtxos
-      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
-        do
-          runContractInEnv env $
-            checkUtxoDistribution distribution wallets
-          sequential ado
-            parallel $ runContractInEnv env $ withKeyWallet alice do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet bob ownStakePubKeyHash
-              pkh2PkhContract pkh stakePkh
-            parallel $ runContractInEnv env $ withKeyWallet bob do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet alice ownStakePubKeyHash
-              pkh2PkhContract pkh stakePkh
-            in unit
+
+      runPlutipContract config distribution \wallets@(alice /\ bob) -> do
+        checkUtxoDistribution distribution wallets
+        sequential ado
+          parallel $ withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
+              ownPaymentPubKeyHash
+            stakePkh <- withKeyWallet bob ownStakePubKeyHash
+            pkh2PkhContract pkh stakePkh
+          parallel $ withKeyWallet bob do
+            pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
+              ownPaymentPubKeyHash
+            stakePkh <- withKeyWallet alice ownStakePubKeyHash
+            pkh2PkhContract pkh stakePkh
+          in unit
 
     test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
       let
@@ -274,22 +313,28 @@ suite = do
         distribution =
           withStakeKey privateStakeKey aliceUtxos
             /\ withStakeKey privateStakeKey bobUtxos
-      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+      runPlutipContract config distribution \wallets@(alice /\ bob) ->
         do
-          runContractInEnv env $
-            checkUtxoDistribution distribution wallets
+          checkUtxoDistribution distribution wallets
           sequential ado
-            parallel $ runContractInEnv env $ withKeyWallet alice do
+            parallel $ withKeyWallet alice do
               pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
                 ownPaymentPubKeyHash
               stakePkh <- withKeyWallet bob ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
-            parallel $ runContractInEnv env $ withKeyWallet bob do
+            parallel $ withKeyWallet bob do
               pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
                 ownPaymentPubKeyHash
               stakePkh <- withKeyWallet alice ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
             in unit
+
+    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution \_ ->
+        AwaitTxConfirmedWithTimeout.contract
 
     test "NativeScript: require all signers" do
       let
@@ -926,6 +971,18 @@ suite = do
             Just _ -> do
               -- not a bug, but unexpected
               throw "More than one UTxO in collateral"
+
+    test "CIP-30 mock: get own UTxOs" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        utxos <- withCip30Mock alice MockNami do
+          getWalletUtxos
+        utxos `shouldSatisfy` isJust
 
     test "CIP-30 mock: get own address" do
       let
