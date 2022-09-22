@@ -14,7 +14,6 @@ import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
-import Data.DateTime.Instant (unInstant)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
@@ -23,7 +22,6 @@ import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Effect.Now (now)
 
 awaitTxConfirmed :: TxHash -> QueryM Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
