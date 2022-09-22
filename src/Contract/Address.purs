@@ -197,14 +197,14 @@ addressFromBech32'
   :: forall (r :: Row Type). Bech32String -> Contract r (Maybe Address)
 addressFromBech32' str = do
   networkId <- getNetworkId
-  cslAddress <- liftContractM "unable to read address"
-    (SerializationAddress.addressFromBech32 str)
-  address <- liftContractM "unable to convert to plutus address"
-    (toPlutusAddress cslAddress)
+  cslAddress <- liftContractM "unable to read address" $
+    SerializationAddress.addressFromBech32 str
+  address <- liftContractM "unable to convert to plutus address" $
+    toPlutusAddress cslAddress
   if networkId == addressNetworkId cslAddress then
     pure $ Just address
   else
-    pure $ Nothing
+    pure Nothing
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
