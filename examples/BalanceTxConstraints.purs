@@ -6,7 +6,8 @@ module Examples.BalanceTxConstraints
 import Contract.Prelude
 
 import Contract.Address
-  ( getWalletAddressWithNetworkTag
+  ( Address
+  , getWalletAddressWithNetworkTag
   , ownPaymentPubKeyHash
   )
 import Contract.BalanceTxConstraints
@@ -17,17 +18,22 @@ import Contract.BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
 import Contract.ScriptLookups as Lookups
+import Contract.Test.Utils (ContractBasicAssertion, Labeled, label)
+import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( Transaction
+  , TransactionHash
   , awaitTxConfirmed
   , balanceTxWithConstraints
   , signTransaction
   , submit
   )
 import Contract.TxConstraints as Constraints
-import Contract.Value (singleton) as Value
+import Contract.Value (CurrencySymbol, TokenName, Value)
+import Contract.Value (valueOf, singleton) as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
-import Data.BigInt (fromInt)
+import Data.Array (sort) as Array
+import Data.BigInt (BigInt, fromInt)
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 
@@ -35,6 +41,30 @@ newtype ContractParams = ContractParams
   { aliceKeyWallet :: KeyWallet
   , bobKeyWallet :: KeyWallet
   }
+
+type ContractResult =
+  { txHash :: TransactionHash
+  , changeAddress :: Address
+  , mintedToken :: CurrencySymbol /\ TokenName
+  }
+
+assertChangeOutputsPartitionedCorrectly
+  :: ContractBasicAssertion () ContractResult Unit
+assertChangeOutputsPartitionedCorrectly
+  { txHash, changeAddress: addr, mintedToken: cs /\ tn } = do
+  let labeledAddr = label addr "changeAddress"
+  TestUtils.checkNewUtxosAtAddress labeledAddr txHash \changeOutputs ->
+    TestUtils.assertContract "Change outputs were not partitioned correctly" $
+      let
+        values :: Array Value
+        values =
+          changeOutputs <#> _.amount <<< unwrap <<< _.output <<< unwrap
+
+        tokenQuantities :: Array BigInt
+        tokenQuantities =
+          Array.sort $ values <#> \v -> Value.valueOf v cs tn
+      in
+        tokenQuantities == map fromInt [ 3, 4, 4 ]
 
 contract :: ContractParams -> Contract () Unit
 contract (ContractParams p) = do
@@ -67,21 +97,25 @@ contract (ContractParams p) = do
       BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
         <> BalanceTxConstraints.mustBalanceTxWithAddress' bobAddress
 
-  unbalancedTx <-
-    liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  void $ TestUtils.withAssertions assertChangeOutputsPartitionedCorrectly do
+    unbalancedTx <-
+      liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  balancedTx <-
-    liftedE $ map unwrap <$>
-      balanceTxWithConstraints balanceTxConstraints unbalancedTx
+    balancedTx <-
+      liftedE $ map unwrap <$>
+        balanceTxWithConstraints balanceTxConstraints unbalancedTx
 
-  balancedSignedTx <-
-    foldM signWithWallet balancedTx [ p.aliceKeyWallet, p.bobKeyWallet ]
+    balancedSignedTx <-
+      foldM signWithWallet balancedTx [ p.aliceKeyWallet, p.bobKeyWallet ]
 
-  txHash <- submit (wrap balancedSignedTx)
-  logInfo' $ "Tx ID: " <> show txHash
+    txHash <- submit (wrap balancedSignedTx)
+    logInfo' $ "Tx ID: " <> show txHash
 
-  awaitTxConfirmed txHash
-  logInfo' "Tx submitted successfully!"
+    awaitTxConfirmed txHash
+    logInfo' "Tx submitted successfully!"
+
+    let changeAddress = (unwrap bobAddress).address
+    pure { txHash, changeAddress, mintedToken: cs /\ tn }
   where
   signWithWallet :: Transaction -> KeyWallet -> Contract () Transaction
   signWithWallet txToSign wallet =
