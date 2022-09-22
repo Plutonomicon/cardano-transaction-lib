@@ -4,6 +4,7 @@ module Contract.Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
+  , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
   , addressToBech32
   , getWalletAddress
@@ -75,7 +76,7 @@ import Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId), addressBech32)
+import Serialization.Address (NetworkId(MainnetId), addressBech32, addressFromBech32, addressNetworkId)
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
@@ -167,6 +168,14 @@ getNetworkId = wrapContract QueryM.getNetworkId
 addressWithNetworkTagToBech32 :: AddressWithNetworkTag -> Bech32String
 addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
   addressBech32
+
+-- | Convert `Bech32String` to `AddressWithNetworkTag`.
+addressWithNetworkTagFromBech32 :: Bech32String -> Maybe AddressWithNetworkTag
+addressWithNetworkTagFromBech32 str = do
+  cslAddress <- addressFromBech32 str
+  address <- toPlutusAddress cslAddress
+  let networkId = addressNetworkId cslAddress
+  pure $ AddressWithNetworkTag { address, networkId }
 
 -- | Convert `Address` to `Bech32String`, using current `NetworkId` provided by
 -- | `Contract` configuration to determine the network tag.
