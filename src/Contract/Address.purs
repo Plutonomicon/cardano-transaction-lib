@@ -191,15 +191,18 @@ addressToBech32 address = do
   pure $ addressWithNetworkTagToBech32
     (AddressWithNetworkTag { address, networkId })
 
+-- | Convert `Bech32String` to `Address`, asserting that the address `networkId`
+-- | corresponds to the contract environment `networkId`
 addressFromBech32'
-  :: forall (r :: Row Type). Bech32String -> Contract r (Maybe String)
+  :: forall (r :: Row Type). Bech32String -> Contract r (Maybe Address)
 addressFromBech32' str = do
   networkId <- getNetworkId
   cslAddress <- liftContractM "unable to read address"
     (SerializationAddress.addressFromBech32 str)
-  let networkId' = addressNetworkId cslAddress
-  if networkId == networkId' then
-    pure $ Just str
+  address <- liftContractM "unable to convert to plutus address"
+    (toPlutusAddress cslAddress)
+  if networkId == addressNetworkId cslAddress then
+    pure $ Just address
   else
     pure $ Nothing
 
