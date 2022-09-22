@@ -19,6 +19,7 @@ module Ctl.Internal.QueryM
   , PendingRequests
   , QueryConfig
   , QueryM
+  , ParQueryM
   , QueryMExtended(QueryMExtended)
   , QueryEnv
   , QueryRuntime
@@ -80,6 +81,8 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -87,9 +90,15 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
+import Control.Monad.Reader.Trans
+  ( ReaderT(ReaderT)
+  , asks
+  , runReaderT
+  , withReaderT
+  )
 import Control.Monad.Rec.Class (class MonadRec)
-import Control.Parallel (parallel, sequential)
+import Control.Parallel (class Parallel, parallel, sequential)
+import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (_witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as Transaction
 import Ctl.Internal.Helpers (logString, logWithLevel)
@@ -204,6 +213,7 @@ import Effect (Effect)
 import Effect.Aff
   ( Aff
   , Canceler(Canceler)
+  , ParAff
   , delay
   , finally
   , launchAff_
@@ -268,28 +278,44 @@ type QueryEnv (r :: Row Type) =
 
 type DefaultQueryEnv = QueryEnv ()
 
-type QueryM (a :: Type) = QueryMExtended () a
+type QueryM = QueryMExtended () Aff
 
-newtype QueryMExtended (r :: Row Type) (a :: Type) = QueryMExtended
-  (ReaderT (QueryEnv r) Aff a)
+type ParQueryM = QueryMExtended () ParAff
 
-derive instance Newtype (QueryMExtended r a) _
-derive newtype instance Functor (QueryMExtended r)
-derive newtype instance Apply (QueryMExtended r)
-derive newtype instance Applicative (QueryMExtended r)
-derive newtype instance Bind (QueryMExtended r)
-derive newtype instance Monad (QueryMExtended r)
-derive newtype instance MonadEffect (QueryMExtended r)
-derive newtype instance MonadAff (QueryMExtended r)
-derive newtype instance Semigroup a => Semigroup (QueryMExtended r a)
-derive newtype instance Monoid a => Monoid (QueryMExtended r a)
-derive newtype instance MonadThrow Error (QueryMExtended r)
-derive newtype instance MonadError Error (QueryMExtended r)
-derive newtype instance MonadRec (QueryMExtended r)
-derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r)
-derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r)
+newtype QueryMExtended (r :: Row Type) (m :: Type -> Type) (a :: Type) =
+  QueryMExtended
+    (ReaderT (QueryEnv r) m a)
 
-instance MonadLogger (QueryMExtended r) where
+derive instance Newtype (QueryMExtended r m a) _
+derive newtype instance Functor m => Functor (QueryMExtended r m)
+derive newtype instance Apply m => Apply (QueryMExtended r m)
+derive newtype instance Applicative m => Applicative (QueryMExtended r m)
+derive newtype instance Bind m => Bind (QueryMExtended r m)
+derive newtype instance Alt m => Alt (QueryMExtended r m)
+derive newtype instance Plus m => Plus (QueryMExtended r m)
+derive newtype instance Alternative m => Alternative (QueryMExtended r m)
+derive newtype instance Monad (QueryMExtended r Aff)
+derive newtype instance MonadEffect (QueryMExtended r Aff)
+derive newtype instance MonadAff (QueryMExtended r Aff)
+derive newtype instance
+  ( Semigroup a
+  , Apply m
+  ) =>
+  Semigroup (QueryMExtended r m a)
+
+derive newtype instance
+  ( Monoid a
+  , Applicative m
+  ) =>
+  Monoid (QueryMExtended r m a)
+
+derive newtype instance MonadThrow Error (QueryMExtended r Aff)
+derive newtype instance MonadError Error (QueryMExtended r Aff)
+derive newtype instance MonadRec (QueryMExtended r Aff)
+derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r Aff)
+derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r Aff)
+
+instance MonadLogger (QueryMExtended r Aff) where
   log msg = do
     config <- asks $ _.config
     let
@@ -297,7 +323,16 @@ instance MonadLogger (QueryMExtended r) where
         config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
     liftAff $ logFunction msg
 
-liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
+-- Newtype deriving complains about overlapping instances, so we wrap and
+-- unwrap manually
+instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
+  parallel :: QueryMExtended r Aff ~> QueryMExtended r ParAff
+  parallel = wrap <<< parallel <<< unwrap
+  sequential :: QueryMExtended r ParAff ~> QueryMExtended r Aff
+  sequential = wrap <<< sequential <<< unwrap
+
+liftQueryM
+  :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r Aff a
 liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
   where
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
@@ -385,7 +420,7 @@ runQueryMWithSettings settings action = do
   runQueryMInRuntime settings.config settings.runtime action
 
 runQueryMInRuntime
-  :: forall (a :: Type)
+  :: forall (r :: Row Type) (a :: Type)
    . QueryConfig
   -> QueryRuntime
   -> QueryM a
@@ -534,7 +569,9 @@ ownStakePubKeyHash = do
       (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
-  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+  :: forall (r :: Row Type) (a :: Type)
+   . (Wallet -> Aff (Maybe a))
+  -> QueryM (Maybe a)
 withMWalletAff act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
   (liftAff <<< act)
 
