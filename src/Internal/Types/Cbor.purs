@@ -1,5 +1,5 @@
 -- | A partial CBOR decoder, based on [RFC 8949](https://www.rfc-editor.org/rfc/rfc8949.html)
-module CTL.Internal.Types.Cbor
+module Ctl.Internal.Types.Cbor
   ( Cbor(Cbor)
   , RawCborType
   , CborType(ByteStringType)
@@ -19,14 +19,14 @@ module CTL.Internal.Types.Cbor
 
 import Prelude
 
-import CTL.Contract.Prelude (foldl)
-import CTL.Internal.Types.ByteArray
+import Contract.Prelude (foldl)
+import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayToIntArray
   , byteLength
   , subarray
   )
-import CTL.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
 import Data.Either (Either)

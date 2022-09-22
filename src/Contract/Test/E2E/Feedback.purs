@@ -1,7 +1,7 @@
 -- | Store and retrieve values in simple JS variable (window.ctlTestFeedback),
 -- | in order to establish a communication between the Examples and E2E tests.
 -- | Retrieval must be called from Puppeteer, while publishing happens in the browser.
-module CTL.Contract.Test.E2E.Feedback
+module Contract.Test.E2E.Feedback
   ( publishTestFeedback
   , retrieveTestFeedback
   , resetTestFeedback

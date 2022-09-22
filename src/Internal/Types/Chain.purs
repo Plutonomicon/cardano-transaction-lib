@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Chain
+module Ctl.Internal.Types.Chain
   ( Tip(TipAtGenesis, Tip)
   , ChainTip(ChainTip)
   , BlockHeaderHash(BlockHeaderHash)
@@ -6,7 +6,7 @@ module CTL.Internal.Types.Chain
 
 import Prelude
 
-import CTL.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Serialization.Address (Slot)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)

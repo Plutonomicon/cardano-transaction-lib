@@ -1,4 +1,4 @@
-module CTL.Internal.Serialization
+module Ctl.Internal.Serialization
   ( bytesFromPrivateKey
   , convertExUnitPrices
   , convertTransaction
@@ -23,13 +23,13 @@ module CTL.Internal.Serialization
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.ScriptRef
+import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef
       ( NativeScriptRef
       , PlutusScriptRef
       )
   ) as T
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
       ( StakeRegistration
       , StakeDeregistration
@@ -60,35 +60,35 @@ import CTL.Internal.Cardano.Types.Transaction
   , UnitInterval
   , Update
   ) as T
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import CTL.Internal.Cardano.Types.Value as Value
-import CTL.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import CTL.Internal.FfiHelpers
+import Ctl.Internal.Cardano.Types.Value as Value
+import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Ctl.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
   , containerHelper
   , maybeFfiHelper
   )
-import CTL.Internal.Helpers (fromJustEff)
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Helpers (fromJustEff)
+import Ctl.Internal.Serialization.Address
   ( Address
   , RewardAddress
   , StakeCredential
   )
-import CTL.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
-import CTL.Internal.Serialization.AuxiliaryData (convertAuxiliaryData)
-import CTL.Internal.Serialization.BigInt as Serialization
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
+import Ctl.Internal.Serialization.AuxiliaryData (convertAuxiliaryData)
+import Ctl.Internal.Serialization.BigInt as Serialization
+import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , scriptHashFromBytes
   )
-import CTL.Internal.Serialization.NativeScript (convertNativeScript)
-import CTL.Internal.Serialization.PlutusData (convertPlutusData)
-import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
+import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
@@ -147,26 +147,26 @@ import CTL.Internal.Serialization.Types
   , Vkeywitnesses
   , Withdrawals
   )
-import CTL.Internal.Serialization.WitnessSet
+import Ctl.Internal.Serialization.WitnessSet
   ( convertExUnits
   , convertRedeemer
   , convertWitnessSet
   )
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.CborBytes (CborBytes)
-import CTL.Internal.Types.Int as Csl
-import CTL.Internal.Types.OutputDatum
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.Int as Csl
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
-import CTL.Internal.Types.PlutusData as PlutusData
-import CTL.Internal.Types.RawBytes (RawBytes)
-import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
-import CTL.Internal.Types.TokenName (getTokenName) as TokenName
-import CTL.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
+import Ctl.Internal.Types.PlutusData as PlutusData
+import Ctl.Internal.Types.RawBytes (RawBytes)
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
+import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
+import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
 import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)

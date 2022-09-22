@@ -1,4 +1,4 @@
-module CTL.Internal.Helpers
+module Ctl.Internal.Helpers
   ( (</>)
   , (<<>>)
   , (<\>)

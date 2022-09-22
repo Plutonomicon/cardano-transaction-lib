@@ -1,27 +1,27 @@
 -- | Tests for `ToData`/`FromData`
-module Test.CTL.Data (suite, tests, uniqueIndicesTests) where
+module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
-import CTL.Internal.Deserialization.FromBytes (fromBytes)
-import CTL.Internal.Deserialization.PlutusData as PDD
-import CTL.Internal.FromData (class FromData, fromData, genericFromData)
-import CTL.Internal.Helpers (showWithParens)
-import CTL.Internal.Serialization (toBytes)
-import CTL.Internal.Serialization.PlutusData as PDS
-import CTL.Internal.ToData (class ToData, genericToData, toData)
-import CTL.Internal.TypeLevel.Nat (S, Z)
-import CTL.Internal.TypeLevel.RowList (class AllUniqueLabels)
-import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.PlutusData as PDD
+import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
+import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization.PlutusData as PDS
+import Ctl.Internal.ToData (class ToData, genericToData, toData)
+import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.TypeLevel.RowList (class AllUniqueLabels)
+import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   ( class UniqueIndices
   , ConsI
   , NilI
   )
-import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import CTL.Internal.Types.PlutusData (PlutusData(Constr, Integer))
-import CTL.Plutus.Types.AssocMap (Map(Map))
-import CTL.Plutus.Types.DataSchema
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
+import Ctl.Plutus.Types.AssocMap (Map(Map))
+import Ctl.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
@@ -47,7 +47,7 @@ import Effect.Aff (Aff)
 import Effect.Exception (Error)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Combinators (conj)

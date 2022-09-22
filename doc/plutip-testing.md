@@ -28,7 +28,7 @@ The services are NOT run by `docker-compose` as is the case with `launchCtlRunti
 
 ## Testing contracts
 
-The main entry point to the testing interface is `CTL.Contract.Test.Plutip.runPlutipContract` function:
+The main entry point to the testing interface is `Contract.Test.Plutip.runPlutipContract` function:
 
 ```purescript
 runPlutipContract

@@ -1,4 +1,4 @@
-module CTL.Internal.NativeScripts
+module Ctl.Internal.NativeScripts
   ( NativeScriptHash(NativeScriptHash)
   , nativeScriptHash
   , getMaximumSigners
@@ -6,7 +6,7 @@ module CTL.Internal.NativeScripts
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.NativeScript
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -16,9 +16,9 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import CTL.Internal.Serialization.Hash as Hashing
-import CTL.Internal.Serialization.NativeScript (convertNativeScript)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Ctl.Internal.Serialization.Hash as Hashing
+import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Data.Array as Array
 import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)

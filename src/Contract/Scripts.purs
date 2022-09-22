@@ -1,7 +1,7 @@
 -- | A module for various script types, most of which are newtype wrappers
 -- | over `PlutusScript`. Corresponding hashes are also included as newtype
 -- | wrappers over `ScriptHash`.
-module CTL.Contract.Scripts
+module Contract.Scripts
   ( applyArgs
   , applyArgsM
   , module Address
@@ -19,7 +19,7 @@ import Aeson (class DecodeAeson)
 -- See Contract.Address for documentation on the various helpers, some are
 -- constructive/deconstructive on the Plutus `Address` type, others are from
 -- the CSL API and converted to use Plutus types.
-import CTL.Contract.Address
+import Contract.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
@@ -30,8 +30,8 @@ import CTL.Contract.Address
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Address
-import CTL.Contract.Monad (Contract, wrapContract)
-import CTL.Internal.Cardano.Types.NativeScript
+import Contract.Monad (Contract, wrapContract)
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -41,23 +41,23 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
       , ClientDecodeJsonError
       , ClientEncodingError
       )
   ) as ExportQueryM
-import CTL.Internal.QueryM (applyArgs) as QueryM
-import CTL.Internal.Scripts
+import Ctl.Internal.QueryM (applyArgs) as QueryM
+import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , scriptHash
   , stakeValidatorHash
   , validatorHash
   ) as ExportScripts
-import CTL.Internal.Serialization.Hash (ScriptHash) as Hash
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
+import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
@@ -66,8 +66,8 @@ import CTL.Internal.Types.Scripts
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
   ) as TypesScripts
-import CTL.Internal.Types.Scripts (PlutusScript)
-import CTL.Internal.Types.TypedValidator
+import Ctl.Internal.Types.Scripts (PlutusScript)
+import Ctl.Internal.Types.TypedValidator
   ( class DatumType
   , class RedeemerType
   , class ValidatorTypes

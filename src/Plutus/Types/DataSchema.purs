@@ -1,4 +1,4 @@
-module CTL.Plutus.Types.DataSchema
+module Ctl.Plutus.Types.DataSchema
   ( PSchema
   , class HasPlutusSchema
   , PNil
@@ -21,9 +21,9 @@ module CTL.Plutus.Types.DataSchema
   , class ValidPlutusSchema
   ) where
 
-import CTL.Internal.TypeLevel.Nat (Nat)
-import CTL.Internal.TypeLevel.RowList (class AllUniqueLabels)
-import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
+import Ctl.Internal.TypeLevel.Nat (Nat)
+import Ctl.Internal.TypeLevel.RowList (class AllUniqueLabels)
+import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   ( class AllUniqueLabelsI
   , class UniqueIndices
   , ConsI

@@ -3,7 +3,7 @@
 -- | to be spent.
 -- | This module provides a simple, in-memory cache that helps with keeping
 -- | submitted utxos in-check.
-module CTL.Internal.Types.UsedTxOuts
+module Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts(UsedTxOuts)
   , TxOutRefUnlockKeys(TxOutRefUnlockKeys)
   , TxOutRefCache
@@ -18,8 +18,8 @@ module CTL.Internal.Types.UsedTxOuts
   , withLockedTransactionInputs
   ) where
 
-import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import CTL.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
 import Control.Applicative (unless)

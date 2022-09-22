@@ -1,6 +1,6 @@
 -- | Provides basics types and operations for working with JSON RPC protocol
 -- | used by Ogmios and ogmios-datum-cache
-module CTL.Internal.QueryM.JsonWsp
+module Ctl.Internal.QueryM.JsonWsp
   ( JsonWspRequest
   , JsonWspResponse
   , JsonWspCall
@@ -24,7 +24,7 @@ import Aeson
   , getField
   , getFieldOptional
   )
-import CTL.Internal.QueryM.UniqueId (ListenerId, uniqueId)
+import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)

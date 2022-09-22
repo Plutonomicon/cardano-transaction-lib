@@ -1,4 +1,4 @@
-module CTL.Internal.QueryM.UniqueId (ListenerId, uniqueId) where
+module Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId) where
 
 import Effect (Effect)
 

@@ -1,4 +1,4 @@
-module CTL.Internal.Scripts
+module Ctl.Internal.Scripts
   ( mintingPolicyHash
   , scriptCurrencySymbol
   , scriptHash
@@ -13,9 +13,9 @@ module CTL.Internal.Scripts
 
 import Prelude
 
-import CTL.Internal.Hashing (plutusScriptHash)
-import CTL.Internal.NativeScripts (NativeScriptHash)
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Hashing (plutusScriptHash)
+import Ctl.Internal.NativeScripts (NativeScriptHash)
+import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
   , baseAddressToAddress
@@ -24,8 +24,8 @@ import CTL.Internal.Serialization.Address
   , scriptAddress
   , scriptHashCredential
   )
-import CTL.Internal.Serialization.Hash (ScriptHash)
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
   , PlutusScript
@@ -34,8 +34,8 @@ import CTL.Internal.Types.Scripts
   , Validator
   , ValidatorHash
   )
-import CTL.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
-import CTL.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
+import Ctl.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
+import Ctl.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 

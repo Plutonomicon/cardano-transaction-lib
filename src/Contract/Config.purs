@@ -1,5 +1,5 @@
 -- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ConfigParams`.
-module CTL.Contract.Config
+module Contract.Config
   ( testnetConfig
   , testnetNamiConfig
   , testnetGeroConfig
@@ -8,31 +8,31 @@ module CTL.Contract.Config
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
-  , module CTL.Contract.Address
-  , module CTL.Contract.Monad
+  , module Contract.Address
+  , module Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
-  , module CTL.Internal.Serialization
-  , module CTL.Internal.QueryM.ServerConfig
-  , module CTL.Internal.Wallet.Spec
-  , module CTL.Internal.Wallet.Key
+  , module Ctl.Internal.Serialization
+  , module Ctl.Internal.QueryM.ServerConfig
+  , module Ctl.Internal.Wallet.Spec
+  , module Ctl.Internal.Wallet.Key
   ) where
 
-import CTL.Contract.Address (NetworkId(MainnetId, TestnetId))
-import CTL.Contract.Monad (ConfigParams)
-import CTL.Internal.QueryM.ServerConfig
+import Contract.Address (NetworkId(MainnetId, TestnetId))
+import Contract.Monad (ConfigParams)
+import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
-import CTL.Internal.Serialization (privateKeyFromBytes)
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import CTL.Internal.Wallet.Spec
+import Ctl.Internal.Wallet.Spec
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , WalletSpec

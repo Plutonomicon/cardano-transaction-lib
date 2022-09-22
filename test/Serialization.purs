@@ -1,16 +1,16 @@
-module Test.CTL.Serialization (suite) where
+module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import CTL.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import CTL.Internal.Deserialization.Transaction (convertTransaction) as TD
-import CTL.Internal.Serialization (convertTransaction) as TS
-import CTL.Internal.Serialization (convertTxOutput, toBytes)
-import CTL.Internal.Serialization.PlutusData (convertPlutusData)
-import CTL.Internal.Serialization.Types (TransactionHash)
-import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import CTL.Internal.Types.PlutusData as PD
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Serialization (convertTransaction) as TS
+import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Serialization.Types (TransactionHash)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust)
@@ -18,7 +18,7 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.CTL.Fixtures
+import Test.Ctl.Fixtures
   ( txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
@@ -34,8 +34,8 @@ import Test.CTL.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (errMaybe)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
 

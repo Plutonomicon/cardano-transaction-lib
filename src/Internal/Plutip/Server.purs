@@ -1,4 +1,4 @@
-module CTL.Internal.Plutip.Server
+module Ctl.Internal.Plutip.Server
   ( runPlutipContract
   , withPlutipContractEnv
   , startPlutipCluster
@@ -19,20 +19,20 @@ import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import CTL.Contract.Address (NetworkId(MainnetId))
-import CTL.Contract.Monad
+import Contract.Address (NetworkId(MainnetId))
+import Contract.Monad
   ( Contract
   , ContractEnv(ContractEnv)
   , liftContractM
   , runContractInEnv
   )
-import CTL.Internal.Plutip.PortCheck (isPortAvailable)
-import CTL.Internal.Plutip.Spawn
+import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
+import Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
   , killOnExit
   , spawnAndWaitForOutput
   )
-import CTL.Internal.Plutip.Types
+import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
   , InitialUTxODistribution
@@ -44,26 +44,26 @@ import CTL.Internal.Plutip.Types
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
-import CTL.Internal.Plutip.Utils (tmpdir)
-import CTL.Internal.Plutip.UtxoDistribution
+import Ctl.Internal.Plutip.Utils (tmpdir)
+import Ctl.Internal.Plutip.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , Logger
   , mkLogger
   , stopQueryRuntime
   )
-import CTL.Internal.QueryM as QueryM
-import CTL.Internal.QueryM.Logging (setupLogs)
-import CTL.Internal.QueryM.ProtocolParameters as Ogmios
-import CTL.Internal.QueryM.UniqueId (uniqueId)
-import CTL.Internal.Types.UsedTxOuts (newUsedTxOuts)
-import CTL.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
+import Ctl.Internal.QueryM as QueryM
+import Ctl.Internal.QueryM.Logging (setupLogs)
+import Ctl.Internal.QueryM.ProtocolParameters as Ogmios
+import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
+import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt

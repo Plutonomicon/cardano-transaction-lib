@@ -1,7 +1,7 @@
 -- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
 -- | used to build scripts with the provided arguments applied. It creates a 
 -- | transaction that mints an NFT using the one-shot minting policy.
-module CTL.Examples.OneShotMinting
+module Ctl.Examples.OneShotMinting
   ( contract
   , example
   , main
@@ -9,12 +9,12 @@ module CTL.Examples.OneShotMinting
   , mkOneShotMintingPolicy
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address (Address, getWalletAddress)
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad
+import Contract.Address (Address, getWalletAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractM
@@ -22,27 +22,27 @@ import CTL.Contract.Monad
   , liftedM
   , runContract
   )
-import CTL.Contract.PlutusData (PlutusData, toData)
-import CTL.Contract.Prim.ByteArray (ByteArray)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (MintingPolicy, PlutusScript, applyArgs)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
-import CTL.Contract.Test.Utils as TestUtils
-import CTL.Contract.TextEnvelope
+import Contract.PlutusData (PlutusData, toData)
+import Contract.Prim.ByteArray (ByteArray)
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (MintingPolicy, PlutusScript, applyArgs)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
+import Contract.Test.Utils as TestUtils
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
   , plutusV1Script
   )
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value (CurrencySymbol, TokenName)
-import CTL.Contract.Value (singleton) as Value
-import CTL.Examples.Helpers
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Value (CurrencySymbol, TokenName)
+import Contract.Value (singleton) as Value
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
   , mkTokenName

@@ -1,5 +1,5 @@
 -- | Error-centered types and functions used by Deserialization modules.
-module CTL.Internal.Deserialization.Error
+module Ctl.Internal.Deserialization.Error
   ( Err
   , FromCslRepError
   , _fromCslRepError
@@ -11,8 +11,8 @@ module CTL.Internal.Deserialization.Error
 
 import Prelude
 
-import CTL.Internal.Deserialization.FromBytes (FromBytesError, _fromBytesError)
-import CTL.Internal.Error (E, NotImplementedError, _notImplementedError, noteE)
+import Ctl.Internal.Deserialization.FromBytes (FromBytesError, _fromBytesError)
+import Ctl.Internal.Error (E, NotImplementedError, _notImplementedError, noteE)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import Data.Variant (Variant, default, inj, match, onMatch)

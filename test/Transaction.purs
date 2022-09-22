@@ -1,8 +1,8 @@
-module Test.CTL.Transaction (suite) where
+module Test.Ctl.Transaction (suite) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
@@ -13,20 +13,20 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import CTL.Internal.Helpers (fromRightEff)
-import CTL.Internal.Serialization.WitnessSet as Serialization.WitnessSet
-import CTL.Internal.Transaction
+import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import Ctl.Internal.Helpers (fromRightEff)
+import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import Ctl.Internal.Transaction
   ( attachDatum
   , attachPlutusScript
   , attachRedeemer
   , setScriptDataHash
   )
-import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import CTL.Internal.Types.Datum (Datum(Datum))
-import CTL.Internal.Types.PlutusData (PlutusData(Integer))
-import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Datum (Datum(Datum))
+import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
@@ -40,8 +40,8 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Test.CTL.Fixtures.CostModels (costModelsFixture1)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

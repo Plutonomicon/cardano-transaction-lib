@@ -1,4 +1,4 @@
-module CTL.Internal.Plutip.Utils
+module Ctl.Internal.Plutip.Utils
   ( tmpdir
   ) where
 

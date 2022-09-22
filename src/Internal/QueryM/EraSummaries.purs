@@ -1,12 +1,12 @@
 -- | A module to get "eraSummaries" via an Ogmios request.
-module CTL.Internal.QueryM.EraSummaries
+module Ctl.Internal.QueryM.EraSummaries
   ( getEraSummaries
   ) where
 
 import Prelude
 
-import CTL.Internal.QueryM (QueryM, mkOgmiosRequest)
-import CTL.Internal.QueryM.Ogmios (EraSummaries, queryEraSummariesCall) as Ogmios
+import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, queryEraSummariesCall) as Ogmios
 
 -- | Get `EraSummaries` as used for Slot arithemetic. Details can be found
 -- | https://ogmios.dev/api/ under "eraSummaries" query

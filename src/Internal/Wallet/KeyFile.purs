@@ -1,5 +1,5 @@
 -- | **NodeJS-only module**
-module CTL.Internal.Wallet.KeyFile
+module Ctl.Internal.Wallet.KeyFile
   ( keyFromFile
   , privatePaymentKeyFromFile
   , privatePaymentKeyFromString
@@ -14,7 +14,7 @@ module CTL.Internal.Wallet.KeyFile
 import Prelude
 
 import Aeson (encodeAeson)
-import CTL.Internal.Cardano.TextEnvelope
+import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelopeType
       ( PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
@@ -22,12 +22,12 @@ import CTL.Internal.Cardano.TextEnvelope
   , printTextEnvelopeDecodeError
   , textEnvelopeBytes
   )
-import CTL.Internal.Helpers (liftM)
-import CTL.Internal.Serialization (bytesFromPrivateKey, privateKeyFromBytes)
-import CTL.Internal.Serialization.Types (PrivateKey)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.RawBytes (rawBytesToHex)
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.Serialization (bytesFromPrivateKey, privateKeyFromBytes)
+import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.RawBytes (rawBytesToHex)
+import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )

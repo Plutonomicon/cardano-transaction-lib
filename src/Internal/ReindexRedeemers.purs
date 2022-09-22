@@ -1,6 +1,6 @@
 -- | This module implements functionality to reindex redeemers to be used after
 -- | balancing when all inputs have been inserted to the array.
-module CTL.Internal.ReindexRedeemers
+module Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   , reindexSpentScriptRedeemers
   , reindexSpentScriptRedeemers'
@@ -8,11 +8,11 @@ module CTL.Internal.ReindexRedeemers
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
-import CTL.Internal.Helpers (liftEither)
-import CTL.Internal.QueryM (QueryM)
-import CTL.Internal.Types.RedeemerTag (RedeemerTag(Spend))
-import CTL.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
+import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.QueryM (QueryM)
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Array (elemIndex)
 import Data.BigInt (fromInt)

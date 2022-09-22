@@ -1,6 +1,6 @@
 -- | A module for constructing well-defined ratios of natural numbers (with
 -- | non-zero denominator), potentially via cancellation of negative sign.
-module CTL.Internal.Types.NatRatio
+module Ctl.Internal.Types.NatRatio
   ( NatRatio
   , denominator
   , denominatorAsNat
@@ -14,10 +14,10 @@ module CTL.Internal.Types.NatRatio
 
 import Prelude
 
-import CTL.Internal.Types.Natural (Natural)
-import CTL.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
-import CTL.Internal.Types.Rational (Rational)
-import CTL.Internal.Types.Rational
+import Ctl.Internal.Types.Natural (Natural)
+import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
+import Ctl.Internal.Types.Rational (Rational)
+import Ctl.Internal.Types.Rational
   ( denominator
   , denominatorAsNat
   , numerator

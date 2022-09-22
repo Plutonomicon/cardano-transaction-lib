@@ -1,27 +1,27 @@
-module Test.CTL.AffInterface (suite) where
+module Test.Ctl.AffInterface (suite) where
 
 import Prelude
 
-import CTL.Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
-import CTL.Internal.Address (ogmiosAddressToAddress)
-import CTL.Internal.QueryM
+import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
+import Ctl.Internal.Address (ogmiosAddressToAddress)
+import Ctl.Internal.QueryM
   ( QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
   , submitTxOgmios
   )
-import CTL.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
-import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
-import CTL.Internal.QueryM.Ogmios (OgmiosAddress)
-import CTL.Internal.QueryM.ProtocolParameters (getProtocolParameters)
-import CTL.Internal.QueryM.SystemStart (getSystemStart)
-import CTL.Internal.QueryM.Utxos (utxosAt)
-import CTL.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.Types.BigNum (add, fromInt) as BigNum
-import CTL.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import CTL.Internal.Types.Transaction (DataHash(DataHash))
+import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
+import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.QueryM.Utxos (utxosAt)
+import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Types.BigNum (add, fromInt) as BigNum
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Transaction (DataHash(DataHash))
 import Control.Monad.Except (throwError)
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
@@ -30,7 +30,7 @@ import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Effect.Aff (error, try)
 import Mote (group, test)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 
 testnet_addr1 :: OgmiosAddress

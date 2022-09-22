@@ -1,8 +1,8 @@
-module Test.CTL.ByteArray where
+module Test.Ctl.ByteArray where
 
 import Prelude
 
-import CTL.Internal.Types.ByteArray
+import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
@@ -14,7 +14,7 @@ import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (quickCheck, (===))
 import Test.QuickCheck.Laws.Data.Eq (checkEq)
 import Test.QuickCheck.Laws.Data.Monoid (checkMonoid)

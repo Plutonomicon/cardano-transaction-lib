@@ -1,30 +1,30 @@
-module CTL.Internal.Wallet.Cip30Mock where
+module Ctl.Internal.Wallet.Cip30Mock where
 
 import Prelude
 
-import CTL.Contract.Monad (Contract, ContractEnv, wrapContract)
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Contract.Monad (Contract, ContractEnv, wrapContract)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import CTL.Internal.Deserialization.Transaction (deserializeTransaction)
-import CTL.Internal.Helpers (liftEither)
-import CTL.Internal.QueryM (QueryM, runQueryMInRuntime)
-import CTL.Internal.QueryM.Utxos (utxosAt)
-import CTL.Internal.Serialization
+import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
+import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.QueryM (QueryM, runQueryMInRuntime)
+import Ctl.Internal.QueryM.Utxos (utxosAt)
+import Ctl.Internal.Serialization
   ( convertTransactionUnspentOutput
   , convertValue
   , toBytes
   )
-import CTL.Internal.Serialization.WitnessSet (convertWitnessSet)
-import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import CTL.Internal.Types.CborBytes (cborBytesFromByteArray)
-import CTL.Internal.Wallet
+import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
+import Ctl.Internal.Wallet
   ( Wallet
   , mkFlintWalletAff
   , mkGeroWalletAff
   , mkNamiWalletAff
   )
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey
   , PrivateStakeKey

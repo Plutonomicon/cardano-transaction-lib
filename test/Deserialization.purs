@@ -1,37 +1,37 @@
-module Test.CTL.Deserialization (suite) where
+module Test.Ctl.Deserialization (suite) where
 
 import Prelude
 
-import CTL.Contract.Address (ByteArray)
-import CTL.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
-import CTL.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Contract.Address (ByteArray)
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
+import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import CTL.Internal.Deserialization.BigInt as DB
-import CTL.Internal.Deserialization.FromBytes (fromBytes)
-import CTL.Internal.Deserialization.NativeScript as NSD
-import CTL.Internal.Deserialization.PlutusData as DPD
-import CTL.Internal.Deserialization.Transaction (convertTransaction) as TD
-import CTL.Internal.Deserialization.UnspentOutput
+import Ctl.Internal.Deserialization.BigInt as DB
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.NativeScript as NSD
+import Ctl.Internal.Deserialization.PlutusData as DPD
+import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
-import CTL.Internal.Deserialization.WitnessSet
+import Ctl.Internal.Deserialization.WitnessSet
   ( convertWitnessSet
   , deserializeWitnessSet
   )
-import CTL.Internal.Serialization (convertTransaction) as TS
-import CTL.Internal.Serialization (toBytes)
-import CTL.Internal.Serialization as Serialization
-import CTL.Internal.Serialization.BigInt as SB
-import CTL.Internal.Serialization.NativeScript (convertNativeScript) as NSS
-import CTL.Internal.Serialization.PlutusData as SPD
-import CTL.Internal.Serialization.Types (TransactionUnspentOutput)
-import CTL.Internal.Serialization.WitnessSet as SW
-import CTL.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
-import CTL.Internal.Types.Transaction (TransactionInput) as T
+import Ctl.Internal.Serialization (convertTransaction) as TS
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization.BigInt as SB
+import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
+import Ctl.Internal.Serialization.PlutusData as SPD
+import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
+import Ctl.Internal.Serialization.WitnessSet as SW
+import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
+import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
 import Data.BigInt as BigInt
@@ -43,7 +43,7 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
 import Mote (group, test)
-import Test.CTL.Fixtures
+import Test.Ctl.Fixtures
   ( nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
@@ -78,8 +78,8 @@ import Test.CTL.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (errMaybe)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
 

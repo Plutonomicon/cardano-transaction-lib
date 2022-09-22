@@ -1,8 +1,8 @@
-module CTL.Contract.Hashing
+module Contract.Hashing
   ( module X
   ) where
 
-import CTL.Internal.Hashing
+import Ctl.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
   , datumHash
@@ -13,4 +13,4 @@ import CTL.Internal.Hashing
   , sha3_256HashHex
   , transactionHash
   ) as X
-import CTL.Internal.NativeScripts (nativeScriptHash) as X
+import Ctl.Internal.NativeScripts (nativeScriptHash) as X

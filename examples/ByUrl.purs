@@ -1,37 +1,37 @@
-module CTL.Examples.ByUrl (main) where
+module Ctl.Examples.ByUrl (main) where
 
 import Prelude
 
-import CTL.Contract.Config
+import Contract.Config
   ( ConfigParams
   , testnetFlintConfig
   , testnetGeroConfig
   , testnetLodeConfig
   , testnetNamiConfig
   )
-import CTL.Contract.Monad (Contract, runContract)
-import CTL.Contract.Prelude (fst, traverse_, uncurry)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.Wallet.Cip30Mock
+import Contract.Monad (Contract, runContract)
+import Contract.Prelude (fst, traverse_, uncurry)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.Wallet.Cip30Mock
   ( WalletMock(MockFlint, MockGero, MockNami)
   , withCip30Mock
   )
-import CTL.Contract.Wallet.Key (privateKeysToKeyWallet)
-import CTL.Contract.Wallet.KeyFile
+import Contract.Wallet.Key (privateKeysToKeyWallet)
+import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
   )
-import CTL.Examples.AlwaysMints as AlwaysMints
-import CTL.Examples.AlwaysSucceeds as AlwaysSucceeds
-import CTL.Examples.Datums as Datums
-import CTL.Examples.MintsMultipleTokens as MintsMultipleTokens
-import CTL.Examples.OneShotMinting as OneShotMinting
-import CTL.Examples.Pkh2Pkh as Pkh2Pkh
-import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import CTL.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
-import CTL.Examples.SendsToken as SendsToken
-import CTL.Examples.SignMultiple as SignMultiple
-import CTL.Examples.Wallet as Wallet
+import Ctl.Examples.AlwaysMints as AlwaysMints
+import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.Datums as Datums
+import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Ctl.Examples.OneShotMinting as OneShotMinting
+import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
+import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
+import Ctl.Examples.SendsToken as SendsToken
+import Ctl.Examples.SignMultiple as SignMultiple
+import Ctl.Examples.Wallet as Wallet
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)
 import Data.Foldable (lookup)

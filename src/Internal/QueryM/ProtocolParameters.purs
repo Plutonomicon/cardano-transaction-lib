@@ -1,12 +1,12 @@
 -- | A module to get protocol parameters via Ogmios request
-module CTL.Internal.QueryM.ProtocolParameters
+module Ctl.Internal.QueryM.ProtocolParameters
   ( getProtocolParameters
   , module GetProtocolParametersAff
   ) where
 
-import CTL.Internal.QueryM (QueryM, mkOgmiosRequest)
-import CTL.Internal.QueryM (getProtocolParametersAff) as GetProtocolParametersAff
-import CTL.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
+import Ctl.Internal.QueryM (getProtocolParametersAff) as GetProtocolParametersAff
+import Ctl.Internal.QueryM.Ogmios
   ( ProtocolParameters
   , queryProtocolParametersCall
   )

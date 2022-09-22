@@ -1,26 +1,26 @@
-module Test.CTL.BalanceTx.Collateral (suite) where
+module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
-import CTL.Internal.BalanceTx.Collateral.Select
+import Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
   )
-import CTL.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
-import CTL.Internal.Cardano.Types.Value
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
+import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
   , mkSingletonNonAdaAsset
   ) as Value
-import CTL.Internal.QueryM (QueryM, runQueryM)
-import CTL.Internal.QueryM.Config (testnetTraceQueryConfig)
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import Ctl.Internal.QueryM (QueryM, runQueryM)
+import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Control.Monad.Reader.Trans (asks)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
@@ -35,15 +35,15 @@ import Data.UInt (fromInt, toInt) as UInt
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.CTL.Fixtures
+import Test.Ctl.Fixtures
   ( currencySymbol1
   , tokenName1
   , tokenName2
   , txInputFixture1
   )
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (Seconds(Seconds))
-import Test.CTL.Utils (measure, measureWithTimeout) as TestUtils
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (Seconds(Seconds))
+import Test.Ctl.Utils (measure, measureWithTimeout) as TestUtils
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

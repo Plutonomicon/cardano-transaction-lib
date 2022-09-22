@@ -2,7 +2,7 @@
 -- | from `DatumHash` along with related `PlutusData` newtype wrappers such as
 -- | `Datum` and `Redeemer`. It also contains typeclasses like `FromData` and
 -- | `ToData`.
-module CTL.Contract.PlutusData
+module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
   , module DataSchema
@@ -21,9 +21,9 @@ module CTL.Contract.PlutusData
 
 import Prelude
 
-import CTL.Contract.Monad (Contract, wrapContract)
-import CTL.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
-import CTL.Internal.FromData
+import Contract.Monad (Contract, wrapContract)
+import Ctl.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
+import Ctl.Internal.FromData
   ( class FromData
   , class FromDataArgs
   , class FromDataArgsRL
@@ -41,20 +41,20 @@ import CTL.Internal.FromData
   , fromDataWithSchema
   , genericFromData
   ) as FromData
-import CTL.Internal.Hashing (datumHash) as Hashing
-import CTL.Internal.IsData (class IsData) as IsData
-import CTL.Internal.QueryM
+import Ctl.Internal.Hashing (datumHash) as Hashing
+import Ctl.Internal.IsData (class IsData) as IsData
+import Ctl.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
   , defaultDatumCacheWsConfig
   , mkDatumCacheWebSocketAff
   ) as ExportQueryM
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( getDatumByHash
   , getDatumsByHashes
   ) as QueryM
-import CTL.Internal.Serialization (serializeData) as Serialization
-import CTL.Internal.ToData
+import Ctl.Internal.Serialization (serializeData) as Serialization
+import Ctl.Internal.ToData
   ( class ToData
   , class ToDataArgs
   , class ToDataArgsRL
@@ -67,21 +67,21 @@ import CTL.Internal.ToData
   , toDataArgsRec'
   , toDataWithSchema
   ) as ToData
-import CTL.Internal.Types.Datum (DataHash)
-import CTL.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
-import CTL.Internal.Types.OutputDatum
+import Ctl.Internal.Types.Datum (DataHash)
+import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   ) as OutputDatum
-import CTL.Internal.Types.PlutusData
+import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as PlutusData
-import CTL.Internal.Types.Redeemer
+import Ctl.Internal.Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import CTL.Plutus.Types.DataSchema
+import Ctl.Plutus.Types.DataSchema
   ( class AllUnique2
   , class HasPlutusSchema
   , class PlutusSchemaToRowListI

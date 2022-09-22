@@ -1,4 +1,4 @@
-module CTL.Internal.Plutip.Types
+module Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ErrorMessage
   , FilePath
@@ -34,12 +34,12 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
-import CTL.Internal.QueryM.ServerConfig (ServerConfig)
-import CTL.Internal.Serialization (privateKeyFromBytes)
-import CTL.Internal.Serialization.Types (PrivateKey)
-import CTL.Internal.Types.ByteArray (hexToByteArray)
-import CTL.Internal.Types.RawBytes (RawBytes(RawBytes))
-import CTL.Internal.Wallet.Key (PrivateStakeKey)
+import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
+import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Types.ByteArray (hexToByteArray)
+import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
+import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)

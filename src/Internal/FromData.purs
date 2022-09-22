@@ -1,4 +1,4 @@
-module CTL.Internal.FromData
+module Ctl.Internal.FromData
   ( FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
@@ -19,19 +19,19 @@ module CTL.Internal.FromData
 
 import Prelude
 
-import CTL.Internal.Helpers (bigIntToUInt)
-import CTL.Internal.TypeLevel.Nat (class KnownNat, natVal)
-import CTL.Internal.TypeLevel.RowList.Unordered.Indexed
+import Ctl.Internal.Helpers (bigIntToUInt)
+import Ctl.Internal.TypeLevel.Nat (class KnownNat, natVal)
+import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
   , class GetWithLabel
   )
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.CborBytes (CborBytes)
-import CTL.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
-import CTL.Internal.Types.RawBytes (RawBytes)
-import CTL.Plutus.Types.DataSchema
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
+import Ctl.Internal.Types.RawBytes (RawBytes)
+import Ctl.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , class ValidPlutusSchema
   )

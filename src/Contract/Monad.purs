@@ -1,5 +1,5 @@
 -- | A module defining the `Contract` monad.
-module CTL.Contract.Monad
+module Contract.Monad
   ( Contract(Contract)
   , ContractEnv(ContractEnv)
   , ConfigParams
@@ -27,7 +27,7 @@ module CTL.Contract.Monad
 
 import Prelude
 
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
   , DispatchIdMap
@@ -53,7 +53,7 @@ import CTL.Internal.QueryM
   , mkOgmiosWebSocketAff
   , mkWsUrl
   ) as QueryM
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( QueryConfig
   , QueryEnv
   , QueryM
@@ -64,9 +64,9 @@ import CTL.Internal.QueryM
   , stopQueryRuntime
   , withQueryRuntime
   )
-import CTL.Internal.QueryM.Logging (setupLogs)
-import CTL.Internal.Serialization.Address (NetworkId)
-import CTL.Internal.Wallet.Spec (WalletSpec)
+import Ctl.Internal.QueryM.Logging (setupLogs)
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.Wallet.Spec (WalletSpec)
 import Control.Alt (class Alt)
 import Control.Monad.Error.Class
   ( class MonadError

@@ -1,5 +1,5 @@
 -- | `cardano-serialization-lib` Int type (can be positive or negative).
-module CTL.Internal.Types.Int
+module Ctl.Internal.Types.Int
   ( Int
   , newPositive
   , newNegative
@@ -19,8 +19,8 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   )
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
 import Control.Alternative ((<|>))
 import Data.BigInt as BigInt
 import Data.Either (note)

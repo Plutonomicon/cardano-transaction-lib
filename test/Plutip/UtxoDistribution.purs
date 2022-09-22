@@ -1,4 +1,4 @@
-module Test.CTL.Plutip.UtxoDistribution
+module Test.Ctl.Plutip.UtxoDistribution
   ( ArbitraryUtxoDistr
   , assertContract
   , assertCorrectDistribution
@@ -14,7 +14,7 @@ module Test.CTL.Plutip.UtxoDistribution
 
 import Prelude
 
-import CTL.Contract.Address
+import Contract.Address
   ( Address
   , getNetworkId
   , getWalletAddress
@@ -22,24 +22,24 @@ import CTL.Contract.Address
   , ownStakePubKeyHash
   , payPubKeyHashEnterpriseAddress
   )
-import CTL.Contract.Monad (Contract, liftedM)
-import CTL.Contract.Test.Plutip
+import Contract.Monad (Contract, liftedM)
+import Contract.Test.Plutip
   ( class UtxoDistribution
   , InitialUTxOs
   , runPlutipContract
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( TransactionInput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value (Value, lovelaceValueOf)
-import CTL.Contract.Wallet (KeyWallet, withKeyWallet)
-import CTL.Internal.Plutip.Types
+import Contract.Utxos (utxosAt)
+import Contract.Value (Value, lovelaceValueOf)
+import Contract.Wallet (KeyWallet, withKeyWallet)
+import Ctl.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
-import CTL.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import CTL.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
+import Ctl.Plutus.Types.Transaction (UtxoMap)
 import Control.Lazy (fix)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
@@ -57,8 +57,8 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Test.CTL.Plutip.Common (config, privateStakeKey)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen

@@ -1,4 +1,4 @@
-module CTL.Internal.Deserialization.WitnessSet
+module Ctl.Internal.Deserialization.WitnessSet
   ( convertNativeScripts
   , convertPlutusScripts
   , convertPlutusScript
@@ -11,8 +11,8 @@ module CTL.Internal.Deserialization.WitnessSet
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.NativeScript (NativeScript) as T
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript) as T
+import Ctl.Internal.Cardano.Types.Transaction
   ( BootstrapWitness
   , Ed25519Signature(Ed25519Signature)
   , ExUnits
@@ -22,11 +22,11 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
-import CTL.Internal.Deserialization.Language (convertLanguage)
-import CTL.Internal.Deserialization.NativeScript (convertNativeScript)
-import CTL.Internal.Deserialization.PlutusData (convertPlutusData)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.Deserialization.Language (convertLanguage)
+import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
+import Ctl.Internal.Deserialization.PlutusData (convertPlutusData)
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.Serialization.Types
   ( BootstrapWitness
   , BootstrapWitnesses
   , Ed25519Signature
@@ -47,12 +47,12 @@ import CTL.Internal.Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (toBigInt) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.PlutusData (PlutusData) as T
-import CTL.Internal.Types.RedeemerTag as Tag
-import CTL.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.PlutusData (PlutusData) as T
+import Ctl.Internal.Types.RedeemerTag as Tag
+import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)

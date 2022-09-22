@@ -9,10 +9,10 @@
 -- - `asset_name` is up to 32 bytes.
 --
 -- Motivation: https://github.com/cardano-foundation/CIPs/issues/303
-module CTL.Internal.Metadata.Cip25.V2
+module Ctl.Internal.Metadata.Cip25.V2
   ( Cip25Metadata(Cip25Metadata)
   , Cip25MetadataEntry(Cip25MetadataEntry)
-  , module CTL.Internal.Metadata.Cip25.Common
+  , module Ctl.Internal.Metadata.Cip25.Common
   ) where
 
 import Prelude
@@ -27,40 +27,40 @@ import Aeson
   , (.:?)
   )
 import Aeson as Aeson
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Metadata.Cip25.Cip25String
+import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
   , fromDataString
   , fromMetadataString
   )
-import CTL.Internal.Metadata.Cip25.Common
+import Ctl.Internal.Metadata.Cip25.Common
   ( Cip25MetadataFile(Cip25MetadataFile)
   , Cip25TokenName(Cip25TokenName)
   , nftMetadataLabel
   )
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.Helpers
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import Ctl.Internal.Metadata.Helpers
   ( errExpectedObject
   , lookupKey
   , lookupMetadata
   )
-import CTL.Internal.Metadata.MetadataType (class MetadataType)
-import CTL.Internal.Metadata.ToMetadata
+import Ctl.Internal.Metadata.MetadataType (class MetadataType)
+import Ctl.Internal.Metadata.ToMetadata
   ( class ToMetadata
   , anyToMetadata
   , toMetadata
   )
-import CTL.Internal.Serialization.Hash (scriptHashFromBytes)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.Int as Int
-import CTL.Internal.Types.PlutusData (PlutusData(Map, Integer))
-import CTL.Internal.Types.RawBytes (hexToRawBytes)
-import CTL.Internal.Types.Scripts (MintingPolicyHash)
-import CTL.Internal.Types.TokenName (mkTokenName)
-import CTL.Internal.Types.TransactionMetadata
+import Ctl.Internal.Serialization.Hash (scriptHashFromBytes)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.Int as Int
+import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
+import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Ctl.Internal.Types.Scripts (MintingPolicyHash)
+import Ctl.Internal.Types.TokenName (mkTokenName)
+import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
-import CTL.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
+import Ctl.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Control.Alt ((<|>))
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)

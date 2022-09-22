@@ -1,23 +1,23 @@
-module CTL.Plutus.Conversion.Value
+module Ctl.Plutus.Conversion.Value
   ( fromPlutusValue
   , toPlutusValue
   ) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
-import CTL.Internal.Cardano.Types.Value
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
+import Ctl.Internal.Cardano.Types.Value
   ( NonAdaAsset
   , flattenNonAdaValue
   , getCurrencySymbol
   , mkNonAdaAssetsFromTokenMap
   , mkValue
   )
-import CTL.Internal.Types.TokenName (adaToken, getTokenName)
-import CTL.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
-import CTL.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
-import CTL.Plutus.Types.Value (Value) as Plutus
-import CTL.Plutus.Types.Value
+import Ctl.Internal.Types.TokenName (adaToken, getTokenName)
+import Ctl.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
+import Ctl.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
+import Ctl.Plutus.Types.Value (Value) as Plutus
+import Ctl.Plutus.Types.Value
   ( getValue
   , lovelaceValueOf
   , singleton'

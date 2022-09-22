@@ -1,21 +1,21 @@
 -- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
 -- | used to build PlutusV2 scripts with the provided arguments applied. It 
 -- | creates a transaction that mints an NFT using the one-shot minting policy.
-module CTL.Examples.PlutusV2.OneShotMinting
+module Ctl.Examples.PlutusV2.OneShotMinting
   ( contract
   , example
   , main
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Monad (Contract, launchAff_, runContract)
-import CTL.Contract.Scripts (MintingPolicy)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope (TextEnvelopeType(PlutusScriptV2))
-import CTL.Contract.Transaction (TransactionInput, plutusV2Script)
-import CTL.Examples.OneShotMinting
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Scripts (MintingPolicy)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope (TextEnvelopeType(PlutusScriptV2))
+import Contract.Transaction (TransactionInput, plutusV2Script)
+import Ctl.Examples.OneShotMinting
   ( mkContractWithAssertions
   , mkOneShotMintingPolicy
   )

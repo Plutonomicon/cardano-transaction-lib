@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Any
+module Ctl.Internal.Types.Any
   ( Any
   ) where
 

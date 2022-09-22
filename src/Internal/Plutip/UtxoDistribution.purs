@@ -1,4 +1,4 @@
-module CTL.Internal.Plutip.UtxoDistribution
+module Ctl.Internal.Plutip.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
   , decodeWallets'
@@ -10,7 +10,7 @@ module CTL.Internal.Plutip.UtxoDistribution
 
 import Prelude
 
-import CTL.Contract.Address
+import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
@@ -19,32 +19,32 @@ import CTL.Contract.Address
   , ownStakePubKeyHash
   , payPubKeyHashEnterpriseAddress
   )
-import CTL.Contract.Monad (Contract, liftContractM, liftedE, liftedM)
-import CTL.Contract.Prelude (foldM, foldMap, null)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Transaction
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
+import Contract.Prelude (foldM, foldMap, null)
+import Contract.ScriptLookups as Lookups
+import Contract.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
   , balanceAndSignTxE
   , signTransaction
   , submit
   )
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Wallet (withKeyWallet)
-import CTL.Internal.Plutip.Types
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Wallet (withKeyWallet)
+import Ctl.Internal.Plutip.Types
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PrivateKeyResponse(PrivateKeyResponse)
   , UtxoAmount
   )
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
-import CTL.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Plutus.Types.Transaction (UtxoMap)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Data.Array as Array

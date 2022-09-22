@@ -1,6 +1,6 @@
 -- | CborBytes. A wrapper over `ByteArray` to indicate that the bytes are cbor.
 
-module CTL.Internal.Types.CborBytes
+module Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
   , cborBytesToByteArray
   , cborBytesFromByteArray
@@ -18,11 +18,11 @@ module CTL.Internal.Types.CborBytes
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.ByteArray as BytesArray
-import CTL.Internal.Types.RawBytes (RawBytes)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.ByteArray as BytesArray
+import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)

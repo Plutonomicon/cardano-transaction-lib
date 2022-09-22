@@ -1,4 +1,4 @@
-module Test.CTL.TestM where
+module Test.Ctl.TestM where
 
 import Prelude
 

@@ -1,4 +1,4 @@
-module Test.CTL.Ogmios.Aeson
+module Test.Ctl.Ogmios.Aeson
   ( main
   , suite
   , printEvaluateTxFailures
@@ -8,8 +8,8 @@ import Prelude
 
 import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
-import CTL.Internal.BalanceTx (printTxEvaluationFailure)
-import CTL.Internal.QueryM.Ogmios as O
+import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.QueryM.Ogmios as O
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
@@ -36,8 +36,8 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils as Utils
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils as Utils
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String

@@ -1,4 +1,4 @@
-module CTL.Internal.Wallet.Key
+module Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
@@ -9,22 +9,22 @@ module CTL.Internal.Wallet.Key
 
 import Prelude
 
-import CTL.Contract.Prelude (class Newtype)
-import CTL.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
-import CTL.Internal.Cardano.Types.Transaction
+import Contract.Prelude (class Newtype)
+import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
+import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet
   , UtxoMap
   , _vkeys
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import CTL.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
-import CTL.Internal.Serialization as Serialization
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
+import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
   , baseAddress
@@ -33,7 +33,7 @@ import CTL.Internal.Serialization.Address
   , enterpriseAddressToAddress
   , keyHashCredential
   )
-import CTL.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Serialization.Types (PrivateKey)
 import Data.Array (fromFoldable)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))

@@ -3,7 +3,7 @@
 -- | balance, and submit a failing smart-contract transaction. It creates a
 -- | transaction that pays two Ada to the `AlwaysFails` script address, and
 -- | then attempts to spend the two Ada, failing and losing the collateral.
-module CTL.Examples.Lose7Ada
+module Ctl.Examples.Lose7Ada
   ( main
   , example
   , alwaysFailsScript
@@ -11,26 +11,26 @@ module CTL.Examples.Lose7Ada
   , spendFromAlwaysFails
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address (scriptHashAddress)
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad
+import Contract.Address (scriptHashAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
   , runContract
   )
-import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope
+import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
@@ -38,12 +38,12 @@ import CTL.Contract.Transaction
   , plutusV1Script
   , submit
   )
-import CTL.Contract.TxConstraints (TxConstraints)
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (getWalletBalance, utxosAt)
-import CTL.Contract.Value as Value
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Value as Value
 -- TODO Re-export into Contract or drop the usage
-import CTL.Internal.BalanceTx.Collateral (minRequiredCollateral)
+import Ctl.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Map as Map

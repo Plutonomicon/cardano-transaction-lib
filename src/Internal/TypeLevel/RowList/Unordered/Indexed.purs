@@ -1,4 +1,4 @@
-module CTL.Internal.TypeLevel.RowList.Unordered.Indexed
+module Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   ( ConsI
   , NilI
   , RowListI
@@ -14,7 +14,7 @@ module CTL.Internal.TypeLevel.RowList.Unordered.Indexed
 
 import Data.Symbol
 
-import CTL.Internal.TypeLevel.Nat (class KnownNat, Nat, S, Z)
+import Ctl.Internal.TypeLevel.Nat (class KnownNat, Nat, S, Z)
 import Prim.TypeError (class Fail, Text)
 import Type.RowList (Cons, Nil, RowList)
 

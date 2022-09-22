@@ -1,4 +1,4 @@
-module CTL.Internal.JsWebSocket
+module Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , ListenerRef
   , Url

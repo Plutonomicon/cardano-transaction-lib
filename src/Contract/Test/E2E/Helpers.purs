@@ -1,5 +1,5 @@
 {- | This module is intended to be used for running custom E2E-tests -}
-module CTL.Contract.Test.E2E.Helpers
+module Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample
   , ExtensionId(ExtensionId)
@@ -19,7 +19,7 @@ module CTL.Contract.Test.E2E.Helpers
 
 import Prelude
 
-import CTL.Contract.Test.E2E.Feedback (testFeedbackIsTrue)
+import Contract.Test.E2E.Feedback (testFeedbackIsTrue)
 import Control.Alternative ((<|>))
 import Control.Promise (Promise, toAffE)
 import Data.Array (any, elem, head)

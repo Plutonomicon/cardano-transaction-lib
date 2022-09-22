@@ -1,4 +1,4 @@
-module CTL.Internal.Cardano.Types.Transaction
+module Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -85,10 +85,10 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   )
-import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
-import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import CTL.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value)
-import CTL.Internal.Helpers
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
+import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value)
+import Ctl.Internal.Helpers
   ( appendMap
   , encodeMap
   , encodeSet
@@ -96,25 +96,25 @@ import CTL.Internal.Helpers
   , (</>)
   , (<<>>)
   )
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
   , RewardAddress
   , Slot(Slot)
   , StakeCredential
   )
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
-import CTL.Internal.Serialization.Types (VRFKeyHash)
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int as Int
-import CTL.Internal.Types.OutputDatum (OutputDatum)
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.RedeemerTag (RedeemerTag)
-import CTL.Internal.Types.Scripts (Language, PlutusScript)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Serialization.Types (VRFKeyHash)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Int as Int
+import Ctl.Internal.Types.OutputDatum (OutputDatum)
+import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
+import Ctl.Internal.Types.Scripts (Language, PlutusScript)
+import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Data.Array (union)

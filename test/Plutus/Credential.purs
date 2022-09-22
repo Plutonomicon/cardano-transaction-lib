@@ -1,16 +1,16 @@
-module Test.CTL.Plutus.Credential
+module Test.Ctl.Plutus.Credential
   ( suite
   , creds
   ) where
 
 import Prelude
 
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , scriptHashFromBech32
   )
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Plutus.Types.Credential
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Plutus.Types.Credential
   ( Credential(ScriptCredential, PubKeyCredential)
   )
 import Data.Maybe (fromJust)
@@ -19,8 +19,8 @@ import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (toFromAesonTest)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (toFromAesonTest)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

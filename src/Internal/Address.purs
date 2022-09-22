@@ -1,4 +1,4 @@
-module CTL.Internal.Address
+module Ctl.Internal.Address
   ( addressToOgmiosAddress
   , enterpriseAddressMintingPolicyHash
   , enterpriseAddressScriptHash
@@ -9,8 +9,8 @@ module CTL.Internal.Address
 
 import Prelude
 
-import CTL.Internal.QueryM.Ogmios as Ogmios
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
@@ -18,8 +18,8 @@ import CTL.Internal.Serialization.Address
   , enterpriseAddressPaymentCred
   , stakeCredentialToScriptHash
   )
-import CTL.Internal.Serialization.Hash (ScriptHash)
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , StakeValidatorHash(StakeValidatorHash)
   , ValidatorHash(ValidatorHash)

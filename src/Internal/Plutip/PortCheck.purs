@@ -1,4 +1,4 @@
-module CTL.Internal.Plutip.PortCheck
+module Ctl.Internal.Plutip.PortCheck
   ( isPortAvailable
   ) where
 

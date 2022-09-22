@@ -1,12 +1,12 @@
-module CTL.Internal.Serialization.PlutusScript
+module Ctl.Internal.Serialization.PlutusScript
   ( convertPlutusScript
   ) where
 
 import Prelude
 
-import CTL.Internal.Serialization.Types (PlutusScript)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Serialization.Types (PlutusScript)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   ) as T

@@ -1,4 +1,4 @@
-module CTL.Internal.Types.OutputDatum
+module Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
@@ -10,13 +10,13 @@ import Aeson
   ( class EncodeAeson
   , encodeAeson'
   )
-import CTL.Internal.FromData (class FromData, genericFromData)
-import CTL.Internal.Helpers (encodeTagged')
-import CTL.Internal.ToData (class ToData, genericToData)
-import CTL.Internal.TypeLevel.Nat (S, Z)
-import CTL.Internal.Types.Datum (Datum)
-import CTL.Internal.Types.Transaction (DataHash)
-import CTL.Plutus.Types.DataSchema
+import Ctl.Internal.FromData (class FromData, genericFromData)
+import Ctl.Internal.Helpers (encodeTagged')
+import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.Types.Datum (Datum)
+import Ctl.Internal.Types.Transaction (DataHash)
+import Ctl.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

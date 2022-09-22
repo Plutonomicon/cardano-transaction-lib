@@ -1,4 +1,4 @@
-module CTL.Internal.Base64
+module Ctl.Internal.Base64
   ( Base64String
   , mkBase64String
   , unBase64String
@@ -15,8 +15,8 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   )
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, maybe)
 import Test.QuickCheck (class Arbitrary, arbitrary)

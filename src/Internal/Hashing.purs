@@ -1,4 +1,4 @@
-module CTL.Internal.Hashing
+module Ctl.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
   , datumHash
@@ -13,24 +13,24 @@ module CTL.Internal.Hashing
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.ScriptRef
+import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
-import CTL.Internal.Deserialization.Transaction (_txBody)
-import CTL.Internal.Serialization (toBytes)
-import CTL.Internal.Serialization.Hash (ScriptHash, nativeScriptHash)
-import CTL.Internal.Serialization.NativeScript (convertNativeScript)
-import CTL.Internal.Serialization.PlutusData (convertPlutusData)
-import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.Deserialization.Transaction (_txBody)
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization.Hash (ScriptHash, nativeScriptHash)
+import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
+import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.Types
   ( PlutusData
   , PlutusScript
   , Transaction
   ) as Serialization
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Datum (Datum)
-import CTL.Internal.Types.Scripts (PlutusScript)
-import CTL.Internal.Types.Transaction (DataHash, TransactionHash)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Datum (Datum)
+import Ctl.Internal.Types.Scripts (PlutusScript)
+import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap, wrap)
 import Untagged.Union (asOneOf)

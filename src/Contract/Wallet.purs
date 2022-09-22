@@ -1,36 +1,36 @@
 -- | A module with Wallet-related functionality.
-module CTL.Contract.Wallet
+module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
-  , module CTL.Contract.Address
+  , module Contract.Address
   , module Contract.Utxos
   , module Serialization
   , module Wallet
-  , module CTL.Internal.Wallet.Key
-  , module CTL.Internal.Wallet.KeyFile
-  , module CTL.Internal.Wallet.Spec
+  , module Ctl.Internal.Wallet.Key
+  , module Ctl.Internal.Wallet.KeyFile
+  , module Ctl.Internal.Wallet.Spec
   ) where
 
 import Prelude
 
-import CTL.Contract.Address (getWalletAddress, getWalletCollateral)
-import CTL.Contract.Monad (Contract, ContractEnv)
-import CTL.Contract.Utxos (getWalletUtxos) as Contract.Utxos
-import CTL.Internal.Serialization (privateKeyFromBytes) as Serialization
-import CTL.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
-import CTL.Internal.Wallet
+import Contract.Address (getWalletAddress, getWalletCollateral)
+import Contract.Monad (Contract, ContractEnv)
+import Contract.Utxos (getWalletUtxos) as Contract.Utxos
+import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
+import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
+import Ctl.Internal.Wallet
   ( isFlintAvailable
   , isGeroAvailable
   , isLodeAvailable
   , isNamiAvailable
   ) as Wallet
-import CTL.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
+import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import CTL.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
-import CTL.Internal.Wallet.Spec
+import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
+import Ctl.Internal.Wallet.Spec
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , WalletSpec

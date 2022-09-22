@@ -1,12 +1,12 @@
-module CTL.Examples.PlutusV2.ReferenceInputs
+module Ctl.Examples.PlutusV2.ReferenceInputs
   ( main
   , example
   , contract
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address
+import Contract.Address
   ( Address
   , PaymentPubKeyHash
   , StakePubKeyHash
@@ -15,18 +15,18 @@ import CTL.Contract.Address
   , ownStakePubKeyHash
   , scriptHashAddress
   )
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractM
   , liftedM
   , runContract
   )
-import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts
+import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts
   ( MintingPolicy
   , MintingPolicyHash
   , PlutusScript
@@ -34,12 +34,12 @@ import CTL.Contract.Scripts
   , mintingPolicyHash
   , validatorHash
   )
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV2)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
   , TransactionInput(TransactionInput)
@@ -48,21 +48,21 @@ import CTL.Contract.Transaction
   , mkTxUnspentOut
   , plutusV2Script
   )
-import CTL.Contract.TxConstraints
+import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
   , InputWithScriptRef(RefInput)
   , TxConstraints
   )
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value (TokenName, Value)
-import CTL.Contract.Value (lovelaceValueOf) as Value
-import CTL.Examples.Helpers
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Value (TokenName, Value)
+import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
-import CTL.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (Map)
 import Data.Map (empty, toUnfoldable) as Map

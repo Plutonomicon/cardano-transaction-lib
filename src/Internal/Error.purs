@@ -1,4 +1,4 @@
-module CTL.Internal.Error
+module Ctl.Internal.Error
   ( E
   , NotImplementedError
   , _notImplementedError

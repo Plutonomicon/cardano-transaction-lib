@@ -1,8 +1,8 @@
-module Test.CTL.Base64 (suite) where
+module Test.Ctl.Base64 (suite) where
 
 import Prelude
 
-import CTL.Internal.Base64
+import Ctl.Internal.Base64
   ( fromByteArray
   , mkBase64String
   , toByteArray
@@ -12,7 +12,7 @@ import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (quickCheck, (===))
 
 suite :: TestPlanM (Aff Unit) Unit

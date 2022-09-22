@@ -1,4 +1,4 @@
-module CTL.Internal.Metadata.ToMetadata
+module Ctl.Internal.Metadata.ToMetadata
   ( class ToMetadata
   , toMetadata
   , AnyToMetadata
@@ -8,9 +8,9 @@ module CTL.Internal.Metadata.ToMetadata
 
 import Prelude
 
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int (Int, fromBigInt) as Int
-import CTL.Internal.Types.TransactionMetadata
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Int (Int, fromBigInt) as Int
+import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
   )
 import Data.Array (fromFoldable) as Array

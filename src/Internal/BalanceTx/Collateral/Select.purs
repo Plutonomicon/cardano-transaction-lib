@@ -1,4 +1,4 @@
-module CTL.Internal.BalanceTx.Collateral.Select
+module Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
@@ -6,19 +6,19 @@ module CTL.Internal.BalanceTx.Collateral.Select
 
 import Prelude
 
-import CTL.Internal.BalanceTx.FakeOutput (fakeOutputWithNonAdaAssets)
-import CTL.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithNonAdaAssets)
+import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
+import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput
   , UtxoMap
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Internal.Cardano.Types.Value (NonAdaAsset)
-import CTL.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import CTL.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Cardano.Types.Value (NonAdaAsset)
+import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (foldMap, foldl)

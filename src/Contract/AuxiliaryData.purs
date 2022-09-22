@@ -1,4 +1,4 @@
-module CTL.Contract.AuxiliaryData
+module Contract.AuxiliaryData
   ( setAuxiliaryData
   , setGeneralTxMetadata
   , setTxMetadata
@@ -6,26 +6,26 @@ module CTL.Contract.AuxiliaryData
 
 import Prelude
 
-import CTL.Contract.Monad (Contract)
-import CTL.Contract.ScriptLookups
+import Contract.Monad (Contract)
+import Contract.ScriptLookups
   ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   )
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
   )
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( _auxiliaryData
   , _auxiliaryDataHash
   , _body
   ) as Tx
-import CTL.Internal.Metadata.MetadataType
+import Ctl.Internal.Metadata.MetadataType
   ( class MetadataType
   , toGeneralTxMetadata
   )
-import CTL.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
-import CTL.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import CTL.Internal.Types.UnbalancedTransaction (UnbalancedTx, _transaction)
+import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
+import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx, _transaction)
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
 import Data.Lens.Types (Lens')

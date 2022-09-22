@@ -1,5 +1,5 @@
 -- | Arbitrary precision natural numbers (backed by `BigInt`).
-module CTL.Internal.Types.Natural
+module Ctl.Internal.Types.Natural
   ( (^-)
   , Natural
   , binaryOnBigInt
@@ -15,11 +15,11 @@ module CTL.Internal.Types.Natural
 import Prelude
 
 import Aeson (class DecodeAeson, JsonDecodeError(TypeMismatch), caseAesonBigInt)
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.PlutusData (PlutusData(Integer))
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left), note)

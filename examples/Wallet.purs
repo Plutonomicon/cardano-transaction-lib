@@ -1,12 +1,12 @@
-module CTL.Examples.Wallet (example, contract) where
+module Ctl.Examples.Wallet (example, contract) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address (getWalletAddress, getWalletCollateral)
-import CTL.Contract.Config (ConfigParams)
-import CTL.Contract.Monad (Contract, launchAff_, runContract)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.Utxos (getWalletBalance, getWalletUtxos)
+import Contract.Address (getWalletAddress, getWalletCollateral)
+import Contract.Config (ConfigParams)
+import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.Utxos (getWalletBalance, getWalletUtxos)
 
 contract :: Contract () Unit
 contract = do

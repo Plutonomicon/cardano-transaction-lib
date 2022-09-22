@@ -3,14 +3,14 @@
 -- | that performs three actions: (1) sends some amount of Ada to the receiver's 
 -- | address, (2) mints the specified non-Ada value (3) then sends it to the 
 -- | owner's address with a datum attached. 
-module CTL.Examples.ContractTestUtils
+module Ctl.Examples.ContractTestUtils
   ( ContractParams(ContractParams)
   , contract
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address
+import Contract.Address
   ( Address
   , PaymentPubKeyHash
   , StakePubKeyHash
@@ -21,20 +21,20 @@ import CTL.Contract.Address
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   )
-import CTL.Contract.AuxiliaryData (setTxMetadata)
-import CTL.Contract.Hashing (datumHash)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad (Contract, liftContractM, liftedE, liftedM)
-import CTL.Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (MintingPolicy)
-import CTL.Contract.Test.Utils
+import Contract.AuxiliaryData (setTxMetadata)
+import Contract.Hashing (datumHash)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
+import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (MintingPolicy)
+import Contract.Test.Utils
   ( ContractBasicAssertion
   , ContractWrapAssertion
   , label
   )
-import CTL.Contract.Test.Utils as TestUtils
-import CTL.Contract.Transaction
+import Contract.Test.Utils as TestUtils
+import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
@@ -43,18 +43,18 @@ import CTL.Contract.Transaction
   , lookupTxHash
   , submit
   )
-import CTL.Contract.TxConstraints (DatumPresence(DatumWitness))
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value (CurrencySymbol, TokenName, Value)
-import CTL.Contract.Value (lovelaceValueOf, singleton) as Value
-import CTL.Examples.Helpers
+import Contract.TxConstraints (DatumPresence(DatumWitness))
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Value (CurrencySymbol, TokenName, Value)
+import Contract.Value (lovelaceValueOf, singleton) as Value
+import Ctl.Examples.Helpers
   ( mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
   ) as Helpers
 -- TODO Re-export into Contract or drop the usage
-import CTL.Internal.Metadata.Cip25.V2 (Cip25Metadata)
-import CTL.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
+import Ctl.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   , _output
   )

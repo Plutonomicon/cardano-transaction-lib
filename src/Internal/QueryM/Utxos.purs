@@ -1,5 +1,5 @@
 -- | A module for `QueryM` queries related to utxos.
-module CTL.Internal.QueryM.Utxos
+module Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
   , getUtxo
   , getWalletBalance
@@ -10,28 +10,28 @@ module CTL.Internal.QueryM.Utxos
 
 import Prelude
 
-import CTL.Internal.Address (addressToOgmiosAddress)
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Address (addressToOgmiosAddress)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Internal.Cardano.Types.Value (Value)
-import CTL.Internal.Helpers as Helpers
-import CTL.Internal.QueryM
+import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Helpers as Helpers
+import Ctl.Internal.QueryM
   ( QueryM
   , callCip30Wallet
   , getWalletAddress
   , mkOgmiosRequest
   )
-import CTL.Internal.QueryM.Ogmios as Ogmios
-import CTL.Internal.Serialization.Address (Address)
-import CTL.Internal.TxOutput
+import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.TxOutput
   ( ogmiosTxOutToTransactionOutput
   , txOutRefToTransactionInput
   )
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import CTL.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, KeyWallet))
+import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
+import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, KeyWallet))
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Data.Array as Array

@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Datum
+module Ctl.Internal.Types.Datum
   ( Datum(Datum)
   , unitDatum
   , module X
@@ -10,10 +10,10 @@ import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<))
 import Aeson.Encode as Encode
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.Transaction (DataHash(DataHash)) as X
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.Transaction (DataHash(DataHash)) as X
 import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)

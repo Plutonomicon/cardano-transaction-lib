@@ -1,4 +1,4 @@
-module CTL.Internal.Wallet.Cip30
+module Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
   , mkCip30WalletAff
@@ -6,24 +6,24 @@ module CTL.Internal.Wallet.Cip30
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Internal.Cardano.Types.Value (Value)
-import CTL.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import CTL.Internal.Deserialization.UnspentOutput (convertValue)
-import CTL.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
-import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.Serialization as Serialization
-import CTL.Internal.Serialization.Address (Address, addressFromBytes)
-import CTL.Internal.Types.ByteArray (byteArrayToHex)
-import CTL.Internal.Types.CborBytes (rawBytesAsCborBytes)
-import CTL.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
+import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
+import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
+import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization.Address (Address, addressFromBytes)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
+import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise

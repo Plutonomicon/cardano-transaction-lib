@@ -1,7 +1,7 @@
 -- | A module for a Plutus-style `AssocMap`
-module CTL.Contract.AssocMap (module AssocMap) where
+module Contract.AssocMap (module AssocMap) where
 
-import CTL.Plutus.Types.AssocMap
+import Ctl.Plutus.Types.AssocMap
   ( Map(Map)
   , delete
   , elems

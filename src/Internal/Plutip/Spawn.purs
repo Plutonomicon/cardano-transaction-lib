@@ -1,7 +1,7 @@
 -- | This module provides ability to spawn a program using `spawn` and wait
 -- | for some specific output that indicates that the program has started
 -- | successfully or failed, in which case an exception is thrown.
-module CTL.Internal.Plutip.Spawn
+module Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , spawnAndWaitForOutput
   , killOnExit

@@ -1,4 +1,4 @@
-module CTL.Internal.Deserialization.FromBytes
+module Ctl.Internal.Deserialization.FromBytes
   ( class FromBytes
   , FromBytesError
   , _fromBytesError
@@ -10,9 +10,9 @@ module CTL.Internal.Deserialization.FromBytes
 
 import Prelude
 
-import CTL.Internal.Error (E)
-import CTL.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.Error (E)
+import Ctl.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
+import Ctl.Internal.Serialization.Types
   ( DataHash
   , Mint
   , NativeScript
@@ -24,7 +24,7 @@ import CTL.Internal.Serialization.Types
   , VRFKeyHash
   , Value
   )
-import CTL.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Either (Either(Left), hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Variant (inj)

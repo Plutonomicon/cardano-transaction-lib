@@ -1,4 +1,4 @@
-module CTL.Internal.Metadata.Helpers
+module Ctl.Internal.Metadata.Helpers
   ( mkKey
   , unsafeMkKey
   , lookupKey
@@ -9,9 +9,9 @@ module CTL.Internal.Metadata.Helpers
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
-import CTL.Internal.Types.ByteArray (byteArrayFromAscii)
-import CTL.Internal.Types.PlutusData (PlutusData(Map, Bytes))
-import CTL.Internal.Types.TransactionMetadata
+import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
+import Ctl.Internal.Types.PlutusData (PlutusData(Map, Bytes))
+import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, Text)
   )
 import Data.Either (Either(Left))

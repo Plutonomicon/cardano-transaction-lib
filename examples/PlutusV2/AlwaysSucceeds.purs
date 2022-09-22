@@ -1,33 +1,33 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module CTL.Examples.PlutusV2.AlwaysSucceeds
+module Ctl.Examples.PlutusV2.AlwaysSucceeds
   ( main
   , example
   , contract
   , alwaysSucceedsScriptV2
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad
   ( Contract
   , launchAff_
   , runContract
   )
-import CTL.Contract.Scripts (Validator, validatorHash)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope
+import Contract.Scripts (Validator, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV2)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( awaitTxConfirmed
   , plutusV2Script
   )
-import CTL.Examples.AlwaysSucceeds
+import Ctl.Examples.AlwaysSucceeds
   ( payToAlwaysSucceeds
   , spendFromAlwaysSucceeds
   )

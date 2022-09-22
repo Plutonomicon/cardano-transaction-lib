@@ -1,4 +1,4 @@
-module CTL.Internal.Cardano.TextEnvelope
+module Ctl.Internal.Cardano.TextEnvelope
   ( decodeTextEnvelope
   , printTextEnvelopeDecodeError
   , textEnvelopeBytes
@@ -22,8 +22,8 @@ import Aeson
   , parseJsonStringToAeson
   , printJsonDecodeError
   )
-import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import CTL.Internal.Types.Cbor (CborParseError, toByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
+import Ctl.Internal.Types.Cbor (CborParseError, toByteArray)
 import Control.Monad.Except (throwError)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, note)

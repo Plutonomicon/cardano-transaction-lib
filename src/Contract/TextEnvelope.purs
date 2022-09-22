@@ -1,12 +1,12 @@
-module CTL.Contract.TextEnvelope
+module Contract.TextEnvelope
   ( module TextEnvelope
   , textEnvelopeBytes
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Monad (Contract)
-import CTL.Internal.Cardano.TextEnvelope
+import Contract.Monad (Contract)
+import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   , TextEnvelopeType
@@ -18,9 +18,9 @@ import CTL.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   , printTextEnvelopeDecodeError
   ) as TextEnvelope
-import CTL.Internal.Cardano.TextEnvelope (TextEnvelopeType, textEnvelopeBytes) as TE
-import CTL.Internal.Cardano.TextEnvelope (printTextEnvelopeDecodeError)
-import CTL.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Cardano.TextEnvelope (TextEnvelopeType, textEnvelopeBytes) as TE
+import Ctl.Internal.Cardano.TextEnvelope (printTextEnvelopeDecodeError)
+import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Bifunctor (lmap)
 import Effect.Exception (error)
 

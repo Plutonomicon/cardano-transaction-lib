@@ -1,5 +1,5 @@
 -- | A module for Address-related functionality and querying own wallet.
-module CTL.Contract.Address
+module Contract.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
@@ -33,27 +33,27 @@ module CTL.Contract.Address
 
 import Prelude
 
-import CTL.Contract.Monad (Contract, liftedM, wrapContract)
-import CTL.Internal.Address
+import Contract.Monad (Contract, liftedM, wrapContract)
+import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( getWalletAddress
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
   ) as QueryM
-import CTL.Internal.QueryM.NetworkId (getNetworkId) as QueryM
-import CTL.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
-import CTL.Internal.Scripts
+import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
+import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
+import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Serialization.Address
   ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
   , CertificateIndex(CertificateIndex)
@@ -62,23 +62,23 @@ import CTL.Internal.Serialization.Address
   , Slot(Slot)
   , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
-import CTL.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
-import CTL.Internal.Serialization.Hash (ScriptHash)
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.Aliases (Bech32String) as TypeAliases
-import CTL.Internal.Types.ByteArray (ByteArray) as ByteArray
-import CTL.Internal.Types.PubKeyHash
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
+import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
+import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
+import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , PubKeyHash
   , StakePubKeyHash
   )
-import CTL.Internal.Types.PubKeyHash
+import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import CTL.Internal.Types.PubKeyHash
+import Ctl.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyHashRewardAddress
@@ -87,23 +87,23 @@ import CTL.Internal.Types.PubKeyHash
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import CTL.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
-import CTL.Internal.Types.TypedValidator (TypedValidator)
-import CTL.Internal.Types.UnbalancedTransaction
+import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
+import Ctl.Internal.Types.TypedValidator (TypedValidator)
+import Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
-import CTL.Plutus.Conversion
+import Ctl.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
   , toPlutusTxUnspentOutput
   )
-import CTL.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import CTL.Plutus.Types.Address
+import Ctl.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
+import Ctl.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   )
-import CTL.Plutus.Types.Address
+import Ctl.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
@@ -112,7 +112,7 @@ import CTL.Plutus.Types.Address
   , toStakingCredential
   , toValidatorHash
   ) as ExportAddress
-import CTL.Plutus.Types.TransactionUnspentOutput
+import Ctl.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Data.Maybe (Maybe)

@@ -1,15 +1,15 @@
-module Test.CTL.Ogmios.EvaluateTx (suite) where
+module Test.Ctl.Ogmios.EvaluateTx (suite) where
 
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson)
-import CTL.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios
   ( ExecutionUnits
   , RedeemerPointer
   , TxEvaluationResult
   )
-import CTL.Internal.Types.Natural (fromInt')
-import CTL.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
+import Ctl.Internal.Types.Natural (fromInt')
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Data.Either (Either(Left, Right))
 import Data.Map (toUnfoldable) as Map
 import Data.Newtype (unwrap)
@@ -17,11 +17,11 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.CTL.Fixtures
+import Test.Ctl.Fixtures
   ( ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   )
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit

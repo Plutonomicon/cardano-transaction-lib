@@ -1,4 +1,4 @@
-module CTL.Internal.Types.MultiMap
+module Ctl.Internal.Types.MultiMap
   ( MultiMap
   , empty
   , singleton
