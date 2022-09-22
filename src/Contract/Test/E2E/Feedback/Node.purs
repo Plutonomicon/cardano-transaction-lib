@@ -22,17 +22,6 @@ import Foreign (unsafeFromForeign)
 import Helpers (liftEither)
 import Toppokki as Toppokki
 
-getBrowserEvents
-  :: forall a. DecodeAeson a => Toppokki.Page -> Aff (Array (BrowserEvent a))
-getBrowserEvents page = do
-  frgn <- Toppokki.unsafeEvaluateStringFunction collectEventsJS page
-  let
-    (encodedEvents :: Array String) = unsafeFromForeign frgn
-  for encodedEvents \event -> do
-    liftEither $ note (error $ "Unable to decode BrowserEvent from: " <> event)
-      $ hush
-      $ decodeAeson =<< parseJsonStringToAeson event
-
 -- | React to events raised by the browser
 subscribeToBrowserEvents
   :: forall a
@@ -60,6 +49,17 @@ subscribeToBrowserEvents timeout page cont = do
           Failure _ -> liftEffect $ throw "Failure"
           _ -> pure unit
       delay $ Milliseconds $ 1000.0
+
+getBrowserEvents
+  :: forall a. DecodeAeson a => Toppokki.Page -> Aff (Array (BrowserEvent a))
+getBrowserEvents page = do
+  frgn <- Toppokki.unsafeEvaluateStringFunction collectEventsJS page
+  let
+    (encodedEvents :: Array String) = unsafeFromForeign frgn
+  for encodedEvents \event -> do
+    liftEither $ note (error $ "Unable to decode BrowserEvent from: " <> event)
+      $ hush
+      $ decodeAeson =<< parseJsonStringToAeson event
 
 collectEventsJS :: String
 collectEventsJS =

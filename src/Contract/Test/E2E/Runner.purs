@@ -9,14 +9,26 @@ import Contract.Test.E2E.Options
   , E2ECommand(UnpackSettings, PackSettings, RunBrowser, RunE2ETests)
   , ExtensionOptions
   , SettingsOptions
+  , TestOptions
+  )
+import Contract.Test.E2E.Types
+  ( BrowserPath
+  , ChromeUserDataDir
+  , ExtensionParams
+  , Extensions
+  , SettingsArchive
+  , TempDir
+  , WalletPassword(WalletPassword)
   )
 import Contract.Test.E2E.WalletExt
   ( ExtensionId(ExtensionId)
   , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
   )
 import Control.Alt ((<|>))
-import Data.Array (catMaybes)
+import Data.Array (catMaybes, nub)
+import Data.Array as Array
 import Data.Either (Either(Left, Right))
+import Data.Foldable (fold)
 import Data.List (intercalate)
 import Data.Map (Map)
 import Data.Map as Map
@@ -53,15 +65,6 @@ import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
 import Type.Proxy (Proxy(Proxy))
-import Contract.Test.E2E.Types
-  ( BrowserPath
-  , ChromeUserDataDir
-  , ExtensionParams
-  , Extensions
-  , SettingsArchive
-  , TempDir
-  , WalletPassword(WalletPassword)
-  )
 
 type E2ETestRuntime =
   { wallets :: Map WalletExt ExtensionParams
@@ -76,8 +79,19 @@ type SettingsRuntime =
   , settingsArchive :: FilePath
   }
 
-readRuntime :: BrowserOptions -> Aff E2ETestRuntime
-readRuntime testOptions = do
+readTestRuntime :: TestOptions -> Aff E2ETestRuntime
+readTestRuntime testOptions = do
+  let
+    browserOptions =
+      build
+        ( delete (Proxy :: Proxy "noHeadless") <<<
+            delete (Proxy :: Proxy "testUrls")
+        )
+        testOptions
+  readBrowserRuntime browserOptions
+
+readBrowserRuntime :: BrowserOptions -> Aff E2ETestRuntime
+readBrowserRuntime testOptions = do
   browserPath <- maybe findBrowser pure testOptions.chromeExe
   mbTempDir <- maybe (liftEffect lookupTempDir) (pure <<< Just)
     testOptions.tempDir
@@ -112,9 +126,15 @@ readRuntime testOptions = do
     , settingsArchive
     }
 
+readTestUrls :: Array String -> Effect (Array String)
+readTestUrls optUrls = do
+  urls <- lookupEnv "E2E_TEST_URLS" <#> fold
+    >>> String.split (Pattern "\n")
+    >>> Array.filter (String.trim >>> eq "")
+  pure $ nub $ urls <> optUrls
+
 ensureChromeUserDataDir :: FilePath -> Aff Unit
 ensureChromeUserDataDir chromeUserDataDir = do
-  liftEffect $ Console.log "hiii"
   void $ spawnAndCollectOutput "mkdir" [ "-p", chromeUserDataDir ]
     defaultSpawnOptions
     defaultErrorReader
@@ -122,14 +142,16 @@ ensureChromeUserDataDir chromeUserDataDir = do
 lookupTempDir :: Effect (Maybe String)
 lookupTempDir = lookupEnv "E2E_TMPDIR"
 
+runE2ETests :: TestOptions -> E2ETestRuntime -> Aff Unit
+runE2ETests opts rt = pure unit
+
 runE2E :: E2ECommand -> Aff Unit
 runE2E = case _ of
   RunE2ETests testOptions -> do
-    runtime <- readRuntime $
-      build (delete (Proxy :: Proxy "noHeadless")) testOptions
-    pure unit
+    runtime <- readTestRuntime testOptions
+    runE2ETests testOptions runtime
   RunBrowser browserOptions -> do
-    runtime <- readRuntime browserOptions
+    runtime <- readBrowserRuntime browserOptions
     liftEffect $ Console.log $ show runtime
     runBrowser runtime.tempDir runtime.chromeUserDataDir runtime.browserPath
       runtime.settingsArchive

@@ -3,22 +3,23 @@ module Contract.Test.E2E.Options where
 import Prelude
 
 import Contract.Test.E2E.Helpers (WalletPassword(WalletPassword))
-import Contract.Test.E2E.Types (ExtensionParams, CrxFilePath)
+import Contract.Test.E2E.Types (CrxFilePath)
 import Contract.Test.E2E.WalletExt
   ( ExtensionId(ExtensionId)
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
   )
+import Control.Alt ((<|>))
 import Data.Array (catMaybes)
+import Data.Array as Array
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
+import Data.List (List(Nil))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.Show.Generic (genericShow)
-import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, bracket)
 import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
@@ -27,12 +28,12 @@ import Options.Applicative
   , fullDesc
   , help
   , helper
+  , info
   , long
+  , many
   , metavar
   , option
   , progDesc
-  , short
-  , showDefault
   , showDefaultWith
   , str
   , strOption
@@ -41,13 +42,8 @@ import Options.Applicative
   , value
   , (<**>)
   )
-import Options.Applicative.Builder (info)
-import Options.Applicative.Types (optional)
-import Prim.Row as Row
 import Record.Builder (build, merge)
-import Toppokki as Toppokki
 import Type.Row (type (+))
-import Undefined (undefined)
 
 -- | Parameters for E2E tests
 -- | 'chromeExe' should point to a chromium or google-chrome binary.
@@ -60,9 +56,11 @@ import Undefined (undefined)
 -- |    so that wallet data is available.
 -- | 'noHeadless' is a flag to display the browser during the tests.
 -- TODO: rename to E2ETestOptions
-type TestOptions = Record (NoHeadless_ + MainOptions_ + ())
+type TestOptions = Record (NoHeadless_ + TestUrlsOptions_ + MainOptions_ + ())
 
 type NoHeadless_ r = (noHeadless :: Boolean | r)
+
+type TestUrlsOptions_ r = (testUrls :: Array String | r)
 
 type ExtensionOptions =
   { crxFile :: Maybe String
@@ -267,14 +265,27 @@ browserOptionsParser = ado
 testOptionsParser :: Parser TestOptions
 testOptionsParser = ado
   res <- browserOptionsParser
+  testUrls <- testUrlsOptionParser
   noHeadless <- switch $ fold
     [ long "no-headless"
     , help "Show visible browser window"
     ]
-  in build (merge res) { noHeadless }
+  in build (merge res) { noHeadless, testUrls }
 
-chromeUserDataOption :: Parser (Maybe String)
-chromeUserDataOption = option (Just <$> str) $ fold
+testUrlsOptionParser :: Parser (Array String)
+testUrlsOptionParser =
+  let
+    defaultValue = Nil
+    listStrOption =
+      many $ strOption $ long "test-url" <> help helpText
+  in
+    Array.fromFoldable <$> (listStrOption <|> (pure defaultValue))
+  where
+  helpText =
+    "URL of a hosted test example. Can be specified multiple times. Default: []"
+
+chromeUserDataOptionParser :: Parser (Maybe String)
+chromeUserDataOptionParser = option (Just <$> str) $ fold
   [ long "chrome-user-data"
   , help "Chrome/-ium user data dir"
   , value Nothing
@@ -284,7 +295,7 @@ chromeUserDataOption = option (Just <$> str) $ fold
 
 settingsOptionsParser :: Parser SettingsOptions
 settingsOptionsParser = ado
-  chromeUserDataDir <- chromeUserDataOption
+  chromeUserDataDir <- chromeUserDataOptionParser
   settingsArchive <- option (Just <$> str) $ fold
     [ long "settings-archive"
     , help "Settings archive (.tar.gz) that will be used to store the settings"
