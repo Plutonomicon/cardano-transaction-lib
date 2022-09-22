@@ -40,13 +40,13 @@ import Ctl.Internal.Plutip.Types
   , PrivateKeyResponse(PrivateKeyResponse)
   , UtxoAmount
   )
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))

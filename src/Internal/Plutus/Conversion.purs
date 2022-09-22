@@ -42,7 +42,6 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ) as Cardano
 import Ctl.Internal.Cardano.Types.Value (Coin) as Cardano
 import Ctl.Internal.Hashing (scriptRefHash)
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -64,6 +63,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Plutus
 import Ctl.Internal.Plutus.Types.Value (Coin) as Plutus
+import Ctl.Internal.Serialization.Address (NetworkId)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)

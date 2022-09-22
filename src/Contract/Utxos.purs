@@ -15,12 +15,6 @@ import Contract.Monad (Contract, liftContractM, wrapContract)
 import Contract.Prelude (for)
 import Contract.Transaction (TransactionInput, TransactionOutput)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.QueryM.Utxos
-  ( getUtxo
-  , getWalletBalance
-  , getWalletUtxos
-  , utxosAt
-  ) as Utxos
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusTxOutput
@@ -31,6 +25,12 @@ import Ctl.Internal.Plutus.Types.Address (Address)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
+import Ctl.Internal.QueryM.Utxos
+  ( getUtxo
+  , getWalletBalance
+  , getWalletUtxos
+  , utxosAt
+  ) as Utxos
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 

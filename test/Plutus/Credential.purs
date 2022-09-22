@@ -5,14 +5,14 @@ module Test.Ctl.Internal.Plutus.Credential
 
 import Prelude
 
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(ScriptCredential, PubKeyCredential)
+  )
 import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , scriptHashFromBech32
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Plutus.Types.Credential
-  ( Credential(ScriptCredential, PubKeyCredential)
-  )
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
 import Data.Traversable (for_)

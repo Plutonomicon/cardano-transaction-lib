@@ -10,6 +10,15 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData as PDD
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Plutus.Types.AssocMap (Map(Map))
+import Ctl.Internal.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as PDS
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
@@ -22,15 +31,6 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   )
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
-import Ctl.Internal.Plutus.Types.AssocMap (Map(Map))
-import Ctl.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))

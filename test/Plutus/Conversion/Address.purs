@@ -2,6 +2,12 @@ module Test.Ctl.Internal.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
+import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address) as Plutus
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(PubKeyCredential, ScriptCredential)
+  , StakingCredential(StakingHash, StakingPtr)
+  )
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressFromBech32
@@ -13,12 +19,6 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromInt) as BigNum
-import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
-import Ctl.Internal.Plutus.Types.Address (Address) as Plutus
-import Ctl.Internal.Plutus.Types.Credential
-  ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential(StakingHash, StakingPtr)
-  )
 import Data.Array (length, range, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
