@@ -6,6 +6,7 @@ module Contract.Address
   , getNetworkId
   , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
+  , addressFromBech32'
   , addressToBech32
   , getWalletAddress
   , getWalletCollateral
@@ -39,8 +40,8 @@ import Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
-import Contract.Monad (Contract, wrapContract, liftedM)
-import Data.Maybe (Maybe)
+import Contract.Monad (Contract, wrapContract, liftedM, liftContractM)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Plutus.Conversion
   ( fromPlutusAddress
@@ -79,7 +80,6 @@ import Scripts
 import Serialization.Address
   ( NetworkId(MainnetId)
   , addressBech32
-  , addressFromBech32
   , addressNetworkId
   )
 import Serialization.Address
@@ -90,6 +90,7 @@ import Serialization.Address
   , Pointer
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(TestnetId, MainnetId)
+  , addressFromBech32
   ) as SerializationAddress
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
@@ -177,7 +178,7 @@ addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
 -- | Convert `Bech32String` to `AddressWithNetworkTag`.
 addressWithNetworkTagFromBech32 :: Bech32String -> Maybe AddressWithNetworkTag
 addressWithNetworkTagFromBech32 str = do
-  cslAddress <- addressFromBech32 str
+  cslAddress <- SerializationAddress.addressFromBech32 str
   address <- toPlutusAddress cslAddress
   let networkId = addressNetworkId cslAddress
   pure $ AddressWithNetworkTag { address, networkId }
@@ -189,6 +190,18 @@ addressToBech32 address = do
   networkId <- getNetworkId
   pure $ addressWithNetworkTagToBech32
     (AddressWithNetworkTag { address, networkId })
+
+addressFromBech32'
+  :: forall (r :: Row Type). Bech32String -> Contract r (Maybe String)
+addressFromBech32' str = do
+  networkId <- getNetworkId
+  cslAddress <- liftContractM "unable to read address"
+    (SerializationAddress.addressFromBech32 str)
+  let networkId' = addressNetworkId cslAddress
+  if networkId == networkId' then
+    pure $ Just str
+  else
+    pure $ Nothing
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
