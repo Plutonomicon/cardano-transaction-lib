@@ -1,5 +1,6 @@
 module Test.Ctl.Serialization.Hash (suite) where
 
+import Control.Bind (bind, discard)
 import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
@@ -14,7 +15,6 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import Control.Bind (bind, discard)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)

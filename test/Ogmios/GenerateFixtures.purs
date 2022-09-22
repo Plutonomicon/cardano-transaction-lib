@@ -6,6 +6,7 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import Contract.Monad (ListenerSet)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.JsWebSocket
   ( _mkWebSocket
@@ -27,7 +28,6 @@ import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
 import Ctl.Internal.Types.MultiMap as MultiMap
-import Control.Parallel (parTraverse)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map

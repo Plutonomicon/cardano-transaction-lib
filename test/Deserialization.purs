@@ -3,6 +3,7 @@ module Test.Ctl.Deserialization (suite) where
 import Prelude
 
 import Contract.Address (ByteArray)
+import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
@@ -32,7 +33,6 @@ import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
 import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Ctl.Internal.Types.Transaction (TransactionInput) as T
-import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)

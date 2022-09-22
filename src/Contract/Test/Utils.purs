@@ -61,10 +61,10 @@ import Contract.Value
   , valueOf
   , valueToCoin'
   )
+import Control.Monad.Error.Class (catchError)
 import Ctl.Internal.Metadata.FromMetadata (fromMetadata)
 import Ctl.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Control.Monad.Error.Class (catchError)
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)
 import Data.Map (lookup) as Map

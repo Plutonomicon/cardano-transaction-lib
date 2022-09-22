@@ -85,6 +85,8 @@ import Aeson
   , decodeAeson
   , encodeAeson'
   )
+import Control.Alternative ((<|>))
+import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value)
@@ -115,8 +117,6 @@ import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Control.Alternative ((<|>))
-import Control.Apply (lift2)
 import Data.Array (union)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))

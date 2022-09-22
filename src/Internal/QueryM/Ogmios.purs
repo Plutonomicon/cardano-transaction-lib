@@ -87,6 +87,8 @@ import Aeson
   , stringifyAeson
   , toString
   )
+import Control.Alt ((<|>))
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -137,8 +139,6 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
-import Control.Alt ((<|>))
-import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (catMaybes, index, reverse, singleton)
 import Data.Array (head) as Array
 import Data.BigInt (BigInt)

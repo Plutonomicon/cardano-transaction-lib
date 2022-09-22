@@ -20,8 +20,8 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
-import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Control.Alt ((<|>))
+import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)

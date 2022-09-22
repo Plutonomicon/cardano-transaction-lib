@@ -60,6 +60,8 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
@@ -84,8 +86,6 @@ import Ctl.Internal.Types.TokenName
   , mkTokenName
   , mkTokenNames
   )
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
 import Data.Array (cons, filter)
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt)

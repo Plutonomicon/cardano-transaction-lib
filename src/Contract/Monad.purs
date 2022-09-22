@@ -27,6 +27,24 @@ module Contract.Monad
 
 import Prelude
 
+import Control.Alt (class Alt)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , catchError
+  )
+import Control.Monad.Except (throwError)
+import Control.Monad.Logger.Class (class MonadLogger)
+import Control.Monad.Reader.Class
+  ( class MonadAsk
+  , class MonadReader
+  , ask
+  , asks
+  , local
+  )
+import Control.Monad.Reader.Trans (runReaderT)
+import Control.Monad.Rec.Class (class MonadRec)
+import Control.Plus (class Plus, empty)
 import Ctl.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -67,24 +85,6 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Wallet.Spec (WalletSpec)
-import Control.Alt (class Alt)
-import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
-  , catchError
-  )
-import Control.Monad.Except (throwError)
-import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Reader.Class
-  ( class MonadAsk
-  , class MonadReader
-  , ask
-  , asks
-  , local
-  )
-import Control.Monad.Reader.Trans (runReaderT)
-import Control.Monad.Rec.Class (class MonadRec)
-import Control.Plus (class Plus, empty)
 import Data.Either (Either(Left, Right), either, hush)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)

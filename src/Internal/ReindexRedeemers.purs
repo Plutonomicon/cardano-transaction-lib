@@ -8,12 +8,12 @@ module Ctl.Internal.ReindexRedeemers
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Array (elemIndex)
 import Data.BigInt (fromInt)
 import Data.Either (Either(Right), note)

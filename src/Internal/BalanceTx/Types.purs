@@ -6,11 +6,11 @@ module Ctl.Internal.BalanceTx.Types
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT)
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.QueryM (QueryMExtended)
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
-import Control.Monad.Except.Trans (ExceptT)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)

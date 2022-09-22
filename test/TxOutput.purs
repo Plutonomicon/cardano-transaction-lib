@@ -3,13 +3,13 @@ module Test.Ctl.TxOutput (suite, main) where
 import Prelude
 
 import Aeson (decodeJsonString, printJsonDecodeError)
+import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
-import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Data.Bifunctor (bimap)
 import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Map as Map

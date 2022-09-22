@@ -16,6 +16,7 @@ import Prelude
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
+import Control.Monad.Reader (local)
 import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet
@@ -41,7 +42,6 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
-import Control.Monad.Reader (local)
 import Data.Lens (Lens, (.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)

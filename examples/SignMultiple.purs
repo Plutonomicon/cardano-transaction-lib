@@ -27,9 +27,9 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Control.Monad.Reader (asks)
 -- TODO Re-export into Contract or drop the usage
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
-import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
 import Effect.Ref as Ref
 

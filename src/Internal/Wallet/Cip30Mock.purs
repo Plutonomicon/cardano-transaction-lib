@@ -3,6 +3,10 @@ module Ctl.Internal.Wallet.Cip30Mock where
 import Prelude
 
 import Contract.Monad (Contract, ContractEnv, wrapContract)
+import Control.Monad.Error.Class (liftMaybe, try)
+import Control.Monad.Reader (ask)
+import Control.Monad.Reader.Class (local)
+import Control.Promise (Promise, fromAff)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
@@ -30,10 +34,6 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
-import Control.Monad.Error.Class (liftMaybe, try)
-import Control.Monad.Reader (ask)
-import Control.Monad.Reader.Class (local)
-import Control.Promise (Promise, fromAff)
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Foldable (foldMap)

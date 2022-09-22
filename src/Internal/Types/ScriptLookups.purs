@@ -49,6 +49,12 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
+import Control.Alt ((<|>))
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Reader.Class (asks)
+import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
+import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
@@ -182,12 +188,6 @@ import Ctl.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Control.Alt ((<|>))
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
-import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
-import Control.Monad.Trans.Class (lift)
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)

@@ -5,6 +5,7 @@ module Ctl.Internal.BalanceTx.UtxoMinAda
 
 import Prelude
 
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
@@ -22,7 +23,6 @@ import Ctl.Internal.Types.BigNum
   , toBigInt
   , toBigIntUnsafe
   ) as BigNum
-import Control.Monad.Error.Class (liftMaybe)
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)
 import Effect (Effect)

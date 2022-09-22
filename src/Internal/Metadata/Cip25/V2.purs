@@ -27,6 +27,7 @@ import Aeson
   , (.:?)
   )
 import Aeson as Aeson
+import Control.Alt ((<|>))
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
@@ -61,7 +62,6 @@ import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
 import Ctl.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
-import Control.Alt ((<|>))
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty

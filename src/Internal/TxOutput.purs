@@ -13,6 +13,8 @@ module Ctl.Internal.TxOutput
 
 import Prelude
 
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Ctl.Internal.Address
   ( addressToOgmiosAddress
   , enterpriseAddressValidatorHash
@@ -37,8 +39,6 @@ import Ctl.Internal.Types.OutputDatum
   )
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
 import Ctl.Internal.Types.UnbalancedTransaction as UTx
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)

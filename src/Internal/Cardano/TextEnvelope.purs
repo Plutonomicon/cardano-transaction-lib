@@ -22,9 +22,9 @@ import Aeson
   , parseJsonStringToAeson
   , printJsonDecodeError
   )
+import Control.Monad.Except (throwError)
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Ctl.Internal.Types.Cbor (CborParseError, toByteArray)
-import Control.Monad.Except (throwError)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, note)
 import Data.Newtype (class Newtype, wrap)

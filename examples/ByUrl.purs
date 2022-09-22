@@ -21,6 +21,7 @@ import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
   )
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.Datums as Datums
@@ -32,7 +33,6 @@ import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.Wallet as Wallet
-import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (last)
 import Data.Foldable (lookup)
 import Data.Maybe (Maybe(Just, Nothing))

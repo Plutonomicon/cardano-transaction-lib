@@ -10,11 +10,11 @@ import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<))
 import Aeson.Encode as Encode
+import Control.Lazy (defer)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Transaction (DataHash(DataHash)) as X
-import Control.Lazy (defer)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)

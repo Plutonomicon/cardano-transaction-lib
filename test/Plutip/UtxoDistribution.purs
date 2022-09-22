@@ -35,12 +35,12 @@ import Contract.Transaction
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
+import Control.Lazy (fix)
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
 import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Ctl.Plutus.Types.Transaction (UtxoMap)
-import Control.Lazy (fix)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt

@@ -6,6 +6,9 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
+import Control.Monad.Error.Class (liftMaybe)
+import Control.Promise (Promise, toAffE)
+import Control.Promise as Promise
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet
@@ -24,9 +27,6 @@ import Ctl.Internal.Serialization.Address (Address, addressFromBytes)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
-import Control.Monad.Error.Class (liftMaybe)
-import Control.Promise (Promise, toAffE)
-import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)

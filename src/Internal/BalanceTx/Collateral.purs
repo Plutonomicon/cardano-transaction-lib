@@ -6,6 +6,8 @@ module Ctl.Internal.BalanceTx.Collateral
 
 import Prelude
 
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
+import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral) as X
 import Ctl.Internal.BalanceTx.Error
@@ -31,8 +33,6 @@ import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') 
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
-import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap, foldl)

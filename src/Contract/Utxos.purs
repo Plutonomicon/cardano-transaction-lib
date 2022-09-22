@@ -14,6 +14,7 @@ import Prelude
 import Contract.Monad (Contract, liftContractM, wrapContract)
 import Contract.Prelude (for)
 import Contract.Transaction (TransactionInput, TransactionOutput)
+import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.QueryM.Utxos
   ( getUtxo
   , getWalletBalance
@@ -30,7 +31,6 @@ import Ctl.Plutus.Types.Address (Address)
 import Ctl.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Plutus.Types.Value (Value)
-import Control.Monad.Reader.Class (asks)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 

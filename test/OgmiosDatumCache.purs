@@ -6,10 +6,10 @@ import Prelude
 
 import Aeson (caseAesonArray, decodeAeson, encodeAeson)
 import Contract.Address (ByteArray)
+import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Hashing (datumHash)
 import Ctl.Internal.Types.Datum (Datum(Datum))
 import Ctl.Internal.Types.PlutusData (PlutusData)
-import Control.Monad.Error.Class (class MonadThrow)
 import Data.Either (Either(Right, Left))
 import Data.Newtype (unwrap)
 import Data.Traversable (for_)
