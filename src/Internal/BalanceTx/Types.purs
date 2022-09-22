@@ -14,8 +14,9 @@ import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import Effect.Aff (Aff)
 
-type BalanceTxM (a :: Type) = ExceptT BalanceTxError (QueryMExtended ()) a
+type BalanceTxM (a :: Type) = ExceptT BalanceTxError (QueryMExtended () Aff) a
 
 newtype FinalizedTransaction = FinalizedTransaction Transaction
 
