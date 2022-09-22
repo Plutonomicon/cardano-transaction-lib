@@ -1,9 +1,9 @@
 module Scaffold.Main (main) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Config as Contract.Config
-import CTL.Contract.Monad as Contract.Monad
+import Contract.Config as Contract.Config
+import Contract.Monad as Contract.Monad
 import Scaffold as Scaffold
 
 main :: Effect Unit

@@ -1,23 +1,23 @@
-module Test.CTL.NativeScript (suite) where
+module Test.Ctl.NativeScript (suite) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.NativeScript
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
-import CTL.Internal.NativeScripts (getMaximumSigners)
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.NativeScripts (getMaximumSigners)
+import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   )
-import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
 import Data.Maybe (fromJust)
 import Data.Set as Set
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

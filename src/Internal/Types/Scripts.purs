@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Scripts
+module Ctl.Internal.Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
@@ -26,12 +26,12 @@ import Aeson
   , getField
   , toStringifiedNumbersJson
   )
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Serialization.Hash (ScriptHash)
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)

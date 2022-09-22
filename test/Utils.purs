@@ -1,4 +1,4 @@
-module Test.CTL.Utils
+module Test.Ctl.Utils
   ( module ExportSeconds
   , aesonRoundTrip
   , assertTrue
@@ -47,7 +47,7 @@ import Mote (Plan, foldPlan, planT, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (FilePath)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)

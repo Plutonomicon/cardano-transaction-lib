@@ -1,20 +1,20 @@
 -- | A module that defines tokens in Cardano and helpers.
-module CTL.Contract.Value
+module Contract.Value
   ( module CurrencySymbol
   , module Scripts
   , module TokenName
   , module Value
   ) where
 
-import CTL.Internal.Scripts (scriptCurrencySymbol) as Scripts
-import CTL.Internal.Types.TokenName
+import Ctl.Internal.Scripts (scriptCurrencySymbol) as Scripts
+import Ctl.Internal.Types.TokenName
   ( TokenName
   , adaToken
   , getTokenName
   , mkTokenName
   , mkTokenNames
   ) as TokenName
-import CTL.Plutus.Types.CurrencySymbol
+import Ctl.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , currencyMPSHash
@@ -23,7 +23,7 @@ import CTL.Plutus.Types.CurrencySymbol
   , mpsSymbol
   , scriptHashAsCurrencySymbol
   ) as CurrencySymbol
-import CTL.Plutus.Types.Value
+import Ctl.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue

@@ -1,4 +1,4 @@
-module CTL.Internal.Cardano.Types.NativeScript
+module Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -15,9 +15,9 @@ import Aeson
   ( class EncodeAeson
   , encodeAeson'
   )
-import CTL.Internal.Helpers (encodeTagged')
-import CTL.Internal.Serialization.Address (Slot)
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Helpers (encodeTagged')
+import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 

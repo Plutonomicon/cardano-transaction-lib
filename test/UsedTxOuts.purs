@@ -1,10 +1,10 @@
-module Test.CTL.UsedTxOuts (suite) where
+module Test.Ctl.UsedTxOuts (suite) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import CTL.Internal.Types.Transaction (TransactionHash)
-import CTL.Internal.Types.UsedTxOuts
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.UsedTxOuts
   ( isTxOutRefUsed
   , lockTransactionInputs
   , newUsedTxOuts
@@ -22,12 +22,12 @@ import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.Fixtures
+import Test.Ctl.Fixtures
   ( mkSampleTx
   , mkTxInput
   , txFixture1
   )
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldReturn)
 
 buildSampleTransaction

@@ -1,5 +1,5 @@
 -- | A custom Prelude that re-exports Purescript's prelude and further expands.
-module CTL.Contract.Prelude
+module Contract.Prelude
   ( mconcat
   , module Aff
   , module Helpers
@@ -22,7 +22,7 @@ module CTL.Contract.Prelude
 -- Imports for extra functions:
 import Prelude
 
-import CTL.Internal.Helpers -- Could maybe move this somewhere better:
+import Ctl.Internal.Helpers -- Could maybe move this somewhere better:
   ( appendFirstMaybe
   , appendLastMaybe
   , filterMapM

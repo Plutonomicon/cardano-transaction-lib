@@ -1,5 +1,5 @@
 -- | A module for Chain-related querying.
-module CTL.Contract.Chain
+module Contract.Chain
   ( getTip
   , waitUntilSlot
   , waitNSlots
@@ -10,22 +10,22 @@ module CTL.Contract.Chain
 
 import Prelude
 
-import CTL.Contract.Monad (Contract, wrapContract)
-import CTL.Internal.QueryM (getChainTip) as QueryM
-import CTL.Internal.QueryM.WaitUntilSlot
+import Contract.Monad (Contract, wrapContract)
+import Ctl.Internal.QueryM (getChainTip) as QueryM
+import Ctl.Internal.QueryM.WaitUntilSlot
   ( currentSlot
   , currentTime
   , waitNSlots
   , waitUntilSlot
   ) as QueryM
-import CTL.Internal.Serialization.Address (Slot)
-import CTL.Internal.Types.Chain
+import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
   ) as Chain
-import CTL.Internal.Types.Interval (POSIXTime)
-import CTL.Internal.Types.Natural (Natural)
+import Ctl.Internal.Types.Interval (POSIXTime)
+import Ctl.Internal.Types.Natural (Natural)
 
 getTip :: forall (r :: Row Type). Contract r Chain.Tip
 getTip = wrapContract QueryM.getChainTip

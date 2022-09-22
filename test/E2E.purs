@@ -1,7 +1,7 @@
-module Test.CTL.E2E (main) where
+module Test.Ctl.E2E (main) where
 
-import CTL.Contract.Test.E2E (TestOptions(TestOptions), parseOptions)
-import CTL.Contract.Test.E2E.WalletExt
+import Contract.Test.E2E (TestOptions(TestOptions), parseOptions)
+import Contract.Test.E2E.WalletExt
   ( WalletConfig(WalletConfig)
   , getWalletByType
   )
@@ -13,17 +13,17 @@ import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote (group)
 import Prelude (Unit, bind, discard, pure, ($))
-import Test.CTL.E2E.Examples.AlwaysMints as AlwaysMints
-import Test.CTL.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Test.CTL.E2E.Examples.Datums as Datums
-import Test.CTL.E2E.Examples.MintsMultipleTokens as MintsMultipleTokens
-import Test.CTL.E2E.Examples.Pkh2Pkh as Pkh2Pkh
-import Test.CTL.E2E.Examples.SignMultiple as SignMultiple
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils as Utils
+import Test.Ctl.E2E.Examples.AlwaysMints as AlwaysMints
+import Test.Ctl.E2E.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Test.Ctl.E2E.Examples.Datums as Datums
+import Test.Ctl.E2E.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Test.Ctl.E2E.Examples.Pkh2Pkh as Pkh2Pkh
+import Test.Ctl.E2E.Examples.SignMultiple as SignMultiple
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils as Utils
 import Test.Spec.Runner as SpecRunner
 
--- Run with `spago test --main Test.CTL.E2E`
+-- Run with `spago test --main Test.Ctl.E2E`
 main :: Effect Unit
 main = launchAff_ $ do
   options <- liftEffect parseOptions

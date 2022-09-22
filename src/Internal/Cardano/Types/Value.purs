@@ -1,4 +1,4 @@
-module CTL.Internal.Cardano.Types.Value
+module Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , NonAdaAsset
@@ -60,24 +60,24 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Helpers (encodeMap, showWithParens)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Helpers (encodeMap, showWithParens)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , scriptHashFromBytes
   , scriptHashToBytes
   )
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray
+import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayToHex
   , byteLength
   , hexToByteArray
   )
-import CTL.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
-import CTL.Internal.Types.TokenName
+import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Ctl.Internal.Types.TokenName
   ( TokenName
   , adaToken
   , getTokenName

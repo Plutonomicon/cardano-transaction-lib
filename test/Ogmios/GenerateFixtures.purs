@@ -1,13 +1,13 @@
-module Test.CTL.Ogmios.GenerateFixtures
+module Test.Ctl.Ogmios.GenerateFixtures
   ( main
   ) where
 
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
-import CTL.Contract.Monad (ListenerSet)
-import CTL.Internal.Helpers (logString)
-import CTL.Internal.JsWebSocket
+import Contract.Monad (ListenerSet)
+import Ctl.Internal.Helpers (logString)
+import Ctl.Internal.JsWebSocket
   ( _mkWebSocket
   , _onWsConnect
   , _onWsError
@@ -15,7 +15,7 @@ import CTL.Internal.JsWebSocket
   , _wsClose
   , _wsSend
   )
-import CTL.Internal.QueryM
+import Ctl.Internal.QueryM
   ( WebSocket(WebSocket)
   , defaultMessageListener
   , defaultOgmiosWsConfig
@@ -23,10 +23,10 @@ import CTL.Internal.QueryM
   , mkRequestAff
   , queryDispatch
   )
-import CTL.Internal.QueryM.JsonWsp (JsonWspCall)
-import CTL.Internal.QueryM.Ogmios (mkOgmiosCallType)
-import CTL.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import CTL.Internal.Types.MultiMap as MultiMap
+import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
+import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
+import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
+import Ctl.Internal.Types.MultiMap as MultiMap
 import Control.Parallel (parTraverse)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))

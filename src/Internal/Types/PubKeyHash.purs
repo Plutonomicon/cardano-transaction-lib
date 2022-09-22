@@ -1,4 +1,4 @@
-module CTL.Internal.Types.PubKeyHash
+module Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
@@ -24,10 +24,10 @@ import Aeson
   )
 import Aeson.Decode as Decode
 import Aeson.Encode as Encode
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Serialization.Address
   ( Address
   , EnterpriseAddress
   , NetworkId
@@ -40,8 +40,8 @@ import CTL.Internal.Serialization.Address
   , rewardAddress
   , rewardAddressToAddress
   )
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
-import CTL.Internal.ToData (class ToData)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.ToData (class ToData)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)

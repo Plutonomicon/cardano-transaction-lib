@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Aliases where
+module Ctl.Internal.Types.Aliases where
 
 -- | IMPORTANT: All functions accepting `Bech32String` should behave correctly in
 -- | case `Bech32String` is not in bech32 format.

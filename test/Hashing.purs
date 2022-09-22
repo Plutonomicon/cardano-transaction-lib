@@ -1,8 +1,8 @@
-module Test.CTL.Hashing (suite) where
+module Test.Ctl.Hashing (suite) where
 
 import Prelude
 
-import CTL.Internal.Hashing
+import Ctl.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
   , datumHash
@@ -12,24 +12,24 @@ import CTL.Internal.Hashing
   , sha3_256Hash
   , sha3_256HashHex
   ) as Hashing
-import CTL.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
-import CTL.Internal.Types.ByteArray
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromAscii
   , hexToByteArrayUnsafe
   )
-import CTL.Internal.Types.PlutusData (PlutusData(Integer))
-import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
-import CTL.Internal.Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
-import CTL.Internal.Types.Transaction (DataHash)
+import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
+import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
+import Ctl.Internal.Types.Transaction (DataHash)
 import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.Fixtures (plutusDataFixture7)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.Fixtures (plutusDataFixture7)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

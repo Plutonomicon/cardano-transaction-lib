@@ -1,10 +1,10 @@
 module Scaffold.Test.Main (main) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Monad as Contract.Monad
-import CTL.Contract.Test.Plutip as Contract.Test.Plutip
-import CTL.Contract.Wallet as Contract.Wallet
+import Contract.Monad as Contract.Monad
+import Contract.Test.Plutip as Contract.Test.Plutip
+import Contract.Wallet as Contract.Wallet
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Scaffold as Scaffold

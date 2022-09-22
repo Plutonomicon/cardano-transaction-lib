@@ -1,8 +1,8 @@
 -- | A module for building `TxConstraints` te pair with the `ScriptLookups`
 -- | as part of an off-chain transaction.
-module CTL.Contract.TxConstraints (module TxConstraints) where
+module Contract.TxConstraints (module TxConstraints) where
 
-import CTL.Internal.Types.TxConstraints
+import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)

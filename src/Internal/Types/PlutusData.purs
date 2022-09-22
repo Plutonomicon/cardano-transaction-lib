@@ -1,4 +1,4 @@
-module CTL.Internal.Types.PlutusData
+module Ctl.Internal.Types.PlutusData
   ( PlutusData
       ( Constr
       , Map
@@ -20,7 +20,7 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
-import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Control.Alt ((<|>))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))

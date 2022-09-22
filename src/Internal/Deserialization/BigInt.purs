@@ -1,10 +1,10 @@
-module CTL.Internal.Deserialization.BigInt
+module Ctl.Internal.Deserialization.BigInt
   ( convertBigInt
   ) where
 
 import Prelude
 
-import CTL.Internal.Serialization.Types (BigInt)
+import Ctl.Internal.Serialization.Types (BigInt)
 import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
 

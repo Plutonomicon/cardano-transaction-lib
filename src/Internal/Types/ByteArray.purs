@@ -1,5 +1,5 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
-module CTL.Internal.Types.ByteArray
+module Ctl.Internal.Types.ByteArray
   ( ByteArray(ByteArray)
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe

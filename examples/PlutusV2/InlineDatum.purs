@@ -1,7 +1,7 @@
 -- | This module demonstrates creating a UTxO whose datum is inline via the
 -- | `Contract` interface. The `checkDatumIsInlineScript` only validates if the
 -- | scripts own input was supplied with an inline datum matching the redeemer.
-module CTL.Examples.PlutusV2.InlineDatum
+module Ctl.Examples.PlutusV2.InlineDatum
   ( main
   , example
   , checkDatumIsInlineScript
@@ -11,30 +11,30 @@ module CTL.Examples.PlutusV2.InlineDatum
   , spendFromCheckDatumIsInline
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address (scriptHashAddress)
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad
+import Contract.Address (scriptHashAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
   , runContract
   )
-import CTL.Contract.PlutusData
+import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Integer)
   , Redeemer(Redeemer)
   )
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV2)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( OutputDatum(OutputDatum)
   , TransactionHash
   , TransactionInput(TransactionInput)
@@ -44,10 +44,10 @@ import CTL.Contract.Transaction
   , plutusV2Script
   , submit
   )
-import CTL.Contract.TxConstraints (TxConstraints)
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value as Value
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Test.Spec.Assertions (shouldEqual)

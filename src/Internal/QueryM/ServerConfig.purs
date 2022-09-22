@@ -1,4 +1,4 @@
-module CTL.Internal.QueryM.ServerConfig
+module Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultServerConfig
@@ -12,7 +12,7 @@ module CTL.Internal.QueryM.ServerConfig
 
 import Prelude
 
-import CTL.Internal.JsWebSocket (Url)
+import Ctl.Internal.JsWebSocket (Url)
 import Data.Maybe (Maybe(Nothing), maybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt

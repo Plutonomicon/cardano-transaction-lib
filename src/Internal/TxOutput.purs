@@ -1,4 +1,4 @@
-module CTL.Internal.TxOutput
+module Ctl.Internal.TxOutput
   ( datumHashToOgmiosDatumHash
   , ogmiosDatumHashToDatumHash
   , ogmiosTxOutToScriptOutput
@@ -13,30 +13,30 @@ module CTL.Internal.TxOutput
 
 import Prelude
 
-import CTL.Internal.Address
+import Ctl.Internal.Address
   ( addressToOgmiosAddress
   , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as Transaction
-import CTL.Internal.Deserialization.FromBytes (fromBytes)
-import CTL.Internal.Deserialization.PlutusData as Deserialization
-import CTL.Internal.QueryM.Ogmios as Ogmios
-import CTL.Internal.Scripts (validatorHashEnterpriseAddress)
-import CTL.Internal.Serialization (toBytes)
-import CTL.Internal.Serialization.Address (NetworkId)
-import CTL.Internal.Serialization.PlutusData as Serialization
-import CTL.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import CTL.Internal.Types.Datum (DataHash, Datum(Datum))
-import CTL.Internal.Types.OutputDatum
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.PlutusData as Deserialization
+import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Ctl.Internal.Scripts (validatorHashEnterpriseAddress)
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.Serialization.PlutusData as Serialization
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(OutputDatum, OutputDatumHash, NoOutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   )
-import CTL.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
-import CTL.Internal.Types.UnbalancedTransaction as UTx
+import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
+import Ctl.Internal.Types.UnbalancedTransaction as UTx
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isNothing)

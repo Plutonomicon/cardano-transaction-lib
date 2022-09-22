@@ -1,7 +1,7 @@
 -- | A module for Plutus-style `Credential`s
-module CTL.Contract.Credential (module Credential) where
+module Contract.Credential (module Credential) where
 
-import CTL.Plutus.Types.Credential
+import Ctl.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   ) as Credential

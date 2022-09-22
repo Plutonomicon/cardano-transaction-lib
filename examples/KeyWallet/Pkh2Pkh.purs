@@ -2,17 +2,17 @@
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends the selected amount to the specified
 -- | address
-module CTL.Examples.KeyWallet.Pkh2Pkh (main) where
+module Ctl.Examples.KeyWallet.Pkh2Pkh (main) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Transaction (awaitTxConfirmed)
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Value (lovelaceValueOf) as Value
-import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import CTL.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import Contract.Log (logInfo')
+import Contract.ScriptLookups as Lookups
+import Contract.Transaction (awaitTxConfirmed)
+import Contract.TxConstraints as Constraints
+import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 
 main :: Effect Unit
 main = runKeyWalletContract_ \pkh lovelace unlock -> do

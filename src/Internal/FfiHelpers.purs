@@ -1,4 +1,4 @@
-module CTL.Internal.FfiHelpers
+module Ctl.Internal.FfiHelpers
   ( MaybeFfiHelper
   , maybeFfiHelper
   , ContainerHelper
@@ -7,7 +7,7 @@ module CTL.Internal.FfiHelpers
   , errorHelper
   ) where
 
-import CTL.Internal.Error (E)
+import Ctl.Internal.Error (E)
 import Data.Either (Either(Left, Right), hush)
 import Data.Function ((<<<), (>>>))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)

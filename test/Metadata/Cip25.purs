@@ -1,21 +1,21 @@
-module Test.CTL.Metadata.Cip25 (suite) where
+module Test.Ctl.Metadata.Cip25 (suite) where
 
 import Prelude
 
 import Aeson (decodeAeson)
-import CTL.Internal.FromData (fromData)
-import CTL.Internal.Metadata.Cip25.Cip25String
+import Ctl.Internal.FromData (fromData)
+import Ctl.Internal.Metadata.Cip25.Cip25String
   ( fromDataString
   , fromMetadataString
   , toCip25Strings
   , toDataString
   , toMetadataString
   )
-import CTL.Internal.Metadata.MetadataType
+import Ctl.Internal.Metadata.MetadataType
   ( fromGeneralTxMetadata
   , toGeneralTxMetadata
   )
-import CTL.Internal.ToData (toData)
+import Ctl.Internal.ToData (toData)
 import Data.Either (Either(Right), hush)
 import Data.Maybe (Maybe(Just))
 import Data.TextDecoder (decodeUtf8)
@@ -23,7 +23,7 @@ import Data.TextEncoding (encodeUtf8)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.CTL.Fixtures
+import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , cip25MetadataFixture2
   , cip25MetadataFixture3
@@ -31,7 +31,7 @@ import Test.CTL.Fixtures
   , cip25MetadataJsonFixture2
   , unsafeMkCip25String
   )
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Combinators ((==>))
 import Test.Spec.Assertions (shouldEqual)

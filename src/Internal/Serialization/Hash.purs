@@ -1,4 +1,4 @@
-module CTL.Internal.Serialization.Hash
+module Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , ed25519KeyHashToBytes
@@ -23,16 +23,16 @@ import Aeson
   , caseAesonString
   , encodeAeson'
   )
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import CTL.Internal.Serialization.Types (NativeScript)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.PlutusData (PlutusData(Bytes))
-import CTL.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
+import Ctl.Internal.Serialization.Types (NativeScript)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
+import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), maybe)

@@ -1,12 +1,12 @@
-module CTL.Internal.Cardano.Types.TransactionUnspentOutput
+module Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) where
 
 import Prelude
 
 import Aeson (class EncodeAeson)
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
-import CTL.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)

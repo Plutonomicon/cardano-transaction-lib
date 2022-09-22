@@ -1,12 +1,12 @@
-module Test.CTL.TxOutput (suite, main) where
+module Test.Ctl.TxOutput (suite, main) where
 
 import Prelude
 
 import Aeson (decodeJsonString, printJsonDecodeError)
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
-import CTL.Internal.QueryM.Ogmios as O
-import CTL.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
-import CTL.Internal.Types.OutputDatum
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
+import Ctl.Internal.QueryM.Ogmios as O
+import Ctl.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
@@ -24,10 +24,10 @@ import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils as Utils
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils as Utils
 
--- Run with `spago test --main Test.CTL.TxOutput`
+-- Run with `spago test --main Test.Ctl.TxOutput`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret suite

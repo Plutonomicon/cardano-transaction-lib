@@ -1,4 +1,4 @@
-module CTL.Internal.Metadata.MetadataType
+module Ctl.Internal.Metadata.MetadataType
   ( class MetadataType
   , metadataLabel
   , fromGeneralTxMetadata
@@ -7,9 +7,9 @@ module CTL.Internal.Metadata.MetadataType
 
 import Prelude
 
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import CTL.Internal.Types.TransactionMetadata
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
+import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata
   , TransactionMetadatumLabel
   )

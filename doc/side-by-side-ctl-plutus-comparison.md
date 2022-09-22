@@ -104,17 +104,17 @@ of CTL:
 ```PureScript
 module ExampleModule where
 
-import CTL.Contract.Prelude
-import CTL.Contract.Monad (Contract, liftedE, liftedM, logInfo')
-import CTL.Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
-import CTL.Contract.PlutusData (PlutusData)
-import CTL.Contract.Transaction
+import Contract.Prelude
+import Contract.Monad (Contract, liftedE, liftedM, logInfo')
+import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
+import Contract.PlutusData (PlutusData)
+import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , TransactionHash
   , balanceAndSignTx
   , submit
   )
-import CTL.Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints (TxConstraints)
 
 buildBalanceSignAndSubmitTx
   :: ScriptLookups PlutusData
@@ -230,10 +230,10 @@ contract.
 
 ```PureScript
 -- PureScript
-import CTL.Contract.PlutusData (PlutusData, unitDatum)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Prelude
+import Contract.PlutusData (PlutusData, unitDatum)
+import Contract.ScriptLookups as Lookups
+import Contract.TxConstraints as Constraints
+import Contract.Prelude
 import Data.BigInt as BigInt
 
 give :: ValidatorHash -> Contract () TransactionHash
@@ -279,7 +279,7 @@ To talk about the grab contract in CTL we need to talk about some
 functions and types of CTL first. 
 
 ```PureScript
-module CTL.Internal.Plutus.Types.Transaction ... 
+module Ctl.Internal.Plutus.Types.Transaction ... 
 .
 .
 .
@@ -287,7 +287,7 @@ type UtxoMap = Map TransactionInput TransactionOutputWithRefScript
 ```
 
 ```PureScript
-module CTL.Contract.Utxos ...
+module Contract.Utxos ...
 .
 .
 .

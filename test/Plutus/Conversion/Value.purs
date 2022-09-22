@@ -1,14 +1,14 @@
-module Test.CTL.Plutus.Conversion.Value (suite) where
+module Test.Ctl.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Value (Value) as Types
-import CTL.Internal.Cardano.Types.Value as Value
-import CTL.Plutus.Conversion (fromPlutusValue, toPlutusValue)
-import CTL.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
-import CTL.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
-import CTL.Plutus.Types.Value (Value) as Plutus
-import CTL.Plutus.Types.Value as Plutus.Value
+import Ctl.Internal.Cardano.Types.Value (Value) as Types
+import Ctl.Internal.Cardano.Types.Value as Value
+import Ctl.Plutus.Conversion (fromPlutusValue, toPlutusValue)
+import Ctl.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
+import Ctl.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
+import Ctl.Plutus.Types.Value (Value) as Plutus
+import Ctl.Plutus.Types.Value as Plutus.Value
 import Data.Array (length, range, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
@@ -18,8 +18,8 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.Fixtures (currencySymbol1, tokenName1, tokenName2)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.Fixtures (currencySymbol1, tokenName1, tokenName2)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

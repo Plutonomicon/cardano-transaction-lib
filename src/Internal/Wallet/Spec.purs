@@ -1,4 +1,4 @@
-module CTL.Internal.Wallet.Spec
+module Ctl.Internal.Wallet.Spec
   ( WalletSpec
       ( UseKeys
       , ConnectToNami
@@ -10,7 +10,7 @@ module CTL.Internal.Wallet.Spec
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   ) where
 
-import CTL.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Maybe (Maybe)
 import Node.Path (FilePath)
 

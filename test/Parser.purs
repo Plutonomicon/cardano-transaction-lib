@@ -1,4 +1,4 @@
-module Test.CTL.Parser where
+module Test.Ctl.Parser where
 
 import Prelude
 
@@ -9,8 +9,8 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import CTL.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
-import CTL.Internal.QueryM.Ogmios (UtxoQR)
+import Ctl.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import Ctl.Internal.QueryM.Ogmios (UtxoQR)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
@@ -26,7 +26,7 @@ import Effect.Exception (error, throw)
 import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile)
-import Test.CTL.TestM (TestPlanM, ValidationM, runValidationM)
+import Test.Ctl.TestM (TestPlanM, ValidationM, runValidationM)
 import Test.Spec.Assertions (shouldNotSatisfy, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit

@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Redeemer
+module Ctl.Internal.Types.Redeemer
   ( Redeemer(Redeemer)
   , unitRedeemer
   , RedeemerHash(RedeemerHash)
@@ -7,12 +7,12 @@ module CTL.Internal.Types.Redeemer
 
 import Prelude
 
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Serialization (toBytes)
-import CTL.Internal.Serialization.PlutusData (convertPlutusData)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.PlutusData (PlutusData)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)

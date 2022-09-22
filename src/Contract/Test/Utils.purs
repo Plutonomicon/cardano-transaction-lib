@@ -1,6 +1,6 @@
 -- | This module provides an extensible interface for making various 
 -- | assertions about `Contract`s.
-module CTL.Contract.Test.Utils
+module Contract.Test.Utils
   ( class ContractAssertions
   , ContractAssertionFailure
       ( CouldNotGetTxByHash
@@ -44,26 +44,26 @@ module CTL.Contract.Test.Utils
 
 import Prelude
 
-import CTL.Contract.Address (Address)
-import CTL.Contract.Monad (Contract, liftContractM, liftedM, throwContractError)
-import CTL.Contract.PlutusData (OutputDatum)
-import CTL.Contract.Transaction
+import Contract.Address (Address)
+import Contract.Monad (Contract, liftContractM, liftedM, throwContractError)
+import Contract.PlutusData (OutputDatum)
+import Contract.Transaction
   ( Transaction(Transaction)
   , TransactionHash
   , TransactionOutputWithRefScript
   , getTxByHash
   )
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value
+import Contract.Utxos (utxosAt)
+import Contract.Value
   ( CurrencySymbol
   , TokenName
   , Value
   , valueOf
   , valueToCoin'
   )
-import CTL.Internal.Metadata.FromMetadata (fromMetadata)
-import CTL.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
-import CTL.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Metadata.FromMetadata (fromMetadata)
+import Ctl.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Control.Monad.Error.Class (catchError)
 import Data.BigInt (BigInt)
 import Data.Foldable (foldMap)

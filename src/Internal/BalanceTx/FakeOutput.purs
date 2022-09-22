@@ -1,16 +1,16 @@
-module CTL.Internal.BalanceTx.FakeOutput
+module Ctl.Internal.BalanceTx.FakeOutput
   ( fakeOutputWithValue
   , fakeOutputWithNonAdaAssets
   ) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
-import CTL.Internal.Cardano.Types.Value (NonAdaAsset, Value, mkValue)
-import CTL.Internal.Serialization.Address (addressFromBech32) as Csl
-import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
+import Ctl.Internal.Cardano.Types.Value (NonAdaAsset, Value, mkValue)
+import Ctl.Internal.Serialization.Address (addressFromBech32) as Csl
+import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Data.Maybe (Maybe(Nothing), fromJust)
 import Partial.Unsafe (unsafePartial)
 

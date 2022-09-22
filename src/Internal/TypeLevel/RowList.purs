@@ -1,4 +1,4 @@
-module CTL.Internal.TypeLevel.RowList
+module Ctl.Internal.TypeLevel.RowList
   ( class AllUniqueLabels
   ) where
 

@@ -1,11 +1,11 @@
-module CTL.Internal.Serialization.NativeScript
+module Ctl.Internal.Serialization.NativeScript
   ( convertNativeScript
   , convertNativeScripts
   ) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.NativeScript
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -15,10 +15,10 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as T
-import CTL.Internal.FfiHelpers (ContainerHelper, containerHelper)
-import CTL.Internal.Serialization.Address (Slot(Slot)) as T
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash) as T
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
+import Ctl.Internal.Serialization.Address (Slot(Slot)) as T
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as T
+import Ctl.Internal.Serialization.Types
   ( NativeScript
   , NativeScripts
   , ScriptAll
@@ -28,7 +28,7 @@ import CTL.Internal.Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
-import CTL.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (BigNum)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 

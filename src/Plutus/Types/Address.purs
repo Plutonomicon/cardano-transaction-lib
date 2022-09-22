@@ -1,4 +1,4 @@
-module CTL.Plutus.Types.Address
+module Ctl.Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
@@ -18,21 +18,21 @@ import Aeson
   , encodeAeson'
   , (.:)
   )
-import CTL.Internal.FromData (class FromData, genericFromData)
-import CTL.Internal.Serialization.Address (NetworkId)
-import CTL.Internal.ToData (class ToData, genericToData)
-import CTL.Internal.TypeLevel.Nat (Z)
-import CTL.Internal.Types.PubKeyHash
+import Ctl.Internal.FromData (class FromData, genericFromData)
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.TypeLevel.Nat (Z)
+import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash
   , StakePubKeyHash
   )
-import CTL.Internal.Types.Scripts (ValidatorHash)
-import CTL.Plutus.Types.Credential
+import Ctl.Internal.Types.Scripts (ValidatorHash)
+import Ctl.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash)
   )
-import CTL.Plutus.Types.DataSchema
+import Ctl.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

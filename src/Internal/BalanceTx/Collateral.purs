@@ -1,4 +1,4 @@
-module CTL.Internal.BalanceTx.Collateral
+module Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
   , module X
@@ -6,16 +6,16 @@ module CTL.Internal.BalanceTx.Collateral
 
 import Prelude
 
-import CTL.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
-import CTL.Internal.BalanceTx.Collateral.Select (minRequiredCollateral) as X
-import CTL.Internal.BalanceTx.Error
+import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
+import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral) as X
+import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(CollateralReturnError, CollateralReturnMinAdaValueCalcError)
   )
-import CTL.Internal.BalanceTx.Types
+import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   )
-import CTL.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
+import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
   , _body
@@ -23,14 +23,14 @@ import CTL.Internal.Cardano.Types.Transaction
   , _collateralReturn
   , _totalCollateral
   )
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import CTL.Internal.Cardano.Types.Value (Coin, NonAdaAsset)
-import CTL.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
-import CTL.Internal.Serialization.Address (Address)
-import CTL.Internal.Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
-import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
+import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset)
+import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
+import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
+import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
 import Control.Monad.Reader.Class (asks)
 import Data.BigInt (BigInt)

@@ -1,5 +1,5 @@
 -- | This module includes a string type that is used in CIP-25 standard.
-module CTL.Internal.Metadata.Cip25.Cip25String
+module Ctl.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
   , mkCip25String
   , unCip25String
@@ -19,13 +19,13 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   )
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.ByteArray (ByteArray, byteLength)
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.TransactionMetadata (TransactionMetadatum)
+import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteLength)
+import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum)
 import Control.Alt ((<|>))
 import Data.Array ((:))
 import Data.Array as Array

@@ -1,14 +1,14 @@
 -- | Node-only module. Allows to work with Skeys stored in files.
-module CTL.Contract.Wallet.KeyFile
+module Contract.Wallet.KeyFile
   ( mkKeyWalletFromFiles
-  , module CTL.Internal.Wallet.KeyFile
+  , module Ctl.Internal.Wallet.KeyFile
   ) where
 
 import Prelude
 
-import CTL.Internal.Wallet (Wallet) as Wallet
-import CTL.Internal.Wallet (mkKeyWallet)
-import CTL.Internal.Wallet.KeyFile
+import Ctl.Internal.Wallet (Wallet) as Wallet
+import Ctl.Internal.Wallet (mkKeyWallet)
+import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyFromString
   , privatePaymentKeyToFile

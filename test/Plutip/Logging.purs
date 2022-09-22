@@ -1,19 +1,19 @@
-module Test.CTL.Plutip.Logging
+module Test.Ctl.Plutip.Logging
   ( suite
   ) where
 
 import Prelude
 
-import CTL.Contract.Log (logWarn')
-import CTL.Contract.Test.Plutip (runPlutipContract)
+import Contract.Log (logWarn')
+import Contract.Test.Plutip (runPlutipContract)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
-import Test.CTL.Plutip.Common (config)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.Plutip.Common (config)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

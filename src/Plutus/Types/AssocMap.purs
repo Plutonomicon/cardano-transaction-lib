@@ -1,4 +1,4 @@
-module CTL.Plutus.Types.AssocMap
+module Ctl.Plutus.Types.AssocMap
   ( Map(Map)
   , delete
   , elems
@@ -21,9 +21,9 @@ module CTL.Plutus.Types.AssocMap
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.PlutusData (PlutusData(Map)) as PD
+import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.PlutusData (PlutusData(Map)) as PD
 import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
 import Data.Array ((:))
 import Data.Bifunctor (bimap)

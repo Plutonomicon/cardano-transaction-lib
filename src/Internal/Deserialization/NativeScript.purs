@@ -1,19 +1,19 @@
-module CTL.Internal.Deserialization.NativeScript
+module Ctl.Internal.Deserialization.NativeScript
   ( convertNativeScript
   ) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.NativeScript as T
-import CTL.Internal.FfiHelpers
+import Ctl.Internal.Cardano.Types.NativeScript as T
+import Ctl.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
   , containerHelper
   , maybeFfiHelper
   )
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.Serialization.Hash (Ed25519KeyHash)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Serialization.Types
   ( NativeScript
   , ScriptAll
   , ScriptAny
@@ -22,7 +22,7 @@ import CTL.Internal.Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
-import CTL.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (BigNum)
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)

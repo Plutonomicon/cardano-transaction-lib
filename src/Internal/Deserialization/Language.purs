@@ -1,19 +1,19 @@
-module CTL.Internal.Deserialization.Language
+module Ctl.Internal.Deserialization.Language
   ( _convertLanguage
   , convertLanguage
   ) where
 
-import CTL.Internal.Deserialization.Error
+import Ctl.Internal.Deserialization.Error
   ( FromCslRepError
   , _fromCslRepError
   )
-import CTL.Internal.Error (E)
-import CTL.Internal.FfiHelpers
+import Ctl.Internal.Error (E)
+import Ctl.Internal.FfiHelpers
   ( ErrorFfiHelper
   , errorHelper
   )
-import CTL.Internal.Serialization.Types (Language) as Csl
-import CTL.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as T
+import Ctl.Internal.Serialization.Types (Language) as Csl
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as T
 import Data.Variant (inj)
 import Type.Row (type (+))
 

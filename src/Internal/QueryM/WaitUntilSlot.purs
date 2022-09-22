@@ -1,4 +1,4 @@
-module CTL.Internal.QueryM.WaitUntilSlot
+module Ctl.Internal.QueryM.WaitUntilSlot
   ( waitUntilSlot
   , waitNSlots
   , currentSlot
@@ -7,23 +7,23 @@ module CTL.Internal.QueryM.WaitUntilSlot
 
 import Prelude
 
-import CTL.Contract.Log (logTrace')
-import CTL.Internal.Helpers (liftEither, liftM)
-import CTL.Internal.QueryM (QueryM, getChainTip)
-import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
-import CTL.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
-import CTL.Internal.QueryM.SystemStart (getSystemStart)
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.Types.BigNum as BigNum
-import CTL.Internal.Types.Chain as Chain
-import CTL.Internal.Types.Interval
+import Contract.Log (logTrace')
+import Ctl.Internal.Helpers (liftEither, liftM)
+import Ctl.Internal.QueryM (QueryM, getChainTip)
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Chain as Chain
+import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
   , getSlotLength
   , slotToPosixTime
   )
-import CTL.Internal.Types.Natural (Natural)
-import CTL.Internal.Types.Natural as Natural
+import Ctl.Internal.Types.Natural (Natural)
+import Ctl.Internal.Types.Natural as Natural
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)

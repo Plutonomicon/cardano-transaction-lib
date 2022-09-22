@@ -1,22 +1,22 @@
-module CTL.Internal.BalanceTx.UtxoMinAda
+module Ctl.Internal.BalanceTx.UtxoMinAda
   ( adaOnlyUtxoMinAdaValue
   , utxoMinAdaValue
   ) where
 
 import Prelude
 
-import CTL.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput)
-import CTL.Internal.Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.QueryM.Ogmios
+import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.QueryM.Ogmios
   ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
   )
-import CTL.Internal.Serialization (convertTxOutput)
-import CTL.Internal.Serialization.Types (DataCost)
-import CTL.Internal.Serialization.Types (TransactionOutput) as Csl
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum
+import Ctl.Internal.Serialization (convertTxOutput)
+import Ctl.Internal.Serialization.Types (DataCost)
+import Ctl.Internal.Serialization.Types (TransactionOutput) as Csl
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum
   ( fromBigInt
   , maxValue
   , toBigInt

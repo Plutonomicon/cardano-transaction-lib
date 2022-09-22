@@ -1,7 +1,7 @@
 -- | This module contains definitions common for CIP-25 V1 and V2 standards
 -- | (and probably future versions).
 -- | https://cips.cardano.org/cips/cip25/
-module CTL.Internal.Metadata.Cip25.Common
+module Ctl.Internal.Metadata.Cip25.Common
   ( nftMetadataLabel
   , Cip25TokenName(Cip25TokenName)
   , Cip25MetadataFile(Cip25MetadataFile)
@@ -18,24 +18,24 @@ import Aeson
   , encodeAeson'
   , (.:)
   )
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Metadata.Cip25.Cip25String
+import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
   , fromDataString
   , fromMetadataString
   , toDataString
   , toMetadataString
   )
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import CTL.Internal.Metadata.Helpers
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
+import Ctl.Internal.Metadata.Helpers
   ( errExpectedObject
   , lookupKey
   , lookupMetadata
   )
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import CTL.Plutus.Types.AssocMap as AssocMap
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
+import Ctl.Plutus.Types.AssocMap as AssocMap
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (note)

@@ -1,21 +1,21 @@
-module Test.CTL.Plutus.Conversion.Address (suite) where
+module Test.Ctl.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressFromBech32
   )
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , scriptHashFromBech32
   )
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromInt) as BigNum
-import CTL.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
-import CTL.Plutus.Types.Address (Address) as Plutus
-import CTL.Plutus.Types.Credential
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Ctl.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import Ctl.Plutus.Types.Address (Address) as Plutus
+import Ctl.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
@@ -27,8 +27,8 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (errMaybe, toFromAesonTest)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe, toFromAesonTest)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

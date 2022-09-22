@@ -4,7 +4,7 @@
 -- | Conversion functions come in pairs and must be named as follows:
 -- | `fromPlutusType` and `toPlutusType`, where `Type` is to
 -- | be replaced by the name of the actual type.
-module CTL.Plutus.Conversion
+module Ctl.Plutus.Conversion
   (
     -- Plutus Address <-> CSL Address
     module Conversion.Address
@@ -35,35 +35,35 @@ module CTL.Plutus.Conversion
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import CTL.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Cardano
-import CTL.Internal.Cardano.Types.Value (Coin) as Cardano
-import CTL.Internal.Hashing (scriptRefHash)
-import CTL.Internal.Serialization.Address (NetworkId)
-import CTL.Plutus.Conversion.Address
+import Ctl.Internal.Cardano.Types.Value (Coin) as Cardano
+import Ctl.Internal.Hashing (scriptRefHash)
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   ) as Conversion.Address
-import CTL.Plutus.Conversion.Address
+import Ctl.Plutus.Conversion.Address
   ( fromPlutusAddress
   , toPlutusAddress
   )
-import CTL.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
-import CTL.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
-import CTL.Plutus.Types.Transaction
+import Ctl.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue)
+import Ctl.Plutus.Conversion.Value (fromPlutusValue, toPlutusValue) as Conversion.Value
+import Ctl.Plutus.Types.Transaction
   ( TransactionOutput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , UtxoMap
   ) as Plutus
-import CTL.Plutus.Types.TransactionUnspentOutput
+import Ctl.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Plutus
-import CTL.Plutus.Types.Value (Coin) as Plutus
+import Ctl.Plutus.Types.Value (Coin) as Plutus
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)

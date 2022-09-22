@@ -1,8 +1,8 @@
-module Test.CTL.Serialization.Address (suite) where
+module Test.Ctl.Serialization.Address (suite) where
 
 import Prelude
 
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
   , addressBytes
@@ -34,23 +34,23 @@ import CTL.Internal.Serialization.Address
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   )
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
-import CTL.Internal.Types.Aliases (Bech32String)
-import CTL.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
-import CTL.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
+import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Mote (group, test)
-import Test.CTL.Fixtures (ed25519KeyHashFixture1)
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (errMaybe)
+import Test.Ctl.Fixtures (ed25519KeyHashFixture1)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual)
 
 doesNotThrow

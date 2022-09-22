@@ -1,4 +1,4 @@
-module CTL.Internal.QueryM.DatumCacheWsp
+module Ctl.Internal.QueryM.DatumCacheWsp
   ( DatumCacheMethod
       ( GetDatumByHash
       , GetDatumsByHashes
@@ -30,11 +30,11 @@ import Aeson
   , stringifyAeson
   , (.:)
   )
-import CTL.Internal.Base64 (Base64String)
-import CTL.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
-import CTL.Internal.QueryM.UniqueId (ListenerId)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import CTL.Internal.Types.Datum (DataHash, Datum)
+import Ctl.Internal.Base64 (Base64String)
+import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
+import Ctl.Internal.QueryM.UniqueId (ListenerId)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)

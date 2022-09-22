@@ -1,4 +1,4 @@
-module CTL.Internal.Types.RedeemerTag
+module Ctl.Internal.Types.RedeemerTag
   ( RedeemerTag(Spend, Mint, Cert, Reward)
   , fromString
   ) where
@@ -6,7 +6,7 @@ module CTL.Internal.Types.RedeemerTag
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
-import CTL.Internal.Helpers (encodeTagged')
+import Ctl.Internal.Helpers (encodeTagged')
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)

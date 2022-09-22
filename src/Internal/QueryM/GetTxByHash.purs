@@ -1,14 +1,14 @@
-module CTL.Internal.QueryM.GetTxByHash where
+module Ctl.Internal.QueryM.GetTxByHash where
 
 import Prelude
 
-import CTL.Internal.Base64 (toByteArray)
-import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import CTL.Internal.Deserialization.Transaction (deserializeTransaction)
-import CTL.Internal.QueryM (QueryM, mkDatumCacheRequest)
-import CTL.Internal.QueryM.DatumCacheWsp as QueryM
-import CTL.Internal.QueryM.Ogmios (TxHash)
-import CTL.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Ctl.Internal.Base64 (toByteArray)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
+import Ctl.Internal.QueryM (QueryM, mkDatumCacheRequest)
+import Ctl.Internal.QueryM.DatumCacheWsp as QueryM
+import Ctl.Internal.QueryM.Ogmios (TxHash)
+import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)

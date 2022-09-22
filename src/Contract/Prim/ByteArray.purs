@@ -1,7 +1,7 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
-module CTL.Contract.Prim.ByteArray (module ByteArray) where
+module Contract.Prim.ByteArray (module ByteArray) where
 
-import CTL.Internal.Types.ByteArray
+import Ctl.Internal.Types.ByteArray
   ( ByteArray(ByteArray)
   , byteArrayFromAscii
   , byteArrayFromIntArray

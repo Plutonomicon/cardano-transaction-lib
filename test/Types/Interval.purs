@@ -1,4 +1,4 @@
-module Test.CTL.Types.Interval
+module Test.Ctl.Types.Interval
   ( suite
   , eraSummariesFixture
   , systemStartFixture
@@ -7,10 +7,10 @@ module Test.CTL.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
-import CTL.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.Types.BigNum (fromInt) as BigNum
-import CTL.Internal.Types.Interval
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , posixTimeToSlot
@@ -30,7 +30,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit

@@ -1,4 +1,4 @@
-module CTL.Internal.Types.TypedTxOut
+module Ctl.Internal.Types.TypedTxOut
   ( TypeCheckError
       ( WrongValidatorAddress
       , ExpectedScriptGotPubkey
@@ -32,26 +32,26 @@ module CTL.Internal.Types.TypedTxOut
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
-import CTL.Internal.Cardano.Types.Value (Value)
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.Hashing (datumHash) as Hashing
-import CTL.Internal.Helpers (liftM)
-import CTL.Internal.IsData (class IsData)
-import CTL.Internal.QueryM (QueryM, getDatumByHash)
-import CTL.Internal.Scripts (typedValidatorEnterpriseAddress)
-import CTL.Internal.Serialization.Address (Address, NetworkId)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.Datum (DataHash, Datum(Datum))
-import CTL.Internal.Types.OutputDatum
+import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.Hashing (datumHash) as Hashing
+import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.IsData (class IsData)
+import Ctl.Internal.QueryM (QueryM, getDatumByHash)
+import Ctl.Internal.Scripts (typedValidatorEnterpriseAddress)
+import Ctl.Internal.Serialization.Address (Address, NetworkId)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(OutputDatumHash)
   , outputDatumDataHash
   )
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.TypedValidator (class DatumType, TypedValidator)
+import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.TypedValidator (class DatumType, TypedValidator)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Data.Either (Either, note)

@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using three minting policies with different redeemers.
-module CTL.Examples.MintsMultipleTokens
+module Ctl.Examples.MintsMultipleTokens
   ( example
   , contract
   , main
@@ -10,23 +10,23 @@ module CTL.Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt3
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad (Contract, launchAff_, runContract)
-import CTL.Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (MintingPolicy)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (MintingPolicy)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction (awaitTxConfirmed, plutusV1Script)
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Value as Value
-import CTL.Examples.Helpers
+import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import Contract.TxConstraints as Constraints
+import Contract.Value as Value
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName

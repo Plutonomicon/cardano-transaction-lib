@@ -1,22 +1,22 @@
-module CTL.Examples.KeyWallet.SignMultiple where
+module Ctl.Examples.KeyWallet.SignMultiple where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad (Contract, liftedE, throwContractError)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Transaction
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, liftedE, throwContractError)
+import Contract.ScriptLookups as Lookups
+import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
   , submit
   , withBalancedAndSignedTxs
   )
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Value (lovelaceValueOf) as Value
-import CTL.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import Contract.TxConstraints as Constraints
+import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 -- TODO Re-export into Contract or drop the usage
-import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
+import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Control.Monad.Reader (asks)
 import Data.Newtype (unwrap)
 import Effect.Ref (read) as Ref

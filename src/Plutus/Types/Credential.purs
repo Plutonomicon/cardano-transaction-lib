@@ -1,4 +1,4 @@
-module CTL.Plutus.Types.Credential
+module Ctl.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   ) where
@@ -10,17 +10,17 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>/\<))
 import Aeson.Encode as Encode
-import CTL.Internal.FromData (class FromData, genericFromData)
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.FromData (class FromData, genericFromData)
+import Ctl.Internal.Serialization.Address
   ( CertificateIndex
   , Slot
   , TransactionIndex
   )
-import CTL.Internal.ToData (class ToData, genericToData)
-import CTL.Internal.TypeLevel.Nat (S, Z)
-import CTL.Internal.Types.PubKeyHash (PubKeyHash)
-import CTL.Internal.Types.Scripts (ValidatorHash)
-import CTL.Plutus.Types.DataSchema
+import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
+import Ctl.Internal.Types.Scripts (ValidatorHash)
+import Ctl.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

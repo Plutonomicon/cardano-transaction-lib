@@ -1,4 +1,4 @@
-module CTL.Internal.Serialization.Types
+module Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
@@ -87,7 +87,7 @@ module CTL.Internal.Serialization.Types
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Data.Function (on)
 
 foreign import data AssetName :: Type

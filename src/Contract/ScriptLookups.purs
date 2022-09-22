@@ -8,7 +8,7 @@
 -- |
 -- | Otherwise, there are lookups that may fail with `Maybe` (because of
 -- | hashing) and an unsafe counterpart via `fromJust`.
-module CTL.Contract.ScriptLookups
+module Contract.ScriptLookups
   ( mkUnbalancedTx
   , mkUnbalancedTxM
   , module ScriptLookups
@@ -16,9 +16,9 @@ module CTL.Contract.ScriptLookups
 
 import Prelude
 
-import CTL.Contract.Monad (Contract, wrapContract)
-import CTL.Internal.IsData (class IsData)
-import CTL.Internal.Types.ScriptLookups
+import Contract.Monad (Contract, wrapContract)
+import Ctl.Internal.IsData (class IsData)
+import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
       , ModifyTx
@@ -63,9 +63,9 @@ import CTL.Internal.Types.ScriptLookups
   , validator
   , validatorM
   ) as ScriptLookups
-import CTL.Internal.Types.ScriptLookups (mkUnbalancedTx) as SL
-import CTL.Internal.Types.TxConstraints (TxConstraints)
-import CTL.Internal.Types.TypedValidator (class ValidatorTypes)
+import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx) as SL
+import Ctl.Internal.Types.TxConstraints (TxConstraints)
+import Ctl.Internal.Types.TypedValidator (class ValidatorTypes)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 

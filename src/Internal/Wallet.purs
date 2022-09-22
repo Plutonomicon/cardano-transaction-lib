@@ -1,4 +1,4 @@
-module CTL.Internal.Wallet
+module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
   , Wallet(Gero, Nami, Flint, Lode, KeyWallet)
@@ -17,7 +17,7 @@ module CTL.Internal.Wallet
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Transaction(Transaction)
@@ -25,21 +25,21 @@ import CTL.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import CTL.Internal.Helpers ((<<>>))
-import CTL.Internal.Types.Natural (fromInt', minus)
-import CTL.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
-import CTL.Internal.Wallet.Cip30
+import Ctl.Internal.Helpers ((<<>>))
+import Ctl.Internal.Types.Natural (fromInt', minus)
+import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
+import Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
   , mkCip30WalletAff
   )
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
-import CTL.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
+import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Promise (Promise)
 import Data.Int (toNumber)

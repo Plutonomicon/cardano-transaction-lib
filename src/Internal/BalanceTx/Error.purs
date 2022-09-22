@@ -1,7 +1,7 @@
 -- | Definitions for error types that may arise during transaction balancing,
 -- | along with helpers for parsing and pretty-printing script evaluation errors
 -- | that may be returned from Ogmios when calculating ex units.
-module CTL.Internal.BalanceTx.Error
+module Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
       ( CouldNotConvertScriptOutputToTxInput
@@ -22,9 +22,9 @@ module CTL.Internal.BalanceTx.Error
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction (Redeemer(Redeemer))
-import CTL.Internal.Cardano.Types.Value (Value)
-import CTL.Internal.QueryM.Ogmios
+import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer))
+import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
   , ScriptFailure
       ( ExtraRedeemers
@@ -38,12 +38,12 @@ import CTL.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   ) as Ogmios
-import CTL.Internal.ReindexRedeemers (ReindexErrors)
-import CTL.Internal.Types.Natural (toBigInt) as Natural
-import CTL.Internal.Types.ScriptLookups
+import Ctl.Internal.ReindexRedeemers (ReindexErrors)
+import Ctl.Internal.Types.Natural (toBigInt) as Natural
+import Ctl.Internal.Types.ScriptLookups
   ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   )
-import CTL.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
 import Data.BigInt (toString) as BigInt

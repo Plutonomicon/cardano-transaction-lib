@@ -1,27 +1,27 @@
-module Test.CTL.Integration (main, testPlan) where
+module Test.Ctl.Integration (main, testPlan) where
 
 import Prelude
 
-import CTL.Contract.Config (testnetConfig)
-import CTL.Contract.Monad (runContract, wrapContract)
-import CTL.Internal.QueryM (runQueryM)
-import CTL.Internal.QueryM.Config (testnetTraceQueryConfig)
-import CTL.Internal.QueryM.EraSummaries (getEraSummaries)
-import CTL.Internal.QueryM.SystemStart (getSystemStart)
+import Contract.Config (testnetConfig)
+import Contract.Monad (runContract, wrapContract)
+import Ctl.Internal.QueryM (runQueryM)
+import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote (skip)
 import Mote.Monad (mapTest)
-import Test.CTL.AffInterface as AffInterface
-import Test.CTL.BalanceTx.Collateral as Collateral
-import Test.CTL.Logging as Logging
-import Test.CTL.PrivateKey as PrivateKey
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Types.Interval as Types.Interval
-import Test.CTL.Utils as Utils
+import Test.Ctl.AffInterface as AffInterface
+import Test.Ctl.BalanceTx.Collateral as Collateral
+import Test.Ctl.Logging as Logging
+import Test.Ctl.PrivateKey as PrivateKey
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Types.Interval as Types.Interval
+import Test.Ctl.Utils as Utils
 
--- Run with `spago test --main Test.CTL.Integration`
+-- Run with `spago test --main Test.Ctl.Integration`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpret testPlan

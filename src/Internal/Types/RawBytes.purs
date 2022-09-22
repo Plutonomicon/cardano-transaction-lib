@@ -1,6 +1,6 @@
 -- | A wrapper over `ByteArray` to indicate a byte array with no further specified meaning
 
-module CTL.Internal.Types.RawBytes
+module Ctl.Internal.Types.RawBytes
   ( RawBytes(RawBytes)
   , rawBytesToByteArray
   , rawBytesFromByteArray
@@ -17,10 +17,10 @@ module CTL.Internal.Types.RawBytes
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.ByteArray as BytesArray
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.ByteArray as BytesArray
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)

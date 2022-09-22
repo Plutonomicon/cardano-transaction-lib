@@ -1,36 +1,36 @@
-module CTL.Examples.PlutusV2.ReferenceScripts
+module Ctl.Examples.PlutusV2.ReferenceScripts
   ( main
   , example
   , contract
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address (scriptHashAddress)
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (ValidatorHash, validatorHash)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.Transaction
+import Contract.Address (scriptHashAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
+import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , mkTxUnspentOut
   )
-import CTL.Contract.TxConstraints
+import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
   , InputWithScriptRef(SpendInput)
   , TxConstraints
   )
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value (lovelaceValueOf) as Value
-import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import CTL.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (empty, toUnfoldable) as Map
 

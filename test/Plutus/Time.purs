@@ -1,10 +1,10 @@
-module Test.CTL.Plutus.Time
+module Test.Ctl.Plutus.Time
   ( suite
   ) where
 
 import Prelude
 
-import CTL.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -17,9 +17,9 @@ import CTL.Internal.QueryM.Ogmios
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
   )
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.Types.BigNum as BigNum
-import CTL.Internal.Types.Interval
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)
   , POSIXTime(POSIXTime)
@@ -46,8 +46,8 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Mote (group)
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils (toFromAesonTest, toFromAesonTestWith)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
 
 slotFixture :: Slot
 slotFixture = mkSlot 34892625

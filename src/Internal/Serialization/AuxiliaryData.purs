@@ -1,31 +1,31 @@
-module CTL.Internal.Serialization.AuxiliaryData
+module Ctl.Internal.Serialization.AuxiliaryData
   ( convertAuxiliaryData
   , hashAuxiliaryData
   ) where
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
   ) as T
-import CTL.Internal.FfiHelpers (ContainerHelper, containerHelper)
-import CTL.Internal.Helpers (fromJustEff)
-import CTL.Internal.Serialization.NativeScript (convertNativeScripts)
-import CTL.Internal.Serialization.PlutusScript (convertPlutusScript)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
+import Ctl.Internal.Helpers (fromJustEff)
+import Ctl.Internal.Serialization.NativeScript (convertNativeScripts)
+import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.Types
   ( AuxiliaryData
   , GeneralTransactionMetadata
   , NativeScripts
   , PlutusScripts
   , TransactionMetadatum
   )
-import CTL.Internal.Serialization.WitnessSet (addPlutusScript, newPlutusScripts)
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int as Int
-import CTL.Internal.Types.TransactionMetadata
+import Ctl.Internal.Serialization.WitnessSet (addPlutusScript, newPlutusScripts)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Int as Int
+import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)

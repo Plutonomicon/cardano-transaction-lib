@@ -1,4 +1,4 @@
-module CTL.Internal.QueryM.AwaitTxConfirmed
+module Ctl.Internal.QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
@@ -6,13 +6,13 @@ module CTL.Internal.QueryM.AwaitTxConfirmed
 
 import Prelude
 
-import CTL.Internal.QueryM (QueryM, getChainTip, mkDatumCacheRequest)
-import CTL.Internal.QueryM.DatumCacheWsp (getTxByHash)
-import CTL.Internal.QueryM.Ogmios (TxHash)
-import CTL.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
-import CTL.Internal.Serialization.Address (Slot)
-import CTL.Internal.Types.BigNum as BigNum
-import CTL.Internal.Types.Chain as Chain
+import Ctl.Internal.QueryM (QueryM, getChainTip, mkDatumCacheRequest)
+import Ctl.Internal.QueryM.DatumCacheWsp (getTxByHash)
+import Ctl.Internal.QueryM.Ogmios (TxHash)
+import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
+import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Chain as Chain
 import Data.DateTime.Instant (unInstant)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (unwrap, wrap)

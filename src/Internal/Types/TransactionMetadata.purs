@@ -1,4 +1,4 @@
-module CTL.Internal.Types.TransactionMetadata
+module Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum
       ( MetadataMap
@@ -13,14 +13,14 @@ module CTL.Internal.Types.TransactionMetadata
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
-import CTL.Internal.Helpers
+import Ctl.Internal.Helpers
   ( appendRightMap
   , encodeMap
   , encodeTagged'
   , showWithParens
   )
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int (Int) as Int
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Int (Int) as Int
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)

@@ -1,4 +1,4 @@
-module CTL.Internal.Deserialization.UnspentOutput
+module Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
@@ -9,16 +9,16 @@ module CTL.Internal.Deserialization.UnspentOutput
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.ScriptRef
+import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(PlutusScriptRef, NativeScriptRef)
   ) as T
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as T
-import CTL.Internal.Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import CTL.Internal.Cardano.Types.Value
+import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , Value
@@ -26,14 +26,14 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkValue
   ) as T
-import CTL.Internal.Deserialization.NativeScript (convertNativeScript)
-import CTL.Internal.Deserialization.PlutusData (convertPlutusData)
-import CTL.Internal.Deserialization.WitnessSet (convertPlutusScript)
-import CTL.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import CTL.Internal.Serialization (toBytes)
-import CTL.Internal.Serialization.Address (Address)
-import CTL.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
-import CTL.Internal.Serialization.Types
+import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
+import Ctl.Internal.Deserialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Deserialization.WitnessSet (convertPlutusScript)
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
   , DataHash
@@ -48,14 +48,14 @@ import CTL.Internal.Serialization.Types
   , TransactionUnspentOutput
   , Value
   )
-import CTL.Internal.Types.BigNum (BigNum)
-import CTL.Internal.Types.BigNum (toBigInt) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.OutputDatum
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
-import CTL.Internal.Types.TokenName (TokenName, assetNameName, mkTokenName) as T
-import CTL.Internal.Types.Transaction
+import Ctl.Internal.Types.TokenName (TokenName, assetNameName, mkTokenName) as T
+import Ctl.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)

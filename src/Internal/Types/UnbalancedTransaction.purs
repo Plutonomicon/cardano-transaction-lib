@@ -1,4 +1,4 @@
-module CTL.Internal.Types.UnbalancedTransaction
+module Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   , ScriptDatum(ScriptDatum, ScriptDatumHash)
@@ -13,22 +13,22 @@ module CTL.Internal.Types.UnbalancedTransaction
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey(PublicKey)
   , RequiredSigner(RequiredSigner)
   , Transaction
   , TransactionOutput
   , Vkey(Vkey)
   )
-import CTL.Internal.Cardano.Types.Value (Value)
-import CTL.Internal.Helpers (encodeMap, encodeTagged')
-import CTL.Internal.Serialization
+import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Helpers (encodeMap, encodeTagged')
+import Ctl.Internal.Serialization
   ( publicKeyFromBech32
   , publicKeyHash
   )
-import CTL.Internal.Types.Datum (DataHash, Datum)
-import CTL.Internal.Types.Scripts (ValidatorHash)
-import CTL.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Datum (DataHash, Datum)
+import Ctl.Internal.Types.Scripts (ValidatorHash)
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')

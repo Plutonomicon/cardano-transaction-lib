@@ -1,4 +1,4 @@
-module CTL.Internal.BalanceTx
+module Ctl.Internal.BalanceTx
   ( module BalanceTxErrorExport
   , module FinalizedTransaction
   , balanceTx
@@ -7,11 +7,11 @@ module CTL.Internal.BalanceTx
 
 import Prelude
 
-import CTL.Internal.BalanceTx.Collateral
+import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
   )
-import CTL.Internal.BalanceTx.Error
+import Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
       ( CouldNotConvertScriptOutputToTxInput
@@ -27,7 +27,7 @@ import CTL.Internal.BalanceTx.Error
   , Expected(Expected)
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
-import CTL.Internal.BalanceTx.Error
+import Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
       ( CouldNotConvertScriptOutputToTxInput
@@ -40,24 +40,24 @@ import CTL.Internal.BalanceTx.Error
       )
   , Expected(Expected)
   )
-import CTL.Internal.BalanceTx.ExUnitsAndMinFee
+import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   ( evalExUnitsAndMinFee
   , finalizeTransaction
   )
-import CTL.Internal.BalanceTx.Helpers
+import Ctl.Internal.BalanceTx.Helpers
   ( _body'
   , _redeemersTxIns
   , _transaction'
   , _unbalancedTx
   )
-import CTL.Internal.BalanceTx.Types
+import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
   , PrebalancedTransaction(PrebalancedTransaction)
   )
-import CTL.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
-import CTL.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
+import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
+import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
@@ -69,7 +69,7 @@ import CTL.Internal.Cardano.Types.Transaction
   , _networkId
   , _outputs
   )
-import CTL.Internal.Cardano.Types.Value
+import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , Value
   , geq
@@ -79,24 +79,24 @@ import CTL.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import CTL.Internal.QueryM (QueryM)
-import CTL.Internal.QueryM (getWalletAddress) as QueryM
-import CTL.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import CTL.Internal.QueryM.Utxos
+import Ctl.Internal.QueryM (QueryM)
+import Ctl.Internal.QueryM (getWalletAddress) as QueryM
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
   , getWalletCollateral
   , utxosAt
   )
-import CTL.Internal.Serialization.Address
+import Ctl.Internal.Serialization.Address
   ( Address
   , addressPaymentCred
   , withStakeCredential
   )
-import CTL.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import CTL.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
-import CTL.Internal.Types.Transaction (TransactionInput)
-import CTL.Internal.Types.UnbalancedTransaction (_utxoIndex)
-import CTL.Internal.Wallet (cip30Wallet)
+import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
+import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
+import Ctl.Internal.Wallet (cip30Wallet)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger

@@ -1,4 +1,4 @@
-module CTL.Internal.Transaction
+module Ctl.Internal.Transaction
   ( ModifyTxError(ConvertWitnessesError, ConvertDatumError)
   , attachDatum
   , attachRedeemer
@@ -9,8 +9,8 @@ module CTL.Internal.Transaction
 
 import Prelude
 
-import CTL.Internal.Cardano.Types.NativeScript (NativeScript)
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
+import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
   , Redeemer
   , ScriptDataHash(ScriptDataHash)
@@ -18,15 +18,15 @@ import CTL.Internal.Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   )
-import CTL.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import CTL.Internal.Helpers (liftEither)
-import CTL.Internal.Serialization (hashScriptData, toBytes)
-import CTL.Internal.Serialization.PlutusData as Serialization.PlutusData
-import CTL.Internal.Serialization.PlutusScript as Serialization.PlutusScript
-import CTL.Internal.Serialization.Types as Serialization
-import CTL.Internal.Serialization.WitnessSet as Serialization.WitnessSet
-import CTL.Internal.Types.Datum (Datum)
-import CTL.Internal.Types.Scripts (PlutusScript)
+import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.Serialization (hashScriptData, toBytes)
+import Ctl.Internal.Serialization.PlutusData as Serialization.PlutusData
+import Ctl.Internal.Serialization.PlutusScript as Serialization.PlutusScript
+import Ctl.Internal.Serialization.Types as Serialization
+import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import Ctl.Internal.Types.Datum (Datum)
+import Ctl.Internal.Types.Scripts (PlutusScript)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Data.Array as Array
 import Data.Either (Either(Right), note)

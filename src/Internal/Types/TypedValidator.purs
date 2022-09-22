@@ -1,4 +1,4 @@
-module CTL.Internal.Types.TypedValidator
+module Ctl.Internal.Types.TypedValidator
   ( TypedValidator(TypedValidator)
   , ValidatorType
   , WrappedValidatorType
@@ -19,10 +19,10 @@ import Aeson
   , caseAesonObject
   , (.:)
   )
-import CTL.Internal.Cardano.Types.Transaction (Transaction)
-import CTL.Internal.Types.Any (Any)
-import CTL.Internal.Types.PlutusData (PlutusData)
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Types.Any (Any)
+import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
   , Validator

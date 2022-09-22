@@ -1,10 +1,10 @@
-module CTL.Internal.QueryM.Logging
+module Ctl.Internal.QueryM.Logging
   ( setupLogs
   ) where
 
 import Prelude
 
-import CTL.Internal.QueryM (Logger, mkLogger)
+import Ctl.Internal.QueryM (Logger, mkLogger)
 import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Log.Level (LogLevel)

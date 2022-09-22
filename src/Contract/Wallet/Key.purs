@@ -1,8 +1,8 @@
-module CTL.Contract.Wallet.Key
+module Contract.Wallet.Key
   ( module X
   ) where
 
-import CTL.Internal.Wallet.Key
+import Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , privateKeysToKeyWallet
   ) as X

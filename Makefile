@@ -8,7 +8,7 @@ ps-sources := $(shell fd -epurs -Etmp)
 nix-sources := $(shell fd -enix --exclude='spago*' -Etmp)
 hs-sources := $(shell fd . './server/src' './server/exe' -ehs -Etmp)
 js-sources := $(shell fd -ejs -Etmp)
-ps-entrypoint := CTL.Examples.ByUrl # points to one of the example PureScript modules in examples/
+ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript modules in examples/
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 

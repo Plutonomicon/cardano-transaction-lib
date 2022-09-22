@@ -1,18 +1,18 @@
-module Test.CTL.E2E.Examples.Datums (runExample) where
+module Test.Ctl.E2E.Examples.Datums (runExample) where
 
 import Prelude
 
-import CTL.Contract.Test.E2E
+import Contract.Test.E2E
   ( SomeWallet(SomeWallet)
   , TestOptions
   , WalletExt(NamiExt)
   , WalletPassword
   )
 import Effect.Aff (Aff)
-import Test.CTL.E2E.Helpers
+import Test.Ctl.E2E.Helpers
   ( runE2ETest
   )
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 
 runExample
   :: SomeWallet -> WalletPassword -> TestOptions -> TestPlanM (Aff Unit) Unit

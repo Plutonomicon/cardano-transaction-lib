@@ -1,10 +1,10 @@
-module CTL.Internal.Metadata.FromMetadata where
+module Ctl.Internal.Metadata.FromMetadata where
 
 import Prelude
 
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Int (Int, toBigInt) as Int
-import CTL.Internal.Types.TransactionMetadata
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Int (Int, toBigInt) as Int
+import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataList, Int, Bytes, Text)
   )
 import Data.Array (toUnfoldable, uncons) as Array

@@ -1,4 +1,4 @@
-module CTL.Plutus.Types.CurrencySymbol
+module Ctl.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , currencyMPSHash
@@ -19,17 +19,17 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Metadata.FromMetadata (class FromMetadata)
-import CTL.Internal.Metadata.ToMetadata (class ToMetadata)
-import CTL.Internal.Serialization.Hash
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , scriptHashFromBytes
   , scriptHashToBytes
   )
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap, wrap)

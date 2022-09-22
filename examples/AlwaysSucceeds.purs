@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module CTL.Examples.AlwaysSucceeds
+module Ctl.Examples.AlwaysSucceeds
   ( alwaysSucceedsScript
   , contract
   , example
@@ -10,32 +10,32 @@ module CTL.Examples.AlwaysSucceeds
   , spendFromAlwaysSucceeds
   ) where
 
-import CTL.Contract.Prelude
+import Contract.Prelude
 
-import CTL.Contract.Address (scriptHashAddress)
-import CTL.Contract.Config (ConfigParams, testnetNamiConfig)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad (Contract, launchAff_, runContract)
-import CTL.Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import CTL.Contract.Test.E2E (publishTestFeedback)
-import CTL.Contract.TextEnvelope
+import Contract.Address (scriptHashAddress)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import CTL.Contract.Transaction
+import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
   , lookupTxHash
   , plutusV1Script
   )
-import CTL.Contract.TxConstraints (TxConstraints)
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (utxosAt)
-import CTL.Contract.Value as Value
-import CTL.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import CTL.Plutus.Types.TransactionUnspentOutput (_input)
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
+import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Ctl.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)

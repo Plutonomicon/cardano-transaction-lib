@@ -1,4 +1,4 @@
-module CTL.Plutus.Types.Value
+module Ctl.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
@@ -37,20 +37,20 @@ import Aeson
   , encodeAeson'
   , getField
   )
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.Helpers (showWithParens)
-import CTL.Internal.ToData (class ToData)
-import CTL.Internal.Types.ByteArray (ByteArray)
-import CTL.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
-import CTL.Plutus.Types.AssocMap (Map(Map)) as Plutus
-import CTL.Plutus.Types.AssocMap
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
+import Ctl.Plutus.Types.AssocMap (Map(Map)) as Plutus
+import Ctl.Plutus.Types.AssocMap
   ( keys
   , lookup
   , mapThese
   , singleton
   , union
   ) as Plutus.Map
-import CTL.Plutus.Types.CurrencySymbol
+import Ctl.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol

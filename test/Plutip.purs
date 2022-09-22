@@ -1,12 +1,12 @@
 -- | `plutip-server` PR:
 -- | https://github.com/mlabs-haskell/plutip/pull/79 (run with `cabal run plutip-server`)
-module Test.CTL.Plutip
+module Test.Ctl.Plutip
   ( main
   ) where
 
 import Prelude
 
-import CTL.Contract.Address
+import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
@@ -15,35 +15,35 @@ import CTL.Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
-import CTL.Contract.Chain (currentTime)
-import CTL.Contract.Hashing (nativeScriptHash)
-import CTL.Contract.Log (logInfo')
-import CTL.Contract.Monad
+import Contract.Chain (currentTime)
+import Contract.Hashing (nativeScriptHash)
+import Contract.Log (logInfo')
+import Contract.Monad
   ( Contract
   , liftContractM
   , liftedE
   , liftedM
   , wrapContract
   )
-import CTL.Contract.PlutusData
+import Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
   )
-import CTL.Contract.Prelude (mconcat)
-import CTL.Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
-import CTL.Contract.ScriptLookups as Lookups
-import CTL.Contract.Scripts (applyArgs, validatorHash)
-import CTL.Contract.Test.Plutip
+import Contract.Prelude (mconcat)
+import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
+import Contract.ScriptLookups as Lookups
+import Contract.Scripts (applyArgs, validatorHash)
+import Contract.Test.Plutip
   ( InitialUTxOs
   , runContractInEnv
   , runPlutipContract
   , withPlutipContractEnv
   , withStakeKey
   )
-import CTL.Contract.Time (getEraSummaries)
-import CTL.Contract.Transaction
+import Contract.Time (getEraSummaries)
+import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
@@ -56,68 +56,68 @@ import CTL.Contract.Transaction
   , submit
   , withBalancedAndSignedTxs
   )
-import CTL.Contract.TxConstraints (TxConstraints)
-import CTL.Contract.TxConstraints as Constraints
-import CTL.Contract.Utxos (getWalletBalance, utxosAt)
-import CTL.Contract.Value (Coin(Coin), coinToValue)
-import CTL.Contract.Value as Value
-import CTL.Contract.Wallet
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints as Constraints
+import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Value (Coin(Coin), coinToValue)
+import Contract.Value as Value
+import Contract.Wallet
   ( getWalletUtxos
   , isFlintAvailable
   , isGeroAvailable
   , isNamiAvailable
   , withKeyWallet
   )
-import CTL.Examples.AlwaysMints (alwaysMintsPolicy)
-import CTL.Examples.AlwaysSucceeds as AlwaysSucceeds
-import CTL.Examples.ContractTestUtils as ContractTestUtils
-import CTL.Examples.Helpers
+import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
+import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.ContractTestUtils as ContractTestUtils
+import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
-import CTL.Examples.Lose7Ada as AlwaysFails
-import CTL.Examples.MintsMultipleTokens
+import Ctl.Examples.Lose7Ada as AlwaysFails
+import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import CTL.Examples.OneShotMinting (contract) as OneShotMinting
-import CTL.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import CTL.Examples.PlutusV2.InlineDatum as InlineDatum
-import CTL.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
-import CTL.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import CTL.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
-import CTL.Examples.SendsToken (contract) as SendsToken
-import CTL.Internal.Plutip.Server
+import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
+import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
+import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
+import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
+import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import Ctl.Examples.SendsToken (contract) as SendsToken
+import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
-import CTL.Internal.Plutip.Types
+import Ctl.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey
   , StopClusterResponse(StopClusterSuccess)
   )
-import CTL.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
-import CTL.Internal.Scripts (nativeScriptHashEnterpriseAddress)
-import CTL.Internal.Types.Interval (getSlotLength)
-import CTL.Internal.Types.UsedTxOuts (TxOutRefCache)
-import CTL.Internal.Wallet.Cip30Mock
+import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
+import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
+import Ctl.Internal.Types.Interval (getSlotLength)
+import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
+import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )
-import CTL.Internal.Wallet.Key (KeyWallet)
-import CTL.Plutus.Conversion.Address (toPlutusAddress)
-import CTL.Plutus.Types.Transaction
+import Ctl.Internal.Wallet.Key (KeyWallet)
+import Ctl.Plutus.Conversion.Address (toPlutusAddress)
+import Ctl.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import CTL.Plutus.Types.TransactionUnspentOutput
+import Ctl.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , _input
   , lookupTxHash
   )
-import CTL.Plutus.Types.Value (lovelaceValueOf)
+import Ctl.Plutus.Types.Value (lovelaceValueOf)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
@@ -139,23 +139,23 @@ import Effect.Ref as Ref
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
-import Test.CTL.AffInterface as AffInterface
-import Test.CTL.Fixtures
+import Test.Ctl.AffInterface as AffInterface
+import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , fullyAppliedScriptFixture
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
-import Test.CTL.Plutip.Common (config, privateStakeKey)
-import Test.CTL.Plutip.Logging as Logging
-import Test.CTL.Plutip.UtxoDistribution (checkUtxoDistribution)
-import Test.CTL.Plutip.UtxoDistribution as UtxoDistribution
-import Test.CTL.TestM (TestPlanM)
-import Test.CTL.Utils as Utils
+import Test.Ctl.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils as Utils
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
--- Run with `spago test --main Test.CTL.Plutip`
+-- Run with `spago test --main Test.Ctl.Plutip`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig

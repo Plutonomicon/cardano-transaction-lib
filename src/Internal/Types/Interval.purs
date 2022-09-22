@@ -1,4 +1,4 @@
-module CTL.Internal.Types.Interval
+module Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
@@ -79,19 +79,19 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
-import CTL.Internal.FromData (class FromData, genericFromData)
-import CTL.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
-import CTL.Internal.QueryM.Ogmios
+import Ctl.Internal.FromData (class FromData, genericFromData)
+import Ctl.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
+import Ctl.Internal.QueryM.Ogmios
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , SystemStart
   , aesonObject
   , slotLengthFactor
   )
-import CTL.Internal.Serialization.Address (Slot(Slot))
-import CTL.Internal.ToData (class ToData, genericToData)
-import CTL.Internal.TypeLevel.Nat (S, Z)
-import CTL.Internal.Types.BigNum
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.Types.BigNum
   ( add
   , fromBigInt
   , maxValue
@@ -99,7 +99,7 @@ import CTL.Internal.Types.BigNum
   , toBigIntUnsafe
   , zero
   ) as BigNum
-import CTL.Plutus.Types.DataSchema
+import Ctl.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

@@ -1,14 +1,14 @@
-module Test.CTL.Ogmios.Address (suite) where
+module Test.Ctl.Ogmios.Address (suite) where
 
 import Prelude
 
-import CTL.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import CTL.Internal.QueryM.Ogmios (OgmiosAddress)
+import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
+import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
 import Control.Monad.Except (throwError)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff, error)
 import Mote (group, test)
-import Test.CTL.TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 testnetAddrFixture1 :: OgmiosAddress

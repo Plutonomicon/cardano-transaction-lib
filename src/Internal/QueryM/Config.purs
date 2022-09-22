@@ -1,15 +1,15 @@
-module CTL.Internal.QueryM.Config
+module Ctl.Internal.QueryM.Config
   ( testnetTraceQueryConfig
   , testnetQueryConfig
   ) where
 
-import CTL.Internal.QueryM (QueryConfig)
-import CTL.Internal.QueryM.ServerConfig
+import Ctl.Internal.QueryM (QueryConfig)
+import Ctl.Internal.QueryM.ServerConfig
   ( defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
-import CTL.Internal.Serialization.Address (NetworkId(TestnetId))
+import Ctl.Internal.Serialization.Address (NetworkId(TestnetId))
 import Data.Log.Level (LogLevel(Error, Trace))
 import Data.Maybe (Maybe(Just, Nothing))
 

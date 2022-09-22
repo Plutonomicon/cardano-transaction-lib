@@ -1,4 +1,4 @@
-module CTL.Internal.TypeLevel.Nat
+module Ctl.Internal.TypeLevel.Nat
   ( Z
   , S
   , Nat

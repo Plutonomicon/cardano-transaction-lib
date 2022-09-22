@@ -1,7 +1,7 @@
-module CTL.Internal.IsData (class IsData) where
+module Ctl.Internal.IsData (class IsData) where
 
-import CTL.Internal.FromData (class FromData)
-import CTL.Internal.ToData (class ToData)
+import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.ToData (class ToData)
 
 class IsData :: Type -> Constraint
 class (FromData a, ToData a) <= IsData a

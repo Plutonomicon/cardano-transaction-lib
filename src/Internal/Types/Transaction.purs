@@ -1,6 +1,6 @@
 -- | A module for shared types across Cardano.Types.Transaction and
 -- | Plutus.Types.Transaction.
-module CTL.Internal.Types.Transaction
+module Ctl.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -9,10 +9,10 @@ module CTL.Internal.Types.Transaction
 import Prelude
 
 import Aeson (class EncodeAeson)
-import CTL.Internal.FromData (class FromData, fromData)
-import CTL.Internal.ToData (class ToData, toData)
-import CTL.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import CTL.Internal.Types.PlutusData (PlutusData(Constr))
+import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype)

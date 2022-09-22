@@ -1,6 +1,6 @@
 -- | Provides types and instances to create Ogmios requests and decode
 -- | its responses.
-module CTL.Internal.QueryM.Ogmios
+module Ctl.Internal.QueryM.Ogmios
   ( ChainOrigin(ChainOrigin)
   , ChainPoint
   , ChainTipQR(CtChainOrigin, CtChainPoint)
@@ -87,7 +87,7 @@ import Aeson
   , stringifyAeson
   , toString
   )
-import CTL.Internal.Cardano.Types.NativeScript
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -97,18 +97,18 @@ import CTL.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import CTL.Internal.Cardano.Types.ScriptRef
+import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
-import CTL.Internal.Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
   , Nonce
   , SubCoin
   )
-import CTL.Internal.Cardano.Types.Transaction as T
-import CTL.Internal.Cardano.Types.Value
+import Ctl.Internal.Cardano.Types.Transaction as T
+import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , Value
@@ -116,27 +116,27 @@ import CTL.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkValue
   )
-import CTL.Internal.Helpers (showWithParens)
-import CTL.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
-import CTL.Internal.Serialization.Address (Slot)
-import CTL.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
-import CTL.Internal.Types.BigNum (fromBigInt) as BigNum
-import CTL.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import CTL.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
-import CTL.Internal.Types.Int as Csl
-import CTL.Internal.Types.Natural (Natural)
-import CTL.Internal.Types.Natural (fromString) as Natural
-import CTL.Internal.Types.Rational (Rational, (%))
-import CTL.Internal.Types.Rational as Rational
-import CTL.Internal.Types.RawBytes (hexToRawBytes)
-import CTL.Internal.Types.RedeemerTag (RedeemerTag)
-import CTL.Internal.Types.RedeemerTag (fromString) as RedeemerTag
-import CTL.Internal.Types.Scripts
+import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
+import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
+import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
+import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.Int as Csl
+import Ctl.Internal.Types.Natural (Natural)
+import Ctl.Internal.Types.Natural (fromString) as Natural
+import Ctl.Internal.Types.Rational (Rational, (%))
+import Ctl.Internal.Types.Rational as Rational
+import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
+import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
+import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
-import CTL.Internal.Types.TokenName (TokenName, mkTokenName)
-import CTL.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
+import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Control.Alt ((<|>))
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Data.Array (catMaybes, index, reverse, singleton)
