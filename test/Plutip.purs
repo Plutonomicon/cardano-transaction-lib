@@ -110,16 +110,16 @@ import Ctl.Internal.Wallet.Cip30Mock
   , withCip30Mock
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
-import Ctl.Plutus.Conversion.Address (toPlutusAddress)
-import Ctl.Plutus.Types.Transaction
+import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
+import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , _input
   , lookupTxHash
   )
-import Ctl.Plutus.Types.Value (lovelaceValueOf)
+import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)

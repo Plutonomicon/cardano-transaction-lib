@@ -81,14 +81,14 @@ import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash, ValidatorHash)
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
-import Ctl.Plutus.Types.CurrencySymbol
+import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , currencyMPSHash
   )
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
+import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
 import Data.Array (concat, (:))
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)

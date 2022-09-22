@@ -1,4 +1,4 @@
-module Ctl.Plutus.Types.Address
+module Ctl.Internal.Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
@@ -28,11 +28,11 @@ import Ctl.Internal.Types.PubKeyHash
   , StakePubKeyHash
   )
 import Ctl.Internal.Types.Scripts (ValidatorHash)
-import Ctl.Plutus.Types.Credential
+import Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash)
   )
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

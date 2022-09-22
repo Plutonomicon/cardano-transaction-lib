@@ -35,7 +35,7 @@ import Ctl.Internal.Types.Scripts
   , ValidatorHash
   )
 import Ctl.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
-import Ctl.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
+import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 

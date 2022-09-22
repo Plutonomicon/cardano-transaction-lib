@@ -221,19 +221,19 @@ import Ctl.Internal.Types.UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
-import Ctl.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
-import Ctl.Plutus.Conversion.Address (fromPlutusAddress)
-import Ctl.Plutus.Types.Address (Address)
-import Ctl.Plutus.Types.Transaction
+import Ctl.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address)
+import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   ) as PTransaction
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , lookupTxHash
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
-import Ctl.Plutus.Types.Value (Coin)
+import Ctl.Internal.Plutus.Types.Value (Coin)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)

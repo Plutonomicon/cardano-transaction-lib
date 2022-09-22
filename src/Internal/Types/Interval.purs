@@ -102,7 +102,7 @@ import Ctl.Internal.Types.BigNum
   , toBigIntUnsafe
   , zero
   ) as BigNum
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)

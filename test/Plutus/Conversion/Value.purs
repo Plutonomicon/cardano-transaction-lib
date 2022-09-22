@@ -1,14 +1,14 @@
-module Test.Ctl.Plutus.Conversion.Value (suite) where
+module Test.Ctl.Internal.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
 import Ctl.Internal.Cardano.Types.Value (Value) as Types
 import Ctl.Internal.Cardano.Types.Value as Value
-import Ctl.Plutus.Conversion (fromPlutusValue, toPlutusValue)
-import Ctl.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
-import Ctl.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
-import Ctl.Plutus.Types.Value (Value) as Plutus
-import Ctl.Plutus.Types.Value as Plutus.Value
+import Ctl.Internal.Plutus.Conversion (fromPlutusValue, toPlutusValue)
+import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
+import Ctl.Internal.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
+import Ctl.Internal.Plutus.Types.Value (Value) as Plutus
+import Ctl.Internal.Plutus.Types.Value as Plutus.Value
 import Data.Array (length, range, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)

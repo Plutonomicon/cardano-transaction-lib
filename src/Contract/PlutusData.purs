@@ -81,7 +81,7 @@ import Ctl.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Ctl.Plutus.Types.DataSchema
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class AllUnique2
   , class HasPlutusSchema
   , class PlutusSchemaToRowListI

@@ -14,7 +14,7 @@ import Ctl.Internal.Types.TokenName
   , mkTokenName
   , mkTokenNames
   ) as TokenName
-import Ctl.Plutus.Types.CurrencySymbol
+import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , currencyMPSHash
@@ -23,7 +23,7 @@ import Ctl.Plutus.Types.CurrencySymbol
   , mpsSymbol
   , scriptHashAsCurrencySymbol
   ) as CurrencySymbol
-import Ctl.Plutus.Types.Value
+import Ctl.Internal.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue

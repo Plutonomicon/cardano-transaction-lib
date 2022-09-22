@@ -180,12 +180,12 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   )
-import Ctl.Plutus.Conversion
+import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
   , fromPlutusValue
   )
-import Ctl.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
-import Ctl.Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)

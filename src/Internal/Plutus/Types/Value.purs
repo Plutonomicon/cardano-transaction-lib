@@ -1,4 +1,4 @@
-module Ctl.Plutus.Types.Value
+module Ctl.Internal.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
@@ -43,15 +43,15 @@ import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
-import Ctl.Plutus.Types.AssocMap (Map(Map)) as Plutus
-import Ctl.Plutus.Types.AssocMap
+import Ctl.Internal.Plutus.Types.AssocMap (Map(Map)) as Plutus
+import Ctl.Internal.Plutus.Types.AssocMap
   ( keys
   , lookup
   , mapThese
   , singleton
   , union
   ) as Plutus.Map
-import Ctl.Plutus.Types.CurrencySymbol
+import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol

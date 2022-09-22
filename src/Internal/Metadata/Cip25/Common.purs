@@ -35,7 +35,7 @@ import Ctl.Internal.Metadata.Helpers
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import Ctl.Plutus.Types.AssocMap as AssocMap
+import Ctl.Internal.Plutus.Types.AssocMap as AssocMap
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (note)
