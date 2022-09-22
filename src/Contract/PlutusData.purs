@@ -43,6 +43,28 @@ import Ctl.Internal.FromData
   ) as FromData
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.IsData (class IsData) as IsData
+import Ctl.Internal.Plutus.Types.DataSchema
+  ( class AllUnique2
+  , class HasPlutusSchema
+  , class PlutusSchemaToRowListI
+  , class SchemaToRowList
+  , class ValidPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , ApPCons
+  , Field
+  , I
+  , Id
+  , IxK
+  , MkField
+  , MkField_
+  , MkIxK
+  , MkIxK_
+  , PCons
+  , PNil
+  , PSchema
+  ) as DataSchema
 import Ctl.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
@@ -81,28 +103,6 @@ import Ctl.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Ctl.Internal.Plutus.Types.DataSchema
-  ( class AllUnique2
-  , class HasPlutusSchema
-  , class PlutusSchemaToRowListI
-  , class SchemaToRowList
-  , class ValidPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , ApPCons
-  , Field
-  , I
-  , Id
-  , IxK
-  , MkField
-  , MkField_
-  , MkIxK
-  , MkIxK_
-  , PCons
-  , PNil
-  , PSchema
-  ) as DataSchema
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 

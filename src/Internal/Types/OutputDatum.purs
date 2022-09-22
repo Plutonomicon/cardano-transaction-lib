@@ -12,10 +12,6 @@ import Aeson
   )
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Helpers (encodeTagged')
-import Ctl.Internal.ToData (class ToData, genericToData)
-import Ctl.Internal.TypeLevel.Nat (S, Z)
-import Ctl.Internal.Types.Datum (Datum)
-import Ctl.Internal.Types.Transaction (DataHash)
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -23,6 +19,10 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , type (@@)
   , PNil
   )
+import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.Types.Datum (Datum)
+import Ctl.Internal.Types.Transaction (DataHash)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)

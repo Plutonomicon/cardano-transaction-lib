@@ -87,6 +87,14 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM, (<\>))
 import Ctl.Internal.IsData (class IsData)
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusTxOutputWithRefScript
+  , fromPlutusValue
+  )
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
@@ -179,14 +187,6 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
-  )
-import Ctl.Internal.Plutus.Conversion
-  ( fromPlutusTxOutputWithRefScript
-  , fromPlutusValue
-  )
-import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array

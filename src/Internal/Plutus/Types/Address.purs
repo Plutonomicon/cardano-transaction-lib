@@ -19,15 +19,6 @@ import Aeson
   , (.:)
   )
 import Ctl.Internal.FromData (class FromData, genericFromData)
-import Ctl.Internal.Serialization.Address (NetworkId)
-import Ctl.Internal.ToData (class ToData, genericToData)
-import Ctl.Internal.TypeLevel.Nat (Z)
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash
-  , StakePubKeyHash
-  )
-import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash)
@@ -40,6 +31,15 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.TypeLevel.Nat (Z)
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))

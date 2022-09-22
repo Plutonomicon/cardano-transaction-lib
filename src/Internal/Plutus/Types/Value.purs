@@ -40,9 +40,6 @@ import Aeson
 import Control.Apply (lift3)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (showWithParens)
-import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map)) as Plutus
 import Ctl.Internal.Plutus.Types.AssocMap
   ( keys
@@ -56,6 +53,9 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol
   )
+import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Data.Array (concatMap, filter)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))

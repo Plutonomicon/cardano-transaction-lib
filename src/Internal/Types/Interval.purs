@@ -84,6 +84,14 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
+import Ctl.Internal.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  )
 import Ctl.Internal.QueryM.Ogmios
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -102,14 +110,6 @@ import Ctl.Internal.Types.BigNum
   , toBigIntUnsafe
   , zero
   ) as BigNum
-import Ctl.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
 import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)

@@ -15,6 +15,7 @@ import Prelude
 
 import Ctl.Internal.Hashing (plutusScriptHash)
 import Ctl.Internal.NativeScripts (NativeScriptHash)
+import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -35,7 +36,6 @@ import Ctl.Internal.Types.Scripts
   , ValidatorHash
   )
 import Ctl.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
-import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 

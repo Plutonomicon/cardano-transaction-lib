@@ -102,14 +102,6 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse(StopClusterSuccess)
   )
 import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
-import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
-import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
-import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
-  , withCip30Mock
-  )
-import Ctl.Internal.Wallet.Key (KeyWallet)
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -120,6 +112,14 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   , lookupTxHash
   )
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
+import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
+import Ctl.Internal.Types.Interval (getSlotLength)
+import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
+import Ctl.Internal.Wallet.Cip30Mock
+  ( WalletMock(MockNami, MockGero, MockFlint)
+  , withCip30Mock
+  )
+import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)

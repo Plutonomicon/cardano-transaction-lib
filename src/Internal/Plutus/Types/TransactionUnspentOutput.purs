@@ -8,11 +8,11 @@ module Ctl.Internal.Plutus.Types.TransactionUnspentOutput
 
 import Prelude
 
-import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript
   , UtxoMap
   )
+import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (filter)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')

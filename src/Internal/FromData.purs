@@ -21,6 +21,10 @@ import Prelude
 
 import Control.Alternative ((<|>))
 import Ctl.Internal.Helpers (bigIntToUInt)
+import Ctl.Internal.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , class ValidPlutusSchema
+  )
 import Ctl.Internal.TypeLevel.Nat (class KnownNat, natVal)
 import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   ( class GetIndexWithLabel
@@ -32,10 +36,6 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , class ValidPlutusSchema
-  )
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.BigInt (BigInt)

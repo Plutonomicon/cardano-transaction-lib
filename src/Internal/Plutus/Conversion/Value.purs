@@ -13,7 +13,6 @@ import Ctl.Internal.Cardano.Types.Value
   , mkNonAdaAssetsFromTokenMap
   , mkValue
   )
-import Ctl.Internal.Types.TokenName (adaToken, getTokenName)
 import Ctl.Internal.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import Ctl.Internal.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
 import Ctl.Internal.Plutus.Types.Value (Value) as Plutus
@@ -22,6 +21,7 @@ import Ctl.Internal.Plutus.Types.Value
   , lovelaceValueOf
   , singleton'
   ) as Plutus.Value
+import Ctl.Internal.Types.TokenName (adaToken, getTokenName)
 import Data.Array (head, partition)
 import Data.Foldable (fold)
 import Data.List (List)

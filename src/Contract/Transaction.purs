@@ -134,6 +134,19 @@ import Ctl.Internal.Cardano.Types.Transaction
   ) as Transaction
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address)
+import Ctl.Internal.Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  ) as PTransaction
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , lookupTxHash
+  , mkTxUnspentOut
+  ) as PTransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.Value (Coin)
 import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
@@ -221,19 +234,6 @@ import Ctl.Internal.Types.UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
-import Ctl.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
-import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
-import Ctl.Internal.Plutus.Types.Address (Address)
-import Ctl.Internal.Plutus.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  ) as PTransaction
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  , lookupTxHash
-  , mkTxUnspentOut
-  ) as PTransactionUnspentOutput
-import Ctl.Internal.Plutus.Types.Value (Coin)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)

@@ -11,6 +11,9 @@ import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
 import Test.Ctl.Deserialization as Deserialization
 import Test.Ctl.Hashing as Hashing
+import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
+import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
+import Test.Ctl.Internal.Plutus.Time as Plutus.Time
 import Test.Ctl.Metadata.Cip25 as Cip25
 import Test.Ctl.NativeScript as NativeScript
 import Test.Ctl.Ogmios.Address as Ogmios.Address
@@ -18,9 +21,6 @@ import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.Ctl.OgmiosDatumCache as OgmiosDatumCache
 import Test.Ctl.Parser as Parser
-import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
-import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
-import Test.Ctl.Internal.Plutus.Time as Plutus.Time
 import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Address as Serialization.Address
