@@ -1,4 +1,4 @@
--- | TODO docstring
+-- | CTL query layer monad
 module QueryM
   ( ClientError
       ( ClientHttpError
@@ -33,7 +33,7 @@ module QueryM
   , getDatumsByHashes
   , getLogger
   , getProtocolParametersAff
-  , getWalletAddress
+  , getWalletAddresses
   , liftQueryM
   , listeners
   , postAeson
@@ -50,17 +50,18 @@ module QueryM
   , mkRequest
   , mkRequestAff
   , module ServerConfig
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
   , ownStakePubKeyHash
   , runQueryM
   , runQueryMWithSettings
   , runQueryMInRuntime
-  , signTransaction
   , scriptToAeson
   , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
+  , withMWalletAff
+  , withMWallet
   , withQueryRuntime
   , callCip30Wallet
   ) where
@@ -81,8 +82,6 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Cardano.Types.Transaction (_witnessSet)
-import Cardano.Types.Transaction as Transaction
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
@@ -101,11 +100,11 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
+import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
-import Data.Lens ((<>~))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
@@ -198,9 +197,10 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, Lode, KeyWallet)
+  , Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet)
   , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkEternlWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   , mkLodeWalletAff
@@ -212,6 +212,7 @@ import Wallet.Spec
       , ConnectToGero
       , ConnectToNami
       , ConnectToFlint
+      , ConnectToEternl
       , ConnectToLode
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
@@ -393,6 +394,7 @@ mkWalletBySpec = case _ of
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
   ConnectToFlint -> mkFlintWalletAff
+  ConnectToEternl -> mkEternlWalletAff
   ConnectToLode -> mkLodeWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
@@ -519,50 +521,45 @@ allowError func = func <<< Right
 -- Wallet
 --------------------------------------------------------------------------------
 
-getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = do
+getWalletAddresses :: QueryM (Maybe (Array Address))
+getWalletAddresses = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
-    Nami wallet -> callCip30Wallet wallet _.getWalletAddress
-    Gero wallet -> callCip30Wallet wallet _.getWalletAddress
-    Flint wallet -> callCip30Wallet wallet _.getWalletAddress
-    Lode wallet -> callCip30Wallet wallet _.getWalletAddress
-    KeyWallet kw -> Just <$> (unwrap kw).address networkId
+    Eternl wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Nami wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
+    KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
 
-signTransaction
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
-  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
-  Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
-  Lode lode -> callCip30Wallet lode \nw -> flip nw.signTx tx
-  KeyWallet kw -> do
-    witnessSet <- (unwrap kw).signTx tx
-    pure $ Just (tx # _witnessSet <>~ witnessSet)
-
-ownPubKeyHash :: QueryM (Maybe PubKeyHash)
-ownPubKeyHash = do
-  mbAddress <- getWalletAddress
+ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
+ownPubKeyHashes = do
+  mbAddress <- getWalletAddresses
   pure $
-    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
+    map wrap <$>
+      (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
 
-ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
+ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
+ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 
+-- TODO: change to array of StakePubKeyHash
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddress
+  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash
       (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
-  :: forall (r :: Row Type) (a :: Type)
-   . (Wallet -> Aff (Maybe a))
-  -> QueryM (Maybe a)
-withMWalletAff act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
-  (liftAff <<< act)
+  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
+withMWalletAff act = withMWallet (liftAff <<< act)
+
+withMWallet
+  :: forall (a :: Type). (Wallet -> QueryM (Maybe a)) -> QueryM (Maybe a)
+withMWallet act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
+  act
 
 callCip30Wallet
   :: forall (a :: Type)

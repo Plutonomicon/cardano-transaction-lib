@@ -21,5 +21,5 @@ runExample (SomeWallet { id, wallet, confirmAccess, sign }) password options =
       sign id password example
       liftEffect $ log $
         " ...waiting before trying to spend script output (this will take a minute)"
-      delaySec 65.0
+      delaySec 60.0
       sign id password example
