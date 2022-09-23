@@ -81,28 +81,39 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     , ownAddress: Nothing
     }
 
+-- | Tells the balancer to treat the provided address like user's own.
 mustBalanceTxWithAddress
   :: NetworkId -> Plutus.Address -> BalanceTxConstraintsBuilder
 mustBalanceTxWithAddress networkId =
   wrap <<< setJust _ownAddress <<< fromPlutusAddress networkId
 
+-- | Tells the balancer to treat the provided address like user's own.
+-- | Like `mustBalanceTxWithAddress`, but takes `AddressWithNetworkTag`. 
 mustBalanceTxWithAddress'
   :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
 mustBalanceTxWithAddress'
   (Plutus.AddressWithNetworkTag { address, networkId }) =
   mustBalanceTxWithAddress networkId address
 
+-- | Tells the balancer to split change outputs and equipartition change `Value` 
+-- | between them if the total change `Value` contains token quantities 
+-- | exceeding the specified upper bound.
+-- | (See `Cardano.Types.Value.equipartitionValueWithTokenQuantityUpperBound`)
 mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
 mustGenChangeOutsWithMaxTokenQuantity =
   wrap <<< setJust _maxChangeOutputTokenQuantity <<< max one
 
+-- | Tells the balancer not to spend utxos with the specified output references.
 mustNotSpendUtxosWithOutRefs
   :: Set TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
 
+-- | Tells the balancer not to spend a utxo with the specified output reference.
 mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
+-- | Tells the balancer to use the provided utxo set when evaluating script 
+-- | execution units (Sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
 
