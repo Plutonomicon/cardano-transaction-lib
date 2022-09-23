@@ -11,6 +11,7 @@ import BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
 import BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import BalanceTx.Constraints
   ( _maxChangeOutputTokenQuantity
+  , _nonSpendableInputs
   , _ownAddress
   ) as Constraints
 import BalanceTx.Error
@@ -89,10 +90,10 @@ import Data.Array.NonEmpty (toArray) as NEArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable (foldl, foldMap)
-import Data.Lens.Getter ((^.))
+import Data.Lens.Getter ((^.), view)
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (filterKeys, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -367,6 +368,9 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
   txChangeOutputs <-
     genTransactionChangeOutputs changeAddress utxos unbalancedTx
 
+  nonSpendableInputs <-
+    askConstraints <#> view Constraints._nonSpendableInputs
+
   let
     changeValue :: Value
     changeValue = foldMap getAmount txChangeOutputs
@@ -374,8 +378,12 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
     requiredInputValue :: Value
     requiredInputValue = nonMintedValue <> minFeeValue txBody <> changeValue
 
+    spendableUtxos :: UtxoMap
+    spendableUtxos =
+      Map.filterKeys (not <<< flip Set.member nonSpendableInputs) utxos
+
   newTxInputs <-
-    except $ collectTransactionInputs txInputs utxos requiredInputValue
+    except $ collectTransactionInputs txInputs spendableUtxos requiredInputValue
 
   case newTxInputs == txInputs of
     true ->

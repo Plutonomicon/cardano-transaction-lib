@@ -5,5 +5,7 @@ import BalanceTx.Constraints
   , mustBalanceTxWithAddress
   , mustBalanceTxWithAddress'
   , mustGenChangeOutsWithMaxTokenQuantity
+  , mustNotSpendUtxosWithOutRefs
+  , mustNotSpendUtxoWithOutRef
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
