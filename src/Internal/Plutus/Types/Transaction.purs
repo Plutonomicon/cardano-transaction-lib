@@ -2,6 +2,9 @@ module Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  , _datum
+  , _output
+  , _scriptRef
   ) where
 
 import Prelude
@@ -16,10 +19,14 @@ import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
+import Data.Lens (Lens')
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Type.Proxy (Proxy(Proxy))
 
 -- https://github.com/input-output-hk/plutus/blob/c8d4364d0e639fef4d5b93f7d6c0912d992b54f9/plutus-ledger-api/src/PlutusLedgerApi/V2/Tx.hs#L80
 newtype TransactionOutput = TransactionOutput
@@ -28,6 +35,9 @@ newtype TransactionOutput = TransactionOutput
   , datum :: OutputDatum
   , referenceScript :: Maybe ScriptHash
   }
+
+_datum :: Lens' TransactionOutput OutputDatum
+_datum = _Newtype <<< prop (Proxy :: Proxy "datum")
 
 derive instance Generic TransactionOutput _
 derive instance Newtype TransactionOutput _
@@ -56,6 +66,12 @@ newtype TransactionOutputWithRefScript = TransactionOutputWithRefScript
   { output :: TransactionOutput
   , scriptRef :: Maybe ScriptRef
   }
+
+_output :: Lens' TransactionOutputWithRefScript TransactionOutput
+_output = _Newtype <<< prop (Proxy :: Proxy "output")
+
+_scriptRef :: Lens' TransactionOutputWithRefScript (Maybe ScriptRef)
+_scriptRef = _Newtype <<< prop (Proxy :: Proxy "scriptRef")
 
 derive instance Generic TransactionOutputWithRefScript _
 derive instance Newtype TransactionOutputWithRefScript _
