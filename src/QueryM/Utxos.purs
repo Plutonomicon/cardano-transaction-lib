@@ -188,7 +188,7 @@ getWalletUtxos = do
       toUtxoMap
     Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     KeyWallet _ -> do
-      mbAddress <- (getWalletAddresses <#> (_ >>= head))
+      mbAddress <- getWalletAddresses <#> (_ >>= head)
       map join $ for mbAddress utxosAt
   where
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
