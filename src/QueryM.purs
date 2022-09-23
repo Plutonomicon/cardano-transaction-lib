@@ -122,7 +122,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message)
+import Effect.Exception (Error, error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -1142,18 +1142,19 @@ mkRequestAff' listeners' webSocket logger jsonWspCall getLs inp = do
               _ -> cont (lmap dispatchErrorToError result)
         )
       respLs.addRequest id (sBody /\ getRequestInputToStore inp)
-      wsStatus <- _wsIsOpen webSocket
 
       let
-        errMsg = "WebSocket is closed, could not submit request."
-        closedWS = do
-          logger Error errMsg
-          throwError $ error errMsg
         submitReq = _wsSend webSocket (logger Debug) sBody
-      -- Uncomment this code fragment to test `SubmitTx` request resend logic:
-      -- when (isJust $ getRequestInputToStore inp) $
-      --   _wsReconnect webSocket
+        -- Uncomment this code fragment to test `SubmitTx` request resend logic:
+        -- when (isJust $ getRequestInputToStore inp) $
+        --   _wsReconnect webSocket
+        errMsg = "WebSocket is closed, last request was sent to the buffer."
+        closedWS = do
+          submitReq
+          logger Error errMsg
+          throw errMsg
 
+      wsStatus <- _wsIsOpen webSocket
       if wsStatus then submitReq else closedWS
 
       pure $ Canceler $ \err -> do
