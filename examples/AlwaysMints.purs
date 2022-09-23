@@ -50,7 +50,6 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
-
   publishTestFeedback true
 
 foreign import alwaysMints :: String

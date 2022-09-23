@@ -12,7 +12,7 @@ import Cardano.Types.Transaction
   )
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Value)
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
@@ -40,7 +40,8 @@ type Cip30Wallet =
     connection :: Cip30Connection
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
-  , getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
+  , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+
   -- Get combination of all available UTxOs
   , getBalance :: Cip30Connection -> Aff (Maybe Value)
   , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
@@ -64,7 +65,7 @@ mkCip30WalletAff walletName enableWallet = do
     liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
-    , getWalletAddress
+    , getWalletAddresses
     , getCollateral
     , signTx
     , getBalance
@@ -81,9 +82,9 @@ txToHex =
     <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
     <<< Serialization.convertTransaction
 
-getWalletAddress :: Cip30Connection -> Aff (Maybe Address)
-getWalletAddress conn = fromHexString _getAddress conn <#>
-  (_ >>= addressFromBytes <<< rawBytesAsCborBytes)
+getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
+  (traverse ((addressFromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes))
 
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
@@ -142,7 +143,14 @@ fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 -------------------------------------------------------------------------------
 foreign import data Cip30Connection :: Type
 
-foreign import _getAddress :: Cip30Connection -> Effect (Promise String)
+foreign import _getAddresses
+  :: Cip30Connection
+  -> Effect
+       ( Promise
+           ( Array
+               String
+           )
+       )
 
 foreign import _getCollateral
   :: MaybeFfiHelper
@@ -150,7 +158,10 @@ foreign import _getCollateral
   -> Effect (Promise (Maybe (Array String)))
 
 getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
-getCip30Collateral = _getCollateral maybeFfiHelper
+getCip30Collateral =
+  flip catchError
+    (\_ -> throwError $ error "Wallet doesn't implement `getCollateral`.") <<<
+    _getCollateral maybeFfiHelper
 
 foreign import _signTx
   :: String -- Hex-encoded cbor of tx

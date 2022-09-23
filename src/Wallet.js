@@ -6,6 +6,7 @@ const getIsWalletAvailableFunctionName = wallet => {
     gerowallet: "isGeroWalletAvailable",
     flint: "isFlintWalletAvailable",
     LodeWallet: "isLodeWalletAvailable",
+    eternl: "isEternlWalletAvailable",
   };
 
   return strs[wallet] || "is?WalletAvailable";
@@ -16,6 +17,7 @@ const wallets = {
   flint: "flint",
   gero: "gerowallet",
   lode: "LodeWallet",
+  eternl: "eternl",
 };
 
 const nodeEnvError = new Error(
@@ -51,6 +53,7 @@ exports._enableNami = enableWallet(wallets.nami);
 exports._enableGero = enableWallet(wallets.gero);
 exports._enableFlint = enableWallet(wallets.flint);
 exports._enableLode = enableWallet(wallets.lode);
+exports._enableEternl = enableWallet(wallets.eternl);
 
 const isWalletAvailable = walletName => () => {
   checkNotNode();
@@ -65,3 +68,4 @@ exports._isNamiAvailable = isWalletAvailable(wallets.nami);
 exports._isGeroAvailable = isWalletAvailable(wallets.gero);
 exports._isFlintAvailable = isWalletAvailable(wallets.flint);
 exports._isLodeAvailable = isWalletAvailable(wallets.lode);
+exports._isEternlAvailable = isWalletAvailable(wallets.eternl);

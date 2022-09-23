@@ -1,4 +1,4 @@
--- | TODO docstring
+-- | CTL query layer monad
 module QueryM
   ( ClientError
       ( ClientHttpError
@@ -19,6 +19,7 @@ module QueryM
   , PendingRequests
   , QueryConfig
   , QueryM
+  , ParQueryM
   , QueryMExtended(QueryMExtended)
   , QueryEnv
   , QueryRuntime
@@ -32,7 +33,7 @@ module QueryM
   , getDatumsByHashes
   , getLogger
   , getProtocolParametersAff
-  , getWalletAddress
+  , getWalletAddresses
   , liftQueryM
   , listeners
   , postAeson
@@ -49,17 +50,18 @@ module QueryM
   , mkRequest
   , mkRequestAff
   , module ServerConfig
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
   , ownStakePubKeyHash
   , runQueryM
   , runQueryMWithSettings
   , runQueryMInRuntime
-  , signTransaction
   , scriptToAeson
   , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
+  , withMWalletAff
+  , withMWallet
   , withQueryRuntime
   , callCip30Wallet
   ) where
@@ -80,8 +82,8 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Cardano.Types.Transaction (_witnessSet)
-import Cardano.Types.Transaction as Transaction
+import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -89,9 +91,16 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans (ReaderT, asks, runReaderT, withReaderT)
+import Control.Monad.Reader.Trans
+  ( ReaderT(ReaderT)
+  , asks
+  , runReaderT
+  , withReaderT
+  )
 import Control.Monad.Rec.Class (class MonadRec)
-import Control.Parallel (parallel, sequential)
+import Control.Parallel (class Parallel, parallel, sequential)
+import Control.Plus (class Plus)
+import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -112,6 +121,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
 import Effect.Aff
   ( Aff
+  , ParAff
   , Canceler(Canceler)
   , delay
   , finally
@@ -189,9 +199,10 @@ import Untagged.Union (asOneOf)
 import Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, Lode, KeyWallet)
+  , Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet)
   , mkGeroWalletAff
   , mkFlintWalletAff
+  , mkEternlWalletAff
   , mkKeyWallet
   , mkNamiWalletAff
   , mkLodeWalletAff
@@ -203,6 +214,7 @@ import Wallet.Spec
       , ConnectToGero
       , ConnectToNami
       , ConnectToFlint
+      , ConnectToEternl
       , ConnectToLode
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
@@ -258,28 +270,44 @@ type QueryEnv (r :: Row Type) =
 
 type DefaultQueryEnv = QueryEnv ()
 
-type QueryM (a :: Type) = QueryMExtended () a
+type QueryM = QueryMExtended () Aff
 
-newtype QueryMExtended (r :: Row Type) (a :: Type) = QueryMExtended
-  (ReaderT (QueryEnv r) Aff a)
+type ParQueryM = QueryMExtended () ParAff
 
-derive instance Newtype (QueryMExtended r a) _
-derive newtype instance Functor (QueryMExtended r)
-derive newtype instance Apply (QueryMExtended r)
-derive newtype instance Applicative (QueryMExtended r)
-derive newtype instance Bind (QueryMExtended r)
-derive newtype instance Monad (QueryMExtended r)
-derive newtype instance MonadEffect (QueryMExtended r)
-derive newtype instance MonadAff (QueryMExtended r)
-derive newtype instance Semigroup a => Semigroup (QueryMExtended r a)
-derive newtype instance Monoid a => Monoid (QueryMExtended r a)
-derive newtype instance MonadThrow Error (QueryMExtended r)
-derive newtype instance MonadError Error (QueryMExtended r)
-derive newtype instance MonadRec (QueryMExtended r)
-derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r)
-derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r)
+newtype QueryMExtended (r :: Row Type) (m :: Type -> Type) (a :: Type) =
+  QueryMExtended
+    (ReaderT (QueryEnv r) m a)
 
-instance MonadLogger (QueryMExtended r) where
+derive instance Newtype (QueryMExtended r m a) _
+derive newtype instance Functor m => Functor (QueryMExtended r m)
+derive newtype instance Apply m => Apply (QueryMExtended r m)
+derive newtype instance Applicative m => Applicative (QueryMExtended r m)
+derive newtype instance Bind m => Bind (QueryMExtended r m)
+derive newtype instance Alt m => Alt (QueryMExtended r m)
+derive newtype instance Plus m => Plus (QueryMExtended r m)
+derive newtype instance Alternative m => Alternative (QueryMExtended r m)
+derive newtype instance Monad (QueryMExtended r Aff)
+derive newtype instance MonadEffect (QueryMExtended r Aff)
+derive newtype instance MonadAff (QueryMExtended r Aff)
+derive newtype instance
+  ( Semigroup a
+  , Apply m
+  ) =>
+  Semigroup (QueryMExtended r m a)
+
+derive newtype instance
+  ( Monoid a
+  , Applicative m
+  ) =>
+  Monoid (QueryMExtended r m a)
+
+derive newtype instance MonadThrow Error (QueryMExtended r Aff)
+derive newtype instance MonadError Error (QueryMExtended r Aff)
+derive newtype instance MonadRec (QueryMExtended r Aff)
+derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r Aff)
+derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r Aff)
+
+instance MonadLogger (QueryMExtended r Aff) where
   log msg = do
     config <- asks $ _.config
     let
@@ -287,7 +315,16 @@ instance MonadLogger (QueryMExtended r) where
         config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
     liftAff $ logFunction msg
 
-liftQueryM :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r a
+-- Newtype deriving complains about overlapping instances, so we wrap and
+-- unwrap manually
+instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
+  parallel :: QueryMExtended r Aff ~> QueryMExtended r ParAff
+  parallel = wrap <<< parallel <<< unwrap
+  sequential :: QueryMExtended r ParAff ~> QueryMExtended r Aff
+  sequential = wrap <<< sequential <<< unwrap
+
+liftQueryM
+  :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r Aff a
 liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
   where
   toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
@@ -359,6 +396,7 @@ mkWalletBySpec = case _ of
   ConnectToNami -> mkNamiWalletAff
   ConnectToGero -> mkGeroWalletAff
   ConnectToFlint -> mkFlintWalletAff
+  ConnectToEternl -> mkEternlWalletAff
   ConnectToLode -> mkLodeWalletAff
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
@@ -375,7 +413,7 @@ runQueryMWithSettings settings action = do
   runQueryMInRuntime settings.config settings.runtime action
 
 runQueryMInRuntime
-  :: forall (a :: Type)
+  :: forall (r :: Row Type) (a :: Type)
    . QueryConfig
   -> QueryRuntime
   -> QueryM a
@@ -485,39 +523,32 @@ allowError func = func <<< Right
 -- Wallet
 --------------------------------------------------------------------------------
 
-getWalletAddress :: QueryM (Maybe Address)
-getWalletAddress = do
+getWalletAddresses :: QueryM (Maybe (Array Address))
+getWalletAddresses = do
   networkId <- asks $ _.config >>> _.networkId
   withMWalletAff case _ of
-    Nami wallet -> callCip30Wallet wallet _.getWalletAddress
-    Gero wallet -> callCip30Wallet wallet _.getWalletAddress
-    Flint wallet -> callCip30Wallet wallet _.getWalletAddress
-    Lode wallet -> callCip30Wallet wallet _.getWalletAddress
-    KeyWallet kw -> Just <$> (unwrap kw).address networkId
+    Eternl wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Nami wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
+    Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
+    KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
 
-signTransaction
-  :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
-signTransaction tx = withMWalletAff case _ of
-  Nami nami -> callCip30Wallet nami \nw -> flip nw.signTx tx
-  Gero gero -> callCip30Wallet gero \nw -> flip nw.signTx tx
-  Flint flint -> callCip30Wallet flint \nw -> flip nw.signTx tx
-  Lode lode -> callCip30Wallet lode \nw -> flip nw.signTx tx
-  KeyWallet kw -> do
-    witnessSet <- (unwrap kw).signTx tx
-    pure $ Just (tx # _witnessSet <>~ witnessSet)
-
-ownPubKeyHash :: QueryM (Maybe PubKeyHash)
-ownPubKeyHash = do
-  mbAddress <- getWalletAddress
+ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
+ownPubKeyHashes = do
+  mbAddress <- getWalletAddresses
   pure $
-    wrap <$> (mbAddress >>= (addressPaymentCred >=> stakeCredentialToKeyHash))
+    map wrap <$>
+      (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
 
-ownPaymentPubKeyHash :: QueryM (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = map wrap <$> ownPubKeyHash
+ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
+ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 
+-- TODO: change to array of StakePubKeyHash
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddress
+  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash
@@ -525,8 +556,12 @@ ownStakePubKeyHash = do
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
-  (liftAff <<< act)
+withMWalletAff act = withMWallet (liftAff <<< act)
+
+withMWallet
+  :: forall (a :: Type). (Wallet -> QueryM (Maybe a)) -> QueryM (Maybe a)
+withMWallet act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
+  act
 
 callCip30Wallet
   :: forall (a :: Type)
