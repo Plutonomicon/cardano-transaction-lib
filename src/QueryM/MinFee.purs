@@ -77,14 +77,10 @@ getSelfSigners tx = do
       (inUtxosAddrs `Set.union` inCollatAddrs)
 
   -- Convert addresses to key hashes
-  vkeys <- setFor txOwnAddrs $
+  setFor txOwnAddrs $
     liftM (error "Could not convert address to key hash")
       <<< (addressPaymentCred >=> stakeCredentialToKeyHash)
-
-  pure vkeys
-
   where
-
   setFor
     :: forall (a :: Type) (b :: Type) (m :: Type -> Type)
      . Monad m
