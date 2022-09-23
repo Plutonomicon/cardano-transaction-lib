@@ -7,6 +7,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
@@ -85,7 +86,7 @@ import Ctl.Internal.Cardano.Types.Value
   , valueToCoin'
   )
 import Ctl.Internal.QueryM (QueryM)
-import Ctl.Internal.QueryM (getWalletAddress) as QueryM
+import Ctl.Internal.QueryM (getWalletAddresses) as QueryM
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
@@ -102,14 +103,15 @@ import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
 import Ctl.Internal.Wallet (cip30Wallet)
+import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Foldable (foldMap, foldl)
+import Data.Foldable (foldMap, foldl, foldr)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (empty, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -124,7 +126,7 @@ balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx unbalancedTx = do
-  QueryM.getWalletAddress >>= case _ of
+  QueryM.getWalletAddresses >>= case _ of
     Nothing ->
       pure $ Left CouldNotGetWalletAddress
     Just address ->
@@ -132,13 +134,19 @@ balanceTx unbalancedTx = do
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the attached wallet).
+-- TODO rename to balanceTxWithAddresses
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 balanceTxWithAddress
-  :: Address
+  :: Array Address
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
-  utxos <- ExceptT $ utxosAt ownAddr
-    <#> note CouldNotGetUtxos
+balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
+  changeAddr <- liftMaybe CouldNotGetWalletAddress $ head ownAddrs
+
+  utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
+    traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
+
+      >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -146,7 +154,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         -- Don't set collateral if tx doesn't contain phase-2 scripts:
         lift unbalancedTxWithNetworkId
       false ->
-        setTransactionCollateral =<< lift unbalancedTxWithNetworkId
+        setTransactionCollateral changeAddr =<< lift unbalancedTxWithNetworkId
 
   let
     allUtxos :: UtxoMap
@@ -160,7 +168,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
   -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos ownAddr
+  ExceptT $ runBalancer availableUtxos changeAddr
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
@@ -171,8 +179,8 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         maybe (asks $ _.networkId <<< _.config) pure
     pure (transaction # _body <<< _networkId ?~ networkId)
 
-  setTransactionCollateral :: Transaction -> BalanceTxM Transaction
-  setTransactionCollateral transaction = do
+  setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
+  setTransactionCollateral changeAddr transaction = do
     collateral <-
       ExceptT $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
@@ -182,7 +190,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
     else addTxCollateralReturn
       collateral
       collaterisedTx
-      ownAddr
+      changeAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -235,6 +243,7 @@ runBalancer utxos changeAddress =
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
+
         pure finalizedTransaction
       false ->
         mainLoop (iteration + one) newMinFee unbalancedTxWithInputs

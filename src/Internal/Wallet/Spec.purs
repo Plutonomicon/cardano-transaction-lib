@@ -4,6 +4,7 @@ module Ctl.Internal.Wallet.Spec
       , ConnectToNami
       , ConnectToGero
       , ConnectToFlint
+      , ConnectToEternl
       , ConnectToLode
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
@@ -28,4 +29,5 @@ data WalletSpec
   | ConnectToNami
   | ConnectToGero
   | ConnectToFlint
+  | ConnectToEternl
   | ConnectToLode

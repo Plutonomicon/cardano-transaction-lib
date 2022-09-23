@@ -43,7 +43,6 @@ module Contract.Transaction
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson)
-import Contract.Address (getWalletAddress)
 import Contract.Log (logDebug')
 import Contract.Monad
   ( Contract
@@ -134,7 +133,11 @@ import Ctl.Internal.Cardano.Types.Transaction
   ) as Transaction
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
-import Ctl.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Ctl.Internal.Plutus.Conversion
+  ( toPlutusAddress
+  , toPlutusCoin
+  , toPlutusTxOutput
+  )
 import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
 import Ctl.Internal.Plutus.Types.Address (Address)
 import Ctl.Internal.Plutus.Types.Transaction
@@ -156,7 +159,7 @@ import Ctl.Internal.QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import Ctl.Internal.QueryM (signTransaction, submitTxOgmios) as QueryM
+import Ctl.Internal.QueryM (getWalletAddresses, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -165,6 +168,7 @@ import Ctl.Internal.QueryM.AwaitTxConfirmed
 import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
 import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
+import Ctl.Internal.QueryM.Sign (signTransaction) as QueryM
 import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
@@ -243,7 +247,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
-import Data.Traversable (class Traversable, for_, traverse)
+import Data.Traversable (class Traversable, for, for_, traverse)
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
@@ -329,13 +333,13 @@ balanceTx = wrapContract <<< BalanceTx.balanceTx
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTxWithAddress
   :: forall (r :: Row Type)
-   . Address
+   . Array Address
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddress addr tx = do
+balanceTxWithAddress ownAddresses tx = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
   wrapContract $ BalanceTx.balanceTxWithAddress
-    (fromPlutusAddress networkId addr)
+    (fromPlutusAddress networkId <$> ownAddresses)
     tx
 
 -- Helper to avoid repetition
@@ -432,15 +436,15 @@ withBalancedAndSignedTx = withSingleTransaction
 
 -- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
 -- | internally.
-balanceTxsWithAddress
+balanceTxsWithAddresses
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => Address
+  => Array Address
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddress ownAddress unbalancedTxs =
+balanceTxsWithAddresses ownAddrs unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -456,10 +460,20 @@ balanceTxsWithAddress ownAddress unbalancedTxs =
   balanceAndLock unbalancedTx = do
     networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
-      (fromPlutusAddress networkId ownAddress)
+      (fromPlutusAddress networkId <$> ownAddrs)
       unbalancedTx
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
+
+balanceTxsWithAddress
+  :: forall
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . Traversable t
+  => Address
+  -> t UnattachedUnbalancedTx
+  -> Contract r (t FinalizedTransaction)
+balanceTxsWithAddress ownAddr = balanceTxsWithAddresses [ ownAddr ]
 
 -- | Balances each transaction and locks the used inputs
 -- | so that they cannot be reused by subsequent transactions.
@@ -471,12 +485,25 @@ balanceTxs
   => t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
 balanceTxs unbalancedTxs = do
-  mbOwnAddress <- getWalletAddress
-  case mbOwnAddress of
+  mbOwnAddrs <- walletAddresses
+  case mbOwnAddrs of
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"
-    Just ownAddress ->
-      balanceTxsWithAddress ownAddress unbalancedTxs
+    Just ownAddrs ->
+      balanceTxsWithAddresses ownAddrs unbalancedTxs
+  where
+  -- TODO: this is a helper function to get array of wallet ownAddresses
+  -- should be removed when Contract's api changes to multi-address
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+  walletAddresses = do
+    mbAddrs <- wrapContract QueryM.getWalletAddresses
+    for mbAddrs \addrs ->
+      for addrs
+        ( liftedM "getWalletAddress: failed to deserialize address"
+            <<< wrapContract
+            <<< pure
+            <<< toPlutusAddress
+        )
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
 balanceTxM
