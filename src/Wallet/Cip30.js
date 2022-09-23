@@ -1,7 +1,6 @@
 /* global BROWSER_RUNTIME */
 
-exports._getAddress = conn => () =>
-  conn.getUsedAddresses().then(addrs => addrs[0]);
+exports._getAddresses = conn => conn.getUsedAddresses;
 
 exports._getCollateral = maybe => conn => () =>
   conn.experimental.getCollateral().then(utxos => {

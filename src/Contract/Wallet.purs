@@ -28,6 +28,7 @@ import Wallet
   ( isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
+  , isEternlAvailable
   , isLodeAvailable
   ) as Wallet
 import Wallet (mkKeyWallet, Wallet(KeyWallet))
@@ -38,6 +39,7 @@ import Wallet.Spec
       , ConnectToGero
       , ConnectToFlint
       , ConnectToLode
+      , ConnectToEternl
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
