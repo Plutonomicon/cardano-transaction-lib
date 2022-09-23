@@ -2,9 +2,8 @@ module Wallet.Cip30Mock where
 
 import Prelude
 
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
+import Contract.Address (NetworkId(..))
 import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
@@ -40,12 +39,7 @@ import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.CborBytes (cborBytesFromByteArray)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet, mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
-import Wallet.Key
-  ( KeyWallet(KeyWallet)
-  , PrivatePaymentKey
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
+import Wallet.Key (KeyWallet(KeyWallet), PrivatePaymentKey, PrivateStakeKey, privateKeysToKeyWallet)
 
 data WalletMock = MockFlint | MockGero | MockNami
 
@@ -96,7 +90,10 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> "nami"
 
 type Cip30Mock =
-  { getUsedAddresses :: Effect (Promise (Array String))
+  { getNetworkId :: Effect (Promise Int)
+  , getUsedAddresses :: Effect (Promise (Array String))
+  , getUnUsedAddresses :: Effect (Promise (Array String))
+  , getChangeAdress :: Effect (Promise String)
   , getCollateral :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
   , getBalance :: Effect (Promise String)
@@ -121,9 +118,17 @@ mkCip30Mock pKey mSKey = do
           >>= liftMaybe (error "No UTxOs at address")
 
   pure $
-    { getUsedAddresses: fromAff do
+    { getNetworkId: fromAff $ pure $ 
+        case config.networkId of 
+            TestnetId -> 0
+            MainnetId -> 1
+    , getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
           [ byteArrayToHex $ toBytes (asOneOf address) ]
+    , getUnUsedAddresses: fromAff $ pure []
+    , getChangeAddress: fromAff do
+        (unwrap keyWallet).address config.networkId <#> \address ->
+          (byteArrayToHex >>> toBytes >>> asOneOf) address
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
