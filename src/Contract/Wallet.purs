@@ -20,7 +20,8 @@ import Control.Monad.Reader (local)
 import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet
-  ( isFlintAvailable
+  ( isEternlAvailable
+  , isFlintAvailable
   , isGeroAvailable
   , isLodeAvailable
   , isNamiAvailable
@@ -40,6 +41,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToGero
       , ConnectToFlint
       , ConnectToLode
+      , ConnectToEternl
       )
   )
 import Data.Lens (Lens, (.~))

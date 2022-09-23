@@ -4,6 +4,7 @@ module Contract.Config
   , testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
+  , testnetEternlConfig
   , testnetLodeConfig
   , mainnetConfig
   , mainnetNamiConfig
@@ -40,6 +41,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToNami
       , ConnectToGero
       , ConnectToFlint
+      , ConnectToEternl
       , ConnectToLode
       )
   )
@@ -68,6 +70,9 @@ testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
 
 testnetFlintConfig :: ConfigParams ()
 testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
+
+testnetEternlConfig :: ConfigParams ()
+testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 
 testnetLodeConfig :: ConfigParams ()
 testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }

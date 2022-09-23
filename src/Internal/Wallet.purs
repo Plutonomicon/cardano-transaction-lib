@@ -1,11 +1,13 @@
 module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, Lode, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  , isEternlAvailable
   , isGeroAvailable
   , isNamiAvailable
   , isFlintAvailable
   , isLodeAvailable
+  , mkEternlWalletAff
   , mkNamiWalletAff
   , mkGeroWalletAff
   , mkFlintWalletAff
@@ -54,6 +56,7 @@ data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet
   | Flint Cip30Wallet
+  | Eternl Cip30Wallet
   | Lode Cip30Wallet
   | KeyWallet KeyWallet
 
@@ -98,6 +101,16 @@ isLodeAvailable = _isLodeAvailable
 
 foreign import _enableLode :: Effect (Promise Cip30Connection)
 
+isEternlAvailable :: Effect Boolean
+isEternlAvailable = _isEternlAvailable
+
+foreign import _isEternlAvailable :: Effect Boolean
+
+mkEternlWalletAff :: Aff Wallet
+mkEternlWalletAff = Eternl <$> mkCip30WalletAff "Eternl" _enableEternl
+
+foreign import _enableEternl :: Effect (Promise Cip30Connection)
+
 -- Lode does not inject on page load, so this function retries up to set
 -- number of times, for Lode to be available.
 mkLodeWalletAff :: Aff Wallet
@@ -123,6 +136,7 @@ cip30Wallet = case _ of
   Nami c30 -> Just c30
   Gero c30 -> Just c30
   Flint c30 -> Just c30
+  Eternl c30 -> Just c30
   Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
