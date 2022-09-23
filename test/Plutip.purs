@@ -32,9 +32,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
-  , runContractInEnv
   , runPlutipContract
-  , withPlutipContractEnv
   , withStakeKey
   )
 import Contract.Time (getEraSummaries)
@@ -83,6 +81,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.AlwaysSucceeds as AlwaysSucceeds
+import Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Examples.ContractTestUtils as ContractTestUtils
 import Examples.Helpers
   ( mkCurrencySymbol
@@ -99,6 +98,7 @@ import Examples.MintsMultipleTokens
   )
 import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
+import Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Examples.SendsToken (contract) as SendsToken
@@ -285,22 +285,21 @@ suite = do
 
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution = aliceUtxos /\ bobUtxos
-      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
-        do
-          runContractInEnv env $
-            checkUtxoDistribution distribution wallets
-          sequential ado
-            parallel $ runContractInEnv env $ withKeyWallet alice do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet bob ownStakePubKeyHash
-              pkh2PkhContract pkh stakePkh
-            parallel $ runContractInEnv env $ withKeyWallet bob do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet alice ownStakePubKeyHash
-              pkh2PkhContract pkh stakePkh
-            in unit
+
+      runPlutipContract config distribution \wallets@(alice /\ bob) -> do
+        checkUtxoDistribution distribution wallets
+        sequential ado
+          parallel $ withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
+              ownPaymentPubKeyHash
+            stakePkh <- withKeyWallet bob ownStakePubKeyHash
+            pkh2PkhContract pkh stakePkh
+          parallel $ withKeyWallet bob do
+            pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
+              ownPaymentPubKeyHash
+            stakePkh <- withKeyWallet alice ownStakePubKeyHash
+            pkh2PkhContract pkh stakePkh
+          in unit
 
     test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
       let
@@ -315,22 +314,28 @@ suite = do
         distribution =
           withStakeKey privateStakeKey aliceUtxos
             /\ withStakeKey privateStakeKey bobUtxos
-      withPlutipContractEnv config distribution \env wallets@(alice /\ bob) ->
+      runPlutipContract config distribution \wallets@(alice /\ bob) ->
         do
-          runContractInEnv env $
-            checkUtxoDistribution distribution wallets
+          checkUtxoDistribution distribution wallets
           sequential ado
-            parallel $ runContractInEnv env $ withKeyWallet alice do
+            parallel $ withKeyWallet alice do
               pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
                 ownPaymentPubKeyHash
               stakePkh <- withKeyWallet bob ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
-            parallel $ runContractInEnv env $ withKeyWallet bob do
+            parallel $ withKeyWallet bob do
               pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
                 ownPaymentPubKeyHash
               stakePkh <- withKeyWallet alice ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
             in unit
+
+    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution \_ ->
+        AwaitTxConfirmedWithTimeout.contract
 
     test "NativeScript: require all signers" do
       let
@@ -894,7 +899,7 @@ suite = do
           withKeyWallet bob ownPaymentPubKeyHash
         receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
         tn <- mkTokenName "TheToken"
 
         withKeyWallet alice $ ContractTestUtils.contract $
