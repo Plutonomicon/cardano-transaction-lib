@@ -1,7 +1,8 @@
 module Ctl.Examples.PlutusV2.ReferenceInputs
-  ( main
-  , example
+  ( alwaysMintsPolicyV2
   , contract
+  , example
+  , main
   ) where
 
 import Contract.Prelude

@@ -88,6 +88,7 @@ import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
+import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
@@ -897,7 +898,7 @@ suite = do
           withKeyWallet bob ownPaymentPubKeyHash
         receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
         tn <- mkTokenName "TheToken"
 
         withKeyWallet alice $ ContractTestUtils.contract $

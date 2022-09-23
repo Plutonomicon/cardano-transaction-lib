@@ -35,7 +35,8 @@ import Contract.Test.Utils
   )
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
-  ( TransactionHash
+  ( ScriptRef(PlutusScriptRef)
+  , TransactionHash
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , balanceAndSignTxE
@@ -48,10 +49,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
-import Ctl.Examples.Helpers
-  ( mustPayToPubKeyStakeAddress
-  , mustPayToPubKeyStakeAddressWithDatum
-  ) as Helpers
+import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 -- TODO Re-export into Contract or drop the usage
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
 import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
@@ -78,7 +76,7 @@ derive instance Newtype ContractParams _
 type ContractResult =
   { txHash :: TransactionHash
   , txFinalFee :: BigInt
-  , outputWithDatumHash :: TransactionOutputWithRefScript
+  , txOutputUnderTest :: TransactionOutputWithRefScript
   }
 
 mkAssertions
@@ -107,9 +105,14 @@ mkAssertions params@(ContractParams p) = do
           )
       ]
     /\
-      [ \{ outputWithDatumHash } -> do
+      [ \{ txOutputUnderTest } ->
           TestUtils.assertOutputHasDatum (OutputDatumHash dhash)
-            (label outputWithDatumHash "Sender's output with datum hash")
+            (label txOutputUnderTest "Sender's output with datum hash")
+
+      , \{ txOutputUnderTest } ->
+          TestUtils.assertOutputHasRefScript
+            (PlutusScriptRef $ unwrap p.mintingPolicy)
+            (label txOutputUnderTest "Sender's output with reference script")
 
       , \{ txHash } ->
           TestUtils.assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
@@ -121,6 +124,11 @@ contract params@(ContractParams p) = do
   ownPkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
   ownSkh <- ownStakePubKeyHash
   let
+    mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
+      ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
+        \skh pkh ->
+          Constraints.mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh
+
     adaValue :: Value
     adaValue = Value.lovelaceValueOf p.adaToSend
 
@@ -133,9 +141,9 @@ contract params@(ContractParams p) = do
 
       , Constraints.mustMintValue nonAdaValue
 
-      , Helpers.mustPayToPubKeyStakeAddressWithDatum ownPkh ownSkh
-          p.datumToAttach
+      , mustPayToPubKeyStakeAddressWithDatumAndScriptRef ownPkh p.datumToAttach
           DatumWitness
+          (PlutusScriptRef $ unwrap p.mintingPolicy)
           nonAdaValue
       ]
 
@@ -157,7 +165,7 @@ contract params@(ContractParams p) = do
     senderAddress <- liftedM "Failed to get sender address" getWalletAddress
     utxos <- fromMaybe Map.empty <$> utxosAt senderAddress
 
-    outputWithDatumHash <-
+    txOutputUnderTest <-
       view _output <$>
         liftContractM "Could not find required unspent output with datum hash"
           (find hasDatumHash $ lookupTxHash txId utxos)
@@ -165,7 +173,7 @@ contract params@(ContractParams p) = do
     pure
       { txHash: txId
       , txFinalFee: getTxFinalFee balancedSignedTx
-      , outputWithDatumHash
+      , txOutputUnderTest
       }
   where
   hasDatumHash :: TransactionUnspentOutput -> Boolean
