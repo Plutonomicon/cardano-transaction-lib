@@ -8,7 +8,6 @@ module Cardano.Types.Value
   , coinToValue
   , currencyMPSHash
   , eq
-  , equipartitionAssetsWithTokenQuantityUpperBound
   , equipartitionValueWithTokenQuantityUpperBound
   , filterNonAda
   , flattenNonAdaValue
@@ -297,6 +296,12 @@ instance Equipartition NonAdaAsset where
         map (mkSingletonNonAdaAsset cs tn)
           (equipartition tokenQuantity numParts)
 
+-- | Partitions a `NonAdaAsset` into smaller `NonAdaAsset`s, where the 
+-- | quantity of each token is equipartitioned across the resultant 
+-- | `NonAdaAsset`s, with the goal that no token quantity in any of the 
+-- | resultant `NonAdaAsset`s exceeds the given upper bound. 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenMap.hs#L780
 equipartitionAssetsWithTokenQuantityUpperBound
   :: NonAdaAsset -> BigInt -> NonEmptyArray NonAdaAsset /\ Int
 equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
@@ -433,6 +438,12 @@ instance Equipartition Value where
       (equipartition coin numParts)
       (equipartition nonAdaAssets numParts)
 
+-- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the 
+-- | quantity of each token is equipartitioned across the resultant `Value`s, 
+-- | with the goal that no token quantity in any of the resultant `Value`s 
+-- | exceeds the given upper bound. 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenBundle.hs#L381
 equipartitionValueWithTokenQuantityUpperBound
   :: Value -> BigInt -> NonEmptyArray Value
 equipartitionValueWithTokenQuantityUpperBound value maxTokenQuantity =
