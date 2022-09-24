@@ -9,7 +9,7 @@ import Prelude
 
 import Contract.Test.E2E.WalletExt
   ( WalletConfig(WalletConfig)
-  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt)
+  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
   )
 import Contract.Test.E2E.Helpers
   ( WalletPassword(WalletPassword)
@@ -69,6 +69,18 @@ optParser = ado
     [ long "chrome-exe"
     , metavar "FILE"
     , help "Chrome/-ium exe (search in env if not set)"
+    , value Nothing
+    ]
+  eternlDir <- option (Just <$> str) $ fold
+    [ long "eternl-dir"
+    , metavar "DIR"
+    , help "Directory where Eternl is unpacked"
+    , value Nothing
+    ]
+  eternlPassword <- option (Just <<< WalletPassword <$> str) $ fold
+    [ long "eternl-password"
+    , metavar "PW"
+    , help "Eternl wallet password"
     , value Nothing
     ]
   namiDir <- option (Just <$> str) $ fold
@@ -136,6 +148,7 @@ optParser = ado
       , mkConfig GeroExt geroDir geroPassword
       , mkConfig FlintExt flintDir flintPassword
       , mkConfig LodeExt lodeDir lodePassword
+      , mkConfig EternlExt eternlDir eternlPassword
       ]
   in
     TestOptions
