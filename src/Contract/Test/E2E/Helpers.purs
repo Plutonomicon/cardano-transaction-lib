@@ -415,8 +415,23 @@ password = wrap ":password"
 click :: Action
 click = wrap "click()"
 
+jQueryCount :: Selector -> Toppokki.Page -> Aff Int
+jQueryCount selector page = unsafeFromForeign <$> doJQ selector (wrap "length")
+  page
+
+hasSelector :: Selector -> Toppokki.Page -> Aff Boolean
+hasSelector selector page = (_ > 0) <$> jQueryCount selector page
+
 clickButton :: String -> Toppokki.Page -> Aff Unit
-clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
+clickButton buttonText page = do
+  let
+    btn = buttonWithText buttonText
+  hasBtn <- hasSelector btn page
+  if hasBtn then
+    void $ doJQ btn click page
+  else do
+    delaySec 0.1
+    clickButton buttonText page
 
 injectJQuery :: Toppokki.Page -> String -> Aff Unit
 injectJQuery page jQuery = do
