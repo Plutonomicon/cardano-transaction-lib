@@ -94,6 +94,7 @@ type Cip30Mock =
   , getUsedAddresses :: Effect (Promise (Array String))
   , getUnUsedAddresses :: Effect (Promise (Array String))
   , getChangeAdress :: Effect (Promise String)
+  , getRewardAddress :: Effect (Promise String)
   , getCollateral :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
   , getBalance :: Effect (Promise String)
@@ -127,8 +128,11 @@ mkCip30Mock pKey mSKey = do
           [ byteArrayToHex $ toBytes (asOneOf address) ]
     , getUnUsedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
+        (unwrap keyWallet).address config.networkId <#>
+          (byteArrayToHex >>> toBytes >>> asOneOf)
+    , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          (byteArrayToHex >>> toBytes >>> asOneOf) address
+          [ byteArrayToHex $ toBytes (asOneOf address) ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
