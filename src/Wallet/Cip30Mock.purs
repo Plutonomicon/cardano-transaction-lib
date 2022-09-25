@@ -93,8 +93,8 @@ type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
   , getUsedAddresses :: Effect (Promise (Array String))
   , getUnUsedAddresses :: Effect (Promise (Array String))
-  , getChangeAdress :: Effect (Promise String)
-  , getRewardAddress :: Effect (Promise String)
+  , getChangeAddress :: Effect (Promise String)
+  , getRewardAddresses :: Effect (Promise (Array String))
   , getCollateral :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
   , getBalance :: Effect (Promise String)
@@ -125,14 +125,14 @@ mkCip30Mock pKey mSKey = do
             MainnetId -> 1
     , getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ byteArrayToHex $ toBytes (asOneOf address) ]
-    , getUnUsedAddresses: fromAff $ pure []
+          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+          , getUnUsedAddresses: fromAff $ pure ([]:: Array String)
     , getChangeAddress: fromAff do
-        (unwrap keyWallet).address config.networkId <#>
-          (byteArrayToHex >>> toBytes >>> asOneOf)
+        (unwrap keyWallet).address config.networkId <#> 
+          (byteArrayToHex <<< toBytes <<< asOneOf)
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ byteArrayToHex $ toBytes (asOneOf address) ]
+          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -141,7 +141,7 @@ mkCip30Mock pKey mSKey = do
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
           collateralUtxos
-        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUnspentOutput
+        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
@@ -175,7 +175,7 @@ mkCip30Mock pKey mSKey = do
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
-        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUtxos
+        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos 
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey
