@@ -40,6 +40,7 @@ type Cip30Wallet =
     connection :: Cip30Connection
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
+  , getNetworkId :: Cip30Connection -> Aff Int
   , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
 
   -- Get combination of all available UTxOs
@@ -81,6 +82,9 @@ txToHex =
   liftEffect
     <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
     <<< Serialization.convertTransaction
+
+getNetworkId :: Cip30Connection -> Aff Int
+getNetworkId = toAffE <<< _getNetworkId
 
 getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
 getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
@@ -142,6 +146,22 @@ fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
 -- FFI stuff
 -------------------------------------------------------------------------------
 foreign import data Cip30Connection :: Type
+
+foreign import _getNetworkId 
+  :: Cip30Connection  
+  -> Effect (Promise Int)
+
+foreign import _getUnusedAddresses 
+  :: Cip30Connection  
+  -> Effect ( Promise ( Array String))
+
+foreign import _getChangeAddress
+  :: Cip30Connection  
+  -> Effect ( Promise String )
+
+foreign import _getRewardAddresses
+  :: Cip30Connection  
+  -> Effect ( Promise ( Array String))
 
 foreign import _getAddresses
   :: Cip30Connection

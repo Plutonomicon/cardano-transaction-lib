@@ -1,5 +1,13 @@
 /* global BROWSER_RUNTIME */
 
+exports._getNetworkId = conn => () => conn.getNetworkId();
+
+exports._getUnusedAddresses = conn => () => conn._getUnusedAddresses();
+
+exports._getChangeAddress  = conn => () => conn._getChangeAddress();
+
+exports._getRewardAddresses   = conn => () => conn._getRewardAddresses();
+
 exports._getAddresses = conn => conn.getUsedAddresses;
 
 exports._getCollateral = maybe => conn => () =>
