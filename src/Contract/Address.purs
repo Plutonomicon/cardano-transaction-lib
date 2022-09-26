@@ -6,7 +6,7 @@ module Contract.Address
   , getNetworkId
   , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
-  , addressFromBech32'
+  , addressFromBech32
   , addressToBech32
   , getWalletAddress
   , getWalletCollateral
@@ -83,6 +83,7 @@ import Serialization.Address
   , addressBech32
   , addressNetworkId
   )
+import Serialization.Address (addressFromBech32) as SA
 import Serialization.Address
   ( Slot(Slot)
   , BlockId(BlockId)
@@ -91,7 +92,6 @@ import Serialization.Address
   , Pointer
   , ByronProtocolMagic(ByronProtocolMagic)
   , NetworkId(TestnetId, MainnetId)
-  , addressFromBech32
   ) as SerializationAddress
 import Serialization.Hash (Ed25519KeyHash) as Hash
 import Serialization.Hash (ScriptHash)
@@ -188,7 +188,7 @@ addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
 -- | Convert `Bech32String` to `AddressWithNetworkTag`.
 addressWithNetworkTagFromBech32 :: Bech32String -> Maybe AddressWithNetworkTag
 addressWithNetworkTagFromBech32 str = do
-  cslAddress <- SerializationAddress.addressFromBech32 str
+  cslAddress <- SA.addressFromBech32 str
   address <- toPlutusAddress cslAddress
   let networkId = addressNetworkId cslAddress
   pure $ AddressWithNetworkTag { address, networkId }
@@ -203,12 +203,12 @@ addressToBech32 address = do
 
 -- | Convert `Bech32String` to `Address`, asserting that the address `networkId`
 -- | corresponds to the contract environment `networkId`
-addressFromBech32'
+addressFromBech32
   :: forall (r :: Row Type). Bech32String -> Contract r (Maybe Address)
-addressFromBech32' str = do
+addressFromBech32 str = do
   networkId <- getNetworkId
   cslAddress <- liftContractM "unable to read address" $
-    SerializationAddress.addressFromBech32 str
+    SA.addressFromBech32 str
   address <- liftContractM "unable to convert to plutus address" $
     toPlutusAddress cslAddress
   if networkId == addressNetworkId cslAddress then
