@@ -84,7 +84,7 @@
         in
         {
           ctl-scaffold-plutip-test = (psProjectFor pkgs).runPlutipTest {
-            testMain = "Scaffold.Test.Main";
+            testMain = "Test.Scaffold.Main";
           };
 
           formatting-check = pkgs.runCommand "formatting-check"
