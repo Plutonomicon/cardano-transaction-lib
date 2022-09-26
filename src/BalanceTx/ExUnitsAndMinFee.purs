@@ -27,10 +27,10 @@ import Cardano.Types.Transaction
   , _witnessSet
   , _isValid
   )
-import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
+import Control.Monad.Error.Class (throwError)
 import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
 import Data.Bifunctor (lmap)
