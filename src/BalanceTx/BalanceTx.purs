@@ -68,19 +68,21 @@ import Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Trans.Class (lift)
+import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Foldable (foldl, foldMap)
+import Data.Foldable (foldMap, foldl, foldr)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((.~), (?~), (%~))
 import Data.Log.Tag (tag)
-import Data.Map (lookup, toUnfoldable, union) as Map
+import Data.Map (lookup, toUnfoldable, union, empty) as Map
 import Data.Maybe (Maybe(Nothing, Just), maybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -89,9 +91,9 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import QueryM (QueryM)
-import QueryM (getWalletAddress) as QueryM
-import QueryM.Utxos (utxosAt, filterLockedUtxos, getWalletCollateral)
+import QueryM (getWalletAddresses) as QueryM
 import QueryM.Ogmios (CoinsPerUtxoUnit)
+import QueryM.Utxos (filterLockedUtxos, getWalletCollateral, utxosAt)
 import Serialization.Address (Address, addressPaymentCred, withStakeCredential)
 import Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Types.ScriptLookups (UnattachedUnbalancedTx)
@@ -105,7 +107,7 @@ balanceTx
   :: UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTx unbalancedTx = do
-  QueryM.getWalletAddress >>= case _ of
+  QueryM.getWalletAddresses >>= case _ of
     Nothing ->
       pure $ Left CouldNotGetWalletAddress
     Just address ->
@@ -113,13 +115,19 @@ balanceTx unbalancedTx = do
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the attached wallet).
+-- TODO rename to balanceTxWithAddresses
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 balanceTxWithAddress
-  :: Address
+  :: Array Address
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
-  utxos <- ExceptT $ utxosAt ownAddr
-    <#> note CouldNotGetUtxos
+balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
+  changeAddr <- liftMaybe CouldNotGetWalletAddress $ head ownAddrs
+
+  utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
+    traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
+
+      >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
   unbalancedCollTx <-
     case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -127,7 +135,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         -- Don't set collateral if tx doesn't contain phase-2 scripts:
         lift unbalancedTxWithNetworkId
       false ->
-        setTransactionCollateral =<< lift unbalancedTxWithNetworkId
+        setTransactionCollateral changeAddr =<< lift unbalancedTxWithNetworkId
 
   let
     allUtxos :: UtxoMap
@@ -141,7 +149,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
   -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos ownAddr
+  ExceptT $ runBalancer availableUtxos changeAddr
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
@@ -152,8 +160,8 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
         maybe (asks $ _.networkId <<< _.config) pure
     pure (transaction # _body <<< _networkId ?~ networkId)
 
-  setTransactionCollateral :: Transaction -> BalanceTxM Transaction
-  setTransactionCollateral transaction = do
+  setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
+  setTransactionCollateral changeAddr transaction = do
     collateral <-
       ExceptT $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
@@ -163,7 +171,7 @@ balanceTxWithAddress ownAddr unbalancedTx = runExceptT do
     else addTxCollateralReturn
       collateral
       collaterisedTx
-      ownAddr
+      changeAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -216,6 +224,7 @@ runBalancer utxos changeAddress =
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
+
         pure finalizedTransaction
       false ->
         mainLoop (iteration + one) newMinFee unbalancedTxWithInputs
