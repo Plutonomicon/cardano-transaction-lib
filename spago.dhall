@@ -29,6 +29,7 @@ You can edit this file as you like.
   , "foldable-traversable"
   , "foreign"
   , "foreign-object"
+  , "functions"
   , "heterogeneous"
   , "http-methods"
   , "identity"

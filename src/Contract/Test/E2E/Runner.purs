@@ -6,12 +6,7 @@ import Prelude
 
 import Contract.Test.E2E.Browser (withBrowser)
 import Contract.Test.E2E.Feedback
-  ( BrowserEvent
-      ( ConfirmAccess
-      , Sign
-      , Success
-      , Failure
-      )
+  ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
   )
 import Contract.Test.E2E.Feedback.Node (subscribeToBrowserEvents)
 import Contract.Test.E2E.Helpers
@@ -45,6 +40,8 @@ import Contract.Test.E2E.Types
   , SettingsRuntime
   , TempDir
   , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , mkExtensionId
+  , unExtensionId
   )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
@@ -52,6 +49,7 @@ import Data.Array (catMaybes, nub)
 import Data.Array as Array
 import Data.Either (Either(Left, Right))
 import Data.Foldable (fold)
+import Data.Function.Uncurried (mkFn1)
 import Data.List (intercalate)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
@@ -67,6 +65,7 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import Effect.Uncurried (mkEffectFn1)
 import Helpers (liftedM)
 import Mote (group, test)
 import Node.ChildProcess
@@ -83,13 +82,14 @@ import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
 import Node.FS.Aff (exists, stat)
 import Node.FS.Stats (isDirectory)
-import Node.Path (FilePath, relative)
+import Node.Path (relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)
+import Toppokki as Toppokki
 import Type.Proxy (Proxy(Proxy))
 
 -- | The entry point to the implementation of E2E tests.
@@ -128,7 +128,6 @@ readTestRuntime testOptions = do
 readBrowserRuntime :: BrowserOptions -> Aff E2ETestRuntime
 readBrowserRuntime testOptions = do
   browserPath <- maybe findBrowser pure testOptions.chromeExe
-
   tempDir <- createTempDir testOptions.tempDir browserPath
   chromeUserDataDir <- maybe findChromeProfile pure
     testOptions.chromeUserDataDir
@@ -169,6 +168,10 @@ ensureChromeUserDataDir chromeUserDataDir = do
   void $ spawnAndCollectOutput "mkdir" [ "-p", chromeUserDataDir ]
     defaultSpawnOptions
     defaultErrorReader
+  void $ spawnAndCollectOutput "rm"
+    [ "-f", chromeUserDataDir <> "/" <> "SingletonLock" ]
+    defaultSpawnOptions
+    defaultErrorReader
 
 readTests :: Array String -> Effect (Array E2ETest)
 readTests optUrls = do
@@ -178,8 +181,12 @@ readTests optUrls = do
     >>> append optUrls
     >>> nub
   for tests \test -> do
-    liftMaybe (error $ "Failed to parse test: " <> test) $ mkTest test
+    liftMaybe (mkError test) $ mkTest test
   where
+  mkError test =
+    error $ "Failed to parse test data from: " <> test <>
+      "\nTest spec must be of form \"wallet:url\", where allowed wallets are: \
+      \eternl, flint, gero, lode, nami."
   mkTest str =
     (stripPrefix (Pattern "eternl:") str <#> mkTestEntry EternlExt)
       <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry FlintExt)
@@ -280,7 +287,7 @@ runBrowser
   -> Aff Unit
 runBrowser tempDir chromeUserDataDir browserPath extensions = do
   let
-    extPath ext = tempDir <> "/" <> ext.extensionId
+    extPath ext = tempDir <> "/" <> unExtensionId ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
@@ -296,7 +303,7 @@ extractExtension tempDir extension = do
   void $ spawnAndCollectOutput "unzip"
     [ extension.crx
     , "-d"
-    , tempDir <> "/" <> extension.extensionId
+    , tempDir <> "/" <> unExtensionId extension.extensionId
     ]
     defaultSpawnOptions
     errorReader
@@ -327,7 +334,9 @@ readExtensionParams
 readExtensionParams extensionName mbCliOptions = do
   crxFile <- lookupEnv $ extensionName <> "_CRX"
   password <- lookupEnv (extensionName <> "_PASSWORD")
-  extensionId <- lookupEnv (extensionName <> "_EXTID")
+  mbExtensionIdStr <- lookupEnv (extensionName <> "_EXTID")
+  extensionId <- for mbExtensionIdStr \str ->
+    liftMaybe (error $ mkExtIdError str) $ mkExtensionId str
   let
     envOptions :: ExtensionOptions
     envOptions = { crxFile, password, extensionId }
@@ -359,6 +368,9 @@ readExtensionParams extensionName mbCliOptions = do
         <> "_PASSWORD and "
         <> extensionName
         <> "_EXTID are provided"
+  mkExtIdError str =
+    "Unable to parse extension ID. must be a string consisting of 32 characters\
+    \, got: " <> str
 
 packSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 packSettings settingsArchive chromeProfile = do
@@ -400,11 +412,18 @@ createTempDir :: Maybe TempDir -> BrowserPath -> Aff TempDir
 createTempDir mbOptionsTempDir browserPath = do
   mbTempDir <- maybe (liftEffect $ lookupEnv "E2E_TMPDIR") (pure <<< Just)
     mbOptionsTempDir
-  maybe createNew ensureExists mbTempDir
+  for_ mbTempDir ensureExists
+  maybe createNew createNewSubdir mbTempDir
   where
   ensureExists dir =
     dir <$ spawnAndCollectOutput "mkdir" [ "-p", dir ] defaultSpawnOptions
       defaultErrorReader
+  createNewSubdir prefix = do
+    uniqPart <- execAndCollectOutput "mktemp -du e2e.XXXXXXX"
+    void $ spawnAndCollectOutput "mkdir" [ "-p", prefix <> "/" <> uniqPart ]
+      defaultSpawnOptions
+      defaultErrorReader
+    pure $ prefix <> "/" <> uniqPart
   createNew = do
     realPath <- spawnAndCollectOutput "which" [ browserPath ]
       defaultSpawnOptions

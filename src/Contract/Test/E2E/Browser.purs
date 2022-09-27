@@ -11,7 +11,7 @@ import Contract.Test.E2E.Options
   , TestOptions
   , parseOptions
   ) as X
-import Contract.Test.E2E.Types (E2ETestRuntime, ExtensionId)
+import Contract.Test.E2E.Types (E2ETestRuntime, ExtensionId, unExtensionId)
 import Effect.Aff (Aff, bracket)
 import Toppokki as Toppokki
 
@@ -52,4 +52,4 @@ launchWithExtension noHeadless rt@{ browserPath, chromeUserDataDir } extensionId
     | otherwise = Headless
 
   extensionsList :: String
-  extensionsList = rt.tempDir <> "/" <> extensionId
+  extensionsList = rt.tempDir <> "/" <> unExtensionId extensionId

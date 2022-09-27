@@ -17,8 +17,13 @@ module Contract.Test.E2E.Helpers
 
 import Prelude
 
+import Contract.Test.E2E.Types
+  ( ExtensionId
+  , RunningExample
+  , WalletPassword
+  , unExtensionId
+  )
 import Contract.Test.E2E.Types (ExtensionId, WalletPassword) as X
-import Contract.Test.E2E.Types (ExtensionId, WalletPassword, RunningExample)
 import Control.Promise (Promise, toAffE)
 import Data.Array (head)
 import Data.Either (fromRight, hush)
@@ -159,7 +164,7 @@ inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
   try acquirePage <#> fromRight Nothing
   where
   acquirePage = do
-    page <- waitForWalletPage (Pattern extId) timeout browser
+    page <- waitForWalletPage (Pattern $ unExtensionId extId) timeout browser
     url <- liftedM (error "inWalletPageOptional: page closed")
       $ map hush
       $ try
@@ -183,7 +188,7 @@ eternlConfirmAccess extId re = do
     waitForWalletPageClose pattern 10.0 re.browser
   where
   pattern :: Pattern
-  pattern = wrap $ extId <> "/www/index.html#/connect/"
+  pattern = wrap $ unExtensionId extId <> "/www/index.html#/connect/"
 
 eternlSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 eternlSign extId password re = do
@@ -197,33 +202,34 @@ eternlSign extId password re = do
     void $ doJQ (wrap "span.capitalize:contains(\"sign\")") click page
   where
   pattern :: Pattern
-  pattern = wrap $ extId <> "/www/index.html#/signtx"
+  pattern = wrap $ unExtensionId extId <> "/www/index.html#/signtx"
 
 namiConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 namiConfirmAccess extId re =
-  inWalletPage (Pattern extId) re confirmAccessTimeout
+  inWalletPage (Pattern $ unExtensionId extId) re confirmAccessTimeout
     (clickButton "Access")
 
 namiSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 namiSign extId wpassword re = do
-  inWalletPage (Pattern extId) re signTimeout \nami -> do
+  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \nami -> do
     clickButton "Sign" nami
     reactSetValue (Selector ":password") wpassword nami
     clickButton "Confirm" nami
 
 geroConfirmAccess :: ExtensionId -> RunningExample -> Aff Unit
 geroConfirmAccess extId re = do
-  inWalletPage (Pattern extId) re confirmAccessTimeout \page -> do
-    delaySec 0.1
-    void $ doJQ (inputType "radio") click page
-    void $ doJQ (buttonWithText "Continue") click page
-    delaySec 0.1
-    void $ doJQ (inputType "checkbox") click page
-    void $ doJQ (buttonWithText "Connect") click page
+  inWalletPage (Pattern $ unExtensionId extId) re confirmAccessTimeout \page ->
+    do
+      delaySec 0.1
+      void $ doJQ (inputType "radio") click page
+      void $ doJQ (buttonWithText "Continue") click page
+      delaySec 0.1
+      void $ doJQ (inputType "checkbox") click page
+      void $ doJQ (buttonWithText "Connect") click page
 
 geroSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 geroSign extId password re =
-  inWalletPage (Pattern extId) re signTimeout \gero -> do
+  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \gero -> do
     void $ doJQ (byId "confirm-swap") click gero
     typeInto (byId "wallet-password") password gero
     clickButton "Next" gero
@@ -250,11 +256,11 @@ lodeConfirmAccess extId re = do
   when wasOnAccessPage do
     waitForWalletPageClose pattern 10.0 re.browser
   where
-  pattern = Pattern extId
+  pattern = Pattern $ unExtensionId extId
 
 lodeSign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
 lodeSign extId gpassword re = do
-  inWalletPage (Pattern extId) re signTimeout \page -> do
+  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page

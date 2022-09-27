@@ -12,7 +12,7 @@ import Contract.Config
   )
 import Contract.Monad (Contract, runContract)
 import Contract.Prelude (fst, traverse_, uncurry)
-import Contract.Test.E2E.Feedback.Hooks (feedbackHooks)
+import Contract.Test.E2E.Feedback.Hooks (e2eFeedbackHooks)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
@@ -76,12 +76,13 @@ main = do
             _ -> Nothing
         case mbWalletMock of
           Just walletMock -> do
-            runContract config { walletSpec = Nothing, hooks = feedbackHooks }
+            runContract config
+              { walletSpec = Nothing, hooks = e2eFeedbackHooks }
               $ withCip30Mock (privateKeysToKeyWallet paymentKey mbStakeKey)
                   walletMock
                   exampleContract
           Nothing -> do
-            runContract config { hooks = feedbackHooks } exampleContract
+            runContract config { hooks = e2eFeedbackHooks } exampleContract
     _ -> liftEffect $ Console.error "Error parsing query string"
 
 wallets :: Array (String /\ ConfigParams ())
