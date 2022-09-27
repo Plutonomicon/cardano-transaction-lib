@@ -10,9 +10,9 @@ module Contract.Wallet
   , module Contract.Utxos
   , module Serialization
   , module Wallet
-  , module Wallet.Key
-  , module Wallet.KeyFile
-  , module Wallet.Spec
+  , module Ctl.Internal.Wallet.Key
+  , module Ctl.Internal.Wallet.KeyFile
+  , module Ctl.Internal.Wallet.Spec
   ) where
 
 import Prelude
@@ -32,24 +32,27 @@ import QueryM
   , getRewardAddresses
   , getUnusedAddresses
   ) as QueryM
-import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
-import Wallet
-  ( isGeroAvailable
-  , isNamiAvailable
+import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
+import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
+import Ctl.Internal.Wallet
+  ( isEternlAvailable
   , isFlintAvailable
-  , isEternlAvailable
+  , isGeroAvailable
   , isLodeAvailable
+  , isNamiAvailable
   ) as Wallet
-import Wallet (mkKeyWallet, Wallet(KeyWallet))
-import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key
+import Ctl.Internal.Wallet (mkKeyWallet, Wallet(KeyWallet))
+import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
+import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
-import Wallet.Spec
-  ( WalletSpec
+import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
+import Ctl.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
       ( UseKeys
       , ConnectToNami
       , ConnectToGero
@@ -57,8 +60,6 @@ import Wallet.Spec
       , ConnectToLode
       , ConnectToEternl
       )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
 import Serialization.Address (Address)
 

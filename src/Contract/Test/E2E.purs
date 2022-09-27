@@ -8,17 +8,15 @@ module Contract.Test.E2E
 import Contract.Test.E2E.Browser
   ( Mode(Headless, Visible)
   , TestOptions(TestOptions)
-  , withBrowser
   , parseOptions
+  , withBrowser
   ) as Browser
-
 import Contract.Test.E2E.Feedback
   ( publishTestFeedback
-  , retrieveTestFeedback
   , resetTestFeedback
+  , retrieveTestFeedback
   , testFeedbackIsTrue
   ) as Feedback
-
 import Contract.Test.E2E.Helpers
   ( E2EOutput
   , RunningExample
@@ -33,7 +31,6 @@ import Contract.Test.E2E.Helpers
   , namiSign
   , withExample
   ) as Helpers
-
 import Contract.Test.E2E.WalletExt
   ( SomeWallet(SomeWallet)
   , WalletConfig(WalletConfig)
