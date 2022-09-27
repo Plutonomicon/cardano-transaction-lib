@@ -7,10 +7,12 @@ import Contract.Test.E2E.Types
   ( CrxFilePath
   , ExtensionId
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
+  , mkExtensionId
   )
 import Control.Alt ((<|>))
 import Data.Array (catMaybes)
 import Data.Array as Array
+import Data.Either (note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.List (List(Nil))
@@ -23,6 +25,7 @@ import Effect (Effect)
 import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
+  , ReadM
   , command
   , execParser
   , fullDesc
@@ -42,6 +45,7 @@ import Options.Applicative
   , value
   , (<**>)
   )
+import Options.Applicative.Builder (eitherReader)
 import Record.Builder (build, merge)
 import Type.Row (type (+))
 
@@ -122,6 +126,14 @@ commands = subparser $
           (progDesc "Load settings from the archive")
       )
 
+extensionIdParser :: ReadM ExtensionId
+extensionIdParser = eitherReader \s ->
+  note
+    ( "Unable to parse extension ID. must be a string consisting of 32 \
+      \characters, got: " <> s
+    )
+    $ mkExtensionId s
+
 browserOptionsParser :: Parser BrowserOptions
 browserOptionsParser = ado
   chromeExe <- option (Just <$> str) $ fold
@@ -144,7 +156,7 @@ browserOptionsParser = ado
     , metavar "DIR"
     ]
   -- Eternl
-  eternlExtId <- option (Just <$> str) $ fold
+  eternlExtId <- option (Just <$> extensionIdParser) $ fold
     [ long "eternl-extid"
     , metavar "EXTID"
     , help "Eternl extension ID"
@@ -163,7 +175,7 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Nami
-  namiExtId <- option (Just <$> str) $ fold
+  namiExtId <- option (Just <$> extensionIdParser) $ fold
     [ long "nami-extid"
     , metavar "EXTID"
     , help "Nami extension ID"
@@ -182,7 +194,7 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Gero
-  geroExtId <- option (Just <$> str) $ fold
+  geroExtId <- option (Just <$> extensionIdParser) $ fold
     [ long "gero-extid"
     , metavar "EXTID"
     , help "Gero extension ID"
@@ -201,7 +213,7 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Flint
-  flintExtId <- option (Just <$> str) $ fold
+  flintExtId <- option (Just <$> extensionIdParser) $ fold
     [ long "flint-extid"
     , metavar "EXTID"
     , help "Flint extension ID"
@@ -220,7 +232,7 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Lode
-  lodeExtId <- option (Just <$> str) $ fold
+  lodeExtId <- option (Just <$> extensionIdParser) $ fold
     [ long "lode-extid"
     , metavar "EXTID"
     , help "Lode extension ID"

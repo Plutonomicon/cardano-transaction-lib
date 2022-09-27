@@ -1,6 +1,6 @@
 # E2E Testing in the Browser
 
-CTL has basic machinery for E2E testing in the browser. This can be used to either run the included examples (in `examples`) or create a custom test suite for E2E testing.
+CTL comes with advanced machinery for E2E testing in the browser, which can be used to either run the included examples (in `examples`) or create a custom test suite for E2E testing.
 
 - [E2E Testing in the Browser](#e2e-testing-in-the-browser)
 - [Parts Involved](#parts-involved)
@@ -21,9 +21,9 @@ CTL has basic machinery for E2E testing in the browser. This can be used to eith
 is used to drive the tests. Supported browsers are [Chromium](https://www.chromium.org/) and Google Chrome.
 The browser can be run headless (default) or headful (useful during test development).
 
-Any programs that should be tested must be deployed and running on some testserver (e.g. with `make run-dev` for the included examples).
+Any programs that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `make run-dev`). The test suite accepts a list of URLs.
 
-An executable for concrete tests is also needed. For a working example see `test/E2E.purs`. It can be run conveniently using `./test/ctl-e2e-test.sh`.
+An executable for particular tests is also needed. For a working example see `test/E2E.purs`. It can be run conveniently using `./test/ctl-e2e-test.sh`.
 
 ## How to Run the Included Examples
 

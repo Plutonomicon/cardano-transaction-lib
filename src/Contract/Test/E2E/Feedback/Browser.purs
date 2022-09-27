@@ -8,15 +8,13 @@ module Contract.Test.E2E.Feedback.Browser
 
 import Prelude
 
-import Aeson (class EncodeAeson, encodeAeson, stringifyAeson)
+import Aeson (encodeAeson, stringifyAeson)
 import Contract.Test.E2E.Feedback (BrowserEvent)
 import Effect (Effect)
-import Effect.Console as Console
 
 pushBrowserEvent
   :: BrowserEvent -> Effect Unit
 pushBrowserEvent ev = do
-  Console.log $ show $ encodeAeson ev
   _pushBrowserEvent <<< stringifyAeson $ encodeAeson ev
 
 foreign import _pushBrowserEvent :: String -> Effect Unit

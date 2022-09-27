@@ -9,8 +9,8 @@ import Contract.Test.E2E.Feedback.Browser (pushBrowserEvent)
 import Data.Maybe (Maybe(Just))
 import QueryM (Hooks)
 
-feedbackHooks :: Hooks
-feedbackHooks =
+e2eFeedbackHooks :: Hooks
+e2eFeedbackHooks =
   { beforeSign: Just $ pushBrowserEvent Sign
   , beforeInit: Just $ pushBrowserEvent ConfirmAccess
   , onSuccess: Just $ pushBrowserEvent Success
