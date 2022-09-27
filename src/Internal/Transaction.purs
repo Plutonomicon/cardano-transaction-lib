@@ -21,9 +21,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Serialization (hashScriptData, toBytes)
+import Ctl.Internal.Serialization (hashScriptData)
 import Ctl.Internal.Serialization.PlutusData as Serialization.PlutusData
 import Ctl.Internal.Serialization.PlutusScript as Serialization.PlutusScript
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types as Serialization
 import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
 import Ctl.Internal.Types.Datum (Datum)

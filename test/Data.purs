@@ -19,8 +19,8 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as PDS
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.TypeLevel.RowList (class AllUniqueLabels)
@@ -570,7 +570,7 @@ testBinaryFixture value binaryFixture = do
   test ("Serialization: " <> show value) do
     map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
       `shouldEqual` Just
-        (hexToByteArrayUnsafe binaryFixture)
+        (wrap $ hexToByteArrayUnsafe binaryFixture)
 
 -- | Poor man's type level tests
 tests :: Array String

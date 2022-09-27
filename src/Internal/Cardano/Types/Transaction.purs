@@ -110,6 +110,7 @@ import Ctl.Internal.Serialization.Types (VRFKeyHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData)
@@ -288,7 +289,7 @@ instance EncodeAeson TxBody where
     , referenceInputs = encodeSet r.referenceInputs
     }
 
-newtype ScriptDataHash = ScriptDataHash ByteArray
+newtype ScriptDataHash = ScriptDataHash CborBytes
 
 derive instance Newtype ScriptDataHash _
 derive instance Generic ScriptDataHash _

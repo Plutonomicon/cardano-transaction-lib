@@ -130,8 +130,6 @@ exports.newEd25519Signature = bech32 => () =>
 
 exports.transactionWitnessSetSetVkeys = setter("vkeys");
 
-exports.toBytes = sth => sth.to_bytes();
-
 exports.newCostmdls = () => lib.Costmdls.new();
 
 exports.defaultCostmdls = () =>

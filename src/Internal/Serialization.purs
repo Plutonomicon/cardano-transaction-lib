@@ -8,7 +8,6 @@ module Ctl.Internal.Serialization
   , defaultCostmdls
   , convertTransactionUnspentOutput
   , convertValue
-  , toBytes
   , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
@@ -24,10 +23,7 @@ module Ctl.Internal.Serialization
 import Prelude
 
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef
-      ( NativeScriptRef
-      , PlutusScriptRef
-      )
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
@@ -88,11 +84,11 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
-  , AuxiliaryDataHash
   , BigInt
   , Certificate
   , Certificates
@@ -179,7 +175,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
+import Untagged.Union (UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
@@ -496,28 +492,6 @@ foreign import newProposedProtocolParameterUpdates
 
 foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
 
--- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
-foreign import toBytes
-  :: ( Transaction
-         |+| TransactionBody
-         |+| TransactionOutput
-         |+| TransactionUnspentOutput
-         |+| TransactionHash
-         |+| DataHash
-         |+| PlutusData
-         |+| TransactionWitnessSet
-         |+| NativeScript
-         |+| ScriptDataHash
-         |+| Redeemers
-         |+| GenesisHash
-         |+| GenesisDelegateHash
-         |+| AuxiliaryDataHash
-         |+| Address
-         |+| Value
-     -- Add more as needed.
-     )
-  -> ByteArray
-
 convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do
   inputs <- convertTxInputs body.inputs
@@ -541,7 +515,7 @@ convertTxBody (T.TxBody body) = do
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash
-    ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
+    ( unwrap >>> newScriptDataHashFromBytes >=>
         setTxBodyScriptDataHash txBody
     )
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
@@ -799,7 +773,7 @@ convertTxInputs fInputs = do
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
 convertTxInput (T.TransactionInput { transactionId, index }) = do
-  tx_hash <- fromBytesEffect (unwrap transactionId)
+  tx_hash <- fromBytesEffect (unwrap $ unwrap transactionId)
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
@@ -816,7 +790,7 @@ convertTxOutput
   case datum of
     NoOutputDatum -> pure unit
     OutputDatumHash dataHash -> do
-      for_ (fromBytes $ unwrap dataHash) $
+      for_ (fromBytes $ unwrap $ unwrap dataHash) $
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
@@ -903,5 +877,5 @@ hashScriptData cms rs ps = do
       (traverse convertPlutusData ps)
 
 serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
-serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
+serializeData = map (toBytes <<< asOneOf) <<< convertPlutusData <<<
   toData

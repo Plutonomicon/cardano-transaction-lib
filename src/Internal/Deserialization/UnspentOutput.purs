@@ -30,9 +30,9 @@ import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Deserialization.WitnessSet (convertPlutusScript)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets

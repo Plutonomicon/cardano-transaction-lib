@@ -11,11 +11,12 @@ import Prelude
 import Aeson (class EncodeAeson)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 
@@ -58,7 +59,7 @@ instance ToData TransactionInput where
 -- | 32-bytes blake2b256 hash of a tx body.
 -- | NOTE. Plutus docs might incorrectly state that it uses
 -- |       SHA256 for this purposes.
-newtype TransactionHash = TransactionHash ByteArray
+newtype TransactionHash = TransactionHash CborBytes
 
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
@@ -69,7 +70,7 @@ derive newtype instance EncodeAeson TransactionHash
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
 instance Ord TransactionHash where
   compare (TransactionHash h) (TransactionHash h') =
-    compare (byteArrayToHex h) (byteArrayToHex h')
+    compare (byteArrayToHex $ unwrap h) (byteArrayToHex $ unwrap h')
 
 instance Show TransactionHash where
   show = genericShow
@@ -83,7 +84,7 @@ instance FromData TransactionHash where
 instance ToData TransactionHash where
   toData (TransactionHash bytes) = Constr zero [ toData bytes ]
 
-newtype DataHash = DataHash ByteArray
+newtype DataHash = DataHash CborBytes
 
 derive instance Generic DataHash _
 derive instance Newtype DataHash _
