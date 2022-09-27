@@ -5,24 +5,24 @@ module Contract.TextEnvelope
 
 import Contract.Prelude
 
-import Cardano.TextEnvelope
-  ( decodeTextEnvelope
-  , printTextEnvelopeDecodeError
-  , TextEnvelope(TextEnvelope)
+import Contract.Monad (Contract)
+import Ctl.Internal.Cardano.TextEnvelope
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
   , TextEnvelopeType
       ( PlutusScriptV1
       , PlutusScriptV2
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
-  , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
+  , decodeTextEnvelope
+  , printTextEnvelopeDecodeError
   ) as TextEnvelope
-import Cardano.TextEnvelope (printTextEnvelopeDecodeError)
-import Cardano.TextEnvelope (textEnvelopeBytes, TextEnvelopeType) as TE
-import Contract.Monad (Contract)
+import Ctl.Internal.Cardano.TextEnvelope (TextEnvelopeType, textEnvelopeBytes) as TE
+import Ctl.Internal.Cardano.TextEnvelope (printTextEnvelopeDecodeError)
+import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Bifunctor (lmap)
 import Effect.Exception (error)
-import Types.ByteArray (ByteArray)
 
 textEnvelopeBytes :: String -> TE.TextEnvelopeType -> Contract () ByteArray
 textEnvelopeBytes json ty =
