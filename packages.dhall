@@ -280,40 +280,6 @@ let additions =
         , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
         , version = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9"
         }
-      , spec =
-        { dependencies =
-          [ "aff"
-          , "ansi"
-          , "arrays"
-          , "avar"
-          , "bifunctors"
-          , "console"
-          , "control"
-          , "datetime"
-          , "effect"
-          , "either"
-          , "exceptions"
-          , "foldable-traversable"
-          , "fork"
-          , "identity"
-          , "integers"
-          , "lists"
-          , "maybe"
-          , "newtype"
-          , "now"
-          , "ordered-collections"
-          , "parallel"
-          , "partial"
-          , "pipes"
-          , "prelude"
-          , "strings"
-          , "tailrec"
-          , "transformers"
-          , "tuples"
-          ]
-        , repo = "https://github.com/mlabs-haskell/purescript-spec"
-        , version = "f14a2ef204654275efd4b0fe8b8fb0dd4a019042"
-        }
       }
 
 in  upstream // additions
