@@ -11,9 +11,8 @@ import QueryM (Hooks)
 
 feedbackHooks :: Hooks
 feedbackHooks =
-  { beforeSign: Just $ pushBrowserEvent (Sign :: BrowserEvent {})
-  , beforeInit: Just $ pushBrowserEvent (ConfirmAccess :: BrowserEvent {})
-  , onSuccess: Just $ pushBrowserEvent (Success :: BrowserEvent {})
-  , onError: Just \err -> pushBrowserEvent
-      (Failure $ show err :: BrowserEvent {})
+  { beforeSign: Just $ pushBrowserEvent Sign
+  , beforeInit: Just $ pushBrowserEvent ConfirmAccess
+  , onSuccess: Just $ pushBrowserEvent Success
+  , onError: Just (pushBrowserEvent <<< Failure <<< show)
   }

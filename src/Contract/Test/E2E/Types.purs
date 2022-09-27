@@ -4,9 +4,11 @@ import Prelude
 
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
-import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import Effect.Aff (Aff)
+import Effect.Ref (Ref)
 import Node.Path (FilePath)
+import Toppokki as Toppokki
 
 type BrowserPath = String
 
@@ -18,20 +20,15 @@ type ChromeUserDataDir = String
 
 type CrxFilePath = FilePath
 
+type ExtensionId = String
+
+type WalletPassword = String
+
 type ExtensionParams =
-  { crx :: String -- TODO: crxFile
+  { crx :: CrxFilePath
   , password :: WalletPassword
   , extensionId :: ExtensionId
   }
-
-newtype WalletPassword = WalletPassword String
-
-derive instance Newtype WalletPassword _
-
-derive instance Generic WalletPassword _
-
-instance Show WalletPassword where
-  show = genericShow
 
 data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt
 
@@ -44,11 +41,40 @@ instance Show WalletExt where
 
 type Extensions = Map WalletExt ExtensionParams
 
-newtype ExtensionId = ExtensionId String
+-- | Contains everything needed to run E2E tests.
+type E2ETestRuntime =
+  { wallets :: Map WalletExt ExtensionParams
+  , chromeUserDataDir :: FilePath
+  , tempDir :: FilePath
+  , browserPath :: String
+  , settingsArchive :: FilePath
+  }
 
-derive instance Newtype ExtensionId _
+-- | Contains everything needed to pack and unpack settings.
+type SettingsRuntime =
+  { chromeUserDataDir :: FilePath
+  , settingsArchive :: FilePath
+  }
 
-derive instance Generic ExtensionId _
+-- | A particular test instance.
+type E2ETest =
+  { url :: String
+  , wallet :: WalletExt
+  }
 
-instance Show ExtensionId where
-  show = genericShow
+-- TODO: rename to runningTest
+type RunningExample =
+  { browser :: Toppokki.Browser
+  , jQuery :: String
+  , page :: Toppokki.Page
+  }
+
+-- | Provides an interface to interact with a wallet running in a headless
+-- | browser.
+type SomeWallet =
+  { wallet :: WalletExt
+  , name :: String
+  , extensionId :: ExtensionId
+  , confirmAccess :: ExtensionId -> RunningExample -> Aff Unit
+  , sign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+  }

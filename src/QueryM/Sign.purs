@@ -29,7 +29,10 @@ signTransaction
   :: Transaction.Transaction -> QueryM (Maybe Transaction.Transaction)
 signTransaction tx = do
   config <- asks (_.config)
-  for_ config.hooks.beforeSign (void <<< liftEffect <<< try)
+  let
+    runHook =
+      for_ config.hooks.beforeSign (void <<< liftEffect <<< try)
+  runHook
   withMWallet case _ of
     Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
     Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
