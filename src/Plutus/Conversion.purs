@@ -98,7 +98,7 @@ toPlutusTxOutput cardanoTxOut = do
   address <- toPlutusAddress rec.address
   let
     amount = toPlutusValue rec.amount
-    referenceScript = scriptRefHash =<< rec.scriptRef
+    referenceScript = scriptRefHash <$> rec.scriptRef
   pure $ wrap
     { address, amount, datum: rec.datum, referenceScript }
 

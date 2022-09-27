@@ -20,14 +20,14 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftedM
   , liftContractM
+  , liftedM
   , runContract
   )
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
-  ( MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy)
   , MintingPolicyHash
   , PlutusScript
   , ValidatorHash
@@ -60,11 +60,7 @@ import Contract.Value (lovelaceValueOf) as Value
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (Map)
 import Data.Map (empty, toUnfoldable) as Map
-import Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Examples.Helpers (buildBalanceSignAndSubmitTx, mkTokenName) as Helpers
 import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
@@ -79,7 +75,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
   validator <- alwaysSucceedsScriptV2
-  mp /\ _ <- Helpers.mkCurrencySymbol alwaysMintsPolicyV2
+  plutusScript <- alwaysMintsPolicyV2
   tokenName <- Helpers.mkTokenName "TheToken"
   let
     vhash :: ValidatorHash
@@ -89,13 +85,14 @@ contract = do
     validatorRef = PlutusScriptRef (unwrap validator)
 
     mpRef :: ScriptRef
-    mpRef = PlutusScriptRef (unwrap mp)
+    mpRef = PlutusScriptRef (unwrap validator)
 
   logInfo' "Attempt to lock value"
   txId <- payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully, Try to spend locked values"
-  spendFromAlwaysSucceeds vhash txId (unwrap validator) (unwrap mp) tokenName
+  spendFromAlwaysSucceeds vhash txId (unwrap validator) plutusScript
+    tokenName
 
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
@@ -148,7 +145,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
 
   let
     mph :: MintingPolicyHash
-    mph = mintingPolicyHash (wrap mp)
+    mph = mintingPolicyHash (PlutusMintingPolicy mp)
 
     constraints :: TxConstraints Unit Unit
     constraints = mconcat
@@ -194,7 +191,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
 
 foreign import alwaysMintsV2 :: String
 
-alwaysMintsPolicyV2 :: Contract () MintingPolicy
+alwaysMintsPolicyV2 :: Contract () PlutusScript
 alwaysMintsPolicyV2 =
-  map (wrap <<< plutusV2Script)
+  map plutusV2Script
     (textEnvelopeBytes alwaysMintsV2 PlutusScriptV2)

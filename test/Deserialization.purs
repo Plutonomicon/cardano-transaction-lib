@@ -241,8 +241,9 @@ createUnspentOutput input output = do
 
 testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
-  serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
-  let bytes = Serialization.toBytes (asOneOf serialized)
+  let
+    serialized = NSS.convertNativeScript input
+    bytes = Serialization.toBytes (asOneOf serialized)
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input

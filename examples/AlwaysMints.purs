@@ -9,7 +9,7 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
+import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
@@ -56,5 +56,6 @@ example cfg = launchAff_ $ do
 foreign import alwaysMints :: String
 
 alwaysMintsPolicy :: Contract () MintingPolicy
-alwaysMintsPolicy = wrap <<< plutusV1Script <$> textEnvelopeBytes alwaysMints
+alwaysMintsPolicy = PlutusMintingPolicy <<< plutusV1Script <$> textEnvelopeBytes
+  alwaysMints
   PlutusScriptV1

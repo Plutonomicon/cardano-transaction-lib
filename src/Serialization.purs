@@ -813,10 +813,10 @@ convertTxOutput
     convertScriptRef >=> transactionOutputSetScriptRef txo
   pure txo
 
+-- TODO: amir: doesn't need to be effectful?
 convertScriptRef :: T.ScriptRef -> Effect ScriptRef
 convertScriptRef (T.NativeScriptRef nativeScript) = do
-  scriptRefNewNativeScript <$> fromJustEff "convertScriptRef"
-    (convertNativeScript nativeScript)
+  pure <<< scriptRefNewNativeScript <<< convertNativeScript $ nativeScript
 convertScriptRef (T.PlutusScriptRef plutusScript) = do
   pure $ scriptRefNewPlutusScript $ convertPlutusScript plutusScript
 

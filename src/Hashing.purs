@@ -14,7 +14,7 @@ module Hashing
 import Prelude
 
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe)
 import Data.Newtype (wrap, unwrap)
 import Deserialization.Transaction (_txBody)
 import Serialization (toBytes)
@@ -22,11 +22,7 @@ import Serialization.Hash (ScriptHash, nativeScriptHash)
 import Serialization.NativeScript (convertNativeScript)
 import Serialization.PlutusData (convertPlutusData)
 import Serialization.PlutusScript (convertPlutusScript)
-import Serialization.Types
-  ( PlutusData
-  , PlutusScript
-  , Transaction
-  ) as Serialization
+import Serialization.Types (PlutusData, PlutusScript, Transaction) as Serialization
 import Types.ByteArray (ByteArray)
 import Types.Datum (Datum)
 import Types.Scripts (PlutusScript)
@@ -62,8 +58,7 @@ transactionHash =
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript
 
-scriptRefHash :: ScriptRef -> Maybe ScriptHash
-scriptRefHash (PlutusScriptRef plutusScript) =
-  Just (plutusScriptHash plutusScript)
+scriptRefHash :: ScriptRef -> ScriptHash
+scriptRefHash (PlutusScriptRef plutusScript) = plutusScriptHash plutusScript
 scriptRefHash (NativeScriptRef nativeScript) =
-  nativeScriptHash <$> convertNativeScript nativeScript
+  nativeScriptHash $ convertNativeScript nativeScript

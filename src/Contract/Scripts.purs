@@ -54,7 +54,7 @@ import Scripts
   ) as ExportScripts
 import Serialization.Hash (ScriptHash) as Hash
 import Types.Scripts
-  ( MintingPolicy(MintingPolicy)
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
   , StakeValidator(StakeValidator)

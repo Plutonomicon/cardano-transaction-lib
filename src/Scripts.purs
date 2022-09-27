@@ -16,7 +16,7 @@ import Prelude
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Hashing (plutusScriptHash)
-import NativeScripts (NativeScriptHash)
+import NativeScripts (NativeScriptHash, nativeScriptHash)
 import Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Serialization.Address
   ( Address
@@ -29,7 +29,7 @@ import Serialization.Address
   )
 import Serialization.Hash (ScriptHash)
 import Types.Scripts
-  ( MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash
   , PlutusScript
   , StakeValidator
@@ -59,7 +59,9 @@ typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> MintingPolicyHash
-mintingPolicyHash = scriptHash
+mintingPolicyHash = case _ of
+  PlutusMintingPolicy script -> wrap $ plutusScriptHash script
+  NativeMintingPolicy nscript -> wrap $ unwrap $ nativeScriptHash nscript
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
 validatorHash :: Validator -> ValidatorHash

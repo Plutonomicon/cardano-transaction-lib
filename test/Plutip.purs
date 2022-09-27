@@ -373,8 +373,8 @@ suite = do
               , ScriptPubkey charliePaymentPKH
               , ScriptPubkey danPaymentPKH
               ]
-          nsHash <- liftContractM "Unable to hash NativeScript" $
-            nativeScriptHash nativeScript
+            nsHash = nativeScriptHash nativeScript
+
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
@@ -474,8 +474,8 @@ suite = do
               , ScriptPubkey charliePaymentPKH
               , ScriptPubkey danPaymentPKH
               ]
-          nsHash <- liftContractM "Unable to hash NativeScript" $
-            nativeScriptHash nativeScript
+            nsHash = nativeScriptHash nativeScript
+
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let

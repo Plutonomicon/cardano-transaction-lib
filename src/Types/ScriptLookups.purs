@@ -109,8 +109,8 @@ import Data.Traversable (traverse_, for)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Class (liftEffect)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Hashing (datumHash) as Hashing
 import Helpers ((<\>), liftM)
 import IsData (class IsData)
@@ -160,7 +160,7 @@ import Types.PubKeyHash
   )
 import Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Types.Scripts
-  ( MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash
   , Validator
   , ValidatorHash
@@ -993,9 +993,13 @@ processConstraint mpsMap osMap = do
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
       case scriptRefUnspentOut of
         Nothing -> do
-          plutusScript <-
-            except $ unwrap <$> lookupMintingPolicy mpsHash mpsMap
-          ExceptT $ attachToCps attachPlutusScript plutusScript
+          mp <- except $ lookupMintingPolicy mpsHash mpsMap
+          ExceptT $ attachToCps
+            ( case _ of
+                PlutusMintingPolicy p -> attachPlutusScript p
+                NativeMintingPolicy n -> attachNativeScript n
+            )
+            mp
         Just scriptRefUnspentOut' ->
           ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut'
       cs <-
