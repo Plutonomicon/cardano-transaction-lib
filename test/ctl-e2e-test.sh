@@ -58,7 +58,7 @@ run_tests () {
     extract_crx "$LODE_CRX" "$temp_dir"/lode
     extract_crx "$ETERNL_CRX" "$temp_dir"/eternl
     rm -f "$CHROME_PROFILE"/SingletonLock
-    spago test --main Test.E2E -a "E2ETest \
+    spago test --main Test.Ctl.E2E -a "E2ETest \
           --eternl-dir $temp_dir/eternl \
           --eternl-password $ETERNL_PASSWORD \
           --lode-dir $temp_dir/lode \

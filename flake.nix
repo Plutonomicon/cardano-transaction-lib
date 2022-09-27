@@ -139,7 +139,7 @@
         rec {
           packages = {
             ctl-example-bundle-web = project.bundlePursProject {
-              main = "Examples.ByUrl";
+              main = "Ctl.Examples.ByUrl";
               entrypoint = "examples/index.js";
             };
 
@@ -156,14 +156,14 @@
           checks = {
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
-              testMain = "Test.Plutip";
+              testMain = "Test.Ctl.Plutip";
               # After updating `PlutipConfig` this can be set for now:
               # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
-              testMain = "Ctl.Test.Unit";
+              testMain = "Test.Ctl.Unit";
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
           };
