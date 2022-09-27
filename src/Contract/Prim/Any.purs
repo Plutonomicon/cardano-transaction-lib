@@ -2,4 +2,4 @@
 -- | `PlutusData`.
 module Contract.Prim.Any (module Any) where
 
-import Types.Any (Any) as Any
+import Ctl.Internal.Types.Any (Any) as Any

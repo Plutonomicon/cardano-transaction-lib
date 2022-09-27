@@ -1,4 +1,4 @@
-module Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
+module Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   ( Form
   , Log
   , Unlock

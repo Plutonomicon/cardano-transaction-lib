@@ -1,18 +1,11 @@
-module Test.AffInterface (suite) where
+module Test.Ctl.AffInterface (suite) where
 
 import Prelude
 
-import Address (ogmiosAddressToAddress)
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
 import Control.Monad.Except (throwError)
-import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
-import Data.Newtype (over, wrap)
-import Data.String.CodeUnits (indexOf)
-import Data.String.Pattern (Pattern(Pattern))
-import Effect.Aff (try, error)
-import Mote (group, test)
-import QueryM
+import Ctl.Internal.Address (ogmiosAddressToAddress)
+import Ctl.Internal.QueryM
   ( QueryM
   , getChainTip
   , getDatumByHash
@@ -20,19 +13,26 @@ import QueryM
   , getDatumsByHashesWithErrors
   , submitTxOgmios
   )
-import QueryM.CurrentEpoch (getCurrentEpoch)
-import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (OgmiosAddress)
-import QueryM.ProtocolParameters (getProtocolParameters)
-import QueryM.SystemStart (getSystemStart)
-import QueryM.Utxos (utxosAt)
-import QueryM.WaitUntilSlot (waitUntilSlot)
-import Serialization.Address (Slot(Slot))
+import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
+import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.QueryM.Utxos (utxosAt)
+import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Types.BigNum (add, fromInt) as BigNum
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Transaction (DataHash(DataHash))
+import Data.Either (Either(Left, Right))
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
+import Data.Newtype (over, wrap)
+import Data.String.CodeUnits (indexOf)
+import Data.String.Pattern (Pattern(Pattern))
+import Effect.Aff (error, try)
+import Mote (group, test)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
-import TestM (TestPlanM)
-import Types.BigNum (fromInt, add) as BigNum
-import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.Transaction (DataHash(DataHash))
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
