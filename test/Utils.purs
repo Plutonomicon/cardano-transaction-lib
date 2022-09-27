@@ -1,4 +1,4 @@
-module Test.Utils
+module Test.Ctl.Utils
   ( module ExportSeconds
   , aesonRoundTrip
   , assertTrue
@@ -33,26 +33,26 @@ import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right), either)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (class Duration, Milliseconds, Seconds)
-import Data.Time.Duration (fromDuration, toDuration) as Duration
 import Data.Time.Duration (Seconds(Seconds)) as ExportSeconds
+import Data.Time.Duration (fromDuration, toDuration) as Duration
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console (log)
-import Effect.Exception (throwException, throw)
+import Effect.Exception (throw, throwException)
 import Effect.Now (now)
 import Mote (Plan, foldPlan, planT, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (FilePath)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (defaultConfig, runSpec')
 import Test.Spec.Runner as SpecRunner
-import TestM (TestPlanM)
 import Type.Proxy (Proxy)
 
 foreign import unsafeCall

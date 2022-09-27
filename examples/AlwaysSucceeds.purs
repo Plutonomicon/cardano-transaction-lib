@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module Examples.AlwaysSucceeds
+module Ctl.Examples.AlwaysSucceeds
   ( alwaysSucceedsScript
   , contract
   , example
@@ -34,12 +34,14 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+-- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
 import Data.Map as Map
-import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import Plutus.Types.TransactionUnspentOutput (_input)
 
 main :: Effect Unit
 main = example testnetNamiConfig
