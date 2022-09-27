@@ -46,12 +46,12 @@ subscribeToBrowserEvents timeout page cont = do
   logs <- liftEffect $ Ref.new ""
   let
     addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
+  liftEffect $ Toppokki.onConsole
+    ( mkEffectFn1 \cm -> launchAff_ do
+        Toppokki.consoleMessageText cm >>= liftEffect <<< addLogLine
+    )
+    page
   makeAff \f -> do
-    liftEffect $ Toppokki.onConsole
-      ( mkEffectFn1 \cm -> launchAff_ do
-          Toppokki.consoleMessageText cm >>= liftEffect <<< addLogLine
-      )
-      page
     liftEffect $ Toppokki.onPageError
       ( mkEffectFn1
           ( \err -> do
@@ -75,8 +75,8 @@ subscribeToBrowserEvents timeout page cont = do
             _ -> pure true
         if all identity continue then do
           delay $ Milliseconds $ 1000.0
-          if Array.length events == 0 && attempts /= Just 0 then process
-            (flip sub one <$> attempts)
+          if Array.length events == 0 && attempts /= Just 0 then
+            process (flip sub one <$> attempts)
           else if attempts == Just 0 then liftEffect $ f $ Left $ error
             "Timeout reached when trying to connect to CTL Contract running\
             \ in the browser. Is there a Contract with E2E hooks available\

@@ -137,3 +137,17 @@ openssl rsa -in key.pem -pubout -outform DER | openssl base64 -A
 Unarchive the CRX, put the encoded public key to `key` property of `manifest.json` file, and archive the directory back. You can then reload the browser multiple times and the ID will remain the same.
 
 [More on extension IDS](https://stackoverflow.com/questions/37317779/making-a-unique-extension-id-and-key-for-chrome-extension)
+
+## Configuring E2E test suite
+
+The configuration can be done using CLI arguments, environment variables, or both. CLI arguments have higher priority.
+
+| Parameter                         | CLI argument                | Environment variable   |
+|-----------------------------------|-----------------------------|------------------------|
+| Temporary directory               | `--chrome-exe`              | `E2E_TMPDIR`           |
+| Test specs                        | `--test` (multiple allowed) | `E2E_TESTS`            |
+| Browser executable path           | `--chrome-exe`              | `E2E_BROWSER`          |
+| Don't use headless mode           | `--no-headless`             | `E2E_NO_HEADLESS`      |
+| Path to the user settings archive | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE` |
+| Path to the user data directory   | `--chrome-user-data`        | `E2E_CHROME_USER_DATA` |
+|                                   |                             |                        |

@@ -2,11 +2,13 @@ module Contract.Test.E2E.Types where
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Data.Either (hush)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
+import Data.String (Pattern(Pattern), stripPrefix)
 import Data.String.Regex (regex, test) as Regex
 import Data.String.Regex.Flags (global) as Regex
 import Effect.Aff (Aff)
@@ -91,6 +93,16 @@ type E2ETest =
   { url :: String
   , wallet :: WalletExt
   }
+
+mkE2ETest :: String -> Maybe E2ETest
+mkE2ETest str =
+  (stripPrefix (Pattern "eternl:") str <#> mkTestEntry EternlExt)
+    <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry FlintExt)
+    <|> (stripPrefix (Pattern "gero:") str <#> mkTestEntry GeroExt)
+    <|> (stripPrefix (Pattern "lode:") str <#> mkTestEntry LodeExt)
+    <|> (stripPrefix (Pattern "nami:") str <#> mkTestEntry NamiExt)
+  where
+  mkTestEntry wallet url = { wallet, url }
 
 -- TODO: rename to runningTest
 type RunningExample =
