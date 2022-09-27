@@ -1,4 +1,4 @@
-module Examples.BalanceTxConstraints
+module Ctl.Examples.BalanceTxConstraints
   ( ContractParams(ContractParams)
   , contract
   ) where
@@ -12,7 +12,7 @@ import Contract.Address
   )
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
-  , mustBalanceTxWithAddress'
+  , mustBalanceTxWithAddress
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   ) as BalanceTxConstraints
@@ -37,15 +37,15 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
-import Contract.Value (valueOf, singleton) as Value
+import Contract.Value (singleton, valueOf) as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Bind (bindFlipped)
+import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
+import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (sort) as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.Map (keys, member) as Map
 import Data.Set (findMin) as Set
-import Examples.AlwaysMints (alwaysMintsPolicy)
-import Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 
 newtype ContractParams = ContractParams
   { aliceKeyWallet :: KeyWallet
@@ -135,7 +135,7 @@ contract (ContractParams p) = do
     balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
     balanceTxConstraints =
       BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
-        <> BalanceTxConstraints.mustBalanceTxWithAddress' bobAddress
+        <> BalanceTxConstraints.mustBalanceTxWithAddress bobAddress
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
   void $ TestUtils.withAssertions assertions do

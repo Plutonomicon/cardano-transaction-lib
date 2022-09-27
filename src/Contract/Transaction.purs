@@ -43,14 +43,24 @@ module Contract.Transaction
   ) where
 
 import Prelude
-import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
-import BalanceTx (BalanceTxError) as BalanceTxError
-import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx, balanceTxWithConstraints) as BalanceTx
-import BalanceTx.Constraints (BalanceTxConstraintsBuilder)
-import Cardano.Types.NativeScript
+import Contract.Log (logDebug')
+import Contract.Monad
+  ( Contract
+  , liftedE
+  , liftedM
+  , runContractInEnv
+  , wrapContract
+  )
+import Control.Monad.Error.Class (catchError, throwError, try)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
+import Control.Monad.Reader.Class (ask)
+import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
+import Ctl.Internal.BalanceTx (FinalizedTransaction)
+import Ctl.Internal.BalanceTx (balanceTx, balanceTxWithConstraints) as BalanceTx
+import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -60,10 +70,10 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
-import Cardano.Types.ScriptRef
+import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as ScriptRef
-import Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -124,47 +134,20 @@ import Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Cardano.Types.Transaction (Transaction)
-import Contract.Log (logDebug')
-import Contract.Monad
-  ( Contract
-  , liftedE
-  , liftedM
-  , wrapContract
-  , runContractInEnv
-  )
-import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Reader (asks, runReaderT, ReaderT)
-import Control.Monad.Reader.Class (ask)
-import Data.Array.NonEmpty as NonEmptyArray
-import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right), hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter (view)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Time.Duration (Seconds)
-import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple (fst)
-import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Aff (bracket)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
-import Hashing (transactionHash) as Hashing
-import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
-import Plutus.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Plutus.Conversion (toPlutusCoin, toPlutusTxOutput)
+import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   ) as PTransaction
-import Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , lookupTxHash
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
-import Plutus.Types.Value (Coin)
-import QueryM
+import Ctl.Internal.Plutus.Types.Value (Coin)
+import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
       , ClientHttpResponseError
@@ -173,31 +156,29 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (signTransaction, submitTxOgmios) as QueryM
-import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.AwaitTxConfirmed
+import Ctl.Internal.QueryM (submitTxOgmios) as QueryM
+import Ctl.Internal.QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   ) as AwaitTx
-import QueryM.GetTxByHash (getTxByHash) as QueryM
-import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
-import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address (NetworkId)
-import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , plutusV1Script
-  , plutusV2Script
-  ) as Scripts
-import Types.OutputDatum
+import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
+import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
+import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
+import Ctl.Internal.QueryM.Sign (signTransaction) as QueryM
+import Ctl.Internal.ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
+import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   ) as OutputDatum
-import Types.ScriptLookups
+import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
       , ModifyTx
@@ -225,30 +206,52 @@ import Types.ScriptLookups
       )
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.ScriptLookups (UnattachedUnbalancedTx)
-import Types.Transaction
+import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  ) as Scripts
+import Ctl.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as Transaction
-import Types.Transaction (TransactionHash)
-import Types.TransactionMetadata
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as TransactionMetadata
-import Types.UnbalancedTransaction
+import Ctl.Internal.Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput)
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Types.UsedTxOuts
+import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.BigInt (BigInt)
+import Data.Either (Either(Left, Right), hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter (view)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds)
+import Data.Traversable (class Traversable, for_, traverse)
+import Data.Tuple (fst)
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (bracket)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (Error, throw)
+import Prim.TypeError (class Warn, Text)
 import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and

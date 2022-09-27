@@ -65,15 +65,31 @@ import Contract.Transaction
   , getTxByHash
   )
 import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
+import Contract.Value
+  ( CurrencySymbol
+  , TokenName
+  , Value
+  , valueOf
+  , valueToCoin'
+  )
 import Control.Monad.Except.Trans (ExceptT, except, runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer.Trans (WriterT, runWriterT, tell)
+import Ctl.Internal.Metadata.FromMetadata (fromMetadata)
+import Ctl.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
+import Ctl.Internal.Plutus.Types.Transaction
+  ( UtxoMap
+  , _amount
+  , _datum
+  , _output
+  , _scriptRef
+  )
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (fromFoldable, mapWithIndex) as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Foldable (foldMap, null)
-import Data.Lens.Getter ((^.), view)
+import Data.Lens.Getter (view, (^.))
 import Data.Map (filterKeys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Monoid.Endo (Endo(Endo))
@@ -83,11 +99,7 @@ import Data.String.Common (joinWith) as String
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import Metadata.FromMetadata (fromMetadata)
-import Metadata.MetadataType (class MetadataType, metadataLabel)
-import Plutus.Types.Transaction (UtxoMap, _amount, _datum, _output, _scriptRef)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray (byteArrayToHex)
 
 --------------------------------------------------------------------------------
 -- `ContractTestM` and `ContractAssertionM` monads with related functions

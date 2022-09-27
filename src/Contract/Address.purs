@@ -34,100 +34,112 @@ module Contract.Address
 
 import Prelude
 
-import Address
+import Contract.Monad (Contract, liftedM, wrapContract)
+import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
-import Contract.Monad (Contract, wrapContract, liftedM)
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
-import Plutus.Conversion
+import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Plutus.Types.Address
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   )
-import Plutus.Types.Address
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
-  , toValidatorHash
   , toStakingCredential
+  , toValidatorHash
   ) as ExportAddress
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import QueryM
-  ( getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.QueryM
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
   , ownStakePubKeyHash
   ) as QueryM
-import QueryM.NetworkId (getNetworkId) as QueryM
-import QueryM.Utxos (getWalletCollateral) as QueryM
-import Scripts
+import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
+import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
+import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId), addressBech32)
-import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  , TransactionIndex(TransactionIndex)
-  , CertificateIndex(CertificateIndex)
-  , Pointer
+import Ctl.Internal.Serialization.Address
+  ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
+  , CertificateIndex(CertificateIndex)
   , NetworkId(TestnetId, MainnetId)
+  , Pointer
+  , Slot(Slot)
+  , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
-import Serialization.Hash (Ed25519KeyHash) as Hash
-import Serialization.Hash (ScriptHash)
-import Types.Aliases (Bech32String)
-import Types.Aliases (Bech32String) as TypeAliases
-import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
+import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
+import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
-import Types.PubKeyHash
+import Ctl.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
-  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
+  , payPubKeyHashRewardAddress
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import Types.Scripts (StakeValidatorHash, ValidatorHash)
-import Types.TypedValidator (TypedValidator)
-import Types.UnbalancedTransaction
+import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
+import Ctl.Internal.Types.TypedValidator (TypedValidator)
+import Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
+import Data.Array (head)
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
 
 -- | Get the `Address` of the browser wallet.
+-- TODO: change this to Maybe (Array Address)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
-  mbAddr <- wrapContract QueryM.getWalletAddress
+  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
   for mbAddr $
     liftedM "getWalletAddress: failed to deserialize Address"
       <<< pure
       <<< toPlutusAddress
 
+-- | Get the `AddressWithNetworkTag` of the browser wallet.
+-- TODO: change this to Maybe (Array Address)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 getWalletAddressWithNetworkTag
   :: forall (r :: Row Type). Contract r (Maybe AddressWithNetworkTag)
 getWalletAddressWithNetworkTag = do
-  mbAddr <- wrapContract QueryM.getWalletAddress
+  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
   for mbAddr $
     liftedM "getWalletAddressWithNetworkTag: failed to deserialize Address"
       <<< pure
@@ -151,12 +163,19 @@ getWalletCollateral = do
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
 ownPaymentPubKeyHash
   :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
+-- TODO: change this to Maybe (Array PaymentPubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+ownPaymentPubKeyHash = wrapContract
+  (QueryM.ownPaymentPubKeyHashes <#> (_ >>= head))
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
-ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
+-- TODO: change this to Maybe (Array PubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+ownPubKeyHash = wrapContract (QueryM.ownPubKeyHashes <#> (_ >>= head))
 
+-- TODO: change this to Maybe (Array StakePubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
 
