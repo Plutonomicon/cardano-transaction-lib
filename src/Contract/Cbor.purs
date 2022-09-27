@@ -1,12 +1,10 @@
 module Contract.Cbor
-  ( module ByteArray
-  , module CborBytes
+  ( module CborBytes
   , hexToCbor
   ) where
 
 import Contract.Prelude
 
-import Ctl.Internal.Types.ByteArray (hexToByteArray) as ByteArray
 import Ctl.Internal.Types.Cbor (Cbor)
 import Ctl.Internal.Types.CborBytes (hexToCborBytes) as CborBytes
 import Data.Newtype (wrap)
