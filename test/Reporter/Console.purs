@@ -11,13 +11,17 @@ import Data.Map as Map
 import Data.Maybe (Maybe(..), isNothing)
 import Data.Show.Generic (genericShow)
 import Test.Spec.Console (tellLn)
-import Test.Spec.Reporter.Base (RunningItem(..), defaultReporter, defaultUpdate)
-import Test.Spec.Result (Result(..))
+import Test.Spec.Reporter.Base
+  ( RunningItem(RunningTest, RunningPending)
+  , defaultReporter
+  , defaultUpdate
+  )
+import Test.Spec.Result (Result(Success, Failure))
 import Test.Spec.Runner (Reporter)
 import Test.Spec.Runner.Event as Event
 import Test.Spec.Style (styled)
 import Test.Spec.Style as Style
-import Test.Spec.Summary (Summary(..))
+import Test.Spec.Summary (Summary(Count))
 import Test.Spec.Summary as Summary
 import Test.Spec.Tree (Path, Tree, parentSuite, parentSuiteName)
 
