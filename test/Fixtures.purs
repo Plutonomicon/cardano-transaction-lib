@@ -9,7 +9,7 @@
 -- const byteArrayToHex = arr => Buffer.from(arr).toString('hex');
 -- console.log(byteArrayToHex(something.to_bytes()))
 -- ```
-module Test.Fixtures
+module Test.Ctl.Fixtures
   ( addressString1
   , cip25MetadataFixture1
   , cip25MetadataFixture2
@@ -76,7 +76,7 @@ module Test.Fixtures
 import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
-import Cardano.Types.NativeScript
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -86,8 +86,10 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef))
-import Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(PlutusScriptRef, NativeScriptRef)
+  )
+import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
@@ -123,16 +125,75 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
-import Cardano.Types.TransactionUnspentOutput
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Cardano.Types.Value
+import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
   , Value(Value)
   , mkCurrencySymbol
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
+  )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
+import Ctl.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
+import Ctl.Internal.Metadata.Cip25.V2
+  ( Cip25Metadata(Cip25Metadata)
+  , Cip25MetadataEntry(Cip25MetadataEntry)
+  , Cip25MetadataFile(Cip25MetadataFile)
+  )
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId(MainnetId, TestnetId)
+  , RewardAddress
+  , Slot(Slot)
+  , StakeCredential
+  , baseAddress
+  , baseAddressToAddress
+  , keyHashCredential
+  , rewardAddress
+  )
+import Ctl.Internal.Serialization.Hash
+  ( Ed25519KeyHash
+  , ScriptHash
+  , ed25519KeyHashFromBech32
+  , ed25519KeyHashFromBytes
+  , scriptHashFromBytes
+  )
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , hexToByteArrayUnsafe
+  )
+import Ctl.Internal.Types.Int as Int
+import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
+import Ctl.Internal.Types.PlutusData as PD
+import Ctl.Internal.Types.RawBytes
+  ( hexToRawBytesUnsafe
+  , rawBytesFromIntArrayUnsafe
+  )
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import Ctl.Internal.Types.Scripts
+  ( MintingPolicyHash(MintingPolicyHash)
+  , PlutusScript
+  , Validator
+  , plutusV1Script
+  , plutusV2Script
+  )
+import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
+import Ctl.Internal.Types.Transaction
+  ( TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  )
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum(Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Data.Array as Array
 import Data.BigInt as BigInt
@@ -144,67 +205,11 @@ import Data.Set (Set)
 import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import Deserialization.FromBytes (fromBytes)
 import Effect (Effect)
-import Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
-import Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
-import Metadata.Cip25.V2
-  ( Cip25Metadata(Cip25Metadata)
-  , Cip25MetadataEntry(Cip25MetadataEntry)
-  , Cip25MetadataFile(Cip25MetadataFile)
-  )
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
-import Serialization.Address
-  ( Address
-  , NetworkId(MainnetId, TestnetId)
-  , RewardAddress
-  , Slot(Slot)
-  , StakeCredential
-  , baseAddress
-  , baseAddressToAddress
-  , keyHashCredential
-  , rewardAddress
-  )
-import Serialization.Hash
-  ( Ed25519KeyHash
-  , ScriptHash
-  , ed25519KeyHashFromBech32
-  , ed25519KeyHashFromBytes
-  , scriptHashFromBytes
-  )
-import Test.Fixtures.CostModels (costModelsFixture1)
-import Types.Aliases (Bech32String)
-import Types.BigNum (BigNum)
-import Types.BigNum (fromBigInt, fromInt) as BigNum
-import Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArrayUnsafe
-  , hexToByteArrayUnsafe
-  )
-import Types.Int as Int
-import Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
-import Types.PlutusData as PD
-import Types.RawBytes (rawBytesFromIntArrayUnsafe, hexToRawBytesUnsafe)
-import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  , PlutusScript
-  , Validator
-  , plutusV1Script
-  , plutusV2Script
-  )
-import Types.TokenName (TokenName, mkTokenName)
-import Types.Transaction
-  ( TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  )
-import Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum(Text)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  )
+import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
