@@ -2,7 +2,7 @@
 -- | interrupted after the given timeout elapses. To do that, it awaits
 -- | a fake TX id that will never succeed and catches the resulting exception
 -- | when the timeout elapses.
-module Examples.AwaitTxConfirmedWithTimeout
+module Ctl.Examples.AwaitTxConfirmedWithTimeout
   ( contract
   , main
   , example
@@ -13,11 +13,13 @@ import Contract.Prelude
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
-import Control.Monad.Error.Class (try)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
-import Types.Transaction (TransactionHash(TransactionHash))
-import Types.ByteArray (hexToByteArrayUnsafe)
+import Control.Monad.Error.Class (try)
+-- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Transaction (TransactionHash(TransactionHash))
 
 main :: Effect Unit
 main = example testnetNamiConfig

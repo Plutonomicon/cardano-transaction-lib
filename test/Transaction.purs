@@ -1,8 +1,8 @@
-module Test.Transaction (suite) where
+module Test.Ctl.Transaction (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
@@ -13,33 +13,36 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
+import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import Ctl.Internal.Helpers (fromRightEff)
+import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import Ctl.Internal.Transaction
+  ( attachDatum
+  , attachPlutusScript
+  , attachRedeemer
+  , setScriptDataHash
+  )
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Datum (Datum(Datum))
+import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , PlutusScript(PlutusScript)
+  )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, over)
+import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
-import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff)
 import Mote (group, test)
-import Serialization.WitnessSet as Serialization.WitnessSet
-import Test.Fixtures.CostModels (costModelsFixture1)
+import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Transaction
-  ( attachDatum
-  , attachRedeemer
-  , attachPlutusScript
-  , setScriptDataHash
-  )
-import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.Datum (Datum(Datum))
-import Types.PlutusData (PlutusData(Integer))
-import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts (PlutusScript(PlutusScript), Language(PlutusV1, PlutusV2))
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "attach datums to tx" $ do

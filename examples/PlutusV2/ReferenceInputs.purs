@@ -1,7 +1,8 @@
-module Examples.PlutusV2.ReferenceInputs
-  ( main
-  , example
+module Ctl.Examples.PlutusV2.ReferenceInputs
+  ( alwaysMintsPolicyV2
   , contract
+  , example
+  , main
   ) where
 
 import Contract.Prelude
@@ -57,11 +58,14 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.Helpers
+  ( buildBalanceSignAndSubmitTx
+  , mkTokenName
+  ) as Helpers
+import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (Map)
 import Data.Map (empty, toUnfoldable) as Map
-import Examples.Helpers (buildBalanceSignAndSubmitTx, mkTokenName) as Helpers
-import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
 main = example testnetNamiConfig
