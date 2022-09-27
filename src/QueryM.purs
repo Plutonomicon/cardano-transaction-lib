@@ -113,6 +113,7 @@ import Effect (Effect)
 import Effect.Aff
   ( Aff
   , Canceler(Canceler)
+  , attempt
   , delay
   , finally
   , launchAff_
@@ -122,7 +123,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, try)
+import Effect.Exception (Error, error, message, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign (Foreign)
@@ -313,10 +314,18 @@ withQueryRuntime
   -> (QueryRuntime -> Aff a)
   -> Aff a
 withQueryRuntime config action = do
-  runtime <- mkQueryRuntime config
-  supervise (action runtime) `flip finally` liftEffect do
-    for_ config.hooks.onSuccess (void <<< try)
-    stopQueryRuntime runtime
+  eiRes <- attempt do
+    runtime <- mkQueryRuntime config
+    supervise (action runtime) `flip finally` liftEffect do
+      stopQueryRuntime runtime
+  case eiRes of
+    Right res -> do
+      liftEffect $ for_ config.hooks.onSuccess (void <<< try)
+      pure res
+    Left err -> do
+      for_ config.hooks.onError \f -> do
+        void $ liftEffect $ try $ f err
+      liftEffect $ throwError err
 
 -- | Close the websockets in `QueryRuntime`, effectively making it unusable
 stopQueryRuntime

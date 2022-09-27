@@ -7,7 +7,6 @@ module Contract.Test.E2E.Feedback
       , Sign
       , Success
       , Failure
-      , Message
       )
   ) where
 
@@ -18,7 +17,6 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
-  , encodeAeson
   , encodeAeson'
   , (.:)
   )
@@ -27,24 +25,21 @@ import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Effect (Effect)
 
-data BrowserEvent a
+data BrowserEvent
   = ConfirmAccess
   | Sign
   | Success
   | Failure String
-  | Message a
 
-derive instance Generic a rep => Generic (BrowserEvent a) _
+derive instance Generic BrowserEvent _
 
-instance EncodeAeson a => EncodeAeson (BrowserEvent a) where
+instance EncodeAeson BrowserEvent where
   encodeAeson' ConfirmAccess = encodeAeson' "ConfirmAccess"
   encodeAeson' Sign = encodeAeson' "Sign"
   encodeAeson' Success = encodeAeson' "Success"
   encodeAeson' (Failure str) = encodeAeson' { tag: "Failure", error: str }
-  encodeAeson' (Message src) = encodeAeson'
-    { tag: "Message", value: encodeAeson src }
 
-instance DecodeAeson a => DecodeAeson (BrowserEvent a) where
+instance DecodeAeson BrowserEvent where
   decodeAeson aeson =
     decodeObject <|> decodeString
     where
@@ -60,8 +55,6 @@ instance DecodeAeson a => DecodeAeson (BrowserEvent a) where
       case tag of
         "Failure" -> do
           Failure <$> obj .: "error"
-        "Message" -> do
-          Message <$> obj .: "value"
         _ -> Left (TypeMismatch "BrowserEvent")
 
 foreign import _publishTestFeedback :: forall (a :: Type). a -> Effect Unit

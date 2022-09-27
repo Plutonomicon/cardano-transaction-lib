@@ -2,10 +2,10 @@ module Contract.Test.E2E.Options where
 
 import Prelude
 
-import Contract.Test.E2E.Helpers (WalletPassword(WalletPassword))
-import Contract.Test.E2E.Types (CrxFilePath)
-import Contract.Test.E2E.WalletExt
-  ( ExtensionId(ExtensionId)
+import Contract.Test.E2E.Helpers (WalletPassword)
+import Contract.Test.E2E.Types
+  ( CrxFilePath
+  , ExtensionId
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
   )
 import Control.Alt ((<|>))
@@ -87,6 +87,7 @@ type SettingsOptions =
   , settingsArchive :: Maybe FilePath
   }
 
+-- | A CLI command that can be interpreted by E2E test suite.
 data E2ECommand
   = RunE2ETests TestOptions
   | RunBrowser BrowserOptions
@@ -143,13 +144,13 @@ browserOptionsParser = ado
     , metavar "DIR"
     ]
   -- Eternl
-  eternlExtId <- option (Just <<< ExtensionId <$> str) $ fold
+  eternlExtId <- option (Just <$> str) $ fold
     [ long "eternl-extid"
     , metavar "EXTID"
     , help "Eternl extension ID"
     , value Nothing
     ]
-  eternlPassword <- option (Just <<< WalletPassword <$> str) $ fold
+  eternlPassword <- option (Just <$> str) $ fold
     [ long "eternl-password"
     , metavar "PASSWORD"
     , help "Eternl wallet password"
@@ -162,13 +163,13 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Nami
-  namiExtId <- option (Just <<< ExtensionId <$> str) $ fold
+  namiExtId <- option (Just <$> str) $ fold
     [ long "nami-extid"
     , metavar "EXTID"
     , help "Nami extension ID"
     , value Nothing
     ]
-  namiPassword <- option (Just <<< WalletPassword <$> str) $ fold
+  namiPassword <- option (Just <$> str) $ fold
     [ long "nami-password"
     , metavar "PASSWORD"
     , help "Nami wallet password"
@@ -181,13 +182,13 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Gero
-  geroExtId <- option (Just <<< ExtensionId <$> str) $ fold
+  geroExtId <- option (Just <$> str) $ fold
     [ long "gero-extid"
     , metavar "EXTID"
     , help "Gero extension ID"
     , value Nothing
     ]
-  geroPassword <- option (Just <<< WalletPassword <$> str) $ fold
+  geroPassword <- option (Just <$> str) $ fold
     [ long "gero-password"
     , metavar "PASSWORD"
     , help "Gero wallet password"
@@ -200,13 +201,13 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Flint
-  flintExtId <- option (Just <<< ExtensionId <$> str) $ fold
+  flintExtId <- option (Just <$> str) $ fold
     [ long "flint-extid"
     , metavar "EXTID"
     , help "Flint extension ID"
     , value Nothing
     ]
-  flintPassword <- option (Just <<< WalletPassword <$> str) $ fold
+  flintPassword <- option (Just <$> str) $ fold
     [ long "flint-password"
     , metavar "PASSWORD"
     , help "Flint wallet password"
@@ -219,13 +220,13 @@ browserOptionsParser = ado
     , value Nothing
     ]
   -- Lode
-  lodeExtId <- option (Just <<< ExtensionId <$> str) $ fold
+  lodeExtId <- option (Just <$> str) $ fold
     [ long "lode-extid"
     , metavar "EXTID"
     , help "Lode extension ID"
     , value Nothing
     ]
-  lodePassword <- option (Just <<< WalletPassword <$> str) $ fold
+  lodePassword <- option (Just <$> str) $ fold
     [ long "lode-password"
     , metavar "PASSWORD"
     , help "Lode wallet password"

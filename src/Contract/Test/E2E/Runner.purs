@@ -4,6 +4,29 @@ module Contract.Test.E2E.Runner where
 
 import Prelude
 
+import Contract.Test.E2E.Browser (withBrowser)
+import Contract.Test.E2E.Feedback
+  ( BrowserEvent
+      ( ConfirmAccess
+      , Sign
+      , Success
+      , Failure
+      )
+  )
+import Contract.Test.E2E.Feedback.Node (subscribeToBrowserEvents)
+import Contract.Test.E2E.Helpers
+  ( eternlConfirmAccess
+  , eternlSign
+  , flintConfirmAccess
+  , flintSign
+  , geroConfirmAccess
+  , geroSign
+  , lodeConfirmAccess
+  , lodeSign
+  , namiConfirmAccess
+  , namiSign
+  , withExample
+  )
 import Contract.Test.E2E.Options
   ( BrowserOptions
   , E2ECommand(UnpackSettings, PackSettings, RunBrowser, RunE2ETests)
@@ -14,38 +37,38 @@ import Contract.Test.E2E.Options
 import Contract.Test.E2E.Types
   ( BrowserPath
   , ChromeUserDataDir
+  , E2ETest
+  , E2ETestRuntime
   , ExtensionParams
   , Extensions
   , SettingsArchive
+  , SettingsRuntime
   , TempDir
-  , WalletPassword(WalletPassword)
-  )
-import Contract.Test.E2E.WalletExt
-  ( ExtensionId(ExtensionId)
   , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
   )
 import Control.Alt ((<|>))
+import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (catMaybes, nub)
 import Data.Array as Array
 import Data.Either (Either(Left, Right))
 import Data.Foldable (fold)
 import Data.List (intercalate)
-import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String (Pattern(Pattern), trim)
+import Data.String (Pattern(Pattern), stripPrefix, trim)
 import Data.String as String
-import Data.Traversable (for_)
+import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), makeAff)
+import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Helpers (liftedM)
+import Mote (group, test)
 import Node.ChildProcess
   ( Exit(Normally, BySignal)
   , SpawnOptions
@@ -64,20 +87,30 @@ import Node.Path (FilePath, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
+import Test.Spec.Runner as SpecRunner
+import Test.Utils as Utils
+import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
 
-type E2ETestRuntime =
-  { wallets :: Map WalletExt ExtensionParams
-  , chromeUserDataDir :: FilePath
-  , tempDir :: FilePath
-  , browserPath :: String
-  , settingsArchive :: FilePath
-  }
-
-type SettingsRuntime =
-  { chromeUserDataDir :: FilePath
-  , settingsArchive :: FilePath
-  }
+-- | The entry point to the implementation of E2E tests.
+runE2E :: E2ECommand -> Aff Unit
+runE2E = case _ of
+  RunE2ETests testOptions -> do
+    runtime <- readTestRuntime testOptions
+    tests <- liftEffect $ readTests testOptions.testUrls
+    noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
+    runE2ETests testOptions { noHeadless = noHeadless } runtime tests
+  RunBrowser browserOptions -> do
+    runtime <- readBrowserRuntime browserOptions
+    liftEffect $ Console.log $ show runtime
+    runBrowser runtime.tempDir runtime.chromeUserDataDir runtime.browserPath
+      runtime.wallets
+  PackSettings opts -> do
+    rt <- readSettingsRuntime opts
+    packSettings rt.settingsArchive rt.chromeUserDataDir
+  UnpackSettings opts -> do
+    rt <- readSettingsRuntime opts
+    unpackSettings rt.settingsArchive rt.chromeUserDataDir
 
 readTestRuntime :: TestOptions -> Aff E2ETestRuntime
 readTestRuntime testOptions = do
@@ -90,12 +123,13 @@ readTestRuntime testOptions = do
         testOptions
   readBrowserRuntime browserOptions
 
+-- | Read E2E test suite parameters from environment variables and CLI
+-- | options. CLI options have higher priority.
 readBrowserRuntime :: BrowserOptions -> Aff E2ETestRuntime
 readBrowserRuntime testOptions = do
   browserPath <- maybe findBrowser pure testOptions.chromeExe
-  mbTempDir <- maybe (liftEffect lookupTempDir) (pure <<< Just)
-    testOptions.tempDir
-  tempDir <- createTempDir mbTempDir browserPath
+
+  tempDir <- createTempDir testOptions.tempDir browserPath
   chromeUserDataDir <- maybe findChromeProfile pure
     testOptions.chromeUserDataDir
   ensureChromeUserDataDir chromeUserDataDir
@@ -111,57 +145,117 @@ readBrowserRuntime testOptions = do
     (Map.lookup LodeExt testOptions.wallets)
   eternl <- liftEffect $ readExtensionParams "ETERNL"
     (Map.lookup EternlExt testOptions.wallets)
+  unpackSettings settingsArchive chromeUserDataDir
+  let
+    wallets = Map.fromFoldable $ catMaybes
+      [ Tuple NamiExt <$> nami
+      , Tuple FlintExt <$> flint
+      , Tuple GeroExt <$> gero
+      , Tuple LodeExt <$> lode
+      , Tuple EternlExt <$> eternl
+      ]
+  for_ wallets $ extractExtension tempDir
   pure
     { browserPath
-    , wallets:
-        Map.fromFoldable $ catMaybes
-          [ Tuple NamiExt <$> nami
-          , Tuple FlintExt <$> flint
-          , Tuple GeroExt <$> gero
-          , Tuple LodeExt <$> lode
-          , Tuple EternlExt <$> eternl
-          ]
+    , wallets
     , chromeUserDataDir
     , tempDir
     , settingsArchive
     }
 
-readTestUrls :: Array String -> Effect (Array String)
-readTestUrls optUrls = do
-  urls <- lookupEnv "E2E_TEST_URLS" <#> fold
-    >>> String.split (Pattern "\n")
-    >>> Array.filter (String.trim >>> eq "")
-  pure $ nub $ urls <> optUrls
-
-ensureChromeUserDataDir :: FilePath -> Aff Unit
+-- | Create ChromeUserDataDir if it does not exist
+ensureChromeUserDataDir :: ChromeUserDataDir -> Aff Unit
 ensureChromeUserDataDir chromeUserDataDir = do
   void $ spawnAndCollectOutput "mkdir" [ "-p", chromeUserDataDir ]
     defaultSpawnOptions
     defaultErrorReader
 
-lookupTempDir :: Effect (Maybe String)
-lookupTempDir = lookupEnv "E2E_TMPDIR"
+readTests :: Array String -> Effect (Array E2ETest)
+readTests optUrls = do
+  tests <- lookupEnv "E2E_TEST_URLS" <#> fold
+    >>> String.split (Pattern "\n")
+    >>> Array.filter (String.trim >>> eq "" >>> not)
+    >>> append optUrls
+    >>> nub
+  for tests \test -> do
+    liftMaybe (error $ "Failed to parse test: " <> test) $ mkTest test
+  where
+  mkTest str =
+    (stripPrefix (Pattern "eternl:") str <#> mkTestEntry EternlExt)
+      <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry FlintExt)
+      <|> (stripPrefix (Pattern "gero:") str <#> mkTestEntry GeroExt)
+      <|> (stripPrefix (Pattern "lode:") str <#> mkTestEntry LodeExt)
+      <|> (stripPrefix (Pattern "nami:") str <#> mkTestEntry NamiExt)
+  mkTestEntry wallet url = { wallet, url }
 
-runE2ETests :: TestOptions -> E2ETestRuntime -> Aff Unit
-runE2ETests opts rt = pure unit
+-- | Implements `run` command
+runE2ETests :: TestOptions -> E2ETestRuntime -> Array E2ETest -> Aff Unit
+runE2ETests opts rt tests = do
+  Utils.interpretWithConfig
+    (SpecRunner.defaultConfig { timeout = pure $ wrap 500_000.0 })
+    (testPlan opts rt tests)
 
-runE2E :: E2ECommand -> Aff Unit
-runE2E = case _ of
-  RunE2ETests testOptions -> do
-    runtime <- readTestRuntime testOptions
-    runE2ETests testOptions runtime
-  RunBrowser browserOptions -> do
-    runtime <- readBrowserRuntime browserOptions
-    liftEffect $ Console.log $ show runtime
-    runBrowser runtime.tempDir runtime.chromeUserDataDir runtime.browserPath
-      runtime.settingsArchive
-      runtime.wallets
-  PackSettings opts -> do
-    rt <- readSettingsRuntime opts
-    packSettings rt.settingsArchive rt.chromeUserDataDir
-  UnpackSettings opts -> do
-    rt <- readSettingsRuntime opts
-    unpackSettings rt.settingsArchive rt.chromeUserDataDir
+-- | Constracts a test plan given an array of tests.
+testPlan
+  :: TestOptions
+  -> E2ETestRuntime
+  -> Array E2ETest
+  -> TestPlanM (Aff Unit) Unit
+testPlan opts rt@{ wallets } tests =
+  group "E2E tests" do
+    for_ tests \{ url, wallet } -> do
+      test (walletName wallet <> ": " <> url) do
+        { password, extensionId } <- liftEffect
+          $ liftMaybe
+              (error $ "Wallet was not provided: " <> walletName wallet)
+          $ Map.lookup wallet wallets
+        withBrowser (not opts.noHeadless) rt extensionId \browser -> do
+          withExample (wrap url) browser \re@{ page } -> do
+            let
+              confirmAccess =
+                case wallet of
+                  EternlExt -> eternlConfirmAccess
+                  FlintExt -> flintConfirmAccess
+                  GeroExt -> geroConfirmAccess
+                  LodeExt -> lodeConfirmAccess
+                  NamiExt -> namiConfirmAccess
+              sign =
+                case wallet of
+                  EternlExt -> eternlSign
+                  FlintExt -> flintSign
+                  GeroExt -> geroSign
+                  LodeExt -> lodeSign
+                  NamiExt -> namiSign
+              someWallet =
+                { wallet
+                , name: walletName wallet
+                , extensionId
+                , confirmAccess: confirmAccess extensionId re
+                , sign: sign extensionId password re
+                }
+            subscribeToBrowserEvents (Just $ wrap 1000.0) page
+              case _ of
+                ConfirmAccess -> launchAff_ someWallet.confirmAccess
+                Sign -> launchAff_ someWallet.sign
+                Success -> pure unit
+                Failure err -> throw err
+
+walletName :: WalletExt -> String
+walletName = case _ of
+  EternlExt -> "eternl"
+  FlintExt -> "flint"
+  GeroExt -> "gero"
+  LodeExt -> "lode"
+  NamiExt -> "nami"
+
+readNoHeadless :: Boolean -> Effect Boolean
+readNoHeadless true = pure true
+readNoHeadless false = do
+  fromMaybe false <<< map guessBoolean <$> lookupEnv "E2E_NO_HEADLESS"
+  where
+  guessBoolean = case _ of
+    "true" -> true
+    _ -> false
 
 readSettingsRuntime :: SettingsOptions -> Aff SettingsRuntime
 readSettingsRuntime { chromeUserDataDir, settingsArchive } = do
@@ -177,18 +271,16 @@ findSettingsArchive =
     ) $
     lookupEnv "E2E_SETTINGS_ARCHIVE"
 
+-- | Implements `browser` command.
 runBrowser
   :: TempDir
   -> ChromeUserDataDir
   -> BrowserPath
-  -> SettingsArchive
   -> Extensions
   -> Aff Unit
-runBrowser tempDir chromeUserDataDir browserPath settingsArchive extensions = do
-  unpackSettings settingsArchive chromeUserDataDir
-  for_ extensions $ extractExtension tempDir
+runBrowser tempDir chromeUserDataDir browserPath extensions = do
   let
-    extPath ext = tempDir <> "/" <> unwrap ext.extensionId
+    extPath ext = tempDir <> "/" <> ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
@@ -204,7 +296,7 @@ extractExtension tempDir extension = do
   void $ spawnAndCollectOutput "unzip"
     [ extension.crx
     , "-d"
-    , tempDir <> "/" <> unwrap extension.extensionId
+    , tempDir <> "/" <> extension.extensionId
     ]
     defaultSpawnOptions
     errorReader
@@ -234,8 +326,8 @@ readExtensionParams
   :: String -> Maybe ExtensionOptions -> Effect (Maybe ExtensionParams)
 readExtensionParams extensionName mbCliOptions = do
   crxFile <- lookupEnv $ extensionName <> "_CRX"
-  password <- map WalletPassword <$> lookupEnv (extensionName <> "_PASSWORD")
-  extensionId <- map ExtensionId <$> lookupEnv (extensionName <> "_EXTID")
+  password <- lookupEnv (extensionName <> "_PASSWORD")
+  extensionId <- lookupEnv (extensionName <> "_EXTID")
   let
     envOptions :: ExtensionOptions
     envOptions = { crxFile, password, extensionId }
@@ -304,20 +396,27 @@ findBrowser =
 
 -- | Find a suitable temp directory for E2E tests. Apps installed with `snap`
 -- | don't work in $E2E_TMPDIR, because of lacking read access.
-createTempDir :: Maybe FilePath -> BrowserPath -> Aff TempDir
-createTempDir mbDir browserPath = do
-  maybe createNew ensureExists mbDir
+createTempDir :: Maybe TempDir -> BrowserPath -> Aff TempDir
+createTempDir mbOptionsTempDir browserPath = do
+  mbTempDir <- maybe (liftEffect $ lookupEnv "E2E_TMPDIR") (pure <<< Just)
+    mbOptionsTempDir
+  maybe createNew ensureExists mbTempDir
   where
   ensureExists dir =
     dir <$ spawnAndCollectOutput "mkdir" [ "-p", dir ] defaultSpawnOptions
       defaultErrorReader
   createNew = do
+    realPath <- spawnAndCollectOutput "which" [ browserPath ]
+      defaultSpawnOptions
+      defaultErrorReader
     let
-      isBrowserFromSnap = String.contains (Pattern "/snap") browserPath
+      isBrowserFromSnap = String.contains (Pattern "/snap") realPath
     uniqPart <- execAndCollectOutput "mktemp -du e2e.XXXXXXX"
     if isBrowserFromSnap then do
-      void $ execAndCollectOutput $ "mkdir -p ./tmp/" <> uniqPart
-      pure $ "./tmp/" <> uniqPart
+      liftEffect $ throw $
+        "Your browser is installed from Snap store: " <> realPath
+          <> ". Because of that it can't access temporary directory. Please "
+          <> "provide E2E_TMPDIR variable or use --tmp-dir CLI argument"
     else do
       prefix <- execAndCollectOutput "mktemp -d"
       void $ execAndCollectOutput $ "mkdir -p " <> prefix <> "/" <> uniqPart

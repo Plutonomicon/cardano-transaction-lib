@@ -15,9 +15,7 @@ import Contract.Test.E2E.Browser
 --   ( ) as Feedback
 
 import Contract.Test.E2E.Helpers
-  ( E2EOutput
-  , RunningExample
-  , WalletPassword(WalletPassword)
+  ( WalletPassword
   , delaySec
   , flintConfirmAccess
   , flintSign
@@ -28,10 +26,7 @@ import Contract.Test.E2E.Helpers
   , withExample
   ) as Helpers
 
-import Contract.Test.E2E.WalletExt
-  ( SomeWallet(SomeWallet)
-  , WalletExt(FlintExt, GeroExt, NamiExt)
-  , getWalletByName
-  , getWalletByType
-  , walletName
+import Contract.Test.E2E.Types
+  ( SomeWallet
+  , WalletExt(FlintExt, GeroExt, NamiExt, LodeExt, EternlExt)
   ) as WalletExt
