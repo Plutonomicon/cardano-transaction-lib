@@ -1,5 +1,5 @@
 module Types.Scripts
-  ( MintingPolicy(MintingPolicy)
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
   , StakeValidator(StakeValidator)
@@ -26,6 +26,8 @@ import Aeson
   , toStringifiedNumbersJson
   , fromString
   )
+import Cardano.Types.NativeScript (NativeScript)
+import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
@@ -96,21 +98,25 @@ decodeAesonHelper constrName constr = caseAesonObject
   (Left $ TypeMismatch "Expected object")
   (flip getField constrName >=> decodeAeson >>> map constr)
 
--- | `MintingPolicy` is a wrapper around `PlutusScript`s which are used as
+-- | `MintingPolicy` is a sum type of `PlutusScript` and `NativeScript` which are used as
 -- | validators for minting constraints.
-newtype MintingPolicy = MintingPolicy PlutusScript
+data MintingPolicy
+  = PlutusMintingPolicy PlutusScript
+  | NativeMintingPolicy NativeScript
 
 derive instance Generic MintingPolicy _
-derive instance Newtype MintingPolicy _
-derive newtype instance Eq MintingPolicy
-derive newtype instance Ord MintingPolicy
+derive instance Eq MintingPolicy
 
 instance DecodeAeson MintingPolicy where
-  decodeAeson = decodeAesonHelper "getMintingPolicy" MintingPolicy
+  decodeAeson aes =
+    decodeAesonHelper "getPlutusMintingPolicy" PlutusMintingPolicy aes <|>
+      decodeAesonHelper "getNativeMintingPolicy" NativeMintingPolicy aes
 
 instance EncodeAeson MintingPolicy where
-  encodeAeson' (MintingPolicy script) = do
-    encodeAeson' { "getMintingPolicy": script }
+  encodeAeson' (NativeMintingPolicy nscript) =
+    encodeAeson' { "getNativeMintingPolicy": nscript }
+  encodeAeson' (PlutusMintingPolicy script) = do
+    encodeAeson' { "getPlutusMintingPolicy": script }
 
 instance Show MintingPolicy where
   show = genericShow

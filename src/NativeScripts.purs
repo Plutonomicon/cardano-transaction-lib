@@ -21,7 +21,7 @@ import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)
 import Data.List (List(Cons, Nil), (:))
 import Data.List as List
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -38,8 +38,8 @@ derive newtype instance Ord NativeScriptHash
 instance Show NativeScriptHash where
   show (NativeScriptHash sh) = "(NativeScriptHash " <> show sh <> ")"
 
-nativeScriptHash :: NativeScript -> Maybe NativeScriptHash
-nativeScriptHash ns = wrap <<< Hashing.nativeScriptHash <$> convertNativeScript
+nativeScriptHash :: NativeScript -> NativeScriptHash
+nativeScriptHash ns = wrap <<< Hashing.nativeScriptHash $ convertNativeScript
   ns
 
 -- | `SetChoice` is an internal type representing internal state of
