@@ -1,4 +1,4 @@
-module Test.Parser where
+module Test.Ctl.Parser where
 
 import Prelude
 
@@ -9,9 +9,11 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Error.Class (throwError)
+import Ctl.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import Ctl.Internal.QueryM.Ogmios (UtxoQR)
 import Data.Array as Array
 import Data.Either (Either, either, isRight)
 import Data.Medea (validate)
@@ -21,15 +23,13 @@ import Data.Traversable (traverse, traverse_)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Node.FS.Aff (readTextFile)
-import Node.Encoding (Encoding(UTF8))
-import Test.Spec.Assertions (shouldSatisfy, shouldNotSatisfy)
-import TestM (TestPlanM, ValidationM, runValidationM)
 import Mote (group, test)
-import QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
-import QueryM.Ogmios (UtxoQR)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Aff (readTextFile)
+import Test.Ctl.TestM (TestPlanM, ValidationM, runValidationM)
+import Test.Spec.Assertions (shouldNotSatisfy, shouldSatisfy)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   str <- lift $ readTextFile UTF8
     "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"

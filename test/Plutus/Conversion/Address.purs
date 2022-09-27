@@ -1,33 +1,37 @@
-module Test.Plutus.Conversion.Address (suite) where
+module Test.Ctl.Internal.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Array (range, length, zip)
+import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address) as Plutus
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(PubKeyCredential, ScriptCredential)
+  , StakingCredential(StakingHash, StakingPtr)
+  )
+import Ctl.Internal.Serialization.Address
+  ( NetworkId(MainnetId, TestnetId)
+  , addressFromBech32
+  )
+import Ctl.Internal.Serialization.Hash
+  ( ed25519KeyHashFromBech32
+  , scriptHashFromBech32
+  )
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Data.Array (length, range, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
+import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
-import Plutus.Types.Address (Address) as Plutus
-import Plutus.Types.Credential
-  ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential(StakingHash, StakingPtr)
-  )
-import Serialization.Address
-  ( NetworkId(MainnetId, TestnetId)
-  , addressFromBech32
-  )
-import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe, toFromAesonTest)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe, toFromAesonTest)
-import TestM (TestPlanM)
-import Types.Aliases (Bech32String)
-import Types.BigNum (BigNum)
-import Types.BigNum (fromInt) as BigNum
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Conversion: Plutus Address <-> CSL Address" do
     group "Shelley mainnet addresses" do
@@ -39,7 +43,7 @@ suite = do
         $ for_ addresses
         $ toFromAesonTest "Address"
 
-addressConversionTests :: NetworkId -> TestPlanM Unit
+addressConversionTests :: NetworkId -> TestPlanM (Aff Unit) Unit
 addressConversionTests networkId =
   let
     addressesBech32 =
@@ -53,7 +57,11 @@ addressConversionTests networkId =
       toFromPlutusAddressTest networkId addrType addrBech32 addr
 
 toFromPlutusAddressTest
-  :: NetworkId -> Int -> Bech32String -> Plutus.Address -> TestPlanM Unit
+  :: NetworkId
+  -> Int
+  -> Bech32String
+  -> Plutus.Address
+  -> TestPlanM (Aff Unit) Unit
 toFromPlutusAddressTest networkId addrType addrBech32 addrPlutus = do
   let testLabel = "Performs conversion between addresses of type "
   test (testLabel <> show addrType) $ do

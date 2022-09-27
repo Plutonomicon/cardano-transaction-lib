@@ -1,38 +1,43 @@
-module Test.Ogmios.Aeson
+module Test.Ctl.Ogmios.Aeson
   ( main
   , suite
+  , printEvaluateTxFailures
   ) where
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson)
+import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
-import Foreign.Object (Object)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Data.Argonaut.Decode.Error (printJsonDecodeError)
-import Data.Array (catMaybes, elem, groupAllBy, nubBy)
-import Data.Array.NonEmpty (head, length, tail)
-import Data.Bifunctor (lmap, bimap)
-import Data.Either (hush)
+import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.QueryM.Ogmios as O
+import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
+import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
+import Data.Bifunctor (bimap, lmap)
+import Data.Either (either, hush)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (unwrap, wrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
-import Data.Traversable (for_)
+import Data.Traversable (for_, traverse)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (throw)
-import Effect (Effect)
+import Foreign.Object (Object)
 import Mote (group, skip, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
-import QueryM.Ogmios as O
-import TestM (TestPlanM)
-import Test.Utils as Utils
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils as Utils
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
@@ -44,6 +49,7 @@ supported =
   , "eraSummaries"
   , "currentProtocolParameters"
   , "SubmitTx"
+  , "EvaluateTx"
   -- TODO Support plutus:v2 parameters
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
   -- , "currentProtocolParameters-noPlutusV1"
@@ -55,7 +61,7 @@ getField f o = join $ hush $ Aeson.getFieldOptional' o f
 
 type Query = String
 
--- Given a query and an response of the query, create a special case query
+-- Given a query and a response of the query, create a special case query
 specialize :: Query -> Aeson -> Query
 specialize query a
   | Just _ :: _ Aeson <- getField "eraMismatch" =<< Aeson.toObject a = query
@@ -65,6 +71,10 @@ specialize query a
   , Just costModels <- getField "costModels" =<< Aeson.toObject a
   , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <>
       "noPlutusV1"
+  | "currentProtocolParameters" <- query
+  , Just costModels <- getField "costModels" =<< Aeson.toObject a
+  , Nothing :: _ Aeson <- getField "plutus:v2" costModels = query <> "-" <>
+      "noPlutusV2"
   | "SubmitTx" <- query
   , Just _ :: _ Aeson <- getField "SubmitFail" =<< Aeson.toObject a = query
       <> "-"
@@ -81,13 +91,14 @@ applyTuple
   -> b /\ c
 applyTuple (f /\ g) a = f a /\ g a
 
-suite :: TestPlanM Unit
-suite = group "Ogmios Aeson tests" do
+loadFixtures
+  :: Aff (Array (Query /\ NonEmptyArray { aeson :: Aeson, bn :: String }))
+loadFixtures = do
   let
     path = concat [ "fixtures", "test", "ogmios" ]
     pattern = hush $ regex "^([a-zA-Z]+)-[0-9a-fA-F]+\\.json$" noFlags
 
-  files <- lift do
+  files <- do
     ourFixtures <- readdir' path
     ogmiosFixtures <- (liftEffect $ lookupEnv "OGMIOS_FIXTURES") >>= maybe
       (liftEffect $ throw $ "OGMIOS_FIXTURES environment variable not set")
@@ -111,6 +122,29 @@ suite = group "Ogmios Aeson tests" do
       map (applyTuple $ _.query <<< head /\ map \{ aeson, bn } -> { aeson, bn })
         $ groupAllBy (comparing _.query)
         $ nubBy (comparing _.bn) files
+
+  pure groupedFiles
+
+printEvaluateTxFailures :: Effect Unit
+printEvaluateTxFailures = launchAff_ do
+  fixtures <- loadFixtures <#> filter (fst >>> (_ == "EvaluateTx")) >>> map snd
+  flip (traverse >>> traverse) fixtures \{ aeson } -> do
+    let
+      response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
+      mbFailure = response >>= unwrap >>> either pure (const Nothing)
+    for_ mbFailure
+      ( log <<< printTxEvaluationFailure
+          ( wrap
+              { datums: []
+              , redeemersTxIns: []
+              , unbalancedTx: wrap { transaction: mempty, utxoIndex: Map.empty }
+              }
+          )
+      )
+
+suite :: TestPlanM (Aff Unit) Unit
+suite = group "Ogmios Aeson tests" do
+  groupedFiles <- lift loadFixtures
 
   for_ groupedFiles \(query /\ files') ->
     (if query `elem` supported then identity else skip)

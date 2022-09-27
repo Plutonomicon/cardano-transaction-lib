@@ -1,4 +1,4 @@
-module Test.Ogmios.GenerateFixtures
+module Test.Ctl.Ogmios.GenerateFixtures
   ( main
   ) where
 
@@ -7,28 +7,16 @@ import Prelude
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
-import Data.Either (Either(Left, Right))
-import Data.Log.Level (LogLevel(Debug, Error, Trace))
-import Data.Traversable (for_, traverse_)
-import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (Error)
-import Effect.Ref as Ref
-import Helpers (logString)
-import JsWebSocket
+import Ctl.Internal.Helpers (logString)
+import Ctl.Internal.JsWebSocket
   ( _mkWebSocket
   , _onWsConnect
   , _onWsError
   , _onWsMessage
-  , _wsSend
-  , _wsWatch
   , _wsClose
+  , _wsSend
   )
-import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (writeTextFile)
-import Node.Path (concat)
-import QueryM
+import Ctl.Internal.QueryM
   ( WebSocket(WebSocket)
   , defaultMessageListener
   , defaultOgmiosWsConfig
@@ -36,12 +24,25 @@ import QueryM
   , mkRequestAff
   , queryDispatch
   )
-import QueryM.JsonWsp (JsonWspCall)
-import QueryM.Ogmios (mkOgmiosCallType)
-import QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Type.Prelude (Proxy(Proxy))
-import Types.MultiMap as MultiMap
+import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
+import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
+import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
+import Ctl.Internal.Types.MultiMap as MultiMap
+import Data.Either (Either(Left, Right))
+import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
+import Data.Traversable (for_, traverse_)
+import Data.Tuple (fst) as Tuple
+import Data.Tuple.Nested (type (/\))
+import Effect (Effect)
+import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
+import Effect.Exception (Error)
+import Effect.Ref as Ref
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Aff (writeTextFile)
+import Node.Path (concat)
 
 -- A simple websocket for testing
 -- TODO Generalize websocket constructors using type classes traversing rows
@@ -62,14 +63,16 @@ mkWebSocket lvl serverCfg cb = do
     md = [ queryDispatch dispatchMap ]
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest = _wsSend ws (logString lvl Debug)
+    sendRequest :: forall (req :: Type). String /\ req -> Effect Unit
+    sendRequest = _wsSend ws (logString lvl Debug) <<< Tuple.fst
     onError = do
       logString lvl Debug "WS error occured, resending requests"
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
-    _wsWatch ws (logger Debug) onError
-    _onWsMessage ws (logger Debug) $ defaultMessageListener lvl md
-    void $ _onWsError ws (logger Error) $ const onError
+    void $ _onWsError ws \_ -> onError
+    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ _ -> pure unit)
+      md
+    void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
       (mkListenerSet dispatchMap pendingRequests)
   pure $ \err -> cb $ Left $ err
@@ -98,7 +101,6 @@ mkQuery query shown = Query queryCall shown
     { methodname: "Query"
     , args: const { query }
     }
-    Proxy
 
 mkQuery' :: String -> Query
 mkQuery' query = mkQuery query query
@@ -131,7 +133,7 @@ main =
         , mkQuery' "chainTip"
         ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxo"
     resps <- flip parTraverse queries \(Query qc shown) -> do
-      resp <- mkRequestAff listeners ws logLevel qc identity unit
+      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
       pure { resp, query: shown }
 
     for_ resps \{ resp, query } -> do
@@ -145,4 +147,5 @@ main =
           , query <> "-" <> respMd5 <> ".json"
           ]
       writeTextFile UTF8 fp resp'
+      log ("Written " <> fp)
     liftEffect $ _wsClose ws

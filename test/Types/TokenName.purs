@@ -1,26 +1,28 @@
-module Test.Types.TokenName (suite) where
+module Test.Ctl.Types.TokenName (suite) where
 
 import Prelude
 
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.TokenName (mkTokenName)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)
+import Effect.Aff (Aff)
 import Mote (group, test)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (toFromAesonTest)
 import Test.Spec.Assertions (shouldSatisfy)
-import Test.Utils (toFromAesonTest)
-import TestM (TestPlanM)
-import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.TokenName (mkTokenName)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Types.TokenName" $ do
     group "Aeson tests" $ do
       group
-        "Roundtrip tests for invalid UTF byte sequences (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/544 ?)"
+        -- Regression tests for https://github.com/Plutonomicon/cardano-transaction-lib/issues/544
+        "Roundtrip tests for invalid UTF byte sequences"
         $ for_ tkNamesWithInvalidUtf8
-        $ \mayTkName -> group (show mayTkName) do
-            test "Should mkToken successfully" $ mayTkName `shouldSatisfy`
-              isJust
+        $ \mayTkName -> do
+            test (show mayTkName <> " should mkToken successfully") $
+              mayTkName `shouldSatisfy` isJust
             toFromAesonTest "Should roundtrip successfully" mayTkName
       toFromAesonTest "\\NUL\\NUL\\NUL Should roundtrip successfully"
         (mkTokenNameFromHex "\x0\x0\x0")

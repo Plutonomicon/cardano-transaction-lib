@@ -1,8 +1,8 @@
 module Contract.Hashing
-  ( module ExportHashing
+  ( module X
   ) where
 
-import Hashing
+import Ctl.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
   , datumHash
@@ -11,4 +11,6 @@ import Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
-  ) as ExportHashing
+  , transactionHash
+  ) as X
+import Ctl.Internal.NativeScripts (nativeScriptHash) as X

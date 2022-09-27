@@ -1,47 +1,51 @@
 # Side by side comparison of CTL and Plutus off-chain contracts
 
-We are going to compare two different off-chain contracts 
-both in Plutus and CTL. 
+We are going to compare two different off-chain contracts
+both in Plutus and CTL.
 
-For this discussion, we need to go through an overview of 
+For this discussion, we need to go through an overview of
 both of them.
 
 
 ## About `Contract` in CTL and Plutus
 
-The purpose of `Contract` in CTL is to bring the capabilities of 
-`QueryMExtended` to the public API. 
-
 The current definition of `Contract` in CTL is :
 
 ```PureScript
-type QueryConfig (r :: Row Type) =
-  { some_internal_parameters 
-  | r
+type QueryConfig =
+  {  -- configuration options used on initialization to construct `QueryRuntime`
   }
 
-type DefaultQueryConfig = QueryConfig ()
+type QueryRuntime =
+  { -- Part of `QueryEnv` that is reusable between contracts (internal type)
+  }
 
-type QueryM (a :: Type) = ReaderT DefaultQueryConfig (LoggerT Aff) a
+-- | `QueryEnv` contains everything needed for `QueryM` to run.
+type QueryEnv (r :: Row Type) =
+  { config :: QueryConfig
+  , runtime :: QueryRuntime
+  , extraConfig :: { | r }
+  }
 
-type QueryMExtended (r :: Row Type) (a :: Type) =
-  ReaderT 
-    (QueryConfig r)
-    (LoggerT Aff)
-    a
+type DefaultQueryEnv = QueryEnv ()
+
+type QueryM (a :: Type) = ReaderT DefaultQueryEnv (LoggerT Aff) a
+
+type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryEnv r)
+  (LoggerT Aff)
+  a
 
 newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r a)
 ```
 
-
-In CTL we have a general environment type 
+In CTL we have a general environment type
 
 ```PureScript
-forall (r :: Row Type) . QueryConfig r`
+newtype ContractEnv (r :: Row Type) = ContractEnv (QueryEnv r)
 ```
 
-it stores the needed parameters to connect to an `Ogmios` server, 
-wallets and more things, this configuration uses the PureScript native 
+it stores the needed parameters to connect to an `Ogmios` server,
+wallets and more things, this configuration uses the PureScript native
 [row polymorphism](https://en.wikipedia.org/wiki/Row_polymorphism) to make it  extensible for both CTL developers and users.
 You can find a little discussion about row polymorphism [here](https://hgiasac.github.io/posts/2018-11-18-Record-Row-Type-and-Row-Polymorphism.html).
 
@@ -106,11 +110,11 @@ import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
 import Contract.PlutusData (PlutusData)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , TransactionHash
   , balanceAndSignTx
   , submit
   )
-import Types.TxConstraints (TxConstraints)
-import Types.Transaction (TransactionHash)
+import Contract.TxConstraints (TxConstraints)
 
 buildBalanceSignAndSubmitTx
   :: ScriptLookups PlutusData
@@ -275,12 +279,11 @@ To talk about the grab contract in CTL we need to talk about some
 functions and types of CTL first. 
 
 ```PureScript
-module Plutus.Types.Transaction ... 
+module Ctl.Internal.Plutus.Types.Transaction ... 
 .
 .
 .
-type Utxo = Map TransactionInput TransactionOutput
-newtype UtxoM = UtxoM Utxo
+type UtxoMap = Map TransactionInput TransactionOutputWithRefScript
 ```
 
 ```PureScript
@@ -292,7 +295,7 @@ module Contract.Utxos ...
 -- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
-utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoM)
+utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoMap)
 ```
 
 
@@ -313,7 +316,7 @@ grab
   -> Contract () Unit
 grab vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
       let

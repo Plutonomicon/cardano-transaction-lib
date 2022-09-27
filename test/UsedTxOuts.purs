@@ -1,9 +1,17 @@
-module Test.UsedTxOuts (suite) where
+module Test.Ctl.UsedTxOuts (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction (Transaction)
 import Control.Monad.Reader (runReaderT)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.UsedTxOuts
+  ( isTxOutRefUsed
+  , lockTransactionInputs
+  , newUsedTxOuts
+  , unlockTransactionInputs
+  , unlockTxOutRefs
+  )
 import Data.Array (any, singleton, uncons)
 import Data.Foldable (all)
 import Data.Maybe (fromJust)
@@ -11,23 +19,16 @@ import Data.Newtype (unwrap)
 import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
-import Mote (test, group)
+import Effect.Aff (Aff)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.Fixtures
+import Test.Ctl.Fixtures
   ( mkSampleTx
   , mkTxInput
   , txFixture1
   )
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldReturn)
-import TestM (TestPlanM)
-import Types.Transaction (TransactionHash)
-import Types.UsedTxOuts
-  ( isTxOutRefUsed
-  , lockTransactionInputs
-  , newUsedTxOuts
-  , unlockTransactionInputs
-  , unlockTxOutRefs
-  )
 
 buildSampleTransaction
   :: { tx :: Transaction
@@ -93,7 +94,7 @@ buildSampleTransaction =
     , unusedTxOutRefs: unwrap <$> unusedTxOutRefs
     }
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "UsedTxOuts API tests" do
 

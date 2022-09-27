@@ -1,65 +1,46 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main) where
+module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( NetworkId(TestnetId)
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
-import Contract.Monad
-  ( ConfigParams(ConfigParams)
-  , LogLevel(Trace)
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , launchAff_
-  , liftedE
-  , liftedM
-  , logInfo'
-  , mkContractConfig
-  , runContract_
-  )
+import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (balanceAndSignTx, submit)
+import Contract.Test.E2E (publishTestFeedback)
+import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Contract.Wallet (mkNamiWalletAff)
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 
 main :: Effect Unit
-main = launchAff_ $ do
-  wallet <- Just <$> mkNamiWalletAff
-  cfg <- mkContractConfig $ ConfigParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , datumCacheConfig: defaultDatumCacheWsConfig
-    , ctlServerConfig: defaultServerConfig
-    , networkId: TestnetId
-    , logLevel: Trace
-    , extraConfig: {}
-    , wallet
-    }
+main = example testnetNamiConfig
 
-  runContract_ cfg $ do
-    logInfo' "Running Examples.Pkh2Pkh"
-    pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-    skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.Pkh2Pkh"
+  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
 
-    let
-      constraints :: Constraints.TxConstraints Void Void
-      constraints = Constraints.mustPayToPubKeyAddress pkh skh
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = Constraints.mustPayToPubKeyAddress pkh skh
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
 
-      lookups :: Lookups.ScriptLookups Void
-      lookups = mempty
+    lookups :: Lookups.ScriptLookups Void
+    lookups = mempty
 
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-    txId <- submit bsTx
-    logInfo' $ "Tx ID: " <> show txId
+  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
+  awaitTxConfirmedWithTimeout (wrap 100.0) txId
+  logInfo' $ "Tx submitted successfully!"
+  liftAff $ publishTestFeedback true
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg contract

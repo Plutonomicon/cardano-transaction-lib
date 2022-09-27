@@ -4,6 +4,8 @@ module Contract.Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
+  , addressWithNetworkTagToBech32
+  , addressToBech32
   , getWalletAddress
   , getWalletCollateral
   , module ByteArray
@@ -12,6 +14,7 @@ module Contract.Address
   , module ExportUnbalancedTransaction
   , module Hash
   , module SerializationAddress
+  , module TypeAliases
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
@@ -30,101 +33,115 @@ module Contract.Address
 
 import Prelude
 
-import Address
+import Contract.Monad (Contract, liftedM, wrapContract)
+import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
-  , getNetworkId
   ) as Address
-import Contract.Monad (Contract, wrapContract, liftedM)
-import Data.Maybe (Maybe)
-import Data.Traversable (for)
-import Plutus.Conversion
+import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
   , toPlutusTxUnspentOutput
   )
--- The helpers under Plutus.Type.Address deconstruct/construct the Plutus
--- `Address` directly, instead of those defined in this module use CSL helpers,
--- redefining function domain/range to be Plutus-style types.
-import Plutus.Types.Address
+import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
+import Ctl.Internal.Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  )
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
-  , toValidatorHash
   , toStakingCredential
+  , toValidatorHash
   ) as ExportAddress
-import Plutus.Types.Address (Address)
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import QueryM
-  ( getWalletAddress
-  , getWalletCollateral
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.QueryM
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
   , ownStakePubKeyHash
   ) as QueryM
-import Scripts
+import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
+import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
+import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId))
-import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  , TransactionIndex(TransactionIndex)
-  , CertificateIndex(CertificateIndex)
-  , Pointer
+import Ctl.Internal.Serialization.Address
+  ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
+  , CertificateIndex(CertificateIndex)
   , NetworkId(TestnetId, MainnetId)
+  , Pointer
+  , Slot(Slot)
+  , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
-import Serialization.Hash (Ed25519KeyHash) as Hash
-import Serialization.Hash (ScriptHash)
-import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
+import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
+import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
-import Types.PubKeyHash
+import Ctl.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
-  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
+  , payPubKeyHashRewardAddress
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import Types.Scripts (StakeValidatorHash, ValidatorHash)
-import Types.TypedValidator (TypedValidator)
-import Types.UnbalancedTransaction
+import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
+import Ctl.Internal.Types.TypedValidator (TypedValidator)
+import Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
+import Data.Array (head)
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
 
 -- | Get the `Address` of the browser wallet.
+-- TODO: change this to Maybe (Array Address)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddress
-  for mbAddr $
-    liftedM "getWalletAddress: failed to deserialize Address"
-      <<< wrapContract
-      <<< pure
-      <<< toPlutusAddress
+  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
+  for mbAddr
+    ( liftedM "getWalletAddress: failed to deserialize address" <<< wrapContract
+        <<< pure
+        <<< toPlutusAddress
+    )
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
 -- | E.g. Nami creates a hardcoded 5 Ada collateral.
+-- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
+-- | is available.
 getWalletCollateral
-  :: forall (r :: Row Type). Contract r (Maybe TransactionUnspentOutput)
+  :: forall (r :: Row Type). Contract r (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
   mtxUnspentOutput <- wrapContract QueryM.getWalletCollateral
-  for mtxUnspentOutput $
+  for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
       <<< wrapContract
@@ -134,19 +151,25 @@ getWalletCollateral = do
 -- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
 ownPaymentPubKeyHash
   :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
+-- TODO: change this to Maybe (Array PaymentPubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+ownPaymentPubKeyHash = wrapContract
+  (QueryM.ownPaymentPubKeyHashes <#> (_ >>= head))
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
-ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
+-- TODO: change this to Maybe (Array PubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+ownPubKeyHash = wrapContract (QueryM.ownPubKeyHashes <#> (_ >>= head))
 
+-- TODO: change this to Maybe (Array StakePubKeyHash)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
 
--- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId
-getNetworkId = wrapContract Address.getNetworkId
+getNetworkId = wrapContract QueryM.getNetworkId
 
 --------------------------------------------------------------------------------
 -- Helpers via Cardano helpers, these are helpers from the CSL equivalent
@@ -154,6 +177,20 @@ getNetworkId = wrapContract Address.getNetworkId
 -- Helpers by deconstructing/constructing the Plutus Address are exported under
 -- `module Address`
 --------------------------------------------------------------------------------
+
+-- | Convert `Address` to `Bech32String`, using given `NetworkId` to determine
+-- | Bech32 prefix.
+addressWithNetworkTagToBech32 :: AddressWithNetworkTag -> Bech32String
+addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
+  addressBech32
+
+-- | Convert `Address` to `Bech32String`, using current `NetworkId` provided by
+-- | `Contract` configuration to determine the network tag.
+addressToBech32 :: forall (r :: Row Type). Address -> Contract r Bech32String
+addressToBech32 address = do
+  networkId <- getNetworkId
+  pure $ addressWithNetworkTagToBech32
+    (AddressWithNetworkTag { address, networkId })
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash

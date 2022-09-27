@@ -1,15 +1,16 @@
-module TestM where
+module Test.Ctl.TestM where
 
 import Prelude
+
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
-import Control.MonadPlus (class MonadPlus)
-import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
   , throwError
   )
+import Control.Monad.Except.Trans (ExceptT, runExceptT)
+import Control.MonadPlus (class MonadPlus)
 import Control.MonadZero (class MonadZero)
 import Control.Plus (class Plus)
 import Data.Const (Const)
@@ -19,7 +20,8 @@ import Data.Medea (ValidationError(EmptyError))
 import Effect.Aff (Aff)
 import Mote (MoteT)
 
-type TestPlanM a = MoteT (Const Void) (Aff Unit) Aff a
+type TestPlanM :: Type -> Type -> Type
+type TestPlanM test a = MoteT (Const Void) test Aff a
 
 -- this silly thing is needed because Medea's `validate` needs both
 -- MonadPlus and MonadError, there must be a better way

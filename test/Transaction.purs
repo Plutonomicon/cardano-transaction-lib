@@ -1,8 +1,8 @@
-module Test.Transaction (suite) where
+module Test.Ctl.Transaction (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
   , PublicKey(PublicKey)
   , Redeemer(Redeemer)
@@ -13,39 +13,45 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
+import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
+import Ctl.Internal.Helpers (fromRightEff)
+import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import Ctl.Internal.Transaction
+  ( attachDatum
+  , attachPlutusScript
+  , attachRedeemer
+  , setScriptDataHash
+  )
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Datum (Datum(Datum))
+import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , PlutusScript(PlutusScript)
+  )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, over)
+import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
-import Deserialization.WitnessSet as Deserialization.WitnessSet
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Helpers (fromRightEff)
 import Mote (group, test)
-import Serialization.WitnessSet as Serialization.WitnessSet
-import Test.Fixtures.CostModels (costModelsFixture1)
+import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Transaction
-  ( attachDatum
-  , attachRedeemer
-  , attachPlutusScript
-  , setScriptDataHash
-  )
-import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.Datum (Datum(Datum))
-import Types.PlutusData (PlutusData(Integer))
-import Types.RedeemerTag (RedeemerTag(Spend))
-import Types.Scripts (PlutusScript(PlutusScript))
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "attach datums to tx" $ do
   test "datum should be correctly attached" testAttachDatum
   test "redeemer should be correctly attached" testAttachRedeemer
-  test "scripts should be correctly attached" testAttachScript
+  test "scripts should be correctly attached (PlutusV1)" $ testAttachScript
+    PlutusV1
+  test "scripts should be correctly attached (PlutusV2)" $ testAttachScript
+    PlutusV2
   test "scripts data hash should be correctly set" testSetScriptDataHash
   test "existing witnesses should be preserved" testPreserveWitness
 
@@ -83,8 +89,8 @@ testAttachRedeemer = liftEffect $ do
   datum :: PlutusData
   datum = Integer $ BigInt.fromInt 1
 
-testAttachScript :: Aff Unit
-testAttachScript = liftEffect $
+testAttachScript :: Language -> Aff Unit
+testAttachScript language = liftEffect $
   attachPlutusScript script tx >>= case _ of
     Left e -> throw $ "Failed to attach script: " <> show e
     Right (Transaction { witnessSet: TransactionWitnessSet ws }) ->
@@ -97,8 +103,8 @@ testAttachScript = liftEffect $
   tx = mempty
 
   script :: PlutusScript
-  script = PlutusScript $
-    hexToByteArrayUnsafe "4e4d01000033222220051200120011"
+  script = PlutusScript $ hexToByteArrayUnsafe "4e4d01000033222220051200120011"
+    /\ language
 
 testSetScriptDataHash :: Aff Unit
 testSetScriptDataHash = liftEffect $ do
@@ -112,7 +118,7 @@ testSetScriptDataHash = liftEffect $ do
       -- Verify the hash with some external tool
       byteArrayToHex sdh
         `shouldEqual`
-          "3ed3d611bc67ef89de1ef8200e4af38210be6c1cfa436e2fef90c7ad48a33df9"
+          "e371f3cfb7be11ad70a88072dabdddef06f656efdaa52da2f68b8df4cac01d3a"
   where
   tx :: Transaction
   tx = mempty

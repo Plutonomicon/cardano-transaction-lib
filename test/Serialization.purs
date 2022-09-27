@@ -1,36 +1,45 @@
-module Test.Serialization (suite) where
+module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import Data.Maybe (isJust)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Serialization (convertTransaction) as TS
+import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Serialization.Types (TransactionHash)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
+import Data.Either (hush)
+import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytesEffect)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Serialization (convertTransaction, convertTxOutput, toBytes)
-import Serialization.PlutusData (convertPlutusData)
-import Serialization.Types (TransactionHash)
-import Test.Fixtures
+import Test.Ctl.Fixtures
   ( txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
   , txBinaryFixture4
+  , txBinaryFixture5
+  , txBinaryFixture6
   , txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
+  , txFixture5
+  , txFixture6
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Test.Utils (errMaybe)
-import TestM (TestPlanM)
-import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.PlutusData as PD
 import Untagged.Union (asOneOf)
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "cardano-serialization-lib bindings" $ do
     group "conversion between types" $ do
@@ -82,20 +91,45 @@ suite = do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
-      test "Transaction serialization #1" $ liftEffect do
-        tx <- convertTransaction txFixture1
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture1
-      test "Transaction serialization #2 - tokens" $ liftEffect do
-        tx <- convertTransaction txFixture2
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture2
-      test "Transaction serialization #3 - ada" $ liftEffect do
-        tx <- convertTransaction txFixture3
-        let bytes = toBytes (asOneOf tx)
-        byteArrayToHex bytes `shouldEqual` txBinaryFixture3
+      test "Transaction serialization #1" $
+        serializeTX txFixture1 txBinaryFixture1
+      test "Transaction serialization #2 - tokens" $
+        serializeTX txFixture2 txBinaryFixture2
+      test "Transaction serialization #3 - ada" $
+        serializeTX txFixture3 txBinaryFixture3
       test "Transaction serialization #4 - ada + mint + certificates" $
-        liftEffect do
-          tx <- convertTransaction txFixture4
-          let bytes = toBytes (asOneOf tx)
-          byteArrayToHex bytes `shouldEqual` txBinaryFixture4
+        serializeTX txFixture4 txBinaryFixture4
+      test "Transaction serialization #5 - plutus script" $
+        serializeTX txFixture5 txBinaryFixture5
+      test "Transaction serialization #6 - metadata" $
+        serializeTX txFixture6 txBinaryFixture6
+    group "Transaction Roundtrips" $ do
+      test "Deserialization is inverse to serialization #1" $
+        txSerializedRoundtrip txFixture1
+      test "Deserialization is inverse to serialization #2" $
+        txSerializedRoundtrip txFixture2
+      test "Deserialization is inverse to serialization #3" $
+        txSerializedRoundtrip txFixture3
+      test "Deserialization is inverse to serialization #4" $
+        txSerializedRoundtrip txFixture4
+      test "Deserialization is inverse to serialization #5" $
+        txSerializedRoundtrip txFixture5
+      test "Deserialization is inverse to serialization #6" $
+        txSerializedRoundtrip txFixture6
+
+serializeTX :: Transaction -> String -> Aff Unit
+serializeTX tx fixture =
+  liftEffect $ do
+    cslTX <- TS.convertTransaction $ tx
+    let bytes = toBytes (asOneOf cslTX)
+    byteArrayToHex bytes `shouldEqual` fixture
+
+txSerializedRoundtrip :: Transaction -> Aff Unit
+txSerializedRoundtrip tx = do
+  cslTX <- liftEffect $ TS.convertTransaction tx
+  let serialized = toBytes (asOneOf cslTX)
+  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
+    serialized
+  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
+    TD.convertTransaction deserialized
+  tx `shouldEqual` expected

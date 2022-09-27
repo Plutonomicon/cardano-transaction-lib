@@ -1,27 +1,28 @@
-module Test.Plutus.Conversion.Value (suite) where
+module Test.Ctl.Internal.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
-import Data.Array (range, length, zip)
+import Ctl.Internal.Cardano.Types.Value (Value) as Types
+import Ctl.Internal.Cardano.Types.Value as Value
+import Ctl.Internal.Plutus.Conversion (fromPlutusValue, toPlutusValue)
+import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
+import Ctl.Internal.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
+import Ctl.Internal.Plutus.Types.Value (Value) as Plutus
+import Ctl.Internal.Plutus.Types.Value as Plutus.Value
+import Data.Array (length, range, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
+import Data.Traversable (for_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.Traversable (for_)
+import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Conversion (fromPlutusValue, toPlutusValue)
-import Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
-import Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
-import Plutus.Types.Value (Value) as Plutus
-import Plutus.Types.Value as Plutus.Value
-import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
+import Test.Ctl.Fixtures (currencySymbol1, tokenName1, tokenName2)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Cardano.Types.Value (Value) as Types
-import Cardano.Types.Value as Value
 
-suite :: TestPlanM Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Conversion: Plutus Value <-> Types.Value" $ do
     let indices = 0 `range` (length testData - 1)
@@ -29,7 +30,7 @@ suite = do
       toFromPlutusValueTest i valuePlutus value
 
 toFromPlutusValueTest
-  :: Int -> Plutus.Value -> Types.Value -> TestPlanM Unit
+  :: Int -> Plutus.Value -> Types.Value -> TestPlanM (Aff Unit) Unit
 toFromPlutusValueTest i valuePlutus value = do
   test (show i <> ": Performs conversion between `Value`s") $ do
     let resValue = fromPlutusValue valuePlutus

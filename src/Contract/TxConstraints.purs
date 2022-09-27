@@ -2,8 +2,10 @@
 -- | as part of an off-chain transaction.
 module Contract.TxConstraints (module TxConstraints) where
 
-import Types.TxConstraints
-  ( InputConstraint(InputConstraint)
+import Ctl.Internal.Types.TxConstraints
+  ( DatumPresence(DatumInline, DatumWitness)
+  , InputConstraint(InputConstraint)
+  , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
@@ -13,11 +15,14 @@ import Types.TxConstraints
       , MustProduceAtLeast
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustSpendNativeScriptOutput
+      , MustReferenceOutput
       , MustMintValue
       , MustPayToPubKeyAddress
       , MustPayToScript
       , MustHashDatum
       , MustSatisfyAnyOf
+      , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -27,21 +32,33 @@ import Types.TxConstraints
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
+  , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
+  , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToScript
+  , mustNotBeValid
+  , mustPayToNativeScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
-  , mustPayWithDatumToPubKey
-  , mustPayWithDatumToPubKeyAddress
+  , mustPayToPubKeyAddressWithDatum
+  , mustPayToPubKeyAddressWithDatumAndScriptRef
+  , mustPayToPubKeyAddressWithScriptRef
+  , mustPayToPubKeyWithDatum
+  , mustPayToPubKeyWithDatumAndScriptRef
+  , mustPayToPubKeyWithScriptRef
+  , mustPayToScript
+  , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
+  , mustReferenceOutput
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
+  , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
+  , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments
   , requiredDatums
