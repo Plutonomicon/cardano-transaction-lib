@@ -2,7 +2,9 @@ module Wallet.Cip30Mock where
 
 import Prelude
 
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Contract.Address (NetworkId(..))
 import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Control.Monad.Error.Class (liftMaybe, try)
@@ -39,7 +41,12 @@ import Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Types.CborBytes (cborBytesFromByteArray)
 import Untagged.Union (asOneOf)
 import Wallet (Wallet, mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
-import Wallet.Key (KeyWallet(KeyWallet), PrivatePaymentKey, PrivateStakeKey, privateKeysToKeyWallet)
+import Wallet.Key
+  ( KeyWallet(KeyWallet)
+  , PrivatePaymentKey
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 
 data WalletMock = MockFlint | MockGero | MockNami
 
@@ -119,16 +126,16 @@ mkCip30Mock pKey mSKey = do
           >>= liftMaybe (error "No UTxOs at address")
 
   pure $
-    { getNetworkId: fromAff $ pure $ 
-        case config.networkId of 
-            TestnetId -> 0
-            MainnetId -> 1
+    { getNetworkId: fromAff $ pure $
+        case config.networkId of
+          TestnetId -> 0
+          MainnetId -> 1
     , getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
           [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
-          , getUnUsedAddresses: fromAff $ pure ([]:: Array String)
+    , getUnUsedAddresses: fromAff $ pure ([] :: Array String)
     , getChangeAddress: fromAff do
-        (unwrap keyWallet).address config.networkId <#> 
+        (unwrap keyWallet).address config.networkId <#>
           (byteArrayToHex <<< toBytes <<< asOneOf)
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
@@ -175,7 +182,7 @@ mkCip30Mock pKey mSKey = do
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
-        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos 
+        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey
