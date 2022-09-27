@@ -5,17 +5,13 @@ module Equipartition
 
 import Prelude
 
+import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty
-  ( fromArray
-  , replicate
-  , singleton
-  , snoc
-  , unsnoc
-  ) as NEArray
+import Data.Array.NonEmpty (appendArray, replicate, singleton) as NEArray
 import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.BigInt (fromInt, toInt) as BigInt
+import Data.Maybe (fromJust)
+import Partial.Unsafe (unsafePartial)
 
 -- | Represents types whose values can be equally divided into several parts.
 class Equipartition a where
@@ -26,30 +22,17 @@ class Equipartition a where
 -- | ascending order.
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/numeric/src/Cardano/Numeric/Util.hs#L127
-instance Equipartition BigInt where
+instance equipartitionBigInt :: Equipartition BigInt where
   equipartition bi numParts
     | numParts <= one =
         NEArray.singleton bi
     | otherwise =
-        mapLastN (bi `mod` BigInt.fromInt numParts) (add one) $
-          NEArray.replicate numParts (bi / BigInt.fromInt numParts)
+        let
+          quot = bi / BigInt.fromInt numParts
+          rem = toIntUnsafe (bi `mod` BigInt.fromInt numParts)
+        in
+          NEArray.replicate (numParts - rem) quot
+            `NEArray.appendArray` replicate rem (quot + one)
         where
-        -- | Applies the passed function to the last `n` elements of the 
-        -- | `NonEmptyArray`.
-        mapLastN
-          :: forall (a :: Type) (n :: Type)
-           . Ring n
-          => Eq n
-          => n
-          -> (a -> a)
-          -> NonEmptyArray a
-          -> NonEmptyArray a
-        mapLastN n f arr
-          | n == zero = arr
-          | otherwise =
-              NEArray.unsnoc arr # \{ init, last } ->
-                case NEArray.fromArray init of
-                  Nothing ->
-                    NEArray.singleton (f last)
-                  Just init' ->
-                    NEArray.snoc (mapLastN (n - one) f init') (f last)
+        toIntUnsafe :: BigInt -> Int
+        toIntUnsafe = unsafePartial fromJust <<< BigInt.toInt

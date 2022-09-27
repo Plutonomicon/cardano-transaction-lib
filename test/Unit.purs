@@ -10,6 +10,7 @@ import Test.Base64 as Base64
 import Test.ByteArray as ByteArray
 import Test.Data as Data
 import Test.Deserialization as Deserialization
+import Test.Equipartition as Equipartition
 import Test.Hashing as Hashing
 import Test.Metadata.Cip25 as Cip25
 import Test.NativeScript as NativeScript
@@ -46,6 +47,7 @@ testPlan = do
   Cip25.suite
   Data.suite
   Deserialization.suite
+  Equipartition.suite
   Hashing.suite
   Parser.suite
   Plutus.Conversion.Address.suite
