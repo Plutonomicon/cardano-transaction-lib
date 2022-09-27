@@ -16,14 +16,14 @@ import Contract.Chain
   , getTip
   ) as Chain
 import Contract.Monad (Contract, wrapContract)
-import QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
-import QueryM.EraSummaries (getEraSummaries) as EraSummaries
-import QueryM.Ogmios
+import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
+import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch
   , EraSummaries
   , SystemStart
   )
-import QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
@@ -35,12 +35,12 @@ import QueryM.Ogmios
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
   ) as ExportOgmios
-import QueryM.SystemStart (getSystemStart) as SystemStart
-import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart) as SystemStart
+import Ctl.Internal.Serialization.Address
+  ( BlockId(BlockId)
+  , Slot(Slot)
   ) as SerializationAddress
-import Types.Interval
+import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
