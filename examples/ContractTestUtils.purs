@@ -3,7 +3,7 @@
 -- | that performs three actions: (1) sends some amount of Ada to the receiver's 
 -- | address, (2) mints the specified non-Ada value (3) then sends it to the 
 -- | owner's address with a datum attached. 
-module Examples.ContractTestUtils
+module Ctl.Examples.ContractTestUtils
   ( ContractParams(ContractParams)
   , contract
   ) where
@@ -24,10 +24,10 @@ import Contract.Address
 import Contract.AuxiliaryData (setTxMetadata)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM, liftContractM)
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
-import Contract.Scripts (MintingPolicy)
 import Contract.ScriptLookups as Lookups
+import Contract.Scripts (MintingPolicy)
 import Contract.Test.Utils
   ( ContractBasicAssertion
   , ContractWrapAssertion
@@ -41,6 +41,7 @@ import Contract.Transaction
   , balanceAndSignTxE
   , getTxFinalFee
   , lookupTxHash
+  , scriptRefFromMintingPolicy
   , submit
   )
 import Contract.TxConstraints (DatumPresence(DatumWitness))
@@ -48,18 +49,15 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
-import Data.BigInt (BigInt)
-import Data.Lens (view)
-import Data.Map (empty) as Map
-import Examples.Helpers
-  ( mustPayToPubKeyStakeAddress
-  , mustPayToPubKeyStakeAddressWithDatum
-  ) as Helpers
-import Metadata.Cip25.V2 (Cip25Metadata)
-import Plutus.Types.TransactionUnspentOutput
+import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
+import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   , _output
   )
+import Data.BigInt (BigInt)
+import Data.Lens (view)
+import Data.Map (empty) as Map
 
 newtype ContractParams = ContractParams
   { receiverPkh :: PaymentPubKeyHash
@@ -76,7 +74,7 @@ derive instance Newtype ContractParams _
 type ContractResult =
   { txHash :: TransactionHash
   , txFinalFee :: BigInt
-  , outputWithDatumHash :: TransactionOutputWithRefScript
+  , txOutputUnderTest :: TransactionOutputWithRefScript
   }
 
 mkAssertions
@@ -105,9 +103,14 @@ mkAssertions params@(ContractParams p) = do
           )
       ]
     /\
-      [ \{ outputWithDatumHash } -> do
+      [ \{ txOutputUnderTest } ->
           TestUtils.assertOutputHasDatum (OutputDatumHash dhash)
-            (label outputWithDatumHash "Sender's output with datum hash")
+            (label txOutputUnderTest "Sender's output with datum hash")
+
+      , \{ txOutputUnderTest } ->
+          TestUtils.assertOutputHasRefScript
+            (scriptRefFromMintingPolicy p.mintingPolicy)
+            (label txOutputUnderTest "Sender's output with reference script")
 
       , \{ txHash } ->
           TestUtils.assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
@@ -119,6 +122,11 @@ contract params@(ContractParams p) = do
   ownPkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
   ownSkh <- ownStakePubKeyHash
   let
+    mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
+      ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
+        \skh pkh ->
+          Constraints.mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh
+
     adaValue :: Value
     adaValue = Value.lovelaceValueOf p.adaToSend
 
@@ -131,9 +139,9 @@ contract params@(ContractParams p) = do
 
       , Constraints.mustMintValue nonAdaValue
 
-      , Helpers.mustPayToPubKeyStakeAddressWithDatum ownPkh ownSkh
-          p.datumToAttach
+      , mustPayToPubKeyStakeAddressWithDatumAndScriptRef ownPkh p.datumToAttach
           DatumWitness
+          (scriptRefFromMintingPolicy p.mintingPolicy)
           nonAdaValue
       ]
 
@@ -155,7 +163,7 @@ contract params@(ContractParams p) = do
     senderAddress <- liftedM "Failed to get sender address" getWalletAddress
     utxos <- fromMaybe Map.empty <$> utxosAt senderAddress
 
-    outputWithDatumHash <-
+    txOutputUnderTest <-
       view _output <$>
         liftContractM "Could not find required unspent output with datum hash"
           (find hasDatumHash $ lookupTxHash txId utxos)
@@ -163,7 +171,7 @@ contract params@(ContractParams p) = do
     pure
       { txHash: txId
       , txFinalFee: getTxFinalFee balancedSignedTx
-      , outputWithDatumHash
+      , txOutputUnderTest
       }
   where
   hasDatumHash :: TransactionUnspentOutput -> Boolean

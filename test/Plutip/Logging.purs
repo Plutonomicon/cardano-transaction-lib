@@ -1,4 +1,4 @@
-module Test.Plutip.Logging
+module Test.Ctl.Plutip.Logging
   ( suite
   ) where
 
@@ -12,9 +12,9 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
-import Test.Plutip.Common (config)
+import Test.Ctl.Plutip.Common (config)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

@@ -1,4 +1,4 @@
-module Examples.Wallet (example, contract) where
+module Ctl.Examples.Wallet (example, contract) where
 
 import Contract.Prelude
 
@@ -23,7 +23,7 @@ import Contract.Scripts
   )
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Utxos (getWalletBalance, getWalletUtxos)
-import Types.BigNum (fromStringUnsafe)
+import Ctl.Internal.Types.BigNum (fromStringUnsafe)
 
 contract :: Contract () Unit
 contract = do

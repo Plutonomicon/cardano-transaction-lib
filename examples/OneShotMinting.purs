@@ -1,7 +1,7 @@
 -- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
 -- | used to build scripts with the provided arguments applied. It creates a 
 -- | transaction that mints an NFT using the one-shot minting policy.
-module Examples.OneShotMinting
+module Ctl.Examples.OneShotMinting
   ( contract
   , example
   , main
@@ -17,9 +17,9 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
+  , liftContractM
   , liftedE
   , liftedM
-  , liftContractM
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
@@ -38,19 +38,23 @@ import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
   )
-import Contract.Transaction (TransactionInput, awaitTxConfirmed, plutusV1Script)
+import Contract.Transaction
+  ( TransactionInput
+  , awaitTxConfirmed
+  , plutusV1Script
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
-import Data.Array (head, singleton) as Array
-import Data.BigInt (BigInt)
-import Data.Map (toUnfoldable) as Map
-import Examples.Helpers
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.Array (head, singleton) as Array
+import Data.BigInt (BigInt)
+import Data.Map (toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
