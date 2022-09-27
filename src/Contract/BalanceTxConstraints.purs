@@ -2,12 +2,12 @@
 -- | adjust the behaviour of the balancer.
 module Contract.BalanceTxConstraints (module BalanceTxConstraints) where
 
-import BalanceTx.Constraints
+import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraintsBuilder
   , mustBalanceTxWithAddress
-  , mustBalanceTxWithAddress'
+  , mustBalanceTxWithAddresses
   , mustGenChangeOutsWithMaxTokenQuantity
-  , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
+  , mustNotSpendUtxosWithOutRefs
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints

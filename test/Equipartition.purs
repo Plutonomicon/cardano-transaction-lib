@@ -1,7 +1,8 @@
-module Test.Equipartition (suite) where
+module Test.Ctl.Equipartition (suite) where
 
 import Prelude
 
+import Ctl.Internal.Equipartition (class Equipartition, equipartition)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (length, singleton, sort) as NEArray
@@ -12,12 +13,11 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Ord.Max (Max(Max))
 import Data.Ord.Min (Min(Min))
 import Effect.Aff (Aff)
-import Equipartition (class Equipartition, equipartition)
 import Mote (group, test)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)
 import Test.Spec.QuickCheck (quickCheck)
-import TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
