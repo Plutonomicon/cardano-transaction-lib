@@ -40,6 +40,7 @@ import Contract.Test.E2E.Types
   , SettingsRuntime
   , TempDir
   , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , mkE2ETest
   , mkExtensionId
   , unExtensionId
   )
@@ -49,13 +50,12 @@ import Data.Array (catMaybes, nub)
 import Data.Array as Array
 import Data.Either (Either(Left, Right))
 import Data.Foldable (fold)
-import Data.Function.Uncurried (mkFn1)
 import Data.List (intercalate)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String (Pattern(Pattern), stripPrefix, trim)
+import Data.String (Pattern(Pattern), trim)
 import Data.String as String
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
@@ -65,7 +65,6 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
-import Effect.Uncurried (mkEffectFn1)
 import Helpers (liftedM)
 import Mote (group, test)
 import Node.ChildProcess
@@ -89,7 +88,6 @@ import Record.Builder (build, delete)
 import Test.Spec.Runner as SpecRunner
 import Test.Utils as Utils
 import TestM (TestPlanM)
-import Toppokki as Toppokki
 import Type.Proxy (Proxy(Proxy))
 
 -- | The entry point to the implementation of E2E tests.
@@ -97,7 +95,7 @@ runE2E :: E2ECommand -> Aff Unit
 runE2E = case _ of
   RunE2ETests testOptions -> do
     runtime <- readTestRuntime testOptions
-    tests <- liftEffect $ readTests testOptions.testUrls
+    tests <- liftEffect $ readTests testOptions.tests
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
     runE2ETests testOptions { noHeadless = noHeadless } runtime tests
   RunBrowser browserOptions -> do
@@ -118,7 +116,7 @@ readTestRuntime testOptions = do
     browserOptions =
       build
         ( delete (Proxy :: Proxy "noHeadless") <<<
-            delete (Proxy :: Proxy "testUrls")
+            delete (Proxy :: Proxy "tests")
         )
         testOptions
   readBrowserRuntime browserOptions
@@ -173,27 +171,19 @@ ensureChromeUserDataDir chromeUserDataDir = do
     defaultSpawnOptions
     defaultErrorReader
 
-readTests :: Array String -> Effect (Array E2ETest)
+readTests :: Array E2ETest -> Effect (Array E2ETest)
 readTests optUrls = do
-  tests <- lookupEnv "E2E_TEST_URLS" <#> fold
+  testSpecs <- lookupEnv "E2E_TEST_URLS" <#> fold
     >>> String.split (Pattern "\n")
     >>> Array.filter (String.trim >>> eq "" >>> not)
-    >>> append optUrls
-    >>> nub
-  for tests \test -> do
-    liftMaybe (mkError test) $ mkTest test
+  tests <- for testSpecs \testSpec -> do
+    liftMaybe (mkError testSpec) $ mkE2ETest testSpec
+  pure $ nub $ optUrls <> tests
   where
-  mkError test =
-    error $ "Failed to parse test data from: " <> test <>
+  mkError testSpec =
+    error $ "Failed to parse test data from: " <> testSpec <>
       "\nTest spec must be of form \"wallet:url\", where allowed wallets are: \
       \eternl, flint, gero, lode, nami."
-  mkTest str =
-    (stripPrefix (Pattern "eternl:") str <#> mkTestEntry EternlExt)
-      <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry FlintExt)
-      <|> (stripPrefix (Pattern "gero:") str <#> mkTestEntry GeroExt)
-      <|> (stripPrefix (Pattern "lode:") str <#> mkTestEntry LodeExt)
-      <|> (stripPrefix (Pattern "nami:") str <#> mkTestEntry NamiExt)
-  mkTestEntry wallet url = { wallet, url }
 
 -- | Implements `run` command
 runE2ETests :: TestOptions -> E2ETestRuntime -> Array E2ETest -> Aff Unit
@@ -216,7 +206,7 @@ testPlan opts rt@{ wallets } tests =
           $ liftMaybe
               (error $ "Wallet was not provided: " <> walletName wallet)
           $ Map.lookup wallet wallets
-        withBrowser (not opts.noHeadless) rt extensionId \browser -> do
+        withBrowser opts.noHeadless rt extensionId \browser -> do
           withExample (wrap url) browser \re@{ page } -> do
             let
               confirmAccess =

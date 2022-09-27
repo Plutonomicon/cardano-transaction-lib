@@ -5,8 +5,10 @@ import Prelude
 import Contract.Test.E2E.Helpers (WalletPassword)
 import Contract.Test.E2E.Types
   ( CrxFilePath
+  , E2ETest
   , ExtensionId
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
+  , mkE2ETest
   , mkExtensionId
   )
 import Control.Alt ((<|>))
@@ -39,7 +41,6 @@ import Options.Applicative
   , progDesc
   , showDefaultWith
   , str
-  , strOption
   , subparser
   , switch
   , value
@@ -64,7 +65,7 @@ type TestOptions = Record (NoHeadless_ + TestUrlsOptions_ + MainOptions_ + ())
 
 type NoHeadless_ r = (noHeadless :: Boolean | r)
 
-type TestUrlsOptions_ r = (testUrls :: Array String | r)
+type TestUrlsOptions_ r = (tests :: Array E2ETest | r)
 
 type ExtensionOptions =
   { crxFile :: Maybe String
@@ -278,24 +279,32 @@ browserOptionsParser = ado
 testOptionsParser :: Parser TestOptions
 testOptionsParser = ado
   res <- browserOptionsParser
-  testUrls <- testUrlsOptionParser
+  tests <- testUrlsOptionParser
   noHeadless <- switch $ fold
     [ long "no-headless"
     , help "Show visible browser window"
     ]
-  in build (merge res) { noHeadless, testUrls }
+  in build (merge res) { noHeadless, tests }
 
-testUrlsOptionParser :: Parser (Array String)
+testParser :: ReadM E2ETest
+testParser = eitherReader \str ->
+  note
+    ( "Unable to parse test specification from: " <> str
+    )
+    $ mkE2ETest str
+
+testUrlsOptionParser :: Parser (Array E2ETest)
 testUrlsOptionParser =
   let
     defaultValue = Nil
     listStrOption =
-      many $ strOption $ long "test-url" <> help helpText
+      many $ option testParser (long "test" <> help helpText)
   in
     Array.fromFoldable <$> (listStrOption <|> (pure defaultValue))
   where
   helpText =
-    "URL of a hosted test example. Can be specified multiple times. Default: []"
+    "Specification of a test. Consists of a wallet name and a URL, separated \
+    \by `:`. Can be specified multiple times. Default: empty"
 
 chromeUserDataOptionParser :: Parser (Maybe String)
 chromeUserDataOptionParser = option (Just <$> str) $ fold

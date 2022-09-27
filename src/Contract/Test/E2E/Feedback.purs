@@ -23,6 +23,7 @@ import Aeson
 import Control.Alt ((<|>))
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
+import Data.Show.Generic (genericShow)
 import Effect (Effect)
 
 data BrowserEvent
@@ -32,6 +33,9 @@ data BrowserEvent
   | Failure String
 
 derive instance Generic BrowserEvent _
+
+instance Show BrowserEvent where
+  show = genericShow
 
 instance EncodeAeson BrowserEvent where
   encodeAeson' ConfirmAccess = encodeAeson' "ConfirmAccess"
