@@ -72,7 +72,15 @@ module Ctl.Internal.QueryM
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , decodeAeson
+  , encodeAeson
+  , parseJsonStringToAeson
+  , stringifyAeson
+  )
 import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -80,26 +88,73 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
-import Control.Monad.Error.Class (class MonadError, class MonadThrow, liftMaybe, throwError)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , liftMaybe
+  , throwError
+  )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks, runReaderT, withReaderT)
+import Control.Monad.Reader.Trans
+  ( ReaderT(ReaderT)
+  , asks
+  , runReaderT
+  , withReaderT
+  )
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Helpers (logString, logWithLevel)
-import Ctl.Internal.JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _removeOnWsError, _wsClose, _wsReconnect, _wsSend)
-import Ctl.Internal.QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
+import Ctl.Internal.JsWebSocket
+  ( JsWebSocket
+  , Url
+  , _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _removeOnWsError
+  , _wsClose
+  , _wsReconnect
+  , _wsSend
+  )
+import Ctl.Internal.QueryM.DatumCacheWsp
+  ( GetDatumByHashR
+  , GetDatumsByHashesR
+  , GetTxByHashR
+  )
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
+import Ctl.Internal.QueryM.ServerConfig
+  ( Host
+  , ServerConfig
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkServerUrl
+  , mkWsUrl
+  ) as ServerConfig
+import Ctl.Internal.QueryM.ServerConfig
+  ( ServerConfig
+  , mkHttpUrl
+  , mkOgmiosDatumCacheWsUrl
+  , mkWsUrl
+  )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Ctl.Internal.Serialization (toBytes) as Serialization
-import Ctl.Internal.Serialization.Address (Address, NetworkId, addressPaymentCred, baseAddressDelegationCred, baseAddressFromAddress, stakeCredentialToKeyHash)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId
+  , addressPaymentCred
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , stakeCredentialToKeyHash
+  )
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
@@ -108,13 +163,43 @@ import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.MultiMap (MultiMap)
 import Ctl.Internal.Types.MultiMap as MultiMap
 import Ctl.Internal.Types.PlutusData (PlutusData)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
 import Ctl.Internal.Types.Scripts (Language, PlutusScript(PlutusScript))
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
-import Ctl.Internal.Wallet (Cip30Connection, Cip30Wallet, KeyWallet, Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet), cip30Wallet, mkEternlWalletAff, mkFlintWalletAff, mkGeroWalletAff, mkKeyWallet, mkLodeWalletAff, mkNamiWalletAff)
-import Ctl.Internal.Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
-import Ctl.Internal.Wallet.Spec (PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue), PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue), WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint, ConnectToEternl, ConnectToLode))
+import Ctl.Internal.Wallet
+  ( Cip30Connection
+  , Cip30Wallet
+  , KeyWallet
+  , Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet)
+  , cip30Wallet
+  , mkEternlWalletAff
+  , mkFlintWalletAff
+  , mkGeroWalletAff
+  , mkKeyWallet
+  , mkLodeWalletAff
+  , mkNamiWalletAff
+  )
+import Ctl.Internal.Wallet.KeyFile
+  ( privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
+  )
+import Ctl.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
+      ( UseKeys
+      , ConnectToGero
+      , ConnectToNami
+      , ConnectToFlint
+      , ConnectToEternl
+      , ConnectToLode
+      )
+  )
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
@@ -133,7 +218,17 @@ import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), ParAff, delay, finally, launchAff_, makeAff, runAff_, supervise)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , ParAff
+  , delay
+  , finally
+  , launchAff_
+  , makeAff
+  , runAff_
+  , supervise
+  )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, message, throw)
