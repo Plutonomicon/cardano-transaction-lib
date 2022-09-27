@@ -7,11 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "286862a975f4bafbef15540c365bbbb0480e0bf7";
+        version = "8e9d42980e824450c18c397295573160d1ce8424";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "286862a975f4bafbef15540c365bbbb0480e0bf7";
-          sha256 = "1d5h9n9f2qk8hjzqmhjfzwf86x3y60g3cm13gyvm5aaqjraaksvg";
+          rev = "8e9d42980e824450c18c397295573160d1ce8424";
+          sha256 = "0cz6wvrld468sc1i98wv7zsqxsp99lhianb4pxmsqfcz353a6sc9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1267,11 +1267,11 @@ let
 
     "spec" = pkgs.stdenv.mkDerivation {
         name = "spec";
-        version = "v5.0.1";
+        version = "f14a2ef204654275efd4b0fe8b8fb0dd4a019042";
         src = pkgs.fetchgit {
-          url = "https://github.com/purescript-spec/purescript-spec.git";
-          rev = "2cfa11573dbb695c117efce0a8f76a3daba12e87";
-          sha256 = "0hpca1sa738029ww74zpw31br5x339q35kzb10iqd55lp6611k80";
+          url = "https://github.com/mlabs-haskell/purescript-spec";
+          rev = "f14a2ef204654275efd4b0fe8b8fb0dd4a019042";
+          sha256 = "0nxndi3bg0kbjfdqjshxdqfj900sjga1ppg906rbxgfm1j73hxp1";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
