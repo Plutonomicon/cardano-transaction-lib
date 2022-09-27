@@ -38,9 +38,20 @@ import Untagged.Union (asOneOf)
 type Cip30Wallet =
   { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
     connection :: Cip30Connection
+  -- Returns the network id of the currently connected account. 0 is testnet 
+  -- and 1 is mainnet but other networks can possibly be returned by wallets.
+  , getNetworkId :: Cip30Connection -> Aff Int
+  -- Returns a list of unused addresses controlled by the wallet.
+  , getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+  -- Returns an address owned by the wallet that should be used as a change
+  -- address to return leftover assets during transaction creation back to 
+  -- the connected wallet.
+  , getChangeAddress :: Cip30Connection  -> Aff (Maybe Address)
+  -- Returns the reward addresses owned by the wallet. This can return multiple
+  -- addresses e.g. CIP-0018
+  ,getRewardAddresses :: Cip30Connection  -> Aff (Maybe ( Array Address))
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
-  , getNetworkId :: Cip30Connection -> Aff Int
   , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
 
   -- Get combination of all available UTxOs
@@ -66,6 +77,10 @@ mkCip30WalletAff walletName enableWallet = do
     liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
+    , getNetworkId 
+    , getUnusedAddresses 
+    , getChangeAddress
+    , getRewardAddresses
     , getWalletAddresses
     , getCollateral
     , signTx
@@ -86,9 +101,23 @@ txToHex =
 getNetworkId :: Cip30Connection -> Aff Int
 getNetworkId = toAffE <<< _getNetworkId
 
+getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+getUnusedAddresses conn = toAffE (_getUnusedAddresses conn) <#> 
+  traverse hexStringToAddress
+  
+getChangeAddress :: Cip30Connection  -> Aff (Maybe Address)
+getChangeAddress conn = (toAffE $ _getChangeAddress conn) <#> hexStringToAddress
+
+getRewardAddresses :: Cip30Connection  -> Aff (Maybe ( Array Address))
+getRewardAddresses conn = toAffE (_getRewardAddresses conn) <#> 
+  traverse hexStringToAddress
+
 getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
-  (traverse ((addressFromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes))
+getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#> 
+  traverse hexStringToAddress
+
+hexStringToAddress :: String -> Maybe Address 
+hexStringToAddress = ((addressFromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes)
 
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
