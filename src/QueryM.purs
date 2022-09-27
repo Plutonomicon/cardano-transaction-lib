@@ -32,6 +32,10 @@ module QueryM
   , getDatumByHash
   , getDatumsByHashes
   , getLogger
+  , getNetworkId 
+  , getUnusedAddresses 
+  , getChangeAddress
+  , getRewardAddresses
   , getProtocolParametersAff
   , getWalletAddresses
   , liftQueryM
@@ -68,15 +72,7 @@ module QueryM
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -84,19 +80,10 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
-import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
-  , throwError
-  )
+import Control.Monad.Error.Class (class MonadError, class MonadThrow, liftMaybe, throwError)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans
-  ( ReaderT(ReaderT)
-  , asks
-  , runReaderT
-  , withReaderT
-  )
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
@@ -118,69 +105,26 @@ import Data.Tuple (fst) as Tuple
 import Data.Tuple (fst, snd, Tuple(Tuple))
 import Data.Tuple.Nested ((/\), type (/\))
 import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , ParAff
-  , Canceler(Canceler)
-  , delay
-  , finally
-  , launchAff_
-  , makeAff
-  , runAff_
-  , supervise
-  )
+import Effect.Aff (Aff, ParAff, Canceler(Canceler), delay, finally, launchAff_, makeAff, runAff_, supervise)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message)
+import Effect.Exception (Error, error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
-import JsWebSocket
-  ( JsWebSocket
-  , Url
-  , _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _removeOnWsError
-  , _wsClose
-  , _wsReconnect
-  , _wsSend
-  )
+import JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _removeOnWsError, _wsClose, _wsReconnect, _wsSend)
 import QueryM.DatumCacheWsp (GetDatumByHashR, GetDatumsByHashesR, GetTxByHashR)
 import QueryM.DatumCacheWsp as DcWsp
 import QueryM.JsonWsp (parseJsonWspResponseId)
 import QueryM.JsonWsp as JsonWsp
 import QueryM.Ogmios (TxHash)
 import QueryM.Ogmios as Ogmios
-import QueryM.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkServerUrl
-  , mkWsUrl
-  ) as ServerConfig
-import QueryM.ServerConfig
-  ( ServerConfig
-  , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
-  , mkWsUrl
-  )
+import QueryM.ServerConfig (Host, ServerConfig, defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkServerUrl, mkWsUrl) as ServerConfig
+import QueryM.ServerConfig (ServerConfig, mkHttpUrl, mkOgmiosDatumCacheWsUrl, mkWsUrl)
 import QueryM.UniqueId (ListenerId)
 import Serialization (toBytes) as Serialization
-import Serialization.Address
-  ( Address
-  , NetworkId
-  , addressPaymentCred
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , stakeCredentialToKeyHash
-  )
+import Serialization.Address (Address, NetworkId, addressPaymentCred, baseAddressDelegationCred, baseAddressFromAddress, stakeCredentialToKeyHash)
 import Serialization.PlutusData (convertPlutusData) as Serialization
 import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes (CborBytes)
@@ -190,34 +134,13 @@ import Types.MultiMap (MultiMap)
 import Types.MultiMap as MultiMap
 import Types.PlutusData (PlutusData)
 import Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Types.Transaction (TransactionInput)
 import Types.Scripts (PlutusScript(PlutusScript), Language)
+import Types.Transaction (TransactionInput)
 import Types.UsedTxOuts (newUsedTxOuts, UsedTxOuts)
 import Untagged.Union (asOneOf)
-import Wallet
-  ( Cip30Connection
-  , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet)
-  , mkGeroWalletAff
-  , mkFlintWalletAff
-  , mkEternlWalletAff
-  , mkKeyWallet
-  , mkNamiWalletAff
-  , mkLodeWalletAff
-  )
+import Wallet (Cip30Connection, Cip30Wallet, KeyWallet, Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet), cip30Wallet, mkEternlWalletAff, mkFlintWalletAff, mkGeroWalletAff, mkKeyWallet, mkLodeWalletAff, mkNamiWalletAff)
 import Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
-import Wallet.Spec
-  ( WalletSpec
-      ( UseKeys
-      , ConnectToGero
-      , ConnectToNami
-      , ConnectToFlint
-      , ConnectToEternl
-      , ConnectToLode
-      )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
+import Wallet.Spec (WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint, ConnectToEternl, ConnectToLode), PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue), PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue))
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -521,16 +444,50 @@ allowError func = func <<< Right
 -- Wallet
 --------------------------------------------------------------------------------
 
+getNetworkId :: QueryM Int  
+getNetworkId = do
+  maybeWallet <- asks $ _.wallet <<< _.runtime 
+  wallet <- liftMaybe
+    (error "Can't use getNetworkId with KeyWallet") $
+      maybeWallet >>= cip30Wallet
+  liftAff $ callCip30Wallet wallet _.getNetworkId  
+
+  
+getUnusedAddresses :: QueryM (Maybe (Array Address))
+getUnusedAddresses =
+  actionBasedOnWallet _.getUnusedAddresses  
+    (\ kw -> liftEffect $ throw "Can't use getUnusedAddresses with KeyWallet")
+  
+
+getChangeAddress :: QueryM (Maybe Address)
+getChangeAddress = do 
+  networkId <- asks $ _.config >>> _.networkId
+  actionBasedOnWallet _.getChangeAddress (\ kw -> (unwrap kw).address networkId)
+
+getRewardAddresses :: QueryM (Maybe (Array Address))
+getRewardAddresses = do 
+  networkId <- asks $ _.config >>> _.networkId
+  actionBasedOnWallet _.getRewardAddresses 
+    (\ kw ->Array.singleton <$> (unwrap kw).address networkId)
+
 getWalletAddresses :: QueryM (Maybe (Array Address))
 getWalletAddresses = do
   networkId <- asks $ _.config >>> _.networkId
+  actionBasedOnWallet _.getWalletAddresses  
+    (\ kw -> Array.singleton <$> (unwrap kw).address networkId)
+
+actionBasedOnWallet :: forall (a::Type) . 
+  (Cip30Wallet -> (Cip30Connection -> Aff (Maybe a))) 
+  -> (KeyWallet -> Aff a)
+  -> QueryM (Maybe a)
+actionBasedOnWallet walletAction keyWalletAction =
   withMWalletAff case _ of
-    Eternl wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Nami wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
-    KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
+    Eternl wallet -> callCip30Wallet wallet walletAction
+    Nami wallet -> callCip30Wallet wallet walletAction
+    Gero wallet ->callCip30Wallet wallet walletAction
+    Flint wallet -> callCip30Wallet wallet walletAction
+    Lode wallet -> callCip30Wallet wallet walletAction
+    KeyWallet kw ->pure <$> keyWalletAction kw
 
 ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
 ownPubKeyHashes = do
