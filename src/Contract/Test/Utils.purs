@@ -46,6 +46,7 @@ module Contract.Test.Utils
   , runContractAssertionM
   , runContractAssertionM'
   , unlabel
+  , utxosAtAddress
   , valueAtAddress
   , withAssertions
   , wrapAndAssert
@@ -200,7 +201,7 @@ instance Show ContractAssertionFailure where
     "Unexpected token delta " <> show tn <> " at address "
       <> (show addr <> show expectedActual)
 
-  show (CustomFailure msg) = show msg
+  show (CustomFailure msg) = msg
 
 showTxHash :: TransactionHash -> String
 showTxHash = byteArrayToHex <<< unwrap

@@ -1,6 +1,8 @@
 module Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
+  , class PlutusAddress
+  , getAddress
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
@@ -50,10 +52,19 @@ import Types.Scripts (ValidatorHash)
 -- Address
 --------------------------------------------------------------------------------
 
+class PlutusAddress (t :: Type) where
+  getAddress :: t -> Address
+
 newtype AddressWithNetworkTag = AddressWithNetworkTag
   { address :: Address
   , networkId :: NetworkId
   }
+
+instance PlutusAddress Address where
+  getAddress = identity
+
+instance PlutusAddress AddressWithNetworkTag where
+  getAddress = _.address <<< unwrap
 
 derive instance Eq AddressWithNetworkTag
 derive instance Newtype AddressWithNetworkTag _

@@ -19,7 +19,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoMap)
 import Plutus.Conversion.Value (toPlutusValue)
-import Plutus.Types.Address (Address)
+import Plutus.Types.Address (class PlutusAddress, getAddress)
 import Plutus.Types.Transaction (UtxoMap)
 import Plutus.Types.Transaction (UtxoMap) as X
 import Plutus.Types.Value (Value)
@@ -34,12 +34,13 @@ import QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxo
 -- | NOTE: Querying for UTxOs by address is deprecated. See
 -- | [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/536).
 utxosAt
-  :: forall (r :: Row Type)
-   . Address
+  :: forall (r :: Row Type) (a :: Type)
+   . PlutusAddress a
+  => a
   -> Contract r (Maybe UtxoMap)
 utxosAt address = do
   networkId <- asks (_.networkId <<< _.config <<< unwrap)
-  let cardanoAddr = fromPlutusAddress networkId address
+  let cardanoAddr = fromPlutusAddress networkId (getAddress address)
   -- Don't error if we get `Nothing` as the Cardano utxos
   mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr
   for mCardanoUtxos

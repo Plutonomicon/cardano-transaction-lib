@@ -14,6 +14,7 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustBalanceTxWithAddress'
   , mustGenChangeOutsWithMaxTokenQuantity
+  , mustNotSpendUtxoWithOutRef
   ) as BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
@@ -27,17 +28,22 @@ import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( Transaction
   , TransactionHash
+  , TransactionInput
   , awaitTxConfirmed
   , balanceTxWithConstraints
   , signTransaction
   , submit
   )
 import Contract.TxConstraints as Constraints
+import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (valueOf, singleton) as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
+import Control.Bind (bindFlipped)
 import Data.Array (sort) as Array
 import Data.BigInt (BigInt, fromInt)
+import Data.Map (keys, member) as Map
+import Data.Set (findMin) as Set
 import Examples.AlwaysMints (alwaysMintsPolicy)
 import Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 
@@ -50,6 +56,7 @@ type ContractResult =
   { txHash :: TransactionHash
   , changeAddress :: Address
   , mintedToken :: CurrencySymbol /\ TokenName
+  , nonSpendableOref :: TransactionInput
   }
 
 assertChangeOutputsPartitionedCorrectly
@@ -76,6 +83,25 @@ assertChangeOutputsPartitionedCorrectly
 
         tokenQuantities == map fromInt [ 3, 4, 4 ]
 
+assertSelectedUtxoIsNotSpent
+  :: ContractBasicAssertion () ContractResult Unit
+assertSelectedUtxoIsNotSpent { changeAddress, nonSpendableOref } =
+  TestUtils.runContractAssertionM' do
+    utxos <- TestUtils.utxosAtAddress (label changeAddress "changeAddress")
+    let
+      assertionFailure :: ContractAssertionFailure
+      assertionFailure =
+        CustomFailure "The utxo marked as non-spendable has been spent"
+
+    TestUtils.assertContract assertionFailure $
+      Map.member nonSpendableOref utxos
+
+assertions :: Array (ContractBasicAssertion () ContractResult Unit)
+assertions =
+  [ assertChangeOutputsPartitionedCorrectly
+  , assertSelectedUtxoIsNotSpent
+  ]
+
 contract :: ContractParams -> Contract () Unit
 contract (ContractParams p) = do
   logInfo' "Examples.BalanceTxConstraints"
@@ -90,6 +116,10 @@ contract (ContractParams p) = do
   bobAddress <-
     liftedM "Failed to get Bob's address"
       (withKeyWallet p.bobKeyWallet getWalletAddressWithNetworkTag)
+
+  nonSpendableOref <-
+    liftedM "Failed to get utxos at Bob's address"
+      (bindFlipped (Set.findMin <<< Map.keys) <$> utxosAt bobAddress)
 
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "The Token"
@@ -106,8 +136,9 @@ contract (ContractParams p) = do
     balanceTxConstraints =
       BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
         <> BalanceTxConstraints.mustBalanceTxWithAddress' bobAddress
+        <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
-  void $ TestUtils.withAssertions assertChangeOutputsPartitionedCorrectly do
+  void $ TestUtils.withAssertions assertions do
     unbalancedTx <-
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
@@ -125,7 +156,7 @@ contract (ContractParams p) = do
     logInfo' "Tx submitted successfully!"
 
     let changeAddress = (unwrap bobAddress).address
-    pure { txHash, changeAddress, mintedToken: cs /\ tn }
+    pure { txHash, changeAddress, mintedToken: cs /\ tn, nonSpendableOref }
   where
   signWithWallet :: Transaction -> KeyWallet -> Contract () Transaction
   signWithWallet txToSign wallet =
