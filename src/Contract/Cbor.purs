@@ -1,30 +1,18 @@
 module Contract.Cbor
-  ( hexToByteArray
+  ( module ByteArray
+  , module CborBytes
   , hexToCbor
-  , hexToCborBytes
   ) where
 
 import Contract.Prelude
 
-import Contract.Monad (Contract)
+import Ctl.Internal.Types.ByteArray (hexToByteArray) as ByteArray
+import Ctl.Internal.Types.Cbor (Cbor)
+import Ctl.Internal.Types.CborBytes (hexToCborBytes) as CborBytes
 import Data.Newtype (wrap)
-import Effect.Exception (error)
-import Types.ByteArray (ByteArray)
-import Types.ByteArray (hexToByteArray) as BA
-import Types.Cbor (Cbor)
-import Types.CborBytes (CborBytes)
 
-hexToByteArray :: String -> Contract () ByteArray
-hexToByteArray hex =
-  liftM (error $ "Failed conversion of CBOR hex to ByteArray") $
-    BA.hexToByteArray hex
-
-hexToCborBytes :: String -> Contract () CborBytes
-hexToCborBytes hex = do
-  byteArray <- hexToByteArray hex
-  pure $ wrap byteArray
-
-hexToCbor :: String -> Contract () Cbor
-hexToCbor hex = do
-  cborBytes <- hexToCborBytes hex
-  pure $ wrap cborBytes
+-- | Decode a hexadecimal string into a `Cbor`.
+-- | Results in `Nothing` if the string contains a non-hexadeciaml number,
+-- | or if the string is not even in length.
+hexToCbor :: String -> Maybe Cbor
+hexToCbor = map wrap <<< CborBytes.hexToCborBytes
