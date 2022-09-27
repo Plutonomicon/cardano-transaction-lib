@@ -21,19 +21,15 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
-import Data.Lens (Lens, (.~))
-import Data.Lens.Common (simple)
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(Just))
 import Ctl.Internal.QueryM
   ( getChangeAddress
   , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   ) as QueryM
-import Type.Proxy (Proxy(Proxy))
 import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
+import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet
   ( isEternlAvailable
@@ -42,7 +38,6 @@ import Ctl.Internal.Wallet
   , isLodeAvailable
   , isNamiAvailable
   ) as Wallet
-import Ctl.Internal.Wallet (mkKeyWallet, Wallet(KeyWallet))
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
@@ -61,7 +56,12 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       )
   )
-import Ctl.Internal.Serialization.Address (Address)
+import Data.Lens (Lens, (.~))
+import Data.Lens.Common (simple)
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
+import Data.Maybe (Maybe(Just))
+import Type.Proxy (Proxy(Proxy))
 
 getNetworkId :: forall (r :: Row Type). Contract r Int
 getNetworkId = wrapContract QueryM.getNetworkId
