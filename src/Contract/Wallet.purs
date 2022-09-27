@@ -26,7 +26,7 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import QueryM
+import Ctl.Internal.QueryM
   ( getChangeAddress
   , getNetworkId
   , getRewardAddresses
@@ -61,7 +61,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       )
   )
-import Serialization.Address (Address)
+import Ctl.Internal.Serialization.Address (Address)
 
 getNetworkId :: forall (r :: Row Type). Contract r Int
 getNetworkId = wrapContract QueryM.getNetworkId
