@@ -85,7 +85,7 @@ foreign import hexToByteArray_
   -> String
   -> Maybe ByteArray
 
--- | Input string must consist of hexademical numbers.
+-- | Input string must consist of hexadecimal numbers.
 -- | Length of the input string must be even (2 characters per byte).
 hexToByteArray :: String -> Maybe ByteArray
 hexToByteArray = hexToByteArray_ Nothing Just
