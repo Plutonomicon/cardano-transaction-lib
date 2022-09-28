@@ -80,7 +80,7 @@ evalTxExecutionUnits
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> BalanceTxM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx unattachedTx utxos = do
+evalTxExecutionUnits tx unattachedTx additionalUtxos = do
   txBytes <- liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
@@ -93,14 +93,15 @@ evalTxExecutionUnits tx unattachedTx utxos = do
     Left _ -> pure $ wrap $ Map.empty
   where
   additionalUtxoSet :: Ogmios.AdditionalUtxoSet
-  additionalUtxoSet = Ogmios.AdditionalUtxoSet $ Map.fromFoldable utxos'
+  additionalUtxoSet = Ogmios.AdditionalUtxoSet $ Map.fromFoldable
+    additionalUtxos'
 
-  utxos' :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
-  utxos' =
+  additionalUtxos' :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
+  additionalUtxos' =
     ( \(inp /\ out) ->
         (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out)
     )
-      <$> Map.toUnfoldable utxos
+      <$> Map.toUnfoldable additionalUtxos
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
