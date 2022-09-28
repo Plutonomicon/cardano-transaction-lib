@@ -34,11 +34,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 - `Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
-- `balanceTx` variants that allow to specify additional UTxOs: `balanceTxWithAdditionalUtxos`, `balanceTxWithAddressAndAdditionalUtxos`, `balanceTxsWithAddressAndAdditionalUtxos`. ([#1000](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1000))
+- `balanceTx` variants that allow to specify additional UTxOs: `balanceTxWithAdditionalUtxos`, `balanceTxWithAddressesAndAdditionalUtxos`, `balanceTxsWithAddressesAndAdditionalUtxos`. ([#1000](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1000))
+- Support passsing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](docs/plutip-testing.md).
+- `Ctl.Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
+- `Ctl.Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
+- New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
+- `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
 
 ### Changed
+
+- Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
+- Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
+
 ### Removed
+
 ### Fixed
+
+- Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
+- `awaitTxConfirmedWithTimeout` not respecting its timeout ([#1021](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1021))
 
 ## [2.0.0] - 2022-09-12
 

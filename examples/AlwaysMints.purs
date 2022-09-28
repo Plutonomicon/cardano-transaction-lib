@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
+module Ctl.Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
 
 import Contract.Prelude
 
@@ -18,12 +18,12 @@ import Contract.TextEnvelope
 import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Data.BigInt as BigInt
-import Examples.Helpers
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -50,7 +50,6 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
-
   publishTestFeedback true
 
 foreign import alwaysMints :: String
