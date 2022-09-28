@@ -9,9 +9,12 @@ import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses)
+import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, signData)
+import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Effect.Exception (error)
 
 
 main :: Effect Unit
@@ -24,11 +27,20 @@ example cfg = launchAff_ do
 
 contract :: Contract () Unit
 contract = do
-  logInfo' "Running Examples.Cip30Test"
+  logInfo' "Running Examples.Cip30"
   performAndLog "getNetworkId" getNetworkId
   performAndLog "getUnusedAddresses" getUnusedAddresses
   performAndLog "getChangeAddress" getChangeAddress
   performAndLog "getRewardAddresses" getRewardAddresses
+  maddress <-  getChangeAddress
+  address <- liftMaybe (error "can't get change address") maddress
+  dataBytes <- liftContractAffM
+    ("can't convert : " <> hexDataString <>" to RawBytes") 
+    (pure mDataBytes)
+  performAndLog "dataAddress" $ signData address dataBytes
+  where 
+  hexDataString = "aeff"
+  mDataBytes = hexToRawBytes hexDataString 
 
 performAndLog :: forall (a::Type) . Show a => String -> 
   Contract () a -> Contract () Unit 
