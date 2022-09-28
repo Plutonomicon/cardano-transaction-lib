@@ -1185,7 +1185,7 @@ instance EncodeAeson AdditionalUtxoSet where
       }
         /\
           { "address": out.address
-          , "datumHash": out.datum
+          , "datumHash": out.datumHash
           , "value":
               { "coins": out.value # valueToCoin # getLovelace
               , "assets": out.value # getNonAdaAsset # encodeNonAdaAsset
