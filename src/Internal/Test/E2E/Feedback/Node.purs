@@ -1,4 +1,8 @@
-module Contract.Test.E2E.Feedback.Node
+-- | A module for communication between E2E test suite and a headless browser.
+-- | This module exposes API for the NodeJS side.
+-- | See `Ctl.Internal.Test.E2E.Feedback.Browser` for the corresponding APIs
+-- | for the NodeJS side.
+module Ctl.Internal.Test.E2E.Feedback.Node
   ( getBrowserEvents
   , subscribeToBrowserEvents
   ) where
@@ -6,7 +10,7 @@ module Contract.Test.E2E.Feedback.Node
 import Prelude
 
 import Aeson (decodeAeson, parseJsonStringToAeson)
-import Contract.Test.E2E.Feedback (BrowserEvent(Failure, Success))
+import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
 import Data.Array (all)
 import Data.Array as Array
 import Data.Either (Either(Left), hush, note)
