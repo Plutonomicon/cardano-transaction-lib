@@ -35,9 +35,9 @@ import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios) as QueryM
 import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import Ctl.Internal.QueryM.Ogmios
-  ( OgmiosTxOutRef
+  ( AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosTxOut
-  , AdditionalUtxoSet(AdditionalUtxoSet)
+  , OgmiosTxOutRef
   , TxEvaluationResult(TxEvaluationResult)
   ) as Ogmios
 import Ctl.Internal.ReindexRedeemers

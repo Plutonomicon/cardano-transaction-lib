@@ -246,8 +246,8 @@ import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
-import Data.Maybe (Maybe(Just, Nothing))
 import Data.Map (empty) as Map
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
@@ -490,7 +490,7 @@ balanceTxsWithAddressesAndAdditionalUtxos ownAddrs unbalancedTxs =
       utxos
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
-  
+
 -- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
 -- | internally.
 balanceTxsWithAddresses
