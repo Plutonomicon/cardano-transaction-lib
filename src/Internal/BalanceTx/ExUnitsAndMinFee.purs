@@ -59,7 +59,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
 import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
-import Data.Bifunctor (lmap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right))
 import Data.Lens.Getter ((^.))
@@ -94,14 +94,10 @@ evalTxExecutionUnits tx unattachedTx additionalUtxos = do
   where
   additionalUtxoSet :: Ogmios.AdditionalUtxoSet
   additionalUtxoSet = Ogmios.AdditionalUtxoSet $ Map.fromFoldable
-    additionalUtxos'
-
-  additionalUtxos' :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
-  additionalUtxos' =
-    ( \(inp /\ out) ->
-        (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out)
+    ( ( bimap transactionInputToTxOutRef transactionOutputToOgmiosTxOut
+          <$> Map.toUnfoldable additionalUtxos
+      ) :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
     )
-      <$> Map.toUnfoldable additionalUtxos
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
