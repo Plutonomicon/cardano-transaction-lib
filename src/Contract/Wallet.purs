@@ -6,6 +6,7 @@ module Contract.Wallet
   , getUnusedAddresses
   , getChangeAddress
   , getRewardAddresses
+  , signData
   , module Contract.Address
   , module Contract.Utxos
   , module Serialization
@@ -21,41 +22,17 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
-import Ctl.Internal.QueryM
-  ( getChangeAddress
-  , getNetworkId
-  , getRewardAddresses
-  , getUnusedAddresses
-  ) as QueryM
+import Ctl.Internal.QueryM (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses,signData) as QueryM
 import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Types.RawBytes (RawBytes(..))
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
-import Ctl.Internal.Wallet
-  ( isEternlAvailable
-  , isFlintAvailable
-  , isGeroAvailable
-  , isLodeAvailable
-  , isNamiAvailable
-  ) as Wallet
+import Ctl.Internal.Wallet (isEternlAvailable, isFlintAvailable, isGeroAvailable, isLodeAvailable, isNamiAvailable) as Wallet
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Ctl.Internal.Wallet.Key
-  ( PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
-  )
+import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey), PrivateStakeKey(PrivateStakeKey))
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
-import Ctl.Internal.Wallet.Spec
-  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , WalletSpec
-      ( UseKeys
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToLode
-      , ConnectToEternl
-      )
-  )
+import Ctl.Internal.Wallet.Spec (PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue), PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue), WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint, ConnectToLode, ConnectToEternl))
 import Data.Lens (Lens, (.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -74,6 +51,9 @@ getChangeAddress = wrapContract QueryM.getChangeAddress
 
 getRewardAddresses :: forall (r :: Row Type). Contract r (Maybe (Array Address))
 getRewardAddresses = wrapContract QueryM.getRewardAddresses
+
+signData :: forall (r::Row Type) . Address -> RawBytes -> Contract r (Maybe RawBytes)
+signData address dat = wrapContract (QueryM.signData address dat)
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)
