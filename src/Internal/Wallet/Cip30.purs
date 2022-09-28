@@ -9,13 +9,8 @@ import Prelude
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
-  , TransactionWitnessSet
-  )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
+import Ctl.Internal.Cardano.Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
@@ -23,10 +18,11 @@ import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOupu
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Address (Address, addressFromBytes)
+import Ctl.Internal.Serialization.Address (Address, addressFromBytes, baseAddressBech32, baseAddressFromAddress)
+import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
-import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
+import Ctl.Internal.Types.RawBytes (RawBytes(..), hexToRawBytes, rawBytesToHex)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -43,6 +39,17 @@ type Cip30Wallet =
   -- Returns the network id of the currently connected account. 0 is testnet 
   -- and 1 is mainnet but other networks can possibly be returned by wallets.
   , getNetworkId :: Cip30Connection -> Aff Int
+  -- Returns a list of all UTXOs controlled by the wallet.
+  , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+  -- Get the collateral UTxO associated with the Nami wallet
+  , getCollateral ::
+      Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+  -- Get combination of all available UTxOs
+  , getBalance :: Cip30Connection -> Aff (Maybe Value)
+  -- Get the address associated with the wallet (Nami does not support
+  -- multiple addresses)
+  , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+  -- Sign a transaction with the given wallet
   -- Returns a list of unused addresses controlled by the wallet.
   , getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
   -- Returns an address owned by the wallet that should be used as a change
@@ -52,18 +59,8 @@ type Cip30Wallet =
   -- Returns the reward addresses owned by the wallet. This can return multiple
   -- addresses e.g. CIP-0018
   , getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-  -- Get the address associated with the wallet (Nami does not support
-  -- multiple addresses)
-  , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-
-  -- Get combination of all available UTxOs
-  , getBalance :: Cip30Connection -> Aff (Maybe Value)
-  , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
-  -- Get the collateral UTxO associated with the Nami wallet
-  , getCollateral ::
-      Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
-  -- Sign a transaction with the given wallet
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
+  , signData ::Cip30Connection -> Address -> RawBytes -> Aff (Maybe RawBytes) 
   }
 
 mkCip30WalletAff
@@ -80,14 +77,15 @@ mkCip30WalletAff walletName enableWallet = do
   pure
     { connection: wallet
     , getNetworkId
+    , getUtxos
+    , getCollateral
+    , getBalance
+    , getWalletAddresses
     , getUnusedAddresses
     , getChangeAddress
     , getRewardAddresses
-    , getWalletAddresses
-    , getCollateral
     , signTx
-    , getBalance
-    , getUtxos
+    , signData 
     }
 
 -------------------------------------------------------------------------------
@@ -162,6 +160,13 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
+signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe RawBytes)
+signData conn address dat = do
+  hexAddress <- liftMaybe (error "Can't convert this Address to Bench32String") 
+                  (baseAddressBech32 <$> baseAddressFromAddress address)
+  signedData <- toAffE $ _signData hexAddress (rawBytesToHex dat) conn 
+  pure $ hexToRawBytes signedData
+
 getBalance :: Cip30Connection -> Aff (Maybe Value)
 getBalance wallet = do
   fromHexString _getBalance wallet <#> \mbBytes -> do
@@ -183,26 +188,10 @@ foreign import _getNetworkId
   :: Cip30Connection
   -> Effect (Promise Int)
 
-foreign import _getUnusedAddresses
-  :: Cip30Connection
-  -> Effect (Promise (Array String))
-
-foreign import _getChangeAddress
-  :: Cip30Connection
-  -> Effect (Promise String)
-
-foreign import _getRewardAddresses
-  :: Cip30Connection
-  -> Effect (Promise (Array String))
-
-foreign import _getAddresses
-  :: Cip30Connection
-  -> Effect
-       ( Promise
-           ( Array
-               String
-           )
-       )
+foreign import _getUtxos
+  :: MaybeFfiHelper
+  -> Cip30Connection
+  -> Effect (Promise (Maybe (Array String)))
 
 foreign import _getCollateral
   :: MaybeFfiHelper
@@ -215,14 +204,38 @@ getCip30Collateral =
     (\_ -> throwError $ error "Wallet doesn't implement `getCollateral`.") <<<
     _getCollateral maybeFfiHelper
 
+foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
+
+foreign import _getAddresses
+  :: Cip30Connection
+  -> Effect
+       ( Promise
+           ( Array
+               String
+           )
+       )
+
+foreign import _getUnusedAddresses
+  :: Cip30Connection
+  -> Effect (Promise (Array String))
+
+foreign import _getChangeAddress
+  :: Cip30Connection
+  -> Effect (Promise String)
+
+foreign import _getRewardAddresses
+  :: Cip30Connection
+  -> Effect (Promise (Array String))
+
 foreign import _signTx
   :: String -- Hex-encoded cbor of tx
   -> Cip30Connection
   -> Effect (Promise String)
 
-foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
-
-foreign import _getUtxos
-  :: MaybeFfiHelper
+foreign import _signData
+  :: String -- Address
+  -> String -- Hex-encoded data
   -> Cip30Connection
-  -> Effect (Promise (Maybe (Array String)))
+  -> Effect (Promise String)
+
+
