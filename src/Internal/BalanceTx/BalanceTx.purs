@@ -126,12 +126,12 @@ balanceTx
   :: UnattachedUnbalancedTx
   -> UtxoMap
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx unbalancedTx utxos = do
+balanceTx unbalancedTx additionalUtxos = do
   QueryM.getWalletAddresses >>= case _ of
     Nothing ->
       pure $ Left CouldNotGetWalletAddress
     Just address ->
-      balanceTxWithAddress address unbalancedTx utxos
+      balanceTxWithAddress address unbalancedTx additionalUtxos
 
 -- | Like `balanceTx`, but allows to provide an address that is treated like
 -- | user's own (while `balanceTx` gets it from the attached wallet).
@@ -142,7 +142,7 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithAddress ownAddrs unbalancedTx utxos' = runExceptT do
+balanceTxWithAddress ownAddrs unbalancedTx additionalUtxos = runExceptT do
   changeAddr <- liftMaybe CouldNotGetWalletAddress $ head ownAddrs
 
   utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
@@ -170,7 +170,7 @@ balanceTxWithAddress ownAddrs unbalancedTx utxos' = runExceptT do
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
   -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos utxos' changeAddr
+  ExceptT $ runBalancer availableUtxos additionalUtxos changeAddr
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
@@ -209,7 +209,7 @@ runBalancer
   -> ChangeAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-runBalancer utxos utxos' changeAddress =
+runBalancer utxos additionalUtxos changeAddress =
   runExceptT <<<
     (mainLoop one zero <=< addLovelacesToTransactionOutputs)
   where
@@ -236,7 +236,8 @@ runBalancer utxos utxos' changeAddress =
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos utxos'
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos
+      additionalUtxos
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 

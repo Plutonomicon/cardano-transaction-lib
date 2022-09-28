@@ -471,11 +471,11 @@ submitTxOgmios txHash tx = do
 
 evaluateTxOgmios
   :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
-evaluateTxOgmios cbor utxos = do
+evaluateTxOgmios cbor additionalUtxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  let inp = RequestInputToStoreInPendingRequests (cbor /\ utxos)
+  let inp = RequestInputToStoreInPendingRequests (cbor /\ additionalUtxos)
   liftAff $ mkRequestAff' listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
     Ogmios.evaluateTxCall
     _.evaluate
