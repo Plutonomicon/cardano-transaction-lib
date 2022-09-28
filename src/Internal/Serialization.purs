@@ -504,14 +504,14 @@ convertTxBody (T.TxBody body) = do
   for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
   for_ body.auxiliaryDataHash $
-    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+    unwrap >>> unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval $
     unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
       transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners $
     map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.auxiliaryDataHash $
-    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+    unwrap >>> unwrap >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash
@@ -558,7 +558,7 @@ convertProposedProtocolParameterUpdates
 convertProposedProtocolParameterUpdates ppus =
   newProposedProtocolParameterUpdates containerHelper =<<
     for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
-      Tuple <$> newGenesisHash (unwrap genesisHash) <*>
+      Tuple <$> newGenesisHash (unwrap $ unwrap genesisHash) <*>
         convertProtocolParamUpdate ppu
 
 convertProtocolParamUpdate
@@ -695,8 +695,8 @@ convertCert = case _ of
     , vrfKeyhash
     } -> do
     join $ newGenesisKeyDelegationCertificate
-      <$> newGenesisHash genesisHash
-      <*> newGenesisDelegateHash genesisDelegateHash
+      <$> newGenesisHash (unwrap genesisHash)
+      <*> newGenesisDelegateHash (unwrap genesisDelegateHash)
       <*>
         pure vrfKeyhash
   T.MoveInstantaneousRewardsCert mir -> do

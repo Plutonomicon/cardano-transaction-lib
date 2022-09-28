@@ -17,8 +17,8 @@ import Ctl.Internal.QueryM.Utxos (utxosAt)
 import Ctl.Internal.Serialization
   ( convertTransactionUnspentOutput
   , convertValue
-  , toBytes
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
@@ -132,7 +132,7 @@ mkCip30Mock pKey mSKey = do
   pure $
     { getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ byteArrayToHex $ toBytes (asOneOf address) ]
+          [ byteArrayToHex $ unwrap $ toBytes (asOneOf address) ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -141,7 +141,8 @@ mkCip30Mock pKey mSKey = do
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
           collateralUtxos
-        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUnspentOutput
+        pure $ byteArrayToHex <<< unwrap <<< toBytes <<< asOneOf <$>
+          cslUnspentOutput
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
@@ -151,7 +152,7 @@ mkCip30Mock pKey mSKey = do
           $ cborBytesFromByteArray txBytes
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
+        pure $ byteArrayToHex $ unwrap $ toBytes $ asOneOf cslWitnessSet
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -159,7 +160,7 @@ mkCip30Mock pKey mSKey = do
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
-        pure $ byteArrayToHex $ toBytes $ asOneOf value
+        pure $ byteArrayToHex $ unwrap $ toBytes $ asOneOf value
     , getUtxos: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -175,7 +176,7 @@ mkCip30Mock pKey mSKey = do
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
-        pure $ byteArrayToHex <<< toBytes <<< asOneOf <$> cslUtxos
+        pure $ byteArrayToHex <<< unwrap <<< toBytes <<< asOneOf <$> cslUtxos
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey

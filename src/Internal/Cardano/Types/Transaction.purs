@@ -311,7 +311,7 @@ derive newtype instance EncodeAeson Mint
 instance Show Mint where
   show = genericShow
 
-newtype AuxiliaryDataHash = AuxiliaryDataHash ByteArray
+newtype AuxiliaryDataHash = AuxiliaryDataHash CborBytes
 
 derive instance Generic AuxiliaryDataHash _
 derive instance Newtype AuxiliaryDataHash _
@@ -341,7 +341,7 @@ instance Show ProposedProtocolParameterUpdates where
 instance EncodeAeson ProposedProtocolParameterUpdates where
   encodeAeson' (ProposedProtocolParameterUpdates r) = encodeAeson' $ encodeMap r
 
-newtype GenesisHash = GenesisHash ByteArray
+newtype GenesisHash = GenesisHash CborBytes
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
@@ -533,7 +533,7 @@ instance Show PoolMetadata where
 instance EncodeAeson PoolMetadata where
   encodeAeson' (PoolMetadata r) = encodeAeson' r
 
-newtype GenesisDelegateHash = GenesisDelegateHash ByteArray
+newtype GenesisDelegateHash = GenesisDelegateHash CborBytes
 
 derive instance Eq GenesisDelegateHash
 derive instance Generic GenesisDelegateHash _

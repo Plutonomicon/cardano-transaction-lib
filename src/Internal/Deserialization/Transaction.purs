@@ -130,7 +130,6 @@ import Ctl.Internal.FfiHelpers
   , containerHelper
   , maybeFfiHelper
   )
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(TestnetId, MainnetId)
   , RewardAddress
@@ -138,6 +137,7 @@ import Ctl.Internal.Serialization.Address
   ) as Csl
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , AuxiliaryData

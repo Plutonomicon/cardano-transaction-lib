@@ -44,7 +44,7 @@ contract = do
     ]
   where
   mkDatumHash :: String -> DataHash
-  mkDatumHash = wrap <<< hexToByteArrayUnsafe
+  mkDatumHash = wrap <<< wrap <<< hexToByteArrayUnsafe
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do

@@ -286,7 +286,7 @@ proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
 proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
   Map.fromFoldable
     [ GenesisHash
-        ( hexToByteArrayUnsafe
+        ( wrap $ hexToByteArrayUnsafe
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
         ) /\
         { minfeeA: Just $ Coin $ BigInt.fromInt 1
@@ -603,12 +603,14 @@ txFixture4 =
                 , epoch: Epoch one
                 }
             , GenesisKeyDelegation
-                { genesisHash: GenesisHash $
-                    hexToByteArrayUnsafe
-                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , genesisDelegateHash: GenesisDelegateHash $
-                    hexToByteArrayUnsafe
-                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                { genesisHash: GenesisHash
+                    $ wrap
+                    $ hexToByteArrayUnsafe
+                        "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , genesisDelegateHash: GenesisDelegateHash
+                    $ wrap
+                    $ hexToByteArrayUnsafe
+                        "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
                 , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
                     $ byteArrayFromIntArrayUnsafe
                     $ Array.replicate 32 0
@@ -631,6 +633,7 @@ txFixture4 =
             , epoch: Epoch one
             }
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
+            $ wrap
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
         , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
@@ -866,7 +869,7 @@ utxoFixture1' =
         ( TransactionInput
             { index: UInt.fromInt 0
             , transactionId: TransactionHash
-                ( byteArrayFromIntArrayUnsafe
+                ( wrap $ byteArrayFromIntArrayUnsafe
                     [ 198
                     , 181
                     , 74
@@ -1169,8 +1172,9 @@ addressString1 =
 mkTxInput :: { txId :: String, ix :: Int } -> TransactionInput
 mkTxInput { txId, ix } =
   TransactionInput
-    { transactionId: TransactionHash $
-        hexToByteArrayUnsafe txId
+    { transactionId: TransactionHash
+        $ wrap
+        $ hexToByteArrayUnsafe txId
     , index: UInt.fromInt ix
     }
 

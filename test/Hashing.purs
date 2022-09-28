@@ -96,13 +96,13 @@ sha3_256HexDigestFixture =
 -- Checked that it corresponds to blake2b256(\00) ie. Integer 0
 zeroIntDatumHashFixture :: DataHash
 zeroIntDatumHashFixture =
-  wrap $
+  wrap $ wrap $
     hexToByteArrayUnsafe
       "03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314"
 
 datumHashFixture :: DataHash
 datumHashFixture =
-  wrap $
+  wrap $ wrap $
     hexToByteArrayUnsafe
       "0ba47e574456db8938e56f889d4c30099256f96008e0d4b6c4688f47ec342c9d"
 

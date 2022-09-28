@@ -77,7 +77,7 @@ foreign import _hashAuxiliaryData
 
 hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
 hashAuxiliaryData =
-  map (wrap <<< _hashAuxiliaryData) <<< convertAuxiliaryData
+  map (wrap <<< wrap <<< _hashAuxiliaryData) <<< convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData
 convertAuxiliaryData

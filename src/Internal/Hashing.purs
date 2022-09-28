@@ -17,11 +17,11 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Deserialization.Transaction (_txBody)
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Hash (ScriptHash, nativeScriptHash)
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( PlutusData
   , PlutusScript
@@ -53,13 +53,14 @@ foreign import sha3_256HashHex :: ByteArray -> String
 
 datumHash :: Datum -> Maybe DataHash
 datumHash =
-  map (wrap <<< hashPlutusData) <<< convertPlutusData <<< unwrap
+  map (wrap <<< wrap <<< hashPlutusData) <<< convertPlutusData <<< unwrap
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
-  wrap <<< blake2b256Hash <<< toBytes <<< asOneOf <<< _txBody
+  wrap <<< wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< asOneOf <<<
+    _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript

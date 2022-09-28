@@ -22,8 +22,9 @@ import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization (convertTransaction) as Serialization
 import Ctl.Internal.Serialization.Address (Address, addressFromBytes)
+import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
@@ -81,7 +82,7 @@ mkCip30WalletAff walletName enableWallet = do
 txToHex :: Transaction -> Aff String
 txToHex =
   liftEffect
-    <<< map (byteArrayToHex <<< Serialization.toBytes <<< asOneOf)
+    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes <<< asOneOf)
     <<< Serialization.convertTransaction
 
 getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))

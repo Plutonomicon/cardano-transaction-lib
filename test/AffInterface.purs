@@ -74,12 +74,12 @@ suite = do
 
 testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
 testOgmiosDatumCacheGetDatumByHash = do
-  void $ getDatumByHash $ DataHash $ hexToByteArrayUnsafe
+  void $ getDatumByHash $ DataHash $ wrap $ hexToByteArrayUnsafe
     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
 testOgmiosDatumCacheGetDatumsByHashes = do
-  void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
+  void $ getDatumsByHashes $ pure $ DataHash $ wrap $ hexToByteArrayUnsafe
     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testUtxosAt :: OgmiosAddress -> QueryM Unit

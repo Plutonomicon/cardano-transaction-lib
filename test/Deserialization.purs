@@ -24,11 +24,11 @@ import Ctl.Internal.Deserialization.WitnessSet
   , deserializeWitnessSet
   )
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (toBytes)
-import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serialization
 import Ctl.Internal.Serialization.BigInt as SB
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
+import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
 import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
@@ -104,7 +104,7 @@ suite = do
           cslPd <-
             errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
               SPD.convertPlutusData ctlPd
-          let pdBytes = toBytes (asOneOf cslPd)
+          let pdBytes = unwrap $ Serialization.toBytes (asOneOf cslPd)
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
             pdBytes
           ctlPd' <-
@@ -225,7 +225,7 @@ suite = do
           ws1 <- liftEffect $ SW.convertWitnessSet ws0
           ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
           ws0 `shouldEqual` ws2 -- value representation
-          let wsBytes = Serialization.toBytes (asOneOf ws1)
+          let wsBytes = unwrap $ Serialization.toBytes (asOneOf ws1)
           wsBytes `shouldEqual` fixture -- byte representation
       test "fixture #1" $ witnessSetRoundTrip witnessSetFixture1
       test "fixture #2" $ witnessSetRoundTrip witnessSetFixture2
@@ -246,7 +246,7 @@ testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
   serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
   let bytes = Serialization.toBytes (asOneOf serialized)
-  res <- errMaybe "Failed deserialization" $ fromBytes bytes
+  res <- errMaybe "Failed deserialization" $ fromBytes (unwrap bytes)
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input
 

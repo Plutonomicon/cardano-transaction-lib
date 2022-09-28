@@ -116,7 +116,7 @@ testSetScriptDataHash = liftEffect $ do
     Just (ScriptDataHash sdh) ->
       -- TODO
       -- Verify the hash with some external tool
-      byteArrayToHex sdh
+      byteArrayToHex (unwrap sdh)
         `shouldEqual`
           "e371f3cfb7be11ad70a88072dabdddef06f656efdaa52da2f68b8df4cac01d3a"
   where

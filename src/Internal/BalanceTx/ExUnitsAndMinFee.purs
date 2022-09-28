@@ -39,7 +39,8 @@ import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors
   , reindexSpentScriptRedeemers'
   )
-import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import Ctl.Internal.Serialization (convertTransaction) as Serialization
+import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Transaction (setScriptDataHash)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.ScriptLookups
@@ -72,7 +73,7 @@ evalTxExecutionUnits
   -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx unattachedTx = do
   txBytes <- liftEffect
-    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+    ( Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
   eResult <- unwrap <$> lift (QueryM.evaluateTxOgmios txBytes)

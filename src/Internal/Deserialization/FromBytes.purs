@@ -38,34 +38,34 @@ class FromBytes a where
   fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes DataHash where
-  fromBytes' = _fromBytesDataHash eh
+  fromBytes' = _fromBytes "DataHash" eh
 
 instance FromBytes Transaction where
-  fromBytes' = _fromBytesTransaction eh
+  fromBytes' = _fromBytes "Transaction" eh
 
 instance FromBytes TransactionHash where
-  fromBytes' = _fromBytesTransactionHash eh
+  fromBytes' = _fromBytes "TransactionHash" eh
 
 instance FromBytes PlutusData where
-  fromBytes' = _fromBytesPlutusData eh
+  fromBytes' = _fromBytes "PlutusData" eh
 
 instance FromBytes TransactionUnspentOutput where
-  fromBytes' = _fromBytesTransactionUnspentOutput eh
+  fromBytes' = _fromBytes "TransactionUnspentOutput" eh
 
 instance FromBytes TransactionWitnessSet where
-  fromBytes' = _fromBytesTransactionWitnessSet eh
+  fromBytes' = _fromBytes "TransactionWitnessSet" eh
 
 instance FromBytes NativeScript where
-  fromBytes' = _fromBytesNativeScript eh
+  fromBytes' = _fromBytes "NativeScript" eh
 
 instance FromBytes Mint where
-  fromBytes' = _fromBytesMint eh
+  fromBytes' = _fromBytes "Mint" eh
 
 instance FromBytes VRFKeyHash where
-  fromBytes' = _fromBytesVRFKeyHash eh
+  fromBytes' = _fromBytes "VRFKeyHash" eh
 
 instance FromBytes Value where
-  fromBytes' = _fromBytesValue eh
+  fromBytes' = _fromBytes "Value" eh
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
@@ -98,41 +98,9 @@ eh = errorHelper (inj _fromBytesError)
 
 ---- Foreign imports
 
-foreign import _fromBytesDataHash
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r DataHash
-
-foreign import _fromBytesTransactionHash
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
+foreign import _fromBytes
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> ErrorFfiHelper r
   -> ByteArray
-  -> E r TransactionHash
-
-foreign import _fromBytesPlutusData
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PlutusData
-
-foreign import _fromBytesTransaction
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Transaction
-
-foreign import _fromBytesTransactionUnspentOutput
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> ByteArray
-  -> E r TransactionUnspentOutput
-
-foreign import _fromBytesTransactionWitnessSet
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> ByteArray
-  -> E r TransactionWitnessSet
-
-foreign import _fromBytesNativeScript
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r NativeScript
-
-foreign import _fromBytesMint
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Mint
-
-foreign import _fromBytesVRFKeyHash
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash
-
-foreign import _fromBytesValue
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Value
+  -> E r a

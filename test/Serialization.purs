@@ -6,14 +6,16 @@ import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization (convertTxOutput)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust)
+import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -86,11 +88,11 @@ suite = do
             datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
               datum
             let bytes = toBytes (asOneOf datum')
-            byteArrayToHex bytes `shouldEqual` "00"
+            byteArrayToHex (unwrap bytes) `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)
-        byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
+        byteArrayToHex (unwrap bytes) `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $
         serializeTX txFixture1 txBinaryFixture1
       test "Transaction serialization #2 - tokens" $
@@ -122,13 +124,13 @@ serializeTX tx fixture =
   liftEffect $ do
     cslTX <- TS.convertTransaction $ tx
     let bytes = toBytes (asOneOf cslTX)
-    byteArrayToHex bytes `shouldEqual` fixture
+    byteArrayToHex (unwrap bytes) `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
   cslTX <- liftEffect $ TS.convertTransaction tx
   let serialized = toBytes (asOneOf cslTX)
-  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
+  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes $ unwrap
     serialized
   expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
     TD.convertTransaction deserialized

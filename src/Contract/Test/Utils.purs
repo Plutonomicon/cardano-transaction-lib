@@ -206,7 +206,7 @@ instance Show ContractAssertionFailure where
   show (CustomFailure msg) = show msg
 
 showTxHash :: TransactionHash -> String
-showTxHash = byteArrayToHex <<< unwrap
+showTxHash = byteArrayToHex <<< unwrap <<< unwrap
 
 type Label = String
 

@@ -141,7 +141,6 @@ import Ctl.Internal.QueryM.ServerConfig
   , mkWsUrl
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Serialization (toBytes) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -151,6 +150,7 @@ import Ctl.Internal.Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
+import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
@@ -656,6 +656,7 @@ applyArgs script args =
     map
       ( encodeAeson
           <<< byteArrayToHex
+          <<< unwrap
           <<< Serialization.toBytes
           <<< asOneOf
       )

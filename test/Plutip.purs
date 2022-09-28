@@ -569,7 +569,7 @@ suite = do
       runPlutipContract config unit \_ -> do
         let
           mkDatumHash :: String -> DataHash
-          mkDatumHash = wrap <<< hexToByteArrayUnsafe
+          mkDatumHash = wrap <<< wrap <<< hexToByteArrayUnsafe
         -- Nothing is expected, because we are in an empty chain.
         -- This test only checks for ability to connect to ODC
         logInfo' <<< show =<< getDatumByHash

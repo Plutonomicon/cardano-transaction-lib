@@ -33,7 +33,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running AwaitTxConfirmedWithTimeout"
   let
-    fakeHash = TransactionHash $ hexToByteArrayUnsafe
+    fakeHash = TransactionHash $ wrap $ hexToByteArrayUnsafe
       "ffffffffffff55555555555555555555a1af1b7534b51e60fad3fe9c164313e8"
   result <- try $ awaitTxConfirmedWithTimeout (wrap 1.0) fakeHash
   case result of
