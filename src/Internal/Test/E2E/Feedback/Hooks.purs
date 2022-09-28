@@ -1,11 +1,11 @@
-module Contract.Test.E2E.Feedback.Hooks where
+module Ctl.Internal.Test.E2E.Feedback.Hooks where
 
 import Prelude
 
-import Contract.Test.E2E.Feedback
+import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(Sign, ConfirmAccess, Success, Failure)
   )
-import Contract.Test.E2E.Feedback.Browser (pushBrowserEvent)
+import Ctl.Internal.Test.E2E.Feedback.Browser (pushBrowserEvent)
 import Data.Maybe (Maybe(Just))
 import QueryM (Hooks)
 

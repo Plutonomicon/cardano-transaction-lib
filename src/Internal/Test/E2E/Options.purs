@@ -1,17 +1,21 @@
-module Contract.Test.E2E.Options where
+module Ctl.Internal.Test.E2E.Options where
 
 import Prelude
 
-import Contract.Test.E2E.Helpers (WalletPassword)
-import Contract.Test.E2E.Types
-  ( CrxFilePath
+import Control.Alt ((<|>))
+import Ctl.Internal.Test.E2E.Types
+  ( Browser
+  , ChromeUserDataDir
+  , CrxFilePath
   , E2ETest
   , ExtensionId
+  , TmpDir
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
+  , WalletPassword
+  , SettingsArchive
   , mkE2ETest
   , mkExtensionId
   )
-import Control.Alt ((<|>))
 import Data.Array (catMaybes)
 import Data.Array as Array
 import Data.Either (note)
@@ -34,6 +38,7 @@ import Options.Applicative
   , help
   , helper
   , info
+  , int
   , long
   , many
   , metavar
@@ -50,49 +55,43 @@ import Options.Applicative.Builder (eitherReader)
 import Record.Builder (build, merge)
 import Type.Row (type (+))
 
--- | Parameters for E2E tests
--- | 'chromeExe' should point to a chromium or google-chrome binary.
--- | 'namiDir' should point to a directory where Nami is unpacked.
--- | 'geroDir' should point to a directory where Gero is unpacked.
--- |    both Nami and Gero must be provided to run the full suite of tests.
--- | 'chromeUserDataDir' should point to a chromium profile directory. If
--- |    not provided, test-data/chrome-user-data is used.
--- |    'make e2e-test' then takes care to unpack Nami and Gero settings to there,
--- |    so that wallet data is available.
--- | 'noHeadless' is a flag to display the browser during the tests.
--- TODO: rename to E2ETestOptions
-type TestOptions = Record (NoHeadless_ + TestUrlsOptions_ + MainOptions_ + ())
+-- | CLI options for E2E tests.
+type TestOptions = Record
+  (NoHeadless_ + Tests_ + TestTimeout_ + CommonOptions_ + ())
 
 type NoHeadless_ r = (noHeadless :: Boolean | r)
 
-type TestUrlsOptions_ r = (tests :: Array E2ETest | r)
+type Tests_ r = (tests :: Array E2ETest | r)
 
+type TestTimeout_ r = (testTimeout :: Maybe Int | r)
+
+-- | CLI options for both E2E tests and the `browser` command
+type CommonOptions_ (r :: Row Type) =
+  ( browser :: Maybe Browser
+  , wallets :: Map WalletExt ExtensionOptions
+  , chromeUserDataDir :: Maybe ChromeUserDataDir
+  , tmpDir :: Maybe TmpDir
+  , settingsArchive :: Maybe SettingsArchive
+  )
+
+-- | CLI options for the `browser` command.
+type BrowserOptions = Record (CommonOptions_ ())
+
+-- | Wallet extension options. Everything is wrapped in maybe, because we want
+-- | to be able to override every single environment variable via the CLI.
 type ExtensionOptions =
-  { crxFile :: Maybe String
+  { crxFile :: Maybe CrxFilePath
   , password :: Maybe WalletPassword
   , extensionId :: Maybe ExtensionId
   }
 
-type MainOptions_ (r :: Row Type) =
-  ( chromeExe :: Maybe FilePath
-  , wallets :: Map WalletExt ExtensionOptions
-  , chromeUserDataDir :: Maybe FilePath
-  , tempDir :: Maybe FilePath
-  , settingsArchive :: Maybe FilePath
-  )
-
-type BrowserOptions = Record (MainOptions_ ())
-
-data Mode = Headless | Visible
-
-derive instance Eq Mode
-
+-- | CLI options for `pack` and `unpack` commands.
 type SettingsOptions =
   { chromeUserDataDir :: Maybe FilePath
   , settingsArchive :: Maybe FilePath
   }
 
--- | A CLI command that can be interpreted by E2E test suite.
+-- | A CLI command that can be interpreted by the E2E test suite.
 data E2ECommand
   = RunE2ETests TestOptions
   | RunBrowser BrowserOptions
@@ -104,9 +103,10 @@ derive instance Generic E2ECommand _
 instance Show E2ECommand where
   show = genericShow
 
-parseCommand :: Effect E2ECommand
-parseCommand = execParser $ info (commands <**> helper)
-  (progDesc "E2E test runner")
+-- | Parse CLI arguments to get E2ECommand that can be run by `runE2E`
+parseCliArgs :: Effect E2ECommand
+parseCliArgs = execParser $ info (commands <**> helper)
+  (progDesc "CTL end-to-end test runner")
 
 commands :: Parser E2ECommand
 commands = subparser $
@@ -137,8 +137,8 @@ extensionIdParser = eitherReader \s ->
 
 browserOptionsParser :: Parser BrowserOptions
 browserOptionsParser = ado
-  chromeExe <- option (Just <$> str) $ fold
-    [ long "chrome-exe"
+  browser <- option (Just <$> str) $ fold
+    [ long "browser"
     , metavar "FILE"
     , help "Chrome/-ium exe (search in env if not set)"
     , showDefaultWith case _ of
@@ -147,7 +147,7 @@ browserOptionsParser = ado
     , value Nothing
     ]
   { chromeUserDataDir, settingsArchive } <- settingsOptionsParser
-  tempDir <- option (Just <$> str) $ fold
+  tmpDir <- option (Just <$> str) $ fold
     [ long "tmp-dir"
     , help "Temporary data directory"
     , value Nothing
@@ -260,7 +260,7 @@ browserOptionsParser = ado
       , mkConfig EternlExt eternlExtId eternlPassword eternlCrx
       ]
   in
-    { chromeExe, wallets, chromeUserDataDir, tempDir, settingsArchive }
+    { browser, wallets, chromeUserDataDir, tmpDir, settingsArchive }
   where
   mkConfig
     :: WalletExt
@@ -284,7 +284,14 @@ testOptionsParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
-  in build (merge res) { noHeadless, tests }
+  testTimeout <- option (Just <$> int) $ fold
+    [ long "test-timeout"
+    , help "Timeout for each test"
+    , value Nothing
+    , showDefaultWith $ const "E2E_TEST_TIMEOUT"
+    , metavar "SECONDS"
+    ]
+  in build (merge res) { noHeadless, tests, testTimeout }
 
 testParser :: ReadM E2ETest
 testParser = eitherReader \str ->

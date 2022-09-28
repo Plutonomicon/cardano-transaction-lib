@@ -12,7 +12,7 @@ import Contract.Config
   )
 import Contract.Monad (Contract, runContract)
 import Contract.Prelude (fst, traverse_, uncurry)
-import Contract.Test.E2E.Feedback.Hooks (e2eFeedbackHooks)
+import Contract.Test.E2E (e2eFeedbackHooks)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString

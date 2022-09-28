@@ -1,17 +1,10 @@
-module Contract.Test.E2E.Browser
+module Ctl.Internal.Test.E2E.Browser
   ( withBrowser
-  , module X
   ) where
 
 import Prelude
 
-import Contract.Test.E2E.Options (Mode(Headless, Visible))
-import Contract.Test.E2E.Options
-  ( Mode(Headless, Visible)
-  , TestOptions
-  , parseOptions
-  ) as X
-import Contract.Test.E2E.Types (E2ETestRuntime, ExtensionId, unExtensionId)
+import Ctl.Internal.Test.E2E.Types (E2ETestRuntime, ExtensionId, unExtensionId)
 import Effect.Aff (Aff, bracket)
 import Toppokki as Toppokki
 
@@ -31,25 +24,20 @@ launchWithExtension
   -> E2ETestRuntime
   -> ExtensionId
   -> Aff Toppokki.Browser
-launchWithExtension noHeadless rt@{ browserPath, chromeUserDataDir } extensionId =
+launchWithExtension noHeadless rt@{ browser, chromeUserDataDir } extensionId =
   do
     Toppokki.launch
       { args
-      , headless: mode == Headless
+      , headless: not noHeadless
       , userDataDir: chromeUserDataDir
-      , executablePath: browserPath
+      , executablePath: browser
       }
   where
   args =
     [ "--disable-extensions-except=" <> extensionsList
     , "--load-extension=" <> extensionsList
     , "--user-data-dir=" <> chromeUserDataDir
-    ] <> if mode == Headless then [ "--headless=chrome" ] else []
-
-  mode :: Mode
-  mode
-    | noHeadless = Visible
-    | otherwise = Headless
+    ] <> if not noHeadless then [ "--headless=chrome" ] else []
 
   extensionsList :: String
-  extensionsList = rt.tempDir <> "/" <> unExtensionId extensionId
+  extensionsList = rt.tmpDir <> "/" <> unExtensionId extensionId

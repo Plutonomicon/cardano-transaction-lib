@@ -140,14 +140,30 @@ Unarchive the CRX, put the encoded public key to `key` property of `manifest.jso
 
 ## Configuring E2E test suite
 
-The configuration can be done using CLI arguments, environment variables, or both. CLI arguments have higher priority.
+The tests can set up using CLI arguments, environment variables, or both. CLI arguments have higher priority.
 
 | Parameter                         | CLI argument                | Environment variable   |
 |-----------------------------------|-----------------------------|------------------------|
-| Temporary directory               | `--chrome-exe`              | `E2E_TMPDIR`           |
-| Test specs                        | `--test` (multiple allowed) | `E2E_TESTS`            |
-| Browser executable path           | `--chrome-exe`              | `E2E_BROWSER`          |
+| Temporary directory               | `--tmp-dir`                 | `E2E_TMPDIR`           |
+| Test specs (`wallet:url` format)  | `--test` (multiple allowed) | `E2E_TESTS`            |
+| Test timeout                      | `--test-timeout`            | `E2E_TEST_TIMEOUT`     |
+| Browser binary path or name       | `--browser`                 | `E2E_BROWSER`          |
 | Don't use headless mode           | `--no-headless`             | `E2E_NO_HEADLESS`      |
 | Path to the user settings archive | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE` |
 | Path to the user data directory   | `--chrome-user-data`        | `E2E_CHROME_USER_DATA` |
-|                                   |                             |                        |
+|-----------------------------------|-----------------------------|------------------------|
+| Eternl CRX file                   | `--eternl-crx`              | `ETERNL_CRX`           |
+| Eternl password                   | `--eternl-password`         | `ETERNL_PASSWORD`      |
+| Eternl Extension ID               | `--eternl-extid`            | `ETERNL_EXTID`         |
+| Lode CRX file                     | `--lode-crx`                | `LODE_CRX`             |
+| Lode password                     | `--lode-password`           | `LODE_PASSWORD`        |
+| Lode Extension ID                 | `--lode-extid`              | `LODE_EXTID`           |
+| Nami CRX file                     | `--nami-crx`                | `NAMI_CRX`             |
+| Nami password                     | `--nami-password`           | `NAMI_PASSWORD`        |
+| Nami Extension ID                 | `--nami-extid`              | `NAMI_EXTID`           |
+| Flint CRX file                    | `--flint-crx`               | `FLINT_CRX`            |
+| Flint password                    | `--flint-password`          | `FLINT_PASSWORD`       |
+| Flint Extension ID                | `--flint-extid`             | `FLINT_EXTID`          |
+| Gero CRX file                     | `--gero-crx`                | `GERO_CRX`             |
+| Gero password                     | `--gero-password`           | `GERO_PASSWORD`        |
+| Gero Extension ID                 | `--gero-extid`              | `GERO_EXTID`           |

@@ -1,4 +1,24 @@
-module Contract.Test.E2E.Types where
+-- | Common types for E2E tests.
+module Ctl.Internal.Test.E2E.Types
+  ( Browser
+  , TmpDir
+  , SettingsArchive
+  , ChromeUserDataDir
+  , CrxFilePath
+  , ExtensionId
+  , mkExtensionId
+  , unExtensionId
+  , WalletPassword
+  , ExtensionParams
+  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , Extensions
+  , E2ETestRuntime
+  , SettingsRuntime
+  , E2ETest
+  , mkE2ETest
+  , RunningE2ETest
+  , SomeWallet
+  ) where
 
 import Prelude
 
@@ -15,11 +35,11 @@ import Effect.Aff (Aff)
 import Node.Path (FilePath)
 import Toppokki as Toppokki
 
--- | Browser binary path
-type BrowserPath = FilePath
+-- | Browser binary path or short name
+type Browser = FilePath
 
 -- | Temporary directory prefix
-type TempDir = FilePath
+type TmpDir = FilePath
 
 -- | `.tar.gz` archive containing the runtime settings for all the extensions
 -- | used in E2E.
@@ -76,16 +96,16 @@ type Extensions = Map WalletExt ExtensionParams
 -- | Contains everything needed to run E2E tests.
 type E2ETestRuntime =
   { wallets :: Map WalletExt ExtensionParams
-  , chromeUserDataDir :: FilePath
-  , tempDir :: FilePath
-  , browserPath :: String
-  , settingsArchive :: FilePath
+  , chromeUserDataDir :: ChromeUserDataDir
+  , tmpDir :: TmpDir
+  , browser :: Browser
+  , settingsArchive :: SettingsArchive
   }
 
 -- | Contains everything needed to pack and unpack settings.
 type SettingsRuntime =
-  { chromeUserDataDir :: FilePath
-  , settingsArchive :: FilePath
+  { chromeUserDataDir :: ChromeUserDataDir
+  , settingsArchive :: SettingsArchive
   }
 
 -- | A particular test instance.
@@ -94,6 +114,7 @@ type E2ETest =
   , wallet :: WalletExt
   }
 
+-- | Construct an `E2ETest` from a spec (`wallet:url`)
 mkE2ETest :: String -> Maybe E2ETest
 mkE2ETest str =
   (stripPrefix (Pattern "eternl:") str <#> mkTestEntry EternlExt)
@@ -104,8 +125,8 @@ mkE2ETest str =
   where
   mkTestEntry wallet url = { wallet, url }
 
--- TODO: rename to runningTest
-type RunningExample =
+-- | Represents a connection to a running E2E test.
+type RunningE2ETest =
   { browser :: Toppokki.Browser
   , jQuery :: String
   , page :: Toppokki.Page
@@ -117,6 +138,6 @@ type SomeWallet =
   { wallet :: WalletExt
   , name :: String
   , extensionId :: ExtensionId
-  , confirmAccess :: ExtensionId -> RunningExample -> Aff Unit
-  , sign :: ExtensionId -> WalletPassword -> RunningExample -> Aff Unit
+  , confirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
+  , sign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
   }

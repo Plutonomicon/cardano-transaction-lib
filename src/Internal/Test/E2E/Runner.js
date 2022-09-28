@@ -6,6 +6,3 @@ exports._retrieveJQuery = page => () =>
       )
       .then(res => res.text())
   );
-
-exports._typeInto = selector => text => page => () =>
-  page.focus(selector).then(() => page.keyboard.type(text));
