@@ -12,9 +12,9 @@ module Contract.Transaction
   , balanceTxM
   , balanceTxWithAdditionalUtxos
   , balanceTxWithAddress
-  , balanceTxWithAddressAndAdditionalUtxos
+  , balanceTxWithAddressesAndAdditionalUtxos
   , balanceTxsWithAddress
-  , balanceTxsWithAddressAndAdditionalUtxos
+  , balanceTxsWithAddressesAndAdditionalUtxos
   , calculateMinFee
   , calculateMinFeeM
   , getTxByHash
@@ -44,13 +44,23 @@ module Contract.Transaction
   ) where
 
 import Prelude
-import Prim.TypeError (class Warn, Text)
 
 import Aeson (class EncodeAeson, Aeson)
-import BalanceTx (BalanceTxError) as BalanceTxError
-import BalanceTx (FinalizedTransaction)
-import BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
-import Cardano.Types.NativeScript
+import Contract.Log (logDebug')
+import Contract.Monad
+  ( Contract
+  , liftedE
+  , liftedM
+  , runContractInEnv
+  , wrapContract
+  )
+import Control.Monad.Error.Class (catchError, throwError, try)
+import Control.Monad.Reader (ReaderT, asks, runReaderT)
+import Control.Monad.Reader.Class (ask)
+import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
+import Ctl.Internal.BalanceTx (FinalizedTransaction)
+import Ctl.Internal.BalanceTx (balanceTx, balanceTxWithAddress) as BalanceTx
+import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -60,10 +70,10 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
-import Cardano.Types.ScriptRef
+import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as ScriptRef
-import Cardano.Types.Transaction
+import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , BootstrapWitness
@@ -124,52 +134,26 @@ import Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Cardano.Types.Transaction (Transaction)
-import Contract.Address (getWalletAddress)
-import Contract.Log (logDebug')
-import Contract.Monad
-  ( Contract
-  , liftedE
-  , liftedM
-  , wrapContract
-  , runContractInEnv
+import Ctl.Internal.Cardano.Types.Transaction (Transaction, UtxoMap)
+import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Plutus.Conversion
+  ( toPlutusAddress
+  , toPlutusCoin
+  , toPlutusTxOutput
   )
-import Control.Monad.Error.Class (try, catchError, throwError)
-import Control.Monad.Reader (asks, runReaderT, ReaderT)
-import Control.Monad.Reader.Class (ask)
-import Data.Array.NonEmpty as NonEmptyArray
-import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right), hush)
-import Data.Generic.Rep (class Generic)
-import Data.Lens.Getter (view)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Map (empty) as Map
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Show.Generic (genericShow)
-import Data.Time.Duration (Seconds)
-import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple (fst, uncurry)
-import Data.Tuple.Nested ((/\), type (/\))
-import Effect.Aff (bracket)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (Error, throw)
-import Hashing (transactionHash) as Hashing
-import Plutus.Conversion (toPlutusCoin, toPlutusTxOutput, fromPlutusUtxoMap)
-import Plutus.Conversion.Address (fromPlutusAddress)
-import Plutus.Types.Address (Address)
-import Plutus.Types.Transaction (UtxoMap)
-import Plutus.Types.Transaction
+import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address)
+import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   ) as PTransaction
-import Plutus.Types.TransactionUnspentOutput
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , lookupTxHash
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
-import Plutus.Types.Value (Coin)
-import QueryM
+import Ctl.Internal.Plutus.Types.Value (Coin)
+import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
       , ClientHttpResponseError
@@ -178,31 +162,29 @@ import QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import QueryM (signTransaction, submitTxOgmios) as QueryM
-import QueryM.MinFee (calculateMinFee) as QueryM
-import QueryM.AwaitTxConfirmed
+import Ctl.Internal.QueryM (getWalletAddresses, submitTxOgmios) as QueryM
+import Ctl.Internal.QueryM.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   ) as AwaitTx
-import QueryM.GetTxByHash (getTxByHash) as QueryM
-import QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
-import ReindexRedeemers (ReindexErrors(CannotGetTxOutRefIndexForRedeemer)) as ReindexRedeemersExport
-import ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
-import Serialization (convertTransaction, toBytes) as Serialization
-import Serialization.Address (NetworkId)
-import TxOutput (scriptOutputToTransactionOutput) as TxOutput
-import Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , plutusV1Script
-  , plutusV2Script
-  ) as Scripts
-import Types.OutputDatum
+import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
+import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
+import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
+import Ctl.Internal.QueryM.Sign (signTransaction) as QueryM
+import Ctl.Internal.ReindexRedeemers
+  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
+  ) as ReindexRedeemersExport
+import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.TxOutput (scriptOutputToTransactionOutput) as TxOutput
+import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   ) as OutputDatum
-import Types.ScriptLookups
+import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
       , ModifyTx
@@ -230,30 +212,53 @@ import Types.ScriptLookups
       )
   , mkUnbalancedTx
   ) as ScriptLookups
-import Types.ScriptLookups (UnattachedUnbalancedTx)
-import Types.Transaction
+import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  ) as Scripts
+import Ctl.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as Transaction
-import Types.Transaction (TransactionHash)
-import Types.TransactionMetadata
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as TransactionMetadata
-import Types.UnbalancedTransaction
+import Ctl.Internal.Types.UnbalancedTransaction
   ( ScriptOutput(ScriptOutput)
   , UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Types.UsedTxOuts
+import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.BigInt (BigInt)
+import Data.Either (Either(Left, Right), hush)
+import Data.Generic.Rep (class Generic)
+import Data.Lens.Getter (view)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Map (empty) as Map
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds)
+import Data.Traversable (class Traversable, for, for_, traverse)
+import Data.Tuple (fst, uncurry)
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (bracket)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (Error, throw)
+import Prim.TypeError (class Warn, Text)
 import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and
@@ -330,10 +335,7 @@ balanceTxWithAdditionalUtxos
   -> UtxoMap
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTxWithAdditionalUtxos tx utxos = do
-  networkId <- asks $ unwrap >>> _.config >>> _.networkId
-  wrapContract $ BalanceTx.balanceTx
-    tx
-    (fromPlutusUtxoMap networkId utxos)
+  wrapContract $ BalanceTx.balanceTx tx utxos
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
@@ -343,27 +345,27 @@ balanceTx
 balanceTx tx = balanceTxWithAdditionalUtxos tx Map.empty
 
 -- | Like `balanceTxWithAddress`, but uses an additional `UtxoMap`.
-balanceTxWithAddressAndAdditionalUtxos
+balanceTxWithAddressesAndAdditionalUtxos
   :: forall (r :: Row Type)
-   . Address
+   . Array Address
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddressAndAdditionalUtxos addr tx utxos = do
+balanceTxWithAddressesAndAdditionalUtxos ownAddresses tx utxos = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
   wrapContract $ BalanceTx.balanceTxWithAddress
-    (fromPlutusAddress networkId addr)
+    (fromPlutusAddress networkId <$> ownAddresses)
     tx
-    (fromPlutusUtxoMap networkId utxos)
+    utxos
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTxWithAddress
   :: forall (r :: Row Type)
-   . Address
+   . Array Address
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddress addr tx =
-  balanceTxWithAddressAndAdditionalUtxos addr tx Map.empty
+balanceTxWithAddress ownAddresses tx =
+  balanceTxWithAddressesAndAdditionalUtxos ownAddresses tx Map.empty
 
 -- Helper to avoid repetition
 withTransactions
@@ -458,15 +460,15 @@ withBalancedAndSignedTx = withSingleTransaction
   unwrap
 
 -- | Like `balanceTxsWithAddress`, but uses an additional `UtxoMap`.
-balanceTxsWithAddressAndAdditionalUtxos
+balanceTxsWithAddressesAndAdditionalUtxos
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => Address
+  => Array Address
   -> t (UnattachedUnbalancedTx /\ UtxoMap)
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddressAndAdditionalUtxos ownAddress unbalancedTxs =
+balanceTxsWithAddressesAndAdditionalUtxos ownAddrs unbalancedTxs =
   unlockAllOnError $ traverse (uncurry balanceAndLock) unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -483,24 +485,24 @@ balanceTxsWithAddressAndAdditionalUtxos ownAddress unbalancedTxs =
   balanceAndLock unbalancedTx utxos = do
     networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
-      (fromPlutusAddress networkId ownAddress)
+      (fromPlutusAddress networkId <$> ownAddrs)
       unbalancedTx
-      (fromPlutusUtxoMap networkId utxos)
+      utxos
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
-
+  
 -- | Like `balanceTxs`, but uses `balanceTxWithAddress` instead of `balanceTx`
 -- | internally.
-balanceTxsWithAddress
+balanceTxsWithAddresses
   :: forall
        (t :: Type -> Type)
        (r :: Row Type)
    . Traversable t
-  => Address
+  => Array Address
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddress ownAddress unbalancedTxs =
-  balanceTxsWithAddressAndAdditionalUtxos ownAddress $
+balanceTxsWithAddresses ownAddrs unbalancedTxs =
+  balanceTxsWithAddressesAndAdditionalUtxos ownAddrs $
     (flip (/\) $ Map.empty) <$> unbalancedTxs
 
 -- | Like `balanceTxs`, but uses an additional `UtxoMap`.
@@ -512,12 +514,35 @@ balanceTxsWithAdditionalUtxos
   => t (UnattachedUnbalancedTx /\ UtxoMap)
   -> Contract r (t FinalizedTransaction)
 balanceTxsWithAdditionalUtxos unbalancedTxs = do
-  mbOwnAddress <- getWalletAddress
+  mbOwnAddress <- walletAddresses
   case mbOwnAddress of
     Nothing -> liftEffect $ throw $
       "Failed to get own Address"
     Just ownAddress ->
-      balanceTxsWithAddressAndAdditionalUtxos ownAddress unbalancedTxs
+      balanceTxsWithAddressesAndAdditionalUtxos ownAddress unbalancedTxs
+  where
+  -- TODO: this is a helper function to get array of wallet ownAddresses
+  -- should be removed when Contract's api changes to multi-address
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+  walletAddresses = do
+    mbAddrs <- wrapContract QueryM.getWalletAddresses
+    for mbAddrs \addrs ->
+      for addrs
+        ( liftedM "getWalletAddress: failed to deserialize address"
+            <<< wrapContract
+            <<< pure
+            <<< toPlutusAddress
+        )
+
+balanceTxsWithAddress
+  :: forall
+       (t :: Type -> Type)
+       (r :: Row Type)
+   . Traversable t
+  => Address
+  -> t UnattachedUnbalancedTx
+  -> Contract r (t FinalizedTransaction)
+balanceTxsWithAddress ownAddr = balanceTxsWithAddresses [ ownAddr ]
 
 -- | Balances each transaction and locks the used inputs
 -- | so that they cannot be reused by subsequent transactions.
