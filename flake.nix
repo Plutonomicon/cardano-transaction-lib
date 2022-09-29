@@ -17,10 +17,10 @@
     };
 
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/880a69a03fbfd06a4990ba8873f06907d4cd16a7";
-    # Repository with network parameters
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
+    # Repository with network parameters                                
     cardano-configurations = {
-      # Override with "path:/path/to/cardano-configurations";
+      # Override with "path:/path/to/cardano-configurations";           
       url = "github:input-output-hk/cardano-configurations";
       flake = false;
     };
