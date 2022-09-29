@@ -79,7 +79,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
   validator <- alwaysSucceedsScriptV2
-  plutusScript <- alwaysMintsPolicyV2
+  mintsScript <- alwaysMintsPolicyV2
   tokenName <- Helpers.mkTokenName "TheToken"
   let
     vhash :: ValidatorHash
@@ -89,13 +89,13 @@ contract = do
     validatorRef = PlutusScriptRef (unwrap validator)
 
     mpRef :: ScriptRef
-    mpRef = PlutusScriptRef (unwrap validator)
+    mpRef = PlutusScriptRef mintsScript
 
   logInfo' "Attempt to lock value"
   txId <- payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully, Try to spend locked values"
-  spendFromAlwaysSucceeds vhash txId (unwrap validator) plutusScript
+  spendFromAlwaysSucceeds vhash txId (unwrap validator) mintsScript
     tokenName
 
 payToAlwaysSucceedsAndCreateScriptRefOutput
