@@ -28,7 +28,6 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
   , PlutusScript
-  , Validator
   , applyArgs
   )
 import Contract.Test.E2E (publishTestFeedback)
@@ -140,7 +139,6 @@ mkOneShotMintingPolicy json ty mkPlutusScript oref = do
 
   -- TODO: amir: remove the unnessary wrapping and unwrapping of plutus script
   -- into `Validator`
-  liftedE $ map (PlutusMintingPolicy <<< unwrap) <$> applyArgs
-    (wrap unappliedMintingPolicy :: Validator)
+  liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
     mintingPolicyArgs
 

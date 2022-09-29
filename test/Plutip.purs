@@ -918,22 +918,22 @@ suite = do
   group "applyArgs" do
     test "returns the same script when called without args" do
       runPlutipContract config unit \_ -> do
-        result <- liftedE $ applyArgs unappliedScriptFixture mempty
-        result `shouldEqual` unappliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+        result `shouldEqual` (unwrap unappliedScriptFixture)
 
     test "returns the correct partially applied Plutus script" do
       runPlutipContract config unit \_ -> do
         let args = [ Integer (BigInt.fromInt 32) ]
-        result <- liftedE $ applyArgs unappliedScriptFixture args
-        result `shouldEqual` partiallyAppliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+        result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
     test "returns the correct fully applied Plutus script" do
       runPlutipContract config unit \_ -> do
         bytes <-
           liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
         let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-        result <- liftedE $ applyArgs unappliedScriptFixture args
-        result `shouldEqual` fullyAppliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+        result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
