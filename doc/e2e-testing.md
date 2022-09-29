@@ -29,7 +29,7 @@ An executable for concrete tests is also needed. For a working example see `test
 
 The process is as follows:
 
-1. Set `ps-entrypoint` in Makefile to `Examples.ByURL`.
+1. Set `ps-entrypoint` in Makefile to `Ctl.Examples.ByURL`.
 2. run `make run-dev`.
 3. In another shell, run `./test/ctl-e2e-test.sh run`.
 4. Examples will be run headless by default (pass `--no-headless` to inspect the browser window). In case of errors, the browser console output will be printed to the shell.
@@ -52,7 +52,7 @@ Chrome extensions are unpacked to some directory by the browser. From there, the
 The default test suite accepts the arguments of form `--nami-dir`, `--gero-dir`, etc., to point to the directories from which the extensions are loaded. In order to use the "live" version of an extension, just pass the arguments accordingly, e.g.:
 
 ```
-@spago test --main Test.E2E -a "E2ETest --nami-dir ~/.config/google-chrome/Default/Extensions/lpfcbjknijpeeillifnkikgncikgfhdo/ --gero-dir ~/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc --chrome-exe google-chome
+@spago test --main Test.Ctl.E2E -a "E2ETest --nami-dir ~/.config/google-chrome/Default/Extensions/lpfcbjknijpeeillifnkikgncikgfhdo/ --gero-dir ~/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc --chrome-exe google-chome
 ```
 
 ### Where to Find the Installed Extensions
