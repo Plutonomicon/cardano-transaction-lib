@@ -69,3 +69,7 @@ exports._isGeroAvailable = isWalletAvailable(wallets.gero);
 exports._isFlintAvailable = isWalletAvailable(wallets.flint);
 exports._isLodeAvailable = isWalletAvailable(wallets.lode);
 exports._isEternlAvailable = isWalletAvailable(wallets.eternl);
+
+exports._isEnabled = wallet => {
+    return window.cardano[wallet].isEnabled()
+};

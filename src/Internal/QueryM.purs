@@ -54,6 +54,7 @@ module Ctl.Internal.QueryM
   , mkRequest
   , mkRequestAff
   , module ServerConfig
+  , module WalletExports
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes
   , ownStakePubKeyHash
@@ -110,11 +111,12 @@ import Ctl.Internal.Types.MultiMap (MultiMap)
 import Ctl.Internal.Types.MultiMap as MultiMap
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Ctl.Internal.Types.RawBytes (RawBytes(..))
+import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript(PlutusScript))
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet (Cip30Connection, Cip30Wallet, KeyWallet, Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet), cip30Wallet, mkEternlWalletAff, mkFlintWalletAff, mkGeroWalletAff, mkKeyWallet, mkLodeWalletAff, mkNamiWalletAff)
+import Ctl.Internal.Wallet (isEnabled) as WalletExports
 import Ctl.Internal.Wallet.KeyFile (privatePaymentKeyFromFile, privateStakeKeyFromFile)
 import Ctl.Internal.Wallet.Spec (PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue), PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue), WalletSpec(UseKeys, ConnectToGero, ConnectToNami, ConnectToFlint, ConnectToEternl, ConnectToLode))
 import Data.Array (head, singleton) as Array
@@ -458,7 +460,7 @@ getNetworkId = do
 getUnusedAddresses :: QueryM (Maybe (Array Address))
 getUnusedAddresses =
   actionBasedOnWallet _.getUnusedAddresses
-    (\kw -> liftEffect $ throw "Can't use getUnusedAddresses with KeyWallet")
+    (\_ -> liftEffect $ throw "Can't use getUnusedAddresses with KeyWallet")
 
 getChangeAddress :: QueryM (Maybe Address)
 getChangeAddress = do

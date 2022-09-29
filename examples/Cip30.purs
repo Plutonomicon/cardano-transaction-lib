@@ -10,9 +10,9 @@ import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftContractAffM)
+import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, signData)
+import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, isEnabled, signData, Wallet(Nami))
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
@@ -25,13 +25,14 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg contract
+  runContract cfg (contract false)
   liftEffect $ runKeyWalletContract_ (\ _ _ _ -> contract true)
   publishTestFeedback true
 
 contract :: Boolean -> Contract () Unit
 contract catch = do
   logInfo' "Running Examples.Cip30"
+  performAndLog catch "isEnabled" (liftAff (isEnabled Nami))
   performAndLog catch "getNetworkId" getNetworkId 
   performAndLog catch "getUnusedAddresses" getUnusedAddresses
   performAndLog false "getChangeAddress" getChangeAddress
