@@ -31,6 +31,7 @@ import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Serialization.PlutusData as Serialization
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(OutputDatum, OutputDatumHash, NoOutputDatum)
@@ -179,7 +180,7 @@ ogmiosDatumHashToDatumHash str = hexToByteArray str <#> (wrap >>> wrap)
 -- | Converts an Ogmios datum `String` to an internal `Datum`
 ogmiosDatumToDatum :: String -> Maybe Datum
 ogmiosDatumToDatum =
-  hexToByteArray
+  hexToCborBytes
     >=> fromBytes
     >=> Deserialization.convertPlutusData
       >>> map Datum

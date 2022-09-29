@@ -200,7 +200,7 @@ import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Set (fromFoldable) as Set
 import Data.Traversable (for, traverse)
@@ -213,7 +213,7 @@ import Type.Row (type (+))
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
   :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
-deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
+deserializeTransaction txCbor = fromBytes' txCbor >>=
   convertTransaction
 
 -- | Converts transaction from foreign CSL representation to CTL's one.

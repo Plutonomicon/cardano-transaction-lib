@@ -773,7 +773,7 @@ convertTxInputs fInputs = do
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
 convertTxInput (T.TransactionInput { transactionId, index }) = do
-  tx_hash <- fromBytesEffect (unwrap $ unwrap transactionId)
+  tx_hash <- fromBytesEffect (unwrap transactionId)
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
@@ -790,7 +790,7 @@ convertTxOutput
   case datum of
     NoOutputDatum -> pure unit
     OutputDatumHash dataHash -> do
-      for_ (fromBytes $ unwrap $ unwrap dataHash) $
+      for_ (fromBytes $ unwrap dataHash) $
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo

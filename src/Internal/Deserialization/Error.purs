@@ -1,18 +1,21 @@
 -- | Error-centered types and functions used by Deserialization modules.
 module Ctl.Internal.Deserialization.Error
   ( Err
+  , FromBytesError
   , FromCslRepError
   , _fromCslRepError
   , addErrTrace
   , cslErr
+  , fromBytesErrorHelper
+  , fromBytesError
   , fromCslRepError
   , toError
   ) where
 
 import Prelude
 
-import Ctl.Internal.Deserialization.FromBytes (FromBytesError, _fromBytesError)
 import Ctl.Internal.Error (E, NotImplementedError, _notImplementedError, noteE)
+import Ctl.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import Data.Variant (Variant, default, inj, match, onMatch)
@@ -66,3 +69,22 @@ toError = error <<< match
   , fromBytesError: \err -> "FromBytesError: " <> err
   , notImplementedError: \err -> "NotImplementedError: " <> err
   }
+
+-- | FromBytesError row alias
+type FromBytesError r = (fromBytesError :: String | r)
+
+-- | Needed to craate a variant type
+_fromBytesError = Proxy :: Proxy "fromBytesError"
+
+-- | An error to use
+fromBytesError
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> E (FromBytesError + r) a
+fromBytesError = Left <<< inj _fromBytesError
+
+-- | An internal helper to shorten code
+fromBytesErrorHelper
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper (FromBytesError + r)
+fromBytesErrorHelper = errorHelper (inj _fromBytesError)

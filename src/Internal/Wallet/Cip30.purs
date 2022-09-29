@@ -26,7 +26,7 @@ import Ctl.Internal.Serialization (convertTransaction) as Serialization
 import Ctl.Internal.Serialization.Address (Address, addressFromBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
+import Ctl.Internal.Types.CborBytes (hexToCborBytes, rawBytesAsCborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
@@ -102,14 +102,14 @@ getCollateral conn = do
     for collateralUtxos \bytes -> do
       maybe (throw "Unable to convert UTxO") pure =<<
         Deserialization.UnspentOuput.convertUnspentOutput
-          <$> fromBytesEffect (unwrap bytes)
+          <$> fromBytesEffect (rawBytesAsCborBytes bytes)
 
 getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
   mArrayStr <- toAffE $ _getUtxos maybeFfiHelper conn
   liftEffect $ for mArrayStr $ traverse \str -> do
     liftMaybe (error "Unable to convert UTxO") $
-      hexToRawBytes str >>= unwrap >>> fromBytes >>=
+      hexToCborBytes str >>= fromBytes >>=
         Deserialization.UnspentOuput.convertUnspentOutput
 
 signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
@@ -119,7 +119,7 @@ signTx conn tx = do
     Nothing -> pure Nothing
     Just bytes -> map (combineWitnessSet tx) <$> liftEffect
       ( Deserialization.WitnessSet.convertWitnessSet
-          <$> fromBytesEffect (unwrap bytes)
+          <$> fromBytesEffect (rawBytesAsCborBytes bytes)
       )
   where
   -- We have to combine the newly returned witness set with the existing one
@@ -132,7 +132,7 @@ getBalance :: Cip30Connection -> Aff (Maybe Value)
 getBalance wallet = do
   fromHexString _getBalance wallet <#> \mbBytes -> do
     bytes <- mbBytes
-    fromBytes (unwrap bytes) >>= convertValue
+    fromBytes (rawBytesAsCborBytes bytes) >>= convertValue
 
 fromHexString
   :: (Cip30Connection -> Effect (Promise String))

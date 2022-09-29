@@ -15,7 +15,7 @@ import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -48,7 +48,7 @@ suite = do
         let
           txString =
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
-          txBytes = hexToByteArrayUnsafe txString
+          txBytes = wrap $ hexToByteArrayUnsafe txString
         _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
       test "PlutusData #1 - Constr" $ do
@@ -129,8 +129,7 @@ txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
   cslTX <- liftEffect $ TS.convertTransaction tx
   let serialized = toBytes cslTX
-  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes $ unwrap
-    serialized
+  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes serialized
   expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
     TD.convertTransaction deserialized
   tx `shouldEqual` expected

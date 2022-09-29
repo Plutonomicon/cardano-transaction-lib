@@ -552,7 +552,7 @@ instance (FromData a) => FromData (Tree a) where
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
 fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes
-  (hexToByteArrayUnsafe binary)
+  (wrap $ hexToByteArrayUnsafe binary)
 
 testBinaryFixture
   :: forall a

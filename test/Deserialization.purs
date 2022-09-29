@@ -37,7 +37,7 @@ import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -103,7 +103,7 @@ suite = do
           cslPd <-
             errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
               SPD.convertPlutusData ctlPd
-          let pdBytes = unwrap $ Serialization.toBytes cslPd
+          let pdBytes = Serialization.toBytes cslPd
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
             pdBytes
           ctlPd' <-
@@ -122,14 +122,14 @@ suite = do
         "fixture #8 different Cbor bytes encodings (compact vs general Constr tag encodings)"
         $ do
             cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-              plutusDataFixture8Bytes
+              $ wrap plutusDataFixture8Bytes
             ctlPd' <-
               errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
                 $
                   DPD.convertPlutusData cslPd'
             ctlPd' `shouldEqual` plutusDataFixture8
             cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-              plutusDataFixture8Bytes'
+              $ wrap plutusDataFixture8Bytes'
             ctlPdWp' <-
               errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
                 $
@@ -245,7 +245,7 @@ testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
   serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
   let bytes = Serialization.toBytes serialized
-  res <- errMaybe "Failed deserialization" $ fromBytes (unwrap bytes)
+  res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input
 

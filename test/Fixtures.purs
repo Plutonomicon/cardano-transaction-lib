@@ -568,7 +568,7 @@ txFixture4 =
             , StakeDelegation stake1 ed25519KeyHash1
             , PoolRegistration
                 { operator: ed25519KeyHash1
-                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
+                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes $ wrap
                     $ byteArrayFromIntArrayUnsafe
                     $ Array.replicate 32 0
                 , pledge: bigNumOne
@@ -611,7 +611,7 @@ txFixture4 =
                     $ wrap
                     $ hexToByteArrayUnsafe
                         "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
+                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes $ wrap
                     $ byteArrayFromIntArrayUnsafe
                     $ Array.replicate 32 0
                 }
