@@ -128,7 +128,7 @@ import Ctl.Internal.Serialization.Types
   ( Ed25519Signature
   , PublicKey
   , VRFKeyHash
-  ) as S
+  ) as Serialization
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -606,7 +606,7 @@ data Certificate
   | StakeDelegation StakeCredential Ed25519KeyHash
   | PoolRegistration
       { operator :: Ed25519KeyHash
-      , vrfKeyhash :: S.VRFKeyHash
+      , vrfKeyhash :: Serialization.VRFKeyHash
       , pledge :: BigNum
       , cost :: BigNum
       , margin :: UnitInterval
@@ -622,7 +622,7 @@ data Certificate
   | GenesisKeyDelegation
       { genesisHash :: GenesisHash
       , genesisDelegateHash :: GenesisDelegateHash
-      , vrfKeyhash :: S.VRFKeyHash
+      , vrfKeyhash :: Serialization.VRFKeyHash
       }
   | MoveInstantaneousRewardsCert MoveInstantaneousReward
 
@@ -819,10 +819,10 @@ newtype PublicKey = PublicKey RawBytes
 mkPubKey :: Bech32String -> Maybe PublicKey
 mkPubKey = map (PublicKey <<< bytesFromPublicKey) <<< publicKeyFromBech32
 
-mkFromCslPubKey :: S.PublicKey -> PublicKey
+mkFromCslPubKey :: Serialization.PublicKey -> PublicKey
 mkFromCslPubKey = PublicKey <<< bytesFromPublicKey
 
-convertPubKey :: PublicKey -> S.PublicKey
+convertPubKey :: PublicKey -> Serialization.PublicKey
 convertPubKey (PublicKey bs) = unsafePartial $ fromJust <<< fromBytes <<< unwrap
   $ bs
 
@@ -852,10 +852,10 @@ mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
 mkEd25519Signature = map (Ed25519Signature <<< wrap <<< toBytes <<< asOneOf) <<<
   ed25519SignatureFromBech32
 
-mkFromCslEd25519Signature :: S.Ed25519Signature -> Ed25519Signature
+mkFromCslEd25519Signature :: Serialization.Ed25519Signature -> Ed25519Signature
 mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< toBytes <<< asOneOf
 
-convertEd25519Signature :: Ed25519Signature -> S.Ed25519Signature
+convertEd25519Signature :: Ed25519Signature -> Serialization.Ed25519Signature
 convertEd25519Signature (Ed25519Signature bs) = unsafePartial
   $ fromJust <<< fromBytes <<< unwrap
   $ bs
