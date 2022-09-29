@@ -826,19 +826,12 @@ convertPubKey :: PublicKey -> Serialization.PublicKey
 convertPubKey (PublicKey bs) = unsafePartial $ fromJust <<< fromBytes <<< unwrap
   $ bs
 
--- avoid wrap and unwrap being used unsafely
-
--- derive instance Generic PublicKey _
--- derive instance Newtype PublicKey _
 derive newtype instance Eq PublicKey
 derive newtype instance Ord PublicKey
 derive newtype instance EncodeAeson PublicKey
 
 instance ToData PublicKey where
-  toData = toData <<< bytesFromPublicKey <<< convertPubKey
-
-{- unsafePartial $ fromJust <<<
-(map toData <<< bytesFromPublicKey <=< publicKeyFromBech32 <<< unwrap) -}
+  toData (PublicKey bytes) = toData bytes
 
 instance FromData PublicKey where
   fromData = map mkFromCslPubKey <<< fromBytes <=< fromData
@@ -860,7 +853,6 @@ convertEd25519Signature (Ed25519Signature bs) = unsafePartial
   $ fromJust <<< fromBytes <<< unwrap
   $ bs
 
--- derive instance Generic Ed25519Signature _
 derive newtype instance Eq Ed25519Signature
 derive newtype instance Ord Ed25519Signature
 derive newtype instance EncodeAeson Ed25519Signature
