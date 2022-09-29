@@ -1,4 +1,4 @@
-module Test.Plutip.UtxoDistribution
+module Test.Ctl.Plutip.UtxoDistribution
   ( ArbitraryUtxoDistr
   , assertContract
   , assertCorrectDistribution
@@ -36,13 +36,18 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
+import Ctl.Internal.Plutip.Types
+  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  )
+import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.List (fromFoldable) as List
-import Data.Map (isEmpty, empty, insert) as Map
+import Data.Map (empty, insert, isEmpty) as Map
 import Data.Maybe (isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
@@ -52,10 +57,8 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
-import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Plutus.Types.Transaction (UtxoMap)
-import Test.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
@@ -66,7 +69,6 @@ import Test.QuickCheck.Gen
   , resize
   , sized
   )
-import TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
 suite :: TestPlanM (Aff Unit) Unit
