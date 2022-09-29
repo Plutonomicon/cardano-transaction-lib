@@ -13,15 +13,13 @@ exports.zero = lib.BigNum.zero();
 
 exports.one = lib.BigNum.one();
 
-const add = (a, b) => {
-  return a + b;
-};
+const add = (a, b) => a + b;
 
-const mul = (a, b) => {
-  return a * b;
-};
+const mul = (a, b) => a * b;
 
-const check_limit_with_func = (a, b, limit, func) => {
+const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
+
+const checkLimitWithFunc = (a, b, limit, func) => {
   const r = func(a, b);
   if (r < limit) {
     return r;
@@ -30,7 +28,7 @@ const check_limit_with_func = (a, b, limit, func) => {
   }
 };
 
-const check_limit = (str, limit) => {
+const checkLimit = (str, limit) => {
   if (0 <= BigInt(str) && BigInt(str) < limit) {
     return BigInt(str);
   } else {
@@ -42,12 +40,12 @@ exports.bnAdd = maybe => lhs => rhs => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit_with_func(
-      lhs.to_str(),
-      rhs.to_str(),
-      BigInt("18446744073709551616"),
+    checkLimitWithFunc(
+      BigInt(lhs.to_str()),
+      BigInt(rhs.to_str()),
+      bigNumLimit,
       add
-    ); // 2 ^ 64
+    );
     return maybe.just(lhs.checked_add(rhs));
   } catch (_) {
     return maybe.nothing;
@@ -58,12 +56,12 @@ exports.bnMul = maybe => lhs => rhs => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit_with_func(
-      lhs.to_str(),
-      rhs.to_str(),
-      BigInt("18446744073709551616"),
+    checkLimitWithFunc(
+      BigInt(lhs.to_str()),
+      BigInt(rhs.to_str()),
+      bigNumLimit,
       mul
-    ); // 2 ^ 64
+    );
     return maybe.just(lhs.checked_mul(rhs));
   } catch (_) {
     return maybe.nothing;
@@ -74,7 +72,7 @@ exports._fromString = maybe => str => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit(str, BigInt("18446744073709551616")); //2 ^ 64
+    checkLimit(str, bigNumLimit);
     return maybe.just(lib.BigNum.from_str(str));
   } catch (_) {
     return maybe.nothing;

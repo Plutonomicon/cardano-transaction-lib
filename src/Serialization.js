@@ -11,6 +11,10 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 
 exports.hashTransaction = body => () => lib.hash_transaction(body);
 
+const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
+
+const bigNumLimitNeg = BigInt("-18446744073709551615");
+
 const check_limit = (num, lower_limit, upper_limit) => {
   if (lower_limit <= num && num < upper_limit) {
     return num;
@@ -23,7 +27,7 @@ exports.newBigNum = maybe => string => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit(BigInt(string), BigInt("0"), BigInt("18446744073709551616")); // 2 ^ 64
+    check_limit(BigInt(string), BigInt("0"), bigNumLimit);
     return maybe.just(lib.BigNum.from_str(string));
   } catch (_) {
     return maybe.nothing;
@@ -110,6 +114,7 @@ exports._publicKeyFromBech32 = maybe => bech32 => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
+// if (/^ed25519_pk1[0-9a-z]+$/.test(bech32) && bech32.length == 32*8/4+"ed25519_pk1".length ) {
     if (/^ed25519_pk1[0-9a-z]+$/.test(bech32)) {
       return maybe.just(lib.PublicKey.from_str(bech32));
     } else {
@@ -119,6 +124,9 @@ exports._publicKeyFromBech32 = maybe => bech32 => {
     return maybe.nothing;
   }
 };
+
+console.log(32*8/4+"ed25519_pk1".length);
+console.log("ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e".length);
 
 exports.publicKeyFromPrivateKey = private_key => () => {
   return private_key.to_public();
@@ -196,9 +204,15 @@ exports._bigIntToInt = maybe => bigInt => {
     const str = bigInt.to_str();
     check_limit(
       BigInt(str),
-      BigInt("-18446744073709551615"),
-      BigInt("18446744073709551616")
-    ); // 2 ^ 64
+      bigNumLimitNeg,
+      bigNumLimit
+    );
+    // check_limit(
+    //     bigInt,
+    //     BigInt("-18446744073709551615"),
+    //     BigInt("18446744073709551616")
+    // ); // 2 ^ 64
+    // const str = bigInt.to_str();
     if (str[0] == "-") {
       return maybe.just(
         lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))

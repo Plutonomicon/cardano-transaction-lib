@@ -121,7 +121,7 @@ suite = do
       test "BigNum ok" $ do
         let bn = "18446744073709551615"
         newBigNum maybeFfiHelper bn `shouldSatisfy` isJust
-      test "BigNum owerflow" $ do
+      test "BigNum overflow" $ do
         let bn' = "18446744073709551616"
         newBigNum maybeFfiHelper bn' `shouldSatisfy` isNothing
       test "BigNum negative" $ do
