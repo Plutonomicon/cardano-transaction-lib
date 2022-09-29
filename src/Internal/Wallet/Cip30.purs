@@ -19,10 +19,9 @@ import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address (Address, addressFromBytes, baseAddressBech32, baseAddressFromAddress)
-import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
-import Ctl.Internal.Types.RawBytes (RawBytes(..), hexToRawBytes, rawBytesToHex)
+import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -237,5 +236,3 @@ foreign import _signData
   -> String -- Hex-encoded data
   -> Cip30Connection
   -> Effect (Promise String)
-
-
