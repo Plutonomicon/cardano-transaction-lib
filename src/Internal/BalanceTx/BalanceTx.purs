@@ -11,7 +11,6 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
-import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
@@ -65,8 +64,10 @@ import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
   , PrebalancedTransaction(PrebalancedTransaction)
+  , askCip30Wallet
   , askCoinsPerUtxoUnit
-  , askConstraints
+  , askNetworkId
+  , asksConstraints
   , liftEitherQueryM
   , liftQueryM
   , withBalanceTxConstraints
@@ -112,14 +113,13 @@ import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
-import Ctl.Internal.Wallet (cip30Wallet)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (toArray) as NEArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable (foldMap, foldl, foldr)
-import Data.Lens.Getter (view, (^.))
+import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
 import Data.Map (empty, filterKeys, lookup, toUnfoldable, union) as Map
@@ -151,10 +151,9 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx =
         liftEitherQueryM $
           QueryM.getWalletAddresses <#> note CouldNotGetWalletAddresses
 
-    constraints <- askConstraints
-
     ownAddrs <-
-      maybe getWalletAddresses pure (constraints ^. Constraints._ownAddresses)
+      maybe getWalletAddresses pure
+        =<< asksConstraints Constraints._ownAddresses
 
     changeAddr <- liftMaybe CouldNotGetWalletAddresses $ Array.head ownAddrs
 
@@ -167,10 +166,9 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx =
       case Array.null (unbalancedTx ^. _redeemersTxIns) of
         true ->
           -- Don't set collateral if tx doesn't contain phase-2 scripts:
-          liftQueryM unbalancedTxWithNetworkId
+          unbalancedTxWithNetworkId
         false ->
-          setTransactionCollateral changeAddr
-            =<< liftQueryM unbalancedTxWithNetworkId
+          setTransactionCollateral changeAddr =<< unbalancedTxWithNetworkId
     let
       allUtxos :: UtxoMap
       allUtxos =
@@ -186,12 +184,10 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx =
     runBalancer availableUtxos changeAddr
       (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
-  unbalancedTxWithNetworkId :: QueryM Transaction
+  unbalancedTxWithNetworkId :: BalanceTxM Transaction
   unbalancedTxWithNetworkId = do
     let transaction = unbalancedTx ^. _transaction'
-    networkId <-
-      transaction ^. _body <<< _networkId #
-        maybe (asks $ _.networkId <<< _.config) pure
+    networkId <- maybe askNetworkId pure (transaction ^. _body <<< _networkId)
     pure (transaction # _body <<< _networkId ?~ networkId)
 
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
@@ -200,12 +196,9 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx =
       liftEitherQueryM $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
     -- Don't mess with Cip30 collateral
-    isCip30 <- asks $ (_.runtime >>> _.wallet >=> cip30Wallet) >>> isJust
+    isCip30 <- isJust <$> askCip30Wallet
     if isCip30 then pure collaterisedTx
-    else addTxCollateralReturn
-      collateral
-      collaterisedTx
-      changeAddr
+    else addTxCollateralReturn collateral collaterisedTx changeAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -340,8 +333,7 @@ genTransactionChangeOutputs changeAddress utxos tx = do
         , scriptRef: Nothing
         }
 
-  constraints <- askConstraints
-  case (constraints ^. Constraints._maxChangeOutputTokenQuantity) of
+  asksConstraints Constraints._maxChangeOutputTokenQuantity >>= case _ of
     Nothing ->
       Array.singleton <$>
         addLovelacesToTransactionOutput (mkChangeOutput changeValue)
@@ -393,8 +385,7 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
   txChangeOutputs <-
     genTransactionChangeOutputs changeAddress utxos unbalancedTx
 
-  nonSpendableInputs <-
-    askConstraints <#> view Constraints._nonSpendableInputs
+  nonSpendableInputs <- asksConstraints Constraints._nonSpendableInputs
 
   let
     changeValue :: Value

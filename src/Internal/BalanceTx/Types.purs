@@ -3,8 +3,10 @@ module Ctl.Internal.BalanceTx.Types
   , BalanceTxMContext
   , FinalizedTransaction(FinalizedTransaction)
   , PrebalancedTransaction(PrebalancedTransaction)
+  , askCip30Wallet
   , askCoinsPerUtxoUnit
-  , askConstraints
+  , askNetworkId
+  , asksConstraints
   , liftEitherQueryM
   , liftQueryM
   , withBalanceTxConstraints
@@ -13,7 +15,8 @@ module Ctl.Internal.BalanceTx.Types
 import Prelude
 
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
-import Control.Monad.Reader.Trans (asks, withReaderT)
+import Control.Monad.Reader.Class (asks)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints
@@ -24,55 +27,58 @@ import Ctl.Internal.BalanceTx.Constraints
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
-import Ctl.Internal.QueryM
-  ( DefaultQueryEnv
-  , QueryEnv
-  , QueryM
-  , QueryMExtended(QueryMExtended)
-  )
-import Ctl.Internal.QueryM (liftQueryM) as QueryM
+import Ctl.Internal.QueryM (QueryEnv, QueryM)
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Wallet (Cip30Wallet, cip30Wallet)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, over, unwrap)
+import Data.Lens (Lens')
+import Data.Lens.Getter (view)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
-import Effect.Aff (Aff)
 
-type BalanceTxMContext = (constraints :: BalanceTxConstraints)
+type BalanceTxMContext = { constraints :: BalanceTxConstraints }
 
 type BalanceTxM (a :: Type) =
-  ExceptT BalanceTxError (QueryMExtended BalanceTxMContext Aff) a
-
-askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
-askCoinsPerUtxoUnit =
-  asks (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.runtime)
-
-askConstraints :: BalanceTxM BalanceTxConstraints
-askConstraints = asks (_.constraints <<< _.extraConfig)
+  ExceptT BalanceTxError (ReaderT BalanceTxMContext QueryM) a
 
 liftQueryM :: forall (a :: Type). QueryM a -> BalanceTxM a
-liftQueryM = lift <<< QueryM.liftQueryM
+liftQueryM = lift <<< lift
 
 liftEitherQueryM
   :: forall (a :: Type). QueryM (Either BalanceTxError a) -> BalanceTxM a
-liftEitherQueryM = ExceptT <<< QueryM.liftQueryM
+liftEitherQueryM = ExceptT <<< lift
+
+asksConstraints
+  :: forall (a :: Type). Lens' BalanceTxConstraints a -> BalanceTxM a
+asksConstraints l = asks (view l <<< _.constraints)
+
+asksQueryEnv :: forall (a :: Type). (QueryEnv () -> a) -> BalanceTxM a
+asksQueryEnv = lift <<< lift <<< asks
+
+askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
+askCoinsPerUtxoUnit =
+  asksQueryEnv (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.runtime)
+
+askCip30Wallet :: BalanceTxM (Maybe Cip30Wallet)
+askCip30Wallet = asksQueryEnv (cip30Wallet <=< _.wallet <<< _.runtime)
+
+askNetworkId :: BalanceTxM NetworkId
+askNetworkId = asksQueryEnv (_.networkId <<< _.config)
 
 withBalanceTxConstraints
   :: forall (a :: Type)
    . BalanceTxConstraintsBuilder
-  -> QueryMExtended BalanceTxMContext Aff a
+  -> ReaderT BalanceTxMContext QueryM a
   -> QueryM a
 withBalanceTxConstraints constraintsBuilder =
-  over QueryMExtended (withReaderT setQueryEnv)
+  flip runReaderT { constraints }
   where
-  setQueryEnv :: DefaultQueryEnv -> QueryEnv BalanceTxMContext
-  setQueryEnv defaultEnv =
-    let
-      constraints :: BalanceTxConstraints
-      constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
-    in
-      defaultEnv { extraConfig = { constraints } }
+  constraints :: BalanceTxConstraints
+  constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
 
 newtype FinalizedTransaction = FinalizedTransaction Transaction
 
