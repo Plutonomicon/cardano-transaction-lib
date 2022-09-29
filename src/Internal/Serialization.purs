@@ -18,6 +18,8 @@ module Ctl.Internal.Serialization
   , module Ctl.Internal.Serialization.ToBytes
   ) where
 
+import Prelude
+
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef
       ( NativeScriptRef
@@ -494,19 +496,19 @@ convertTxBody (T.TxBody body) = do
   for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
   for_ body.auxiliaryDataHash
     $ unwrap
-    >>> transactionBodySetAuxiliaryDataHash txBody
+        >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval
     $ unwrap
-    >>> BigNum.toString
-    >>> BigNum.fromStringUnsafe
-    >>>
-      transactionBodySetValidityStartInterval txBody
+        >>> BigNum.toString
+        >>> BigNum.fromStringUnsafe
+        >>>
+          transactionBodySetValidityStartInterval txBody
   for_ body.requiredSigners
     $ map unwrap
-    >>> transactionBodySetRequiredSigners containerHelper txBody
+        >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.auxiliaryDataHash
     $ unwrap
-    >>> transactionBodySetAuxiliaryDataHash txBody
+        >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash
@@ -516,16 +518,17 @@ convertTxBody (T.TxBody body) = do
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   for_ body.requiredSigners
     $ map unwrap
-    >>> transactionBodySetRequiredSigners containerHelper txBody
+        >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.collateralReturn $ convertTxOutput >=> setTxBodyCollateralReturn
     txBody
   for_ body.totalCollateral
-    $ unwrap
-    >>> BigNum.fromBigInt
-    >>> fromJustEff "Failed to convert fee"
-    >=>
-      setTxBodyTotalCollateral txBody
+    $
+      unwrap
+        >>> BigNum.fromBigInt
+        >>> fromJustEff "Failed to convert fee"
+        >=>
+          setTxBodyTotalCollateral txBody
   if Foldable.null body.referenceInputs then pure unit
   else convertTxInputs body.referenceInputs >>= setTxBodyReferenceInputs txBody
   pure txBody
@@ -587,36 +590,38 @@ convertProtocolParamUpdate
   ppu <- newProtocolParamUpdate
   for_ minfeeA $ ppuSetMinfeeA ppu
     <=< fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
-    <<< BigNum.fromBigInt
-    <<< unwrap
+      <<< BigNum.fromBigInt
+      <<< unwrap
   for_ minfeeB $ ppuSetMinfeeB ppu
     <=< fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
-    <<< BigNum.fromBigInt
-    <<< unwrap
+      <<< BigNum.fromBigInt
+      <<< unwrap
   for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
   for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
   for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
   for_ keyDeposit $ ppuSetKeyDeposit ppu
-    <=< fromJustEff
-      "convertProtocolParamUpdate: key_deposit must not be negative"
-    <<< BigNum.fromBigInt
-    <<< unwrap
+    <=<
+      fromJustEff
+        "convertProtocolParamUpdate: key_deposit must not be negative"
+        <<< BigNum.fromBigInt
+        <<< unwrap
   for_ poolDeposit $ ppuSetPoolDeposit ppu
-    <=< fromJustEff
-      "convertProtocolParamUpdate: pool_deposit must not be negative"
-    <<< BigNum.fromBigInt
-    <<< unwrap
+    <=<
+      fromJustEff
+        "convertProtocolParamUpdate: pool_deposit must not be negative"
+        <<< BigNum.fromBigInt
+        <<< unwrap
   for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
   for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
   for_ poolPledgeInfluence
     $ mkUnitInterval
-    >=> ppuSetPoolPledgeInfluence ppu
+        >=> ppuSetPoolPledgeInfluence ppu
   for_ expansionRate
     $ mkUnitInterval
-    >=> ppuSetExpansionRate ppu
+        >=> ppuSetExpansionRate ppu
   for_ treasuryGrowthRate
     $ mkUnitInterval
-    >=> ppuSetTreasuryGrowthRate ppu
+        >=> ppuSetTreasuryGrowthRate ppu
   for_ protocolVersion \pv ->
     ppuSetProtocolVersion ppu =<<
       newProtocolVersion (UInt.toInt pv.major)
@@ -793,7 +798,7 @@ convertTxOutput
           (convertPlutusData $ unwrap datumValue)
   for_ scriptRef
     $ convertScriptRef
-    >=> transactionOutputSetScriptRef txo
+        >=> transactionOutputSetScriptRef txo
   pure txo
 
 convertScriptRef :: T.ScriptRef -> Effect ScriptRef
