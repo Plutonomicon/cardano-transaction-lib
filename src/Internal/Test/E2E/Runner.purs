@@ -520,8 +520,8 @@ createTmpDir mbOptionsTmpDir browser = do
     if isBrowserFromSnap then do
       liftEffect $ throw $
         "Your browser is installed from Snap store: " <> realPath
-          <> ". Because of that it can't access temporary directory. Please "
-          <> "provide E2E_TMPDIR variable or use --tmp-dir CLI argument"
+          <> ". Because of that it can't access the temporary directory. Please"
+          <> " provide E2E_TMPDIR variable or use --tmp-dir CLI argument"
     else do
       prefix <- execAndCollectOutput "mktemp -d"
       void $ execAndCollectOutput $ "mkdir -p " <> prefix <> "/" <> uniqPart

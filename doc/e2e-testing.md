@@ -2,18 +2,19 @@
 
 CTL comes with advanced machinery for E2E testing in the browser, which can be used to either run the included examples (in `examples`) or create a custom test suite for E2E testing.
 
-- [E2E Testing in the Browser](#e2e-testing-in-the-browser)
 - [Parts Involved](#parts-involved)
 - [How to Run the Included Examples](#how-to-run-the-included-examples)
-- [Accepted Command Line Options](#accepted-command-line-options)
 - [How Wallets are Used](#how-wallets-are-used)
-  - [How to Use a Different Version of a Wallet](#how-to-use-a-different-version-of-a-wallet)
-  - [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
-  - [Re-Package an Extension as a CRX File](#re-package-an-extension-as-a-crx-file)
-  - [Use a CRX File](#use-a-crx-file)
-  - [How to Use a Different User Wallet](#how-to-use-a-different-user-wallet)
-- [How to Create Your Own Test Suite](#how-to-create-your-own-test-suite)
-- [Using a reproducible `chromium` version](#using-a-reproducible-chromium-version)
+  * [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
+  * [How to Use a Different User Wallet](#how-to-use-a-different-user-wallet)
+- [Using a reproducible `chromium` version](#using-a-reproducible--chromium--version)
+- [Configuring E2E test suite](#configuring-e2e-test-suite)
+- [Creating a custom test suite](#creating-a-custom-test-suite)
+  * [How to configure the wallet](#how-to-configure-the-wallet)
+  * [Re-Packing an Extension as a CRX File](#re-packing-an-extension-as-a-crx-file)
+  * [Getting the extension ID](#getting-the-extension-id)
+  * [Using custom unauthorized extensions](#using-custom-unauthorized-extensions)
+  * [Serving the Contract to be tested](#serving-the-contract-to-be-tested)
 
 ## Parts Involved
 
@@ -23,37 +24,25 @@ The browser can be run headless (default) or headful (useful during test develop
 
 Any programs that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `make run-dev`). The test suite accepts a list of URLs.
 
-An executable for particular tests is also needed. For a working example see `test/E2E.purs`. It can be run conveniently using `./test/ctl-e2e-test.sh`.
+The test suite requires a set of CRX (chrome extension) files, as well as an archive with user settings.
+
+Each extension should be provided with its extension ID and wallet password.
+
+For a working example see `test/E2E.purs`. It can be run conveniently using `npm run e2e-test`.
 
 ## How to Run the Included Examples
 
 The process is as follows:
 
-1. Set `ps-entrypoint` in Makefile to `Examples.ByURL`.
-2. run `make run-dev`.
-3. In another shell, run `./test/ctl-e2e-test.sh run`.
-4. Examples will be run headless by default (pass `--no-headless` to inspect the browser window). In case of errors, the browser console output will be printed to the shell.
-
-## Accepted Command Line Options
-
-The provided test suite accepts some options. Run `./test/ctl-e2e-test.sh` for help. `run` command passes provided argument to the PS program. For a complete explanation, see `src/Contract/Test/E2E/Browser.purs`.
+1. run `make run-dev`.
+2. In another shell, run `npm run e2e-test`.
 
 ## How Wallets are Used
 
-For purposes of testing, there are two parts to using a wallet: providing the right software version and importing a wallet with enough assets and a known password.
+For purposes of testing, there are two parts to using a wallet: providing the right software version and importing a wallet with enough tAda and a known password.
 
 - The software just needs to be unpacked to some directory. This can either be the location where the browser unpacks it, or the result of unpacking a CRX file (see below).
-- We provide the wallet data as a single tarball which will be unpacked into the chrome profile before a test run.
-
-### How to Use a Different Version of a Wallet
-
-Chrome extensions are unpacked to some directory by the browser. From there, they can either be used directly by the tests (which gives no control over upgrades and instead uses always the current version), or they can be repackaged as CRX files. The default setup provides CRX versions which the script automatically unpacks on each test run.
-
-The default test suite accepts the arguments of form `--nami-dir`, `--gero-dir`, etc., to point to the directories from which the extensions are loaded. In order to use the "live" version of an extension, just pass the arguments accordingly, e.g.:
-
-```
-@spago test --main Test.E2E -a "E2ETest --nami-dir ~/.config/google-chrome/Default/Extensions/lpfcbjknijpeeillifnkikgncikgfhdo/ --gero-dir ~/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc --chrome-exe google-chome
-```
+- We provide the wallet data as a single tarball which will be unpacked into the chrome profile before a test run (`test-data/settings.tar.gz`)
 
 ### Where to Find the Installed Extensions
 
@@ -61,46 +50,16 @@ The default test suite accepts the arguments of form `--nami-dir`, `--gero-dir`,
 2. Make sure that inside the profile, your desired extension is unpacked. Nami should be in `Extensions/lpfcbjknijpeeillifnkikgncikgfhdo`, Gero (testnet version) in `Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc`.
 3. Add the version as a subdirectory, too. The final path may look like `/home/user/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc/1.10.9_0`
 
-### Re-Package an Extension as a CRX File
-
-1. Make sure your browser is using the desired extension version.
-2. Navigate to chrome://extensions/
-3. Click the extension.
-4. Switch on "Developer mode" (upper right corner).
-5. Click "Pack extension".
-6. Paste the extension's directory (see above) into "Extension root directory". You can leave "Private key file" empty.
-7. Click "Pack extension".
-8. The path of the CRX file is displayed in the browser.
-
-(See [puppeteer-crx](https://www.npmjs.com/package/puppeteer-crx) for an effort to automate this process.)
-
-### Use a CRX File
-
-We use `unzip` to unpack it. However, `unzip` will issue a warning because of extra bytes at the beginning, and will exit with a non-zero code, so the exit code needs to be ignored. (we use `|| echo to achieve that`).
-
 ### How to Use a Different User Wallet
 
 In the test suite, the wallet settings are just unpacked using `tar`.
 
 A new settings tarball can be easily created:
 
-1. Run the browser with `./test/ctl-e2e-test.sh browser`
+1. Run the browser with `npm run e2e-browser`
 2. Set up a wallet extension, create and fund the wallet, and set the collateral.
 3. Close the browser.
-4. Run the script with `pack` argument. The file located at `test-data/settings.tar.gz` will be updated.
-
-## How to Create Your Own Test Suite
-
-If you are using CTL as a library, you can and should create your own test suite to test your own contracts.
-
-1. Take `test/E2E.purs` as inspiration and create your own binary. You will find the necessary machinery in `Contract.Test.E2E`. Notable components:
-   - `withBrowser`: bracket to launch the browser with a specific extension, run something and clos the browser.
-   - `parseOptions`: Parses command line options, in case you want to use the same as our example suite.
-   - `publishTestFeedback`, `resetTestFeedback`, `retrieveTestFeedback`: Can be used to communicate success or failure from a contract to the tests.
-   - `geroConfirmAccess`, `geroSign`, `namiConfirmAccess`, `namiSign`: Confirm a transaction in the browser (i.e. enter the password, click "Sign")
-   - `withExample`: navigate to a URL, detect the wallet and get ready to run a contract.
-2. Fire up your own contracts.
-3. Take the `Makefile` as an inspiration, prepare your wallets and run the tests.
+4. Run `npm run e2e-pack-settings`. The file located at `test-data/settings.tar.gz` will be updated.
 
 ## Using a reproducible `chromium` version
 
@@ -123,20 +82,6 @@ Although most users will have some version of Chromium or Google Chrome installe
     };
 }
 ```
-
-## Using custom unauthorized extensions
-
-If an extension is not published on Chrome Web Store, it may not have a stable ID. Look into `manifest.json` `key` property to check - if it is not present, the ID will change on each reload, which makes automation impossible.
-
-To freeze the ID, first unpack the `.crx` archive, load the extension unpacked (in developer mode), and then pack it back. It will give you a new `.crx` as well as a `.pem` file with the same name. The ID can now be derived from this key using this command:
-
-```
-openssl rsa -in key.pem -pubout -outform DER | openssl base64 -A
-```
-
-Unarchive the CRX, put the encoded public key to `key` property of `manifest.json` file, and archive the directory back. You can then reload the browser multiple times and the ID will remain the same.
-
-[More on extension IDS](https://stackoverflow.com/questions/37317779/making-a-unique-extension-id-and-key-for-chrome-extension)
 
 ## Configuring E2E test suite
 
@@ -167,3 +112,74 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | Gero CRX file                     | `--gero-crx`                | `GERO_CRX`             |
 | Gero password                     | `--gero-password`           | `GERO_PASSWORD`        |
 | Gero Extension ID                 | `--gero-extid`              | `GERO_EXTID`           |
+
+The default configuration can be found in `test/e2e.env`.
+
+## Creating a custom test suite
+
+In order to test your own application while using CTL as a library, some extra steps need to be performed.
+
+### How to configure the wallet
+
+Since E2E tests are executed on one of the public testnets, some setup is needed to allow spending funds from the testnet.
+
+1. Run `npm run e2e-browser`.
+2. Install the needed extension
+3. Click through the wallet setup interface, use the [testnet faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) to fund your address, and set the collateral.
+4. Now, **without running the browser again**, execute `npm run e2e-pack-settings`.
+
+As a result, you will get a settings archive with the wallet in a particular state.
+
+### Re-Packing an Extension as a CRX File
+
+While some wallets, like Eternl, provide a single extension that works with `preprod`, `preview` and `mainnet`, others (e.g. Lode) are distributed separately for each of the testnets.
+
+If you need to use `preprod` instead of `preview`, perform the following steps to get the `.crx` file:
+
+1. Make sure your browser is using the desired extension version.
+2. Navigate to chrome://extensions/
+3. Click the extension.
+4. Switch on "Developer mode" (upper right corner).
+5. Click "Pack extension".
+6. Paste the extension's directory (see above) into "Extension root directory". You can leave "Private key file" empty.
+7. Click "Pack extension".
+8. The path of the CRX file is displayed in the browser.
+
+### Getting the extension ID
+
+After packing the extension, the test suite must be provided with its ID.
+
+1. Open list of extensions in the browser settings
+2. Enable Developer Mode (top-right corner)
+3. The IDs will become visible
+
+### Using custom unauthorized extensions
+
+However, the approach above only works for extensions installed directly from Chrome Web Store.
+
+If an extension is not published on Chrome Web Store (e.g. it's a custom or private build), it may not have a stable ID. Look into `manifest.json` `key` property to check - if it is not present, the ID will change on each reload, which makes automation impossible.
+
+To freeze the ID, first unpack the `.crx` archive, load the extension unpacked (in developer mode), and then pack it back. It will give you a new `.crx` as well as a `.pem` file with the same name. The ID can now be derived from this key using this command:
+
+```bash
+openssl rsa -in key.pem -pubout -outform DER | openssl base64 -A
+```
+
+Unarchive the CRX, put the encoded public key to `key` property of `manifest.json` file, and archive the directory back. You can then reopen the browser and the ID will remain the same.
+
+[More on extension IDS](https://stackoverflow.com/questions/37317779/making-a-unique-extension-id-and-key-for-chrome-extension)
+
+### Serving the Contract to be tested
+
+The test suite accepts URLs, which means that the Contract you want to test must be served.
+
+It's up to the user how to set up the web server (see `make run-dev` for an example), but in order for the testing engine to "see" the contract, the configuration parameters must be changed:
+
+```purescript
+runContract config { hooks = Contract.Test.E2E.e2eFeedbackHooks } do
+  ...
+```
+
+Hooks are a special feature that allows to run arbitrary code during various stages of `Contract` execution. `e2eFeedbackHooks` notify the engine of wallet actions that can be triggered while the `Contract` is running, for example, when an extension pop-up appears. The testing engine can react to that by issuing commands to interact with the wallet UI, e.g. to enter the password and click "sign".
+
+Note that the test closes successfully after the first successful `Contract` execution, so if your scenario involves multiple `Contract`s, remove `onSuccess` hooks from every `Contract` except the last one, or manually run `e2eFeedbackHooks.onSuccess` (it's just an `Effect` action).
