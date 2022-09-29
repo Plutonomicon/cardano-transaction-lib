@@ -81,7 +81,6 @@ import Test.Ctl.Fixtures
 import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
-import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -104,7 +103,7 @@ suite = do
           cslPd <-
             errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
               SPD.convertPlutusData ctlPd
-          let pdBytes = unwrap $ Serialization.toBytes (asOneOf cslPd)
+          let pdBytes = unwrap $ Serialization.toBytes cslPd
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
             pdBytes
           ctlPd' <-
@@ -225,7 +224,7 @@ suite = do
           ws1 <- liftEffect $ SW.convertWitnessSet ws0
           ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
           ws0 `shouldEqual` ws2 -- value representation
-          let wsBytes = unwrap $ Serialization.toBytes (asOneOf ws1)
+          let wsBytes = unwrap $ Serialization.toBytes ws1
           wsBytes `shouldEqual` fixture -- byte representation
       test "fixture #1" $ witnessSetRoundTrip witnessSetFixture1
       test "fixture #2" $ witnessSetRoundTrip witnessSetFixture2
@@ -245,7 +244,7 @@ createUnspentOutput input output = do
 testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
   serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
-  let bytes = Serialization.toBytes (asOneOf serialized)
+  let bytes = Serialization.toBytes serialized
   res <- errMaybe "Failed deserialization" $ fromBytes (unwrap bytes)
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input

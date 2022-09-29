@@ -255,7 +255,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, throw)
 import Prim.TypeError (class Warn, Text)
-import Untagged.Union (asOneOf)
 
 -- | This module defines transaction-related requests. Currently signing and
 -- | submission is done with Nami.
@@ -296,7 +295,7 @@ submitE tx = do
   cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
   let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
-  let txCborBytes = Serialization.toBytes $ asOneOf cslTx
+  let txCborBytes = Serialization.toBytes cslTx
   result <- wrapContract $
     QueryM.submitTxOgmios (unwrap $ unwrap txHash) txCborBytes
   pure $ case result of

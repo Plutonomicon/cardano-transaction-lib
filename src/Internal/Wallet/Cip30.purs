@@ -35,7 +35,6 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Untagged.Union (asOneOf)
 
 -- Please update Cip30Mock when you add or remove methods in this handle.
 type Cip30Wallet =
@@ -82,7 +81,7 @@ mkCip30WalletAff walletName enableWallet = do
 txToHex :: Transaction -> Aff String
 txToHex =
   liftEffect
-    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes <<< asOneOf)
+    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
     <<< Serialization.convertTransaction
 
 getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))

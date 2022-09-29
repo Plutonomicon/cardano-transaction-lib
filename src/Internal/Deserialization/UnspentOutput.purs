@@ -69,7 +69,6 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
-import Untagged.Union (asOneOf)
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
@@ -83,7 +82,7 @@ convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
     { transactionId: T.TransactionHash $ toBytes
-        (asOneOf $ getTransactionHash input)
+        (getTransactionHash input)
     , index
     }
 
@@ -94,7 +93,7 @@ convertOutput output = do
     address = getAddress output
     mbDataHash =
       getDataHash maybeFfiHelper output <#>
-        asOneOf >>> toBytes >>> T.DataHash
+        toBytes >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail

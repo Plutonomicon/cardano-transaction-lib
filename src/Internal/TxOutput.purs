@@ -42,7 +42,6 @@ import Ctl.Internal.Types.UnbalancedTransaction as UTx
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
-import Untagged.Union (asOneOf)
 
 -- | A module for helpers of the various transaction output types.
 
@@ -193,7 +192,7 @@ datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap <<< unwrap
 datumToOgmiosDatum :: Datum -> Maybe String
 datumToOgmiosDatum (Datum plutusData) =
   Serialization.convertPlutusData plutusData <#>
-    (asOneOf >>> toBytes >>> unwrap >>> byteArrayToHex)
+    (toBytes >>> unwrap >>> byteArrayToHex)
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
 toOutputDatum d dh =

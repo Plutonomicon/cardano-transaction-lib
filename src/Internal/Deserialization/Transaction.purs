@@ -209,7 +209,6 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant)
 import Type.Row (type (+))
-import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
@@ -297,7 +296,7 @@ convertTxBody txBody = do
     , withdrawals
     , update
     , auxiliaryDataHash:
-        T.AuxiliaryDataHash <<< toBytes <<< asOneOf <$>
+        T.AuxiliaryDataHash <<< toBytes <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
@@ -322,7 +321,7 @@ convertUpdate u = do
   epoch <- map T.Epoch $ cslNumberToUInt "convertUpdate: epoch" e
   ppus <- traverse
     ( bitraverse
-        (pure <<< T.GenesisHash <<< toBytes <<< asOneOf)
+        (pure <<< T.GenesisHash <<< toBytes)
         convertProtocolParamUpdate
     )
     paramUpdates
@@ -345,9 +344,9 @@ convertCertificate = _convertCert certConvHelper
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         pure $ T.GenesisKeyDelegation
-          { genesisHash: T.GenesisHash $ toBytes $ asOneOf genesisHash
+          { genesisHash: T.GenesisHash $ toBytes genesisHash
           , genesisDelegateHash: T.GenesisDelegateHash
-              (toBytes $ asOneOf genesisDelegateHash)
+              (toBytes genesisDelegateHash)
           , vrfKeyhash: vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
@@ -656,7 +655,7 @@ convertExUnits nm cslExunits =
       <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
-convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
+convertScriptDataHash = toBytes >>> T.ScriptDataHash
 
 convertProtocolVersion
   :: forall (r :: Row Type)

@@ -54,7 +54,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Type.Proxy (Proxy(Proxy))
-import Untagged.Union (asOneOf)
 
 data WalletMock = MockFlint | MockGero | MockNami
 
@@ -132,7 +131,7 @@ mkCip30Mock pKey mSKey = do
   pure $
     { getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ byteArrayToHex $ unwrap $ toBytes (asOneOf address) ]
+          [ byteArrayToHex $ unwrap $ toBytes address ]
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -141,7 +140,7 @@ mkCip30Mock pKey mSKey = do
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
           collateralUtxos
-        pure $ byteArrayToHex <<< unwrap <<< toBytes <<< asOneOf <$>
+        pure $ byteArrayToHex <<< unwrap <<< toBytes <$>
           cslUnspentOutput
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
@@ -152,7 +151,7 @@ mkCip30Mock pKey mSKey = do
           $ cborBytesFromByteArray txBytes
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ unwrap $ toBytes $ asOneOf cslWitnessSet
+        pure $ byteArrayToHex $ unwrap $ toBytes cslWitnessSet
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -160,7 +159,7 @@ mkCip30Mock pKey mSKey = do
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
-        pure $ byteArrayToHex $ unwrap $ toBytes $ asOneOf value
+        pure $ byteArrayToHex $ unwrap $ toBytes value
     , getUtxos: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -176,7 +175,7 @@ mkCip30Mock pKey mSKey = do
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
-        pure $ byteArrayToHex <<< unwrap <<< toBytes <<< asOneOf <$> cslUtxos
+        pure $ byteArrayToHex <<< unwrap <<< toBytes <$> cslUtxos
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey

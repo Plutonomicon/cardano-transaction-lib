@@ -33,7 +33,6 @@ import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap, wrap)
-import Untagged.Union (asOneOf)
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 
@@ -59,7 +58,7 @@ datumHash =
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
-  wrap <<< wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< asOneOf <<<
+  wrap <<< wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<<
     _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash
