@@ -13,9 +13,9 @@ exports.hashTransaction = body => () => lib.hash_transaction(body);
 
 const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
 
-const bigNumLimitNeg = BigInt("-18446744073709551615");
+const bigNumLimitNeg = BigInt("-18446744073709551615"); // 2 ^ 64 - 1
 
-const check_limit = (num, lower_limit, upper_limit) => {
+const checkLimit = (num, lower_limit, upper_limit) => {
   if (lower_limit <= num && num < upper_limit) {
     return num;
   } else {
@@ -27,7 +27,7 @@ exports.newBigNum = maybe => string => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    check_limit(BigInt(string), BigInt("0"), bigNumLimit);
+    checkLimit(BigInt(string), BigInt("0"), bigNumLimit);
     return maybe.just(lib.BigNum.from_str(string));
   } catch (_) {
     return maybe.nothing;
@@ -204,8 +204,8 @@ exports._bigIntToInt = maybe => bigInt => {
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
     const str = bigInt.to_str();
-    check_limit(BigInt(str), bigNumLimitNeg, bigNumLimit);
-    // check_limit(
+    checkLimit(BigInt(str), bigNumLimitNeg, bigNumLimit);
+    // checkLimit(
     //     bigInt,
     //     BigInt("-18446744073709551615"),
     //     BigInt("18446744073709551616")
