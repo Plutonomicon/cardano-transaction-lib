@@ -2,7 +2,7 @@
 -- | non-zero denominator), potentially via cancellation of negative sign.
 module Contract.Numeric.NatRatio (module NatRatio) where
 
-import Types.NatRatio
+import Ctl.Internal.Types.NatRatio
   ( NatRatio
   , denominator
   , denominatorAsNat
