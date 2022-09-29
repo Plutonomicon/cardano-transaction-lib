@@ -150,7 +150,6 @@ import Ctl.Internal.Serialization.WitnessSet
   , convertWitnessSet
   )
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
