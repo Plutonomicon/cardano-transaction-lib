@@ -1,36 +1,36 @@
-module Examples.MultipleRedeemers (contract, main) where
+module Ctl.Examples.MultipleRedeemers (contract, main) where
 
 import Contract.Prelude
 
 import Aeson (decodeAeson, fromString)
-import Contract.Address (NetworkId(TestnetId), ownPaymentPubKeyHash, PaymentPubKeyHash)
+import Contract.Address (ownPaymentPubKeyHash, PaymentPubKeyHash)
 import Contract.Config (ConfigParams, testnetConfig, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, ContractEnv(..), defaultDatumCacheWsConfig, defaultOgmiosWsConfig, defaultServerConfig, launchAff_, liftContractAffM, liftContractM, liftedE, liftedM, runContract)
+import Contract.Monad (Contract, ContractEnv(..), launchAff_, liftContractM, liftedE, liftedM, runContract)
 import Contract.PlutusData (Redeemer(Redeemer), PlutusData(Integer), toData, unitDatum)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, validatorHash, MintingPolicy, ValidatorHash, PlutusScript, scriptHashAddress)
+import Contract.Scripts (Validator, MintingPolicy, ValidatorHash, PlutusScript, scriptHashAddress, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (TransactionHash, TransactionInput, balanceAndSignTx, submit)
+import Contract.TxConstraints (DatumPresence(..))
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoMap, utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, getCurrencySymbol, mkCurrencySymbol, mkTokenName, scriptCurrencySymbol)
+import Contract.Value (CurrencySymbol, TokenName, Value, mkTokenName, scriptCurrencySymbol)
 import Contract.Value as Value
 import Control.Monad.Reader.Trans (ask)
 import Data.Array (replicate)
-import Data.Bifunctor (lmap)
 import Data.BigInt (fromInt)
-import Data.Bitraversable (bisequence, bitraverse, ltraverse)
+import Data.Bifunctor(lmap)
+import Data.Bitraversable (ltraverse)
 import Data.Foldable (length, sum)
 import Data.Int (toNumber)
 import Data.Map as Map
 import Data.Set as Set
-import Effect.Aff (Aff, delay, Milliseconds(Milliseconds), error)
+import Effect.Aff (delay, Milliseconds(Milliseconds))
 
 -- | to run this, edit `ps-entrypoint` in the MakeFile
 main :: Effect Unit
---main = launchAff_ threeRedeemerContract
 main = example testnetNamiConfig
 
 type Configuration =
@@ -42,21 +42,21 @@ type Configuration =
   , policies :: Array (MintingPolicy /\ Redeemer)
   )
 
--- FIXME: this doesn't work without a browser
-contract :: Contract () Unit
-contract = do
-  logInfo' "Running Examples.MultipleRedeemers"
-
+-- Obtain minting policies and validators and generate the configuration
+-- for the contracts
+initialise :: Contract () (ConfigParams Configuration)
+initialise = do
+  _ :: PlutusScript <- liftedE <<< pure <<< decodeAeson <<< fromString $ "5601000022325333573466e1d2002001149858dd680101"
   (mp1' /\ mp2' /\ mp3') <- do
-    m1 <- liftM (error "Could not obtain MintingPolicy for Redeemer 1") mp1
-    m2 <- liftM (error "Could not obtain MintingPolicy for Redeemer 2") mp2
-    m3 <- liftM (error "Could not obtain MintingPolicy for Redeemer 3") mp3
+    m1 <- liftContractM "Could not obtain MintingPolicy for Redeemer 1" mp1
+    m2 <- liftContractM "Could not obtain MintingPolicy for Redeemer 2" mp2
+    m3 <- liftContractM "Could not obtain MintingPolicy for Redeemer 3" mp3
     pure $ m1 /\ m2 /\ m3
 
   (red1 /\ red2 /\ red3) <- do
-    r1 <- liftM (error "Could not obtain Validator for 1") isRedeemedBy1Script
-    r2 <- liftM (error "Could not obtain Validator for 2") isRedeemedBy2Script
-    r3 <- liftM (error "Could not obtain Validator for 3") isRedeemedBy3Script
+    r1 <- liftContractM "Could not obtain Validator for 1" isRedeemedBy1Script
+    r2 <- liftContractM "Could not obtain Validator for 2" isRedeemedBy2Script
+    r3 <- liftContractM "Could not obtain Validator for 3" isRedeemedBy3Script
     pure $ r1 /\ r2 /\ r3
 
   let
@@ -78,15 +78,19 @@ contract = do
           ]
       }
 
-    cfg :: ConfigParams Configuration
-    cfg = testnetConfig { extraConfig = configuration }
+  pure $ testnetConfig { extraConfig = configuration }
 
-  hash <- runContract cfg createTokens
+-- FIXME: this doesn't work without a browser
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.MultipleRedeemers"
+  cfg :: ConfigParams Configuration <- initialise
 
-  log $ "Created utxos with transactionhash " <> show hash
-  log "Going on with spending scriptoutputs from previous transaction"
-
-  void $ runContract cfg $ spendTokens hash
+  liftAff <<< runContract cfg $ do
+      hash <- createTokens
+      logInfo' $ "Created utxos with transactionhash " <> show hash
+      logInfo' "Going on with spending scriptoutputs from previous transaction"
+      spendTokens hash
 
 -- | At each script we lock n of each tokens, contained in single utxos 
 -- | For each of the CurrencySymbols we mint a value with a correspnding redeemer
@@ -114,8 +118,7 @@ createTokens = do
     toCsValue t cs = mconcat $ map (\(tn /\ n) -> Value.singleton cs tn $ fromInt n) t
 
     values :: Array (Value /\ Redeemer)
-    --values = lmap (toCsValue toks) <$> css
-    values = undefined
+    values = lmap (toCsValue toks) <$> css
 
     vhashes :: Array ValidatorHash
     vhashes = validatorHash <<< fst <$> validators
@@ -142,7 +145,7 @@ createTokens = do
           (cs /\ _) <- css
           (tok /\ amount) <- toks
           replicate amount
-            $ Constraints.mustPayToScript vhash unitDatum
+            $ Constraints.mustPayToScript vhash unitDatum DatumWitness
             $ flip toCsValue cs
             $ pure
             $ Tuple tok 1
@@ -218,8 +221,7 @@ getUtxos hash = go
 
     utxos :: Array (UtxoMap /\ Redeemer) <- for validators $ \(Tuple val red) ->
       do
-        --vhash <- liftContractAffM "could not hash validator" $ validatorHash val
-        vhash <- liftContractAffM "could not hash validator" $ undefined
+        let vhash = validatorHash val
         utxo <- liftContractM ("could not get utxos at " <> show vhash) =<<
           utxosAt
             (scriptHashAddress vhash)

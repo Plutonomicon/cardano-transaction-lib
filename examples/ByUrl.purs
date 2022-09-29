@@ -27,6 +27,7 @@ import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Ctl.Examples.MultipleRedeemers as MultipleRedeemers
 import Ctl.Examples.OneShotMinting as OneShotMinting
 import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
@@ -113,6 +114,7 @@ examples =
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
+  , "MultipleRedeemers" /\ MultipleRedeemers.contract
   ]
 
 -- Address is:
