@@ -4,6 +4,7 @@ module Contract.Config
   , testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
+  , testnetEternlConfig
   , testnetLodeConfig
   , mainnetConfig
   , mainnetNamiConfig
@@ -12,40 +13,41 @@ module Contract.Config
   , module Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
-  , module Serialization
-  , module QueryM.ServerConfig
-  , module Wallet.Spec
-  , module Wallet.Key
+  , module Ctl.Internal.Serialization
+  , module Ctl.Internal.QueryM.ServerConfig
+  , module Ctl.Internal.Wallet.Spec
+  , module Ctl.Internal.Wallet.Key
   ) where
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Serialization (privateKeyFromBytes)
 import Contract.Monad (ConfigParams)
-import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
-import Data.Maybe (Maybe(Just, Nothing))
-import Wallet.Spec
-  ( WalletSpec
-      ( UseKeys
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToLode
-      )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
-import QueryM.ServerConfig
+import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
-import Wallet.Key
+import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
+import Ctl.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToEternl
+      , ConnectToLode
+      )
+  )
+import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
+import Data.Maybe (Maybe(Just, Nothing))
 
 testnetConfig :: ConfigParams ()
 testnetConfig =
@@ -68,6 +70,9 @@ testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
 
 testnetFlintConfig :: ConfigParams ()
 testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
+
+testnetEternlConfig :: ConfigParams ()
+testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 
 testnetLodeConfig :: ConfigParams ()
 testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }

@@ -3,7 +3,7 @@
 -- | balance, and submit a failing smart-contract transaction. It creates a
 -- | transaction that pays two Ada to the `AlwaysFails` script address, and
 -- | then attempts to spend the two Ada, failing and losing the collateral.
-module Examples.Lose7Ada
+module Ctl.Examples.Lose7Ada
   ( main
   , example
   , alwaysFailsScript
@@ -13,7 +13,6 @@ module Examples.Lose7Ada
 
 import Contract.Prelude
 
-import BalanceTx.Collateral (minRequiredCollateral)
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -36,16 +35,19 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , balanceAndSignTxE
-  , submit
   , plutusV1Script
+  , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
+-- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
+import Ctl.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
-import Data.Map as Map
 import Data.Foldable (fold)
+import Data.Map as Map
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
