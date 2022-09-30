@@ -71,5 +71,10 @@ exports._isLodeAvailable = isWalletAvailable(wallets.lode);
 exports._isEternlAvailable = isWalletAvailable(wallets.eternl);
 
 exports._isEnabled = wallet => {
+    console.log("Calling isEnabled")
+    console.log(wallet)
+    console.log(window.cardano[wallet])
+    console.log(window.cardano[wallet].isEnabled())
+    console.log("enambled?")
     return window.cardano[wallet].isEnabled()
 };

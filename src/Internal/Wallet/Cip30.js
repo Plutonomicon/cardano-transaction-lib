@@ -34,3 +34,10 @@ exports._signData = address => payload => conn => () => {
   });
 };
 
+exports._signDataNull = address => conn => () => {
+  return conn.signTx(address, null).catch(e => {
+    console.log("Error in signDataNull: ", e);
+    throw JSON.stringify(e);
+  });
+};
+
