@@ -38,15 +38,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Ctl.Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 - `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
-- Corresponding `DecodeAeson` instance for `NativeScript` internal data type ([#1056](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1056)).
+- Corresponding `DecodeAeson` instance for `NativeScript` internal data type ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069)).
 
 ### Changed
 
 - Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
-- `MintingPolicy` to an enum consisting of `PlutusScript` or `NativeScript` ([#1056](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1056))
-- `Serialization.NativeScript`'s `convertNativeScript` is now pure ([#1056](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1056))
-- `Contract.Scripts` `applyArgs` and its internal definition are now monomorphic on the script parameter ([#1056](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1056))
+- `MintingPolicy` to an enum consisting of `PlutusScript` or `NativeScript` ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
+- `Serialization.NativeScript`'s `convertNativeScript` is now pure ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
+- `Contract.Scripts` `applyArgs` and its internal definition are now monomorphic on the script parameter ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
 
 ### Removed
 
