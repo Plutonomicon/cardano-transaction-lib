@@ -14,13 +14,10 @@ module Contract.Config
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys
-  , module Ctl.Internal.Serialization
   , module Ctl.Internal.QueryM.ServerConfig
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
   ) where
-
-import Ctl.Internal.Serialization
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Contract.Monad (ConfigParams)

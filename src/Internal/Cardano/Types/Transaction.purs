@@ -837,7 +837,7 @@ instance FromData PublicKey where
   fromData = map mkFromCslPubKey <<< fromBytes <=< fromData
 
 instance Show PublicKey where
-  show pk = "PublicKey " <> (bech32FromPublicKey <<< convertPubKey $ pk)
+  show pk = "(PublicKey " <> (bech32FromPublicKey <<< convertPubKey $ pk) <> ")"
 
 newtype Ed25519Signature = Ed25519Signature RawBytes
 
@@ -858,8 +858,9 @@ derive newtype instance Ord Ed25519Signature
 derive newtype instance EncodeAeson Ed25519Signature
 
 instance Show Ed25519Signature where
-  show sig = "Ed25519Signature " <>
-    (bech32FromEd25519Signature <<< convertEd25519Signature $ sig)
+  show sig = "(Ed25519Signature "
+    <> (bech32FromEd25519Signature <<< convertEd25519Signature $ sig)
+    <> ")"
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag

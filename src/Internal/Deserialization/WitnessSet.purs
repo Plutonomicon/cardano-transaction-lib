@@ -93,9 +93,6 @@ convertVkeyWitness witness =
 convertVkey :: Vkey -> T.Vkey
 convertVkey = T.Vkey <<< T.mkFromCslPubKey <<< vkeyPublicKey
 
-{- convertSignature :: Ed25519Signature -> T.Ed25519Signature
-convertSignature = T.Ed25519Signature <<< signatureToBech32 -}
-
 convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
 convertNativeScripts nativeScripts =
   for (extractNativeScripts nativeScripts) convertNativeScript
