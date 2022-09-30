@@ -13,7 +13,6 @@ module Ctl.Internal.Serialization
   , hashScriptData
   , hashTransaction
   , publicKeyHash
-  , publicKeyFromPrivateKey
   , makeVkeywitness
   , module Ctl.Internal.Serialization.ToBytes
   ) where
@@ -251,9 +250,6 @@ foreign import makeVkeywitness
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
-
-foreign import publicKeyFromPrivateKey
-  :: PrivateKey -> Effect PublicKey
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import transactionWitnessSetSetVkeys

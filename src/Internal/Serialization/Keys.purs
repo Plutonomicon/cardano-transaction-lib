@@ -4,6 +4,7 @@ module Ctl.Internal.Serialization.Keys
   , bech32FromPublicKey
   , bech32FromPrivateKey
   , bech32FromEd25519Signature
+  , publicKeyFromPrivateKey
   ) where
 
 import Ctl.Internal.Serialization.Types
@@ -13,10 +14,9 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Effect (Effect)
 
 foreign import publicKeyFromPrivateKey
-  :: PrivateKey -> Effect PublicKey
+  :: PrivateKey -> PublicKey
 
 foreign import bytesFromPrivateKey
   :: PrivateKey -> RawBytes

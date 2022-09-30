@@ -5,7 +5,7 @@ const bytesFromKey = key => key.as_bytes();
 exports.bytesFromPublicKey = bytesFromKey;
 exports.bytesFromPrivateKey = bytesFromKey;
 
-exports.publicKeyFromPrivateKey = private_key => () => private_key.to_public();
+exports.publicKeyFromPrivateKey = private_key => private_key.to_public();
 
 const bech32FromX = key => key.to_bech32();
 
