@@ -38,11 +38,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Ctl.Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 - `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
+- `ToData` & `FromData` instances for `PublicKey` in `Cardano.Types.Transaction` ([#998](https://github.com/Plutonomicon/cardano-transaction-lib/issues/998))
+- `Contract.Keys` module that exposes smart constructors and utilities for `PublicKey` & `Ed25519Signature`, namely: `mkEd25519Signature`, `mkFromCslEd25519Signature`, `mkPubKey`, `mkFromCslPubKey`.
 
 ### Changed
 
 - Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
+- `PublicKey` and `Ed25519Signature` types now wrap `RawBytes` instead of `Bech32String` and have conversion functions to and from their CSL reperesentation
 
 ### Removed
 
@@ -110,7 +113,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `InlineDatum` example, for testing inline datum constraints. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - `DatumPresence` data type, which tags paying constraints that accept datum, to mark whether the datum should be inline or hashed in the transaction output. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - Utility conversion functions `serializeData` and `deserializeData` between `PlutusData` and `CborBytes` to `Contract.PlutusData`. ([#1001](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1001))
-- `ToData` & `FromData` instances for `PublicKey` in `Cardano.Types.Transaction` ([#998](https://github.com/Plutonomicon/cardano-transaction-lib/issues/998))
 
 ### Changed
 

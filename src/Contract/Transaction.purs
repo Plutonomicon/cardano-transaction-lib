@@ -130,7 +130,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _vkeys
   , _withdrawals
   , _witnessSet
-  , mkPubKey
   ) as Transaction
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
