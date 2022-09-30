@@ -337,4 +337,4 @@ exports.unpackMIRToStakeCredentials_ =
     containerHelper.unpackKeyIndexed(mirToStakeCredentials);
 
 exports.convertPoolMetadata_ = cont => poolMetadata =>
-  cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash().to_bytes());
+  cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash());

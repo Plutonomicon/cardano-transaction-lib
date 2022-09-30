@@ -20,7 +20,7 @@ exports.blake2b256HashHex = bytesToHash => {
 };
 
 exports.hashPlutusData = plutusData => {
-  return lib.hash_plutus_data(plutusData).to_bytes();
+  return lib.hash_plutus_data(plutusData);
 };
 
 exports.hashPlutusScript = script => script.hash();

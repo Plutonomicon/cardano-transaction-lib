@@ -163,6 +163,7 @@ import Ctl.Internal.Serialization.Types
   , Nonce
   , PlutusScripts
   , PoolMetadata
+  , PoolMetadataHash
   , PoolParams
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -199,7 +200,7 @@ import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Set (fromFoldable) as Set
 import Data.Traversable (for, traverse)
@@ -380,7 +381,7 @@ convertPoolRegistration params = do
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
         convertPoolMetadata_
           \url hash -> T.PoolMetadata
-            { url: T.URL url, hash: T.PoolMetadataHash hash }
+            { url: T.URL url, hash: T.PoolMetadataHash $ unwrap $ toBytes hash }
     }
 
 type ConvertRelayHelper a =
@@ -923,4 +924,4 @@ foreign import unpackMIRToStakeCredentials_
   -> Array (Csl.StakeCredential /\ Csl.Int)
 
 foreign import convertPoolMetadata_
-  :: forall a. (String -> ByteArray -> a) -> Csl.PoolMetadata -> a
+  :: forall a. (String -> Csl.PoolMetadataHash -> a) -> Csl.PoolMetadata -> a

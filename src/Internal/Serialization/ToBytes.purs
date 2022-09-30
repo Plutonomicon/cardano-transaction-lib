@@ -13,6 +13,7 @@ import Ctl.Internal.Serialization.Types
   , GenesisHash
   , NativeScript
   , PlutusData
+  , PoolMetadataHash
   , Redeemers
   , ScriptDataHash
   , Transaction
@@ -53,6 +54,9 @@ instance ToBytes NativeScript where
   toBytes' = _toBytes
 
 instance ToBytes PlutusData where
+  toBytes' = _toBytes
+
+instance ToBytes PoolMetadataHash where
   toBytes' = _toBytes
 
 instance ToBytes Redeemers where
