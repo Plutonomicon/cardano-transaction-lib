@@ -823,15 +823,14 @@ convertTxOutput
         =<< fromJustEff "convertTxOutput"
           (convertPlutusData $ unwrap datumValue)
   for_ scriptRef $
-    convertScriptRef >=> transactionOutputSetScriptRef txo
+    convertScriptRef >>> transactionOutputSetScriptRef txo
   pure txo
 
--- TODO: amir: doesn't need to be effectful?
-convertScriptRef :: T.ScriptRef -> Effect ScriptRef
-convertScriptRef (T.NativeScriptRef nativeScript) = do
-  pure <<< scriptRefNewNativeScript <<< convertNativeScript $ nativeScript
-convertScriptRef (T.PlutusScriptRef plutusScript) = do
-  pure $ scriptRefNewPlutusScript $ convertPlutusScript plutusScript
+convertScriptRef :: T.ScriptRef -> ScriptRef
+convertScriptRef (T.NativeScriptRef nativeScript) =
+  scriptRefNewNativeScript <<< convertNativeScript $ nativeScript
+convertScriptRef (T.PlutusScriptRef plutusScript) =
+  scriptRefNewPlutusScript <<< convertPlutusScript $ plutusScript
 
 convertValue :: Value.Value -> Effect Value
 convertValue val = do

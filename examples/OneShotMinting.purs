@@ -137,8 +137,6 @@ mkOneShotMintingPolicy json ty mkPlutusScript oref = do
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
 
-  -- TODO: amir: remove the unnessary wrapping and unwrapping of plutus script
-  -- into `Validator`
   liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
     mintingPolicyArgs
 
