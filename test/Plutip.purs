@@ -72,6 +72,7 @@ import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
+import Ctl.Examples.MultipleRedeemers as MultipleRedeemers
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
@@ -84,6 +85,7 @@ import Ctl.Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
@@ -677,6 +679,16 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice SendsToken.contract
+
+    test "runPlutipContract: MultipleRedeemers" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice MultipleRedeemers.contract
 
     test "runPlutipContract: InlineDatum" do
       let
