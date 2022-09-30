@@ -16,6 +16,7 @@ module Ctl.Internal.Wallet
   , cip30Wallet
   , dummySign
   , isEnabled
+  , walletToName
   ) where
 
 import Prelude
@@ -138,8 +139,9 @@ walletToName = case _ of
 
 isEnabled :: Wallet -> Aff Boolean
 isEnabled wallet = do 
-  walletName <- liftMaybe (error "Can't get the name of the Wallet in isEnabled call")
-            (walletToName wallet)
+  walletName <- liftMaybe
+    (error "Can't get the name of the Wallet in isEnabled call")
+    (walletToName wallet)
   toAffE $ _isEnabled walletName
 
 

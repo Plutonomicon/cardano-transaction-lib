@@ -12,7 +12,7 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, isEnabled, signData, Wallet(Nami))
+import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, getWallet, isEnabled, signData, walletToName)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
@@ -32,20 +32,22 @@ example cfg = launchAff_ do
 contract :: Boolean -> Contract () Unit
 contract catch = do
   logInfo' "Running Examples.Cip30"
-  performAndLog catch "isEnabled" (liftAff (isEnabled Nami))
+  mWallet <- getWallet
+  logInfo' $ show $ mWallet >>= walletToName
+  performAndLog catch "isEnabled" (liftAff $ (traverse isEnabled mWallet))
   performAndLog catch "getNetworkId" getNetworkId 
   performAndLog catch "getUnusedAddresses" getUnusedAddresses
   performAndLog false "getChangeAddress" getChangeAddress
   performAndLog false "getRewardAddresses" getRewardAddresses
-  maddress <-  getChangeAddress
-  address <- liftMaybe (error "can't get change address") maddress
-  dataBytes <- liftContractAffM
-    ("can't convert : " <> hexDataString <>" to RawBytes") 
-    (pure mDataBytes)
-  performAndLog  catch "signData" $ signData address dataBytes
-  where 
-  hexDataString = "aeff"
-  mDataBytes = hexToRawBytes hexDataString 
+  -- maddress <-  getChangeAddress
+  -- address <- liftMaybe (error "can't get change address") maddress
+  -- dataBytes <- liftContractAffM
+  --   ("can't convert : " <> hexDataString <>" to RawBytes") 
+  --   (pure mDataBytes)
+  -- performAndLog  catch "signData" $ signData address Nothing 
+  --where 
+  --hexDataString = "aeff"
+  --mDataBytes = hexToRawBytes hexDataString 
 
 
 performAndLog :: forall (a::Type) . Show a => Boolean -> String ->

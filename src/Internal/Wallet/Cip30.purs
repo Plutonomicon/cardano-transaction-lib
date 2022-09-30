@@ -22,6 +22,7 @@ import Ctl.Internal.Serialization.Address (Address, addressFromBytes, baseAddres
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -59,7 +60,7 @@ type Cip30Wallet =
   -- addresses e.g. CIP-0018
   , getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-  , signData ::Cip30Connection -> Address -> RawBytes -> Aff (Maybe RawBytes) 
+  , signData ::Cip30Connection -> Address -> Maybe RawBytes -> Aff (Maybe RawBytes) 
   }
 
 mkCip30WalletAff
@@ -159,11 +160,16 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe RawBytes)
-signData conn address dat = do
+signData :: Cip30Connection -> Address -> Maybe RawBytes -> Aff (Maybe RawBytes)
+signData conn address mData = do
   hexAddress <- liftMaybe (error "Can't convert this Address to Bench32String") 
                   (baseAddressBech32 <$> baseAddressFromAddress address)
-  signedData <- toAffE $ _signData hexAddress (rawBytesToHex dat) conn 
+  signedData <- toAffE $ case mData of  
+                  Just dat ->
+                      _signData hexAddress ((unwrap <<< unwrap)dat) conn 
+                      --_signData hexAddress (rawBytesToHex dat) conn 
+                  Nothing ->
+                      _signDataNull hexAddress conn 
   pure $ hexToRawBytes signedData
 
 getBalance :: Cip30Connection -> Aff (Maybe Value)
@@ -233,6 +239,11 @@ foreign import _signTx
 
 foreign import _signData
   :: String -- Address
-  -> String -- Hex-encoded data
+  -> Uint8Array -- Hex-encoded data
+  -> Cip30Connection
+  -> Effect (Promise String)
+
+foreign import _signDataNull
+  :: String -- Address
   -> Cip30Connection
   -> Effect (Promise String)

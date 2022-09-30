@@ -38,6 +38,7 @@ module Ctl.Internal.QueryM
   , getRewardAddresses
   , getProtocolParametersAff
   , getWalletAddresses
+  , getWallet
   , liftQueryM
   , listeners
   , postAeson
@@ -493,10 +494,13 @@ actionBasedOnWallet walletAction keyWalletAction =
     Lode wallet -> callCip30Wallet wallet walletAction
     KeyWallet kw -> pure <$> keyWalletAction kw
 
-signData :: Address -> RawBytes -> QueryM (Maybe RawBytes)
+signData :: Address ->Maybe RawBytes -> QueryM (Maybe RawBytes)
 signData address dat = actionBasedOnWallet 
   (\ wallet conn -> wallet.signData conn address dat) 
   (\ _ -> liftEffect $ throw "signData not implemented for KeyWallet yet.")
+
+getWallet :: QueryM (Maybe Wallet)
+getWallet =  asks (_.runtime >>> _.wallet)
 
 ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
 ownPubKeyHashes = do
