@@ -1,7 +1,6 @@
 module Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
   , convertInput
   , convertOutput
   , convertValue
@@ -50,7 +49,6 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
@@ -181,11 +179,3 @@ foreign import getDataHash
 
 foreign import mkTransactionUnspentOutput
   :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
-
-foreign import _newTransactionUnspentOutputFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
-
-newTransactionUnspentOutputFromBytes
-  :: ByteArray -> Maybe TransactionUnspentOutput
-newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes
-  maybeFfiHelper

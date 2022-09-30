@@ -43,6 +43,7 @@ module Ctl.Internal.Serialization.Types
   , PlutusScript
   , PlutusScripts
   , PoolMetadata
+  , PoolMetadataHash
   , PoolParams
   , PrivateKey
   , ProposedProtocolParameterUpdates
@@ -127,6 +128,7 @@ foreign import data PlutusMap :: Type
 foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data PoolMetadata :: Type
+foreign import data PoolMetadataHash :: Type
 foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type

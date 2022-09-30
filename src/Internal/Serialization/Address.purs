@@ -313,6 +313,7 @@ instance EncodeAeson StakeCredential where
 foreign import _addressFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe Address
 
+-- We can't use FromBytes class here, because of cyclic dependencies
 foreign import _addressFromBytes :: MaybeFfiHelper -> CborBytes -> Maybe Address
 foreign import addressBytes :: Address -> CborBytes
 foreign import addressBech32 :: Address -> Bech32String

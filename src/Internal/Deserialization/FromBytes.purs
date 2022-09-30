@@ -12,17 +12,21 @@ import Ctl.Internal.Error (E)
 import Ctl.Internal.FfiHelpers (ErrorFfiHelper)
 import Ctl.Internal.Serialization.Hash (VRFKeyHash)
 import Ctl.Internal.Serialization.Types
-  ( DataHash
+  ( AuxiliaryDataHash
+  , DataHash
+  , GenesisDelegateHash
+  , GenesisHash
   , Mint
   , NativeScript
   , PlutusData
+  , PoolMetadataHash
+  , ScriptDataHash
   , Transaction
   , TransactionHash
   , TransactionUnspentOutput
   , TransactionWitnessSet
   , Value
   )
--- import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -34,8 +38,32 @@ import Type.Row (type (+))
 class FromBytes a where
   fromBytes' :: forall (r :: Row Type). CborBytes -> E (FromBytesError + r) a
 
+instance FromBytes AuxiliaryDataHash where
+  fromBytes' = _fromBytes "AuxiliaryDataHash" fromBytesErrorHelper
+
 instance FromBytes DataHash where
   fromBytes' = _fromBytes "DataHash" fromBytesErrorHelper
+
+instance FromBytes GenesisDelegateHash where
+  fromBytes' = _fromBytes "GenesisDelegateHash" fromBytesErrorHelper
+
+instance FromBytes GenesisHash where
+  fromBytes' = _fromBytes "GenesisHash" fromBytesErrorHelper
+
+instance FromBytes Mint where
+  fromBytes' = _fromBytes "Mint" fromBytesErrorHelper
+
+instance FromBytes NativeScript where
+  fromBytes' = _fromBytes "NativeScript" fromBytesErrorHelper
+
+instance FromBytes PlutusData where
+  fromBytes' = _fromBytes "PlutusData" fromBytesErrorHelper
+
+instance FromBytes PoolMetadataHash where
+  fromBytes' = _fromBytes "PoolMetadataHash" fromBytesErrorHelper
+
+instance FromBytes ScriptDataHash where
+  fromBytes' = _fromBytes "ScriptDataHash" fromBytesErrorHelper
 
 instance FromBytes Transaction where
   fromBytes' = _fromBytes "Transaction" fromBytesErrorHelper
@@ -43,26 +71,17 @@ instance FromBytes Transaction where
 instance FromBytes TransactionHash where
   fromBytes' = _fromBytes "TransactionHash" fromBytesErrorHelper
 
-instance FromBytes PlutusData where
-  fromBytes' = _fromBytes "PlutusData" fromBytesErrorHelper
-
 instance FromBytes TransactionUnspentOutput where
   fromBytes' = _fromBytes "TransactionUnspentOutput" fromBytesErrorHelper
 
 instance FromBytes TransactionWitnessSet where
   fromBytes' = _fromBytes "TransactionWitnessSet" fromBytesErrorHelper
 
-instance FromBytes NativeScript where
-  fromBytes' = _fromBytes "NativeScript" fromBytesErrorHelper
-
-instance FromBytes Mint where
-  fromBytes' = _fromBytes "Mint" fromBytesErrorHelper
+instance FromBytes Value where
+  fromBytes' = _fromBytes "Value" fromBytesErrorHelper
 
 instance FromBytes VRFKeyHash where
   fromBytes' = _fromBytes "VRFKeyHash" fromBytesErrorHelper
-
-instance FromBytes Value where
-  fromBytes' = _fromBytes "Value" fromBytesErrorHelper
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => CborBytes -> Maybe a

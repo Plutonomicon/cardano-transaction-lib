@@ -41,6 +41,15 @@ import Data.Newtype (unwrap, wrap)
 -- | Encodes the hash to `CborBytes`
 foreign import hashToBytes :: forall (a :: Type). a -> CborBytes
 
+-- We can't use FromBytes class here, because of cyclic dependencies
+-- | Decodes `CborBytes` to the hash
+foreign import hashFromBytes
+  :: forall (a :: Type)
+   . String
+  -> MaybeFfiHelper
+  -> CborBytes
+  -> Maybe a
+
 foreign import nativeScriptHash :: NativeScript -> ScriptHash
 
 foreign import hashToBech32Unsafe
@@ -56,20 +65,10 @@ foreign import hashToBech32Impl
   -> a
   -> Maybe Bech32String
 
-foreign import _ed25519KeyHashFromBytesImpl
-  :: MaybeFfiHelper
-  -> CborBytes
-  -> Maybe Ed25519KeyHash
-
 foreign import _ed25519KeyHashFromBech32Impl
   :: MaybeFfiHelper
   -> Bech32String
   -> Maybe Ed25519KeyHash
-
-foreign import _scriptHashFromBytesImpl
-  :: MaybeFfiHelper
-  -> CborBytes
-  -> Maybe ScriptHash
 
 foreign import _scriptHashFromBech32Impl
   :: MaybeFfiHelper
@@ -127,7 +126,7 @@ scriptHashToBech32Unsafe ∷ String → ScriptHash → Bech32String
 scriptHashToBech32Unsafe = hashToBech32Unsafe
 
 ed25519KeyHashFromBytes :: CborBytes -> Maybe Ed25519KeyHash
-ed25519KeyHashFromBytes = _ed25519KeyHashFromBytesImpl maybeFfiHelper
+ed25519KeyHashFromBytes = hashFromBytes "Ed25519KeyHash" maybeFfiHelper
 
 ed25519KeyHashFromBech32 :: Bech32String -> Maybe Ed25519KeyHash
 ed25519KeyHashFromBech32 = _ed25519KeyHashFromBech32Impl maybeFfiHelper
@@ -184,7 +183,7 @@ _scriptHashToBech32Impl = hashToBech32Impl
 -- | Decodes a script hash from its CBOR bytes encoding
 -- | NOTE. It does _not_ compute hash of given bytes.
 scriptHashFromBytes :: CborBytes -> Maybe ScriptHash
-scriptHashFromBytes = _scriptHashFromBytesImpl maybeFfiHelper
+scriptHashFromBytes = hashFromBytes "ScriptHash" maybeFfiHelper
 
 -- | Decodes a script hash from its Bech32 representation
 scriptHashFromBech32 :: Bech32String -> Maybe ScriptHash

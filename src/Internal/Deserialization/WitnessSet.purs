@@ -5,7 +5,6 @@ module Ctl.Internal.Deserialization.WitnessSet
   , convertVkeyWitnesses
   , convertVkeyWitness
   , convertWitnessSet
-  , deserializeWitnessSet
   , plutusScriptBytes
   ) where
 
@@ -58,9 +57,6 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
-
-deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
-deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
 
 convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
@@ -200,5 +196,3 @@ foreign import getRedeemerPlutusData :: Redeemer -> PlutusData
 foreign import getExUnits :: Redeemer -> ExUnits
 foreign import getExUnitsMem :: ExUnits -> BigNum
 foreign import getExUnitsSteps :: ExUnits -> BigNum
-foreign import _deserializeWitnessSet
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet
