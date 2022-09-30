@@ -95,10 +95,6 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
-exports.publicKeyFromPrivateKey = private_key => () => {
-  return private_key.to_public();
-};
-
 exports.publicKeyHash = pk => pk.hash();
 
 exports.transactionWitnessSetSetVkeys = setter("vkeys");
