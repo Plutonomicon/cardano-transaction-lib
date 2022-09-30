@@ -6,13 +6,12 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBytes
   , ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
-  , ed25519KeyHashToBytes
   , scriptHashFromBech32
   , scriptHashFromBytes
   , scriptHashToBech32
   , scriptHashToBech32Unsafe
-  , scriptHashToBytes
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Eq ((==))
@@ -43,7 +42,7 @@ suite = do
   let
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
-    pkhBts = ed25519KeyHashToBytes pkh
+    pkhBts = toBytes pkh
     pkh2 = ed25519KeyHashFromBytes pkhBts
 
   assertTrue
@@ -73,7 +72,7 @@ suite = do
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
-    scrhBts = scriptHashToBytes scrh
+    scrhBts = toBytes scrh
     scrhFromBytes = scriptHashFromBytes scrhBts
     scrhFromBech = scriptHashFromBech32 scrhB32
 

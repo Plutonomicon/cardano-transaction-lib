@@ -136,7 +136,7 @@ import Ctl.Internal.Serialization.Address
   , StakeCredential
   ) as Csl
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
@@ -178,7 +178,6 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Withdrawals
   ) as Csl
 import Ctl.Internal.Types.BigNum (BigNum) as Csl
@@ -889,7 +888,7 @@ type CertConvHelper (r :: Type) =
   , genesisKeyDelegation ::
       Csl.GenesisHash
       -> Csl.GenesisDelegateHash
-      -> Csl.VRFKeyHash
+      -> VRFKeyHash
       -> r
   , moveInstantaneousRewardsToOtherPotCert ::
       Number -> Csl.BigNum -> r
@@ -904,7 +903,7 @@ foreign import _convertCert
   -> Err r T.Certificate
 
 foreign import poolParamsOperator :: Csl.PoolParams -> Ed25519KeyHash
-foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> Csl.VRFKeyHash
+foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> VRFKeyHash
 foreign import poolParamsPledge :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsCost :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsMargin :: Csl.PoolParams -> Csl.UnitInterval

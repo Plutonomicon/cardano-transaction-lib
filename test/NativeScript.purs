@@ -11,8 +11,9 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   )
-import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (fromJust)
+import Data.Newtype (wrap)
 import Data.Set as Set
 import Effect.Aff (Aff)
 import Mote (group, test)
@@ -214,12 +215,14 @@ suite = do
         `shouldEqual` 3
 
 pk1 :: Ed25519KeyHash
-pk1 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ hexToRawBytesUnsafe
-  "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+pk1 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ wrap $
+  hexToByteArrayUnsafe
+    "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 pk2 :: Ed25519KeyHash
-pk2 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ hexToRawBytesUnsafe
-  "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+pk2 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ wrap $
+  hexToByteArrayUnsafe
+    "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
 pk3 :: Ed25519KeyHash
 pk3 = unsafePartial $ fromJust do
@@ -227,9 +230,11 @@ pk3 = unsafePartial $ fromJust do
     "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
 
 pk4 :: Ed25519KeyHash
-pk4 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ hexToRawBytesUnsafe
-  "30fb3b8529951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+pk4 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ wrap $
+  hexToByteArrayUnsafe
+    "30fb3b8529951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
 pk5 :: Ed25519KeyHash
-pk5 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ hexToRawBytesUnsafe
-  "30fb3b8529951e26f034919a5a37f22cb99d94d1d409f69ddbaea971"
+pk5 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ wrap $
+  hexToByteArrayUnsafe
+    "30fb3b8529951e26f034919a5a37f22cb99d94d1d409f69ddbaea971"

@@ -79,6 +79,7 @@ import Ctl.Internal.Serialization.BigInt as Serialization
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
+  , VRFKeyHash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
@@ -136,7 +137,6 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Value
   , Vkey
   , Vkeywitness

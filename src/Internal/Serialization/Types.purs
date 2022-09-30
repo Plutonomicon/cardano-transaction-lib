@@ -44,11 +44,11 @@ module Ctl.Internal.Serialization.Types
   , PlutusScripts
   , PoolMetadata
   , PoolParams
+  , PrivateKey
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
-  , PrivateKey
   , Redeemer
   , RedeemerTag
   , Redeemers
@@ -76,19 +76,12 @@ module Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Value
   , Vkey
   , Vkeywitness
   , Vkeywitnesses
   , Withdrawals
   ) where
-
-import Prelude
-
-import Aeson (class EncodeAeson, encodeAeson')
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import Data.Function (on)
 
 foreign import data AssetName :: Type
 foreign import data Assets :: Type
@@ -167,21 +160,8 @@ foreign import data TransactionUnspentOutput :: Type
 foreign import data TransactionWitnessSet :: Type
 foreign import data UnitInterval :: Type
 foreign import data Update :: Type
-foreign import data VRFKeyHash :: Type
 foreign import data Value :: Type
 foreign import data Vkey :: Type
 foreign import data Vkeywitness :: Type
 foreign import data Vkeywitnesses :: Type
 foreign import data Withdrawals :: Type
-
-instance Show VRFKeyHash where
-  show = _vrfKeyHashBytes >>> byteArrayToHex
-
-instance Eq VRFKeyHash where
-  eq = eq `on` show
-
-instance EncodeAeson VRFKeyHash where
-  encodeAeson' = _vrfKeyHashBytes >>> byteArrayToHex >>> encodeAeson'
-
--- We can't use ToBytes class here, because of cyclic dependencies
-foreign import _vrfKeyHashBytes :: VRFKeyHash -> ByteArray

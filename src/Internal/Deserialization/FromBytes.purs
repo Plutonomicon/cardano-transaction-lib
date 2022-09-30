@@ -10,6 +10,7 @@ import Prelude
 import Ctl.Internal.Deserialization.Error (FromBytesError, fromBytesErrorHelper)
 import Ctl.Internal.Error (E)
 import Ctl.Internal.FfiHelpers (ErrorFfiHelper)
+import Ctl.Internal.Serialization.Hash (VRFKeyHash)
 import Ctl.Internal.Serialization.Types
   ( DataHash
   , Mint
@@ -19,7 +20,6 @@ import Ctl.Internal.Serialization.Types
   , TransactionHash
   , TransactionUnspentOutput
   , TransactionWitnessSet
-  , VRFKeyHash
   , Value
   )
 -- import Ctl.Internal.Types.ByteArray (ByteArray)

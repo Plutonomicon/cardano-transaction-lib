@@ -124,13 +124,12 @@ import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex, hexToCborBytes)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.Scripts
@@ -1282,7 +1281,7 @@ parseScript outer =
           pubKeyHashHex = unsafePartial fromJust $ toString aeson
 
         ScriptPubkey <$> note pubKeyHashTypeMismatch
-          (ed25519KeyHashFromBytes =<< hexToRawBytes pubKeyHashHex)
+          (ed25519KeyHashFromBytes =<< hexToCborBytes pubKeyHashHex)
 
     | otherwise = aeson # aesonObject \obj -> do
         let

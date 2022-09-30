@@ -31,7 +31,7 @@ import Ctl.Internal.Deserialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Deserialization.WitnessSet (convertPlutusScript)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
@@ -128,7 +128,7 @@ convertValue value = do
         ( traverse
             ( bitraverse
                 -- scripthash to currency symbol
-                (scriptHashToBytes >>> unwrap >>> T.mkCurrencySymbol)
+                (toBytes >>> unwrap >>> T.mkCurrencySymbol)
                 -- nested assetname to tokenname
                 (traverse (ltraverse (T.assetNameName >>> T.mkTokenName)))
             )

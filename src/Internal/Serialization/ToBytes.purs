@@ -5,6 +5,7 @@ module Ctl.Internal.Serialization.ToBytes
   ) where
 
 import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryDataHash
   , DataHash
@@ -39,6 +40,9 @@ instance ToBytes AuxiliaryDataHash where
 instance ToBytes DataHash where
   toBytes' = _toBytes
 
+instance ToBytes Ed25519KeyHash where
+  toBytes' = _toBytes
+
 instance ToBytes GenesisDelegateHash where
   toBytes' = _toBytes
 
@@ -55,6 +59,9 @@ instance ToBytes Redeemers where
   toBytes' = _toBytes
 
 instance ToBytes ScriptDataHash where
+  toBytes' = _toBytes
+
+instance ToBytes ScriptHash where
   toBytes' = _toBytes
 
 instance ToBytes Transaction where

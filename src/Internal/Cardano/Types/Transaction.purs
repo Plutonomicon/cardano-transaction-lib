@@ -105,8 +105,7 @@ import Ctl.Internal.Serialization.Address
   , Slot(Slot)
   , StakeCredential
   )
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
-import Ctl.Internal.Serialization.Types (VRFKeyHash)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, VRFKeyHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)

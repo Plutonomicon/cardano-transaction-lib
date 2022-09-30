@@ -54,9 +54,9 @@ import Ctl.Internal.Metadata.ToMetadata
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Ctl.Internal.Serialization.Hash (scriptHashFromBytes)
 import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Ctl.Internal.Types.TokenName (mkTokenName)
 import Ctl.Internal.Types.TransactionMetadata
@@ -346,7 +346,7 @@ instance DecodeAeson Cip25Metadata where
     decodePolicyId =
       note (TypeMismatch "Expected hex-encoded policy id")
         <<< map wrap
-        <<< (scriptHashFromBytes <=< hexToRawBytes)
+        <<< (scriptHashFromBytes <=< hexToCborBytes)
 
     decodeAssetName :: String -> Either JsonDecodeError Cip25TokenName
     decodeAssetName =
