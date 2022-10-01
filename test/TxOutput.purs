@@ -5,6 +5,7 @@ import Prelude
 import Aeson (printJsonDecodeError, decodeJsonString)
 import Cardano.Types.Transaction (TransactionOutput)
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
+import Ctl.Internal.Test.Utils as Utils
 import Data.Bifunctor (bimap)
 import Data.Map as Map
 import Data.Newtype (unwrap)
@@ -25,7 +26,6 @@ import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Data.FoldableWithIndex (traverseWithIndex_)
-import Test.Utils as Utils
 
 -- Run with `spago test --main Test.TxOutput`
 main :: Effect Unit

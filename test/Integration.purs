@@ -4,21 +4,21 @@ import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract, wrapContract)
+import Ctl.Internal.Test.Utils as Utils
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
-import Mote.Monad (mapTest)
 import Mote (skip)
+import Mote.Monad (mapTest)
 import QueryM (runQueryM)
 import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.EraSummaries (getEraSummaries)
 import QueryM.SystemStart (getSystemStart)
 import Test.AffInterface as AffInterface
-import Test.Logging as Logging
 import Test.BalanceTx.Collateral as Collateral
+import Test.Logging as Logging
 import Test.PrivateKey as PrivateKey
 import Test.Types.Interval as Types.Interval
-import Test.Utils as Utils
 import TestM (TestPlanM)
 
 -- Run with `spago test --main Test.Integration`

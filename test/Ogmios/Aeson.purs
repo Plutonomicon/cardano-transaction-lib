@@ -9,6 +9,7 @@ import Prelude
 import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
 import BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.Test.Utils as Utils
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
@@ -36,7 +37,6 @@ import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import QueryM.Ogmios as O
-import Test.Utils as Utils
 import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
 

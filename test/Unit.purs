@@ -2,6 +2,7 @@ module Ctl.Test.Unit (main, testPlan) where
 
 import Prelude
 
+import Ctl.Internal.Test.Utils as Utils
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -26,11 +27,10 @@ import Test.Serialization as Serialization
 import Test.Serialization.Address as Serialization.Address
 import Test.Serialization.Hash as Serialization.Hash
 import Test.Transaction as Transaction
+import Test.TxOutput as TxOutput
 import Test.Types.Interval as Types.Interval
 import Test.Types.TokenName as Types.TokenName
-import Test.TxOutput as TxOutput
 import Test.UsedTxOuts as UsedTxOuts
-import Test.Utils as Utils
 import TestM (TestPlanM)
 
 -- Run with `spago test --main Ctl.Test.Unit`

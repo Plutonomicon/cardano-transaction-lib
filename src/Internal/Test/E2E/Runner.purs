@@ -49,6 +49,7 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiConfirmAccess
   , namiSign
   )
+import Ctl.Internal.Test.Utils as Utils
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.Either (Either(Left, Right))
@@ -90,7 +91,6 @@ import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
 import Test.Spec.Runner as SpecRunner
-import Test.Utils as Utils
 import TestM (TestPlanM)
 import Toppokki as Toppokki
 import Type.Proxy (Proxy(Proxy))

@@ -3,6 +3,7 @@ module Test.Serialization (suite) where
 import Prelude
 
 import Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Test.Utils (errMaybe)
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust)
@@ -33,7 +34,6 @@ import Test.Fixtures
   , txOutputFixture1
   )
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Types.PlutusData as PD

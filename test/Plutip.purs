@@ -6,6 +6,7 @@ module Test.Plutip
 
 import Prelude
 
+import Ctl.Internal.Test.Utils as Utils
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
@@ -139,7 +140,6 @@ import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
-import Test.Utils as Utils
 import TestM (TestPlanM)
 import Types.Interval (getSlotLength)
 import Types.UsedTxOuts (TxOutRefCache)
