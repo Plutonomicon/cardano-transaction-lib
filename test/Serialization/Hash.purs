@@ -1,7 +1,7 @@
 module Test.Serialization.Hash (suite) where
 
 import Control.Bind (discard, bind)
-import Ctl.Internal.Test.Utils (assertTrue, errMaybe)
+import Ctl.Internal.Test.Utils (TestPlanM, assertTrue, errMaybe)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
@@ -20,7 +20,6 @@ import Serialization.Hash
   , scriptHashToBech32Unsafe
   , scriptHashToBytes
   )
-import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 import Types.ByteArray (hexToByteArrayUnsafe)
 

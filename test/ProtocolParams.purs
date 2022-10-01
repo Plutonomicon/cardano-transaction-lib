@@ -6,12 +6,12 @@ import Prelude
 
 import Aeson (decodeAeson)
 import Ctl.Internal.Test.Utils as Utils
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import QueryM.Ogmios (ProtocolParameters)
 import Test.Spec.Assertions (shouldSatisfy)
-import TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

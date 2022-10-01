@@ -5,6 +5,7 @@ import Prelude
 import Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Maybe (fromJust)
 import Data.Set as Set
 import Effect.Aff (Aff)
@@ -17,7 +18,6 @@ import Serialization.Hash
   , ed25519KeyHashFromBytes
   )
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 import Types.RawBytes (hexToRawBytesUnsafe)
 
 suite :: TestPlanM (Aff Unit) Unit

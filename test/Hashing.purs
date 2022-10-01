@@ -2,6 +2,7 @@ module Test.Hashing (suite) where
 
 import Prelude
 
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.BigInt (fromInt)
 import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (wrap)
@@ -21,7 +22,6 @@ import Partial.Unsafe (unsafePartial)
 import Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Test.Fixtures (plutusDataFixture7)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 import Types.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
 import Types.PlutusData (PlutusData(Integer))
 import Types.RawBytes (hexToRawBytesUnsafe)

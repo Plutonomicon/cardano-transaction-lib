@@ -2,7 +2,7 @@ module Test.Serialization.Address (suite) where
 
 import Prelude
 
-import Ctl.Internal.Test.Utils (errMaybe)
+import Ctl.Internal.Test.Utils (TestPlanM, errMaybe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
@@ -47,7 +47,6 @@ import Serialization.Hash
   , scriptHashFromBytes
   )
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 import Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Types.RawBytes (hexToRawBytesUnsafe)

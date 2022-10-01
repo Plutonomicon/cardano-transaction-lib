@@ -95,7 +95,7 @@ import Control.Parallel (parallel, sequential)
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
-import Data.Foldable (foldl, for_)
+import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
@@ -123,10 +123,9 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, throw, try)
+import Effect.Exception (Error, error, message, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Foreign (Foreign)
 import Foreign.Object as Object
 import Helpers (logString, logWithLevel)
 import JsWebSocket

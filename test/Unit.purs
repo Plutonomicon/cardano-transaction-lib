@@ -3,6 +3,7 @@ module Ctl.Test.Unit (main, testPlan) where
 import Prelude
 
 import Ctl.Internal.Test.Utils as Utils
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -31,7 +32,6 @@ import Test.TxOutput as TxOutput
 import Test.Types.Interval as Types.Interval
 import Test.Types.TokenName as Types.TokenName
 import Test.UsedTxOuts as UsedTxOuts
-import TestM (TestPlanM)
 
 -- Run with `spago test --main Ctl.Test.Unit`
 main :: Effect Unit

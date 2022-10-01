@@ -7,6 +7,7 @@ module Test.Plutip
 import Prelude
 
 import Ctl.Internal.Test.Utils as Utils
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
@@ -140,7 +141,6 @@ import Test.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
-import TestM (TestPlanM)
 import Types.Interval (getSlotLength)
 import Types.UsedTxOuts (TxOutRefCache)
 import Wallet.Cip30Mock

@@ -9,6 +9,7 @@ import Prelude
 import Aeson (decodeJsonString, class DecodeAeson, printJsonDecodeError)
 import Control.Monad.Except (throwError)
 import Control.Monad.Error.Class (liftEither)
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.BigInt (fromString) as BigInt
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)
@@ -24,7 +25,6 @@ import Partial.Unsafe (unsafePartial)
 import QueryM.Ogmios (EraSummaries, SystemStart)
 import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 import Types.BigNum (fromInt) as BigNum
 import Types.Interval
   ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
