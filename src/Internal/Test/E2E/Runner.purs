@@ -87,7 +87,7 @@ import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
 import Node.FS.Aff (exists, stat)
 import Node.FS.Stats (isDirectory)
-import Node.Path (relative)
+import Node.Path (FilePath, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
@@ -471,16 +471,41 @@ readExtensionParams extensionName mbCliOptions = do
 -- | Pack user data directory to an archive
 packSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 packSettings settingsArchive userDataDir = do
-  void $ spawnAndCollectOutput "tar"
-    [ "czf"
-    , relative userDataDir settingsArchive
-    , "./Default/IndexedDB/"
+  -- Passing a non-existent directory to tar will error,
+  -- but we can't rely on the existence of these directories.
+  paths <- filterExistingPaths
+    [ "./Default/IndexedDB/"
     , "./Default/Local Storage/"
     , "./Default/Extension State"
     , "./Default/Local Extension Settings"
     ]
-    defaultSpawnOptions { cwd = Just userDataDir }
-    defaultErrorReader
+  case paths of
+    [] -> do
+      -- Create an empty tar.gz
+      void $ spawnAndCollectOutput "tar"
+        [ "czf"
+        , relative userDataDir settingsArchive
+        , "-T"
+        , "/dev/null"
+        ]
+        defaultSpawnOptions { cwd = Just userDataDir }
+        defaultErrorReader
+    _ -> do
+      void $ spawnAndCollectOutput "tar"
+        ( [ "czf"
+          , relative userDataDir settingsArchive
+          ] <> paths
+        )
+        defaultSpawnOptions { cwd = Just userDataDir }
+        defaultErrorReader
+
+-- | Filter out non-existing paths
+filterExistingPaths :: Array FilePath -> Aff (Array FilePath)
+filterExistingPaths paths = do
+  catMaybes <$> for paths \path -> do
+    exists path >>= case _ of
+      false -> pure Nothing
+      true -> pure $ Just path
 
 -- | Unpack settings archive to user data directory
 unpackSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
