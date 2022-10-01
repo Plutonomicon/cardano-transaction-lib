@@ -87,7 +87,7 @@ import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
 import Node.FS.Aff (exists, stat)
 import Node.FS.Stats (isDirectory)
-import Node.Path (FilePath, relative)
+import Node.Path (FilePath, relative, concat)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
@@ -473,7 +473,7 @@ packSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 packSettings settingsArchive userDataDir = do
   -- Passing a non-existent directory to tar will error,
   -- but we can't rely on the existence of these directories.
-  paths <- filterExistingPaths
+  paths <- filterExistingPaths userDataDir
     [ "./Default/IndexedDB/"
     , "./Default/Local Storage/"
     , "./Default/Extension State"
@@ -499,11 +499,11 @@ packSettings settingsArchive userDataDir = do
         defaultSpawnOptions { cwd = Just userDataDir }
         defaultErrorReader
 
--- | Filter out non-existing paths
-filterExistingPaths :: Array FilePath -> Aff (Array FilePath)
-filterExistingPaths paths = do
+-- | Filter out non-existing paths, relative to the given directory
+filterExistingPaths :: FilePath -> Array FilePath -> Aff (Array FilePath)
+filterExistingPaths base paths = do
   catMaybes <$> for paths \path -> do
-    exists path >>= case _ of
+    exists (concat [ base, path ]) >>= case _ of
       false -> pure Nothing
       true -> pure $ Just path
 
