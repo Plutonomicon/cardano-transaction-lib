@@ -4,7 +4,9 @@
 module Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
-      ( CouldNotConvertScriptOutputToTxInput
+      ( BalanceInsufficientError
+      , CoinSelectionFailed
+      , CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
       , CouldNotGetWalletAddresses
@@ -65,7 +67,9 @@ import Data.Tuple.Nested (type (/\), (/\))
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
-  = CouldNotConvertScriptOutputToTxInput
+  = BalanceInsufficientError Expected Actual
+  | CoinSelectionFailed
+  | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetCollateral
   | CouldNotGetUtxos
   | CouldNotGetWalletAddresses
