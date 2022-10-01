@@ -8,11 +8,11 @@
   },
   "scripts": {
     "test": "spago run --main Scaffold.Test.Main",
-    "e2e-test": "source ./test/e2e.env && spago test --main Test.E2E -a 'E2ETest run'",
-    "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.E2E -a 'E2ETest run --no-headless'",
-    "e2e-browser": "source ./test/e2e.env && spago test --main Test.E2E -a 'E2E browser'",
-    "e2e-pack-settings": "source ./test/e2e.env && spago test --main Test.E2E -a 'E2E pack'",
-    "e2e-unpack-settings": "source ./test/e2e.env && spago test --main Test.E2E -a 'E2E unpack'",
+    "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'E2ETest run'",
+    "e2e-test-debug": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'E2ETest run --no-headless'",
+    "e2e-browser": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'E2E browser'",
+    "e2e-pack-settings": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'E2E pack'",
+    "e2e-unpack-settings": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'E2E unpack'",
     "dev": "make run-dev",
     "build": "make run-build"
   },

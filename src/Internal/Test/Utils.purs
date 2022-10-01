@@ -1,5 +1,5 @@
-module Test.Utils
-  ( module ExportSeconds
+module Ctl.Internal.Test.Utils
+  ( module X
   , aesonRoundTrip
   , assertTrue
   , assertTrue_
@@ -14,7 +14,6 @@ module Test.Utils
   , readAeson
   , toFromAesonTest
   , toFromAesonTestWith
-  , unsafeCall
   ) where
 
 import Prelude
@@ -36,7 +35,7 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap, unwrap)
 import Data.Time.Duration (class Duration, Milliseconds, Seconds)
 import Data.Time.Duration (fromDuration, toDuration) as Duration
-import Data.Time.Duration (Seconds(Seconds)) as ExportSeconds
+import Data.Time.Duration (Seconds(Seconds)) as X
 import Effect.Aff (Aff, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -53,10 +52,6 @@ import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner (defaultConfig, runSpec')
 import Test.Spec.Runner as SpecRunner
 import TestM (TestPlanM)
-import Type.Proxy (Proxy)
-
-foreign import unsafeCall
-  :: forall (a :: Type) (b :: Type). Proxy b -> String -> a -> b
 
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types

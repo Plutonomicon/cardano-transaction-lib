@@ -2,6 +2,7 @@ module Test.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
+import Ctl.Internal.Test.Utils (errMaybe, toFromAesonTest)
 import Data.Array (range, length, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
@@ -22,7 +23,6 @@ import Serialization.Address
   )
 import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe, toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 import Types.BigNum (BigNum)

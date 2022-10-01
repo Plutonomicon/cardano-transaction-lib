@@ -13,6 +13,7 @@ import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin(Coin), Value(Value))
 import Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
 import Control.Monad.Reader.Trans (asks)
+import Ctl.Internal.Test.Utils (Seconds(Seconds), measure, measureWithTimeout)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
@@ -31,8 +32,6 @@ import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (Seconds(Seconds))
-import Test.Utils (measure, measureWithTimeout) as TestUtils
 import TestM (TestPlanM)
 import Types.Transaction (TransactionHash, TransactionInput)
 
@@ -43,7 +42,7 @@ suite = do
       test "Prefers a single Ada-only inp if it covers minRequiredCollateral" do
         withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
-            TestUtils.measure
+            measure
               $ liftEffect
               $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture1
@@ -53,7 +52,7 @@ suite = do
       test "Prefers an input with the lowest min ada for collateral output" do
         withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
-            TestUtils.measure
+            measure
               $ liftEffect
               $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture2
@@ -62,7 +61,7 @@ suite = do
 
       test "Selects a collateral in less than 2 seconds" do
         withParams \coinsPerUtxoUnit maxCollateralInputs ->
-          TestUtils.measureWithTimeout (Seconds 2.0)
+          measureWithTimeout (Seconds 2.0)
             ( void $ liftEffect $ selectCollateral coinsPerUtxoUnit
                 maxCollateralInputs
                 utxosFixture3

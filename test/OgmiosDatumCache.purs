@@ -7,6 +7,7 @@ import Prelude
 import Aeson (caseAesonArray, decodeAeson, encodeAeson)
 import Contract.Address (ByteArray)
 import Control.Monad.Error.Class (class MonadThrow)
+import Ctl.Internal.Test.Utils (errEither, errMaybe, readAeson)
 import Data.Either (Either(Right, Left))
 import Data.Newtype (unwrap)
 import Data.Traversable (for_)
@@ -16,7 +17,6 @@ import Effect.Exception (Error)
 import Hashing (datumHash)
 import Mote (group, skip, test)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errEither, errMaybe, readAeson)
 import TestM (TestPlanM)
 import Types.Datum (Datum(Datum))
 import Types.PlutusData (PlutusData)
@@ -58,4 +58,3 @@ plutusDataHashingTest = do
   for_ elems \{ hash, plutusData } -> do
     hash' <- errMaybe "Couldn't hash the datum" <<< datumHash $ Datum plutusData
     hash `shouldEqual` unwrap hash'
-

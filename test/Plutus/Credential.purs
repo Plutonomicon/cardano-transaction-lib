@@ -5,6 +5,7 @@ module Test.Plutus.Credential
 
 import Prelude
 
+import Ctl.Internal.Test.Utils (toFromAesonTest)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
 import Data.Traversable (for_)
@@ -13,7 +14,6 @@ import Mote (group)
 import Partial.Unsafe (unsafePartial)
 import Plutus.Types.Credential (Credential(ScriptCredential, PubKeyCredential))
 import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
-import Test.Utils (toFromAesonTest)
 import TestM (TestPlanM)
 import Types.Aliases (Bech32String)
 

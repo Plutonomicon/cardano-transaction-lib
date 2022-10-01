@@ -7,6 +7,7 @@ import Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
+import Ctl.Internal.Test.Utils (errMaybe)
 import Contract.Address (ByteArray)
 import Control.Monad.Error.Class (class MonadThrow)
 import Data.Array as Array
@@ -74,7 +75,6 @@ import Test.Fixtures
   , witnessSetFixture4
   )
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
-import Test.Utils (errMaybe)
 import TestM (TestPlanM)
 import Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Types.Transaction (TransactionInput) as T
