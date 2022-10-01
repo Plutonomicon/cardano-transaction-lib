@@ -36,6 +36,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
@@ -66,7 +67,6 @@ import Test.QuickCheck.Gen
   , resize
   , sized
   )
-import TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
 suite :: TestPlanM (Aff Unit) Unit

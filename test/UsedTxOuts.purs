@@ -20,7 +20,7 @@ import Test.Fixtures
   , txFixture1
   )
 import Test.Spec.Assertions (shouldReturn)
-import TestM (TestPlanM)
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Types.Transaction (TransactionHash)
 import Types.UsedTxOuts
   ( isTxOutRefUsed

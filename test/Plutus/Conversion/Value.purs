@@ -2,6 +2,9 @@ module Test.Plutus.Conversion.Value (suite) where
 
 import Prelude
 
+import Cardano.Types.Value (Value) as Types
+import Cardano.Types.Value as Value
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Array (range, length, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
@@ -18,9 +21,6 @@ import Plutus.Types.Value (Value) as Plutus
 import Plutus.Types.Value as Plutus.Value
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Cardano.Types.Value (Value) as Types
-import Cardano.Types.Value as Value
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

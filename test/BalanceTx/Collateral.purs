@@ -13,26 +13,26 @@ import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value (Coin(Coin), Value(Value))
 import Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
 import Control.Monad.Reader.Trans (asks)
-import Ctl.Internal.Test.Utils (Seconds(Seconds), measure, measureWithTimeout)
+import Ctl.Internal.Test.Utils (TestPlanM, measure, measureWithTimeout)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just))
 import Data.Newtype (wrap, unwrap)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt (fromInt, toInt) as UInt
-import Effect.Class (liftEffect)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Mote (group, test)
 import QueryM (QueryM, runQueryM)
 import QueryM.Config (testnetTraceQueryConfig)
 import QueryM.Ogmios (CoinsPerUtxoUnit)
 import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 import Types.Transaction (TransactionHash, TransactionInput)
 
 suite :: TestPlanM (Aff Unit) Unit

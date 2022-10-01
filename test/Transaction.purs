@@ -13,6 +13,7 @@ import Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   )
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing))
@@ -28,7 +29,6 @@ import Mote (group, test)
 import Serialization.WitnessSet as Serialization.WitnessSet
 import Test.Fixtures.CostModels (costModelsFixture1)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 import Transaction
   ( attachDatum
   , attachRedeemer

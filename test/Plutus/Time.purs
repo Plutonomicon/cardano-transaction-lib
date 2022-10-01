@@ -4,7 +4,7 @@ module Test.Plutus.Time
 
 import Prelude
 
-import Ctl.Internal.Test.Utils (toFromAesonTest, toFromAesonTestWith)
+import Ctl.Internal.Test.Utils (TestPlanM, toFromAesonTest, toFromAesonTestWith)
 import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
@@ -25,7 +25,6 @@ import QueryM.Ogmios
   , SystemStart(SystemStart)
   )
 import Serialization.Address (Slot(Slot))
-import TestM (TestPlanM)
 import Types.BigNum as BigNum
 import Types.Interval
   ( AbsTime(AbsTime)

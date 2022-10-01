@@ -1,6 +1,7 @@
 module Test.ByteArray where
 
 import Prelude
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -10,7 +11,6 @@ import Test.QuickCheck.Laws.Data.Eq (checkEq)
 import Test.QuickCheck.Laws.Data.Monoid (checkMonoid)
 import Test.QuickCheck.Laws.Data.Ord (checkOrd)
 import Test.QuickCheck.Laws.Data.Semigroup (checkSemigroup)
-import TestM (TestPlanM)
 import Type.Proxy (Proxy(Proxy))
 import Types.ByteArray
   ( ByteArray

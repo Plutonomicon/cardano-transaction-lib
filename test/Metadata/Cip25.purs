@@ -3,6 +3,7 @@ module Test.Metadata.Cip25 (suite) where
 import Prelude
 
 import Aeson (decodeAeson)
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Either (Either(Right), hush)
 import Data.Maybe (Maybe(Just))
 import Data.TextDecoder (decodeUtf8)
@@ -31,7 +32,6 @@ import Test.QuickCheck ((===))
 import Test.QuickCheck.Combinators ((==>))
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
-import TestM (TestPlanM)
 import ToData (toData)
 
 suite :: TestPlanM (Aff Unit) Unit

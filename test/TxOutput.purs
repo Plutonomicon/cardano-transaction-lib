@@ -6,6 +6,7 @@ import Aeson (printJsonDecodeError, decodeJsonString)
 import Cardano.Types.Transaction (TransactionOutput)
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Ctl.Internal.Test.Utils as Utils
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Data.Bifunctor (bimap)
 import Data.Map as Map
 import Data.Newtype (unwrap)
@@ -20,7 +21,6 @@ import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
 import Mote (test, group)
 import QueryM.Ogmios as O
-import TestM (TestPlanM)
 import TxOutput (ogmiosTxOutToTransactionOutput)
 import Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)

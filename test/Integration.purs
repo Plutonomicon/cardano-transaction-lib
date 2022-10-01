@@ -5,6 +5,7 @@ import Prelude
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract, wrapContract)
 import Ctl.Internal.Test.Utils as Utils
+import Ctl.Internal.Test.Utils (TestPlanM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -19,7 +20,6 @@ import Test.BalanceTx.Collateral as Collateral
 import Test.Logging as Logging
 import Test.PrivateKey as PrivateKey
 import Test.Types.Interval as Types.Interval
-import TestM (TestPlanM)
 
 -- Run with `spago test --main Test.Integration`
 main :: Effect Unit
