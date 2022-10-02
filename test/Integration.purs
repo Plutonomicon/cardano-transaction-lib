@@ -1,30 +1,29 @@
-module Test.Integration (main, testPlan) where
+module Test.Ctl.Integration (main, testPlan) where
 
 import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract, wrapContract)
-import Ctl.Internal.Test.Utils as Utils
-import Ctl.Internal.Test.Utils (TestPlanM)
+import Ctl.Internal.QueryM (runQueryM)
+import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote (skip)
 import Mote.Monad (mapTest)
-import QueryM (runQueryM)
-import QueryM.Config (testnetTraceQueryConfig)
-import QueryM.EraSummaries (getEraSummaries)
-import QueryM.SystemStart (getSystemStart)
-import Test.AffInterface as AffInterface
-import Test.BalanceTx.Collateral as Collateral
-import Test.Logging as Logging
-import Test.PrivateKey as PrivateKey
-import Test.Types.Interval as Types.Interval
+import Test.Ctl.AffInterface as AffInterface
+import Test.Ctl.BalanceTx.Collateral as Collateral
+import Test.Ctl.Logging as Logging
+import Test.Ctl.PrivateKey as PrivateKey
+import Test.Ctl.Types.Interval as Types.Interval
 
--- Run with `spago test --main Test.Integration`
+-- Run with `spago test --main Test.Ctl.Integration`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret testPlan
+  interpret testPlan
 
 -- Requires external services listed in README.md
 testPlan :: TestPlanM (Aff Unit) Unit

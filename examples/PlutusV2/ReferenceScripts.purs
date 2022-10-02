@@ -1,4 +1,4 @@
-module Examples.PlutusV2.ReferenceScripts
+module Ctl.Examples.PlutusV2.ReferenceScripts
   ( main
   , example
   , contract
@@ -28,10 +28,10 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (empty, toUnfoldable) as Map
-import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
 main = example testnetNamiConfig

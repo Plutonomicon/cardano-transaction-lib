@@ -13,33 +13,32 @@ module Contract.Config
   , module Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
-  , module Serialization
-  , module QueryM.ServerConfig
-  , module Wallet.Spec
-  , module Wallet.Key
+  , module Ctl.Internal.Serialization
+  , module Ctl.Internal.QueryM.ServerConfig
+  , module Ctl.Internal.Wallet.Spec
+  , module Ctl.Internal.Wallet.Key
   ) where
 
 import Prelude
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Contract.Monad (ConfigParams)
-import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
-import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing))
-import QueryM.ServerConfig
+import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
-import Serialization (privateKeyFromBytes)
-import Wallet.Key
+import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Wallet.Spec
-  ( WalletSpec
+import Ctl.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
       ( UseKeys
       , ConnectToNami
       , ConnectToGero
@@ -47,9 +46,10 @@ import Wallet.Spec
       , ConnectToEternl
       , ConnectToLode
       )
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   )
+import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
+import Data.Log.Message (Message)
+import Data.Maybe (Maybe(Just, Nothing))
 
 testnetConfig :: ConfigParams ()
 testnetConfig =

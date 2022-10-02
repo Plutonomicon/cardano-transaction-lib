@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using three minting policies with different redeemers.
-module Examples.MintsMultipleTokens
+module Ctl.Examples.MintsMultipleTokens
   ( example
   , contract
   , main
@@ -25,12 +25,12 @@ import Contract.TextEnvelope
 import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Data.BigInt (fromInt) as BigInt
-import Examples.Helpers
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

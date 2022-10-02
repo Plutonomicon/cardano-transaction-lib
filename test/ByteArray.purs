@@ -1,7 +1,16 @@
-module Test.ByteArray where
+module Test.Ctl.ByteArray where
 
 import Prelude
-import Ctl.Internal.Test.Utils (TestPlanM)
+
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  , byteArrayToIntArray
+  , hexToByteArray
+  )
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -12,14 +21,6 @@ import Test.QuickCheck.Laws.Data.Monoid (checkMonoid)
 import Test.QuickCheck.Laws.Data.Ord (checkOrd)
 import Test.QuickCheck.Laws.Data.Semigroup (checkSemigroup)
 import Type.Proxy (Proxy(Proxy))
-import Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayFromIntArrayUnsafe
-  , byteArrayToHex
-  , byteArrayToIntArray
-  , hexToByteArray
-  )
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

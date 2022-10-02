@@ -1,7 +1,7 @@
 -- | This module demonstrates creating a UTxO whose datum is inline via the
 -- | `Contract` interface. The `checkDatumIsInlineScript` only validates if the
 -- | scripts own input was supplied with an inline datum matching the redeemer.
-module Examples.PlutusV2.InlineDatum
+module Ctl.Examples.PlutusV2.InlineDatum
   ( main
   , example
   , checkDatumIsInlineScript
@@ -23,8 +23,8 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData
-  ( PlutusData(Integer)
-  , Datum(Datum)
+  ( Datum(Datum)
+  , PlutusData(Integer)
   , Redeemer(Redeemer)
   )
 import Contract.ScriptLookups as Lookups
@@ -34,14 +34,14 @@ import Contract.TextEnvelope
   , textEnvelopeBytes
   )
 import Contract.Transaction
-  ( TransactionHash
+  ( OutputDatum(OutputDatum)
+  , TransactionHash
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , OutputDatum(OutputDatum)
   , awaitTxConfirmed
   , balanceAndSignTxE
-  , submit
   , plutusV2Script
+  , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints

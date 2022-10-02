@@ -1,13 +1,18 @@
-module Test.TxOutput (suite, main) where
+module Test.Ctl.TxOutput (suite, main) where
 
 import Prelude
 
-import Aeson (printJsonDecodeError, decodeJsonString)
-import Cardano.Types.Transaction (TransactionOutput)
+import Aeson (decodeJsonString, printJsonDecodeError)
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
-import Ctl.Internal.Test.Utils as Utils
-import Ctl.Internal.Test.Utils (TestPlanM)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
+import Ctl.Internal.QueryM.Ogmios as O
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
+import Ctl.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
+import Ctl.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
 import Data.Bifunctor (bimap)
+import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Map as Map
 import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
@@ -16,21 +21,15 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
+import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
-import Mote (test, group)
-import QueryM.Ogmios as O
-import TxOutput (ogmiosTxOutToTransactionOutput)
-import Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
-import Data.FoldableWithIndex (traverseWithIndex_)
 
--- Run with `spago test --main Test.TxOutput`
+-- Run with `spago test --main Test.Ctl.TxOutput`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret suite
+  interpret suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

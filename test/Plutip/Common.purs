@@ -1,4 +1,4 @@
-module Test.Plutip.Common
+module Test.Ctl.Plutip.Common
   ( config
   , privateStakeKey
   ) where
@@ -6,14 +6,14 @@ module Test.Plutip.Common
 import Prelude
 
 import Contract.Wallet (privateKeyFromBytes)
+import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
-import Plutip.Types (PlutipConfig)
-import Types.RawBytes (hexToRawBytes)
-import Wallet.Key (PrivateStakeKey)
 
 config :: PlutipConfig
 config =

@@ -1,37 +1,38 @@
-module Test.AffInterface (suite) where
+module Test.Ctl.AffInterface (suite) where
 
 import Prelude
 
-import Address (ogmiosAddressToAddress)
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
 import Control.Monad.Except (throwError)
-import Ctl.Internal.Test.Utils (TestPlanM)
+import Ctl.Internal.Address (ogmiosAddressToAddress)
+import Ctl.Internal.QueryM
+  ( QueryM
+  , getChainTip
+  , getDatumByHash
+  , getDatumsByHashes
+  , getDatumsByHashesWithErrors
+  , submitTxOgmios
+  )
+import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
+import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
+import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.QueryM.Utxos (utxosAt)
+import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (add, fromInt) as BigNum
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.Transaction (DataHash(DataHash))
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
 import Data.Newtype (over, wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
-import Effect.Aff (try, error)
+import Effect.Aff (error, try)
 import Mote (group, test)
-import QueryM
-  ( QueryM
-  , getChainTip
-  , getDatumByHash
-  , getDatumsByHashes
-  , submitTxOgmios
-  )
-import QueryM.CurrentEpoch (getCurrentEpoch)
-import QueryM.EraSummaries (getEraSummaries)
-import QueryM.Ogmios (OgmiosAddress)
-import QueryM.ProtocolParameters (getProtocolParameters)
-import QueryM.SystemStart (getSystemStart)
-import QueryM.Utxos (utxosAt)
-import QueryM.WaitUntilSlot (waitUntilSlot)
-import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldSatisfy)
-import Types.BigNum (fromInt, add) as BigNum
-import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.Transaction (DataHash(DataHash))
 
 testnet_addr1 :: OgmiosAddress
 testnet_addr1 =
@@ -71,6 +72,8 @@ suite = do
       testOgmiosDatumCacheGetDatumByHash
     test "Can process GetDatumsByHashes" do
       testOgmiosDatumCacheGetDatumsByHashes
+    test "Can process GetDatumsByHashesWithErrors" do
+      testOgmiosDatumCacheGetDatumsByHashesWithErrors
 
 testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
 testOgmiosDatumCacheGetDatumByHash = do
@@ -80,6 +83,11 @@ testOgmiosDatumCacheGetDatumByHash = do
 testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
 testOgmiosDatumCacheGetDatumsByHashes = do
   void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+
+testOgmiosDatumCacheGetDatumsByHashesWithErrors :: QueryM Unit
+testOgmiosDatumCacheGetDatumsByHashesWithErrors = do
+  void $ getDatumsByHashesWithErrors $ pure $ DataHash $ hexToByteArrayUnsafe
     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testUtxosAt :: OgmiosAddress -> QueryM Unit

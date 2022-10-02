@@ -10,6 +10,7 @@ module Ctl.Internal.Test.E2E.Feedback.Node
 import Prelude
 
 import Aeson (decodeAeson, parseJsonStringToAeson)
+import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
 import Data.Array (all)
 import Data.Array as Array
@@ -37,7 +38,6 @@ import Effect.Exception (error, throw)
 import Effect.Ref as Ref
 import Effect.Uncurried (mkEffectFn1)
 import Foreign (unsafeFromForeign)
-import Helpers (liftEither)
 import Toppokki as Toppokki
 
 -- | React to events raised by the browser

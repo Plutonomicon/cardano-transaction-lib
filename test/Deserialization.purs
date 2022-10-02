@@ -1,45 +1,50 @@
-module Test.Deserialization (suite) where
+module Test.Ctl.Deserialization (suite) where
 
 import Prelude
 
-import Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
-import Cardano.Types.Transaction (Transaction, TransactionOutput) as T
-import Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as T
-import Ctl.Internal.Test.Utils (TestPlanM, errMaybe)
 import Contract.Address (ByteArray)
 import Control.Monad.Error.Class (class MonadThrow)
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
+import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as T
+import Ctl.Internal.Deserialization.BigInt as DB
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.NativeScript as NSD
+import Ctl.Internal.Deserialization.PlutusData as DPD
+import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
+import Ctl.Internal.Deserialization.WitnessSet
+  ( convertWitnessSet
+  , deserializeWitnessSet
+  )
+import Ctl.Internal.Serialization (convertTransaction) as TS
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization.BigInt as SB
+import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
+import Ctl.Internal.Serialization.PlutusData as SPD
+import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
+import Ctl.Internal.Serialization.WitnessSet as SW
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
+import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
-import Deserialization.BigInt as DB
-import Deserialization.FromBytes (fromBytes)
-import Deserialization.NativeScript as NSD
-import Deserialization.PlutusData as DPD
-import Deserialization.Transaction (convertTransaction) as TD
-import Deserialization.UnspentOutput
-  ( convertUnspentOutput
-  , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
-  )
-import Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
 import Mote (group, test)
-import Serialization (convertTransaction) as TS
-import Serialization (toBytes)
-import Serialization as Serialization
-import Serialization.BigInt as SB
-import Serialization.NativeScript (convertNativeScript) as NSS
-import Serialization.PlutusData as SPD
-import Serialization.Types (TransactionUnspentOutput)
-import Serialization.WitnessSet as SW
-import Test.Fixtures
+import Test.Ctl.Fixtures
   ( nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
@@ -74,9 +79,8 @@ import Test.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
-import Types.BigNum (fromBigInt, toBigInt) as BigNum
-import Types.Transaction (TransactionInput) as T
+import Test.Ctl.Utils (errMaybe)
+import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit

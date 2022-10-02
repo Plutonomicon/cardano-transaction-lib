@@ -9,6 +9,7 @@ import Prelude
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
@@ -28,11 +29,11 @@ import Ctl.Internal.Test.E2E.Types
   , E2ETestRuntime
   , ExtensionParams
   , Extensions
+  , RunningE2ETest
   , SettingsArchive
   , SettingsRuntime
   , TmpDir
   , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
-  , RunningE2ETest
   , mkE2ETest
   , mkExtensionId
   , unExtensionId
@@ -49,8 +50,7 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiConfirmAccess
   , namiSign
   )
-import Ctl.Internal.Test.Utils (TestPlanM)
-import Ctl.Internal.Test.Utils as Utils
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.Either (Either(Left, Right))
@@ -71,7 +71,6 @@ import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
-import Helpers (liftedM)
 import Mote (group, test)
 import Node.ChildProcess
   ( Exit(Normally, BySignal)
@@ -87,7 +86,7 @@ import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
 import Node.FS.Aff (exists, stat)
 import Node.FS.Stats (isDirectory)
-import Node.Path (FilePath, relative, concat)
+import Node.Path (FilePath, concat, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
@@ -122,7 +121,7 @@ runE2ECommand = case _ of
 -- | Implements `run` command
 runE2ETests :: TestOptions -> E2ETestRuntime -> Aff Unit
 runE2ETests opts rt = do
-  Utils.interpretWithConfig
+  interpretWithConfig
     ( SpecRunner.defaultConfig
         { timeout = Milliseconds <<< mul 1000.0 <<< Int.toNumber <$>
             opts.testTimeout
@@ -396,8 +395,7 @@ findSettingsArchive =
   liftedM
     ( error
         "Unable to find settings archive (specify E2E_SETTINGS_ARCHIVE or --settings-archive)"
-    ) $
-    lookupEnv "E2E_SETTINGS_ARCHIVE"
+    ) $ lookupEnv "E2E_SETTINGS_ARCHIVE"
 
 findChromeProfile :: Aff ChromeUserDataDir
 findChromeProfile = do

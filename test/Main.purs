@@ -1,15 +1,15 @@
-module Test.Main (main) where
+module Test.Ctl.Main (main) where
 
 import Prelude
 
-import Ctl.Internal.Test.Utils as Utils
-import Ctl.Test.Unit as Unit
+import Ctl.Internal.Test.TestPlanM (interpret)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Test.Integration as Integration
+import Test.Ctl.Integration as Integration
+import Test.Ctl.Unit as Unit
 
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret do
+  interpret do
     Unit.testPlan
     Integration.testPlan

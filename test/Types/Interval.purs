@@ -1,4 +1,4 @@
-module Test.Types.Interval
+module Test.Ctl.Types.Interval
   ( suite
   , eraSummariesFixture
   , systemStartFixture
@@ -6,12 +6,21 @@ module Test.Types.Interval
 
 import Prelude
 
-import Aeson (decodeJsonString, class DecodeAeson, printJsonDecodeError)
-import Control.Monad.Except (throwError)
+import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
 import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.Test.Utils (TestPlanM)
-import Data.BigInt (fromString) as BigInt
+import Control.Monad.Except (throwError)
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Ctl.Internal.Types.Interval
+  ( POSIXTime(POSIXTime)
+  , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
+  , posixTimeToSlot
+  , slotToPosixTime
+  )
 import Data.Bifunctor (lmap)
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
@@ -22,16 +31,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
-import QueryM.Ogmios (EraSummaries, SystemStart)
-import Serialization.Address (Slot(Slot))
 import Test.Spec.Assertions (shouldEqual)
-import Types.BigNum (fromInt) as BigNum
-import Types.Interval
-  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
-  , POSIXTime(POSIXTime)
-  , posixTimeToSlot
-  , slotToPosixTime
-  )
 
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do

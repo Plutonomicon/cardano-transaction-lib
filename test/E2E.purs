@@ -1,11 +1,12 @@
-module Test.E2E (main) where
+module Test.Ctl.E2E (main) where
+
+import Prelude
 
 import Contract.Test.E2E (parseCliArgs, runE2ECommand)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Prelude
 
--- Run with `spago test --main Test.E2E`
+-- Run with `spago test --main Test.Ctl.E2E`
 main :: Effect Unit
 main = do
   options <- parseCliArgs
