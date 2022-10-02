@@ -1267,11 +1267,11 @@ let
 
     "spec" = pkgs.stdenv.mkDerivation {
         name = "spec";
-        version = "f14a2ef204654275efd4b0fe8b8fb0dd4a019042";
+        version = "v5.0.1";
         src = pkgs.fetchgit {
-          url = "https://github.com/mlabs-haskell/purescript-spec";
-          rev = "f14a2ef204654275efd4b0fe8b8fb0dd4a019042";
-          sha256 = "0nxndi3bg0kbjfdqjshxdqfj900sjga1ppg906rbxgfm1j73hxp1";
+          url = "https://github.com/purescript-spec/purescript-spec.git";
+          rev = "2cfa11573dbb695c117efce0a8f76a3daba12e87";
+          sha256 = "0hpca1sa738029ww74zpw31br5x339q35kzb10iqd55lp6611k80";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
