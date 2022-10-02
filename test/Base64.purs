@@ -1,9 +1,14 @@
-module Test.Base64 (suite) where
+module Test.Ctl.Base64 (suite) where
 
 import Prelude
 
-import Base64 (fromByteArray, mkBase64String, toByteArray, unBase64String)
-import Ctl.Internal.Test.Utils (TestPlanM)
+import Ctl.Internal.Base64
+  ( fromByteArray
+  , mkBase64String
+  , toByteArray
+  , unBase64String
+  )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)

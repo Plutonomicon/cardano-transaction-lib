@@ -1,8 +1,9 @@
+-- | A module for mocking CIP30 wallets.
 module Contract.Test.Cip30Mock
   ( module X
   ) where
 
-import Wallet.Cip30Mock
-  ( withCip30Mock
-  , WalletMock(MockFlint, MockGero, MockNami)
+import Ctl.Internal.Wallet.Cip30Mock
+  ( WalletMock(MockFlint, MockGero, MockNami)
+  , withCip30Mock
   ) as X

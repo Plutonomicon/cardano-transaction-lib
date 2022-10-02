@@ -1,4 +1,4 @@
-module Test.Plutip.Logging
+module Test.Ctl.Plutip.Logging
   ( suite
   ) where
 
@@ -6,14 +6,14 @@ import Prelude
 
 import Contract.Log (logWarn')
 import Contract.Test.Plutip (runPlutipContract)
-import Ctl.Internal.Test.Utils (TestPlanM)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
-import Test.Plutip.Common (config)
+import Test.Ctl.Plutip.Common (config)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

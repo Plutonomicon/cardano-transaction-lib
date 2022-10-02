@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main, contract, example) where
+module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
@@ -13,8 +13,8 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
-import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig

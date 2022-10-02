@@ -14,47 +14,56 @@ module Ctl.Internal.Test.E2E.Wallets
 
 import Prelude
 
+import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Test.E2E.Types
   ( ExtensionId
   , RunningE2ETest
   , WalletPassword
   , unExtensionId
   )
-import Control.Promise (Promise, toAffE)
-import Data.Array (head)
 import Data.Either (fromRight, hush)
+import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
-import Data.Newtype (class Newtype, wrap, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (for, fold)
+import Data.Traversable (fold, for)
 import Effect (Effect)
 import Effect.Aff (Aff, delay, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Foreign (Foreign, unsafeFromForeign)
-import Helpers (liftedM)
 import Toppokki as Toppokki
 
 -- | Simulate physical typing into a form element.
 typeInto :: Selector -> String -> Toppokki.Page -> Aff Unit
 typeInto selector text page = toAffE $ _typeInto selector text page
 
--- | Find the popup page of the wallet. This works for both Nami and Gero
--- | by looking for a page with a button. If there is a button on the main page
--- | this needs to be modified.
+-- | Find the popup page of the wallet.
+-- | Accepts a URL pattern that identifies the extension popup (e.g. extension
+-- | ID). Throws if there is more than one page matching the pattern.
 findWalletPage :: Pattern -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
 findWalletPage pattern browser = do
   pages <- Toppokki.pages browser
-  head <<< fold <$> for pages \page -> do
-    eiPageUrl <- map hush $ try $ pageUrl page
-    pure $
-      case eiPageUrl of
-        Nothing -> []
-        Just url
-          | String.contains pattern url -> [ page ]
-          | otherwise -> []
+  walletPages <- fold <$> for pages \page -> do
+    try (pageUrl page) <#> hush >>> case _ of
+      Nothing -> []
+      Just url
+        | String.contains pattern url -> [ page ]
+        | otherwise -> []
+  case walletPages of
+    [] -> pure Nothing
+    [ page ] -> pure $ Just page
+    _ -> do
+      urls <- for pages pageUrl
+      liftEffect $ throw $
+        "findWalletPage: more than one page found when trying to find "
+          <> "the wallet popup. URLs: "
+          <> intercalate ", " urls
+          <> "; URL pattern: "
+          <> show (unwrap pattern)
 
 pageUrl :: Toppokki.Page -> Aff String
 pageUrl page = do

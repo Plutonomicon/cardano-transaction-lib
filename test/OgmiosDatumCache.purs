@@ -1,4 +1,4 @@
-module Test.OgmiosDatumCache
+module Test.Ctl.OgmiosDatumCache
   ( suite
   ) where
 
@@ -7,18 +7,19 @@ import Prelude
 import Aeson (caseAesonArray, decodeAeson, encodeAeson)
 import Contract.Address (ByteArray)
 import Control.Monad.Error.Class (class MonadThrow)
-import Ctl.Internal.Test.Utils (TestPlanM, errEither, errMaybe, readAeson)
+import Ctl.Internal.Hashing (datumHash)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.Datum (Datum(Datum))
+import Ctl.Internal.Types.PlutusData (PlutusData)
 import Data.Either (Either(Right, Left))
 import Data.Newtype (unwrap)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
-import Hashing (datumHash)
 import Mote (group, skip, test)
+import Test.Ctl.Utils (errEither, errMaybe, readAeson)
 import Test.Spec.Assertions (shouldEqual)
-import Types.Datum (Datum(Datum))
-import Types.PlutusData (PlutusData)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Datum Cache tests" $ do

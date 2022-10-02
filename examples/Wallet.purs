@@ -1,4 +1,4 @@
-module Examples.Wallet (example, contract) where
+module Ctl.Examples.Wallet (example, contract) where
 
 import Contract.Prelude
 

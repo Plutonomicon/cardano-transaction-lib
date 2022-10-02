@@ -1,4 +1,4 @@
-module Test.Ogmios.Aeson
+module Test.Ctl.Ogmios.Aeson
   ( main
   , suite
   , printEvaluateTxFailures
@@ -8,15 +8,15 @@ import Prelude
 
 import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
 import Aeson as Aeson
-import BalanceTx (printTxEvaluationFailure)
-import Ctl.Internal.Test.Utils as Utils
-import Ctl.Internal.Test.Utils (TestPlanM)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Data.Array (catMaybes, elem, groupAllBy, nubBy, filter)
-import Data.Array.NonEmpty (head, length, tail, NonEmptyArray)
-import Data.Bifunctor (lmap, bimap)
+import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.QueryM.Ogmios as O
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
+import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
+import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
+import Data.Bifunctor (bimap, lmap)
 import Data.Either (either, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
@@ -24,7 +24,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_, traverse)
-import Data.Tuple (snd, fst)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
@@ -37,7 +37,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
-import QueryM.Ogmios as O
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
@@ -173,4 +172,4 @@ suite = group "Ogmios Aeson tests" do
 
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret suite
+  interpret suite

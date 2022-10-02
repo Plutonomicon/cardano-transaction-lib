@@ -1,7 +1,7 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
-module Examples.PlutusV2.AlwaysSucceeds
+module Ctl.Examples.PlutusV2.AlwaysSucceeds
   ( main
   , example
   , contract
@@ -9,11 +9,6 @@ module Examples.PlutusV2.AlwaysSucceeds
   ) where
 
 import Contract.Prelude
-
-import Examples.AlwaysSucceeds
-  ( payToAlwaysSucceeds
-  , spendFromAlwaysSucceeds
-  )
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -30,6 +25,10 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( awaitTxConfirmed
   , plutusV2Script
+  )
+import Ctl.Examples.AlwaysSucceeds
+  ( payToAlwaysSucceeds
+  , spendFromAlwaysSucceeds
   )
 
 main :: Effect Unit

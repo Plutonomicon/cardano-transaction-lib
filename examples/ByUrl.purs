@@ -1,23 +1,39 @@
-module Examples.ByUrl (main) where
+module Ctl.Examples.ByUrl (main) where
 
 import Prelude
 
 import Contract.Config
   ( ConfigParams
   , testnetEternlConfig
-  , testnetGeroConfig
-  , testnetNamiConfig
   , testnetFlintConfig
+  , testnetGeroConfig
   , testnetLodeConfig
+  , testnetNamiConfig
   )
 import Contract.Monad (Contract, runContract)
 import Contract.Prelude (fst, traverse_, uncurry)
+import Contract.Test.Cip30Mock
+  ( WalletMock(MockFlint, MockGero, MockNami)
+  , withCip30Mock
+  )
 import Contract.Test.E2E (e2eFeedbackHooks)
+import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
   )
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.AlwaysMints as AlwaysMints
+import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.Datums as Datums
+import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Ctl.Examples.OneShotMinting as OneShotMinting
+import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
+import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
+import Ctl.Examples.SendsToken as SendsToken
+import Ctl.Examples.SignMultiple as SignMultiple
+import Ctl.Examples.Wallet as Wallet
 import Data.Array (last)
 import Data.Foldable (lookup)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -30,21 +46,6 @@ import Effect.Aff (delay, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (error)
-import Examples.AlwaysMints as AlwaysMints
-import Examples.AlwaysSucceeds as AlwaysSucceeds
-import Examples.Datums as Datums
-import Examples.MintsMultipleTokens as MintsMultipleTokens
-import Examples.OneShotMinting as OneShotMinting
-import Examples.Pkh2Pkh as Pkh2Pkh
-import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import Examples.SendsToken as SendsToken
-import Examples.SignMultiple as SignMultiple
-import Examples.Wallet as Wallet
-import Wallet.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami)
-  , withCip30Mock
-  )
-import Wallet.Key (privateKeysToKeyWallet)
 
 foreign import _queryString :: Effect String
 
@@ -110,6 +111,7 @@ examples =
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
+  , "OneShotMintingV2" /\ OneShotMintingV2.contract
   ]
 
 -- Address is:

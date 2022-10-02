@@ -1,7 +1,7 @@
 -- | This module balances and signs two transactions at once and demonstrates
 -- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
-module Examples.SignMultiple (example, contract, main) where
+module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
@@ -27,9 +27,11 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
+-- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
+import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Data.BigInt as BigInt
 import Effect.Ref as Ref
-import Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do

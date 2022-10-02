@@ -1,14 +1,8 @@
-module Test.Serialization.Address (suite) where
+module Test.Ctl.Serialization.Address (suite) where
 
 import Prelude
 
-import Ctl.Internal.Test.Utils (TestPlanM, errMaybe)
-import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (wrap)
-import Effect.Aff (Aff)
-import Effect.Class.Console (log)
-import Mote (group, test)
-import Serialization.Address
+import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
   , addressBytes
@@ -40,17 +34,24 @@ import Serialization.Address
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   )
-import Serialization.Hash
+import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
+import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (wrap)
+import Effect.Aff (Aff)
+import Effect.Class.Console (log)
+import Mote (group, test)
+import Test.Ctl.Fixtures (ed25519KeyHashFixture1)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual)
-import Types.Aliases (Bech32String)
-import Types.BigNum (fromInt, fromStringUnsafe) as BigNum
-import Types.RawBytes (hexToRawBytesUnsafe)
-import Test.Fixtures (ed25519KeyHashFixture1)
 
 doesNotThrow
   :: forall (f :: Type -> Type) (a :: Type). Applicative f => a -> f a

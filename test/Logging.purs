@@ -1,11 +1,11 @@
-module Test.Logging (suite) where
+module Test.Ctl.Logging (suite) where
 
 import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Log (logWarn')
 import Contract.Monad (runContract)
-import Ctl.Internal.Test.Utils (TestPlanM)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
 import Effect.Class (liftEffect)

@@ -9,10 +9,10 @@ import Ctl.Internal.Test.E2E.Types
   , CrxFilePath
   , E2ETest
   , ExtensionId
+  , SettingsArchive
   , TmpDir
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
   , WalletPassword
-  , SettingsArchive
   , mkE2ETest
   , mkExtensionId
   )
@@ -26,7 +26,7 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Node.Path (FilePath)
 import Options.Applicative
