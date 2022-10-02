@@ -1,4 +1,4 @@
-exports._pushBrowserEvent = message => {
+exports._pushBrowserEvent = message => () => {
   if (typeof window.ctlE2ECommunications != "object") {
     window.ctlE2ECommunications = [];
   }
