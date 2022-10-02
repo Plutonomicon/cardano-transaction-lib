@@ -52,6 +52,7 @@ suite = do
                 ( Just $ PrivateStakeKeyFile
                     "fixtures/test/parsing/PrivateKey/stake.skey"
                 )
+            , suppressLogs = true
             }
       runContract cfg do
         mbTx <- signTransaction txFixture1
