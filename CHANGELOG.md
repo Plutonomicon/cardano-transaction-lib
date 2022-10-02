@@ -43,6 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
+- Completely new E2E (headless browser) test suite. It is now both easier to set up and use, and less flaky. The shell script has been removed (and re-implemented in PureScript). The suite can now be configured using environment variables (`test/e2e.env`) or CLI arguments. It is no more required to provide an accompanying tester script for each of the `Contract`s to be tested. ([#1058](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1058), [#986](https://github.com/Plutonomicon/cardano-transaction-lib/issues/986))
 
 ### Removed
 
