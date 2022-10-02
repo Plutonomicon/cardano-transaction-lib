@@ -42,7 +42,7 @@ import Contract.Transaction
   , plutusV1Script
   , submit
   )
-import Contract.TxConstraints (DatumPresence(..))
+import Contract.TxConstraints (DatumPresence(DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value
