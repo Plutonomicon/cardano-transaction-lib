@@ -51,7 +51,7 @@ suite :: TestPlanM (QueryM Unit) Unit
 suite = do
   group "Aff Interface" do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
-    test "UtxosAt non-Testnet" $ testUtxosAt addr1
+    test "UtxosAt Mainnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
     test "Get waitUntilSlot" testWaitUntilSlot
     test "Get EraSummaries" testGetEraSummaries

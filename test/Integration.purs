@@ -33,7 +33,7 @@ testPlan = do
   -- We disabled them during transition from `testnet` to `preprod` networks.
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
   skip $ flip mapTest Types.Interval.suite \f -> runQueryM
-    testnetTraceQueryConfig
+    testnetTraceQueryConfig { suppressLogs = true }
     do
       eraSummaries <- getEraSummaries
       sysStart <- getSystemStart

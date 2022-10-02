@@ -2,6 +2,8 @@ module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
+import Contract.Config (testnetConfig)
+import Contract.Monad (Contract, runContract)
 import Control.Monad.Reader.Trans (asks)
 import Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
@@ -18,8 +20,6 @@ import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
   , mkSingletonNonAdaAsset
   ) as Value
-import Ctl.Internal.QueryM (QueryM, runQueryM)
-import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
@@ -78,19 +78,19 @@ suite = do
                 utxosFixture3
             )
 
-withParams :: (CoinsPerUtxoUnit -> Int -> QueryM Unit) -> Aff Unit
+withParams :: (CoinsPerUtxoUnit -> Int -> Contract () Unit) -> Aff Unit
 withParams test =
-  runQueryM testnetTraceQueryConfig
+  runContract testnetConfig { suppressLogs = true }
     (join (test <$> getCoinsPerUtxoUnit <*> getMaxCollateralInputs))
   where
-  getMaxCollateralInputs :: QueryM Int
+  getMaxCollateralInputs :: Contract () Int
   getMaxCollateralInputs =
-    asks $ _.runtime >>> _.pparams <#>
+    asks $ unwrap >>> _.runtime >>> _.pparams <#>
       UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
-  getCoinsPerUtxoUnit :: QueryM CoinsPerUtxoUnit
+  getCoinsPerUtxoUnit :: Contract () CoinsPerUtxoUnit
   getCoinsPerUtxoUnit =
-    asks (_.runtime >>> _.pparams) <#> unwrap >>>
+    asks (unwrap >>> _.runtime >>> _.pparams) <#> unwrap >>>
       _.coinsPerUtxoUnit
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.
