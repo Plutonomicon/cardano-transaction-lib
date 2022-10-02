@@ -334,7 +334,6 @@ import Prelude
   , (>>>)
   , (||)
   ) as PurescriptPrelude
-
 import Undefined (undefined) as Undefined
 
 mconcat

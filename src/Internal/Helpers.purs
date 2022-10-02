@@ -53,8 +53,8 @@ import Data.Newtype (unwrap)
 import Data.Op (Op(Op))
 import Data.Set (Set)
 import Data.Set (toUnfoldable) as Set
-import Data.Tuple (snd, uncurry)
 import Data.Traversable (class Traversable, sequence, traverse)
+import Data.Tuple (snd, uncurry)
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt

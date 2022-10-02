@@ -2,23 +2,57 @@ module Ctl.Examples.MultipleRedeemers (contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, PaymentPubKeyHash)
-import Contract.Config (ConfigParams, testnetConfig, testnetNamiConfig)
-import Contract.Log (logInfo', logDebug')
-import Contract.Monad (Contract, ContractEnv(..), launchAff_, liftContractM, liftedE, liftedM, runContract)
-import Contract.PlutusData (Redeemer(Redeemer), PlutusData(Integer), toData, unitDatum)
+import Contract.Address (PaymentPubKeyHash, ownPaymentPubKeyHash)
+import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Log (logInfo')
+import Contract.Monad
+  ( Contract
+  , launchAff_
+  , liftContractM
+  , liftedE
+  , liftedM
+  , runContract
+  )
+import Contract.PlutusData
+  ( PlutusData(Integer)
+  , Redeemer(Redeemer)
+  , toData
+  , unitDatum
+  )
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, MintingPolicy, ValidatorHash, PlutusScript, scriptHashAddress, validatorHash)
+import Contract.Scripts
+  ( MintingPolicy
+  , PlutusScript
+  , Validator
+  , ValidatorHash
+  , scriptHashAddress
+  , validatorHash
+  )
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope (textEnvelopeBytes, TextEnvelopeType(PlutusScriptV1))
-import Contract.Transaction (TransactionHash, TransactionInput, balanceAndSignTx, balanceAndSignTxE, plutusV1Script, submit)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
+import Contract.Transaction
+  ( TransactionHash
+  , TransactionInput
+  , balanceAndSignTx
+  , balanceAndSignTxE
+  , plutusV1Script
+  , submit
+  )
 import Contract.TxConstraints (DatumPresence(..))
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoMap, utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, mkTokenName, scriptCurrencySymbol)
+import Contract.Value
+  ( CurrencySymbol
+  , TokenName
+  , Value
+  , mkTokenName
+  , scriptCurrencySymbol
+  )
 import Contract.Value as Value
-import Control.Monad.Reader.Trans (ask)
 import Data.Array (replicate)
 import Data.Bifunctor (lmap)
 import Data.BigInt (fromInt)
@@ -27,16 +61,15 @@ import Data.Foldable (length, sum)
 import Data.Int (toNumber)
 import Data.Map as Map
 import Data.Set as Set
-import Effect.Aff (delay, Milliseconds(Milliseconds))
+import Effect.Aff (Milliseconds(Milliseconds), delay)
 
--- | to run this, edit `ps-entrypoint` in the MakeFile
 main :: Effect Unit
 main = example testnetNamiConfig
 
 type Configuration =
   { -- | the scripts we're going to lock the utxos at
     validators :: Array (Validator /\ Redeemer)
-  -- | the Tokennames and the amounts we're going to luck
+  -- | the Tokennames and the amounts we're going to lock
   , tokens :: Array (String /\ Int)
   -- | the CurrencySymbols wee're gonig to look the tokens at 
   , policies :: Array (MintingPolicy /\ Redeemer)
@@ -67,8 +100,8 @@ initialise = do
           , red3 /\ Redeemer (toData $ Integer $ fromInt 3)
           ]
       , tokens:
-          [ Tuple "foo" 3
-          , Tuple "bar" 5
+          [ Tuple "foo" 1
+          , Tuple "bar" 1
           ]
       , policies:
           [ mp1' /\ Redeemer (toData $ Integer $ fromInt 1)
@@ -83,31 +116,34 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.MultipleRedeemers"
   cfg :: Configuration <- initialise
-  logInfo' "Initialise succeeded"
 
   hash <- createTokens cfg
   logInfo' $ "Created utxos with transactionhash " <> show hash
   logInfo' "Going on with spending scriptoutputs from previous transaction"
   spendTokens cfg hash
 
--- | At each script we lock n of each tokens, contained in single utxos 
+-- | At each script we lock n of each token, contained in single utxos 
 -- | For each of the CurrencySymbols we mint a value with a correspnding redeemer
 createTokens
   :: Configuration -> Contract () TransactionHash
-createTokens {tokens, policies, validators} = do
-  logInfo' "createToken start"
-
+createTokens { tokens, policies, validators } = do
   css :: Array (CurrencySymbol /\ Redeemer) <-
-    liftContractM "Could not obtain currency symbol from minting policy" $
-      sequence $ ltraverse scriptCurrencySymbol <$> policies
+    liftContractM "Could not obtain currency symbol from minting policy"
+      $ sequence
+      $ ltraverse scriptCurrencySymbol
+      <$> policies
 
   toks :: Array (Tuple TokenName Int) <-
-    liftContractM "Could not obtain TokenName" $
-      sequence $ ltraverse (mkTokenName <=< byteArrayFromAscii) <$> tokens
+    liftContractM "Could not obtain TokenName"
+      $ sequence
+      $ ltraverse (mkTokenName <=< byteArrayFromAscii)
+      <$> tokens
 
   let
     toCsValue :: Array (Tuple TokenName Int) -> CurrencySymbol -> Value
-    toCsValue t cs = mconcat $ map (\(tn /\ n) -> Value.singleton cs tn $ fromInt n) t
+    toCsValue t cs = mconcat $ map
+      (\(tn /\ n) -> Value.singleton cs tn $ fromInt n)
+      t
 
     values :: Array (Value /\ Redeemer)
     values = lmap (toCsValue toks) <$> css
@@ -116,7 +152,6 @@ createTokens {tokens, policies, validators} = do
     vhashes = validatorHash <<< fst <$> validators
 
   logInfo' $ "Trying to create " <> show values
-
 
   let
     lookups :: Lookups.ScriptLookups PlutusData
@@ -132,7 +167,7 @@ createTokens {tokens, policies, validators} = do
           val /\ red <- values
           pure $ Constraints.mustMintValueWithRedeemer red val
       -- There will be `amount` UTxOs for every `CurrencySymbol`, `TokenName` and
-      -- `Validator. Every UTxO will contain `amount` tokens.
+      -- `Validator. Every UTxO will contain exactly 1 token.
       , mconcat $ do
           vhash <- vhashes
           (cs /\ _) <- css
@@ -150,7 +185,6 @@ createTokens {tokens, policies, validators} = do
   logInfo' $ "Balanced and signed tx is " <> show balancedSignedTx
   txId <- submit balancedSignedTx
   logInfo' $ "Tx ID: " <> show txId
-  logInfo' "createToken end"
   pure txId
 
 -- | for each Script we have one redeemer that we're goig to supply
@@ -165,7 +199,7 @@ spendTokens cfg@{ validators, policies } hash = do
     ownPaymentPubKeyHash
 
   logInfo' $ "Found " <> show (getorefs hash <<< fst <$> utxosnreds) <>
-    " at alwaysSucceeeds address"
+    " at validators' addresses"
 
   let
     lookups :: Lookups.ScriptLookups PlutusData
@@ -233,8 +267,9 @@ getorefs hash utxo = Set.toUnfoldable
   $ Set.filter ((_ == hash) <<< _.transactionId <<< unwrap)
   $ Map.keys utxo
 
-mkScript :: forall b . Newtype b PlutusScript => String -> Contract () b
-mkScript cbor = wrap <<< plutusV1Script <$> textEnvelopeBytes cbor PlutusScriptV1
+mkScript :: forall b. Newtype b PlutusScript => String -> Contract () b
+mkScript cbor = wrap <<< plutusV1Script <$> textEnvelopeBytes cbor
+  PlutusScriptV1
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do

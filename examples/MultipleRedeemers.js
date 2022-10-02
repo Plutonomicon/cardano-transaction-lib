@@ -1,6 +1,11 @@
 /* global BROWSER_RUNTIME */
 
-let redeemerInt1, redeemerInt2, redeemerInt3, vredeemerInt1, vredeemerInt2, vredeemerInt3;
+let redeemerInt1,
+  redeemerInt2,
+  redeemerInt3,
+  vredeemerInt1,
+  vredeemerInt2,
+  vredeemerInt3;
 
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   redeemerInt1 = require("Scripts/redeemer1.plutus");
