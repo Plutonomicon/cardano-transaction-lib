@@ -2,6 +2,14 @@ module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
   , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  , SupportedWallet
+      ( SupportedNami
+      , SupportedLode
+      , SupportedGero
+      , SupportedFlint
+      , SupportedEternl
+      , SupportedKeyWallet
+      )
   , isEternlAvailable
   , isGeroAvailable
   , isNamiAvailable
@@ -16,7 +24,8 @@ module Ctl.Internal.Wallet
   , cip30Wallet
   , dummySign
   , isEnabled
-  , walletToName
+  , supportedWalletToName
+  , walletToSupportedWallet
   ) where
 
 import Prelude
@@ -61,6 +70,14 @@ data Wallet
   | Eternl Cip30Wallet
   | Lode Cip30Wallet
   | KeyWallet KeyWallet
+
+data SupportedWallet
+  = SupportedNami
+  | SupportedGero
+  | SupportedFlint
+  | SupportedEternl
+  | SupportedLode
+  | SupportedKeyWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
@@ -115,25 +132,29 @@ foreign import _enableEternl :: Effect (Promise Cip30Connection)
 
 foreign import _isEnabled :: String -> Effect (Promise Boolean)
 
+foreign import _isWalletAvailable :: String -> Effect (Promise Boolean)
+
 -- Lode does not inject on page load, so this function retries up to set
 -- number of times, for Lode to be available.
-mkLodeWalletAff :: Aff Wallet
-mkLodeWalletAff = do
+waitAndPerformForLode :: forall (a::Type) . Aff a -> Aff a
+waitAndPerformForLode action = do 
   retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
     $ liftEffect isLodeAvailable
 
   catchError
-    (Lode <$> mkCip30WalletAff "Lode" _enableLode)
+    action
     ( \e -> throwError <<< error $ (show e) <>
         " Note: LodeWallet is injected asynchronously and may be unreliable."
     )
-
   where
   retryNWithIntervalUntil n ms mBool =
     if n == zero then pure unit
     else mBool >>=
       if _ then pure unit
       else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
+
+mkLodeWalletAff :: Aff Wallet
+mkLodeWalletAff = waitAndPerformForLode (Lode <$> mkCip30WalletAff "Lode" _enableLode)
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
@@ -144,20 +165,30 @@ cip30Wallet = case _ of
   Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
-walletToName :: Wallet -> Maybe String
-walletToName = case _ of
-  Nami _ -> Just "nami"
-  Gero _ -> Just "gero"
-  Flint _ -> Just "flint"
-  Eternl _ -> Just "eternl"
-  Lode _ -> Just "LodeWallet"
-  KeyWallet _ -> Nothing
+-- Keep this in syc with Wallet.js::wallets.
+supportedWalletToName :: SupportedWallet -> Maybe String
+supportedWalletToName = case _ of
+  SupportedNami -> Just "nami"
+  SupportedGero -> Just "gerowallet"
+  SupportedFlint -> Just "flint"
+  SupportedEternl -> Just "eternl"
+  SupportedLode -> Just "LodeWallet"
+  SupportedKeyWallet -> Nothing
 
-isEnabled :: Wallet -> Aff Boolean
+walletToSupportedWallet :: Wallet -> SupportedWallet
+walletToSupportedWallet = case _ of
+  Nami _ -> SupportedNami
+  Gero _ -> SupportedGero
+  Flint _ -> SupportedFlint
+  Eternl _ -> SupportedEternl
+  Lode _ -> SupportedLode
+  KeyWallet _ -> SupportedKeyWallet
+
+isEnabled :: SupportedWallet -> Aff Boolean
 isEnabled wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in isEnabled call")
-    (walletToName wallet)
+    (supportedWalletToName wallet)
   toAffE $ _isEnabled walletName
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to

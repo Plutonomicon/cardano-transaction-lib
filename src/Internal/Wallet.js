@@ -12,6 +12,7 @@ const getIsWalletAvailableFunctionName = wallet => {
   return strs[wallet] || "is?WalletAvailable";
 };
 
+//Keep it in sync with Wallet.supportedWalletToName
 const wallets = {
   nami: "nami",
   flint: "flint",
@@ -63,6 +64,8 @@ const isWalletAvailable = walletName => () => {
     typeof window.cardano[walletName].enable == "function"
   );
 };
+
+exports._isWalletAvailable = isWalletAvailable;
 
 exports._isNamiAvailable = isWalletAvailable(wallets.nami);
 exports._isGeroAvailable = isWalletAvailable(wallets.gero);

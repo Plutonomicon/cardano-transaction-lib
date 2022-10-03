@@ -37,15 +37,17 @@ import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
-  ( Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  ( SupportedWallet
+  , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
   , isEternlAvailable
   , isFlintAvailable
   , isGeroAvailable
   , isLodeAvailable
   , isNamiAvailable
-  , walletToName
+  , supportedWalletToName
+  , walletToSupportedWallet
   ) as Wallet
-import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
+import Ctl.Internal.Wallet (SupportedWallet, Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Ctl.Internal.Wallet.Key
@@ -92,7 +94,7 @@ signData
   -> Contract r (Maybe DataSignature)
 signData address dat = wrapContract (QueryM.signData address dat)
 
-isEnabled :: Wallet -> Aff Boolean
+isEnabled :: SupportedWallet -> Aff Boolean
 isEnabled = QueryM.isEnabled
 
 getWallet :: forall (r :: Row Type). Contract r (Maybe Wallet)
