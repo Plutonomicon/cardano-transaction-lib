@@ -110,7 +110,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `InlineDatum` example, for testing inline datum constraints. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - `DatumPresence` data type, which tags paying constraints that accept datum, to mark whether the datum should be inline or hashed in the transaction output. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - Utility conversion functions `serializeData` and `deserializeData` between `PlutusData` and `CborBytes` to `Contract.PlutusData`. ([#1001](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1001))
-- Added cip30 methods : `getNetworkId` `getChangeAddress` `getRewardAddresses` `getUnusedAddresses` to `Contract.Wallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))
+- Added cip30 methods : `getNetworkId`, `getChangeAddress`, `getRewardAddresses`, `getUnusedAddresses`, `signData`, `isWalletAvailable`, `isEnabled`, `apiVersion`, `name` and `icon` to `Contract.Wallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))
 
 ### Changed
 
