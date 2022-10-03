@@ -5,7 +5,6 @@ module Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
       ( BalanceInsufficientError
-      , CoinSelectionFailed
       , CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
@@ -14,6 +13,7 @@ module Ctl.Internal.BalanceTx.Error
       , CollateralReturnMinAdaValueCalcError
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
+      , InsufficientUtxoBalanceToCoverAsset
       , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
@@ -68,7 +68,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
   = BalanceInsufficientError Expected Actual
-  | CoinSelectionFailed
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetCollateral
   | CouldNotGetUtxos
@@ -77,6 +76,7 @@ data BalanceTxError
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
   | InsufficientTxInputs Expected Actual
+  | InsufficientUtxoBalanceToCoverAsset String
   | ReindexRedeemersError ReindexErrors
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed

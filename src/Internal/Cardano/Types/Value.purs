@@ -1,5 +1,6 @@
 module Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
+  ( AssetClass(AssetClass)
+  , Coin(Coin)
   , CurrencySymbol
   , NonAdaAsset
   , Value(Value)
@@ -12,6 +13,7 @@ module Ctl.Internal.Cardano.Types.Value
   , filterNonAda
   , flattenNonAdaValue
   , geq
+  , getAssetQuantity
   , getCurrencySymbol
   , getLovelace
   , getNonAdaAsset
@@ -46,6 +48,8 @@ module Ctl.Internal.Cardano.Types.Value
   , unionWith
   , unionWithNonAda
   , unwrapNonAdaAsset
+  , valueAssetClasses
+  , valueAssets
   , valueOf
   , valueToCoin
   , valueToCoin'
@@ -89,6 +93,7 @@ import Ctl.Internal.Types.TokenName
   , mkTokenNames
   )
 import Data.Array (cons, filter)
+import Data.Array (fromFoldable) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
@@ -489,6 +494,30 @@ mkSingletonValue' curSymbol tokenName amount = do
   pure
     if isAdaCs then Value (Coin amount) mempty
     else Value mempty $ mkSingletonNonAdaAsset curSymbol tokenName amount
+
+--------------------------------------------------------------------------------
+-- AssetClass
+--------------------------------------------------------------------------------
+
+data AssetClass = AssetClass CurrencySymbol TokenName
+
+derive instance Generic AssetClass _
+derive instance Eq AssetClass
+derive instance Ord AssetClass
+
+instance Show AssetClass where
+  show = genericShow
+
+getAssetQuantity :: AssetClass -> Value -> BigInt
+getAssetQuantity (AssetClass cs tn) value = valueOf value cs tn
+
+valueAssets :: Value -> Array (AssetClass /\ BigInt)
+valueAssets (Value _ assets) =
+  Array.fromFoldable (flattenNonAdaValue assets)
+    <#> \(cs /\ tn /\ quantity) -> AssetClass cs tn /\ quantity
+
+valueAssetClasses :: Value -> Array AssetClass
+valueAssetClasses = map fst <<< valueAssets
 
 --------------------------------------------------------------------------------
 -- Helpers
