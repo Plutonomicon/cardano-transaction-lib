@@ -23,12 +23,28 @@ import Prelude
 
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Cardano.Types.Transaction (Ed25519Signature(Ed25519Signature), PublicKey(PublicKey), Transaction(Transaction), TransactionWitnessSet(TransactionWitnessSet), Vkey(Vkey), Vkeywitness(Vkeywitness))
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Ed25519Signature(Ed25519Signature)
+  , PublicKey(PublicKey)
+  , Transaction(Transaction)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  )
 import Ctl.Internal.Helpers ((<<>>))
 import Ctl.Internal.Types.Natural (fromInt', minus)
 import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
-import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet, mkCip30WalletAff)
-import Ctl.Internal.Wallet.Key (KeyWallet, PrivatePaymentKey, PrivateStakeKey, privateKeysToKeyWallet)
+import Ctl.Internal.Wallet.Cip30
+  ( Cip30Connection
+  , Cip30Wallet
+  , mkCip30WalletAff
+  )
+import Ctl.Internal.Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -128,8 +144,8 @@ cip30Wallet = case _ of
   Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
-walletToName :: Wallet -> Maybe String 
-walletToName = case _ of  
+walletToName :: Wallet -> Maybe String
+walletToName = case _ of
   Nami _ -> Just "nami"
   Gero _ -> Just "gero"
   Flint _ -> Just "flint"
@@ -138,12 +154,11 @@ walletToName = case _ of
   KeyWallet _ -> Nothing
 
 isEnabled :: Wallet -> Aff Boolean
-isEnabled wallet = do 
+isEnabled wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in isEnabled call")
     (walletToName wallet)
   toAffE $ _isEnabled walletName
-
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't

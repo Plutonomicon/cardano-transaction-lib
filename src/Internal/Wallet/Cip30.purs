@@ -1,6 +1,7 @@
 module Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
+  , DataSignature
   , mkCip30WalletAff
   ) where
 
@@ -9,8 +10,13 @@ import Prelude
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
-import Ctl.Internal.Cardano.Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Transaction(Transaction)
+  , TransactionWitnessSet
+  )
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
@@ -18,10 +24,28 @@ import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOupu
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Address (Address, addressFromBytes, baseAddressBech32, baseAddressFromAddress)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (rawBytesAsCborBytes)
-import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , addressFromBytes
+  , baseAddressBech32
+  , baseAddressBytes
+  , baseAddressFromAddress
+  )
+import Ctl.Internal.Types.ByteArray (byteArrayFromAscii, byteArrayToHex)
+import Ctl.Internal.Types.CborBytes
+  ( CborBytes(..)
+  , cborBytesFromAscii
+  , cborBytesToHex
+  , hexToCborBytes
+  , hexToCborBytesUnsafe
+  , rawBytesAsCborBytes
+  )
+import Ctl.Internal.Types.RawBytes
+  ( RawBytes
+  , hexToRawBytes
+  , hexToRawBytesUnsafe
+  , rawBytesToHex
+  )
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
@@ -31,6 +55,11 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Untagged.Union (asOneOf)
+
+type DataSignature =
+  { key :: CborBytes
+  , signature :: CborBytes
+  }
 
 -- Please update Cip30Mock when you add or remove methods in this handle.
 type Cip30Wallet =
@@ -60,7 +89,8 @@ type Cip30Wallet =
   -- addresses e.g. CIP-0018
   , getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-  , signData ::Cip30Connection -> Address -> Maybe RawBytes -> Aff (Maybe RawBytes) 
+  , signData ::
+      Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
   }
 
 mkCip30WalletAff
@@ -85,7 +115,7 @@ mkCip30WalletAff walletName enableWallet = do
     , getChangeAddress
     , getRewardAddresses
     , signTx
-    , signData 
+    , signData
     }
 
 -------------------------------------------------------------------------------
@@ -160,17 +190,17 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
-signData :: Cip30Connection -> Address -> Maybe RawBytes -> Aff (Maybe RawBytes)
-signData conn address mData = do
-  hexAddress <- liftMaybe (error "Can't convert this Address to Bench32String") 
-                  (baseAddressBech32 <$> baseAddressFromAddress address)
-  signedData <- toAffE $ case mData of  
-                  Just dat ->
-                      _signData hexAddress ((unwrap <<< unwrap)dat) conn 
-                      --_signData hexAddress (rawBytesToHex dat) conn 
-                  Nothing ->
-                      _signDataNull hexAddress conn 
-  pure $ hexToRawBytes signedData
+signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
+signData conn address dat = do
+  byteAddress <- liftMaybe (error "Can't convert this Address to Bench32String")
+    (baseAddressBytes <$> baseAddressFromAddress address)
+  signedData <- toAffE $ _signData (cborBytesToHex byteAddress)
+    (rawBytesToHex dat)
+    conn
+  pure $ do
+    key <- hexToCborBytes signedData.key
+    signature <- hexToCborBytes signedData.signature
+    pure { key: key, signature: signature }
 
 getBalance :: Cip30Connection -> Aff (Maybe Value)
 getBalance wallet = do
@@ -239,11 +269,7 @@ foreign import _signTx
 
 foreign import _signData
   :: String -- Address
-  -> Uint8Array -- Hex-encoded data
+  -> String -- Hex-encoded data
   -> Cip30Connection
-  -> Effect (Promise String)
+  -> Effect (Promise { key :: String, signature :: String })
 
-foreign import _signDataNull
-  :: String -- Address
-  -> Cip30Connection
-  -> Effect (Promise String)

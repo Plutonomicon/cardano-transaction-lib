@@ -70,11 +70,11 @@ exports._isFlintAvailable = isWalletAvailable(wallets.flint);
 exports._isLodeAvailable = isWalletAvailable(wallets.lode);
 exports._isEternlAvailable = isWalletAvailable(wallets.eternl);
 
-exports._isEnabled = wallet => {
-    console.log("Calling isEnabled")
-    console.log(wallet)
-    console.log(window.cardano[wallet])
-    console.log(window.cardano[wallet].isEnabled())
-    console.log("enambled?")
-    return window.cardano[wallet].isEnabled()
+exports._isEnabled = walletName => () => {
+  const isAvailable = isWalletAvailable(walletName)();
+  if (isAvailable) {
+    return window.cardano[walletName].isEnabled();
+  } else {
+    throw new Error("Wallet `" + walletName + "` is not available");
+  }
 };

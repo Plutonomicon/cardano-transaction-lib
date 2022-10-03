@@ -28,16 +28,8 @@ exports._signTx = txHex => conn => () => {
 };
 
 exports._signData = address => payload => conn => () => {
-  return conn.signTx(address, payload).catch(e => {
+  return conn.signData(address, payload).catch(e => {
     console.log("Error in signData: ", e);
     throw JSON.stringify(e);
   });
 };
-
-exports._signDataNull = address => conn => () => {
-  return conn.signTx(address, null).catch(e => {
-    console.log("Error in signDataNull: ", e);
-    throw JSON.stringify(e);
-  });
-};
-
