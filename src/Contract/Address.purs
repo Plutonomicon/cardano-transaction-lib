@@ -35,7 +35,7 @@ module Contract.Address
 
 import Prelude
 
-import Contract.Monad (Contract, liftedM, liftContractM, wrapContract)
+import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
 import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
@@ -77,7 +77,6 @@ import Ctl.Internal.Scripts
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Address
   ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
@@ -87,7 +86,12 @@ import Ctl.Internal.Serialization.Address
   , Slot(Slot)
   , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
-import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32, addressNetworkId)
+import Ctl.Internal.Serialization.Address
+  ( NetworkId(MainnetId)
+  , addressBech32
+  , addressNetworkId
+  )
+import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
