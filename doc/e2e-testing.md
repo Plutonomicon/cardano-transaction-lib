@@ -183,3 +183,75 @@ runContract config { hooks = Contract.Test.E2E.e2eFeedbackHooks } do
 Hooks are a special feature that allows to run arbitrary code during various stages of `Contract` execution. `e2eFeedbackHooks` notify the engine of wallet actions that can be triggered while the `Contract` is running, for example, when an extension pop-up appears. The testing engine can react to that by issuing commands to interact with the wallet UI, e.g. to enter the password and click "sign".
 
 Note that the test closes successfully after the first successful `Contract` execution, so if your scenario involves multiple `Contract`s, remove `onSuccess` hooks from every `Contract` except the last one, or manually run `e2eFeedbackHooks.onSuccess` (it's just an `Effect` action).
+
+CTL offers a function to serve the `Contract`s to be tested with a router, that dispatches contracts and configuration parameters based on query part of the URL.
+
+See [this file](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/templates/ctl-scaffold/exe/E2E.purs) for a quick example:
+
+```purescript
+main :: Effect Unit
+main = do
+  -- Adds links to all available tests to the DOM for convenience
+  addLinks configs tests
+  -- Serves the appropriate `Contract` with e2eTestHooks
+  route configs tests
+
+configs :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+configs = Map.fromFoldable
+  [ "nami" /\ testnetNamiConfig /\ Nothing
+  , "gero" /\ testnetGeroConfig /\ Nothing
+  , "flint" /\ testnetFlintConfig /\ Nothing
+  , "eternl" /\ testnetEternlConfig /\ Nothing
+  , "lode" /\ testnetLodeConfig /\ Nothing
+  , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
+  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
+  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
+  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
+  ]
+
+tests :: Map E2ETestName (Contract () Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
+  ]
+```
+
+Now, the `Scaffold.contract` can be used as a test:
+
+```bash
+E2E_TESTS="
+http://localhost:4008/?nami:Contract
+"
+```
+
+Refer to the docs for `Contract.Test.E2E.route` function for an overview of the URL structure.
+
+### Mocking CIP-30 interface
+
+It is possible to test the contracts without having a single wallet extension installed, just by providing a private payment key, and (optionally) a private stake key, that correspond to a testnet address with some tAda. CTL test suite can mock the functionality of a CIP-30 wallet given just the keys.
+
+Note that different wallets implement different *application logic* despite using a uniform interface, for example, Eternl uses multiple addresses, while all the other wallets are single-address. For now, CIP-30 mock implements single-address logic only. There is no guarantee that the logic that is implemented by the mock is the same as one of a real wallet: subtle differences or bugs can affect the execution path of your application.
+
+To provide the keys, they first need to be generated.
+
+Follow this guide to generate key pairs:
+
+https://developers.cardano.org/docs/stake-pool-course/handbook/keys-addresses/
+
+As a result, you will get json files that look like this:
+
+```json
+{
+  "type": "PaymentSigningKeyShelley_ed25519",
+  "description": "Payment Signing Key",
+  "cborHex": "58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209"
+}
+```
+
+Simply copy the `cborHex` from payment and stake signing keys (the order is important), and add them to the URL, separating by `:`:
+
+```
+http://localhost:4008/?nami-mock:Contract:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
+```
+
+In order to use the keys, they must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral).
