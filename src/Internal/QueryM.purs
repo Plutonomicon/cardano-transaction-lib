@@ -31,6 +31,7 @@ module Ctl.Internal.QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashesWithErrors
   , getLogger
   , getProtocolParametersAff
   , getWalletAddresses
@@ -196,7 +197,7 @@ import Ctl.Internal.Wallet.Spec
   )
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, isRight)
+import Data.Either (Either(Left, Right), either, hush, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
@@ -517,7 +518,12 @@ getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
-getDatumsByHashes hashes = unwrap <$> do
+getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashesWithErrors
+  hashes
+
+getDatumsByHashesWithErrors
+  :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
+getDatumsByHashesWithErrors hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
