@@ -81,3 +81,30 @@ exports._isEnabled = walletName => () => {
     throw new Error("Wallet `" + walletName + "` is not available");
   }
 };
+
+exports._apiVersion = walletName => () => {
+  const isAvailable = isWalletAvailable(walletName)();
+  if (isAvailable) {
+    return window.cardano[walletName].apiVersion;
+  } else {
+    throw new Error("Wallet `" + walletName + "` is not available");
+  }
+};
+
+exports._name = walletName => () => {
+  const isAvailable = isWalletAvailable(walletName)();
+  if (isAvailable) {
+    return window.cardano[walletName].name;
+  } else {
+    throw new Error("Wallet `" + walletName + "` is not available");
+  }
+};
+
+exports._icon = walletName => () => {
+  const isAvailable = isWalletAvailable(walletName)();
+  if (isAvailable) {
+    return window.cardano[walletName].icon;
+  } else {
+    throw new Error("Wallet `" + walletName + "` is not available");
+  }
+};

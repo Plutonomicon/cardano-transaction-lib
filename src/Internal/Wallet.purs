@@ -15,6 +15,7 @@ module Ctl.Internal.Wallet
   , isNamiAvailable
   , isFlintAvailable
   , isLodeAvailable
+  , isWalletAvailable
   , mkEternlWalletAff
   , mkNamiWalletAff
   , mkGeroWalletAff
@@ -24,36 +25,22 @@ module Ctl.Internal.Wallet
   , cip30Wallet
   , dummySign
   , isEnabled
-  , supportedWalletToName
   , walletToSupportedWallet
+  , apiVersion
+  , name
+  , icon
   ) where
 
 import Prelude
 
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  )
+import Ctl.Internal.Cardano.Types.Transaction (Ed25519Signature(Ed25519Signature), PublicKey(PublicKey), Transaction(Transaction), TransactionWitnessSet(TransactionWitnessSet), Vkey(Vkey), Vkeywitness(Vkeywitness))
 import Ctl.Internal.Helpers ((<<>>))
 import Ctl.Internal.Types.Natural (fromInt', minus)
 import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
-import Ctl.Internal.Wallet.Cip30
-  ( Cip30Connection
-  , Cip30Wallet
-  , mkCip30WalletAff
-  )
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
+import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet, mkCip30WalletAff)
+import Ctl.Internal.Wallet.Key (KeyWallet, PrivatePaymentKey, PrivateStakeKey, privateKeysToKeyWallet)
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -62,6 +49,7 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 
 data Wallet
   = Nami Cip30Wallet
@@ -132,17 +120,19 @@ foreign import _enableEternl :: Effect (Promise Cip30Connection)
 
 foreign import _isEnabled :: String -> Effect (Promise Boolean)
 
-foreign import _isWalletAvailable :: String -> Effect (Promise Boolean)
+foreign import _apiVersion :: String -> Effect String
+foreign import _name :: String -> Effect String
+foreign import _icon :: String -> Effect String
+foreign import _isWalletAvailable :: String -> Effect Boolean
 
 -- Lode does not inject on page load, so this function retries up to set
 -- number of times, for Lode to be available.
-waitAndPerformForLode :: forall (a::Type) . Aff a -> Aff a
-waitAndPerformForLode action = do 
+mkLodeWalletAff :: Aff Wallet
+mkLodeWalletAff = do
   retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
     $ liftEffect isLodeAvailable
-
   catchError
-    action
+    (Lode <$> mkCip30WalletAff "Lode" _enableLode)
     ( \e -> throwError <<< error $ (show e) <>
         " Note: LodeWallet is injected asynchronously and may be unreliable."
     )
@@ -153,8 +143,11 @@ waitAndPerformForLode action = do
       if _ then pure unit
       else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
 
-mkLodeWalletAff :: Aff Wallet
-mkLodeWalletAff = waitAndPerformForLode (Lode <$> mkCip30WalletAff "Lode" _enableLode)
+isWalletAvailable :: SupportedWallet -> Aff Boolean
+isWalletAvailable swallet =
+  case supportedWalletToName swallet of
+    Just walletName -> liftEffect $ _isWalletAvailable walletName
+    Nothing -> liftEffect $ throw "Not implemented yet"
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
@@ -190,6 +183,27 @@ isEnabled wallet = do
     (error "Can't get the name of the Wallet in isEnabled call")
     (supportedWalletToName wallet)
   toAffE $ _isEnabled walletName
+
+apiVersion :: SupportedWallet -> Aff String
+apiVersion wallet = do
+  walletName <- liftMaybe
+    (error "Can't get the name of the Wallet in isEnabled call")
+    (supportedWalletToName wallet)
+  liftEffect $ _apiVersion walletName
+
+name :: SupportedWallet -> Aff String
+name wallet = do
+  walletName <- liftMaybe
+    (error "Can't get the name of the Wallet in isEnabled call")
+    (supportedWalletToName wallet)
+  liftEffect $ _name walletName
+
+icon :: SupportedWallet -> Aff String
+icon wallet = do
+  walletName <- liftMaybe
+    (error "Can't get the name of the Wallet in isEnabled call")
+    (supportedWalletToName wallet)
+  liftEffect $ _icon walletName
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't

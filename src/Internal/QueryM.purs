@@ -56,7 +56,6 @@ module Ctl.Internal.QueryM
   , mkRequest
   , mkRequestAff
   , module ServerConfig
-  , module WalletExports
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes
   , ownStakePubKeyHash
@@ -189,7 +188,6 @@ import Ctl.Internal.Wallet
   , mkLodeWalletAff
   , mkNamiWalletAff
   )
-import Ctl.Internal.Wallet (isEnabled) as WalletExports
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
