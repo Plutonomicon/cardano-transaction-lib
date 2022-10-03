@@ -10,19 +10,8 @@ import Contract.Config
   , testnetLodeConfig
   , testnetNamiConfig
   )
-import Contract.Monad (Contract, runContract)
-import Contract.Prelude (fst, traverse_, uncurry)
-import Contract.Test.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami)
-  , withCip30Mock
-  )
-import Contract.Test.E2E (e2eFeedbackHooks)
-import Contract.Wallet.Key (privateKeysToKeyWallet)
-import Contract.Wallet.KeyFile
-  ( privatePaymentKeyFromString
-  , privateStakeKeyFromString
-  )
-import Control.Monad.Error.Class (liftMaybe)
+import Contract.Monad (Contract)
+import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.Datums as Datums
@@ -34,73 +23,35 @@ import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.Wallet as Wallet
-import Data.Array (last)
-import Data.Foldable (lookup)
+import Ctl.Internal.Wallet.Cip30Mock
+  ( WalletMock(MockNami, MockGero, MockFlint, MockLode)
+  )
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (wrap)
-import Data.String.Common (split)
-import Data.String.Pattern (Pattern(Pattern))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (delay, launchAff_)
-import Effect.Class (liftEffect)
-import Effect.Console as Console
-import Effect.Exception (error)
-
-foreign import _queryString :: Effect String
-
-foreign import _writeExampleHTML :: String -> Array String -> Effect Unit
 
 main :: Effect Unit
 main = do
-  traverse_ (uncurry _writeExampleHTML) $ map ((_ /\ map fst wallets) <<< fst)
-    examples
-  queryString <- last <<< split (Pattern "?") <$> _queryString
-  case split (Pattern ":") <$> queryString of
-    Just [ exampleName, walletName ] -> do
-      exampleContract <-
-        liftMaybe (error $ "unknown example name: " <> exampleName) $
-          lookup exampleName examples
-      config <- liftMaybe (error $ "unknown wallet name: " <> walletName) $
-        lookup walletName wallets
-      launchAff_ do
-        -- For Eternl, that does not initialize instantly
-        delay $ wrap 3000.0
-        paymentKey <- liftMaybe (error "Unable to load private key") $
-          privatePaymentKeyFromString paymentKeyStr
-        let
-          mbStakeKey = privateStakeKeyFromString stakeKeyStr
-          mbWalletMock = case walletName of
-            "nami-mock" -> Just MockNami
-            "gero-mock" -> Just MockGero
-            "flint-mock" -> Just MockFlint
-            _ -> Nothing
-        case mbWalletMock of
-          Just walletMock -> do
-            runContract config
-              { walletSpec = Nothing, hooks = e2eFeedbackHooks }
-              $ withCip30Mock (privateKeysToKeyWallet paymentKey mbStakeKey)
-                  walletMock
-                  exampleContract
-          Nothing -> do
-            runContract config { hooks = e2eFeedbackHooks } exampleContract
-    _ -> liftEffect $ Console.error "Error parsing query string"
+  addLinks wallets examples
+  route wallets examples
 
-wallets :: Array (String /\ ConfigParams ())
-wallets =
-  [ "nami" /\ testnetNamiConfig
-  , "gero" /\ testnetGeroConfig
-  , "flint" /\ testnetFlintConfig
-  , "eternl" /\ testnetEternlConfig
-  , "lode" /\ testnetLodeConfig
-  , "nami-mock" /\ testnetNamiConfig
-  , "gero-mock" /\ testnetGeroConfig
-  , "flint-mock" /\ testnetFlintConfig
-  , "lode-mock" /\ testnetLodeConfig
+wallets :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+wallets = Map.fromFoldable
+  [ "nami" /\ testnetNamiConfig /\ Nothing
+  , "gero" /\ testnetGeroConfig /\ Nothing
+  , "flint" /\ testnetFlintConfig /\ Nothing
+  , "eternl" /\ testnetEternlConfig /\ Nothing
+  , "lode" /\ testnetLodeConfig /\ Nothing
+  , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
+  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
+  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
+  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
   ]
 
-examples :: Array (String /\ Contract () Unit)
-examples =
+examples :: Map E2ETestName (Contract () Unit)
+examples = Map.fromFoldable
   [ "AlwaysMints" /\ AlwaysMints.contract
   , "AlwaysSucceeds" /\ AlwaysSucceeds.contract
   , "AlwaysSucceedsV2" /\ AlwaysSucceedsV2.contract

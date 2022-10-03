@@ -11,6 +11,7 @@ import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
 import Test.Ctl.Deserialization as Deserialization
+import Test.Ctl.E2E.Route as E2E.Route
 import Test.Ctl.Hashing as Hashing
 import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
@@ -65,3 +66,4 @@ testPlan = do
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
+  E2E.Route.suite

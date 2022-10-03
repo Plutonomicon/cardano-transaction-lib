@@ -4,6 +4,6 @@ module Contract.Test.Cip30Mock
   ) where
 
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami)
+  ( WalletMock(MockFlint, MockGero, MockNami, MockLode)
   , withCip30Mock
   ) as X

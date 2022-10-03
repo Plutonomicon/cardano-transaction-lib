@@ -63,9 +63,15 @@ newtype PrivatePaymentKey = PrivatePaymentKey PrivateKey
 
 derive instance Newtype PrivatePaymentKey _
 
+instance Show PrivatePaymentKey where
+  show _ = "(PrivatePaymentKey <hidden>)"
+
 newtype PrivateStakeKey = PrivateStakeKey PrivateKey
 
 derive instance Newtype PrivateStakeKey _
+
+instance Show PrivateStakeKey where
+  show _ = "(PrivateStakeKey <hidden>)"
 
 keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
 keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey
