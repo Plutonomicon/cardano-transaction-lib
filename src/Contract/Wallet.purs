@@ -8,7 +8,6 @@ module Contract.Wallet
   , getRewardAddresses
   , getWallet
   , signData
-  , isEnabled
   , module Contract.Address
   , module Contract.Utxos
   , module Serialization
@@ -30,7 +29,6 @@ import Ctl.Internal.QueryM
   , getRewardAddresses
   , getUnusedAddresses
   , getWallet
-  , isEnabled
   , signData
   ) as QueryM
 import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
@@ -39,15 +37,19 @@ import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
   ( SupportedWallet
   , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  , apiVersion
+  , icon
+  , isEnabled
   , isEternlAvailable
   , isFlintAvailable
   , isGeroAvailable
   , isLodeAvailable
   , isNamiAvailable
-  , supportedWalletToName
+  , isWalletAvailable
+  , name
   , walletToSupportedWallet
   ) as Wallet
-import Ctl.Internal.Wallet (SupportedWallet, Wallet(KeyWallet), mkKeyWallet)
+import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Ctl.Internal.Wallet.Key
@@ -72,7 +74,6 @@ import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import Effect.Aff (Aff)
 import Type.Proxy (Proxy(Proxy))
 
 getNetworkId :: forall (r :: Row Type). Contract r Int
@@ -93,9 +94,6 @@ signData
   -> RawBytes
   -> Contract r (Maybe DataSignature)
 signData address dat = wrapContract (QueryM.signData address dat)
-
-isEnabled :: SupportedWallet -> Aff Boolean
-isEnabled = QueryM.isEnabled
 
 getWallet :: forall (r :: Row Type). Contract r (Maybe Wallet)
 getWallet = wrapContract QueryM.getWallet

@@ -11,17 +11,7 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Wallet
-  ( getChangeAddress
-  , getNetworkId
-  , getRewardAddresses
-  , getUnusedAddresses
-  , getWallet
-  , isEnabled
-  , signData
-  , supportedWalletToName
-  , walletToSupportedWallet
-  )
+import Contract.Wallet (apiVersion, getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, getWallet, icon, isEnabled, isWalletAvailable, name, signData, walletToSupportedWallet)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
@@ -41,9 +31,15 @@ contract :: Boolean -> Contract () Unit
 contract catch = do
   logInfo' "Running Examples.Cip30"
   mWallet <- getWallet
-  let mSupportWallet =walletToSupportedWallet <$> mWallet 
-  logInfo' $ show $ supportedWalletToName <$> mSupportWallet
-  performAndLog catch "isEnabled" (liftAff $ (traverse isEnabled mSupportWallet))
+  let mSupportWallet = walletToSupportedWallet <$> mWallet
+  performAndLog catch "isWalletAvailable"
+    (liftAff $ (traverse isWalletAvailable mSupportWallet))
+  performAndLog catch "isEnabled"
+    (liftAff $ (traverse isEnabled mSupportWallet))
+  performAndLog catch "apiVersion"
+    (liftAff $ (traverse apiVersion mSupportWallet))
+  performAndLog catch "name" (liftAff $ (traverse name mSupportWallet))
+  performAndLog catch "icon" (liftAff $ (traverse icon mSupportWallet))
   performAndLog catch "getNetworkId" getNetworkId
   performAndLog catch "getUnusedAddresses" getUnusedAddresses
   performAndLog false "getChangeAddress" getChangeAddress
