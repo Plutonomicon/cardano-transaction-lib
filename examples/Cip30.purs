@@ -19,7 +19,8 @@ import Contract.Wallet
   , getWallet
   , isEnabled
   , signData
-  , walletToName
+  , supportedWalletToName
+  , walletToSupportedWallet
   )
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -40,8 +41,9 @@ contract :: Boolean -> Contract () Unit
 contract catch = do
   logInfo' "Running Examples.Cip30"
   mWallet <- getWallet
-  logInfo' $ show $ mWallet >>= walletToName
-  performAndLog catch "isEnabled" (liftAff $ (traverse isEnabled mWallet))
+  let mSupportWallet =walletToSupportedWallet <$> mWallet 
+  logInfo' $ show $ supportedWalletToName <$> mSupportWallet
+  performAndLog catch "isEnabled" (liftAff $ (traverse isEnabled mSupportWallet))
   performAndLog catch "getNetworkId" getNetworkId
   performAndLog catch "getUnusedAddresses" getUnusedAddresses
   performAndLog false "getChangeAddress" getChangeAddress
