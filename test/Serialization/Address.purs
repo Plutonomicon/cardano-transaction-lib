@@ -2,6 +2,7 @@ module Test.Ctl.Serialization.Address (suite) where
 
 import Prelude
 
+import Contract.Address (addressWithNetworkTagFromBech32)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
@@ -44,7 +45,7 @@ import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Mote (group, test)
@@ -74,6 +75,8 @@ addressFunctionsTest = test "Address tests" $ do
   let
     bechstr =
       "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
+    testnetBech =
+      "addr_test1qqm0z9quxyefwwq902p5f9t4s35smhegjthhhqpeclnpx2rzhuq2p6jahnky7qqua9nz9tcw6nlgy6cpjvmlaaye4apqzc6ppq"
   addr1 <- errMaybe "addressFromBech32 failed on valid bech32" $
     addressFromBech32 bechstr
   bechstr `shouldEqual` addressBech32 addr1
@@ -83,6 +86,14 @@ addressFunctionsTest = test "Address tests" $ do
     addressFromBytes addrBts
   addr2 `shouldEqual` addr1
   addressNetworkId addr2 `shouldEqual` MainnetId
+  testnetAddr <-
+    errMaybe "addressWithNetworkTagFromBech32 failed on valid bech32" $
+      addressWithNetworkTagFromBech32 testnetBech
+  mainnetAddr <-
+    errMaybe "addressWithNetworkTagFromBech32 failed on valid bech32" $
+      addressWithNetworkTagFromBech32 bechstr
+  _.networkId (unwrap testnetAddr) `shouldEqual` TestnetId
+  _.networkId (unwrap mainnetAddr) `shouldEqual` MainnetId
 
 stakeCredentialTests :: TestPlanM (Aff Unit) Unit
 stakeCredentialTests = test "StakeCredential tests" $ do
