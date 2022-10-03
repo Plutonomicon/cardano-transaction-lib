@@ -11,7 +11,20 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Wallet (apiVersion, getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, getWallet, icon, isEnabled, isWalletAvailable, name, signData, walletToSupportedWallet)
+import Contract.Wallet
+  ( apiVersion
+  , getChangeAddress
+  , getNetworkId
+  , getRewardAddresses
+  , getUnusedAddresses
+  , getWallet
+  , icon
+  , isEnabled
+  , isWalletAvailable
+  , name
+  , signData
+  , walletToSupportedWallet
+  )
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
