@@ -64,27 +64,3 @@ examples = Map.fromFoldable
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
   ]
-
--- Address is:
--- addr_test1qz4fcrdru8scms07fw5ztljq84jhmfv9eqf04rhx79kd66k264fzzl5qr7nr7rsz0mupy7wqgs8tg44tgx605mlmf4dss0agmx
--- Fund it when needed
-
-paymentKeyStr :: String
-paymentKeyStr =
-  """
-    {
-      "type": "PaymentSigningKeyShelley_ed25519",
-      "description": "Payment Signing Key",
-      "cborHex": "58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209"
-    }
-  """
-
-stakeKeyStr :: String
-stakeKeyStr =
-  """
-    {
-      "type": "StakeSigningKeyShelley_ed25519",
-      "description": "Stake Signing Key",
-      "cborHex": "5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338"
-    }
-  """
