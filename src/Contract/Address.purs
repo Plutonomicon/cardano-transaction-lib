@@ -123,7 +123,7 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
 import Data.Array (head)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Test.Ctl.Utils (assertTrue)
 
