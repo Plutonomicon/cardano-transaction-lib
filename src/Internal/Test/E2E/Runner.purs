@@ -137,42 +137,52 @@ testPlan
   -> TestPlanM (Aff Unit) Unit
 testPlan opts rt@{ wallets } tests =
   group "E2E tests" do
-    for_ tests \{ url, wallet } -> do
-      test (walletName wallet <> ": " <> url) do
-        { password, extensionId } <- liftEffect
-          $ liftMaybe
-              (error $ "Wallet was not provided: " <> walletName wallet)
-          $ Map.lookup wallet wallets
-        withBrowser opts.noHeadless rt extensionId \browser -> do
-          withE2ETest (wrap url) browser \re@{ page } -> do
-            let
-              confirmAccess =
-                case wallet of
-                  EternlExt -> eternlConfirmAccess
-                  FlintExt -> flintConfirmAccess
-                  GeroExt -> geroConfirmAccess
-                  LodeExt -> lodeConfirmAccess
-                  NamiExt -> namiConfirmAccess
-              sign =
-                case wallet of
-                  EternlExt -> eternlSign
-                  FlintExt -> flintSign
-                  GeroExt -> geroSign
-                  LodeExt -> lodeSign
-                  NamiExt -> namiSign
-              someWallet =
-                { wallet
-                , name: walletName wallet
-                , extensionId
-                , confirmAccess: confirmAccess extensionId re
-                , sign: sign extensionId password re
-                }
-            subscribeToBrowserEvents (Just $ wrap 1000.0) page
-              case _ of
-                ConfirmAccess -> launchAff_ someWallet.confirmAccess
-                Sign -> launchAff_ someWallet.sign
-                Success -> pure unit
-                Failure err -> throw err
+    for_ tests case _ of
+      { url, wallet: Nothing } -> do
+        test url do
+          withBrowser opts.noHeadless rt Nothing \browser -> do
+            withE2ETest (wrap url) browser \{ page } -> do
+              subscribeToBrowserEvents (Just $ wrap 1000.0) page
+                case _ of
+                  Success -> pure unit
+                  Failure err -> throw err
+                  _ -> pure unit
+      { url, wallet: Just wallet } -> do
+        test (walletName wallet <> ": " <> url) do
+          { password, extensionId } <- liftEffect
+            $ liftMaybe
+                (error $ "Wallet was not provided: " <> walletName wallet)
+            $ Map.lookup wallet wallets
+          withBrowser opts.noHeadless rt (Just extensionId) \browser -> do
+            withE2ETest (wrap url) browser \re@{ page } -> do
+              let
+                confirmAccess =
+                  case wallet of
+                    EternlExt -> eternlConfirmAccess
+                    FlintExt -> flintConfirmAccess
+                    GeroExt -> geroConfirmAccess
+                    LodeExt -> lodeConfirmAccess
+                    NamiExt -> namiConfirmAccess
+                sign =
+                  case wallet of
+                    EternlExt -> eternlSign
+                    FlintExt -> flintSign
+                    GeroExt -> geroSign
+                    LodeExt -> lodeSign
+                    NamiExt -> namiSign
+                someWallet =
+                  { wallet
+                  , name: walletName wallet
+                  , extensionId
+                  , confirmAccess: confirmAccess extensionId re
+                  , sign: sign extensionId password re
+                  }
+              subscribeToBrowserEvents (Just $ wrap 1000.0) page
+                case _ of
+                  ConfirmAccess -> launchAff_ someWallet.confirmAccess
+                  Sign -> launchAff_ someWallet.sign
+                  Success -> pure unit
+                  Failure err -> throw err
 
 -- | Implements `browser` command.
 runBrowser
@@ -260,30 +270,31 @@ sanityCheck { tests } { wallets } =
     | otherwise = []
   -- check that all required wallet extensions are provided
   walletErrors = tests `flip mapMaybe` \test ->
-    case Map.lookup test.wallet wallets of
-      Just _ -> Nothing
-      Nothing ->
-        let
-          name = walletName test.wallet
-          capName = String.toUpper name
-        in
-          Just $ "Wallet " <> name <> " was not provided! Please specify "
-            <> capName
-            <> "_CRX, "
-            <> capName
-            <> "_PASSWORD, "
-            <> capName
-            <> "_EXTID "
-            <> "or "
-            <> "--"
-            <> name
-            <> "-crx, "
-            <> "--"
-            <> name
-            <> "-password, "
-            <> "--"
-            <> name
-            <> "-extid"
+    test.wallet >>= \wallet ->
+      case Map.lookup wallet wallets of
+        Just _ -> Nothing
+        Nothing ->
+          let
+            name = walletName wallet
+            capName = String.toUpper name
+          in
+            Just $ "Wallet " <> name <> " was not provided! Please specify "
+              <> capName
+              <> "_CRX, "
+              <> capName
+              <> "_PASSWORD, "
+              <> capName
+              <> "_EXTID "
+              <> "or "
+              <> "--"
+              <> name
+              <> "-crx, "
+              <> "--"
+              <> name
+              <> "-password, "
+              <> "--"
+              <> name
+              <> "-extid"
 
 -- | Create ChromeUserDataDir if it does not exist
 ensureChromeUserDataDir :: ChromeUserDataDir -> Aff Unit
