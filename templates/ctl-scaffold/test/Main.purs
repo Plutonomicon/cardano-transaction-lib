@@ -1,3 +1,5 @@
+-- | This module implements a test suite that uses Plutip to automate running
+-- | contracts in temporary, private networks.
 module Test.Scaffold.Main (main) where
 
 import Contract.Prelude
@@ -52,6 +54,6 @@ config =
       , dbname: "ctxlib"
       }
   , customLogger: Nothing
-  , suppressLogs: false
+  , suppressLogs: true
   , hooks: mempty
   }

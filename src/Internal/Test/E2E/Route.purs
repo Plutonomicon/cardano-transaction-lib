@@ -90,11 +90,11 @@ parseRoute queryString =
     mkPrivateKey' str <|> (stripPrefix (Pattern "5820") str >>= mkPrivateKey)
 
   mkPaymentKey :: String -> Either String PrivatePaymentKey
-  mkPaymentKey str = note "Unable to construct a PrivateKey" do
+  mkPaymentKey str = note ("Unable to decode a Payment Key from " <> show str) $
     mkPrivateKey str <#> PrivatePaymentKey
 
   mkStakeKey :: String -> Either String PrivateStakeKey
-  mkStakeKey str = note "Unable to construct a Stake Key" do
+  mkStakeKey str = note ("Unable to decode a Stake Key from " <> show str) do
     mkPrivateKey str <#> PrivateStakeKey
 
 addLinks
@@ -136,8 +136,7 @@ route configs tests = do
       Map.lookup configName configs
   test <-
     liftMaybe (error $ "Unable to look up the `Contract` to run: " <> testName)
-      $
-        Map.lookup testName tests
+      $ Map.lookup testName tests
   launchAff_ do
     delayIfEternl config
     case mbMock of
