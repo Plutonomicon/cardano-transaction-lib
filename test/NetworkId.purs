@@ -8,7 +8,7 @@ import Contract.Address (addressFromBech32) as Address
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
 import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
-import Ctl.Internal.Serialization.Address (NetworkId(..), addressBech32)
+import Ctl.Internal.Serialization.Address (NetworkId(TestnetId), addressBech32)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Test.Ctl.TestM (TestPlanM)
