@@ -5,6 +5,17 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
+const exampleToIndex = example => {
+  switch (example) {
+    case "Ctl.Examples.Demo":
+      return "./examples/Demo/index.html";
+    case "Ctl.Examples.ByUrl":
+      return "./examples/index.html";
+    default:
+      return "./examples/index.html";
+  }
+};
+
 module.exports = {
   mode: "development",
 
@@ -80,7 +91,7 @@ module.exports = {
     }),
     new HtmlWebpackPlugin({
       title: "cardano-transaction-lib-examples",
-      template: "./examples/index.html",
+      template: exampleToIndex(process.env.EXAMPLE),
       inject: false, // See stackoverflow.com/a/38292765/3067181
     }),
     new webpack.ProvidePlugin({

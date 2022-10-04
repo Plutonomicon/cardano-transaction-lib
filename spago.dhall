@@ -12,6 +12,7 @@ You can edit this file as you like.
   , "affjax"
   , "arraybuffer-types"
   , "arrays"
+  , "avar"
   , "bifunctors"
   , "bigints"
   , "checked-exceptions"

@@ -12,12 +12,11 @@ ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript mo
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 node-ipc = $(shell docker volume inspect cardano-transaction-lib_node-ipc | jq -r '.[0].Mountpoint')
 
-
 run-dev:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
+	@${ps-bundle} && BROWSER_RUNTIME=1 EXAMPLE=${ps-entrypoint} webpack-dev-server --progress
 
 run-build:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
+	@${ps-bundle} && BROWSER_RUNTIME=1 EXAMPLE=${ps-entrypoint} webpack --mode=production
 
 .ONESHELL:
 check-explicit-exports:
