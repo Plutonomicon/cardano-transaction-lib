@@ -17,11 +17,14 @@ import Test.Spec.Assertions (shouldEqual)
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "NetworkId Tests" $ do
   test "Testnet Address in Testnet Env" testTestnetAddress
+
 --  test "Mainnet Address in Testnet Env" testMainnetAddress
 
 testTestnetAddress :: Aff Unit
 testTestnetAddress = runContract testnetConfig do
-  let bechstr = "addr_test1qqm0z9quxyefwwq902p5f9t4s35smhegjthhhqpeclnpx2rzhuq2p6jahnky7qqua9nz9tcw6nlgy6cpjvmlaaye4apqzc6ppq"
+  let
+    bechstr =
+      "addr_test1qqm0z9quxyefwwq902p5f9t4s35smhegjthhhqpeclnpx2rzhuq2p6jahnky7qqua9nz9tcw6nlgy6cpjvmlaaye4apqzc6ppq"
   addr <- Address.addressFromBech32 bechstr
   addressBech32 (fromPlutusAddress TestnetId addr) `shouldEqual` bechstr
 

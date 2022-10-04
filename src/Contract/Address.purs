@@ -35,35 +35,97 @@ module Contract.Address
 
 import Prelude
 
-import Test.Ctl.Utils (assertTrue)
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
-import Ctl.Internal.Address (enterpriseAddressScriptHash, enterpriseAddressStakeValidatorHash, enterpriseAddressValidatorHash) as Address
-import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress, toPlutusTxUnspentOutput)
+import Ctl.Internal.Address
+  ( enterpriseAddressScriptHash
+  , enterpriseAddressStakeValidatorHash
+  , enterpriseAddressValidatorHash
+  ) as Address
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusAddress
+  , toPlutusAddress
+  , toPlutusTxUnspentOutput
+  )
 import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import Ctl.Internal.Plutus.Types.Address (Address, AddressWithNetworkTag(AddressWithNetworkTag))
-import Ctl.Internal.Plutus.Types.Address (Address, AddressWithNetworkTag(AddressWithNetworkTag), pubKeyHashAddress, scriptHashAddress, toPubKeyHash, toStakingCredential, toValidatorHash) as ExportAddress
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Ctl.Internal.QueryM (getWalletAddresses, ownPaymentPubKeyHashes, ownPubKeyHashes, ownStakePubKeyHash) as QueryM
+import Ctl.Internal.Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  )
+import Ctl.Internal.Plutus.Types.Address
+  ( Address
+  , AddressWithNetworkTag(AddressWithNetworkTag)
+  , pubKeyHashAddress
+  , scriptHashAddress
+  , toPubKeyHash
+  , toStakingCredential
+  , toValidatorHash
+  ) as ExportAddress
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.QueryM
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownPubKeyHashes
+  , ownStakePubKeyHash
+  ) as QueryM
 import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
 import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
-import Ctl.Internal.Scripts (typedValidatorBaseAddress, typedValidatorEnterpriseAddress, validatorHashBaseAddress, validatorHashEnterpriseAddress) as Scripts
-import Ctl.Internal.Serialization.Address (BlockId(BlockId), ByronProtocolMagic(ByronProtocolMagic), CertificateIndex(CertificateIndex), NetworkId(TestnetId, MainnetId), Pointer, Slot(Slot), TransactionIndex(TransactionIndex)) as SerializationAddress
-import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32, addressNetworkId)
+import Ctl.Internal.Scripts
+  ( typedValidatorBaseAddress
+  , typedValidatorEnterpriseAddress
+  , validatorHashBaseAddress
+  , validatorHashEnterpriseAddress
+  ) as Scripts
+import Ctl.Internal.Serialization.Address
+  ( BlockId(BlockId)
+  , ByronProtocolMagic(ByronProtocolMagic)
+  , CertificateIndex(CertificateIndex)
+  , NetworkId(TestnetId, MainnetId)
+  , Pointer
+  , Slot(Slot)
+  , TransactionIndex(TransactionIndex)
+  ) as SerializationAddress
+import Ctl.Internal.Serialization.Address
+  ( NetworkId(MainnetId)
+  , addressBech32
+  , addressNetworkId
+  )
 import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
 import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash(PaymentPubKeyHash), PubKeyHash(PubKeyHash), StakePubKeyHash(StakePubKeyHash)) as ExportPubKeyHash
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash, StakePubKeyHash)
-import Ctl.Internal.Types.PubKeyHash (payPubKeyHashBaseAddress, payPubKeyHashEnterpriseAddress, payPubKeyHashRewardAddress, pubKeyHashBaseAddress, pubKeyHashEnterpriseAddress, pubKeyHashRewardAddress, stakePubKeyHashRewardAddress) as PubKeyHash
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  ) as ExportPubKeyHash
+import Ctl.Internal.Types.PubKeyHash
+  ( payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
+  , payPubKeyHashRewardAddress
+  , pubKeyHashBaseAddress
+  , pubKeyHashEnterpriseAddress
+  , pubKeyHashRewardAddress
+  , stakePubKeyHashRewardAddress
+  ) as PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Ctl.Internal.Types.TypedValidator (TypedValidator)
-import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey), ScriptOutput(ScriptOutput)) as ExportUnbalancedTransaction
+import Ctl.Internal.Types.UnbalancedTransaction
+  ( PaymentPubKey(PaymentPubKey)
+  , ScriptOutput(ScriptOutput)
+  ) as ExportUnbalancedTransaction
 import Data.Array (head)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
+import Test.Ctl.Utils (assertTrue)
 
 -- | Get the `Address` of the browser wallet.
 -- TODO: change this to Maybe (Array Address)
@@ -156,7 +218,8 @@ addressFromBech32 str = do
     SA.addressFromBech32 str
   address <- liftContractM "unable to convert to plutus address" $
     toPlutusAddress cslAddress
-  assertTrue "address has wrong Network Id" (networkId == addressNetworkId cslAddress)
+  assertTrue "address has wrong Network Id"
+    (networkId == addressNetworkId cslAddress)
   pure address
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
