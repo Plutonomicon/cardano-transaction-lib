@@ -1,7 +1,7 @@
 -- | This module balances and signs two transactions at once and demonstrates
 -- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
-module Examples.SignMultiple (example, main) where
+module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
@@ -28,9 +28,11 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
+-- TODO Re-export into Contract or drop the usage
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
+import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Data.BigInt as BigInt
 import Effect.Ref as Ref
-import Types.UsedTxOuts (TxOutRefCache)
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
@@ -40,43 +42,40 @@ getLockedInputs = do
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
-example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.SignMultiple"
-    pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-    skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.SignMultiple"
+  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
 
-    let
-      constraints :: Constraints.TxConstraints Void Void
-      constraints = Constraints.mustPayToPubKeyAddress pkh skh
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = Constraints.mustPayToPubKeyAddress pkh skh
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
 
-      lookups :: Lookups.ScriptLookups Void
-      lookups = mempty
+    lookups :: Lookups.ScriptLookups Void
+    lookups = mempty
 
-    ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-    txIds <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
-      locked <- getLockedInputs
-      logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
-        locked
-      traverse submitAndLog txs
-
+  txIds <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
     locked <- getLockedInputs
-    logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
+    logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
+      locked
+    traverse submitAndLog txs
 
-    case txIds of
-      [ txId1, txId2 ] -> do
-        awaitTxConfirmed txId1
-        logInfo' $ "Tx 1 submitted successfully!"
-        awaitTxConfirmed txId2
-        logInfo' $ "Tx 2 submitted successfully!"
-      _ -> throwContractError "Unexpected error - no transaction IDs"
+  locked <- getLockedInputs
+  logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
-  publishTestFeedback true
+  case txIds of
+    [ txId1, txId2 ] -> do
+      awaitTxConfirmed txId1
+      logInfo' $ "Tx 1 submitted successfully!"
+      awaitTxConfirmed txId2
+      logInfo' $ "Tx 2 submitted successfully!"
+    _ -> throwContractError "Unexpected error - no transaction IDs"
 
   where
   submitAndLog
@@ -87,3 +86,8 @@ example cfg = launchAff_ do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     pure txId
+
+example :: ConfigParams () -> Effect Unit
+example cfg = launchAff_ do
+  runContract cfg contract
+  publishTestFeedback true

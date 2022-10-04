@@ -1,4 +1,4 @@
-module Test.Plutip.UtxoDistribution
+module Test.Ctl.Plutip.UtxoDistribution
   ( ArbitraryUtxoDistr
   , assertContract
   , assertCorrectDistribution
@@ -30,19 +30,24 @@ import Contract.Test.Plutip
   )
 import Contract.Transaction
   ( TransactionInput
-  , TransactionOutput(TransactionOutput)
+  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
+import Ctl.Internal.Plutip.Types
+  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  )
+import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.List (fromFoldable) as List
-import Data.Map (isEmpty, empty, insert) as Map
+import Data.Map (empty, insert, isEmpty) as Map
 import Data.Maybe (isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
@@ -52,10 +57,8 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
-import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Plutus.Types.Transaction (Utxo)
-import Test.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
@@ -66,7 +69,6 @@ import Test.QuickCheck.Gen
   , resize
   , sized
   )
-import TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -180,7 +182,7 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
 assertNoUtxosAtAddress addr = do
-  utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
+  utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
   assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
 
 -- | For each wallet, assert that there is a one-to-one correspondance
@@ -192,7 +194,7 @@ assertCorrectDistribution
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
     addr <- liftedM "Could not get wallet address" getWalletAddress
-    utxos <- liftedM "Could not get wallet utxos" $ map unwrap <$> utxosAt addr
+    utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts
   where
@@ -201,7 +203,7 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   -- false. Once we've gone through all expected amounts, if all of
   -- them have been found in the utxo set, we expect there to be no
   -- utxos remaining
-  checkDistr :: Utxo -> InitialUTxOs -> Boolean
+  checkDistr :: UtxoMap -> InitialUTxOs -> Boolean
   checkDistr originalUtxos expectedAmounts =
     let
       allFound /\ remainingUtxos =
@@ -212,7 +214,7 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
     -- Remove a single utxo containing the expected ada amount,
     -- returning the updated utxo map and false if it could not be
     -- found
-    findAndRemoveExpected :: Boolean /\ Utxo -> BigInt -> Boolean /\ Utxo
+    findAndRemoveExpected :: Boolean /\ UtxoMap -> BigInt -> Boolean /\ UtxoMap
     findAndRemoveExpected o@(false /\ _) _ = o
     findAndRemoveExpected (_ /\ utxos) expected =
       foldlWithIndex
@@ -225,13 +227,13 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
     removeUtxoMatchingValue
       :: Value
       -> TransactionInput
-      -> Boolean /\ Utxo
-      -> TransactionOutput
-      -> Boolean /\ Utxo
+      -> Boolean /\ UtxoMap
+      -> TransactionOutputWithRefScript
+      -> Boolean /\ UtxoMap
     removeUtxoMatchingValue
       expected
       i
       (found /\ m)
-      o@(TransactionOutput { amount })
-      | not found && expected == amount = true /\ m
+      o@(TransactionOutputWithRefScript { output })
+      | not found && expected == (unwrap output).amount = true /\ m
       | otherwise = found /\ Map.insert i o m

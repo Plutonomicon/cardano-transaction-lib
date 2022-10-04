@@ -1,31 +1,17 @@
 -- | Augmented version of Contract.Test.E2E.Helpers, with some functions that
 -- | are only useful for testing CTL itself.
-module Test.E2E.Helpers
+module Test.Ctl.E2E.Helpers
   ( module E2EHelpers
   , runE2ETest
   , exampleUrl
-  , namiSign'
-  , geroSign'
   ) where
 
 import Prelude
 
 import Contract.Test.E2E
-  ( TestOptions
-  , withBrowser
-  , WalletExt(NamiExt, GeroExt)
-  , resetTestFeedback
-  , RunningExample
-  , WalletPassword
-  , checkSuccess
-  , delaySec
-  , geroSign
-  , namiSign
-  , withExample
-  )
-import Contract.Test.E2E
   ( E2EOutput
-  , RunningExample(RunningExample)
+  , RunningExample
+  , SomeWallet
   , WalletPassword(WalletPassword)
   , checkSuccess
   , delaySec
@@ -35,30 +21,31 @@ import Contract.Test.E2E
   , namiSign
   , withExample
   ) as E2EHelpers
-import Control.Monad.Error.Class (try)
-import Data.Newtype (wrap, unwrap)
+import Contract.Test.E2E
+  ( RunningExample
+  , TestOptions
+  , WalletExt
+  , checkSuccess
+  , delaySec
+  , resetTestFeedback
+  , walletName
+  , withBrowser
+  , withExample
+  )
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Mote (test)
-import TestM (TestPlanM)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 import Toppokki as Toppokki
-
-walletName :: WalletExt -> String
-walletName NamiExt = "nami"
-walletName GeroExt = "gero"
 
 exampleUrl :: String -> WalletExt -> Toppokki.URL
 exampleUrl exampleName wallet = wrap $ "http://localhost:4008/?" <> exampleName
   <> ":"
   <> walletName wallet
-
-testPasswordNami :: WalletPassword
-testPasswordNami = wrap "ctlctlctl"
-
-testPasswordGero :: WalletPassword
-testPasswordGero = wrap "VZVfu5rp1r"
 
 -- | Run an E2E test. Parameters are:
 -- |   String: Just a name for the logs
@@ -74,19 +61,19 @@ runE2ETest
   -> (RunningExample -> Aff a)
   -> TestPlanM (Aff Unit) Unit
 runE2ETest example opts ext f = test example $ withBrowser opts ext $
-  \browser -> withExample (exampleUrl example ext) browser
-    ( \e -> do
-        liftEffect $ log $ "Start Example " <> example <> ":" <> walletName ext
-        resetTestFeedback (_.main $ unwrap e)
-        void $ try $ f e
-        delaySec 10.0
-        liftEffect $ log $ "Example " <> example <>
-          " finished, check success..."
-        checkSuccess e >>= flip shouldSatisfy (_ == true)
-    )
-
-namiSign' :: RunningExample -> Aff Unit
-namiSign' = namiSign testPasswordNami
-
-geroSign' :: RunningExample -> Aff Unit
-geroSign' = geroSign testPasswordGero
+  \mbrowser ->
+    case mbrowser of
+      Nothing -> do
+        liftEffect $ log $ "Wallet " <> walletName ext <> " not provided"
+      Just browser ->
+        withExample (exampleUrl example ext) browser
+          ( \e -> do
+              liftEffect $ log $ "Start Example " <> example <> ":" <>
+                walletName ext
+              resetTestFeedback (_.main e)
+              void $ f e
+              delaySec 20.0
+              liftEffect $ log $ "Example " <> example <>
+                " finished, check success..."
+              checkSuccess e >>= flip shouldSatisfy (_ == true)
+          )
