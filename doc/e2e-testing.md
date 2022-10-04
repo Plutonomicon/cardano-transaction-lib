@@ -220,9 +220,11 @@ Now, the `Scaffold.contract` can be used as a test:
 
 ```bash
 E2E_TESTS="
-http://localhost:4008/?nami:Contract
+nami:http://localhost:4008/?nami:Contract
 "
 ```
+
+The `nami:` prefix specifies which browser extension to load for the test, and the query parameter is for the router to be able to find the appropriate config.
 
 Refer to the docs for `Contract.Test.E2E.route` function for an overview of the URL structure.
 
@@ -254,4 +256,6 @@ Simply copy the `cborHex` from payment and stake signing keys (the order is impo
 http://localhost:4008/?nami-mock:Contract:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
 ```
 
-In order to use the keys, they must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral).
+The `nami:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
+
+In order to use the keys, their corresponding address must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral), so it's best to make two transactions.

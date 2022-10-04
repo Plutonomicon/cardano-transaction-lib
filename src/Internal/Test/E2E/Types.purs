@@ -111,17 +111,18 @@ type SettingsRuntime =
 -- | A particular test instance.
 type E2ETest =
   { url :: String
-  , wallet :: WalletExt
+  , wallet :: Maybe WalletExt
   }
 
 -- | Construct an `E2ETest` from a spec (`wallet:url`)
 mkE2ETest :: String -> Maybe E2ETest
 mkE2ETest str =
-  (stripPrefix (Pattern "eternl:") str <#> mkTestEntry EternlExt)
-    <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry FlintExt)
-    <|> (stripPrefix (Pattern "gero:") str <#> mkTestEntry GeroExt)
-    <|> (stripPrefix (Pattern "lode:") str <#> mkTestEntry LodeExt)
-    <|> (stripPrefix (Pattern "nami:") str <#> mkTestEntry NamiExt)
+  (stripPrefix (Pattern "eternl:") str <#> mkTestEntry (Just EternlExt))
+    <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry (Just FlintExt))
+    <|> (stripPrefix (Pattern "gero:") str <#> mkTestEntry (Just GeroExt))
+    <|> (stripPrefix (Pattern "lode:") str <#> mkTestEntry (Just LodeExt))
+    <|> (stripPrefix (Pattern "nami:") str <#> mkTestEntry (Just NamiExt))
+    <|> (pure $ mkTestEntry Nothing str)
   where
   mkTestEntry wallet url = { wallet, url }
 
