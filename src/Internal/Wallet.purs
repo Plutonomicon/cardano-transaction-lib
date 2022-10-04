@@ -203,21 +203,21 @@ isEnabled wallet = do
 apiVersion :: SupportedWallet -> Aff String
 apiVersion wallet = do
   walletName <- liftMaybe
-    (error "Can't get the name of the Wallet in isEnabled call")
+    (error "Can't get the name of the Wallet in apiVersion call")
     (supportedWalletToName wallet)
   liftEffect $ _apiVersion walletName
 
 name :: SupportedWallet -> Aff String
 name wallet = do
   walletName <- liftMaybe
-    (error "Can't get the name of the Wallet in isEnabled call")
+    (error "Can't get the name of the Wallet in `name` call")
     (supportedWalletToName wallet)
   liftEffect $ _name walletName
 
 icon :: SupportedWallet -> Aff String
 icon wallet = do
   walletName <- liftMaybe
-    (error "Can't get the name of the Wallet in isEnabled call")
+    (error "Can't get the name of the Wallet in `icon` call")
     (supportedWalletToName wallet)
   liftEffect $ _icon walletName
 
