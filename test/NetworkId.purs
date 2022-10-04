@@ -27,6 +27,6 @@ testTestnetAddress = runContract testnetConfig do
 
 -- testMainnetAddress :: Aff Unit
 -- testMainnetAddress = runContract testnetConfig do
---   addr <- Address.addressFromBech32
---     "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
---   addr `shouldEqual` addr
+--   let bechstr = "addr1qyc0kwu98x23ufhsxjgs5k3h7gktn8v5682qna5amwh2juguztcrc8hjay66es67ctn0jmr9plfmlw37je2s2px4xdssgvxerq"
+--   addr <- Address.addressFromBech32 bechstr
+--   addressBech32 (fromPlutusAddress MainnetId addr) `shouldEqual` bechstr
