@@ -1,44 +1,14 @@
-module Scaffold.E2E where
+-- | This module calls the E2E test suite. It implements a binary that accepts
+-- | configuration flags and environment variables and controls the headless
+-- | browser to run the tests.
+module Scaffold.Test.E2E where
 
-import Contract.Prelude
+import Prelude
 
-import Contract.Config
-  ( ConfigParams
-  , testnetEternlConfig
-  , testnetFlintConfig
-  , testnetGeroConfig
-  , testnetLodeConfig
-  , testnetNamiConfig
-  )
-import Contract.Monad (Contract)
-import Contract.Test.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami, MockLode)
-  )
-import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
-import Data.Map (Map)
-import Data.Map as Map
-import Scaffold as Scaffold
+import Contract.Test.E2E (parseCliArgs, runE2ECommand)
+import Effect (Effect)
+import Effect.Aff (launchAff_)
 
+-- Run with `spago test --main Scaffold.Test.E2E`
 main :: Effect Unit
-main = do
-  addLinks configs tests
-  route configs tests
-
-configs :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
-configs = Map.fromFoldable
-  [ "nami" /\ testnetNamiConfig /\ Nothing
-  , "gero" /\ testnetGeroConfig /\ Nothing
-  , "flint" /\ testnetFlintConfig /\ Nothing
-  , "eternl" /\ testnetEternlConfig /\ Nothing
-  , "lode" /\ testnetLodeConfig /\ Nothing
-  , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
-  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
-  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
-  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
-  ]
-
-tests :: Map E2ETestName (Contract () Unit)
-tests = Map.fromFoldable
-  [ "Contract" /\ Scaffold.contract
-  -- Add more `Contract`s here
-  ]
+main = parseCliArgs >>= runE2ECommand >>> launchAff_

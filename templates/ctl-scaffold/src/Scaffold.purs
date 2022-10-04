@@ -1,3 +1,5 @@
+-- | This module contains a minimal contract that only prints public key
+-- | info to the console.
 module Scaffold (contract) where
 
 import Contract.Prelude

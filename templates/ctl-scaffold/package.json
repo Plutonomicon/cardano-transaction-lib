@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "spago run --main Test.Scaffold.Main",
+    "e2e-serve": "make e2e-serve",
     "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run'",
     "e2e-test-debug": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run --no-headless'",
     "e2e-browser": "source ./test/e2e.env && spago run --main Scaffold.Test.E2E -a 'e2e-test browser'",
