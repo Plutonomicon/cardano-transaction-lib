@@ -11,24 +11,13 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Wallet
-  ( apiVersion
-  , getChangeAddress
-  , getNetworkId
-  , getRewardAddresses
-  , getUnusedAddresses
-  , getWallet
-  , icon
-  , isEnabled
-  , isWalletAvailable
-  , name
-  , signData
-  , walletToExtensionWallet
-  )
+import Contract.Wallet (ExtensionWallet, apiVersion, getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, getWallet, icon, isEnabled, isWalletAvailable, name, signData, walletToExtensionWallet)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
+import Ctl.Internal.Wallet (ExtensionWallet(..))
 import Effect.Aff (try)
+import Effect.Console (logShow)
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -36,45 +25,57 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  -- runContract cfg (contract false)
-  liftEffect $ runKeyWalletContract_ (\_ _ _ -> contract true)
-  publishTestFeedback true
-
-contract :: Boolean -> Contract () Unit
-contract catch = do
-  logInfo' "Running Examples.Cip30"
-  mWallet <- getWallet
+  mWallet <-runContract cfg  getWallet
   let mSupportWallet = walletToExtensionWallet <$> mWallet
-  performAndLog catch "isWalletAvailable"
-    (liftAff $ (traverse isWalletAvailable mSupportWallet))
-  performAndLog catch "isEnabled"
-    (liftAff $ (traverse isEnabled mSupportWallet))
-  performAndLog catch "apiVersion"
-    (liftAff $ (traverse apiVersion mSupportWallet))
-  performAndLog catch "name" (liftAff $ (traverse name mSupportWallet))
-  performAndLog catch "icon" (liftAff $ (traverse icon mSupportWallet))
-  performAndLog catch "getNetworkId" getNetworkId
-  performAndLog catch "getUnusedAddresses" getUnusedAddresses
-  performAndLog false "getChangeAddress" getChangeAddress
-  performAndLog false "getRewardAddresses" getRewardAddresses
-  maddress <- getChangeAddress
-  address <- liftMaybe (error "can't get change address") maddress
+  _<-traverse nonConfigFunctions mSupportWallet
+  runContract cfg contract
+  -- liftEffect $ runKeyWalletContract_ (\_ _ _ -> contract true)
+
+nonConfigFunctions :: ExtensionWallet -> Aff Unit 
+nonConfigFunctions (ExtensionKeyWallet) = do
+    log "Functions that don't depend on `Contract`"
+    log "skipping for ExtensionKeyWallet"
+nonConfigFunctions extensionWallet = do
+    log "Functions that don't depend on `Contract`"
+    performAndLog "isWalletAvailable" isWalletAvailable 
+    performAndLog "isEnabled" isEnabled  
+    performAndLog "apiVersion" apiVersion  
+    performAndLog "name" name 
+    performAndLog "icon" icon 
+  where 
+    performAndLog 
+      :: forall (a::Type) . Show a => String ->(ExtensionWallet -> Aff a) -> Aff Unit
+    performAndLog msg f = do 
+      result <- f extensionWallet 
+      log $ msg <> ":" <> (show result)
+
+ 
+
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.Cip30"
+  logInfo' "Funtions that depend on `Contract`"
+  _ <- performAndLog "getNetworkId" getNetworkId
+  _ <-performAndLog "getUnusedAddresses" getUnusedAddresses
+  mAddress <- performAndLog "getChangeAddress" getChangeAddress
+  address <- liftMaybe (error "can't get change address") mAddress
+  _ <- performAndLog "getRewardAddresses" getRewardAddresses
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
     (pure mDataBytes)
-  performAndLog catch "signData" $ signData address dataBytes
+  _ <- performAndLog "signData" $ signData address dataBytes
+  pure unit
   where
   msg = "hello world!"
   mDataBytes = rawBytesFromAscii msg
-
-performAndLog
-  :: forall (a :: Type)
-   . Show a
-  => Boolean
-  -> String
-  -> Contract () a
-  -> Contract () Unit
-performAndLog catch msg cont = do
-  result <- if catch then try cont else pure <$> cont
-  logInfo' $ msg <> ": " <> show result
+  performAndLog
+    :: forall (a :: Type)
+     . Show a
+    => String
+    -> Contract () a
+    -> Contract () a
+  performAndLog logMsg cont = do
+    result <- cont
+    logInfo' $ logMsg <> ": " <> show result
+    pure result
 
