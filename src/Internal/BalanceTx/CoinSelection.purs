@@ -2,7 +2,9 @@ module Ctl.Internal.BalanceTx.CoinSelection
   ( MultiAssetSelection(MultiAssetSelection)
   , SelectionState(SelectionState)
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
+  , _leftoverUtxos
   , performMultiAssetSelection
+  , selectedInputs
   ) where
 
 import Prelude
@@ -40,7 +42,7 @@ import Data.BigInt (abs, fromInt, toString) as BigInt
 import Data.Foldable (foldMap) as Foldable
 import Data.Function (applyFlipped)
 import Data.Lens (Lens')
-import Data.Lens.Getter ((^.))
+import Data.Lens.Getter (view, (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter (over)
@@ -69,11 +71,11 @@ performMultiAssetSelection
   :: forall (m :: Type -> Type)
    . MonadEffect m
   => MonadThrow BalanceTxError m
-  => MultiAssetSelection
+  => SelectionStrategy
   -> UtxoMap
   -> Value
   -> m SelectionState
-performMultiAssetSelection (MultiAssetSelection strategy) utxos requiredValue =
+performMultiAssetSelection strategy utxos requiredValue =
   case availableValue `Value.lt` requiredValue of
     true ->
       throwError balanceInsufficientError
@@ -142,6 +144,9 @@ selectedAssetQuantity assetClass =
 -- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2175
 selectedCoinQuantity :: SelectionState -> BigInt
 selectedCoinQuantity = Value.valueToCoin' <<< selectedBalance
+
+selectedInputs :: SelectionState -> Set TransactionInput
+selectedInputs = Set.fromFoldable <<< Map.keys <<< view _selectedUtxos
 
 -- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1254
 type SelectionLens (m :: Type -> Type) =
