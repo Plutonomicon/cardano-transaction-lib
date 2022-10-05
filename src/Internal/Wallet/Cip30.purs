@@ -28,7 +28,6 @@ import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressFromBytes
-  , baseAddressBech32
   , baseAddressBytes
   , baseAddressFromAddress
   , enterpriseAddressBytes
@@ -38,22 +37,18 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressBytes
   , rewardAddressFromAddress
   )
-import Ctl.Internal.Types.ByteArray (byteArrayFromAscii, byteArrayToHex)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes
-  ( CborBytes(..)
-  , cborBytesFromAscii
+  ( CborBytes
   , cborBytesToHex
   , hexToCborBytes
-  , hexToCborBytesUnsafe
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes
   ( RawBytes
   , hexToRawBytes
-  , hexToRawBytesUnsafe
   , rawBytesToHex
   )
-import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
