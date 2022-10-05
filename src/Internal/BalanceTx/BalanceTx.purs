@@ -9,6 +9,7 @@ import Prelude
 
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Logger.Class (trace) as Logger
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
   , SelectionStrategy(SelectionStrategyOptimal)
@@ -88,8 +89,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _outputs
   )
 import Ctl.Internal.Cardano.Types.Value
-  ( Coin(..)
-  , Value(..)
+  ( Coin(Coin)
+  , Value(Value)
   , equipartitionValueWithTokenQuantityUpperBound
   , getNonAdaAsset
   , minus
@@ -112,10 +113,13 @@ import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (toArray) as NEArray
+import Data.BigInt (BigInt)
 import Data.Either (Either, note)
 import Data.Foldable (foldMap, foldr)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
+import Data.Log.Tag (TagSet)
+import Data.Log.Tag (fromArray, tag) as TagSet
 import Data.Map (empty, filterKeys, lookup, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
@@ -202,14 +206,6 @@ type BalancerState =
   , leftoverUtxos :: UtxoMap
   }
 
-mkBalancerState
-  :: UnattachedUnbalancedTx
-  -> Array TransactionOutput
-  -> UtxoMap
-  -> BalancerState
-mkBalancerState unbalancedTx changeOutputs leftoverUtxos =
-  { unbalancedTx, changeOutputs, leftoverUtxos }
-
 runBalancer
   :: UtxoMap
   -> Address
@@ -226,8 +222,23 @@ runBalancer utxos changeAddress unbalancedTx' = do
       \nonSpendableInputs ->
         Map.filterKeys (not <<< flip Set.member nonSpendableInputs) utxos
 
+  runNextBalancingStep
+    :: UnattachedUnbalancedTx -> UtxoMap -> BalanceTxM FinalizedTransaction
+  runNextBalancingStep unbalancedTx leftoverUtxos = do
+    changeOutputs <-
+      genTransactionChangeOutputs (unbalancedTx ^. _body')
+
+    requiredValue <-
+      except $ getRequiredValue utxos
+        (setTxChangeOutputs changeOutputs unbalancedTx ^. _body')
+
+    { unbalancedTx, changeOutputs, leftoverUtxos } #
+      if requiredValue == mempty then balanceChangeAndMinFee else prebalanceTx
+
   prebalanceTx :: BalancerState -> BalanceTxM FinalizedTransaction
-  prebalanceTx { unbalancedTx, changeOutputs, leftoverUtxos } = do
+  prebalanceTx state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
+    logBalancerState "Pre-balancing (Stage 1)" utxos state
+
     selectionState <-
       performCoinSelection
         (setTxChangeOutputs changeOutputs unbalancedTx ^. _body')
@@ -242,23 +253,7 @@ runBalancer utxos changeAddress unbalancedTx' = do
       unbalancedTxWithInputs =
         unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
 
-    changeOutputs' <-
-      genTransactionChangeOutputs (unbalancedTxWithInputs ^. _body')
-
-    requiredValue <-
-      except $ getRequiredValue utxos
-        (setTxChangeOutputs changeOutputs' unbalancedTxWithInputs ^. _body')
-
-    let
-      updatedState :: BalancerState
-      updatedState =
-        mkBalancerState unbalancedTxWithInputs changeOutputs' leftoverUtxos'
-
-    case requiredValue == mempty of
-      true ->
-        balanceChangeAndMinFee updatedState
-      false ->
-        prebalanceTx updatedState
+    runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
     where
     performCoinSelection :: TxBody -> BalanceTxM SelectionState
     performCoinSelection txBody =
@@ -266,42 +261,29 @@ runBalancer utxos changeAddress unbalancedTx' = do
         >>= performMultiAssetSelection SelectionStrategyOptimal leftoverUtxos
 
   balanceChangeAndMinFee :: BalancerState -> BalanceTxM FinalizedTransaction
-  balanceChangeAndMinFee state@{ unbalancedTx, changeOutputs } = do
+  balanceChangeAndMinFee
+    state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
+    logBalancerState "Balancing change and fees (Stage 2)" utxos state
     let
       prebalancedTx :: PrebalancedTransaction
-      prebalancedTx =
-        wrap (setTxChangeOutputs changeOutputs unbalancedTx)
+      prebalancedTx = wrap $ setTxChangeOutputs changeOutputs unbalancedTx
 
-    balancedTx /\ minFee <- evalExUnitsAndMinFee prebalancedTx utxos
+      minFee :: BigInt
+      minFee = unwrap $ unbalancedTx ^. _body' <<< _fee
 
-    case Coin minFee <= unbalancedTx ^. _body' <<< _fee of
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos
+
+    case newMinFee <= minFee of
       true ->
-        liftQueryM $ finalizeTransaction balancedTx utxos
-      false -> do
+        liftQueryM (finalizeTransaction balancedTx utxos)
+          <* logTransaction "Balanced transaction (Done)" utxos balancedTx
+      false ->
         let
           unbalancedTxWithMinFee :: UnattachedUnbalancedTx
           unbalancedTxWithMinFee =
-            unbalancedTx # _body' <<< _fee .~ Coin minFee
-
-        changeOutputs' <-
-          genTransactionChangeOutputs (unbalancedTxWithMinFee ^. _body')
-
-        requiredValue <-
-          except $ getRequiredValue utxos
-            (setTxChangeOutputs changeOutputs' unbalancedTxWithMinFee ^. _body')
-
-        let
-          updatedState :: BalancerState
-          updatedState = state
-            { unbalancedTx = unbalancedTxWithMinFee
-            , changeOutputs = changeOutputs'
-            }
-
-        case requiredValue == mempty of
-          true ->
-            balanceChangeAndMinFee updatedState
-          false ->
-            prebalanceTx updatedState
+            unbalancedTx # _body' <<< _fee .~ Coin newMinFee
+        in
+          runNextBalancingStep unbalancedTxWithMinFee leftoverUtxos
 
   -- | Generates change outputs to return all excess `Value` back to the owner's 
   -- | address. If necessary, adds lovelaces to the generated change outputs to 
@@ -383,6 +365,10 @@ setTxChangeOutputs
   :: Array TransactionOutput -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
 setTxChangeOutputs outputs = _body' <<< _outputs %~ flip append outputs
 
+--------------------------------------------------------------------------------
+-- Getters for various `Value`s
+--------------------------------------------------------------------------------
+
 getRequiredValue :: UtxoMap -> TxBody -> Either BalanceTxError Value
 getRequiredValue utxos txBody =
   getInputValue utxos txBody <#> \inputValue ->
@@ -406,4 +392,58 @@ minFeeValue txBody = mkValue (txBody ^. _fee) mempty
 
 mintValue :: TxBody -> Value
 mintValue txBody = maybe mempty (mkValue mempty <<< unwrap) (txBody ^. _mint)
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+mkBalancerState
+  :: UnattachedUnbalancedTx
+  -> Array TransactionOutput
+  -> UtxoMap
+  -> BalancerState
+mkBalancerState unbalancedTx changeOutputs leftoverUtxos =
+  { unbalancedTx, changeOutputs, leftoverUtxos }
+
+logBalancerState :: String -> UtxoMap -> BalancerState -> BalanceTxM Unit
+logBalancerState message utxos { unbalancedTx, changeOutputs } =
+  logTransactionWithChange message utxos (Just changeOutputs) unbalancedTx
+
+logTransaction
+  :: String -> UtxoMap -> UnattachedUnbalancedTx -> BalanceTxM Unit
+logTransaction message utxos =
+  logTransactionWithChange message utxos Nothing
+
+logTransactionWithChange
+  :: String
+  -> UtxoMap
+  -> Maybe (Array TransactionOutput)
+  -> UnattachedUnbalancedTx
+  -> BalanceTxM Unit
+logTransactionWithChange message utxos mChangeOutputs unbalancedTx =
+  let
+    txBody :: TxBody
+    txBody = unbalancedTx ^. _body'
+
+    tag :: forall (a :: Type). Show a => String -> a -> TagSet
+    tag title = TagSet.tag title <<< show
+
+    outputValuesTagSet :: Maybe (Array TransactionOutput) -> Array TagSet
+    outputValuesTagSet Nothing =
+      [ "Output Value" `tag` outputValue txBody ]
+    outputValuesTagSet (Just changeOutputs) =
+      [ "Output Value without change" `tag` outputValue txBody
+      , "Change Value" `tag` foldMap getAmount changeOutputs
+      ]
+
+    transactionInfo :: Value -> TagSet
+    transactionInfo inputValue =
+      TagSet.fromArray $
+        [ "Input Value" `tag` inputValue
+        , "Mint Value" `tag` mintValue txBody
+        , "Fees" `tag` (txBody ^. _fee)
+        ] <> outputValuesTagSet mChangeOutputs
+  in
+    except (getInputValue utxos txBody)
+      >>= (flip Logger.trace (message <> ":") <<< transactionInfo)
 
