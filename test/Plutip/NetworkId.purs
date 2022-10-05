@@ -7,7 +7,7 @@ import Prelude
 import Contract.Address (addressFromBech32) as Address
 import Contract.Test.Plutip (runPlutipContract)
 import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
-import Ctl.Internal.Serialization.Address (NetworkId(..), addressBech32)
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config)
