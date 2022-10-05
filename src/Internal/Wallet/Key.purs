@@ -22,7 +22,11 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
+import Ctl.Internal.Serialization
+  ( privateKeySign
+  , publicKeyFromPrivateKey
+  , publicKeyHash
+  )
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -34,6 +38,8 @@ import Ctl.Internal.Serialization.Address
   , keyHashCredential
   )
 import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Types.RawBytes (RawBytes(..))
+import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (fromFoldable)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -53,6 +59,7 @@ newtype KeyWallet = KeyWallet
       -> UtxoMap
       -> Effect (Maybe (Array TransactionUnspentOutput))
   , signTx :: Transaction -> Aff TransactionWitnessSet
+  , signData :: RawBytes -> Aff DataSignature
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
   }
@@ -79,6 +86,7 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   { address
   , selectCollateral
   , signTx
+  , signData
   , paymentKey: payKey
   , stakeKey: mbStakeKey
   }
@@ -118,3 +126,9 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
       Serialization.makeVkeywitness hash (unwrap payKey)
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
     pure witnessSet'
+
+  signData :: RawBytes -> Aff DataSignature
+  signData dat = do
+    encoded <- liftEffect $ (privateKeySign <<< unwrap) payKey $ unwrap $ unwrap $ dat
+    pure $ {key : encoded, signature : encoded}
+

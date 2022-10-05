@@ -597,7 +597,7 @@ actionBasedOnWallet walletAction keyWalletAction =
 signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)
 signData address dat = actionBasedOnWallet
   (\wallet conn -> wallet.signData conn address dat)
-  (\_ -> liftEffect $ throw "signData not implemented for KeyWallet yet.")
+  (\kw -> (unwrap kw).signData dat)
 
 getWallet :: QueryM (Maybe Wallet)
 getWallet = asks (_.runtime >>> _.wallet)

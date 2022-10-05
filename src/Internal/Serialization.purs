@@ -18,140 +18,29 @@ module Ctl.Internal.Serialization
   , publicKeyFromBech32
   , publicKeyFromPrivateKey
   , privateKeyFromBytes
+  , privateKeySign
   , makeVkeywitness
   ) where
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef
-      ( NativeScriptRef
-      , PlutusScriptRef
-      )
-  ) as T
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , ExUnitPrices
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , GenesisHash(GenesisHash)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , Mint(Mint)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , ProposedProtocolParameterUpdates
-  , ProtocolParamUpdate
-  , Redeemer
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
-  , TxBody(TxBody)
-  , URL(URL)
-  , UnitInterval
-  , Update
-  ) as T
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as T
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef)) as T
+import Ctl.Internal.Cardano.Types.Transaction (Certificate(StakeRegistration, StakeDeregistration, StakeDelegation, PoolRegistration, PoolRetirement, GenesisKeyDelegation, MoveInstantaneousRewardsCert), CostModel(CostModel), Costmdls(Costmdls), ExUnitPrices, GenesisDelegateHash(GenesisDelegateHash), GenesisHash(GenesisHash), MIRToStakeCredentials(MIRToStakeCredentials), Mint(Mint), MoveInstantaneousReward(ToOtherPot, ToStakeCreds), PoolMetadata(PoolMetadata), PoolMetadataHash(PoolMetadataHash), ProposedProtocolParameterUpdates, ProtocolParamUpdate, Redeemer, Relay(SingleHostAddr, SingleHostName, MultiHostName), Transaction(Transaction), TransactionOutput(TransactionOutput), TxBody(TxBody), URL(URL), UnitInterval, Update) as T
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput)) as T
 import Ctl.Internal.Cardano.Types.Value as Value
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import Ctl.Internal.FfiHelpers
-  ( ContainerHelper
-  , MaybeFfiHelper
-  , containerHelper
-  , maybeFfiHelper
-  )
+import Ctl.Internal.FfiHelpers (ContainerHelper, MaybeFfiHelper, containerHelper, maybeFfiHelper)
 import Ctl.Internal.Helpers (fromJustEff)
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , RewardAddress
-  , StakeCredential
-  )
+import Ctl.Internal.Serialization.Address (Address, RewardAddress, StakeCredential)
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
 import Ctl.Internal.Serialization.AuxiliaryData (convertAuxiliaryData)
 import Ctl.Internal.Serialization.BigInt as Serialization
-import Ctl.Internal.Serialization.Hash
-  ( Ed25519KeyHash
-  , ScriptHash
-  , scriptHashFromBytes
-  )
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
-import Ctl.Internal.Serialization.Types
-  ( AssetName
-  , Assets
-  , AuxiliaryData
-  , AuxiliaryDataHash
-  , BigInt
-  , Certificate
-  , Certificates
-  , CostModel
-  , Costmdls
-  , DataHash
-  , Ed25519KeyHashes
-  , Ed25519Signature
-  , ExUnitPrices
-  , ExUnits
-  , GenesisDelegateHash
-  , GenesisHash
-  , Ipv4
-  , Ipv6
-  , Language
-  , MIRToStakeCredentials
-  , Mint
-  , MintAssets
-  , MoveInstantaneousReward
-  , MultiAsset
-  , NativeScript
-  , NetworkId
-  , PlutusData
-  , PlutusScript
-  , PoolMetadata
-  , PrivateKey
-  , ProposedProtocolParameterUpdates
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , PublicKey
-  , Redeemer
-  , Redeemers
-  , Relay
-  , Relays
-  , ScriptDataHash
-  , ScriptRef
-  , Transaction
-  , TransactionBody
-  , TransactionHash
-  , TransactionInput
-  , TransactionInputs
-  , TransactionOutput
-  , TransactionOutputs
-  , TransactionUnspentOutput
-  , TransactionWitnessSet
-  , UnitInterval
-  , Update
-  , VRFKeyHash
-  , Value
-  , Vkey
-  , Vkeywitness
-  , Vkeywitnesses
-  , Withdrawals
-  )
-import Ctl.Internal.Serialization.WitnessSet
-  ( convertExUnits
-  , convertRedeemer
-  , convertWitnessSet
-  )
+import Ctl.Internal.Serialization.Types (AssetName, Assets, AuxiliaryData, AuxiliaryDataHash, BigInt, Certificate, Certificates, CostModel, Costmdls, DataHash, Ed25519KeyHashes, Ed25519Signature, ExUnitPrices, ExUnits, GenesisDelegateHash, GenesisHash, Ipv4, Ipv6, Language, MIRToStakeCredentials, Mint, MintAssets, MoveInstantaneousReward, MultiAsset, NativeScript, NetworkId, PlutusData, PlutusScript, PoolMetadata, PrivateKey, ProposedProtocolParameterUpdates, ProtocolParamUpdate, ProtocolVersion, PublicKey, Redeemer, Redeemers, Relay, Relays, ScriptDataHash, ScriptRef, Transaction, TransactionBody, TransactionHash, TransactionInput, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionUnspentOutput, TransactionWitnessSet, UnitInterval, Update, VRFKeyHash, Value, Vkey, Vkeywitness, Vkeywitnesses, Withdrawals)
+import Ctl.Internal.Serialization.WitnessSet (convertExUnits, convertRedeemer, convertWitnessSet)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -159,14 +48,13 @@ import Ctl.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as Big
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int as Csl
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
+import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum))
 import Ctl.Internal.Types.PlutusData as PlutusData
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)
@@ -267,6 +155,9 @@ foreign import _privateKeyFromBytes
 
 foreign import _bytesFromPrivateKey
   :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
+
+foreign import privateKeySign
+  :: PrivateKey -> Uint8Array -> Effect CborBytes
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature

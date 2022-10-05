@@ -7,34 +7,19 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, runQueryMInRuntime)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
-import Ctl.Internal.Serialization
-  ( convertTransactionUnspentOutput
-  , convertValue
-  , toBytes
-  )
+import Ctl.Internal.Serialization (convertTransactionUnspentOutput, convertValue, toBytes)
 import Ctl.Internal.Serialization.Address (NetworkId(..))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
-import Ctl.Internal.Wallet
-  ( Wallet
-  , mkFlintWalletAff
-  , mkGeroWalletAff
-  , mkNamiWalletAff
-  )
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet(KeyWallet)
-  , PrivatePaymentKey
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
+import Ctl.Internal.Wallet (Wallet, mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
+import Ctl.Internal.Wallet.Cip30 (DataSignature)
+import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet), PrivatePaymentKey, PrivateStakeKey, privateKeysToKeyWallet)
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Foldable (foldMap)
@@ -44,7 +29,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -107,14 +92,15 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
+  , getUtxos :: Effect (Promise (Array String))
+  , getCollateral :: Effect (Promise (Array String))
+  , getBalance :: Effect (Promise String)
   , getUsedAddresses :: Effect (Promise (Array String))
   , getUnUsedAddresses :: Effect (Promise (Array String))
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
-  , getCollateral :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
-  , getBalance :: Effect (Promise String)
-  , getUtxos :: Effect (Promise (Array String))
+  , signData :: String -> Aff DataSignature
   }
 
 mkCip30Mock
@@ -139,43 +125,6 @@ mkCip30Mock pKey mSKey = do
         case config.networkId of
           TestnetId -> 0
           MainnetId -> 1
-    , getUsedAddresses: fromAff do
-        (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
-    , getUnUsedAddresses: fromAff $ pure ([] :: Array String)
-    , getChangeAddress: fromAff do
-        (unwrap keyWallet).address config.networkId <#>
-          (byteArrayToHex <<< toBytes <<< asOneOf)
-    , getRewardAddresses: fromAff do
-        (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
-    , getCollateral: fromAff do
-        ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- liftMaybe (error "No UTxOs at address") =<<
-          runQueryMInRuntime config runtime (utxosAt ownAddress)
-        collateralUtxos <- getCollateralUtxos utxos
-        cslUnspentOutput <- liftEffect $ traverse
-          convertTransactionUnspentOutput
-          collateralUtxos
-        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
-    , signTx: \str -> unsafePerformEffect $ fromAff do
-        txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
-          str
-        tx <- liftMaybe (error "Failed to decode Transaction CBOR")
-          $ hush
-          $ deserializeTransaction
-          $ cborBytesFromByteArray txBytes
-        witness <- (unwrap keyWallet).signTx tx
-        cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
-    , getBalance: fromAff do
-        ownAddress <- (unwrap keyWallet).address config.networkId
-        utxos <- liftMaybe (error "No UTxOs at address") =<<
-          runQueryMInRuntime config runtime (utxosAt ownAddress)
-        value <- liftEffect $ convertValue $
-          (foldMap (_.amount <<< unwrap) <<< Map.values)
-            utxos
-        pure $ byteArrayToHex $ toBytes $ asOneOf value
     , getUtxos: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -192,6 +141,47 @@ mkCip30Mock pKey mSKey = do
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
         pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
+    , getCollateral: fromAff do
+        ownAddress <- (unwrap keyWallet).address config.networkId
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
+          runQueryMInRuntime config runtime (utxosAt ownAddress)
+        collateralUtxos <- getCollateralUtxos utxos
+        cslUnspentOutput <- liftEffect $ traverse
+          convertTransactionUnspentOutput
+          collateralUtxos
+        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
+    , getBalance: fromAff do
+        ownAddress <- (unwrap keyWallet).address config.networkId
+        utxos <- liftMaybe (error "No UTxOs at address") =<<
+          runQueryMInRuntime config runtime (utxosAt ownAddress)
+        value <- liftEffect $ convertValue $
+          (foldMap (_.amount <<< unwrap) <<< Map.values)
+            utxos
+        pure $ byteArrayToHex $ toBytes $ asOneOf value
+    , getUsedAddresses: fromAff do
+        (unwrap keyWallet).address config.networkId <#> \address ->
+          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+    , getUnUsedAddresses: fromAff $ pure ([] :: Array String)
+    , getChangeAddress: fromAff do
+        (unwrap keyWallet).address config.networkId <#>
+          (byteArrayToHex <<< toBytes <<< asOneOf)
+    , getRewardAddresses: fromAff do
+        (unwrap keyWallet).address config.networkId <#> \address ->
+          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+    , signTx: \str -> unsafePerformEffect $ fromAff do
+        txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
+          str
+        tx <- liftMaybe (error "Failed to decode Transaction CBOR")
+          $ hush
+          $ deserializeTransaction
+          $ cborBytesFromByteArray txBytes
+        witness <- (unwrap keyWallet).signTx tx
+        cslWitnessSet <- liftEffect $ convertWitnessSet witness
+        pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
+    , signData: \msg -> do
+        msgBytes <- liftMaybe (error "Unable to convert CBOR")
+          (hexToByteArray msg)
+        (unwrap keyWallet).signData (wrap msgBytes)
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey

@@ -23,7 +23,7 @@ import Contract.Wallet
   , isWalletAvailable
   , name
   , signData
-  , walletToSupportedWallet
+  , walletToExtensionWallet
   )
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -36,7 +36,7 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg (contract false)
+  -- runContract cfg (contract false)
   liftEffect $ runKeyWalletContract_ (\_ _ _ -> contract true)
   publishTestFeedback true
 
@@ -44,7 +44,7 @@ contract :: Boolean -> Contract () Unit
 contract catch = do
   logInfo' "Running Examples.Cip30"
   mWallet <- getWallet
-  let mSupportWallet = walletToSupportedWallet <$> mWallet
+  let mSupportWallet = walletToExtensionWallet <$> mWallet
   performAndLog catch "isWalletAvailable"
     (liftAff $ (traverse isWalletAvailable mSupportWallet))
   performAndLog catch "isEnabled"
