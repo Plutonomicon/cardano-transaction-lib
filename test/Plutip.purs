@@ -149,6 +149,7 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.NetworkId as NetworkId
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.TestM (TestPlanM)
@@ -164,6 +165,7 @@ main = launchAff_ do
     $ do
         suite
         UtxoDistribution.suite
+        NetworkId.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
