@@ -7,19 +7,35 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, runQueryMInRuntime)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
-import Ctl.Internal.Serialization (convertTransactionUnspentOutput, convertValue, toBytes)
+import Ctl.Internal.Serialization
+  ( convertTransactionUnspentOutput
+  , convertValue
+  , toBytes
+  )
 import Ctl.Internal.Serialization.Address (NetworkId(..))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
-import Ctl.Internal.Wallet (Wallet, mkFlintWalletAff, mkGeroWalletAff, mkNamiWalletAff)
+import Ctl.Internal.Wallet
+  ( Wallet
+  , mkFlintWalletAff
+  , mkGeroWalletAff
+  , mkNamiWalletAff
+  )
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet), PrivatePaymentKey, PrivateStakeKey, privateKeysToKeyWallet)
+import Ctl.Internal.Wallet.Key
+  ( KeyWallet(KeyWallet)
+  , PrivatePaymentKey
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Foldable (foldMap)
