@@ -83,7 +83,7 @@ waitForOutput filter mp@(ManagedProcess child _) = do
       Left e -> pure (Left e)
   bracket listen unlisten \_ -> liftEither =<< do
     sequential $ parallel go <|> parallel
-      ( waitForStop mp $> Left
+      ( try (waitForStop mp) $> Left
           (error "Process stopped while waiting for output")
       )
   pure mp
