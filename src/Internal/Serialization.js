@@ -114,7 +114,6 @@ exports._publicKeyFromBech32 = maybe => bech32 => {
   // this is needed because try/catch overuse breaks runtime badly
   // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
-    // if (/^ed25519_pk1[0-9a-z]+$/.test(bech32) && bech32.length == 32*8/4+"ed25519_pk1".length ) {
     if (/^ed25519_pk1[0-9a-z]+$/.test(bech32)) {
       return maybe.just(lib.PublicKey.from_str(bech32));
     } else {
@@ -124,11 +123,6 @@ exports._publicKeyFromBech32 = maybe => bech32 => {
     return maybe.nothing;
   }
 };
-
-console.log((32 * 8) / 4 + "ed25519_pk1".length);
-console.log(
-  "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e".length
-);
 
 exports.publicKeyFromPrivateKey = private_key => () => {
   return private_key.to_public();
@@ -205,12 +199,6 @@ exports._bigIntToInt = maybe => bigInt => {
   try {
     const str = bigInt.to_str();
     checkLimit(BigInt(str), bigNumLimitNeg, bigNumLimit);
-    // checkLimit(
-    //     bigInt,
-    //     BigInt("-18446744073709551615"),
-    //     BigInt("18446744073709551616")
-    // ); // 2 ^ 64
-    // const str = bigInt.to_str();
     if (str[0] == "-") {
       return maybe.just(
         lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
