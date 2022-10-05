@@ -14,8 +14,10 @@ import Contract.Test.E2E (publishTestFeedback)
 import Contract.Wallet (ExtensionWallet, apiVersion, getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, getWallet, icon, isEnabled, isWalletAvailable, name, signData, walletToExtensionWallet)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import Ctl.Internal.Serialization.Address (rewardAddress)
 import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
 import Ctl.Internal.Wallet (ExtensionWallet(..))
+import Data.Array (head)
 import Effect.Aff (try)
 import Effect.Console (logShow)
 import Effect.Exception (error)
@@ -57,13 +59,15 @@ contract = do
   logInfo' "Funtions that depend on `Contract`"
   _ <- performAndLog "getNetworkId" getNetworkId
   _ <-performAndLog "getUnusedAddresses" getUnusedAddresses
-  mAddress <- performAndLog "getChangeAddress" getChangeAddress
-  address <- liftMaybe (error "can't get change address") mAddress
-  _ <- performAndLog "getRewardAddresses" getRewardAddresses
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
     (pure mDataBytes)
-  _ <- performAndLog "signData" $ signData address dataBytes
+  mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
+  changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
+  _ <- performAndLog "signData changeAddress" $ signData changeAddress dataBytes
+  mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
+  rewardAddr <- liftMaybe (error "can't get change address") (mRewardAddress >>= head)
+  _ <- performAndLog "signData rewardAddress" $ signData rewardAddr dataBytes
   pure unit
   where
   msg = "hello world!"
