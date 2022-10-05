@@ -2,7 +2,7 @@ module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
   , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
-  , ExtensionWallet
+  , WalletExtension
       ( ExtensionNami
       , ExtensionLode
       , ExtensionGero
@@ -25,7 +25,7 @@ module Ctl.Internal.Wallet
   , cip30Wallet
   , dummySign
   , isEnabled
-  , walletToExtensionWallet
+  , walletToWalletExtension
   , apiVersion
   , name
   , icon
@@ -75,7 +75,7 @@ data Wallet
   | Lode Cip30Wallet
   | KeyWallet KeyWallet
 
-data ExtensionWallet
+data WalletExtension
   = ExtensionNami
   | ExtensionGero
   | ExtensionFlint
@@ -159,7 +159,7 @@ mkLodeWalletAff = do
       if _ then pure unit
       else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
 
-isWalletAvailable :: ExtensionWallet -> Aff Boolean
+isWalletAvailable :: WalletExtension -> Aff Boolean
 isWalletAvailable swallet =
   case supportedWalletToName swallet of
     Just walletName -> liftEffect $ _isWalletAvailable walletName
@@ -175,7 +175,7 @@ cip30Wallet = case _ of
   KeyWallet _ -> Nothing
 
 -- Keep this in syc with Wallet.js::wallets.
-supportedWalletToName :: ExtensionWallet -> Maybe String
+supportedWalletToName :: WalletExtension -> Maybe String
 supportedWalletToName = case _ of
   ExtensionNami -> Just "nami"
   ExtensionGero -> Just "gerowallet"
@@ -184,8 +184,8 @@ supportedWalletToName = case _ of
   ExtensionLode -> Just "LodeWallet"
   ExtensionKeyWallet -> Nothing
 
-walletToExtensionWallet :: Wallet -> ExtensionWallet
-walletToExtensionWallet = case _ of
+walletToWalletExtension :: Wallet -> WalletExtension
+walletToWalletExtension = case _ of
   Nami _ -> ExtensionNami
   Gero _ -> ExtensionGero
   Flint _ -> ExtensionFlint
@@ -193,27 +193,27 @@ walletToExtensionWallet = case _ of
   Lode _ -> ExtensionLode
   KeyWallet _ -> ExtensionKeyWallet
 
-isEnabled :: ExtensionWallet -> Aff Boolean
+isEnabled :: WalletExtension -> Aff Boolean
 isEnabled wallet =
   case supportedWalletToName wallet of
     Just walletName -> toAffE $ _isEnabled walletName
     Nothing -> pure true
 
-apiVersion :: ExtensionWallet -> Aff String
+apiVersion :: WalletExtension -> Aff String
 apiVersion wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in apiVersion call")
     (supportedWalletToName wallet)
   liftEffect $ _apiVersion walletName
 
-name :: ExtensionWallet -> Aff String
+name :: WalletExtension -> Aff String
 name wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in `name` call")
     (supportedWalletToName wallet)
   liftEffect $ _name walletName
 
-icon :: ExtensionWallet -> Aff String
+icon :: WalletExtension -> Aff String
 icon wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in `icon` call")

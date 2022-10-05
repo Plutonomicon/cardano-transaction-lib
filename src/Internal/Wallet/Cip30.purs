@@ -197,6 +197,8 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
+-- | Supports : `BaseAddress`, `EnterpriseAddress`, 
+-- | `PointerAddress` and `RewardAddress`
 signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
 signData conn address dat = do
   byteAddress <-
