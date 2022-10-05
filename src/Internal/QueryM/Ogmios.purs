@@ -1187,12 +1187,19 @@ instance EncodeAeson AdditionalUtxoSet where
           { "address": out.address
           , "datumHash": out.datumHash
           , "datum": out.datum
-          , "script": out.script
+          , "script": encodeScriptRef <$> out.script
           , "value":
               { "coins": out.value # valueToCoin # getLovelace
               , "assets": out.value # getNonAdaAsset # encodeNonAdaAsset
               }
           }
+
+    encodeScriptRef (NativeScriptRef _) = encodeAeson { "native": "TODO" }
+    -- TODO: ^
+    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =
+      encodeAeson { "plutus:v1": s }
+    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
+      encodeAeson { "plutus:v2": s }
 
     encodeNonAdaAsset assets = encodeMap $
       foldl
