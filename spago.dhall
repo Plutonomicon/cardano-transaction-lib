@@ -51,7 +51,6 @@ You can edit this file as you like.
   , "node-path"
   , "node-process"
   , "node-readline"
-  , "node-streams"
   , "nonempty"
   , "now"
   , "numbers"

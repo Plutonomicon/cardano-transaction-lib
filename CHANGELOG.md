@@ -144,7 +144,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `mustPayWithDatumToPubKey`, `mustPayWithDatumToPubKeyAddress`, and `mustPayToScript` now expect a `DatumPresence` tag in their arguments to mark whether the datum should be inline or hashed in the transaction output. ((#931)[https://github.com/Plutonomicon/cardano-transaction-lib/pull/931])
 - Switched to [blakejs](https://github.com/dcposch/blakejs) for blake2b hashing. `blake2b256Hash` and `blake2b256HashHex` functions are now pure ([#991](https://github.com/Plutonomicon/cardano-transaction-lib/pull/991))
 - Updated ODC version, this includes a new function `getDatumsByHashesWithErrors`that does not discard errors, unlike `getDatumsByHashes`. **This update also changes the way we store transactions in the local database, meaning that we need to drop the `transactions` table.**
-- `Plutip.Spawn.spawnAndWaitForOutput` output-checking now works on a line basis rather than full data up to that point. This improves compatibility with UTF8 streams. The filter parameter is now lifted to `Aff`, in case users wish to hold state to buffer and check more than a single line, but also `Aff`'s `MonadError` instance replaces the `Cancel` contructor of the `NewOutputAction` datatype ([#918](https://github.com/Plutonomicon/cardano-transaction-lib/pull/918))
 
 ### Removed
 

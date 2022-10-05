@@ -98,6 +98,7 @@ import Ctl.Internal.Plutip.Server
   , startPlutipServer
   , stopPlutipCluster
   )
+import Ctl.Internal.Plutip.Spawn (stop)
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey
   , StopClusterResponse(StopClusterSuccess)
@@ -122,7 +123,6 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (replicate, (!!))
-import Data.Bifoldable (bitraverse_)
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (fold, foldM)
@@ -130,7 +130,6 @@ import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
-import Data.Posix.Signal (Signal(SIGINT))
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -140,7 +139,6 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
-import Node.ChildProcess (kill)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.Fixtures
@@ -173,8 +171,7 @@ suite = do
     Logging.suite
 
     test "startPlutipCluster / stopPlutipCluster" do
-      bracket (startPlutipServer config)
-        (bitraverse_ (liftEffect <<< kill SIGINT) identity) $ const do
+      bracket (startPlutipServer config) stop $ const do
         _startRes <- startPlutipCluster config [ [] ]
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
