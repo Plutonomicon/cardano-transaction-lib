@@ -123,6 +123,13 @@ exports._bytesFromPrivateKey = maybe => key => {
   }
 };
 
+exports.privateKeySign = private_key => msg => () => {
+  console.log(msg);
+  let value = private_key.sign(msg);
+  console.log(value);
+  return value;
+};
+
 exports.publicKeyHash = pk => pk.hash();
 
 exports.newEd25519Signature = bech32 => () =>

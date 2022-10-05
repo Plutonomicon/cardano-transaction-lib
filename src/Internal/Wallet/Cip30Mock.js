@@ -29,6 +29,7 @@ exports.injectCip30Mock = walletName => mock => () => {
             getCollateral: mock.getCollateral,
           },
           signTx: mock.signTx,
+          signData: mock.signData,
           getUsedAddresses: mock.getUsedAddresses,
           getBalance: mock.getBalance,
           getUtxos: mock.getUtxos,
