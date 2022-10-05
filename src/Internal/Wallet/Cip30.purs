@@ -10,13 +10,8 @@ import Prelude
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
-  , TransactionWitnessSet
-  )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
+import Ctl.Internal.Cardano.Types.Transaction (Transaction(Transaction), TransactionWitnessSet)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
@@ -24,28 +19,11 @@ import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOupu
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , addressFromBytes
-  , baseAddressBech32
-  , baseAddressBytes
-  , baseAddressFromAddress
-  )
+import Control.Alt ((<|>))
+import Ctl.Internal.Serialization.Address (Address, addressFromBytes, baseAddressBech32, baseAddressBytes, baseAddressFromAddress, enterpriseAddressBytes, enterpriseAddressFromAddress, pointerAddressBytes, pointerAddressFromAddress, rewardAddressBytes, rewardAddressFromAddress)
 import Ctl.Internal.Types.ByteArray (byteArrayFromAscii, byteArrayToHex)
-import Ctl.Internal.Types.CborBytes
-  ( CborBytes(..)
-  , cborBytesFromAscii
-  , cborBytesToHex
-  , hexToCborBytes
-  , hexToCborBytesUnsafe
-  , rawBytesAsCborBytes
-  )
-import Ctl.Internal.Types.RawBytes
-  ( RawBytes
-  , hexToRawBytes
-  , hexToRawBytesUnsafe
-  , rawBytesToHex
-  )
+import Ctl.Internal.Types.CborBytes (CborBytes(..), cborBytesFromAscii, cborBytesToHex, hexToCborBytes, hexToCborBytesUnsafe, rawBytesAsCborBytes)
+import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, hexToRawBytesUnsafe, rawBytesToHex)
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
@@ -192,8 +170,10 @@ signTx conn tx = do
 
 signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
 signData conn address dat = do
-  byteAddress <- liftMaybe (error "Can't convert this Address to Bench32String")
-    (baseAddressBytes <$> baseAddressFromAddress address)
+  byteAddress <- 
+    liftMaybe 
+    (error "Can't convert Address to base, enterprise, pointer or reward")
+    (fromBase <|> fromEnterprise <|> fromPointer <|> fromReward)
   signedData <- toAffE $ _signData (cborBytesToHex byteAddress)
     (rawBytesToHex dat)
     conn
@@ -201,6 +181,16 @@ signData conn address dat = do
     key <- hexToCborBytes signedData.key
     signature <- hexToCborBytes signedData.signature
     pure { key: key, signature: signature }
+  where 
+    fromBase :: Maybe CborBytes
+    fromBase = baseAddressBytes <$> baseAddressFromAddress address
+    fromEnterprise :: Maybe CborBytes
+    fromEnterprise = enterpriseAddressBytes <$> 
+                    enterpriseAddressFromAddress address
+    fromPointer :: Maybe CborBytes
+    fromPointer = pointerAddressBytes <$> pointerAddressFromAddress address
+    fromReward :: Maybe CborBytes
+    fromReward = rewardAddressBytes <$> rewardAddressFromAddress address
 
 getBalance :: Cip30Connection -> Aff (Maybe Value)
 getBalance wallet = do
