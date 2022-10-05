@@ -551,6 +551,7 @@ processLookupsAndConstraints
   ExceptT addScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
+
   where
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
@@ -1021,6 +1022,7 @@ processConstraint mpsMap osMap = do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
+
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -1032,13 +1034,20 @@ processConstraint mpsMap osMap = do
           , data: unwrap red
           , exUnits: zero
           }
-      -- Remove mint redeemers from array before reindexing.
-      _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
-      -- Reindex mint redeemers.
-      mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
-      -- Append reindexed mint redeemers to array.
-      _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
-      _cpsToTxBody <<< _mint <>= map wrap mintVal
+
+      mp <- except $ lookupMintingPolicy mpsHash mpsMap
+      case mp of
+        PlutusMintingPolicy _ -> do
+          -- Remove mint redeemers from array before reindexing.
+          _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
+          -- Reindex mint redeemers.
+          mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
+          -- Append reindexed mint redeemers to array.
+          _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
+          _cpsToTxBody <<< _mint <>= map wrap mintVal
+        NativeMintingPolicy _ -> do
+          _cpsToTxBody <<< _mint <>= map wrap mintVal
+
     MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
