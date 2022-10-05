@@ -1,0 +1,67 @@
+module Ctl.Examples.KeyWallet.Internal.Cip30Contract
+  ( runKeyWalletContract_
+  ) where
+
+import Contract.Prelude
+
+import Contract.Config
+  ( PrivatePaymentKeySource(PrivatePaymentKeyValue)
+  , WalletSpec(UseKeys)
+  , testnetConfig
+  )
+import Contract.Monad (Contract, launchAff_, runContract)
+import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
+import Ctl.Examples.KeyWallet.Internal.Cip30HtmlForm (Log, Unlock)
+import Ctl.Examples.KeyWallet.Internal.Cip30HtmlForm
+  ( levelColor
+  , levelName
+  , logError
+  , mkForm
+  ) as HtmlForm
+import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesFromAscii)
+import Data.Log.Formatter.Pretty (prettyFormatter)
+import Data.Log.Level (LogLevel(Trace))
+import Data.Log.Message (Message)
+import Effect.Class (class MonadEffect)
+import Effect.Exception (Error, error, message)
+
+runKeyWalletContract_
+  :: (RawBytes -> Contract () Unit) -> Effect Unit
+runKeyWalletContract_ contract =
+  HtmlForm.mkForm \input log' unlock ->
+    launchAff_ $ flip catchError (errorHandler log' unlock) $ do
+      privateKey <- liftMaybe (error "Failed to parse private key")
+        $ privateKeyFromBytes
+        =<< hexToRawBytes input.privateKey
+      message <- liftMaybe (error "Failed to encode message") $
+        rawBytesFromAscii input.message
+      let
+        cfg = testnetConfig
+          { walletSpec = Just $ UseKeys
+              (PrivatePaymentKeyValue $ wrap privateKey)
+              Nothing
+          , customLogger = Just printLog
+          , ctlServerConfig = Nothing
+          }
+
+        printLog :: Message -> Aff Unit
+        printLog m = liftEffect $ when (m.level >= Trace) $ do
+          prettyFormatter m >>= log
+          log' (HtmlForm.levelColor m.level)
+            ("[" <> HtmlForm.levelName m.level <> "] " <> m.message)
+      runContract cfg (contract message)
+  where
+
+  errorHandler
+    :: forall (m :: Type -> Type)
+     . MonadError Error m
+    => MonadEffect m
+    => Log
+    -> Unlock
+    -> Error
+    -> m Unit
+  errorHandler log' unlock e =
+    liftEffect $ HtmlForm.logError e
+      *> log' "crimson" ("[ERROR] " <> message e)
+      *> unlock

@@ -35,8 +35,8 @@ import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
-  ( ExtensionWallet
-  , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  , WalletExtension
   , apiVersion
   , icon
   , isEnabled
@@ -47,7 +47,7 @@ import Ctl.Internal.Wallet
   , isNamiAvailable
   , isWalletAvailable
   , name
-  , walletToExtensionWallet
+  , walletToWalletExtension
   ) as Wallet
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
