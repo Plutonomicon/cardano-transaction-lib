@@ -64,6 +64,9 @@ mkExtensionId str
 unExtensionId :: ExtensionId -> String
 unExtensionId (ExtensionId str) = str
 
+derive newtype instance Eq ExtensionId
+derive newtype instance Ord ExtensionId
+
 instance Show ExtensionId where
   show (ExtensionId str) = "(unsafePartial $ fromJust $ mkExtensionId "
     <> show str

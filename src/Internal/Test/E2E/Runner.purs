@@ -105,10 +105,9 @@ runE2ECommand = case _ of
     let
       testOptions' = testOptions
         { noHeadless = noHeadless, testTimeout = testTimeout, tests = tests }
-    for_ (sanityCheck testOptions' runtime) (throw >>> liftEffect)
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
-    runtime <- readBrowserRuntime browserOptions
+    runtime <- readBrowserRuntime Nothing browserOptions
     runBrowser runtime.tmpDir runtime.chromeUserDataDir runtime.browser
       runtime.wallets
   PackSettings opts -> do
@@ -215,12 +214,13 @@ readTestRuntime testOptions = do
               delete (Proxy :: Proxy "testTimeout")
         )
         testOptions
-  readBrowserRuntime browserOptions
+  readBrowserRuntime Nothing browserOptions
 
 -- | Read E2E test suite parameters from environment variables and CLI
 -- | options. CLI options have higher priority.
-readBrowserRuntime :: BrowserOptions -> Aff E2ETestRuntime
-readBrowserRuntime testOptions = do
+readBrowserRuntime
+  :: Maybe (Array E2ETest) -> BrowserOptions -> Aff E2ETestRuntime
+readBrowserRuntime mbTests testOptions = do
   browser <- maybe findBrowser pure testOptions.browser
   tmpDir <- createTmpDir testOptions.tmpDir browser
   chromeUserDataDir <- maybe findChromeProfile pure
@@ -247,54 +247,74 @@ readBrowserRuntime testOptions = do
       , Tuple LodeExt <$> lode
       , Tuple EternlExt <$> eternl
       ]
+    runtime =
+      { browser
+      , wallets
+      , chromeUserDataDir
+      , tmpDir
+      , settingsArchive
+      }
+  -- Must be executed before extractExtension call
+  for_ (sanityCheck mbTests runtime) (throw >>> liftEffect)
   for_ wallets $ extractExtension tmpDir
-  pure
-    { browser
-    , wallets
-    , chromeUserDataDir
-    , tmpDir
-    , settingsArchive
-    }
+  pure runtime
 
 -- | Check that the provided set of options is valid in a given runtime.
-sanityCheck :: TestOptions -> E2ETestRuntime -> Maybe String
-sanityCheck { tests } { wallets } =
+sanityCheck :: Maybe (Array E2ETest) -> E2ETestRuntime -> Maybe String
+sanityCheck mbTests { wallets } =
   case errors of
     [] -> Nothing
     _ -> Just $ Array.intercalate "\n" $ nub errors
   where
-  errors = walletErrors <> testErrors
+  errors = walletErrors <> testErrors <> walletIdDuplicateErrors
   testErrors
-    | Array.length tests == 0 =
+    | Just tests <- mbTests
+    , Array.length tests == 0 =
         [ "No tests to run! Use E2E_TESTS or --test to specify some." ]
     | otherwise = []
+  -- Check that all extension IDs are different
+  walletIdDuplicateErrors =
+    let
+      allIds = Array.fromFoldable $ Map.values wallets <#> _.extensionId
+      uniqIds = nub allIds
+      diff = Array.difference allIds uniqIds
+    in
+      if Array.length allIds /= Array.length uniqIds then
+        [ "Some of the provided extension IDs are duplicate: " <>
+            (intercalate ", " $ diff <#> unExtensionId)
+        ]
+      else []
   -- check that all required wallet extensions are provided
-  walletErrors = tests `flip mapMaybe` \test ->
-    test.wallet >>= \wallet ->
-      case Map.lookup wallet wallets of
-        Just _ -> Nothing
-        Nothing ->
-          let
-            name = walletName wallet
-            capName = String.toUpper name
-          in
-            Just $ "Wallet " <> name <> " was not provided! Please specify "
-              <> capName
-              <> "_CRX, "
-              <> capName
-              <> "_PASSWORD, "
-              <> capName
-              <> "_EXTID "
-              <> "or "
-              <> "--"
-              <> name
-              <> "-crx, "
-              <> "--"
-              <> name
-              <> "-password, "
-              <> "--"
-              <> name
-              <> "-extid"
+  walletErrors
+    | Just tests <- mbTests =
+        tests `flip mapMaybe` \test ->
+          test.wallet >>= \wallet ->
+            case Map.lookup wallet wallets of
+              Just _ -> Nothing
+              Nothing ->
+                let
+                  name = walletName wallet
+                  capName = String.toUpper name
+                in
+                  Just $ "Wallet " <> name
+                    <> " was not provided! Please specify "
+                    <> capName
+                    <> "_CRX, "
+                    <> capName
+                    <> "_PASSWORD, "
+                    <> capName
+                    <> "_EXTID "
+                    <> "or "
+                    <> "--"
+                    <> name
+                    <> "-crx, "
+                    <> "--"
+                    <> name
+                    <> "-password, "
+                    <> "--"
+                    <> name
+                    <> "-extid"
+    | otherwise = []
 
 -- | Create ChromeUserDataDir if it does not exist
 ensureChromeUserDataDir :: ChromeUserDataDir -> Aff Unit
