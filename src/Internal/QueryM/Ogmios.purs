@@ -115,6 +115,7 @@ import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
+  , NonAdaAsset
   , Value
   , flattenNonAdaValue
   , getCurrencySymbol
@@ -127,7 +128,7 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
-import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -175,7 +176,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object (toUnfoldable) as ForeignObject
+import Foreign.Object (singleton, toUnfoldable) as ForeignObject
 import Heterogeneous.Folding (class HFoldl, hfoldl)
 import Partial.Unsafe (unsafePartial)
 import Untagged.TypeCheck (class HasRuntimeType)
@@ -1179,7 +1180,8 @@ instance EncodeAeson AdditionalUtxoSet where
     utxos :: Array (OgmiosTxOutRef /\ OgmiosTxOut)
     utxos = Map.toUnfoldable m
 
-    encode (inp /\ out) =
+    encode :: (OgmiosTxOutRef /\ OgmiosTxOut) -> Aeson
+    encode (inp /\ out) = encodeAeson $
       { "txId": inp.txId
       , "index": inp.index
       }
@@ -1194,13 +1196,30 @@ instance EncodeAeson AdditionalUtxoSet where
               }
           }
 
-    encodeScriptRef (NativeScriptRef _) = encodeAeson { "native": "TODO" }
-    -- TODO: ^
+    encodeNativeScript :: NativeScript -> Aeson
+    encodeNativeScript (ScriptPubkey s) = encodeAeson s
+    encodeNativeScript (ScriptAll ss) =
+      encodeAeson { "all": encodeNativeScript <$> ss }
+    encodeNativeScript (ScriptAny ss) =
+      encodeAeson { "any": encodeNativeScript <$> ss }
+    encodeNativeScript (ScriptNOfK n ss) =
+      encodeAeson $
+        ForeignObject.singleton
+          (BigInt.toString $ BigInt.fromInt n)
+          (encodeNativeScript <$> ss)
+    encodeNativeScript (TimelockStart (Slot n)) = encodeAeson { "startsAt": n }
+    encodeNativeScript (TimelockExpiry (Slot n)) = encodeAeson
+      { "expiresAt": n }
+
+    encodeScriptRef :: ScriptRef -> Aeson
+    encodeScriptRef (NativeScriptRef s) =
+      encodeAeson { "native": encodeNativeScript s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =
       encodeAeson { "plutus:v1": s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
       encodeAeson { "plutus:v2": s }
 
+    encodeNonAdaAsset :: NonAdaAsset -> Aeson
     encodeNonAdaAsset assets = encodeMap $
       foldl
         (\m' (cs /\ tn /\ n) -> Map.insert (createKey cs tn) n m')
