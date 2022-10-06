@@ -47,7 +47,7 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
-  , ScriptRef(PlutusScriptRef)
+  , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , balanceAndSignTx
@@ -152,6 +152,13 @@ import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , fullyAppliedScriptFixture
+  , nativeScriptFixture1
+  , nativeScriptFixture2
+  , nativeScriptFixture3
+  , nativeScriptFixture4
+  , nativeScriptFixture5
+  , nativeScriptFixture6
+  , nativeScriptFixture7
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
@@ -927,7 +934,117 @@ suite = do
             , txMetadata: cip25MetadataFixture1
             }
 
-  only $ group "Additional UTxOs" do
+  group "Evaluation with additional UTxOs and tx chaining" do
+    let
+      createAdditionalUtxos
+        :: forall r
+         . BalancedSignedTransaction
+        -> Contract r UtxoMap
+      createAdditionalUtxos tx = do
+        cslTx <- liftEffect $ convertTransaction (unwrap tx)
+        pure $
+          let
+            txHash = transactionHash cslTx
+            txBody = tx # unwrap # unwrap # _.body # unwrap
+
+            txin i =
+              TransactionInput
+                { transactionId: txHash
+                , index: i
+                }
+
+            utxoMap = foldl
+              (\utxo txout -> Map.insert (txin $ length utxo) txout utxo)
+              Map.empty
+              txBody.outputs
+          in
+            utxoMap
+    test "Evaluation with additional UTxOs with native scripts" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 150_000_000 ]
+
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+
+          wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
+          logInfo' $ "wUtxos0 " <> show wUtxos0
+
+          let
+            constraints0 :: TxConstraints Unit Unit
+            constraints0 =
+              Constraints.mustPayToPubKeyWithScriptRef
+                pkh
+                (NativeScriptRef nativeScriptFixture1)
+                (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture2)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture3)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture4)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture5)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture6)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture7)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+
+            lookups0 :: Lookups.ScriptLookups PlutusData
+            lookups0 = Lookups.unspentOutputs wUtxos0
+
+          ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+          bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
+
+          additionalUtxos <- createAdditionalUtxos bsTx0
+          logInfo' $ "Additional UTXOS " <> show additionalUtxos
+          length additionalUtxos `shouldNotEqual` 0
+          additionalUtxos' <-
+            liftContractM "Unable to convert to plutus utxo map" $
+              toPlutusUtxoMap additionalUtxos
+
+          let
+            constraints1 :: TxConstraints Unit Unit
+            constraints1 =
+              Constraints.mustPayToPubKey pkh
+                (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
+
+            lookups1 :: Lookups.ScriptLookups PlutusData
+            lookups1 = Lookups.unspentOutputs additionalUtxos'
+
+          ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+          bTx1 <- liftedE $ balanceTxWithAdditionalUtxos ubTx1 additionalUtxos
+
+          bsTx1 <- liftedM "Unable to sign transaction."
+            $ signTransaction
+            $ unwrap bTx1
+
+          txId0 <- submit bsTx0
+          txId1 <- submit (wrap bsTx1)
+
+          awaitTxConfirmed txId0
+          awaitTxConfirmed txId1
+
     test "Evaluation with additional UTxOs" do
       -- We create two transactions. First, we create outputs with Ada, non-Ada 
       -- assets, script reference with Plutus script v1 and v2, inline datum, 
@@ -937,32 +1054,8 @@ suite = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 150_000_000
-          ]
+          [ BigInt.fromInt 150_000_000 ]
 
-        createAdditionalUtxos
-          :: forall r
-           . BalancedSignedTransaction
-          -> Contract r UtxoMap
-        createAdditionalUtxos tx = do
-          cslTx <- liftEffect $ convertTransaction (unwrap tx)
-          pure $
-            let
-              txHash = transactionHash cslTx
-              txBody = tx # unwrap # unwrap # _.body # unwrap
-
-              txin i =
-                TransactionInput
-                  { transactionId: txHash
-                  , index: i
-                  }
-
-              utxoMap = foldl
-                (\utxo txout -> Map.insert (txin $ length utxo) txout utxo)
-                Map.empty
-                txBody.outputs
-            in
-              utxoMap
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
           pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
@@ -981,7 +1074,7 @@ suite = do
           let
             value :: Value.Value
             value =
-              (Value.lovelaceValueOf $ BigInt.fromInt 6_000_000)
+              (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
 
             value' :: Value.Value
             value' =
@@ -1053,7 +1146,7 @@ suite = do
             constraints1 :: TxConstraints Unit Unit
             constraints1 =
               Constraints.mustPayToPubKey pkh
-                ( (Value.lovelaceValueOf $ BigInt.fromInt 6_000_000)
+                ( (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
                     <> (Value.singleton cs tn $ BigInt.fromInt 50)
                 )
 
