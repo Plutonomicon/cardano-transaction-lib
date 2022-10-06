@@ -130,6 +130,6 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   signData :: RawBytes -> Aff DataSignature
   signData dat = do
     encoded <- liftEffect $ (privateKeySign <<< unwrap) payKey $
-        (unwrap <<< unwrap) dat
+      (unwrap <<< unwrap) dat
     pure $ { key: encoded, signature: encoded }
 

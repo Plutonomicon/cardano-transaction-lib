@@ -8,7 +8,13 @@ import Contract.Prelude
 
 import Contract.Log (logInfo')
 import Contract.Monad (Contract)
-import Contract.Wallet (getChangeAddress, getNetworkId, getRewardAddresses, getUnusedAddresses, signData)
+import Contract.Wallet
+  ( getChangeAddress
+  , getNetworkId
+  , getRewardAddresses
+  , getUnusedAddresses
+  , signData
+  )
 import Control.Monad.Error.Class (liftMaybe, try)
 import Ctl.Examples.KeyWallet.Internal.Cip30Contract (runKeyWalletContract_)
 import Ctl.Internal.Types.RawBytes (RawBytes)
@@ -30,7 +36,7 @@ mkContract dat = do
   mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
   rewardAddr <- liftMaybe (error "can't get change address")
     (mRewardAddress >>= head)
-  _ <- performAndLog "signData rewardAddress" $ try $  signData rewardAddr dat
+  _ <- performAndLog "signData rewardAddress" $ try $ signData rewardAddr dat
   pure unit
   where
 
