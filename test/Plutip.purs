@@ -74,12 +74,12 @@ import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
-import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
+import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
@@ -778,291 +778,291 @@ suite = do
           logInfo' "Try to spend locked values"
           IncludeDatum.spendFromIncludeDatum vhash validator txId
 
-  --   test "runPlutipContract: AlwaysSucceeds PlutusV2" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 5_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       withKeyWallet alice do
-  --         validator <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
-  --         let vhash = validatorHash validator
-  --         logInfo' "Attempt to lock value"
-  --         txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
-  --         awaitTxConfirmed txId
-  --         logInfo' "Try to spend locked values"
-  --         AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+    --   test "runPlutipContract: AlwaysSucceeds PlutusV2" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 5_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       withKeyWallet alice do
+    --         validator <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+    --         let vhash = validatorHash validator
+    --         logInfo' "Attempt to lock value"
+    --         txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+    --         awaitTxConfirmed txId
+    --         logInfo' "Try to spend locked values"
+    --         AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-  --   test "runPlutipContract: AlwaysFails Ada Collateral Return" do
-  --     let
-  --       distribution :: InitialUTxOs /\ InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 10_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ] /\ [ BigInt.fromInt 2_000_000_000 ]
-  --     runPlutipContract config distribution \(alice /\ seed) -> do
-  --       validator <- AlwaysFails.alwaysFailsScript
-  --       let vhash = validatorHash validator
-  --       txId <- withKeyWallet seed do
-  --         logInfo' "Attempt to lock value"
-  --         txId <- AlwaysFails.payToAlwaysFails vhash
-  --         awaitTxConfirmed txId
-  --         pure txId
+    --   test "runPlutipContract: AlwaysFails Ada Collateral Return" do
+    --     let
+    --       distribution :: InitialUTxOs /\ InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 10_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ] /\ [ BigInt.fromInt 2_000_000_000 ]
+    --     runPlutipContract config distribution \(alice /\ seed) -> do
+    --       validator <- AlwaysFails.alwaysFailsScript
+    --       let vhash = validatorHash validator
+    --       txId <- withKeyWallet seed do
+    --         logInfo' "Attempt to lock value"
+    --         txId <- AlwaysFails.payToAlwaysFails vhash
+    --         awaitTxConfirmed txId
+    --         pure txId
 
-  --       withKeyWallet alice do
-  --         awaitTxConfirmed txId
-  --         logInfo' "Try to spend locked values"
-  --         balanceBefore <- fold <$> getWalletBalance
-  --         AlwaysFails.spendFromAlwaysFails vhash validator txId
-  --         balance <- fold <$> getWalletBalance
-  --         let
-  --           collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt $ -5_000_000
-  --         balance `shouldEqual` (balanceBefore <> collateralLoss)
+    --       withKeyWallet alice do
+    --         awaitTxConfirmed txId
+    --         logInfo' "Try to spend locked values"
+    --         balanceBefore <- fold <$> getWalletBalance
+    --         AlwaysFails.spendFromAlwaysFails vhash validator txId
+    --         balance <- fold <$> getWalletBalance
+    --         let
+    --           collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt $ -5_000_000
+    --         balance `shouldEqual` (balanceBefore <> collateralLoss)
 
-  --   test "runPlutipContract: AlwaysFails Native Asset Collateral Return" do
-  --     let
-  --       distribution :: InitialUTxOs /\ InitialUTxOs
-  --       distribution =
-  --         [] /\ [ BigInt.fromInt 2_100_000_000 ]
-  --     runPlutipContract config distribution \(alice /\ seed) -> do
-  --       alicePkh /\ aliceStakePkh <- withKeyWallet alice do
-  --         pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
-  --         stakePkh <- ownStakePubKeyHash
-  --         pure $ pkh /\ stakePkh
+    --   test "runPlutipContract: AlwaysFails Native Asset Collateral Return" do
+    --     let
+    --       distribution :: InitialUTxOs /\ InitialUTxOs
+    --       distribution =
+    --         [] /\ [ BigInt.fromInt 2_100_000_000 ]
+    --     runPlutipContract config distribution \(alice /\ seed) -> do
+    --       alicePkh /\ aliceStakePkh <- withKeyWallet alice do
+    --         pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+    --         stakePkh <- ownStakePubKeyHash
+    --         pure $ pkh /\ stakePkh
 
-  --       mp <- alwaysMintsPolicy
-  --       cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  --       tn <- liftContractM "Cannot make token name"
-  --         $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
-  --       let asset = Value.singleton cs tn $ BigInt.fromInt 50
+    --       mp <- alwaysMintsPolicy
+    --       cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+    --       tn <- liftContractM "Cannot make token name"
+    --         $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
+    --       let asset = Value.singleton cs tn $ BigInt.fromInt 50
 
-  --       validator <- AlwaysFails.alwaysFailsScript
-  --       let vhash = validatorHash validator
+    --       validator <- AlwaysFails.alwaysFailsScript
+    --       let vhash = validatorHash validator
 
-  --       txId <- withKeyWallet seed do
-  --         logInfo' "Minting asset to Alice"
-  --         let
-  --           constraints :: Constraints.TxConstraints Void Void
-  --           constraints = Constraints.mustMintValue (asset <> asset)
-  --             <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
-  --               (asset <> (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000))
-  --             <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
-  --               ( asset <>
-  --                   (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000_000)
-  --               )
+    --       txId <- withKeyWallet seed do
+    --         logInfo' "Minting asset to Alice"
+    --         let
+    --           constraints :: Constraints.TxConstraints Void Void
+    --           constraints = Constraints.mustMintValue (asset <> asset)
+    --             <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
+    --               (asset <> (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000))
+    --             <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
+    --               ( asset <>
+    --                   (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000_000)
+    --               )
 
-  --           lookups :: Lookups.ScriptLookups Void
-  --           lookups = Lookups.mintingPolicy mp
+    --           lookups :: Lookups.ScriptLookups Void
+    --           lookups = Lookups.mintingPolicy mp
 
-  --         ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  --         bsTx <- liftedE $ balanceAndSignTxE ubTx
-  --         submit bsTx >>= awaitTxConfirmed
+    --         ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    --         bsTx <- liftedE $ balanceAndSignTxE ubTx
+    --         submit bsTx >>= awaitTxConfirmed
 
-  --         logInfo' "Attempt to lock value"
-  --         txId <- AlwaysFails.payToAlwaysFails vhash
-  --         awaitTxConfirmed txId
-  --         pure txId
+    --         logInfo' "Attempt to lock value"
+    --         txId <- AlwaysFails.payToAlwaysFails vhash
+    --         awaitTxConfirmed txId
+    --         pure txId
 
-  --       withKeyWallet alice do
-  --         awaitTxConfirmed txId
-  --         logInfo' "Try to spend locked values"
-  --         AlwaysFails.spendFromAlwaysFails vhash validator txId
+    --       withKeyWallet alice do
+    --         awaitTxConfirmed txId
+    --         logInfo' "Try to spend locked values"
+    --         AlwaysFails.spendFromAlwaysFails vhash validator txId
 
-  --   test "runPlutipContract: ReferenceScripts" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 5_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice ->
-  --       withKeyWallet alice ReferenceScripts.contract
+    --   test "runPlutipContract: ReferenceScripts" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 5_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice ->
+    --       withKeyWallet alice ReferenceScripts.contract
 
-  --   test "runPlutipContract: ReferenceInputs" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 5_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice ->
-  --       withKeyWallet alice ReferenceInputs.contract
+    --   test "runPlutipContract: ReferenceInputs" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 5_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice ->
+    --       withKeyWallet alice ReferenceInputs.contract
 
-  --   test "runPlutipContract: OneShotMinting" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 5_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice ->
-  --       withKeyWallet alice OneShotMinting.contract
+    --   test "runPlutipContract: OneShotMinting" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 5_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice ->
+    --       withKeyWallet alice OneShotMinting.contract
 
-  --   test "runPlutipContract: OneShotMinting PlutusV2" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 5_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice ->
-  --       withKeyWallet alice OneShotMintingV2.contract
+    --   test "runPlutipContract: OneShotMinting PlutusV2" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 5_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice ->
+    --       withKeyWallet alice OneShotMintingV2.contract
 
-  --   test "runPlutipContract: Examples.ContractTestUtils" do
-  --     let
-  --       initialUtxos :: InitialUTxOs
-  --       initialUtxos =
-  --         [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+    --   test "runPlutipContract: Examples.ContractTestUtils" do
+    --     let
+    --       initialUtxos :: InitialUTxOs
+    --       initialUtxos =
+    --         [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
 
-  --       distribution :: InitialUTxOs /\ InitialUTxOs
-  --       distribution = initialUtxos /\ initialUtxos
+    --       distribution :: InitialUTxOs /\ InitialUTxOs
+    --       distribution = initialUtxos /\ initialUtxos
 
-  --     runPlutipContract config distribution \(alice /\ bob) -> do
-  --       receiverPkh <- liftedM "Unable to get Bob's PKH" $
-  --         withKeyWallet bob ownPaymentPubKeyHash
-  --       receiverSkh <- withKeyWallet bob ownStakePubKeyHash
+    --     runPlutipContract config distribution \(alice /\ bob) -> do
+    --       receiverPkh <- liftedM "Unable to get Bob's PKH" $
+    --         withKeyWallet bob ownPaymentPubKeyHash
+    --       receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-  --       mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
-  --       tn <- mkTokenName "TheToken"
+    --       mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+    --       tn <- mkTokenName "TheToken"
 
-  --       withKeyWallet alice $ ContractTestUtils.contract $
-  --         ContractTestUtils.ContractParams
-  --           { receiverPkh
-  --           , receiverSkh
-  --           , adaToSend: BigInt.fromInt 5_000_000
-  --           , mintingPolicy
-  --           , tokensToMint: cs /\ tn /\ one /\ unit
-  --           , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-  --           , txMetadata: cip25MetadataFixture1
-  --           }
+    --       withKeyWallet alice $ ContractTestUtils.contract $
+    --         ContractTestUtils.ContractParams
+    --           { receiverPkh
+    --           , receiverSkh
+    --           , adaToSend: BigInt.fromInt 5_000_000
+    --           , mintingPolicy
+    --           , tokensToMint: cs /\ tn /\ one /\ unit
+    --           , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
+    --           , txMetadata: cip25MetadataFixture1
+    --           }
 
-  -- group "applyArgs" do
-  --   test "returns the same script when called without args" do
-  --     runPlutipContract config unit \_ -> do
-  --       result <- liftedE $ applyArgs unappliedScriptFixture mempty
-  --       result `shouldEqual` unappliedScriptFixture
+    -- group "applyArgs" do
+    --   test "returns the same script when called without args" do
+    --     runPlutipContract config unit \_ -> do
+    --       result <- liftedE $ applyArgs unappliedScriptFixture mempty
+    --       result `shouldEqual` unappliedScriptFixture
 
-  --   test "returns the correct partially applied Plutus script" do
-  --     runPlutipContract config unit \_ -> do
-  --       let args = [ Integer (BigInt.fromInt 32) ]
-  --       result <- liftedE $ applyArgs unappliedScriptFixture args
-  --       result `shouldEqual` partiallyAppliedScriptFixture
+    --   test "returns the correct partially applied Plutus script" do
+    --     runPlutipContract config unit \_ -> do
+    --       let args = [ Integer (BigInt.fromInt 32) ]
+    --       result <- liftedE $ applyArgs unappliedScriptFixture args
+    --       result `shouldEqual` partiallyAppliedScriptFixture
 
-  --   test "returns the correct fully applied Plutus script" do
-  --     runPlutipContract config unit \_ -> do
-  --       bytes <-
-  --         liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
-  --       let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-  --       result <- liftedE $ applyArgs unappliedScriptFixture args
-  --       result `shouldEqual` fullyAppliedScriptFixture
+    --   test "returns the correct fully applied Plutus script" do
+    --     runPlutipContract config unit \_ -> do
+    --       bytes <-
+    --         liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
+    --       let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
+    --       result <- liftedE $ applyArgs unappliedScriptFixture args
+    --       result `shouldEqual` fullyAppliedScriptFixture
 
-  -- group "CIP-30 mock + Plutip" do
-  --   test "CIP-30 mock: wallet cleanup" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 1_000_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
-  --       try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
-  --       try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+    -- group "CIP-30 mock + Plutip" do
+    --   test "CIP-30 mock: wallet cleanup" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 1_000_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
+    --       try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
+    --       try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
 
-  --       withCip30Mock alice MockNami do
-  --         liftEffect isNamiAvailable >>= shouldEqual true
-  --       try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
+    --       withCip30Mock alice MockNami do
+    --         liftEffect isNamiAvailable >>= shouldEqual true
+    --       try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
 
-  --       withCip30Mock alice MockGero do
-  --         liftEffect isGeroAvailable >>= shouldEqual true
-  --       try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
-  --       withCip30Mock alice MockFlint do
-  --         liftEffect isFlintAvailable >>= shouldEqual true
-  --       try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+    --       withCip30Mock alice MockGero do
+    --         liftEffect isGeroAvailable >>= shouldEqual true
+    --       try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
+    --       withCip30Mock alice MockFlint do
+    --         liftEffect isFlintAvailable >>= shouldEqual true
+    --       try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
 
-  --   test "CIP-30 mock: collateral selection" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 1_000_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       withCip30Mock alice MockNami do
-  --         getWalletCollateral >>= liftEffect <<< case _ of
-  --           Nothing -> throw "Unable to get collateral"
-  --           Just
-  --             [ TransactionUnspentOutput
-  --                 { output: TransactionOutputWithRefScript { output } }
-  --             ] -> do
-  --             let amount = (unwrap output).amount
-  --             unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
-  --               $ throw "Wrong UTxO selected as collateral"
-  --           Just _ -> do
-  --             -- not a bug, but unexpected
-  --             throw "More than one UTxO in collateral"
+    --   test "CIP-30 mock: collateral selection" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 1_000_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       withCip30Mock alice MockNami do
+    --         getWalletCollateral >>= liftEffect <<< case _ of
+    --           Nothing -> throw "Unable to get collateral"
+    --           Just
+    --             [ TransactionUnspentOutput
+    --                 { output: TransactionOutputWithRefScript { output } }
+    --             ] -> do
+    --             let amount = (unwrap output).amount
+    --             unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+    --               $ throw "Wrong UTxO selected as collateral"
+    --           Just _ -> do
+    --             -- not a bug, but unexpected
+    --             throw "More than one UTxO in collateral"
 
-  --   test "CIP-30 mock: get own UTxOs" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 1_000_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       utxos <- withCip30Mock alice MockNami do
-  --         getWalletUtxos
-  --       utxos `shouldSatisfy` isJust
+    --   test "CIP-30 mock: get own UTxOs" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 1_000_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       utxos <- withCip30Mock alice MockNami do
+    --         getWalletUtxos
+    --       utxos `shouldSatisfy` isJust
 
-  --   test "CIP-30 mock: get own address" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 1_000_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       mockAddress <- withCip30Mock alice MockNami do
-  --         mbAddr <- getWalletAddress
-  --         mbAddr `shouldSatisfy` isJust
-  --         pure mbAddr
-  --       kwAddress <- withKeyWallet alice do
-  --         getWalletAddress
-  --       mockAddress `shouldEqual` kwAddress
+    --   test "CIP-30 mock: get own address" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 1_000_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       mockAddress <- withCip30Mock alice MockNami do
+    --         mbAddr <- getWalletAddress
+    --         mbAddr `shouldSatisfy` isJust
+    --         pure mbAddr
+    --       kwAddress <- withKeyWallet alice do
+    --         getWalletAddress
+    --       mockAddress `shouldEqual` kwAddress
 
-  --   test "CIP-30 mock: Pkh2Pkh" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 1_000_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       withCip30Mock alice MockNami do
-  --         pkh <- liftedM "Failed to get PKH" ownPaymentPubKeyHash
-  --         stakePkh <- ownStakePubKeyHash
-  --         pkh2PkhContract pkh stakePkh
+    --   test "CIP-30 mock: Pkh2Pkh" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 1_000_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       withCip30Mock alice MockNami do
+    --         pkh <- liftedM "Failed to get PKH" ownPaymentPubKeyHash
+    --         stakePkh <- ownStakePubKeyHash
+    --         pkh2PkhContract pkh stakePkh
 
-  --   test "CIP-30 mock: getWalletBalance" do
-  --     let
-  --       distribution :: InitialUTxOs
-  --       distribution =
-  --         [ BigInt.fromInt 1_000_000_000
-  --         , BigInt.fromInt 2_000_000_000
-  --         ]
-  --     runPlutipContract config distribution \alice -> do
-  --       withKeyWallet alice do
-  --         getWalletBalance >>= flip shouldSatisfy
-  --           ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
-  --               BigInt.fromInt 3_000_000
-  --           )
-  --       withCip30Mock alice MockNami do
-  --         getWalletBalance >>= flip shouldSatisfy
-  --           ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
-  --               BigInt.fromInt 3_000_000
-  --           )
+    --   test "CIP-30 mock: getWalletBalance" do
+    --     let
+    --       distribution :: InitialUTxOs
+    --       distribution =
+    --         [ BigInt.fromInt 1_000_000_000
+    --         , BigInt.fromInt 2_000_000_000
+    --         ]
+    --     runPlutipContract config distribution \alice -> do
+    --       withKeyWallet alice do
+    --         getWalletBalance >>= flip shouldSatisfy
+    --           ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
+    --               BigInt.fromInt 3_000_000
+    --           )
+    --       withCip30Mock alice MockNami do
+    --         getWalletBalance >>= flip shouldSatisfy
+    --           ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
+    --               BigInt.fromInt 3_000_000
+    --           )
 
     -- TODO
     skip $ test "CIP-30 mock: failing getWalletBalance - investigate" do

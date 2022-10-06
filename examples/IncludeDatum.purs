@@ -4,21 +4,30 @@ module Ctl.Examples.IncludeDatum
   , main
   , payToIncludeDatum
   , spendFromIncludeDatum
-  )
-  where
+  ) where
 
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract, liftedE)
-import Contract.PlutusData (Datum(..), PlutusData(..), toData, unitDatum, unitRedeemer)
+import Contract.Monad (Contract, launchAff_, liftedE, runContract)
+import Contract.PlutusData (Datum(Datum), PlutusData (Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope (TextEnvelopeType(PlutusScriptV1), textEnvelopeBytes)
-import Contract.Transaction (TransactionHash, TransactionInput(TransactionInput), awaitTxConfirmed, balanceAndSignTxE, submit, plutusV1Script, lookupTxHash)
+import Contract.TextEnvelope
+  ( TextEnvelopeType(PlutusScriptV1)
+  , textEnvelopeBytes
+  )
+import Contract.Transaction
+  ( TransactionHash
+  , awaitTxConfirmed
+  , balanceAndSignTxE
+  , lookupTxHash
+  , plutusV1Script
+  , submit
+  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
@@ -46,13 +55,17 @@ example cfg = launchAff_ do
   publishTestFeedback true
 
 datum :: Datum
-datum = Datum $ Integer $ BigInt.fromInt 43
+datum = Datum $ Integer $ BigInt.fromInt 42
 
 payToIncludeDatum :: ValidatorHash -> Contract () TransactionHash
 payToIncludeDatum vhash = do
   let
     constraints :: TxConstraints Unit Unit
-    constraints = Constraints.mustPayToScript vhash datum Constraints.DatumWitness $ Value.lovelaceValueOf $ BigInt.fromInt 2_000_000
+    constraints =
+      (Constraints.mustPayToScript vhash datum Constraints.DatumWitness
+        $ Value.lovelaceValueOf
+        $ BigInt.fromInt 2_000_000)
+        <> Constraints.mustIncludeDatum datum
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
@@ -76,14 +89,13 @@ spendFromIncludeDatum vhash validator txId = do
         constraints :: TxConstraints Unit Unit
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
-                                   <> Constraints.mustIncludeDatum datum
+            <> Constraints.mustIncludeDatum datum
       in
         do
           spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
           awaitTxConfirmed spendTxId
           logInfo' "Successfully spent locked values."
     _ -> logInfo' "no locked output at address"
-
 
 buildBalanceSignAndSubmitTx
   :: Lookups.ScriptLookups PlutusData
