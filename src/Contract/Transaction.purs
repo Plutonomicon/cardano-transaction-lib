@@ -311,15 +311,16 @@ submitE tx = do
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
+  -> UtxoMap
   -> Contract r (Either ExportQueryM.ClientError Coin)
-calculateMinFee = map (pure <<< toPlutusCoin)
-  <<< wrapContract
-  <<< QueryM.calculateMinFee
+calculateMinFee tx additionalUtxos = map (pure <<< toPlutusCoin)
+  (wrapContract $ QueryM.calculateMinFee tx additionalUtxos)
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
-  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
-calculateMinFeeM = map hush <<< calculateMinFee
+  :: forall (r :: Row Type). Transaction -> UtxoMap -> Contract r (Maybe Coin)
+calculateMinFeeM tx additionalUtxos =
+  map hush $ calculateMinFee tx additionalUtxos
 
 -- | Helper to adapt to UsedTxOuts
 withUsedTxouts

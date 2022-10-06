@@ -145,7 +145,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -927,7 +927,7 @@ suite = do
             , txMetadata: cip25MetadataFixture1
             }
 
-  group "Additional UTxOs" do
+  only $ group "Additional UTxOs" do
     test "Evaluation with additional UTxOs" do
       -- We create two transactions. First, we create outputs with Ada, non-Ada 
       -- assets, script reference with Plutus script v1 and v2, inline datum, 
@@ -1067,14 +1067,11 @@ suite = do
             $ signTransaction
             $ unwrap bTx1
 
-          -- TODO: evaluation works but calc min fee fails. See issue #1074
+          txId0 <- submit bsTx0
+          txId1 <- submit (wrap bsTx1)
 
-          pure unit
-  -- txId0 <- submit bsTx0
-  -- txId1 <- submit (wrap bsTx1)
-
-  -- awaitTxConfirmed txId0
-  -- awaitTxConfirmed txId1
+          awaitTxConfirmed txId0
+          awaitTxConfirmed txId1
 
   group "applyArgs" do
     test "returns the same script when called without args" do

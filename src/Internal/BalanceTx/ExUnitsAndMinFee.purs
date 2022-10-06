@@ -128,7 +128,9 @@ evalExUnitsAndMinFee
   FinalizedTransaction finalizedTx <- lift $
     finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
-  minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
+  minFee <-
+    ExceptT $ QueryM.calculateMinFee finalizedTx additionalUtxos
+      <#> pure <<< unwrap
   pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
