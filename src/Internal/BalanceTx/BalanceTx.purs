@@ -239,7 +239,7 @@ runBalancer utxos changeAddress =
 
     case newMinFee == minFee of
       true -> do
-        finalizedTransaction <- lift $ finalizeTransaction balancedTx utxos -- TODO: all available?
+        finalizedTransaction <- finalizeTransaction balancedTx utxos -- TODO: all available?
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
