@@ -27,6 +27,7 @@ exports._mkWebSocket = logger => url => () => {
         WebSocket: NoPerMessageDeflateWebSocket,
       });
     }
+    ws.finalizers = [];
     logger("Created a new WebSocket")();
     return ws;
   } catch (e) {
@@ -42,7 +43,7 @@ exports._onWsError = ws => fn => () => {
     fn(event.toString())();
   };
   ws.addEventListener("error", listener);
-  ws.addEventListener("close", () => {
+  ws.finalizers.push(() => {
     ws.removeEventListener("error", listener);
   });
   return listener;
@@ -58,9 +59,20 @@ exports._onWsMessage = ws => logger => fn => () => {
     fn(str)();
   };
   ws.addEventListener("message", listener);
-  ws.addEventListener("close", () => {
+  ws.finalizers.push(() => {
     ws.removeEventListener("message", listener);
   });
+};
+
+exports._wsFinalize = ws => () => {
+  for (let finalizer of ws.finalizers) {
+    /* eslint-disable no-empty */
+    try {
+      finalizer();
+    } catch (_) {}
+    /* eslint-enable */
+  }
+  ws.finalizers = [];
 };
 
 exports._wsSend = ws => logger => str => () => {
