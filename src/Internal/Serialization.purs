@@ -19,7 +19,6 @@ module Ctl.Internal.Serialization
   , publicKeyFromPrivateKey
   , privateKeyFromBytes
   , makeVkeywitness
-  , newBigNum
   ) where
 
 import Prelude
@@ -184,7 +183,6 @@ import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
-foreign import newBigNum :: MaybeFfiHelper -> String -> Maybe BigNum
 foreign import newValue :: BigNum -> Effect Value
 foreign import valueSetCoin :: Value -> BigNum -> Effect Unit
 foreign import newValueFromAssets :: MultiAsset -> Effect Value
