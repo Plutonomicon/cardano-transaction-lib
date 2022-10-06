@@ -166,6 +166,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustValidateIn
       )
   , TxConstraints(TxConstraints)
+  , utxoWithScriptRef
   )
 import Ctl.Internal.Types.TypedTxOut
   ( TypeCheckError
@@ -829,12 +830,22 @@ instance Show MkUnbalancedTxError where
 lookupTxOutRef
   :: forall (a :: Type)
    . TransactionInput
+  -> Maybe InputWithScriptRef
   -> ConstraintsM a (Either MkUnbalancedTxError TransactionOutput)
-lookupTxOutRef outRef = runExceptT do
-  txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
-  txOut <- liftM (TxOutRefNotFound outRef) (lookup outRef txOutputs)
-  networkId <- lift getNetworkId
-  pure $ fromPlutusTxOutputWithRefScript networkId txOut
+lookupTxOutRef oref = case _ of
+  Just inputWithRefScript ->
+    lookup oref (utxoWithScriptRef inputWithRefScript)
+      # maybe (lookupTxOutRef oref Nothing) (map Right <<< convertTxOutput)
+  Nothing ->
+    runExceptT do
+      utxos <- use _lookups <#> unwrap >>> _.txOutputs
+      txOutput <- liftM (TxOutRefNotFound oref) (lookup oref utxos)
+      lift $ convertTxOutput txOutput
+  where
+  convertTxOutput
+    :: Plutus.TransactionOutputWithRefScript -> ConstraintsM a TransactionOutput
+  convertTxOutput txOutput =
+    flip fromPlutusTxOutputWithRefScript txOutput <$> getNetworkId
 
 lookupDatum
   :: forall (a :: Type)
@@ -947,7 +958,7 @@ processConstraint mpsMap osMap = do
       let value = fromPlutusValue plutusValue
       runExceptT $ _valueSpentBalancesOutputs <>= requireValue value
     MustSpendPubKeyOutput txo -> runExceptT do
-      txOut <- ExceptT $ lookupTxOutRef txo
+      txOut <- ExceptT $ lookupTxOutRef txo Nothing
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
@@ -959,7 +970,7 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesInputs <>= provideValue amount
         _ -> throwError $ TxOutRefWrongType txo
     MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
-      txOut <- ExceptT $ lookupTxOutRef txo
+      txOut <- ExceptT $ lookupTxOutRef txo scriptRefUnspentOut
       -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
       -- wallet address and `Just` as script address.
       case txOut of
