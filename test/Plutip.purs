@@ -48,7 +48,6 @@ import Contract.Transaction
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
-  , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
@@ -97,8 +96,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
-import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
-import Ctl.Internal.Hashing (transactionHash)
+import Ctl.Examples.TxChaining (createAdditionalUtxos) as TxChaining
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -122,7 +120,6 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
-import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Ctl.Internal.Wallet.Cip30Mock
@@ -133,7 +130,7 @@ import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
-import Data.Foldable (fold, foldM, foldl, length)
+import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
@@ -145,7 +142,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -935,30 +932,6 @@ suite = do
             }
 
   group "Evaluation with additional UTxOs and tx chaining" do
-    let
-      createAdditionalUtxos
-        :: forall r
-         . BalancedSignedTransaction
-        -> Contract r UtxoMap
-      createAdditionalUtxos tx = do
-        cslTx <- liftEffect $ convertTransaction (unwrap tx)
-        pure $
-          let
-            txHash = transactionHash cslTx
-            txBody = tx # unwrap # unwrap # _.body # unwrap
-
-            txin i =
-              TransactionInput
-                { transactionId: txHash
-                , index: i
-                }
-
-            utxoMap = foldl
-              (\utxo txout -> Map.insert (txin $ length utxo) txout utxo)
-              Map.empty
-              txBody.outputs
-          in
-            utxoMap
     test "Evaluation with additional UTxOs with native scripts" do
       let
         distribution :: InitialUTxOs
@@ -1016,7 +989,7 @@ suite = do
           ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
           bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
 
-          additionalUtxos <- createAdditionalUtxos bsTx0
+          additionalUtxos <- TxChaining.createAdditionalUtxos (unwrap bsTx0)
           logInfo' $ "Additional UTXOS " <> show additionalUtxos
           length additionalUtxos `shouldNotEqual` 0
           additionalUtxos' <-
@@ -1135,7 +1108,7 @@ suite = do
           ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
           bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
 
-          additionalUtxos <- createAdditionalUtxos bsTx0
+          additionalUtxos <- TxChaining.createAdditionalUtxos (unwrap bsTx0)
           logInfo' $ "Additional UTXOS " <> show additionalUtxos
           length additionalUtxos `shouldNotEqual` 0
           additionalUtxos' <-
