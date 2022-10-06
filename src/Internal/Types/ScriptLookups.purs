@@ -1035,17 +1035,17 @@ processConstraint mpsMap osMap = do
           , exUnits: zero
           }
 
-      mp <- except $ lookupMintingPolicy mpsHash mpsMap
+      let mp = lookupMintingPolicy mpsHash mpsMap
       case mp of
-        PlutusMintingPolicy _ -> do
+        Right (NativeMintingPolicy _) -> do
+          _cpsToTxBody <<< _mint <>= map wrap mintVal
+        _ -> do
           -- Remove mint redeemers from array before reindexing.
           _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
           -- Reindex mint redeemers.
           mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
           -- Append reindexed mint redeemers to array.
           _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
-          _cpsToTxBody <<< _mint <>= map wrap mintVal
-        NativeMintingPolicy _ -> do
           _cpsToTxBody <<< _mint <>= map wrap mintVal
 
     MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
