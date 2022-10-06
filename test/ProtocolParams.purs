@@ -1,17 +1,17 @@
-module Test.ProtocolParams
+module Test.Ctl.ProtocolParams
   ( suite
   ) where
 
 import Prelude
 
-import Contract.Aeson (decodeAeson)
+import Aeson (decodeAeson)
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import QueryM.Ogmios (ProtocolParameters)
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils as Utils
 import Test.Spec.Assertions (shouldSatisfy)
-import Test.Utils as Utils
-import TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

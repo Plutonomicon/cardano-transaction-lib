@@ -6,27 +6,32 @@ module Contract.AuxiliaryData
 
 import Prelude
 
-import Cardano.Types.Transaction
+import Contract.Monad (Contract)
+import Contract.ScriptLookups
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  )
+import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
   )
-import Cardano.Types.Transaction
-  ( _body
-  , _auxiliaryData
+import Ctl.Internal.Cardano.Types.Transaction
+  ( _auxiliaryData
   , _auxiliaryDataHash
+  , _body
   ) as Tx
-import Data.Maybe (Maybe, fromMaybe)
+import Ctl.Internal.Metadata.MetadataType
+  ( class MetadataType
+  , toGeneralTxMetadata
+  )
+import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
+import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx, _transaction)
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
 import Data.Lens.Types (Lens')
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Tuple (Tuple(Tuple))
-import Contract.Monad (Contract)
-import Contract.ScriptLookups (UnattachedUnbalancedTx(UnattachedUnbalancedTx))
 import Effect.Class (liftEffect)
-import Metadata.MetadataType (class MetadataType, toGeneralTxMetadata)
-import Serialization.AuxiliaryData (hashAuxiliaryData)
-import Types.TransactionMetadata (GeneralTransactionMetadata)
-import Types.UnbalancedTransaction (UnbalancedTx, _transaction)
 
 -- These functions involve `UnattachedUnbalancedTx` which in turns involve
 -- `UnbalancedTx`, these involve `ScriptOutput` which is what is currently

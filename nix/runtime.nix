@@ -2,15 +2,16 @@
 rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
+    # { name = "preprod"; magic = 1; }
     network = {
-      name = "testnet";
-      magic = 1097911063; # use `null` for mainnet
+      name = "preview";
+      magic = 2; # use `null` for mainnet
     };
     node = {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
       # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "1.35.2";
+      tag = "1.35.3";
     };
     ogmios = { port = 1337; };
     ctlServer = {
@@ -32,8 +33,8 @@ rec {
       controlApiToken = "";
       blockFetcher = {
         firstBlock = {
-          slot = 61625527;
-          id = "3afd8895c7b270f8250b744ec8d2b3c53ee2859c9d5711d906c47fe51b800988";
+          slot = 3162738;
+          id = "fed1bf7331a8f5dade0a6087b31218bb4552bdb722db450e4ecf66740395a93b";
         };
         autoStart = true;
         startFromLast = false;

@@ -23,36 +23,36 @@ The browser can be run headless (default) or headful (useful during test develop
 
 Any programs that should be tested must be deployed and running on some testserver (e.g. with `make run-dev` for the included examples).
 
-An executable for concrete tests is also needed. For a working example see `test/E2E.purs`.
+An executable for concrete tests is also needed. For a working example see `test/E2E.purs`. It can be run conveniently using `./test/ctl-e2e-test.sh`.
 
 ## How to Run the Included Examples
 
 The process is as follows:
 
-1. Set `ps-entrypoint` in Makefile to `Examples.ByURL`.
+1. Set `ps-entrypoint` in Makefile to `Ctl.Examples.ByURL`.
 2. run `make run-dev`.
-3. In another shell, run `make e2e-test`.
-4. Examples will be run headless by default. In case of errors, the browser console will be printed to the console.
+3. In another shell, run `./test/ctl-e2e-test.sh run`.
+4. Examples will be run headless by default (pass `--no-headless` to inspect the browser window). In case of errors, the browser console output will be printed to the shell.
 
 ## Accepted Command Line Options
 
-The provided test suite accepts some options. These can be passed via `make` after an additional double dash `--`, e.g. `make e2e-test -- --no-headless`. For usage examples, see the invocations in the `Makefile`, for a complete explanation, see `src/Contract/Test/E2E/Browser.purs`.
+The provided test suite accepts some options. Run `./test/ctl-e2e-test.sh` for help. `run` command passes provided argument to the PS program. For a complete explanation, see `src/Contract/Test/E2E/Browser.purs`.
 
 ## How Wallets are Used
 
 For purposes of testing, there are two parts to using a wallet: providing the right software version and importing a wallet with enough assets and a known password.
 
 - The software just needs to be unpacked to some directory. This can either be the location where the browser unpacks it, or the result of unpacking a CRX file (see below).
-- We provide the wallet data as tarballs which will be unpacked into the chrome profile before a test run.
+- We provide the wallet data as a single tarball which will be unpacked into the chrome profile before a test run.
 
 ### How to Use a Different Version of a Wallet
 
-Chrome extensions are unpacked to some directory by the browser. From there, they can either be used directly by the tests (which gives no control over upgrades and instead uses always the current version), or they can be repackaged as CRX files. The default setup provides CRX versions which `make e2e-test` automatically unpacks on each test run.
+Chrome extensions are unpacked to some directory by the browser. From there, they can either be used directly by the tests (which gives no control over upgrades and instead uses always the current version), or they can be repackaged as CRX files. The default setup provides CRX versions which the script automatically unpacks on each test run.
 
-The default test suite accepts the arguments `--nami-dir` and `--gero-dir` to point to the directories from which the extensions are loaded. (see the Makefile) In order to use the "live" version of an extension, just pass the arguments accordingly, e.g.:
+The default test suite accepts the arguments of form `--nami-dir`, `--gero-dir`, etc., to point to the directories from which the extensions are loaded. In order to use the "live" version of an extension, just pass the arguments accordingly, e.g.:
 
 ```
-@spago test --main Test.E2E -a "E2ETest --nami-dir ~/.config/google-chrome/Default/Extensions/lpfcbjknijpeeillifnkikgncikgfhdo/ --gero-dir ~/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc --chrome-exe google-chome
+@spago test --main Test.Ctl.E2E -a "E2ETest --nami-dir ~/.config/google-chrome/Default/Extensions/lpfcbjknijpeeillifnkikgncikgfhdo/ --gero-dir ~/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc --chrome-exe google-chome
 ```
 
 ### Where to Find the Installed Extensions
@@ -78,24 +78,16 @@ The default test suite accepts the arguments `--nami-dir` and `--gero-dir` to po
 
 We use `unzip` to unpack it. However, `unzip` will issue a warning because of extra bytes at the beginning, and will exit with a non-zero code, so the exit code needs to be ignored. (we use `|| echo to achieve that`).
 
-See the `Makefile` for an example:
-
-```
-e2e-test-nami := test-data/chrome-extensions/nami_3.2.5_1.crx
-unzip ${e2e-test-nami} -d ${e2e-temp-dir}/nami > /dev/zero || echo "ignore warnings"
-```
-
-`${e2e-temp-dir}/nami` can then be passed to the test suite as nami directory.
-
 ### How to Use a Different User Wallet
 
-In the test suite, the wallet settings are just unpacked using `tar xzf ${e2e-test-nami-settings}` (see `Makefile`).
+In the test suite, the wallet settings are just unpacked using `tar`.
 
-A new settings tarball can be easily created, for example using the `Makefile`:
+A new settings tarball can be easily created:
 
-1. Adjust `${e2e-test-nami-settings}`, `${e2e-test-gero-settings}` and `${e2e-test-chrome-dir}` to point to where you want to store the settings and to chromes user-profile directory
-2. Run `make e2e-run-browser-gero` or `make e2e-run-browser-nami` to fire up the test browser with one of the wallets loaded. Configure your wallet as usual.
-3. Run `make nami-settings` or `make gero-settings` to store the settings to a tarball.
+1. Run the browser with `./test/ctl-e2e-test.sh browser`
+2. Set up a wallet extension, create and fund the wallet, and set the collateral.
+3. Close the browser.
+4. Run the script with `pack` argument. The file located at `test-data/settings.tar.gz` will be updated.
 
 ## How to Create Your Own Test Suite
 
@@ -131,3 +123,17 @@ Although most users will have some version of Chromium or Google Chrome installe
     };
 }
 ```
+
+## Using custom unauthorized extensions
+
+If an extension is not published on Chrome Web Store, it may not have a stable ID. Look into `manifest.json` `key` property to check - if it is not present, the ID will change on each reload, which makes automation impossible.
+
+To freeze the ID, first unpack the `.crx` archive, load the extension unpacked (in developer mode), and then pack it back. It will give you a new `.crx` as well as a `.pem` file with the same name. The ID can now be derived from this key using this command:
+
+```
+openssl rsa -in key.pem -pubout -outform DER | openssl base64 -A
+```
+
+Unarchive the CRX, put the encoded public key to `key` property of `manifest.json` file, and archive the directory back. You can then reload the browser multiple times and the ID will remain the same.
+
+[More on extension IDS](https://stackoverflow.com/questions/37317779/making-a-unique-extension-id-and-key-for-chrome-extension)

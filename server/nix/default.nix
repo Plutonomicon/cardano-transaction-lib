@@ -60,14 +60,7 @@ pkgs.haskell-nix.cabalProject {
 
   extraSources = [
     {
-      src = inputs.cardano-addresses;
-      subdirs = [
-        "core"
-        "command-line"
-      ];
-    }
-    {
-      src = inputs.cardano-base;
+      src = inputs.ogmios.inputs.cardano-base;
       subdirs = [
         "base-deriving-via"
         "binary"
@@ -82,22 +75,18 @@ pkgs.haskell-nix.cabalProject {
       ];
     }
     {
-      src = inputs.cardano-config;
+      src = inputs.ogmios.inputs.cardano-crypto;
       subdirs = [
         "."
       ];
     }
     {
-      src = inputs.cardano-crypto;
-      subdirs = [
-        "."
-      ];
-    }
-    {
-      src = inputs.cardano-ledger;
+      src = inputs.ogmios.inputs.cardano-ledger;
       subdirs = [
         "eras/alonzo/impl"
         "eras/alonzo/test-suite"
+        "eras/babbage/impl"
+        "eras/babbage/test-suite"
         "eras/byron/chain/executable-spec"
         "eras/byron/crypto"
         "eras/byron/crypto/test"
@@ -108,71 +97,64 @@ pkgs.haskell-nix.cabalProject {
         "eras/shelley/test-suite"
         "eras/shelley-ma/impl"
         "eras/shelley-ma/test-suite"
+        "libs/cardano-data"
         "libs/cardano-ledger-core"
         "libs/cardano-ledger-pretty"
         "libs/cardano-protocol-tpraos"
-        "libs/cardano-data"
-        "libs/compact-map"
+        "libs/non-integral"
         "libs/set-algebra"
         "libs/small-steps"
         "libs/small-steps-test"
-        "libs/non-integral"
+        "libs/vector-map"
       ];
     }
     {
-      src = inputs.cardano-node;
+      src = inputs.ogmios.inputs.cardano-node;
       subdirs = [
         "cardano-api"
-        "cardano-cli"
-        "cardano-node"
-        "cardano-node-capi"
-        "cardano-node-chairman"
-        "cardano-submit-api"
-        "bench/cardano-topology"
-        "bench/locli"
-        "bench/tx-generator"
-        "trace-dispatcher"
-        "trace-resources"
-        "trace-forward"
       ];
     }
     {
-      src = inputs.cardano-prelude;
+      src = inputs.ogmios.inputs.cardano-prelude;
       subdirs = [
         "cardano-prelude"
         "cardano-prelude-test"
       ];
     }
     {
-      src = inputs.cardano-wallet;
-      subdirs = [
-        "lib/text-class"
-        "lib/strict-non-empty-containers"
-        "lib/core"
-        "lib/test-utils"
-        "lib/numeric"
-      ];
-    }
-    {
-      src = inputs.ekg-forward;
+      src = inputs.ogmios.inputs.ekg-json;
       subdirs = [
         "."
       ];
     }
     {
-      src = inputs.flat;
+      src = inputs.ogmios.inputs.flat;
       subdirs = [
         "."
       ];
     }
     {
-      src = inputs.goblins;
+      src = inputs.ogmios.inputs.goblins;
       subdirs = [
         "."
       ];
     }
     {
-      src = inputs.iohk-monitoring-framework;
+      src = inputs.ogmios.inputs.hedgehog-extras;
+      subdirs = [
+        "."
+      ];
+    }
+    {
+      src = inputs.ogmios.inputs.io-sim;
+      subdirs = [
+        "io-classes"
+        "io-sim"
+        "strict-stm"
+      ];
+    }
+    {
+      src = inputs.ogmios.inputs.iohk-monitoring-framework;
       subdirs = [
         "contra-tracer"
         "iohk-monitoring"
@@ -185,62 +167,56 @@ pkgs.haskell-nix.cabalProject {
       ];
     }
     {
-      src = inputs.optparse-applicative;
+      src = inputs.ogmios.inputs.optparse-applicative;
       subdirs = [
         "."
       ];
     }
     {
-      src = inputs.ouroboros-network;
+      src = inputs.ogmios.inputs.ouroboros-network;
       subdirs = [
-        "io-sim"
-        "io-classes"
         "monoidal-synchronisation"
         "network-mux"
-        "ntp-client"
         "ouroboros-consensus"
+        "ouroboros-consensus-test"
         "ouroboros-consensus-byron"
+        "ouroboros-consensus-byronspec"
+        "ouroboros-consensus-byron-test"
         "ouroboros-consensus-cardano"
         "ouroboros-consensus-protocol"
         "ouroboros-consensus-shelley"
+        "ouroboros-consensus-shelley-test"
+        "ouroboros-consensus-cardano-test"
         "ouroboros-network"
         "ouroboros-network-framework"
         "ouroboros-network-testing"
-        "strict-stm"
+      ];
+    }
+    {
+      src = inputs.ogmios.inputs.plutus;
+      subdirs = [
+        "plutus-core"
+        "plutus-ledger-api"
+        "plutus-tx"
+        "prettyprinter-configurable"
+        "stubs/plutus-ghc-stub"
+        "word-array"
+      ];
+    }
+    {
+      src = inputs.ogmios.inputs.typed-protocols;
+      subdirs = [
         "typed-protocols"
         "typed-protocols-cborg"
         "typed-protocols-examples"
       ];
     }
     {
-      src = inputs.plutus;
-      subdirs = [
-        "plutus-core"
-        "plutus-ledger-api"
-        "plutus-tx"
-        "plutus-tx-plugin"
-        "word-array"
-        "prettyprinter-configurable"
-        "stubs/plutus-ghc-stub"
-      ];
-    }
-    {
-      src = inputs.purescript-bridge;
+      src = inputs.ogmios.inputs.Win32-network;
       subdirs = [
         "."
       ];
     }
-    {
-      src = inputs.servant-purescript;
-      subdirs = [
-        "."
-      ];
-    }
-    {
-      src = inputs.Win32-network;
-      subdirs = [
-        "."
-      ];
-    }
+
   ];
 }
