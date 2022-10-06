@@ -40,8 +40,6 @@ example cfg = launchAff_ do
   _ <- traverse nonConfigFunctions mSupportWallet
   runContract cfg contract
 
--- liftEffect $ runKeyWalletContract_ (\_ _ _ -> contract true)
-
 nonConfigFunctions :: WalletExtension -> Aff Unit
 nonConfigFunctions (ExtensionKeyWallet) = do
   log "Functions that don't depend on `Contract`"
