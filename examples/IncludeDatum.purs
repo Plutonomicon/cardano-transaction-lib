@@ -48,14 +48,12 @@ example cfg = launchAff_ do
     spendFromIncludeDatum vhash validator txId
   publishTestFeedback true
 
-plutusData :: PlutusData
-plutusData = Integer $ BigInt.fromInt 42
+datum :: Datum
+datum = Datum $ Integer $ BigInt.fromInt 43
 
 payToIncludeDatum :: ValidatorHash -> Contract () TransactionHash
 payToIncludeDatum vhash = do
   let
-    datum :: Datum
-    datum = Datum plutusData
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustPayToScript vhash datum Constraints.DatumWitness $ Value.lovelaceValueOf $ BigInt.fromInt 2_000_000
 
@@ -74,8 +72,6 @@ spendFromIncludeDatum vhash validator txId = do
   case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->
       let
-        datum :: Datum
-        datum = Datum plutusData
         lookups :: Lookups.ScriptLookups PlutusData
         lookups = Lookups.validator validator
           <> Lookups.unspentOutputs utxos
@@ -83,7 +79,7 @@ spendFromIncludeDatum vhash validator txId = do
         constraints :: TxConstraints Unit Unit
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
---            <> Constraints.mustIncludeDatum datum
+            <> Constraints.mustIncludeDatum datum
       in
         do
           spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
@@ -109,24 +105,3 @@ includeDatumScript :: Contract () Validator
 includeDatumScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
   includeDatum
   PlutusScriptV1
-
--- <> Constraints.mustIncludeDatum unitDatum
--- <> Constraints.mustHashDatum (mkDatumHash "1234") unitDatum
--- <> Constraints.mustHashDatum (Hashing.datumHash $ wrap plutusData') unitDatum
-
--- plutusData :: PlutusData
--- plutusData = Integer $ BigInt.fromInt 31415927
-
--- plutusData' :: PlutusData
--- plutusData' = Constr (BigInt.fromInt 0) []
-
--- datum :: Datum
--- datum = Datum plutusData
-
--- mkDatumHash :: String -> DataHash
--- mkDatumHash = wrap <<< hexToByteArrayUnsafe
-
---Hashing.datumHash (wrap $ Integer (fromInt 0))
--- datHash = case datumHash datum of
---   Just dh -> dh
---   Nothing -> throwError "error"
