@@ -111,6 +111,7 @@ import Ctl.Internal.JsWebSocket
   , _onWsMessage
   , _removeOnWsError
   , _wsClose
+  , _wsFinalize
   , _wsReconnect
   , _wsSend
   )
@@ -360,7 +361,9 @@ stopQueryRuntime
   -> Effect Unit
 stopQueryRuntime runtime = do
   _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsFinalize $ underlyingWebSocket runtime.ogmiosWs
   _wsClose $ underlyingWebSocket runtime.datumCacheWs
+  _wsFinalize $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
@@ -821,6 +824,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
         "First connection to Ogmios WebSocket failed. Terminating. Error: " <>
           errMessage
       _wsClose ws
+      _wsFinalize ws
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
@@ -845,6 +849,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
+    _wsFinalize ws
     continue $ Left $ err
 
 -- | For all pending `SubmitTx` requests checks if a transaction was added
