@@ -944,6 +944,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
       _wsClose ws
+      _wsFinalize ws
       logger Error $
         "First connection to Ogmios Datum Cache WebSocket failed. "
           <> "Terminating. Error: "
@@ -980,6 +981,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
         }
   pure $ Canceler $ \err -> liftEffect do
     _wsClose ws
+    _wsFinalize ws
     continue $ Left $ err
 
 mkDatumCacheWebSocketAff
