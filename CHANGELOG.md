@@ -46,6 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Removed
 
+- `newBigNum` from module Ctl.Internal.Serialization as it is not used ([#1025](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1025))
+
 ### Fixed
 
 - Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
