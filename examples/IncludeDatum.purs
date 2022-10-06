@@ -13,8 +13,6 @@ import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, liftedE)
-import Contract.Numeric.Convert (uIntToBigInt)
-import Contract.Numeric.Natural (Natural, toBigInt)
 import Contract.PlutusData (Datum(..), PlutusData(..), toData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -26,7 +24,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
-import Ctl.Internal.Serialization.Types (BigInt)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
@@ -79,7 +76,7 @@ spendFromIncludeDatum vhash validator txId = do
         constraints :: TxConstraints Unit Unit
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
-            <> Constraints.mustIncludeDatum datum
+                                   <> Constraints.mustIncludeDatum datum
       in
         do
           spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
