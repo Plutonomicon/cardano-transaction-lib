@@ -1,40 +1,50 @@
-module Test.BalanceTx.Collateral (suite) where
+module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
-import BalanceTx.Collateral.Select
+import Control.Monad.Reader.Trans (asks)
+import Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
   )
-import BalanceTx.FakeOutput (fakeOutputWithValue)
-import Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value (Coin(Coin), Value(Value))
-import Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
-import Control.Monad.Reader.Trans (asks)
+import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
+import Ctl.Internal.Cardano.Types.Value
+  ( lovelaceValueOf
+  , mkSingletonNonAdaAsset
+  ) as Value
+import Ctl.Internal.QueryM (QueryM, runQueryM)
+import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt (fromInt, toInt) as UInt
-import Effect.Class (liftEffect)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Mote (group, test)
-import QueryM (QueryM, runQueryM)
-import QueryM.Config (testnetTraceQueryConfig)
-import QueryM.Ogmios (CoinsPerUtxoUnit)
-import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
+import Test.Ctl.Fixtures
+  ( currencySymbol1
+  , tokenName1
+  , tokenName2
+  , txInputFixture1
+  )
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (Seconds(Seconds))
+import Test.Ctl.Utils (measure, measureWithTimeout) as TestUtils
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (Seconds(Seconds))
-import Test.Utils (measure, measureWithTimeout) as TestUtils
-import TestM (TestPlanM)
-import Types.Transaction (TransactionHash, TransactionInput)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

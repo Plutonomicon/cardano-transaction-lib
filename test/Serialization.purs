@@ -1,22 +1,24 @@
-module Test.Serialization (suite) where
+module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Serialization (convertTransaction) as TS
+import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Serialization.Types (TransactionHash)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import Deserialization.Transaction (convertTransaction) as TD
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Serialization (convertTransaction) as TS
-import Serialization (convertTxOutput, toBytes)
-import Serialization.PlutusData (convertPlutusData)
-import Serialization.Types (TransactionHash)
-import Test.Fixtures
+import Test.Ctl.Fixtures
   ( txBinaryFixture1
   , txBinaryFixture2
   , txBinaryFixture3
@@ -32,11 +34,9 @@ import Test.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
+import Test.Ctl.TestM (TestPlanM)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Test.Utils (errMaybe)
-import TestM (TestPlanM)
-import Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Types.PlutusData as PD
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit

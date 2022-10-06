@@ -110,11 +110,11 @@ import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
 import Contract.PlutusData (PlutusData)
 import Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , TransactionHash
   , balanceAndSignTx
   , submit
   )
-import Types.TxConstraints (TxConstraints)
-import Types.Transaction (TransactionHash)
+import Contract.TxConstraints (TxConstraints)
 
 buildBalanceSignAndSubmitTx
   :: ScriptLookups PlutusData
@@ -279,12 +279,11 @@ To talk about the grab contract in CTL we need to talk about some
 functions and types of CTL first. 
 
 ```PureScript
-module Plutus.Types.Transaction ... 
+module Ctl.Internal.Plutus.Types.Transaction ... 
 .
 .
 .
-type Utxo = Map TransactionInput TransactionOutput
-newtype UtxoM = UtxoM Utxo
+type UtxoMap = Map TransactionInput TransactionOutputWithRefScript
 ```
 
 ```PureScript
@@ -296,7 +295,7 @@ module Contract.Utxos ...
 -- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
-utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoM)
+utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoMap)
 ```
 
 
@@ -317,7 +316,7 @@ grab
   -> Contract () Unit
 grab vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
       let
