@@ -23,17 +23,6 @@ const checkLimit = (num, lower_limit, upper_limit) => {
   }
 };
 
-exports.newBigNum = maybe => string => {
-  // this is needed because try/catch overuse breaks runtime badly
-  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
-  try {
-    checkLimit(BigInt(string), BigInt("0"), bigNumLimit);
-    return maybe.just(lib.BigNum.from_str(string));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
 exports.newValue = coin => () => lib.Value.new(coin);
 
 exports.newValueFromAssets = multiasset => () =>

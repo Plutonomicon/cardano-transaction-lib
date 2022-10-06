@@ -5,11 +5,11 @@ import Prelude
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
-import Ctl.Internal.FfiHelpers (maybeFfiHelper)
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, newBigNum, toBytes)
+import Ctl.Internal.Serialization (convertTxOutput, toBytes)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
+import Ctl.Internal.Types.BigNum (fromString) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
@@ -120,13 +120,13 @@ suite = do
     group "BigNum tests" $ do
       test "BigNum ok" $ do
         let bn = "18446744073709551615"
-        newBigNum maybeFfiHelper bn `shouldSatisfy` isJust
+        BN.fromString bn `shouldSatisfy` isJust
       test "BigNum overflow" $ do
         let bn' = "18446744073709551616"
-        newBigNum maybeFfiHelper bn' `shouldSatisfy` isNothing
+        BN.fromString bn' `shouldSatisfy` isNothing
       test "BigNum negative" $ do
         let bnNeg = "-1"
-        newBigNum maybeFfiHelper bnNeg `shouldSatisfy` isNothing
+        BN.fromString bnNeg `shouldSatisfy` isNothing
 
 serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
