@@ -185,21 +185,39 @@ namiSign extId wpassword re = do
 
 geroConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 geroConfirmAccess extId re = do
-  inWalletPage (Pattern $ unExtensionId extId) re confirmAccessTimeout \page ->
-    do
-      delaySec 0.1
+  wasInPage <- isJust <$> inWalletPageOptional extId pattern re
+    confirmAccessTimeout
+    \page -> do
+      void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "radio")
+        {}
+        page
       void $ doJQ (inputType "radio") click page
       void $ doJQ (buttonWithText "Continue") click page
-      delaySec 0.1
+      void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "checkbox")
+        {}
+        page
       void $ doJQ (inputType "checkbox") click page
       void $ doJQ (buttonWithText "Connect") click page
+  when wasInPage do
+    waitForWalletPageClose pattern 10.0 re.browser
+  where
+  pattern :: Pattern
+  pattern = wrap $ unExtensionId extId <> "/index.html?#/connection"
 
 geroSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 geroSign extId password re =
-  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \gero -> do
-    void $ doJQ (byId "confirm-swap") click gero
-    typeInto (byId "wallet-password") password gero
-    clickButton "Next" gero
+  inWalletPage pattern re signTimeout \page -> do
+    void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ byId "confirm-swap")
+      {}
+      page
+    void $ doJQ (byId "confirm-swap") click page
+    void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ byId "wallet-password")
+      {}
+      page
+    typeInto (byId "wallet-password") password page
+    clickButton "Next" page
+  where
+  pattern = Pattern $ unExtensionId extId <> "/index.html?#/swap?tx="
 
 -- Not implemented yet
 flintConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
