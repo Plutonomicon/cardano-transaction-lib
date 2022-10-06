@@ -1,6 +1,5 @@
--- | 
--- | 
--- | 
+-- | Example contract that uses a single signer native script as a minting
+-- | policy
 module Ctl.Examples.NativeScriptMints (main, example, contract, pkhPolicy) where
 
 import Contract.Prelude
