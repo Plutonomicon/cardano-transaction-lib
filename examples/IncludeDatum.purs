@@ -12,7 +12,7 @@ import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, runContract)
-import Contract.PlutusData (Datum(Datum), PlutusData (Integer), unitRedeemer)
+import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
@@ -62,9 +62,10 @@ payToIncludeDatum vhash = do
   let
     constraints :: TxConstraints Unit Unit
     constraints =
-      (Constraints.mustPayToScript vhash datum Constraints.DatumWitness
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000)
+      ( Constraints.mustPayToScript vhash datum Constraints.DatumWitness
+          $ Value.lovelaceValueOf
+          $ BigInt.fromInt 2_000_000
+      )
         <> Constraints.mustIncludeDatum datum
 
     lookups :: Lookups.ScriptLookups PlutusData
