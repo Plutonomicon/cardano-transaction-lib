@@ -62,6 +62,7 @@ module Ctl.Internal.Types.TxConstraints
   , requiredMonetaryPolicies
   , requiredSignatories
   , singleton
+  , utxoWithScriptRef
   ) where
 
 import Prelude hiding (join)
@@ -73,8 +74,9 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , currencyMPSHash
   )
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
 import Ctl.Internal.Types.Datum (Datum)
@@ -96,7 +98,8 @@ import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldMap, foldl, foldr, null)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Map (fromFoldableWith, toUnfoldable)
+import Data.Map (Map, fromFoldableWith, toUnfoldable)
+import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
@@ -148,6 +151,15 @@ derive instance Generic InputWithScriptRef _
 
 instance Show InputWithScriptRef where
   show = genericShow
+
+utxoWithScriptRef
+  :: InputWithScriptRef -> Map TransactionInput TransactionOutputWithRefScript
+utxoWithScriptRef inputWithRefScript = Map.singleton input output
+  where
+  TransactionUnspentOutput { input, output } =
+    case inputWithRefScript of
+      RefInput unspentOut -> unspentOut
+      SpendInput unspentOut -> unspentOut
 
 -- | `DatumPresence` describes how datum should be stored in the transaction
 -- | when paying to a script.
