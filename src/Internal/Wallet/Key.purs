@@ -38,7 +38,7 @@ import Ctl.Internal.Serialization.Address
   , keyHashCredential
   )
 import Ctl.Internal.Serialization.Types (PrivateKey)
-import Ctl.Internal.Types.RawBytes (RawBytes(..))
+import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (fromFoldable)
 import Data.Lens (set)
@@ -129,7 +129,7 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
 
   signData :: RawBytes -> Aff DataSignature
   signData dat = do
-    encoded <- liftEffect $ (privateKeySign <<< unwrap) payKey $ unwrap $ unwrap
-      $ dat
+    encoded <- liftEffect $ (privateKeySign <<< unwrap) payKey $
+        (unwrap <<< unwrap) dat
     pure $ { key: encoded, signature: encoded }
 
