@@ -3,35 +3,53 @@ module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
   , module Contract.Address
+  , module Contract.Utxos
   , module Serialization
-  , module Wallet.Spec
-  , module Wallet.Key
   , module Wallet
-  , module Wallet.KeyFile
+  , module Ctl.Internal.Wallet.Key
+  , module Ctl.Internal.Wallet.KeyFile
+  , module Ctl.Internal.Wallet.Spec
   ) where
 
 import Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv)
+import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
+import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
+import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
+import Ctl.Internal.Wallet
+  ( isEternlAvailable
+  , isFlintAvailable
+  , isGeroAvailable
+  , isLodeAvailable
+  , isNamiAvailable
+  ) as Wallet
+import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
+import Ctl.Internal.Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
+import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
+import Ctl.Internal.Wallet.Spec
+  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , WalletSpec
+      ( UseKeys
+      , ConnectToNami
+      , ConnectToGero
+      , ConnectToFlint
+      , ConnectToLode
+      , ConnectToEternl
+      )
+  )
 import Data.Lens (Lens, (.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import Serialization (privateKeyFromBytes) as Serialization
 import Type.Proxy (Proxy(Proxy))
-import Wallet (isGeroAvailable, isNamiAvailable, isFlintAvailable) as Wallet
-import Wallet (mkKeyWallet, Wallet(KeyWallet))
-import Wallet.Spec
-  ( WalletSpec(UseKeys, ConnectToNami, ConnectToGero, ConnectToFlint)
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  )
-import Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
-import Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
-import Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 
 withKeyWallet
   :: forall (r :: Row Type) (a :: Type)

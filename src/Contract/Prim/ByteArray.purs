@@ -1,11 +1,11 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
 module Contract.Prim.ByteArray (module ByteArray) where
 
-import Types.ByteArray
+import Ctl.Internal.Types.ByteArray
   ( ByteArray(ByteArray)
+  , byteArrayFromAscii
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe
-  , byteArrayFromAscii
   , byteArrayToHex
   , byteArrayToIntArray
   , byteLength

@@ -1,4 +1,4 @@
-module Test.Logging (suite) where
+module Test.Ctl.Logging (suite) where
 
 import Prelude
 
@@ -11,8 +11,8 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
+import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

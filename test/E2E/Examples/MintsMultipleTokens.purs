@@ -1,22 +1,20 @@
-module Test.E2E.Examples.MintsMultipleTokens (runExample) where
+module Test.Ctl.E2E.Examples.MintsMultipleTokens (runExample) where
 
 import Prelude
 
 import Contract.Test.E2E
-  ( TestOptions
-  , WalletExt(NamiExt)
+  ( SomeWallet(SomeWallet)
+  , TestOptions
+  , WalletPassword
   )
 import Effect.Aff (Aff)
-import Test.E2E.Helpers
-  ( namiSign'
-  , namiConfirmAccess
-  , runE2ETest
-  )
+import Test.Ctl.E2E.Helpers (runE2ETest)
+import Test.Ctl.TestM (TestPlanM)
 
-import TestM (TestPlanM)
-
-runExample :: TestOptions -> TestPlanM (Aff Unit) Unit
-runExample options = runE2ETest "MintsMultipleTokens" options NamiExt $
-  \example -> do
-    namiConfirmAccess example
-    namiSign' example
+runExample
+  :: SomeWallet -> WalletPassword -> TestOptions -> TestPlanM (Aff Unit) Unit
+runExample (SomeWallet { id, wallet, confirmAccess, sign }) password options =
+  runE2ETest "MintsMultipleTokens" options wallet $
+    \example -> do
+      confirmAccess id example
+      sign id password example

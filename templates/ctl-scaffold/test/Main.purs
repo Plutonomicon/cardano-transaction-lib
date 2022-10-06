@@ -1,4 +1,4 @@
-module Scaffold.Test.Main (main) where
+module Test.Scaffold.Main (main) where
 
 import Contract.Prelude
 

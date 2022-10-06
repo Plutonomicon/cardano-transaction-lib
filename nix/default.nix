@@ -319,16 +319,21 @@ let
       fakePackage = builtins.toJSON {
         name = "pursDocsSearch";
         version = "0.0.0";
-        dependencies = { "purescript-docs-search" = "0.0.11"; };
+        dependencies = { "purescript-docs-search" = "0.0.12"; };
       };
       fakePackageLock = builtins.toJSON {
         requires = true;
         lockfileVersion = 1;
         dependencies = {
+          punycode = {
+            version = "2.1.1";
+            resolved = "https://registry.npmjs.org/punycode/-/punycode-2.1.1.tgz";
+            integrity = "sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==";
+          };
           purescript-docs-search = {
-            version = "0.0.11";
-            resolved = "https://registry.npmjs.org/purescript-docs-search/-/purescript-docs-search-0.0.11.tgz";
-            integrity = "sha512-eFcxaXv2mgI8XFBSMMuuI0S6Ti0+Ol4jxZSC5rUzeDuNQNKVhKotRWxBqoirIzFmSGXbEqYOo9oZVuDJAFLNIg==";
+            version = "0.0.12";
+            resolved = "https://registry.npmjs.org/purescript-docs-search/-/purescript-docs-search-0.0.12.tgz";
+            integrity = "sha512-NdhQ3AxbKR2wO+WT2fGa8Rw26JydL6Bgnf73WOazmlfHt4uszblYqiWfaZygyUMOQFnXtpqz5TQj6DW6nk4nEg==";
           };
         };
       };
@@ -366,6 +371,7 @@ let
           mkdir $out
           cp -r generated-docs $out
           cp -r output $out
+          cp -r $src/src $out
         '';
       });
 
@@ -384,10 +390,10 @@ let
       ''
         export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
         export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
-        cp -r ${buildPursDocs { }}/{generated-docs,output} .
+        cp -r ${buildPursDocs { }}/{generated-docs,output,src} .
         install-spago-style
         chmod -R +rwx .
-        purescript-docs-search build-index --package-name ${packageName}
+        purescript-docs-search build-index --package-name ${packageName} --source-files 'src/**/*.purs'
         mkdir $out
         cp -r generated-docs $out
       '';
@@ -444,4 +450,6 @@ in
     buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
     purs nodejs mkNodeModules;
   devShell = shellFor shell;
+  compiled = project;
+  nodeModules = projectNodeModules;
 }

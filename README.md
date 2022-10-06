@@ -40,6 +40,8 @@ Support is planned for the following light wallets:
 - [ ] [Yoroi](https://yoroi-wallet.com/)
 - [ ] [Eternl (formerly CCvault)](https://eternl.io/)
 
+Due to recent ecosystem migration from legacy testnet to `preprod` and `preview` networks, some of the wallets stopped working. The progress of adapting them is tracked in [this issue](https://github.com/Plutonomicon/cardano-transaction-lib/issues/994).
+
 ## Documentation
 
 Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:

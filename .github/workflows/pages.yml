@@ -17,7 +17,9 @@ jobs:
         run: |
           npm install -g spago
           npm install -g purescript@0.14.5
-          spago docs
+          npm install -g purescript-docs-search
+          spago docs --no-search
+          purescript-docs-search build-index --package-name cardano-transaction-lib
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.3.3
         with:
