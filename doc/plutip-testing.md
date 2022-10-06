@@ -92,7 +92,7 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 {
   some-plutip-test = project.runPlutipTest {
     name = "some-plutip-test";
-    testMain = "MyProject.Test.Plutip";
+    testMain = "Test.MyProject.Plutip";
     # If you don't need `ctl-server`, you can set the following
     # to `false`. Make sure to leave it as `true` (the default)
     # if you are calling `applyArgs` in your contracts. This

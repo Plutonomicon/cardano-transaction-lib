@@ -11,21 +11,21 @@ module Contract.Chain
 import Prelude
 
 import Contract.Monad (Contract, wrapContract)
-import QueryM (getChainTip) as QueryM
-import QueryM.WaitUntilSlot
+import Ctl.Internal.QueryM (getChainTip) as QueryM
+import Ctl.Internal.QueryM.WaitUntilSlot
   ( currentSlot
   , currentTime
   , waitNSlots
   , waitUntilSlot
   ) as QueryM
-import Serialization.Address (Slot)
-import Types.Chain
+import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
   ) as Chain
-import Types.Natural (Natural)
-import Types.Interval (POSIXTime)
+import Ctl.Internal.Types.Interval (POSIXTime)
+import Ctl.Internal.Types.Natural (Natural)
 
 getTip :: forall (r :: Row Type). Contract r Chain.Tip
 getTip = wrapContract QueryM.getChainTip

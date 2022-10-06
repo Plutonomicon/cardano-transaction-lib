@@ -2,7 +2,7 @@
 -- | as part of an off-chain transaction.
 module Contract.TxConstraints (module TxConstraints) where
 
-import Types.TxConstraints
+import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
@@ -37,10 +37,8 @@ import Types.TxConstraints
   , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToNativeScript
   , mustNotBeValid
-  , mustPayToScript
-  , mustPayToScriptWithScriptRef
+  , mustPayToNativeScript
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayToPubKeyAddressWithDatum
@@ -49,15 +47,17 @@ import Types.TxConstraints
   , mustPayToPubKeyWithDatum
   , mustPayToPubKeyWithDatumAndScriptRef
   , mustPayToPubKeyWithScriptRef
+  , mustPayToScript
+  , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
+  , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
-  , mustSpendNativeScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
   , pubKeyPayments
