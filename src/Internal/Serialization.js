@@ -11,18 +11,6 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 
 exports.hashTransaction = body => () => lib.hash_transaction(body);
 
-const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
-
-const bigNumLimitNeg = BigInt("-18446744073709551615"); // 2 ^ 64 - 1
-
-const checkLimit = (num, lower_limit, upper_limit) => {
-  if (lower_limit <= num && num < upper_limit) {
-    return num;
-  } else {
-    throw new Error("Overflow detected");
-  }
-};
-
 exports.newValue = coin => () => lib.Value.new(coin);
 
 exports.newValueFromAssets = multiasset => () =>
@@ -181,6 +169,18 @@ exports.setTxBodyScriptDataHash = setter("script_data_hash");
 exports.setTxBodyMint = setter("mint");
 
 exports.newMint = () => lib.Mint.new();
+
+const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
+
+const bigNumLimitNeg = BigInt("-18446744073709551616"); // 2 ^ 64
+
+const checkLimit = (num, lower_limit, upper_limit) => {
+  if (lower_limit < num && num < upper_limit) {
+    return num;
+  } else {
+    throw new Error("Overflow detected");
+  }
+};
 
 exports._bigIntToInt = maybe => bigInt => {
   // this is needed because try/catch overuse breaks runtime badly
