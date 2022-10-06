@@ -320,7 +320,6 @@ typedValidatorLookupsM
   :: forall (a :: Type). TypedValidator a -> Maybe (ScriptLookups a)
 typedValidatorLookupsM = pure <<< typedValidatorLookups
 
--- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | A script lookups value that uses the map of unspent outputs to resolve
 -- | input constraints.
 unspentOutputs
@@ -329,7 +328,6 @@ unspentOutputs
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
 -- | should not fail.
 unspentOutputsM
@@ -434,6 +432,8 @@ type ConstraintProcessingState (a :: Type) =
   , lookups :: ScriptLookups a
   -- ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
+  , refScriptsUtxoMap ::
+      Map TransactionInput Plutus.TransactionOutputWithRefScript
   , costModels :: Costmdls
   }
 
@@ -473,6 +473,12 @@ _mintRedeemers = prop (SProxy :: SProxy "mintRedeemers")
 _lookups
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
 _lookups = prop (SProxy :: SProxy "lookups")
+
+_refScriptsUtxoMap
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a)
+       (Map TransactionInput Plutus.TransactionOutputWithRefScript)
+_refScriptsUtxoMap = prop (SProxy :: SProxy "refScriptsUtxoMap")
 
 missingValueSpent :: ValueSpentBalances -> Value
 missingValueSpent (ValueSpentBalances { required, provided }) =
@@ -582,6 +588,7 @@ runConstraintsM lookups txConstraints = do
       , redeemersTxIns: mempty
       , mintRedeemers: empty
       , lookups
+      , refScriptsUtxoMap: empty
       , costModels
       }
 
@@ -717,8 +724,13 @@ updateUtxoIndex
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
 updateUtxoIndex = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
+  refScriptsUtxoMap <- use _refScriptsUtxoMap
   networkId <- lift getNetworkId
-  let cTxOutputs = map (fromPlutusTxOutputWithRefScript networkId) txOutputs
+  let
+    cTxOutputs :: Map TransactionInput TransactionOutput
+    cTxOutputs =
+      (txOutputs `union` refScriptsUtxoMap)
+        <#> fromPlutusTxOutputWithRefScript networkId
   -- Left bias towards original map, hence `flip`:
   _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
 
@@ -860,15 +872,24 @@ processScriptRefUnspentOut
   => scriptHash
   -> InputWithScriptRef
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-processScriptRefUnspentOut scriptHash = case _ of
-  SpendInput unspentOut -> do
-    _cpsToTxBody <<< _inputs %= Set.insert (_.input <<< unwrap $ unspentOut)
-    checkScriptRef unspentOut
-  RefInput unspentOut -> do
-    let refInput = (unwrap unspentOut).input
-    _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
-    checkScriptRef unspentOut
+processScriptRefUnspentOut scriptHash inputWithRefScript = do
+  unspentOut <- case inputWithRefScript of
+    SpendInput unspentOut -> do
+      _cpsToTxBody <<< _inputs %= Set.insert (_.input <<< unwrap $ unspentOut)
+      pure unspentOut
+    RefInput unspentOut -> do
+      let refInput = (unwrap unspentOut).input
+      _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
+      pure unspentOut
+
+  updateRefScriptsUtxoMap unspentOut
+  checkScriptRef unspentOut
   where
+  updateRefScriptsUtxoMap
+    :: TransactionUnspentOutput -> ConstraintsM a Unit
+  updateRefScriptsUtxoMap (TransactionUnspentOutput { input, output }) =
+    _refScriptsUtxoMap %= Map.insert input output
+
   checkScriptRef
     :: TransactionUnspentOutput
     -> ConstraintsM a (Either MkUnbalancedTxError Unit)
