@@ -84,7 +84,8 @@ subscribeToBrowserEvents timeout page cont = do
           else if attempts == Just 0 then liftEffect $ f $ Left $ error
             "Timeout reached when trying to connect to CTL Contract running\
             \ in the browser. Is there a Contract with E2E hooks available\
-            \ at the URL you provided?"
+            \ at the URL you provided? Did you forget to run `npm run \
+            \e2e-serve`?"
           else process Nothing
         else pure unit
 

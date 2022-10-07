@@ -230,7 +230,7 @@ Refer to the docs for `Contract.Test.E2E.route` function for an overview of the 
 
 ### Mocking CIP-30 interface
 
-It is possible to test the contracts without having a single wallet extension installed, just by providing a private payment key, and (optionally) a private stake key, that correspond to a testnet address with some tAda. CTL test suite can mock the functionality of a CIP-30 wallet given just the keys.
+It is possible to test the contracts without having a single wallet extension installed, just by providing a private payment key, and (optionally) a private stake key, that correspond to a testnet address with some tAda. CTL test suite can mock (partially) the functionality of a CIP-30 wallet given just the keys.
 
 Note that different wallets implement different *application logic* despite using a uniform interface, for example, Eternl uses multiple addresses, while all the other wallets are single-address. For now, CIP-30 mock implements single-address logic only. There is no guarantee that the logic that is implemented by the mock is the same as one of a real wallet: subtle differences or bugs can affect the execution path of your application.
 
