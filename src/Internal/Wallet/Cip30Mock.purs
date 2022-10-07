@@ -19,7 +19,7 @@ import Ctl.Internal.Serialization
   , convertValue
   , toBytes
   )
-import Ctl.Internal.Serialization.Address (NetworkId(..))
+import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)

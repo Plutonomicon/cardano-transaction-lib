@@ -22,6 +22,7 @@ module Ctl.Internal.Wallet
   , mkFlintWalletAff
   , mkLodeWalletAff
   , mkKeyWallet
+  , mkWalletAff
   , cip30Wallet
   , dummySign
   , isEnabled
