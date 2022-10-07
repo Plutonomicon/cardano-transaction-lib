@@ -15,7 +15,7 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
-import Contract.Chain (currentTime)
+import Contract.Chain (currentTime, getTip)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -23,6 +23,7 @@ import Contract.Monad
   , liftContractM
   , liftedE
   , liftedM
+  , runContractInEnv
   , wrapContract
   )
 import Contract.PlutusData
@@ -36,11 +37,7 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
-import Contract.Test.Plutip
-  ( InitialUTxOs
-  , runPlutipContract
-  , withStakeKey
-  )
+import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -68,7 +65,7 @@ import Contract.Wallet
   , withKeyWallet
   )
 import Control.Monad.Error.Class (try)
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader (ask, asks)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
@@ -123,6 +120,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (replicate, (!!))
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (fold, foldM)
@@ -130,10 +128,11 @@ import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse, traverse_)
+import Data.Traversable (for, for_, traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, bracket, launchAff_)
+import Effect.Aff (Aff, bracket, delay, forkAff, joinFiber, launchAff_)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
@@ -1057,6 +1056,19 @@ suite = do
         withCip30Mock alice MockNami do
           getWalletBalance >>= flip shouldSatisfy
             (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
+
+  group "Load testing" do
+    test "load test #1: ODC and Ogmios" do
+      runPlutipContract config unit \_ -> do
+        env <- ask
+        fibers <- liftAff $ for (Array.range 0 100) $ const do
+          forkAff $ runContractInEnv env do
+            void $ getDatumByHash $ wrap $ hexToByteArrayUnsafe
+              "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
+            void getTip
+        liftAff do
+          delay $ wrap 20000.0
+          for_ fibers joinFiber
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
