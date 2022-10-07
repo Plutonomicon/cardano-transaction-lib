@@ -26,7 +26,7 @@ import Contract.Wallet
   )
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
-import Ctl.Internal.Wallet (WalletExtension(..))
+import Ctl.Internal.Wallet (WalletExtension(ExtensionKeyWallet))
 import Data.Array (head)
 import Effect.Exception (error)
 
