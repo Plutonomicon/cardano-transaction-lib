@@ -32,6 +32,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
+  , mustMintCurrencyUsingNativeScript
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
@@ -66,3 +67,4 @@ import Ctl.Internal.Types.TxConstraints
   , requiredSignatories
   , singleton
   ) as TxConstraints
+import Ctl.Internal.Types.TxConstraints (mustMintCurrencyUsingNativeScript)

@@ -20,6 +20,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustHashDatum
       , MustSatisfyAnyOf
       , MustNotBeValid
+      , MustMintValueUsingNativeScript
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -32,6 +33,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
+  , mustMintCurrencyUsingNativeScript
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
@@ -102,6 +104,7 @@ import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.Typelevel.Undefined (undefined)
 import Prim.TypeError (class Warn, Text)
 
 --------------------------------------------------------------------------------
@@ -123,6 +126,7 @@ data TxConstraint
   | MustReferenceOutput TransactionInput
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
       (Maybe InputWithScriptRef)
+  | MustMintValueUsingNativeScript NativeScriptHash TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
@@ -390,6 +394,15 @@ mustPayToNativeScript nsHash vl =
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
+mustMintCurrencyUsingNativeScript
+  :: forall (i :: Type) (o :: Type)
+   . NativeScriptHash
+  -> TokenName
+  -> BigInt
+  -> TxConstraints i o
+mustMintCurrencyUsingNativeScript nsh tk i = singleton
+  (MustMintValueUsingNativeScript nsh tk i)
+
 -- | Mint the given `Value` by accessing non-Ada assets.
 mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
@@ -593,6 +606,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustHashDatum _ _ -> false
       MustIncludeDatum _ -> false
       MustMintValue _ _ _ _ _ -> true
+      MustMintValueUsingNativeScript _ _ _ -> true
       MustNotBeValid -> false
       MustPayToNativeScript _ vl -> not (isZero vl)
       MustPayToPubKeyAddress _ _ _ _ vl -> not (isZero vl)
