@@ -12,15 +12,6 @@ const getIsWalletAvailableFunctionName = wallet => {
   return strs[wallet] || "is?WalletAvailable";
 };
 
-//Keep it in sync with Wallet.supportedWalletToName
-const wallets = {
-  nami: "nami",
-  flint: "flint",
-  gero: "gerowallet",
-  lode: "LodeWallet",
-  eternl: "eternl",
-};
-
 const nodeEnvError = new Error(
   "`window` is not an object. Are you trying to run a Contract with" +
     " connected light wallet in NodeJS environment?"
@@ -50,11 +41,7 @@ const enableWallet = wallet => () => {
   }
 };
 
-exports._enableNami = enableWallet(wallets.nami);
-exports._enableGero = enableWallet(wallets.gero);
-exports._enableFlint = enableWallet(wallets.flint);
-exports._enableLode = enableWallet(wallets.lode);
-exports._enableEternl = enableWallet(wallets.eternl);
+exports._enableWallet = enableWallet;
 
 const isWalletAvailable = walletName => () => {
   checkNotNode();
@@ -66,12 +53,6 @@ const isWalletAvailable = walletName => () => {
 };
 
 exports._isWalletAvailable = isWalletAvailable;
-
-exports._isNamiAvailable = isWalletAvailable(wallets.nami);
-exports._isGeroAvailable = isWalletAvailable(wallets.gero);
-exports._isFlintAvailable = isWalletAvailable(wallets.flint);
-exports._isLodeAvailable = isWalletAvailable(wallets.lode);
-exports._isEternlAvailable = isWalletAvailable(wallets.eternl);
 
 exports._isEnabled = walletName => () => {
   const isAvailable = isWalletAvailable(walletName)();

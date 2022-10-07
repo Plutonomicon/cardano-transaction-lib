@@ -33,6 +33,7 @@ module Ctl.Internal.Wallet
 
 import Prelude
 
+import Contract.Prelude (fromMaybe)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -66,6 +67,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import Prim.TypeError (class Warn, Text)
 
 data Wallet
   = Nami Cip30Wallet
@@ -87,68 +89,76 @@ mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
   mbStakeKey
 
-foreign import _isNamiAvailable :: Effect Boolean
-
-isNamiAvailable :: Effect Boolean
-isNamiAvailable = _isNamiAvailable
-
-foreign import _enableNami :: Effect (Promise Cip30Connection)
-
-mkNamiWalletAff :: Aff Wallet
-mkNamiWalletAff = Nami <$> mkCip30WalletAff "Nami" _enableNami
-
-foreign import _isGeroAvailable :: Effect Boolean
-
-isGeroAvailable :: Effect Boolean
-isGeroAvailable = _isGeroAvailable
-
-foreign import _enableGero :: Effect (Promise Cip30Connection)
-
-mkGeroWalletAff :: Aff Wallet
-mkGeroWalletAff = Gero <$> mkCip30WalletAff "Gero" _enableGero
-
-foreign import _isFlintAvailable :: Effect Boolean
-
-isFlintAvailable :: Effect Boolean
-isFlintAvailable = _isFlintAvailable
-
-foreign import _enableFlint :: Effect (Promise Cip30Connection)
-
-mkFlintWalletAff :: Aff Wallet
-mkFlintWalletAff = Flint <$> mkCip30WalletAff "Flint" _enableFlint
-
-foreign import _isLodeAvailable :: Effect Boolean
-
-isLodeAvailable :: Effect Boolean
-isLodeAvailable = _isLodeAvailable
-
-foreign import _enableLode :: Effect (Promise Cip30Connection)
-
-isEternlAvailable :: Effect Boolean
-isEternlAvailable = _isEternlAvailable
-
-foreign import _isEternlAvailable :: Effect Boolean
-
-mkEternlWalletAff :: Aff Wallet
-mkEternlWalletAff = Eternl <$> mkCip30WalletAff "Eternl" _enableEternl
-
-foreign import _enableEternl :: Effect (Promise Cip30Connection)
-
+foreign import _enableWallet :: String -> Effect (Promise Cip30Connection)
+foreign import _isWalletAvailable :: String -> Effect Boolean
 foreign import _isEnabled :: String -> Effect (Promise Boolean)
-
 foreign import _apiVersion :: String -> Effect String
 foreign import _name :: String -> Effect String
 foreign import _icon :: String -> Effect String
-foreign import _isWalletAvailable :: String -> Effect Boolean
+
+mkWalletAff :: WalletExtension -> Aff Wallet
+mkWalletAff walletExtension =
+  case walletExtension of
+    ExtensionNami -> Nami <$> mkCip30WalletAff "Nami" (_enableWallet walletName)
+    ExtensionGero -> Gero <$> mkCip30WalletAff "Gero" (_enableWallet walletName)
+    ExtensionEternl -> Eternl <$> mkCip30WalletAff "Eternl"
+      (_enableWallet walletName)
+    ExtensionFlint -> Flint <$> mkCip30WalletAff "Flint"
+      (_enableWallet walletName)
+    ExtensionLode -> _mkLodeWalletAff
+    ExtensionKeyWallet -> liftEffect $ throw
+      "Can't use makeWalletAff with a KeyWallet"
+  where
+  walletName = fromMaybe "" $ walletExtensionToName walletExtension
+
+isNamiAvailable
+  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  => Effect Boolean
+isNamiAvailable = isWalletAvailable ExtensionNami
+
+mkNamiWalletAff
+  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  => Aff Wallet
+mkNamiWalletAff = mkWalletAff ExtensionNami
+
+isGeroAvailable
+  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  => Effect Boolean
+isGeroAvailable = isWalletAvailable ExtensionGero
+
+mkGeroWalletAff
+  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  => Aff Wallet
+mkGeroWalletAff = mkWalletAff ExtensionGero
+
+isFlintAvailable
+  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  => Effect Boolean
+isFlintAvailable = isWalletAvailable ExtensionFlint
+
+mkFlintWalletAff
+  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  => Aff Wallet
+mkFlintWalletAff = mkWalletAff ExtensionFlint
+
+isLodeAvailable
+  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  => Effect Boolean
+isLodeAvailable = isWalletAvailable ExtensionLode
+
+mkLodeWalletAff
+  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  => Aff Wallet
+mkLodeWalletAff = _mkLodeWalletAff
 
 -- Lode does not inject on page load, so this function retries up to set
 -- number of times, for Lode to be available.
-mkLodeWalletAff :: Aff Wallet
-mkLodeWalletAff = do
+_mkLodeWalletAff :: Aff Wallet
+_mkLodeWalletAff = do
   retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
-    $ liftEffect isLodeAvailable
+    $ liftEffect (isWalletAvailable ExtensionLode)
   catchError
-    (Lode <$> mkCip30WalletAff "Lode" _enableLode)
+    (Lode <$> mkCip30WalletAff "Lode" (_enableWallet "LodeWallet"))
     ( \e -> throwError <<< error $ (show e) <>
         " Note: LodeWallet is injected asynchronously and may be unreliable."
     )
@@ -159,11 +169,17 @@ mkLodeWalletAff = do
       if _ then pure unit
       else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
 
-isWalletAvailable :: WalletExtension -> Aff Boolean
+isEternlAvailable :: Effect Boolean
+isEternlAvailable = isWalletAvailable ExtensionEternl
+
+mkEternlWalletAff :: Aff Wallet
+mkEternlWalletAff = mkWalletAff ExtensionEternl
+
+isWalletAvailable :: WalletExtension -> Effect Boolean
 isWalletAvailable swallet =
-  case supportedWalletToName swallet of
-    Just walletName -> liftEffect $ _isWalletAvailable walletName
-    Nothing -> liftEffect $ throw "Not implemented yet"
+  case walletExtensionToName swallet of
+    Just walletName -> _isWalletAvailable walletName
+    Nothing -> throw "Not implemented yet"
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
@@ -174,9 +190,8 @@ cip30Wallet = case _ of
   Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
--- Keep this in syc with Wallet.js::wallets.
-supportedWalletToName :: WalletExtension -> Maybe String
-supportedWalletToName = case _ of
+walletExtensionToName :: WalletExtension -> Maybe String
+walletExtensionToName = case _ of
   ExtensionNami -> Just "nami"
   ExtensionGero -> Just "gerowallet"
   ExtensionFlint -> Just "flint"
@@ -195,7 +210,7 @@ walletToWalletExtension = case _ of
 
 isEnabled :: WalletExtension -> Aff Boolean
 isEnabled wallet =
-  case supportedWalletToName wallet of
+  case walletExtensionToName wallet of
     Just walletName -> toAffE $ _isEnabled walletName
     Nothing -> pure true
 
@@ -203,21 +218,21 @@ apiVersion :: WalletExtension -> Aff String
 apiVersion wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in apiVersion call")
-    (supportedWalletToName wallet)
+    (walletExtensionToName wallet)
   liftEffect $ _apiVersion walletName
 
 name :: WalletExtension -> Aff String
 name wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in `name` call")
-    (supportedWalletToName wallet)
+    (walletExtensionToName wallet)
   liftEffect $ _name walletName
 
 icon :: WalletExtension -> Aff String
 icon wallet = do
   walletName <- liftMaybe
     (error "Can't get the name of the Wallet in `icon` call")
-    (supportedWalletToName wallet)
+    (walletExtensionToName wallet)
   liftEffect $ _icon walletName
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
