@@ -1,5 +1,5 @@
 {
     "type": "PlutusScriptV1",
-    "description": "include-datum",
+    "description": "check-datum-42",
     "cborHex": "55540100002225333573466e1cdd6801a40a82930b01"
 }
