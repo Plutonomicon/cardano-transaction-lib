@@ -36,7 +36,12 @@ exports._mkWebSocket = logger => url => () => {
   }
 };
 
-exports._onWsConnect = ws => fn => () => ws.addEventListener("open", fn);
+exports._onWsConnect = ws => fn => () => {
+  ws.addEventListener("open", fn);
+  ws.finalizers.push(() => {
+    ws.removeEventListener("open", fn);
+  });
+};
 
 exports._onWsError = ws => fn => () => {
   const listener = function (event) {
