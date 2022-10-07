@@ -1,13 +1,13 @@
--- | This module creates a transaction
--- | that pays 2 Ada to the `Datum42` script address
+-- | this module creates a transaction
+-- | that pays 2 Ada to the `IncludeDatum` script address
 -- | and then spends the script Utxo. The script only checks
--- | that the value of the datum is equal to 42.
-module Ctl.Examples.Datum42
+-- | that the value of the datum is equal to 42
+module Ctl.Examples.IncludeDatum
   ( example
-  , datum42Script
+  , includeDatumScript
   , main
-  , payToDatum42
-  , spendFromDatum42
+  , payToIncludeDatum
+  , spendFromIncludeDatum
   ) where
 
 import Contract.Prelude
@@ -48,21 +48,21 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
-    logInfo' "Running Examples.Datum42"
-    validator <- datum42Script
+    logInfo' "Running Examples.IncludeDatum"
+    validator <- includeDatumScript
     let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
-    txId <- payToDatum42 vhash
+    txId <- payToIncludeDatum vhash
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromDatum42 vhash validator txId
+    spendFromIncludeDatum vhash validator txId
   publishTestFeedback true
 
 datum :: Datum
 datum = Datum $ Integer $ BigInt.fromInt 42
 
-payToDatum42 :: ValidatorHash -> Contract () TransactionHash
-payToDatum42 vhash = do
+payToIncludeDatum :: ValidatorHash -> Contract () TransactionHash
+payToIncludeDatum vhash = do
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -76,12 +76,12 @@ payToDatum42 vhash = do
     lookups = mempty
   buildBalanceSignAndSubmitTx lookups constraints
 
-spendFromDatum42
+spendFromIncludeDatum
   :: ValidatorHash
   -> Validator
   -> TransactionHash
   -> Contract () Unit
-spendFromDatum42 vhash validator txId = do
+spendFromIncludeDatum vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case view _input <$> head (lookupTxHash txId utxos) of
@@ -100,11 +100,7 @@ spendFromDatum42 vhash validator txId = do
           spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
           awaitTxConfirmed spendTxId
           logInfo' "Successfully spent locked values."
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
+    _ -> logInfo' "no locked output at address"
 
 buildBalanceSignAndSubmitTx
   :: Lookups.ScriptLookups PlutusData
@@ -117,10 +113,9 @@ buildBalanceSignAndSubmitTx lookups constraints = do
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 
-foreign import datum42 :: String
+foreign import includeDatum :: String
 
--- | checks if the datum equals 42
-datum42Script :: Contract () Validator
-datum42Script = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  datum42
+includeDatumScript :: Contract () Validator
+includeDatumScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
+  includeDatum
   PlutusScriptV1
