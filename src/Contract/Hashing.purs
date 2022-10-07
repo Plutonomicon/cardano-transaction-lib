@@ -13,4 +13,4 @@ import Ctl.Internal.Hashing
   , sha3_256HashHex
   , transactionHash
   ) as X
-import Ctl.Internal.NativeScripts (nativeScriptHash) as X
+import Ctl.Internal.NativeScripts (NativeScriptHash, nativeScriptHash) as X

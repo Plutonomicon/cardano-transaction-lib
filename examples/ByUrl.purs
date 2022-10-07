@@ -33,6 +33,7 @@ import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignMultiple as SignMultiple
+import Ctl.Examples.Vesting as Vesting
 import Ctl.Examples.Wallet as Wallet
 import Data.Array (last)
 import Data.Foldable (lookup)
@@ -113,6 +114,7 @@ examples =
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
+  , "Vesting" /\ Vesting.contract
   ]
 
 -- Address is:

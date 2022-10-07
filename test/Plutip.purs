@@ -93,6 +93,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
+import Ctl.Examples.Vesting as Vesting
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -162,8 +163,18 @@ main = launchAff_ do
   Utils.interpretWithConfig
     defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
     $ do
-        suite
-        UtxoDistribution.suite
+        -- suite
+        -- UtxoDistribution.suite
+        group "Plutip" do
+          test "runPlutipContract: Examples.Vesting" do
+            let
+              distribution :: InitialUTxOs
+              distribution =
+                [ BigInt.fromInt 5_000_000
+                , BigInt.fromInt 2_000_000_000
+                ]
+            runPlutipContract config distribution \alice -> do
+              withKeyWallet alice Vesting.contract
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -918,6 +929,16 @@ suite = do
             , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
             , txMetadata: cip25MetadataFixture1
             }
+
+    test "runPlutipContract: Examples.Vesting" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice Vesting.contract
 
   group "applyArgs" do
     test "returns the same script when called without args" do

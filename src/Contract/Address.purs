@@ -1,11 +1,11 @@
 -- | A module for Address-related functionality and querying own wallet.
 module Contract.Address
-  ( enterpriseAddressScriptHash
+  ( addressToBech32
+  , addressWithNetworkTagToBech32
+  , enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
-  , addressWithNetworkTagToBech32
-  , addressToBech32
   , getWalletAddress
   , getWalletCollateral
   , module ByteArray
@@ -15,6 +15,8 @@ module Contract.Address
   , module Hash
   , module SerializationAddress
   , module TypeAliases
+  , nativeScriptHashBaseAddress
+  , nativeScriptHashEnterpriseAddress
   , ownPaymentPubKeyHash
   , ownPubKeyHash
   , ownStakePubKeyHash
@@ -39,6 +41,7 @@ import Ctl.Internal.Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   ) as Address
+import Ctl.Internal.NativeScripts (NativeScriptHash)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusAddress
@@ -117,6 +120,7 @@ import Ctl.Internal.Types.UnbalancedTransaction
   ) as ExportUnbalancedTransaction
 import Data.Array (head)
 import Data.Maybe (Maybe)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 
 -- | Get the `Address` of the browser wallet.
@@ -253,6 +257,28 @@ validatorHashEnterpriseAddress
 validatorHashEnterpriseAddress networkId =
   toPlutusAddress
     <<< Scripts.validatorHashEnterpriseAddress networkId
+
+-- | Converts a Plutus `NativeScriptHash` to a `Address` as a Plutus (`BaseAddress`)
+-- | `Address`
+nativeScriptHashBaseAddress
+  :: NetworkId -> NativeScriptHash -> Maybe Address
+nativeScriptHashBaseAddress networkId =
+  toPlutusAddress
+    <<< Scripts.validatorHashBaseAddress networkId
+    <<< wrap
+    <<< unwrap
+
+-- | Converts a Plutus `NativeScriptHash` to a Plutus `Address` as an
+-- | `EnterpriseAddress`. This is likely what you will use since Plutus
+-- | currently uses `scriptHashAddress` on non-staking addresses which is
+-- | invoked in `validatorAddress`
+nativeScriptHashEnterpriseAddress
+  :: NetworkId -> NativeScriptHash -> Maybe Address
+nativeScriptHashEnterpriseAddress networkId =
+  toPlutusAddress
+    <<< Scripts.validatorHashEnterpriseAddress networkId
+    <<< wrap
+    <<< unwrap
 
 pubKeyHashBaseAddress
   :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Maybe Address

@@ -3,11 +3,15 @@ module Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
+  , futureSlot
+  , mkSlot
   , module Chain
   , module ExportOgmios
   , module Interval
   , module SerializationAddress
   ) where
+
+import Prelude
 
 import Contract.Chain
   ( BlockHeaderHash(BlockHeaderHash)
@@ -18,11 +22,7 @@ import Contract.Chain
 import Contract.Monad (Contract, wrapContract)
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
-import Ctl.Internal.QueryM.Ogmios
-  ( CurrentEpoch
-  , EraSummaries
-  , SystemStart
-  )
+import Ctl.Internal.QueryM.Ogmios (CurrentEpoch, EraSummaries, SystemStart)
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
@@ -40,6 +40,8 @@ import Ctl.Internal.Serialization.Address
   ( BlockId(BlockId)
   , Slot(Slot)
   ) as SerializationAddress
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Types.BigNum (add, fromInt) as BigNum
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -79,14 +81,12 @@ import Ctl.Internal.Types.Interval
   , intersection
   , interval
   , isEmpty
-  -- , isEmpty'
   , lowerBound
   , maxSlot
   , member
   , mkInterval
   , never
   , overlaps
-  -- , overlaps'
   , posixTimeRangeToSlotRange
   , posixTimeToSlot
   , singleton
@@ -98,6 +98,7 @@ import Ctl.Internal.Types.Interval
   , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
+import Data.Maybe (Maybe)
 
 -- | Get the current Epoch. Details can be found https://ogmios.dev/api/ under
 -- | "currentEpoch" query
@@ -113,3 +114,10 @@ getEraSummaries = wrapContract EraSummaries.getEraSummaries
 -- | https://ogmios.dev/api/ under "systemStart" query
 getSystemStart :: forall (r :: Row Type). Contract r SystemStart
 getSystemStart = wrapContract SystemStart.getSystemStart
+
+mkSlot :: Int -> Slot
+mkSlot = Slot <<< BigNum.fromInt
+
+futureSlot :: Slot -> Int -> Maybe Slot
+futureSlot (Slot time) delta = Slot <$>
+  (BigNum.add time $ BigNum.fromInt delta)

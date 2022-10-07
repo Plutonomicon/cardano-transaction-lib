@@ -146,6 +146,8 @@ import Ctl.Internal.Plutus.Types.Transaction
   ) as PTransaction
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , _output
   , lookupTxHash
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
