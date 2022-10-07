@@ -4,6 +4,7 @@ module Contract.Wallet.Key
 
 import Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
+  , keyWalletPrivatePaymentKey
+  , keyWalletPrivateStakeKey
   , privateKeysToKeyWallet
   ) as X
-
