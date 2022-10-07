@@ -267,11 +267,10 @@ foreign import _privateKeyFromBytes
 foreign import _bytesFromPrivateKey
   :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
 
-foreign import privateKeySign
-  :: PrivateKey -> Uint8Array -> Effect CborBytes
-
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
 foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
+foreign import privateKeySign
+  :: PrivateKey -> Uint8Array -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
