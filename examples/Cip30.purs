@@ -46,7 +46,7 @@ nonConfigFunctions (ExtensionKeyWallet) = do
   log "skipping for ExtensionKeyWallet"
 nonConfigFunctions extensionWallet = do
   log "Functions that don't depend on `Contract`"
-  performAndLog "isWalletAvailable" isWalletAvailable
+  performAndLog "isWalletAvailable" (liftEffect <<< isWalletAvailable)
   performAndLog "isEnabled" isEnabled
   performAndLog "apiVersion" apiVersion
   performAndLog "name" name

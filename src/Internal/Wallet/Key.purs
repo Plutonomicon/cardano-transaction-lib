@@ -11,13 +11,32 @@ import Prelude
 
 import Contract.Prelude (class Newtype)
 import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
-import Ctl.Internal.Cardano.Types.Transaction (Transaction(Transaction), TransactionWitnessSet, UtxoMap, _vkeys)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Transaction(Transaction)
+  , TransactionWitnessSet
+  , UtxoMap
+  , _vkeys
+  )
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import Ctl.Internal.Serialization (privateKeySign, publicKeyFromPrivateKey, publicKeyHash)
+import Ctl.Internal.Serialization
+  ( privateKeySign
+  , publicKeyFromPrivateKey
+  , publicKeyHash
+  )
 import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Address (Address, NetworkId, baseAddress, baseAddressToAddress, enterpriseAddress, enterpriseAddressToAddress, keyHashCredential)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId
+  , baseAddress
+  , baseAddressToAddress
+  , enterpriseAddress
+  , enterpriseAddressToAddress
+  , keyHashCredential
+  )
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
@@ -28,7 +47,6 @@ import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
 import Effect.Exception (throw)
 
 -------------------------------------------------------------------------------
@@ -112,9 +130,9 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
 
   signData :: RawBytes -> Aff DataSignature
   signData dat = do
-    encoded <- liftEffect $ (privateKeySign <<< unwrap) payKey $
+    _ <- liftEffect $ (privateKeySign <<< unwrap) payKey $
       (unwrap <<< unwrap) dat
     -- liftEffect $ log $ show encoded
     liftEffect $ throw "not implemented"
-    -- pure $ { key: encoded, signature: encoded }
+-- pure $ { key: encoded, signature: encoded }
 
