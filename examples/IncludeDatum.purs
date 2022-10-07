@@ -4,7 +4,7 @@
 -- | that the value of the datum is equal to 42
 module Ctl.Examples.IncludeDatum
   ( example
-  , includeDatumScript
+  , only42Script
   , main
   , payToIncludeDatum
   , spendFromIncludeDatum
@@ -49,7 +49,7 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.IncludeDatum"
-    validator <- includeDatumScript
+    validator <- only42Script
     let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
     txId <- payToIncludeDatum vhash
@@ -115,7 +115,8 @@ buildBalanceSignAndSubmitTx lookups constraints = do
 
 foreign import includeDatum :: String
 
-includeDatumScript :: Contract () Validator
-includeDatumScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
+-- | checks if the datum equals 42
+only42Script :: Contract () Validator
+only42Script = wrap <<< plutusV1Script <$> textEnvelopeBytes
   includeDatum
   PlutusScriptV1

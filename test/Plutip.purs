@@ -769,7 +769,7 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          validator <- IncludeDatum.includeDatumScript
+          validator <- IncludeDatum.only42Script
           let vhash = validatorHash validator
           logInfo' "Attempt to lock value"
           txId <- IncludeDatum.payToIncludeDatum vhash
