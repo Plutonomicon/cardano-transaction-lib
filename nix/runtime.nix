@@ -3,7 +3,9 @@ rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
     # { name = "preprod"; magic = 1; }
+    # { name = "mainnet"; magic = null; }
     network = {
+      # See `doc/development.md` for info on how to switch networks.
       name = "preview";
       magic = 2; # use `null` for mainnet
     };
@@ -24,9 +26,9 @@ rec {
       # Postgres will always be accessible via `postgres:5432` from
       # containers.
       port = 5432;
-      user = "ctxlib";
-      password = "ctxlib";
-      db = "ctxlib";
+      user = "ctl";
+      password = "ctl";
+      db = "ctl-${network.name}";
     };
     datumCache = {
       port = 9999;
