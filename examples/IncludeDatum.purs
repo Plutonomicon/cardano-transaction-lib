@@ -1,7 +1,7 @@
--- | this module creates a transaction
+-- | This module creates a transaction
 -- | that pays 2 Ada to the `IncludeDatum` script address
 -- | and then spends the script Utxo. The script only checks
--- | that the value of the datum is equal to 42
+-- | that the value of the datum is equal to 42.
 module Ctl.Examples.IncludeDatum
   ( example
   , only42Script
