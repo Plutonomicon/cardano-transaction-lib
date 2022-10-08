@@ -44,6 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
+- `keyWalletPrivatePaymentKey` and `keyWalletPrivateStakeKey` are now in to the public `Contract.Wallet.Key` API. ([#1094](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1094))
 
 ### Removed
 
@@ -51,6 +52,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
 - `awaitTxConfirmedWithTimeout` not respecting its timeout ([#1021](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1021))
+- Absence of `serializeData` in Plutip ([#1078](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1078))
 
 ## [2.0.0] - 2022-09-12
 
