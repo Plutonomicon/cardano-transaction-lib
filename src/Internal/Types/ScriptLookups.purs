@@ -56,6 +56,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
   , Transaction
@@ -889,6 +890,20 @@ processScriptRefUnspentOut scriptHash = case _ of
       if Just (unwrap scriptHash) /= refScriptHash then err
       else pure (Right unit)
 
+isRefNative :: InputWithScriptRef -> Maybe Boolean
+isRefNative scriptRef = isNative (unwrap (unwrap uout).output).scriptRef
+  where
+  isNative ref = ref >>=
+    ( case _ of
+        NativeScriptRef _ -> pure true
+        _ -> pure false
+    )
+
+  uout :: TransactionUnspentOutput
+  uout = case scriptRef of
+    RefInput ref' -> ref'
+    SpendInput ref' -> ref'
+
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
@@ -996,17 +1011,27 @@ processConstraint mpsMap osMap = do
     MustReferenceOutput refInput -> runExceptT do
       _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
-      case scriptRefUnspentOut of
+      isNative <- case scriptRefUnspentOut of
         Nothing -> do
-          plutusScript <- except $ lookupMintingPolicy mpsHash mpsMap >>=
-            ( case _ of
-                PlutusMintingPolicy p -> pure p
-                NativeMintingPolicy _ -> Left $ MintingPolicyNotFound mpsHash
-            -- TODO: amir: infrom user to use MustMintValueUsingNativeScript
-            )
-          ExceptT $ attachToCps attachPlutusScript plutusScript
-        Just scriptRefUnspentOut' ->
-          ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut'
+          mp <- except $ lookupMintingPolicy mpsHash mpsMap
+          ( case mp of
+              PlutusMintingPolicy p ->
+                ( ExceptT $ attachToCps
+                    attachPlutusScript
+                    p
+                ) $> false
+              NativeMintingPolicy n ->
+                ( ExceptT $ attachToCps
+                    attachNativeScript
+                    n
+                ) $> true
+          )
+        Just scriptRefUnspentOut' -> do
+          (ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut')
+          ( ExceptT $ pure $ note (WrongRefScriptHash Nothing) $ isRefNative
+              scriptRefUnspentOut'
+          )
+
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
@@ -1024,23 +1049,25 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
 
-      let
-        -- Create a redeemer with zero execution units then call Ogmios to
-        -- add the units in at the very end.
-        -- Hardcode minting policy index, then reindex with
-        -- `reindexMintRedeemers`.
-        redeemer = T.Redeemer
-          { tag: Mint
-          , index: zero
-          , data: unwrap red
-          , exUnits: zero
-          }
-      -- Remove mint redeemers from array before reindexing.
-      _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
-      -- Reindex mint redeemers.
-      mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
-      -- Append reindexed mint redeemers to array.
-      _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
+      when (not isNative) $ do
+        let
+          -- Create a redeemer with zero execution units then call Ogmios to
+          -- add the units in at the very end.
+          -- Hardcode minting policy index, then reindex with
+          -- `reindexMintRedeemers`.
+          redeemer = T.Redeemer
+            { tag: Mint
+            , index: zero
+            , data: unwrap red
+            , exUnits: zero
+            }
+        -- Remove mint redeemers from array before reindexing.
+        _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
+        -- Reindex mint redeemers.
+        mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
+        -- Append reindexed mint redeemers to array.
+        _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
+
       _cpsToTxBody <<< _mint <>= map wrap mintVal
 
     -- TODO: amir duplicate code here (similar to MustMintValue handler) that can be cleaned up
