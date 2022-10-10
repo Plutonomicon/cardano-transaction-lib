@@ -49,7 +49,6 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
-import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -192,7 +191,7 @@ import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), either, note)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -964,10 +963,12 @@ processConstraint mpsMap osMap = do
             case datum' of
               OutputDatumHash dHash -> do
                 dat <- ExceptT do
-                  mDatumQuery <- lift $ getDatumByHash dHash <#> note
-                    (CannotQueryDatum dHash)
                   mDatumLookup <- lookupDatum dHash
-                  pure (mDatumQuery <|> mDatumLookup)
+                  if isRight mDatumLookup then
+                    pure mDatumLookup
+                  else
+                    lift $ getDatumByHash dHash <#> note
+                      (CannotQueryDatum dHash)
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
