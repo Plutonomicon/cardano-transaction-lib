@@ -79,7 +79,7 @@ import Ctl.Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
-import Ctl.Examples.NativeScriptMints (pkhPolicy)
+import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
@@ -569,28 +569,7 @@ suite = do
           , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
-          pkh <- liftedM "Could not get own pkh" ownPaymentPubKeyHash
-          let mp = pkhPolicy pkh
-          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-
-          tn <- liftContractM "Cannot make token name"
-            $ Value.mkTokenName
-                =<< byteArrayFromAscii "NSToken"
-
-          let
-            constraints :: Constraints.TxConstraints Void Void
-            constraints = Constraints.mustMintValue
-              $ Value.singleton cs tn
-              $ BigInt.fromInt 100
-
-            lookups :: Lookups.ScriptLookups Void
-            lookups = Lookups.mintingPolicy mp
-
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
-          submitAndLog bsTx
+        withKeyWallet alice NativeScriptMints.contract
 
     test "runPlutipContract: Datums" do
       runPlutipContract config unit \_ -> do
