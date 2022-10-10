@@ -92,18 +92,4 @@ If you add a dependency to `package.json`, make sure to update the lockfile with
 
 ## Switching development networks
 
-Switching networks is not very trivial, because the state of the postgres database used by `ogmios-datum-cache` must be dropped. Additionally, ODC block fetcher should be pointed to a correct block ID that exists on the network
-
-### Resetting the DB
-
-It can be done by removing the docker container manually.
-
-First, execute `docker image ls` and find the ID of the image with the name `postgres`, then run  `docker image rm <ID>`. The error will appear, showing the ID of the container which uses it. Remove the container with `docker container rm <ID>`
-
-This procedure is required, because `postgres` image initializes the DB only before the first run.
-
-It's also possible to manually reset the DB by dropping the `transactions` and `datums` tables, and setting `last_block` to the appropriate values.
-
-### Finding the correct slot and block ID
-
-`defaultConfig.datumCache.blockFetcher.firstBlock` from `runtime.nix` should be pointed to a correct block/slot. You can use Blocks Browser on [cexplorer.io](https://cexplorer.io) to find the correct values, or just look at `cardano-node` logs (wait for it to fully sync to use a relatively new starting block. It helps to reduce the size of the DB).
+Switching networks is trivial: new `network.name` and `network.magic` must be provided, and `defaultConfig.datumCache.blockFetcher.firstBlock` from `runtime.nix` should be pointed to a correct block/slot. You can use Blocks Browser on [cexplorer.io](https://cexplorer.io) to find the correct values, or just look at `cardano-node` logs (wait for it to fully sync to use a relatively new starting block. It helps to reduce the size of the DB).
