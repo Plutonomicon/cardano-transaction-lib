@@ -964,12 +964,11 @@ processConstraint mpsMap osMap = do
               OutputDatumHash dHash -> do
                 dat <- ExceptT do
                   mDatumLookup <- lookupDatum dHash
-                  if (isRight mDatumLookup) then
+                  if isRight mDatumLookup then
                     pure mDatumLookup
-                  else do
-                    mDatumQuery <- lift $ getDatumByHash dHash <#> note
+                  else
+                    lift $ getDatumByHash dHash <#> note
                       (CannotQueryDatum dHash)
-                    pure mDatumQuery
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
