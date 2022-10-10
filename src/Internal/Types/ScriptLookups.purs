@@ -49,50 +49,149 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
-import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
-import Ctl.Internal.Cardano.Types.Transaction (Costmdls, Transaction, TransactionOutput(TransactionOutput), TransactionWitnessSet(TransactionWitnessSet), TxBody, _body, _inputs, _isValid, _mint, _networkId, _outputs, _referenceInputs, _requiredSigners, _scriptDataHash, _witnessSet)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Costmdls
+  , Transaction
+  , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , TxBody
+  , _body
+  , _inputs
+  , _isValid
+  , _mint
+  , _networkId
+  , _outputs
+  , _referenceInputs
+  , _requiredSigners
+  , _scriptDataHash
+  , _witnessSet
+  )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
-import Ctl.Internal.Cardano.Types.Value (CurrencySymbol, Value, getNonAdaAsset, isZero, mkSingletonValue', mpsSymbol, negation, split)
+import Ctl.Internal.Cardano.Types.Value
+  ( CurrencySymbol
+  , Value
+  , getNonAdaAsset
+  , isZero
+  , mkSingletonValue'
+  , mpsSymbol
+  , negation
+  , split
+  )
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM, (<\>))
 import Ctl.Internal.IsData (class IsData)
-import Ctl.Internal.Plutus.Conversion (fromPlutusTxOutputWithRefScript, fromPlutusValue)
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusTxOutputWithRefScript
+  , fromPlutusValue
+  )
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput))
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
-import Ctl.Internal.Scripts (mintingPolicyHash, nativeScriptHashEnterpriseAddress, validatorHash, validatorHashEnterpriseAddress)
+import Ctl.Internal.Scripts
+  ( mintingPolicyHash
+  , nativeScriptHashEnterpriseAddress
+  , validatorHash
+  , validatorHashEnterpriseAddress
+  )
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Transaction (ModifyTxError, attachDatum, attachNativeScript, attachPlutusScript, attachRedeemer, setScriptDataHash)
+import Ctl.Internal.Transaction
+  ( ModifyTxError
+  , attachDatum
+  , attachNativeScript
+  , attachPlutusScript
+  , attachRedeemer
+  , setScriptDataHash
+  )
 import Ctl.Internal.Types.Any (Any)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Ctl.Internal.Types.Interval (POSIXTimeRange, PosixTimeToSlotError, posixTimeRangeToTransactionValidity)
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum))
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash, payPubKeyHashBaseAddress, payPubKeyHashEnterpriseAddress, stakePubKeyHashRewardAddress)
+import Ctl.Internal.Types.Interval
+  ( POSIXTimeRange
+  , PosixTimeToSlotError
+  , posixTimeRangeToTransactionValidity
+  )
+import Ctl.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , StakePubKeyHash
+  , payPubKeyHashBaseAddress
+  , payPubKeyHashEnterpriseAddress
+  , stakePubKeyHashRewardAddress
+  )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import Ctl.Internal.Types.Scripts (MintingPolicy, MintingPolicyHash, Validator, ValidatorHash)
+import Ctl.Internal.Types.Scripts
+  ( MintingPolicy
+  , MintingPolicyHash
+  , Validator
+  , ValidatorHash
+  )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Ctl.Internal.Types.TxConstraints (DatumPresence(DatumWitness, DatumInline), InputConstraint(InputConstraint), InputWithScriptRef(RefInput, SpendInput), OutputConstraint(OutputConstraint), TxConstraint(MustBeSignedBy, MustHashDatum, MustIncludeDatum, MustMintValue, MustNotBeValid, MustPayToNativeScript, MustPayToPubKeyAddress, MustPayToScript, MustProduceAtLeast, MustReferenceOutput, MustSatisfyAnyOf, MustSpendAtLeast, MustSpendNativeScriptOutput, MustSpendPubKeyOutput, MustSpendScriptOutput, MustValidateIn), TxConstraints(TxConstraints))
-import Ctl.Internal.Types.TypedTxOut (TypeCheckError, mkTypedTxOut, typeTxOutRef, typedTxOutDatumHash, typedTxOutRefValue, typedTxOutTxOut)
-import Ctl.Internal.Types.TypedValidator (class DatumType, class ValidatorTypes, TypedValidator(TypedValidator))
+import Ctl.Internal.Types.TxConstraints
+  ( DatumPresence(DatumWitness, DatumInline)
+  , InputConstraint(InputConstraint)
+  , InputWithScriptRef(RefInput, SpendInput)
+  , OutputConstraint(OutputConstraint)
+  , TxConstraint
+      ( MustBeSignedBy
+      , MustHashDatum
+      , MustIncludeDatum
+      , MustMintValue
+      , MustNotBeValid
+      , MustPayToNativeScript
+      , MustPayToPubKeyAddress
+      , MustPayToScript
+      , MustProduceAtLeast
+      , MustReferenceOutput
+      , MustSatisfyAnyOf
+      , MustSpendAtLeast
+      , MustSpendNativeScriptOutput
+      , MustSpendPubKeyOutput
+      , MustSpendScriptOutput
+      , MustValidateIn
+      )
+  , TxConstraints(TxConstraints)
+  )
+import Ctl.Internal.Types.TypedTxOut
+  ( TypeCheckError
+  , mkTypedTxOut
+  , typeTxOutRef
+  , typedTxOutDatumHash
+  , typedTxOutRefValue
+  , typedTxOutTxOut
+  )
+import Ctl.Internal.Types.TypedValidator
+  ( class DatumType
+  , class ValidatorTypes
+  , TypedValidator(TypedValidator)
+  )
 import Ctl.Internal.Types.TypedValidator (generalise) as TV
-import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey, UnbalancedTx, _transaction, _utxoIndex, emptyUnbalancedTx)
+import Ctl.Internal.Types.UnbalancedTransaction
+  ( PaymentPubKey
+  , UnbalancedTx
+  , _transaction
+  , _utxoIndex
+  , emptyUnbalancedTx
+  )
 import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), either, note, fromRight, isRight)
+import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -862,29 +961,15 @@ processConstraint mpsMap osMap = do
             -- valid input, because our `txOut` above is a Script address via
             -- `Just`.
             case datum' of
-              -- OutputDatumHash dHash -> do
-              --   dat <- ExceptT do
-              --     mDatumLookup <- lookupDatum dHash
-              --     case mDatumLookup of
-              --       Right x -> pure x
-              --       _       -> do
-              --         mDatumQuery <- lift $ getDatumByHash dHash <#> note
-              --           (CannotQueryDatum dHash)
-              --         case mDatumQuery of
-              --           Right x -> pure x
-              --           _ -> throwError CannotFindDatum
-              --   ExceptT $ addDatum dat
-              -- OutputDatum _ -> pure unit
-              -- NoOutputDatum -> throwError CannotFindDatum
               OutputDatumHash dHash -> do
                 dat <- ExceptT do
                   mDatumLookup <- lookupDatum dHash
                   if (isRight mDatumLookup) then
-                    pure (Left CannotSatisfyAny <|> mDatumLookup)
-                      else do
-                        mDatumQuery <- lift $ getDatumByHash dHash <#> note
-                          (CannotQueryDatum dHash)
-                        pure (Left CannotSatisfyAny <|> mDatumQuery)
+                    pure mDatumLookup
+                  else do
+                    mDatumQuery <- lift $ getDatumByHash dHash <#> note
+                      (CannotQueryDatum dHash)
+                    pure mDatumQuery
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
