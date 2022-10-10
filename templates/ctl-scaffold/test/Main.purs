@@ -26,6 +26,7 @@ config =
   { host: "127.0.0.1"
   , port: UInt.fromInt 8082
   , logLevel: Trace
+  , customLogLevel: Trace
   , ogmiosConfig:
       { port: UInt.fromInt 1338
       , host: "127.0.0.1"

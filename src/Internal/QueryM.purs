@@ -250,6 +250,7 @@ type QueryConfig =
   , datumCacheConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
+  , customLogLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
   , suppressLogs :: Boolean
@@ -322,7 +323,8 @@ instance MonadLogger (QueryMExtended r Aff) where
     config <- asks $ _.config
     let
       logFunction =
-        config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
+        config # _.customLogger >>> fromMaybe
+          (logWithLevel config.customLogLevel)
     liftAff $ logFunction msg
 
 -- Newtype deriving complains about overlapping instances, so we wrap and

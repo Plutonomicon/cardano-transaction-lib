@@ -244,6 +244,7 @@ type ConfigParams (r :: Row Type) =
   , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
+  , customLogLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (Message -> Aff Unit)
   -- | Suppress logs until an exception is thrown
@@ -297,6 +298,7 @@ mkContractEnv
     , datumCacheConfig
     , networkId
     , logLevel
+    , customLogLevel
     , walletSpec
     , customLogger
     , suppressLogs
@@ -308,6 +310,7 @@ mkContractEnv
       , datumCacheConfig
       , networkId
       , logLevel
+      , customLogLevel
       , walletSpec
       , customLogger
       , suppressLogs
@@ -348,6 +351,7 @@ withContractEnv
     , datumCacheConfig
     , networkId
     , logLevel
+    , customLogLevel
     , walletSpec
     , customLogger
     , suppressLogs
@@ -363,6 +367,7 @@ withContractEnv
       , datumCacheConfig
       , networkId
       , logLevel
+      , customLogLevel
       , walletSpec
       , customLogger:
           if suppressLogs then Just $ liftEffect <<< addLogEntry

@@ -20,6 +20,7 @@ testnetTraceQueryConfig =
   , datumCacheConfig: defaultDatumCacheWsConfig
   , networkId: TestnetId
   , logLevel: Trace
+  , customLogLevel: Trace
   , walletSpec: Nothing
   , customLogger: Nothing
   , suppressLogs: false

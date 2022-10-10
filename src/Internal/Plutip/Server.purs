@@ -498,6 +498,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
         , networkId: MainnetId
         , logLevel: plutipCfg.logLevel
+        , customLogLevel: plutipCfg.customLogLevel
         , walletSpec: Nothing
         , customLogger: customLogger
         , suppressLogs: plutipCfg.suppressLogs

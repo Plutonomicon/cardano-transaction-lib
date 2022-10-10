@@ -58,6 +58,7 @@ testnetConfig =
   , extraConfig: {}
   , walletSpec: Nothing
   , logLevel: Trace
+  , customLogLevel: Trace
   , customLogger: Nothing
   , suppressLogs: false
   }

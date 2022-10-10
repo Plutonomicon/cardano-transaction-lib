@@ -56,6 +56,7 @@ type PlutipConfig =
   { host :: String
   , port :: UInt
   , logLevel :: LogLevel
+  , customLogLevel :: LogLevel
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , ogmiosDatumCacheConfig :: ServerConfig
