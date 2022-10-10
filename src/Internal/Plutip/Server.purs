@@ -85,6 +85,7 @@ import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
+  , RetryStatus(RetryStatus)
   , constantDelay
   , limitRetriesByCumulativeDelay
   , recovering
@@ -150,7 +151,11 @@ withPlutipContractEnv plutipCfg distr cont = do
       liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
         ", must be at least 1_000_000 Lovelace"
     bracket
-      (startPlutipCluster plutipCfg distrArray)
+      ( recovering defaultRetryPolicy
+          ([ \(RetryStatus { iterNumber }) _ -> pure (iterNumber < 10) ])
+          $ const
+          $ startPlutipCluster plutipCfg distrArray
+      )
       (const $ void $ stopPlutipCluster plutipCfg)
       cc
 
