@@ -34,7 +34,7 @@ import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple.Nested (type (/\), (/\))
--- import Data.UInt as UInt
+-- import Data.UInt (fromInt) as UInt
 import Effect (Effect)
 import Effect.Aff
   ( Milliseconds(Milliseconds)
@@ -60,6 +60,8 @@ main = launchAff_ $ runContract config do
         vhash
       setConfirmedAndAwaitRetrieve <- setBuilt (txIdToHex txId)
         (lovelaceToAda fee)
+      setStatus "pending"
+      awaitTxConfirmed txId
       setRetrieved <- setConfirmedAndAwaitRetrieve
       spendTxId /\ spendFee <- spendFromAlwaysSucceeds setStatus vhash validator
         txId
@@ -115,13 +117,13 @@ config = testnetLodeConfig
   -- the ones printed by `ngrok`:
   -- , ogmiosConfig = 
   --     { port: UInt.fromInt 443
-  --     , host: "857f-86-6-49-94.eu.ngrok.io"
+  --     , host: "8b7c-86-6-49-94.eu.ngrok.io"
   --     , secure: true
   --     , path: Nothing
   --     }
   -- , datumCacheConfig =
   --     { port: UInt.fromInt 443
-  --     , host: "bea2-86-6-49-94.eu.ngrok.io"
+  --     , host: "3b5d-86-6-49-94.eu.ngrok.io"
   --     , secure: true
   --     , path: Nothing
   --     }
@@ -153,8 +155,6 @@ payToAlwaysSucceeds log amount vhash = do
     (liftedM "fail" $ signTransaction $ unwrap balanced)
   log "submitting"
   txHash <- submit balancedSignedTx
-  log "pending"
-  awaitTxConfirmed txHash
   pure (txHash /\ getTxFinalFee balancedSignedTx)
 
 spendFromAlwaysSucceeds
