@@ -1,7 +1,7 @@
 "use strict";
 
 const mkRow = id => {
-  var template = document.createElement("template");
+  const template = document.createElement("template");
   template.innerHTML = `<tr class="table-warning">
   <td><samp>${id}</samp></td>
   <td>
@@ -24,7 +24,7 @@ const mkRow = id => {
 };
 
 const mkToast = (id, direction, amount, fee) => {
-  var to, from;
+  let to, from;
 
   if (direction == "TO_WALLET") {
     to = "wallet";
@@ -34,7 +34,7 @@ const mkToast = (id, direction, amount, fee) => {
     from = "wallet";
   }
 
-  var template = document.createElement("template");
+  const template = document.createElement("template");
   template.innerHTML = `<div class="toast fade">
   <div class="toast-header">
       <strong class="me-auto" style="white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
@@ -74,7 +74,7 @@ exports._onSend = cont => () => {
   formEl.addEventListener("submit", event => {
     event.preventDefault();
 
-    var currentStatusEl = statusEl;
+    let currentStatusEl = statusEl;
     function setStatus(status) {
       return function () {
         currentStatusEl.innerHTML = status;
@@ -113,13 +113,13 @@ exports._onSend = cont => () => {
 
         const toastEl = mkToast(txid, "TO_WALLET", input["ada-amount"], fee);
         const toast = toaster.insertAdjacentElement("beforeend", toastEl);
-        new bootstrap.Toast(toast).show();
+        new window.bootstrap.Toast(toast).show();
       };
 
       const onSent = cont => () => {
         const toastEl = mkToast(txid, "FROM_WALLET", input["ada-amount"], fee);
         const toast = toaster.insertAdjacentElement("beforeend", toastEl);
-        new bootstrap.Toast(toast).show();
+        new window.bootstrap.Toast(toast).show();
 
         row.main.classList.remove("table-warning");
         row.info.classList.remove("table-warning");
@@ -129,7 +129,7 @@ exports._onSend = cont => () => {
         rowRetrieveEl.hidden = false;
         rowRetrieveButton.disabled = false;
 
-        rowRetrieveButton.addEventListener("click", event => {
+        rowRetrieveButton.addEventListener("click", () => {
           row.main.classList.add("table-warning");
           row.info.classList.add("table-warning");
           rowRetrieveEl.hidden = true;
