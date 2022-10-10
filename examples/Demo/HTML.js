@@ -2,8 +2,7 @@
 
 const mkRow = id => {
   var template = document.createElement("template");
-  template.innerHTML =
-    `<tr class="table-warning">
+  template.innerHTML = `<tr class="table-warning">
   <td><samp>${id}</samp></td>
   <td>
   <button class="btn btn-primary btn-lg" type="button" disabled>
@@ -36,8 +35,7 @@ const mkToast = (id, direction, amount, fee) => {
   }
 
   var template = document.createElement("template");
-  template.innerHTML =
-    `<div class="toast fade">
+  template.innerHTML = `<div class="toast fade">
   <div class="toast-header">
       <strong class="me-auto" style="white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
         Tx Complete: ${id}
