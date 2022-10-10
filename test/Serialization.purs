@@ -10,11 +10,12 @@ import Ctl.Internal.Serialization (convertTxOutput, toBytes)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (fromString) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -116,6 +117,16 @@ suite = do
         txSerializedRoundtrip txFixture5
       test "Deserialization is inverse to serialization #6" $
         txSerializedRoundtrip txFixture6
+    group "BigNum tests" $ do
+      test "BigNum ok" $ do
+        let bn = "18446744073709551615"
+        BN.fromString bn `shouldSatisfy` isJust
+      test "BigNum overflow" $ do
+        let bn' = "18446744073709551616"
+        BN.fromString bn' `shouldSatisfy` isNothing
+      test "BigNum negative" $ do
+        let bnNeg = "-1"
+        BN.fromString bnNeg `shouldSatisfy` isNothing
 
 serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
