@@ -1071,7 +1071,7 @@ processConstraint mpsMap osMap = do
 
       _cpsToTxBody <<< _mint <>= map wrap mintVal
 
-    -- TODO: amir duplicate code here (similar to MustMintValue handler) that can be cleaned up
+    -- TODO: amir decide whether to split MustMintValue & MustMintValueUsingNativeScript
     MustMintValueUsingNativeScript nsHash tn i -> runExceptT do
       let mpHash = wrap <<< unwrap $ nsHash
       mp <- except $ lookupMintingPolicy mpHash mpsMap >>=

@@ -67,4 +67,3 @@ import Ctl.Internal.Types.TxConstraints
   , requiredSignatories
   , singleton
   ) as TxConstraints
-import Ctl.Internal.Types.TxConstraints (mustMintCurrencyUsingNativeScript)
