@@ -37,7 +37,12 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
-import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
+import Contract.Test.Plutip
+  ( InitialUTxOs
+  , runPlutipContract
+  , withPlutipContractEnv
+  , withStakeKey
+  )
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -66,7 +71,7 @@ import Contract.Wallet
   )
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (ask, asks)
-import Control.Parallel (parallel, sequential)
+import Control.Parallel (parTraverse_, parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
@@ -119,7 +124,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   , withCip30Mock
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
-import Data.Array (replicate, (!!))
+import Data.Array (replicate, zip, (!!))
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
@@ -159,7 +164,7 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
+    defaultConfig { timeout = Just $ wrap 250_000.0, exit = true }
     $ do
         suite
         UtxoDistribution.suite
@@ -1057,18 +1062,20 @@ suite = do
           getWalletBalance >>= flip shouldSatisfy
             (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
 
-  group "Load testing" do
-    test "load test #1: ODC and Ogmios" do
-      runPlutipContract config unit \_ -> do
-        env <- ask
-        fibers <- liftAff $ for (Array.range 0 100) $ const do
-          forkAff $ runContractInEnv env do
-            void $ getDatumByHash $ wrap $ hexToByteArrayUnsafe
-              "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
-            void getTip
-        liftAff do
-          delay $ wrap 20000.0
-          for_ fibers joinFiber
+  -- TODO
+  skip $ group "Load testing" do
+    let numWallets = 200
+    test ("should not fail for " <> show numWallets) do
+      let distributions = replicate numWallets [ BigInt.fromInt 20_000_000 ]
+      withPlutipContractEnv config distributions
+        \env wallets -> do
+          parTraverse_
+            ( \wallet -> do
+                runContractInEnv env $ withKeyWallet wallet do
+                  void $ getDatumByHash $ wrap $ hexToByteArrayUnsafe
+                    "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
+            )
+            wallets
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
