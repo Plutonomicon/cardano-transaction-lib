@@ -143,7 +143,7 @@ rec {
             ];
           };
         };
-        postgres = {
+        "postgres-${network.name}" = {
           service = {
             image = "postgres:13";
             ports =
@@ -168,7 +168,7 @@ rec {
               useHostStore = true;
               ports = [ (bindPort datumCache.port) ];
               restart = "on-failure";
-              depends_on = [ "postgres" "ogmios" ];
+              depends_on = [ "postgres-${network.name}" "ogmios" ];
               command = [
                 "${pkgs.bash}/bin/sh"
                 "-c"
@@ -181,7 +181,7 @@ rec {
                     --ogmios-address ogmios \
                     --ogmios-port ${toString ogmios.port} \
                     --db-port 5432 \
-                    --db-host postgres \
+                    --db-host postgres-${network.name} \
                     --db-user "${postgres.user}" \
                     --db-name "${postgres.db}" \
                     --db-password "${postgres.password}" \
