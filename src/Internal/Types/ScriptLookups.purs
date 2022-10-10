@@ -1,7 +1,33 @@
 module Ctl.Internal.Types.ScriptLookups
-  ( MkUnbalancedTxError(..)
-  , ScriptLookups(..)
-  , UnattachedUnbalancedTx(..)
+  ( MkUnbalancedTxError
+      ( CannotConvertPOSIXTimeRange
+      , CannotConvertPaymentPubKeyHash
+      , CannotFindDatum
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , CannotHashDatum
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotMakeValue
+      , CannotQueryDatum
+      , CannotSatisfyAny
+      , DatumNotFound
+      , DatumWrongHash
+      , MintingPolicyHashNotCurrencySymbol
+      , MintingPolicyNotFound
+      , MkTypedTxOutFailed
+      , ModifyTx
+      , OwnPubKeyAndStakeKeyMissing
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , TypeCheckFailed
+      , TypedTxOutHasNoDatumHash
+      , TypedValidatorMissing
+      , ValidatorHashNotFound
+      , WrongRefScriptHash
+      )
+  , ScriptLookups(ScriptLookups)
+  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , datum
   , generalise
   , mintingPolicy
@@ -12,8 +38,6 @@ module Ctl.Internal.Types.ScriptLookups
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  , paymentPubKey
-  , paymentPubKeyM
   , typedValidatorLookups
   , typedValidatorLookupsM
   , unspentOutputs
@@ -299,18 +323,6 @@ typedValidatorLookups tv@(TypedValidator inst) =
 typedValidatorLookupsM
   :: forall (a :: Type). TypedValidator a -> Maybe (ScriptLookups a)
 typedValidatorLookupsM = pure <<< typedValidatorLookups
-
-paymentPubKey
-  :: forall (a :: Type)
-   . Map PaymentPubKeyHash PaymentPubKey
-  -> ScriptLookups a
-paymentPubKey pk = over ScriptLookups _ { paymentPubKeyHashes = pk } mempty
-
-paymentPubKeyM
-  :: forall (a :: Type)
-   . Map PaymentPubKeyHash PaymentPubKey
-  -> Maybe (ScriptLookups a)
-paymentPubKeyM = pure <<< paymentPubKey
 
 -- FIX ME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/200
 -- | A script lookups value that uses the map of unspent outputs to resolve

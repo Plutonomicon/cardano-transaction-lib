@@ -1,3 +1,9 @@
+-- | This module demonstrates how the `Contract` interface can be used to build,
+-- | balance, and submit transactions. It creates two transactions: one that 
+-- | locks some Ada in a script address and one unlocks and claims the same Ada 
+-- | back to the owner's address by submitting a transaction that is signed by
+-- | the correct PublicKeyHash after the locking period has expired.
+
 module Ctl.Examples.Vesting (main, example, contract) where
 
 import Contract.Prelude

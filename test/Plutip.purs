@@ -163,18 +163,8 @@ main = launchAff_ do
   Utils.interpretWithConfig
     defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
     $ do
-        -- suite
-        -- UtxoDistribution.suite
-        group "Plutip" do
-          test "runPlutipContract: Examples.Vesting" do
-            let
-              distribution :: InitialUTxOs
-              distribution =
-                [ BigInt.fromInt 5_000_000
-                , BigInt.fromInt 2_000_000_000
-                ]
-            runPlutipContract config distribution \alice -> do
-              withKeyWallet alice Vesting.contract
+        suite
+        UtxoDistribution.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
