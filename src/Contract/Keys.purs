@@ -5,5 +5,5 @@ module Contract.Keys
 
 import Ctl.Internal.Cardano.Types.Transaction
   ( mkEd25519Signature
-  , mkPubKey
+  , mkPublicKey
   ) as Keys

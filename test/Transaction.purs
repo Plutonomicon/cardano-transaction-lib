@@ -11,7 +11,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
-  , mkPubKey
+  , mkPublicKey
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Helpers (fromRightEff)
@@ -159,7 +159,7 @@ testPreserveWitness = liftEffect $ do
   vk :: Vkeywitness
   vk = Vkeywitness
     ( Vkey
-        ( unsafePartial $ fromJust <<< mkPubKey $
+        ( unsafePartial $ fromJust <<< mkPublicKey $
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
         /\

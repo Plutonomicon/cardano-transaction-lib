@@ -123,7 +123,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
-  , mkPubKey
+  , mkPublicKey
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -1072,7 +1072,7 @@ witnessSetFixture2Value =
     , vkeys: Just
         [ Vkeywitness
             ( Vkey
-                ( unsafePartial $ fromJust $ mkPubKey
+                ( unsafePartial $ fromJust $ mkPublicKey
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
@@ -1141,7 +1141,7 @@ witnessSetFixture3Value =
     , vkeys: Just
         [ Vkeywitness
             ( Vkey
-                ( unsafePartial $ fromJust $ mkPubKey
+                ( unsafePartial $ fromJust $ mkPublicKey
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\

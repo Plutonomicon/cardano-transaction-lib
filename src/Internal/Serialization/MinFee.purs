@@ -85,7 +85,7 @@ addFakeSignatures selfSigners tx =
 fakeVkeywitness :: T.Vkeywitness
 fakeVkeywitness = T.Vkeywitness
   ( ( T.Vkey
-        ( unsafePartial $ fromJust $ T.mkPubKey
+        ( unsafePartial $ fromJust $ T.mkPublicKey
             -- This should not fail assuming the hardcoded bech32 key is valid.
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
