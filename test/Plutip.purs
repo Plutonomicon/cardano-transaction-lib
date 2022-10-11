@@ -79,6 +79,7 @@ import Ctl.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
+import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
@@ -758,6 +759,23 @@ suite = do
             validator
             txId
           eResult `shouldSatisfy` isLeft
+
+    test "runPlutipContract: IncludeDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- IncludeDatum.only42Script
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- IncludeDatum.payToIncludeDatum vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          IncludeDatum.spendFromIncludeDatum vhash validator txId
 
     test "runPlutipContract: AlwaysSucceeds PlutusV2" do
       let
