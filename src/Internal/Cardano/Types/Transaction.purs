@@ -34,7 +34,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
-  , mkPubKey
+  , mkPublicKey
   , mkFromCslPubKey
   , convertPubKey
   , Redeemer(Redeemer)
@@ -816,8 +816,8 @@ instance Show Vkey where
 
 newtype PublicKey = PublicKey RawBytes
 
-mkPubKey :: Bech32String -> Maybe PublicKey
-mkPubKey = map (PublicKey <<< bytesFromPublicKey) <<< publicKeyFromBech32
+mkPublicKey :: Bech32String -> Maybe PublicKey
+mkPublicKey = map (PublicKey <<< bytesFromPublicKey) <<< publicKeyFromBech32
 
 mkFromCslPubKey :: Serialization.PublicKey -> PublicKey
 mkFromCslPubKey = PublicKey <<< bytesFromPublicKey

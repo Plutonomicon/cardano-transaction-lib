@@ -27,7 +27,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
-  , mkPubKey
+  , mkPublicKey
   )
 import Ctl.Internal.Helpers ((<<>>))
 import Ctl.Internal.Types.Natural (fromInt', minus)
@@ -159,7 +159,7 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
   vk = Vkeywitness
     ( Vkey
         -- This should not fail assuming the hardcoded bech32 key is valid.
-        ( unsafePartial $ fromJust $ mkPubKey
+        ( unsafePartial $ fromJust $ mkPublicKey
             "ed25519_pk1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xsudjp4e"
         )
         /\

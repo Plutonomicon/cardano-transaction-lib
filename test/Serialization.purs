@@ -7,7 +7,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Transaction
   , convertPubKey
   , mkFromCslPubKey
-  , mkPubKey
+  , mkPublicKey
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
@@ -57,7 +57,7 @@ suite = do
         let
           pkStr =
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-          mPk = mkPubKey pkStr
+          mPk = mkPublicKey pkStr
 
         pk <- liftM
           (error $ "Failed to create PubKey from bech32string: " <> pkStr)
