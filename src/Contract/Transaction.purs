@@ -12,7 +12,7 @@ module Contract.Transaction
   , balanceTxM
   , balanceTxWithAdditionalUtxos
   , balanceTxWithAddress
-  , balanceTxWithAddressAndAdditionalUtxos
+  , balanceTxWithAddressesAndAdditionalUtxos
   , balanceTxsWithAddress
   , balanceTxsWithAddresses
   , balanceTxsWithAddressesAndAdditionalUtxos
@@ -314,15 +314,19 @@ submitE tx = do
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
+  -> UtxoMap
   -> Contract r (Either ExportQueryM.ClientError Coin)
-calculateMinFee = map (pure <<< toPlutusCoin)
-  <<< wrapContract
-  <<< QueryM.calculateMinFee
+calculateMinFee tx additionalUtxos = do
+  networkId <- asks $ unwrap >>> _.config >>> _.networkId
+  let additionalUtxos' = fromPlutusUtxoMap networkId additionalUtxos
+  map (pure <<< toPlutusCoin)
+    (wrapContract $ QueryM.calculateMinFee tx additionalUtxos')
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
-  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Coin)
-calculateMinFeeM = map hush <<< calculateMinFee
+  :: forall (r :: Row Type). Transaction -> UtxoMap -> Contract r (Maybe Coin)
+calculateMinFeeM tx additionalUtxos =
+  map hush $ calculateMinFee tx additionalUtxos
 
 -- | Helper to adapt to UsedTxOuts
 withUsedTxouts
@@ -339,9 +343,7 @@ balanceTxWithAdditionalUtxos
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTxWithAdditionalUtxos tx utxos = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
-  wrapContract $ BalanceTx.balanceTx
-    tx
-    (fromPlutusUtxoMap networkId utxos)
+  wrapContract $ BalanceTx.balanceTx tx (fromPlutusUtxoMap networkId utxos)
 
 -- | Attempts to balance an `UnattachedUnbalancedTx`.
 balanceTx
@@ -351,13 +353,13 @@ balanceTx
 balanceTx tx = balanceTxWithAdditionalUtxos tx Map.empty
 
 -- | Like `balanceTxWithAddress`, but uses an additional `UtxoMap`.
-balanceTxWithAddressAndAdditionalUtxos
+balanceTxWithAddressesAndAdditionalUtxos
   :: forall (r :: Row Type)
    . Array Address
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddressAndAdditionalUtxos ownAddresses tx utxos = do
+balanceTxWithAddressesAndAdditionalUtxos ownAddresses tx utxos = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
   wrapContract $ BalanceTx.balanceTxWithAddress
     (fromPlutusAddress networkId <$> ownAddresses)
@@ -370,8 +372,8 @@ balanceTxWithAddress
    . Array Address
   -> UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithAddress addr tx =
-  balanceTxWithAddressAndAdditionalUtxos addr tx Map.empty
+balanceTxWithAddress ownAddresses tx =
+  balanceTxWithAddressesAndAdditionalUtxos ownAddresses tx Map.empty
 
 -- Helper to avoid repetition
 withTransactions
@@ -474,7 +476,7 @@ balanceTxsWithAddressesAndAdditionalUtxos
   => Array Address
   -> t (UnattachedUnbalancedTx /\ UtxoMap)
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddressesAndAdditionalUtxos ownAddresses unbalancedTxs =
+balanceTxsWithAddressesAndAdditionalUtxos ownAddrs unbalancedTxs =
   unlockAllOnError $ traverse (uncurry balanceAndLock) unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
@@ -491,7 +493,7 @@ balanceTxsWithAddressesAndAdditionalUtxos ownAddresses unbalancedTxs =
   balanceAndLock unbalancedTx utxos = do
     networkId <- asks $ unwrap >>> _.config >>> _.networkId
     balancedTx <- liftedE $ wrapContract $ BalanceTx.balanceTxWithAddress
-      (fromPlutusAddress networkId <$> ownAddresses)
+      (fromPlutusAddress networkId <$> ownAddrs)
       unbalancedTx
       (fromPlutusUtxoMap networkId utxos)
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
@@ -507,8 +509,8 @@ balanceTxsWithAddresses
   => Array Address
   -> t UnattachedUnbalancedTx
   -> Contract r (t FinalizedTransaction)
-balanceTxsWithAddresses ownAddresses unbalancedTxs =
-  balanceTxsWithAddressesAndAdditionalUtxos ownAddresses $
+balanceTxsWithAddresses ownAddrs unbalancedTxs =
+  balanceTxsWithAddressesAndAdditionalUtxos ownAddrs $
     (flip (/\) $ Map.empty) <$> unbalancedTxs
 
 -- | Like `balanceTxs`, but uses an additional `UtxoMap`.

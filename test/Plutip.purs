@@ -26,7 +26,8 @@ import Contract.Monad
   , wrapContract
   )
 import Contract.PlutusData
-  ( PlutusData(Bytes, Integer)
+  ( Datum(Datum)
+  , PlutusData(Bytes, Integer, List)
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
@@ -35,7 +36,7 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, validatorHash)
+import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , runPlutipContract
@@ -46,10 +47,12 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
+  , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , awaitTxConfirmed
   , balanceAndSignTx
   , balanceAndSignTxE
   , balanceTx
+  , balanceTxWithAdditionalUtxos
   , getTxByHash
   , signTransaction
   , submit
@@ -94,6 +97,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
+import Ctl.Examples.TxChaining (createAdditionalUtxos) as TxChaining
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -126,7 +130,7 @@ import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
-import Data.Foldable (fold, foldM)
+import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
@@ -145,6 +149,13 @@ import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , fullyAppliedScriptFixture
+  , nativeScriptFixture1
+  , nativeScriptFixture2
+  , nativeScriptFixture3
+  , nativeScriptFixture4
+  , nativeScriptFixture5
+  , nativeScriptFixture6
+  , nativeScriptFixture7
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
@@ -154,7 +165,7 @@ import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils as Utils
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Plutip`
@@ -936,6 +947,208 @@ suite = do
             , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
             , txMetadata: cip25MetadataFixture1
             }
+
+  group "Evaluation with additional UTxOs and tx chaining" do
+    test "Evaluation with additional UTxOs with native scripts" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 150_000_000 ]
+
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+
+          wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
+          logInfo' $ "wUtxos0 " <> show wUtxos0
+
+          let
+            constraints0 :: TxConstraints Unit Unit
+            constraints0 =
+              Constraints.mustPayToPubKeyWithScriptRef
+                pkh
+                (NativeScriptRef nativeScriptFixture1)
+                (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture2)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture3)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture4)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture5)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture6)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+                <>
+                  Constraints.mustPayToPubKeyWithScriptRef
+                    pkh
+                    (NativeScriptRef nativeScriptFixture7)
+                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+
+            lookups0 :: Lookups.ScriptLookups PlutusData
+            lookups0 = Lookups.unspentOutputs wUtxos0
+
+          ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+          bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
+
+          additionalUtxos <- TxChaining.createAdditionalUtxos (unwrap bsTx0)
+          logInfo' $ "Additional UTXOS " <> show additionalUtxos
+          length additionalUtxos `shouldNotEqual` 0
+
+          let
+            constraints1 :: TxConstraints Unit Unit
+            constraints1 =
+              Constraints.mustPayToPubKey pkh
+                (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
+
+            lookups1 :: Lookups.ScriptLookups PlutusData
+            lookups1 = Lookups.unspentOutputs additionalUtxos
+
+          ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+          bTx1 <- liftedE $ balanceTxWithAdditionalUtxos ubTx1 additionalUtxos
+
+          bsTx1 <- liftedM "Unable to sign transaction."
+            $ signTransaction
+            $ unwrap bTx1
+
+          txId0 <- submit bsTx0
+          txId1 <- submit (wrap bsTx1)
+
+          awaitTxConfirmed txId0
+          awaitTxConfirmed txId1
+
+    test "Evaluation with additional UTxOs" do
+      -- We create two transactions. First, we create outputs with Ada, non-Ada 
+      -- assets, script reference with Plutus script v1 and v2, inline datum, 
+      -- and datum with its witness. Then, we take those outputs as additional 
+      -- utxos for the next transaction. After both transactions are balanced 
+      -- and signed, we submit them.
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 150_000_000 ]
+
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+
+          wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
+          logInfo' $ "wUtxos0 " <> show wUtxos0
+
+          mp <- alwaysMintsPolicyV2
+          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+          tn <- liftContractM "Cannot make token name"
+            $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
+
+          validatorV1 <- AlwaysSucceeds.alwaysSucceedsScript
+          validatorV2 <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+
+          let
+            value :: Value.Value
+            value =
+              (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
+
+            value' :: Value.Value
+            value' =
+              value
+                <> (Value.singleton cs tn $ BigInt.fromInt 50)
+
+            scriptRefV1 :: ScriptRef
+            scriptRefV1 = PlutusScriptRef (unwrap validatorV1)
+
+            scriptRefV2 :: ScriptRef
+            scriptRefV2 = PlutusScriptRef (unwrap validatorV2)
+
+            datum :: Datum
+            datum = Datum plutusData
+
+            datum' :: Datum
+            datum' = Datum plutusData'
+
+            plutusData :: PlutusData
+            plutusData = Integer $ BigInt.fromInt 31415927
+
+            plutusData' :: PlutusData
+            plutusData' =
+              List
+                [ Integer $ BigInt.fromInt 31415927
+                , Integer $ BigInt.fromInt 7295143
+                ]
+
+            constraints0 :: TxConstraints Unit Unit
+            constraints0 =
+              Constraints.mustPayToPubKeyWithDatumAndScriptRef
+                pkh
+                datum'
+                Constraints.DatumWitness
+                scriptRefV1
+                value
+                <>
+                  Constraints.mustPayToPubKeyWithDatumAndScriptRef
+                    pkh
+                    datum
+                    Constraints.DatumInline
+                    scriptRefV2
+                    value'
+                <> Constraints.mustMintCurrency
+                  (mintingPolicyHash mp)
+                  tn
+                  (BigInt.fromInt 50)
+
+          datumLookup <- liftContractM "Unable to create datum lookup" $
+            Lookups.datum datum'
+
+          let
+            lookups0 :: Lookups.ScriptLookups PlutusData
+            lookups0 = Lookups.unspentOutputs wUtxos0
+              <> Lookups.mintingPolicy mp
+              <> datumLookup
+
+          ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+          bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
+
+          additionalUtxos <- TxChaining.createAdditionalUtxos (unwrap bsTx0)
+          logInfo' $ "Additional UTXOS " <> show additionalUtxos
+          length additionalUtxos `shouldNotEqual` 0
+
+          let
+            constraints1 :: TxConstraints Unit Unit
+            constraints1 =
+              Constraints.mustPayToPubKey pkh
+                ( (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
+                    <> (Value.singleton cs tn $ BigInt.fromInt 50)
+                )
+
+            lookups1 :: Lookups.ScriptLookups PlutusData
+            lookups1 = Lookups.unspentOutputs additionalUtxos
+
+          ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+          bTx1 <- liftedE $ balanceTxWithAdditionalUtxos ubTx1 additionalUtxos
+
+          bsTx1 <- liftedM "Unable to sign transaction."
+            $ signTransaction
+            $ unwrap bTx1
+
+          txId0 <- submit bsTx0
+          txId1 <- submit (wrap bsTx1)
+
+          awaitTxConfirmed txId0
+          awaitTxConfirmed txId1
 
   group "applyArgs" do
     test "returns the same script when called without args" do
