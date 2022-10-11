@@ -161,10 +161,10 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
-    $ do
-        suite
-        UtxoDistribution.suite
+    defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
+    do
+      suite
+      UtxoDistribution.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
