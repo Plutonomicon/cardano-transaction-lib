@@ -36,6 +36,7 @@ module Contract.Address
 import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
+import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
@@ -125,7 +126,7 @@ import Ctl.Internal.Types.UnbalancedTransaction
 import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
-import Test.Ctl.Utils (assertTrue)
+import Effect.Exception (error)
 
 -- | Get the `Address` of the browser wallet.
 -- TODO: change this to Maybe (Array Address)
@@ -214,12 +215,13 @@ addressFromBech32
   :: forall (r :: Row Type). Bech32String -> Contract r Address
 addressFromBech32 str = do
   networkId <- getNetworkId
-  cslAddress <- liftContractM "unable to read address" $
+  cslAddress <- liftContractM "addressFromBech32: unable to read address" $
     SA.addressFromBech32 str
-  address <- liftContractM "unable to convert to plutus address" $
-    toPlutusAddress cslAddress
-  assertTrue "address has wrong Network Id"
-    (networkId == addressNetworkId cslAddress)
+  address <-
+    liftContractM "addressFromBech32: unable to convert to plutus address" $
+      toPlutusAddress cslAddress
+  when (networkId /= addressNetworkId cslAddress)
+    (throwError $ error "addressFromBech32: address has wrong NetworkId")
   pure address
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
