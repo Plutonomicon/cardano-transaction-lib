@@ -167,32 +167,36 @@ customDatumCacheWsConfig =
 
 Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for transactions and most of the steps are called individually. The general workflow in CTL is similar to the following:
 
-- Build a transaction using `Contract.ScriptLookups` and `Contract.TxConstraints` (it is also possible to directly build a `Transaction` if you require even greater low-level control over the process, although we recommend the constraints/lookups approach for most users):
+- Build a transaction using `Contract.ScriptLookups`, `Contract.TxConstraints` and `Contract.BalanceTxConstraints` (it is also possible to directly build a `Transaction` if you require even greater low-level control over the process, although we recommend the constraints/lookups approach for most users):
 
   ```purescript
   contract = do
     let
       constraints :: TxConstraints Unit Unit
-      constraints = TxConstraints.mustPayToScript vhash unitDatum
-          $ Value.lovelaceValueOf
-          $ BigInt.fromInt 2_000_000
+      constraints = 
+        TxConstraints.mustPayToScript vhash unitDatum
+          (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
       lookups :: ScriptLookups PlutusData
       lookups = ScriptLookups.validator validator
 
+      balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+      balanceTxConstraints =
+        BalanceTxConstraints.mustBalanceTxWithAddress address
+          <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
+        
     -- `liftedE` will throw a runtime exception on `Left`s
-    ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     ...
   ```
 
-- Sign it and balance it using `Contract.Transaction.balanceAndSignTx`:
+- Sign it and balance it using `Contract.Transaction.balanceAndSignTxWithConstraints` or `Contract.Transaction.balanceAndSignTx` (if you prefer to use the default balancer constraints):
 
   ```purescript
   contract = do
     ...
-    -- `liftedM` will throw on `Nothing`s
-    bsTx <-
-      liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+    balancedTx <- 
+      balanceAndSignTxWithConstraints (unbalancedTx /\ balanceTxConstraints)
     ...
   ```
 
@@ -201,7 +205,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   ```purescript
   contract = do
     ...
-    txId <- submit bsTx
+    txId <- submit balancedTx
     logInfo' $ "Tx ID: " <> show txId
   ```
 

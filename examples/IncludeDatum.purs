@@ -27,7 +27,7 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , balanceAndSignTxE
+  , balanceAndSignTx
   , lookupTxHash
   , plutusV1Script
   , submit
@@ -108,7 +108,7 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceAndSignTxE ubTx
+  bsTx <- balanceAndSignTx ubTx
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId

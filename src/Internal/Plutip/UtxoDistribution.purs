@@ -25,7 +25,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , balanceAndSignTxE
+  , balanceAndSignTx
   , signTransaction
   , submit
   )
@@ -192,8 +192,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    signedTx <- liftedE $ withKeyWallet ourWallet $
-      balanceAndSignTxE unbalancedTx
+    signedTx <- withKeyWallet ourWallet $ balanceAndSignTx unbalancedTx
     signedTx' <- foldM
       ( \tx { wallet } -> liftedM "Could not sign" $ withKeyWallet wallet $
           signTransaction tx
