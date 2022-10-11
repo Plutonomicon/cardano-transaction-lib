@@ -1,7 +1,6 @@
 module Ctl.Internal.BalanceTx
   ( module BalanceTxErrorExport
   , module FinalizedTransaction
-  , balanceTx
   , balanceTxWithConstraints
   ) where
 
@@ -131,14 +130,8 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 
--- | Balances an unbalanced transaction using the default constraints.
-balanceTx
-  :: UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx = balanceTxWithConstraints mempty
-
--- | Like `balanceTx`, but allows to specify constraints to be considered when
--- | balancing a transaction.
+-- | Balances an unbalanced transaction using the specified balancer 
+-- | constraints.
 balanceTxWithConstraints
   :: BalanceTxConstraintsBuilder
   -> UnattachedUnbalancedTx

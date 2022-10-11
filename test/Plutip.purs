@@ -48,7 +48,6 @@ import Contract.Transaction
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , awaitTxConfirmed
   , balanceAndSignTx
-  , balanceAndSignTxE
   , balanceTx
   , getTxByHash
   , signTransaction
@@ -397,8 +396,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- balanceAndSignTx ubTx
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -498,8 +496,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- balanceAndSignTx ubTx
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -564,8 +561,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: Datums" do
@@ -628,8 +624,7 @@ suite = do
                 <> Lookups.mintingPolicy mp3
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: SignMultiple" do
@@ -857,7 +852,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- liftedE $ balanceAndSignTxE ubTx
+          bsTx <- balanceAndSignTx ubTx
           submit bsTx >>= awaitTxConfirmed
 
           logInfo' "Attempt to lock value"
@@ -1134,8 +1129,7 @@ pkh2PkhContract pkh stakePkh = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <-
-    liftedE $ balanceAndSignTxE ubTx
+  bsTx <- balanceAndSignTx ubTx
   submitAndLog bsTx
 
 submitAndLog

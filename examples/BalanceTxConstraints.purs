@@ -149,7 +149,7 @@ contract (ContractParams p) = do
 
     balancedTx <-
       liftedE $ map unwrap <$>
-        balanceTxWithConstraints balanceTxConstraints unbalancedTx
+        balanceTxWithConstraints (unbalancedTx /\ balanceTxConstraints)
 
     balancedSignedTx <-
       foldM signWithWallet balancedTx [ p.aliceKeyWallet, p.bobKeyWallet ]
