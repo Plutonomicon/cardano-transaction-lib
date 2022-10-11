@@ -490,11 +490,13 @@ mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
--- | Takes a list of constraint lists and checks
--- | if ALL constraints in ANY of these sublists are satisfied.
--- | If all sublists fail, the function fails.
--- | So does not take into consideration constraints
--- | created with other functions like e.g. mustBeSignedBy.
+-- | Attempts to solve, in order, a sequence of constraints until the first
+-- | successful solve.
+-- | If all items in the sequence fail, this constraint will fail.
+-- | NOTE: 
+-- |  - Attempts are shallow, ALL constraints inside an item in this
+-- |    sequence must succeed.
+-- |  - Results from failed items in the sequence are discarded.
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
    . Foldable f
