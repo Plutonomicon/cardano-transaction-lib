@@ -251,7 +251,7 @@ type QueryConfig =
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
 
@@ -1135,14 +1135,14 @@ type Logger = LogLevel -> String -> Effect Unit
 
 mkLogger
   :: LogLevel
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Logger
 mkLogger logLevel mbCustomLogger level message =
   case mbCustomLogger of
     Nothing -> logString logLevel level message
     Just logger -> liftEffect do
       timestamp <- now
-      launchAff_ $ logger { level, message, tags: Map.empty, timestamp }
+      launchAff_ $ logger logLevel { level, message, tags: Map.empty, timestamp }
 
 getLogger :: QueryM Logger
 getLogger = do
