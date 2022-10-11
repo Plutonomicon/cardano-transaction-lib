@@ -1,9 +1,8 @@
 -- | Arbitrary precision natural numbers (backed by `BigInt`).
 module Contract.Numeric.Natural (module Natural) where
 
-import Types.Natural
-  ( (^-)
-  , Natural
+import Ctl.Internal.Types.Natural
+  ( Natural
   , binaryOnBigInt
   , fromBigInt
   , fromBigInt'
@@ -12,4 +11,5 @@ import Types.Natural
   , fromString
   , minus
   , toBigInt
+  , (^-)
   ) as Natural

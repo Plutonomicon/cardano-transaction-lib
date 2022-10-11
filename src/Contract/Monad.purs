@@ -1,6 +1,7 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
   ( Contract(Contract)
+  , ParContract
   , ContractEnv(ContractEnv)
   , ConfigParams
   , DefaultContractEnv
@@ -28,6 +29,7 @@ module Contract.Monad
 import Prelude
 
 import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -44,63 +46,70 @@ import Control.Monad.Reader.Class
   )
 import Control.Monad.Reader.Trans (runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus, empty)
+import Ctl.Internal.QueryM
+  ( DatumCacheListeners
+  , DatumCacheWebSocket
+  , DispatchIdMap
+  , Host
+  , ListenerSet
+  , Logger
+  , OgmiosListeners
+  , OgmiosWebSocket
+  , QueryConfig
+  , QueryEnv
+  , QueryM
+  , QueryMExtended
+  , QueryRuntime
+  , ServerConfig
+  , WebSocket
+  , defaultDatumCacheWsConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
+  , liftQueryM
+  , mkDatumCacheWebSocketAff
+  , mkHttpUrl
+  , mkLogger
+  , mkOgmiosWebSocketAff
+  , mkWsUrl
+  ) as QueryM
+import Ctl.Internal.QueryM
+  ( QueryConfig
+  , QueryEnv
+  , QueryM
+  , QueryMExtended
+  , ServerConfig
+  , liftQueryM
+  , mkQueryRuntime
+  , stopQueryRuntime
+  , withQueryRuntime
+  )
+import Ctl.Internal.QueryM.Logging (setupLogs)
+import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.Wallet.Spec (WalletSpec)
 import Data.Either (Either(Left, Right), either, hush)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Log.Tag
   ( TagSet
-  , tag
-  , intTag
-  , numberTag
   , booleanTag
+  , intTag
   , jsDateTag
+  , numberTag
+  , tag
   , tagSetTag
   ) as Log.Tag
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Profunctor (dimap)
 import Effect (Effect)
+import Effect.Aff (Aff, ParAff, try)
 import Effect.Aff (Aff, launchAff_) as Aff
-import Effect.Aff (Aff, try)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Prim.TypeError (class Warn, Text)
-import QueryM
-  ( DatumCacheListeners
-  , DatumCacheWebSocket
-  , DispatchIdMap
-  , Host
-  , ListenerSet
-  , OgmiosListeners
-  , OgmiosWebSocket
-  , ServerConfig
-  , WebSocket
-  , liftQueryM
-  , defaultDatumCacheWsConfig
-  , defaultOgmiosWsConfig
-  , defaultServerConfig
-  , mkDatumCacheWebSocketAff
-  , mkHttpUrl
-  , mkOgmiosWebSocketAff
-  , mkWsUrl
-  ) as QueryM
-import QueryM
-  ( QueryConfig
-  , QueryEnv
-  , QueryM
-  , QueryMExtended
-  , QueryRuntime
-  , Logger
-  , mkLogger
-  , mkQueryRuntime
-  , stopQueryRuntime
-  , withQueryRuntime
-  )
-import QueryM.Logging (setupLogs)
-import Serialization.Address (NetworkId)
-import Wallet.Spec (WalletSpec)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -121,7 +130,7 @@ import Wallet.Spec (WalletSpec)
 -- | All useful functions written in `QueryM` should be lifted into the
 -- | `Contract` monad and available in the same namespace. If anything is
 -- | missing, please contact us.
-newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r a)
+newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r Aff a)
 
 -- Many of these derivations of depending on the underlying `ReaderT` and
 -- asychronous effects,`Aff`.
@@ -149,6 +158,35 @@ instance MonadReader (ContractEnv r) (Contract r) where
   -- Use the underlying `local` after dimapping and unwrapping:
   local f contract = Contract $ local (dimap wrap unwrap f) (unwrap contract)
 
+instance Parallel (ParContract r) (Contract r) where
+  parallel :: Contract r ~> ParContract r
+  parallel = ParContract <<< parallel <<< unwrap
+  sequential :: ParContract r ~> Contract r
+  sequential (ParContract a) = wrap $ sequential a
+
+-- | The `ParContract` applicative is a newtype wrapper over `ParQueryM`, which
+-- | is a `ReaderT` on `QueryConfig` over _parallel_ asynchronous effects,
+-- | `ParAff`. As expected, it's `Applicative` instance combines effects in
+-- | parallel. It's similar in functionality to `Contract`, but it notably lacks
+-- | a `Monad` instance and all the associated monadic functionalities
+-- | (like `MonadThrow`, `MonadError`, etc). This datatype is a requirement for
+-- | the `Parallel` instance that `Contract` contains. As such, there is little
+-- | point in using it directly, since all the methods in `Control.Parallel`
+-- | can be run directly on `Contract`. Also, there are no functions for
+-- | directly executing a `ParContract`; all `ParContract`s must eventually
+-- | be converted to `Contract`s before execution.
+newtype ParContract (r :: Row Type) (a :: Type) = ParContract
+  (QueryMExtended r ParAff a)
+
+derive newtype instance Functor (ParContract r)
+derive newtype instance Apply (ParContract r)
+derive newtype instance Applicative (ParContract r)
+derive newtype instance Alt (ParContract r)
+derive newtype instance Plus (ParContract r)
+derive newtype instance Alternative (ParContract r)
+derive newtype instance Semigroup a => Semigroup (ParContract r a)
+derive newtype instance Monoid a => Monoid (ParContract r a)
+
 -- | `ContractEnv` is a trivial wrapper over `QueryEnv`.
 newtype ContractEnv (r :: Row Type) = ContractEnv (QueryEnv r)
 
@@ -168,7 +206,7 @@ type DefaultContractEnv = ContractEnv ()
 derive instance Newtype (ContractEnv r) _
 
 wrapContract :: forall (r :: Row Type) (a :: Type). QueryM a -> Contract r a
-wrapContract = wrap <<< QueryM.liftQueryM
+wrapContract = wrap <<< liftQueryM
 
 -- | Same as `ask`, but points to the user config record.
 askConfig
@@ -201,9 +239,9 @@ asksConfig f = do
 -- | contains multiple contracts that can be run in parallel, reusing the same
 -- | environment (see `withContractEnv`)
 type ConfigParams (r :: Row Type) =
-  { ogmiosConfig :: QueryM.ServerConfig
-  , datumCacheConfig :: QueryM.ServerConfig
-  , ctlServerConfig :: Maybe QueryM.ServerConfig
+  { ogmiosConfig :: ServerConfig
+  , datumCacheConfig :: ServerConfig
+  , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec

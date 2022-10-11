@@ -2,7 +2,7 @@
 -- | balance, and submit transactions. It creates two transactions: one that 
 -- | mints a token and one that sends that token to the owner's address.
 
-module Examples.SendsToken (main, example, contract) where
+module Ctl.Examples.SendsToken (main, example, contract) where
 
 import Contract.Prelude
 
@@ -17,8 +17,8 @@ import Contract.Transaction (TransactionHash, awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value as Value
-import Examples.AlwaysMints (alwaysMintsPolicy)
-import Examples.Helpers
+import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName

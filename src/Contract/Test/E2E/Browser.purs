@@ -7,16 +7,15 @@ module Contract.Test.E2E.Browser
 
 import Prelude
 
-import Contract.Test.E2E.WalletExt
-  ( WalletConfig(WalletConfig)
-  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt)
-  )
 import Contract.Test.E2E.Helpers
   ( WalletPassword(WalletPassword)
   )
-
-import Data.Foldable (fold)
+import Contract.Test.E2E.WalletExt
+  ( WalletConfig(WalletConfig)
+  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
+  )
 import Data.Array (catMaybes)
+import Data.Foldable (fold)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
@@ -28,7 +27,9 @@ import Node.Path (FilePath)
 import Options.Applicative
   ( Parser
   , execParser
+  , fullDesc
   , help
+  , info
   , long
   , metavar
   , option
@@ -37,8 +38,6 @@ import Options.Applicative
   , strOption
   , switch
   , value
-  , info
-  , fullDesc
   )
 import Toppokki as Toppokki
 
@@ -69,6 +68,18 @@ optParser = ado
     [ long "chrome-exe"
     , metavar "FILE"
     , help "Chrome/-ium exe (search in env if not set)"
+    , value Nothing
+    ]
+  eternlDir <- option (Just <$> str) $ fold
+    [ long "eternl-dir"
+    , metavar "DIR"
+    , help "Directory where Eternl is unpacked"
+    , value Nothing
+    ]
+  eternlPassword <- option (Just <<< WalletPassword <$> str) $ fold
+    [ long "eternl-password"
+    , metavar "PW"
+    , help "Eternl wallet password"
     , value Nothing
     ]
   namiDir <- option (Just <$> str) $ fold
@@ -136,6 +147,7 @@ optParser = ado
       , mkConfig GeroExt geroDir geroPassword
       , mkConfig FlintExt flintDir flintPassword
       , mkConfig LodeExt lodeDir lodePassword
+      , mkConfig EternlExt eternlDir eternlPassword
       ]
   in
     TestOptions
