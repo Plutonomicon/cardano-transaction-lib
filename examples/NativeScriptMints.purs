@@ -10,7 +10,6 @@ import Contract.Address
   , ownStakePubKeyHash
   )
 import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
@@ -48,12 +47,8 @@ contract = do
     constraints :: Constraints.TxConstraints Void Void
     constraints =
       Constraints.mustMintCurrencyUsingNativeScript
-        (nativeScriptHash $ nsPolicy pkh)
+        (nsPolicy pkh)
         tn $ BigInt.fromInt 100
-
-    {- Constraints.mustMintValue
-    $ Value.singleton cs tn
-    $ BigInt.fromInt 100 -}
 
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp

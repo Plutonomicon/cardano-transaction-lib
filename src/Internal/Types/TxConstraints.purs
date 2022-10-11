@@ -125,7 +125,7 @@ data TxConstraint
   | MustReferenceOutput TransactionInput
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
       (Maybe InputWithScriptRef)
-  | MustMintValueUsingNativeScript NativeScriptHash TokenName BigInt
+  | MustMintValueUsingNativeScript NativeScript TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
@@ -422,12 +422,12 @@ mustMintCurrency mph =
 
 mustMintCurrencyUsingNativeScript
   :: forall (i :: Type) (o :: Type)
-   . NativeScriptHash
+   . NativeScript
   -> TokenName
   -> BigInt
   -> TxConstraints i o
-mustMintCurrencyUsingNativeScript nsh tk i = singleton
-  (MustMintValueUsingNativeScript nsh tk i)
+mustMintCurrencyUsingNativeScript ns tk i = singleton
+  (MustMintValueUsingNativeScript ns tk i)
 
 mustMintCurrencyUsingScriptRef
   :: forall (i :: Type) (o :: Type)
