@@ -324,7 +324,7 @@ instance MonadLogger (QueryMExtended r Aff) where
     let
       logFunction =
         config # _.customLogger >>> fromMaybe
-          (logWithLevel config.customLogLevel)
+          (logWithLevel config.logLevel)
     liftAff $ logFunction msg
 
 -- Newtype deriving complains about overlapping instances, so we wrap and
@@ -1133,24 +1133,27 @@ mkRequest listeners' ws jsonWspCall getLs inp = do
   logger <- getLogger
   liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
 
-type Logger = LogLevel -> String -> Effect Unit
+-- | The second LogLevel is used to filter logs from the customLogger
+type Logger = LogLevel -> LogLevel -> String -> Effect Unit
 
 mkLogger
   :: LogLevel
+  -> LogLevel
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Logger
-mkLogger logLevel mbCustomLogger level message =
+mkLogger logLevel customLogLevel mbCustomLogger level message =
   case mbCustomLogger of
     Nothing -> logString logLevel level message
     Just logger -> liftEffect do
       timestamp <- now
-      launchAff_ $ logger { level, message, tags: Map.empty, timestamp }
+      launchAff_ $ logger customLogLevel { level, message, tags: Map.empty, timestamp }
 
 getLogger :: QueryM Logger
 getLogger = do
   logLevel <- asks $ _.config >>> _.logLevel
+  customLogLevel <- asks $ _.config >>> _.customLogLevel
   mbCustomLogger <- asks $ _.config >>> _.customLogger
-  pure $ mkLogger logLevel mbCustomLogger
+  pure $ mkLogger logLevel customLogLevel mbCustomLogger
 
 mkRequestAff
   :: forall (request :: Type) (response :: Type) (listeners :: Type)

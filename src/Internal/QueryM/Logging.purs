@@ -19,6 +19,7 @@ import Effect.Ref as Ref
 -- | Setup internal machinery for log suppression.
 setupLogs
   :: LogLevel
+  -> LogLevel
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Effect
        { addLogEntry :: Message -> Effect Unit
@@ -26,7 +27,7 @@ setupLogs
        , printLogs :: Effect Unit
        , suppressedLogger :: LogLevel -> String -> Effect Unit
        }
-setupLogs logLevel customLogger = do
+setupLogs logLevel customLogLevel customLogger = do
   -- Keep track of logs to show them only on error if `suppressLogs: true`
   logsRef <- liftEffect $ Ref.new Nil
   let
@@ -37,7 +38,7 @@ setupLogs logLevel customLogger = do
 
     -- Logger that is used to actually print messages
     logger :: Logger
-    logger = mkLogger logLevel customLogger
+    logger = mkLogger logLevel customLogLevel customLogger
 
     -- Looger that adds message to the queue, respecting LogLevel
     suppressedLogger :: Logger
