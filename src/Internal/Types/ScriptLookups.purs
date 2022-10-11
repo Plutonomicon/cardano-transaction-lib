@@ -87,6 +87,7 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM, (<\>))
 import Ctl.Internal.IsData (class IsData)
+import Ctl.Internal.NativeScripts (nativeScriptHash)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
   , fromPlutusValue
@@ -1012,6 +1013,9 @@ processConstraint mpsMap osMap = do
     MustReferenceOutput refInput -> runExceptT do
       _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
+      -- `isNative` is here in case MustMintValue is used with native script.
+      -- TODO: amir: perhaps handle this better such that instead of submission
+      -- error due to redeemer, it returns a suggestion to use `mustMintCurrencyUsingNativeScript`
       isNative <- case scriptRefUnspentOut of
         Nothing -> do
           mp <- except $ lookupMintingPolicy mpsHash mpsMap
@@ -1071,16 +1075,10 @@ processConstraint mpsMap osMap = do
 
       _cpsToTxBody <<< _mint <>= map wrap mintVal
 
-    -- TODO: amir decide whether to split MustMintValue & MustMintValueUsingNativeScript
-    MustMintValueUsingNativeScript nsHash tn i -> runExceptT do
-      let mpHash = wrap <<< unwrap $ nsHash
-      mp <- except $ lookupMintingPolicy mpHash mpsMap >>=
-        ( case _ of
-            PlutusMintingPolicy _ -> Left $ MintingPolicyNotFound mpHash -- TODO: amir: probably should not happen
-            NativeMintingPolicy ns -> pure ns
-        )
+    MustMintValueUsingNativeScript ns tn i -> runExceptT do
+      let mpHash = wrap <<< unwrap <<< nativeScriptHash $ ns
 
-      ExceptT $ attachToCps attachNativeScript mp
+      ExceptT $ attachToCps attachNativeScript ns
 
       cs <- liftM (MintingPolicyHashNotCurrencySymbol mpHash) (mpsSymbol mpHash)
       let value = mkSingletonValue' cs tn
