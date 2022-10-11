@@ -1,33 +1,17 @@
 -- | Tests for `ToData`/`FromData`
-module Test.Data (suite, tests, uniqueIndicesTests) where
+module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 
 import Prelude hiding (conj)
 
-import Aeson (decodeAeson, encodeAeson, JsonDecodeError(TypeMismatch))
+import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
-import Data.Generic.Rep as G
-import Data.List as List
-import Data.Maybe (maybe, Maybe(Just, Nothing), fromJust)
-import Data.Newtype (wrap)
-import Data.NonEmpty ((:|))
-import Data.Show.Generic (genericShow)
-import Data.Traversable (for_, traverse_)
-import Data.Tuple (Tuple, uncurry)
-import Data.Tuple.Nested ((/\))
-import Deserialization.FromBytes (fromBytes)
-import Deserialization.PlutusData as PDD
-import Effect.Aff (Aff)
-import Effect.Exception (Error)
-import FromData (class FromData, fromData, genericFromData)
-import Helpers (showWithParens)
-import Mote (group, test)
-import Partial.Unsafe (unsafePartial)
-import Plutus.Types.AssocMap (Map(Map))
-import Plutus.Types.DataSchema
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.PlutusData as PDD
+import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
+import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Plutus.Types.AssocMap (Map(Map))
+import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
@@ -35,23 +19,43 @@ import Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Serialization (toBytes)
-import Serialization.PlutusData as PDS
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization.PlutusData as PDS
+import Ctl.Internal.ToData (class ToData, genericToData, toData)
+import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.TypeLevel.RowList (class AllUniqueLabels)
+import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
+  ( class UniqueIndices
+  , ConsI
+  , NilI
+  )
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
+import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
+import Data.Generic.Rep as G
+import Data.List as List
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Newtype (wrap)
+import Data.NonEmpty ((:|))
+import Data.Show.Generic (genericShow)
+import Data.Traversable (for_, traverse_)
+import Data.Tuple (Tuple, uncurry)
+import Data.Tuple.Nested ((/\))
+import Effect.Aff (Aff)
+import Effect.Exception (Error)
+import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
+import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)
 import Test.QuickCheck.Combinators (conj)
 import Test.QuickCheck.Gen (frequency)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
-import TestM (TestPlanM)
-import ToData (class ToData, genericToData, toData)
 import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
-import TypeLevel.Nat (Z, S)
-import TypeLevel.RowList (class AllUniqueLabels)
-import TypeLevel.RowList.Unordered.Indexed (NilI, ConsI, class UniqueIndices)
-import Types.ByteArray (hexToByteArrayUnsafe)
-import Types.PlutusData (PlutusData(Constr, Integer))
 import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip

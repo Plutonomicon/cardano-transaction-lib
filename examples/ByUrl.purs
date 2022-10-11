@@ -1,48 +1,51 @@
-module Examples.ByUrl (main) where
+module Ctl.Examples.ByUrl (main) where
 
 import Prelude
 
 import Contract.Config
   ( ConfigParams
-  , testnetGeroConfig
-  , testnetNamiConfig
+  , testnetEternlConfig
   , testnetFlintConfig
+  , testnetGeroConfig
   , testnetLodeConfig
+  , testnetNamiConfig
   )
-import Contract.Prelude (fst, traverse_, uncurry)
 import Contract.Monad (Contract, runContract)
+import Contract.Prelude (fst, traverse_, uncurry)
 import Contract.Test.E2E (publishTestFeedback)
+import Contract.Wallet.Cip30Mock
+  ( WalletMock(MockFlint, MockGero, MockNami)
+  , withCip30Mock
+  )
+import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromString
   , privateStakeKeyFromString
   )
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.AlwaysMints as AlwaysMints
+import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.Datums as Datums
+import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Ctl.Examples.OneShotMinting as OneShotMinting
+import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
+import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
+import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
+import Ctl.Examples.SendsToken as SendsToken
+import Ctl.Examples.SignMultiple as SignMultiple
+import Ctl.Examples.Wallet as Wallet
 import Data.Array (last)
 import Data.Foldable (lookup)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (wrap)
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (delay, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (error)
-import Examples.AlwaysMints as AlwaysMints
-import Examples.AlwaysSucceeds as AlwaysSucceeds
-import Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
-import Examples.Datums as Datums
-import Examples.MintsMultipleTokens as MintsMultipleTokens
-import Examples.OneShotMinting as OneShotMinting
-import Examples.Pkh2Pkh as Pkh2Pkh
-import Examples.SendsToken as SendsToken
-import Examples.SignMultiple as SignMultiple
-import Examples.Wallet as Wallet
-import Wallet.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami)
-  , withCip30Mock
-  )
-import Wallet.Key (privateKeysToKeyWallet)
 
 foreign import _queryString :: Effect String
 
@@ -61,6 +64,8 @@ main = do
       config <- liftMaybe (error $ "unknown wallet name: " <> walletName) $
         lookup walletName wallets
       launchAff_ do
+        -- For Eternl, that does not initialize instantly
+        delay $ wrap 3000.0
         paymentKey <- liftMaybe (error "Unable to load private key") $
           privatePaymentKeyFromString paymentKeyStr
         let
@@ -87,6 +92,7 @@ wallets =
   [ "nami" /\ testnetNamiConfig
   , "gero" /\ testnetGeroConfig
   , "flint" /\ testnetFlintConfig
+  , "eternl" /\ testnetEternlConfig
   , "lode" /\ testnetLodeConfig
   , "nami-mock" /\ testnetNamiConfig
   , "gero-mock" /\ testnetGeroConfig
@@ -106,6 +112,7 @@ examples =
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
+  , "OneShotMintingV2" /\ OneShotMintingV2.contract
   ]
 
 -- Address is:

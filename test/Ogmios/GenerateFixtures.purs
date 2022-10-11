@@ -1,4 +1,4 @@
-module Test.Ogmios.GenerateFixtures
+module Test.Ctl.Ogmios.GenerateFixtures
   ( main
   ) where
 
@@ -7,8 +7,30 @@ import Prelude
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Helpers (logString)
+import Ctl.Internal.JsWebSocket
+  ( _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsClose
+  , _wsSend
+  )
+import Ctl.Internal.QueryM
+  ( WebSocket(WebSocket)
+  , defaultMessageListener
+  , defaultOgmiosWsConfig
+  , mkListenerSet
+  , mkRequestAff
+  , queryDispatch
+  )
+import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
+import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
+import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
+import Ctl.Internal.Types.MultiMap as MultiMap
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
+import Data.Map as Map
 import Data.Traversable (for_, traverse_)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\))
@@ -18,31 +40,9 @@ import Effect.Class (liftEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (Error)
 import Effect.Ref as Ref
-import Helpers (logString)
-import JsWebSocket
-  ( _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _wsSend
-  , _wsClose
-  )
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
-import QueryM
-  ( WebSocket(WebSocket)
-  , defaultMessageListener
-  , defaultOgmiosWsConfig
-  , mkListenerSet
-  , mkRequestAff
-  , queryDispatch
-  )
-import QueryM.JsonWsp (JsonWspCall)
-import QueryM.Ogmios (mkOgmiosCallType)
-import QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Types.MultiMap as MultiMap
-import Data.Map as Map
 
 -- A simple websocket for testing
 -- TODO Generalize websocket constructors using type classes traversing rows
