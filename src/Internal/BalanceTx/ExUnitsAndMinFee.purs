@@ -59,7 +59,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
 import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
-import Data.Bifunctor (lmap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right))
 import Data.Lens.Getter ((^.))
@@ -80,7 +80,7 @@ evalTxExecutionUnits
   -> UnattachedUnbalancedTx
   -> UtxoMap
   -> BalanceTxM Ogmios.TxEvaluationResult
-evalTxExecutionUnits tx unattachedTx utxos = do
+evalTxExecutionUnits tx unattachedTx additionalUtxos = do
   txBytes <- liftEffect
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
@@ -93,14 +93,11 @@ evalTxExecutionUnits tx unattachedTx utxos = do
     Left _ -> pure $ wrap $ Map.empty
   where
   additionalUtxoSet :: Ogmios.AdditionalUtxoSet
-  additionalUtxoSet = Ogmios.AdditionalUtxoSet $ Map.fromFoldable utxos'
-
-  utxos' :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
-  utxos' =
-    ( \(inp /\ out) ->
-        (transactionInputToTxOutRef inp /\ transactionOutputToOgmiosTxOut out)
+  additionalUtxoSet = Ogmios.AdditionalUtxoSet $ Map.fromFoldable
+    ( ( bimap transactionInputToTxOutRef transactionOutputToOgmiosTxOut
+          <$> Map.toUnfoldable additionalUtxos
+      ) :: Array (Ogmios.OgmiosTxOutRef /\ Ogmios.OgmiosTxOut)
     )
-      <$> Map.toUnfoldable utxos
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
@@ -131,7 +128,9 @@ evalExUnitsAndMinFee
   FinalizedTransaction finalizedTx <- lift $
     finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
-  minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
+  minFee <-
+    ExceptT $ QueryM.calculateMinFee finalizedTx additionalUtxos
+      <#> pure <<< unwrap
   pure $ reindexedUnattachedTxWithExUnits /\ minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
