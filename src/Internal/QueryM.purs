@@ -252,7 +252,7 @@ type QueryConfig =
   , logLevel :: LogLevel
   , customLogLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
 
@@ -1137,7 +1137,7 @@ type Logger = LogLevel -> String -> Effect Unit
 
 mkLogger
   :: LogLevel
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Logger
 mkLogger logLevel mbCustomLogger level message =
   case mbCustomLogger of

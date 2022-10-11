@@ -19,7 +19,7 @@ import Effect.Ref as Ref
 -- | Setup internal machinery for log suppression.
 setupLogs
   :: LogLevel
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Effect
        { addLogEntry :: Message -> Effect Unit
        , logger :: LogLevel -> String -> Effect Unit
