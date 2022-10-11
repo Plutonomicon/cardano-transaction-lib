@@ -336,6 +336,15 @@
               make check-format
               touch $out
             '';
+          template-deps-json = pkgs.runCommand "template-deps-check"
+            {
+              ctlPackageJson = builtins.readFile ../package.json;
+              ctlScaffoldPackageJson = builtins.readFile ../templates/ctl-scaffold/package.json;
+              nativeBuildInputs = [ pkgs.jq ];
+            } ''
+            diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+            touch $out
+          '';
         });
 
       check = perSystem (system:
