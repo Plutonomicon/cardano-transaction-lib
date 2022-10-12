@@ -370,7 +370,8 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
     changeValue = (unwrap txChangeOutput).amount
 
     requiredInputValue :: Value
-    requiredInputValue = nonMintedValue <> minFeeValue txBody <> changeValue
+    requiredInputValue =
+      nonMintedValue <> minFeeValue txBody <> changeValue
 
   newTxInputs <-
     except $ collectTransactionInputs txInputs utxos requiredInputValue

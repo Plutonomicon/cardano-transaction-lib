@@ -49,6 +49,7 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
+import Contract.Hashing (plutusScriptHash)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
@@ -57,12 +58,14 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Costmdls
+  ( Certificate(StakeRegistration)
+  , Costmdls
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody
   , _body
+  , _certs
   , _inputs
   , _isValid
   , _mint
@@ -77,6 +80,7 @@ import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Ctl.Internal.Cardano.Types.Value
   ( CurrencySymbol
   , Value
+  , coinToValue
   , getNonAdaAsset
   , isZero
   , mkSingletonValue'
@@ -85,7 +89,7 @@ import Ctl.Internal.Cardano.Types.Value
   , split
   )
 import Ctl.Internal.Hashing (datumHash) as Hashing
-import Ctl.Internal.Helpers (liftM, (<\>))
+import Ctl.Internal.Helpers (liftM, liftedM, (<\>))
 import Ctl.Internal.IsData (class IsData)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
@@ -95,6 +99,7 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
+import Ctl.Internal.Plutus.Types.Value as Plutus
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
@@ -105,7 +110,12 @@ import Ctl.Internal.Scripts
   , validatorHash
   , validatorHashEnterpriseAddress
   )
-import Ctl.Internal.Serialization.Address (Address, NetworkId)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId
+  , keyHashCredential
+  , scriptHashCredential
+  )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Transaction
@@ -133,7 +143,9 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
+import Ctl.Internal.Types.Redeemer (unitRedeemer)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
+import Ctl.Internal.Types.RedeemerTag as T
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -163,6 +175,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustSpendNativeScriptOutput
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
+      , MustRegisterStakePubKey
       , MustValidateIn
       )
   , TxConstraints(TxConstraints)
@@ -196,7 +209,7 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
+import Data.Lens (non, (%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -1092,6 +1105,34 @@ processConstraint mpsMap osMap = do
       let mdh = Hashing.datumHash dt
       if mdh == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
+    MustRegisterStakePubKey skh -> runExceptT do
+      let
+        cert = StakeRegistration $ keyHashCredential $ unwrap $ unwrap skh
+      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+      -- cps <- get
+      -- let
+      --   lookups = cps.lookups
+      -- pkh <- liftM CannotSatisfyAny (unwrap lookups).ownPaymentPubKeyHash
+      pparams <- asks $ _.runtime >>> _.pparams
+      -- let skh2 = (unwrap lookups).ownStakePubKeyHash
+      _valueSpentBalancesOutputs <>= provideValue
+        ( coinToValue (unwrap pparams).stakeAddressDeposit
+        )
+    MustRegisterStakeScript script redeemerDatum -> runExceptT do
+      let
+        cert = StakeRegistration $ scriptHashCredential $ plutusScriptHash $
+          unwrap script
+        redeemer =
+          T.Redeemer
+            { tag: T.Cert
+            , index: zero -- hardcoded and tweaked after balancing.
+            , data: unwrap redeemerDatum
+            , exUnits: zero
+            }
+      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+      ExceptT $ attachToCps attachRedeemer redeemer
+      ExceptT $ attachToCps attachPlutusScript $ unwrap script
+
     MustSatisfyAnyOf xs -> do
       cps <- get
       let

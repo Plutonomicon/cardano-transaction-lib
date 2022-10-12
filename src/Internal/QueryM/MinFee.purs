@@ -3,18 +3,21 @@ module Ctl.Internal.QueryM.MinFee (calculateMinFee) where
 import Prelude
 
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
+  ( Certificate(StakeRegistration)
+  , Transaction
   , UtxoMap
   , _body
+  , _certs
   , _collateral
   , _inputs
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Coin)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.QueryM (QueryM, getWalletAddresses)
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
@@ -26,10 +29,12 @@ import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable)
+import Data.BigInt as BigInt
+import Data.Foldable (fold, sum)
 import Data.Lens.Getter ((^.))
 import Data.Map (empty, fromFoldable, lookup) as Map
 import Data.Maybe (fromMaybe, maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable, intersection, union) as Set
 import Data.Traversable (for)
@@ -41,7 +46,23 @@ calculateMinFee :: Transaction -> QueryM Coin
 calculateMinFee tx = do
   selfSigners <- getSelfSigners tx
   pparams <- getProtocolParameters
+  stakeCertsFee <- getStakeCertsFee tx pparams
   calculateMinFeeCsl pparams selfSigners tx
+    <#> unwrap >>> add (unwrap stakeCertsFee) >>> wrap
+
+getStakeCertsFee :: Transaction -> ProtocolParameters -> QueryM Coin
+getStakeCertsFee tx pparams = do
+  let
+    fee :: BigInt.BigInt
+    fee =
+      (tx ^. _body <<< _certs) # fold
+        >>> map
+          ( \(cert :: _) -> case cert of
+              StakeRegistration _ -> unwrap (unwrap pparams).stakeAddressDeposit
+              _ -> zero
+          )
+        >>> sum
+  pure $ Coin fee
 
 getSelfSigners :: Transaction -> QueryM (Set Ed25519KeyHash)
 getSelfSigners tx = do
