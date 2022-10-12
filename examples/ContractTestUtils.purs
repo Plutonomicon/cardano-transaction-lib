@@ -39,7 +39,7 @@ import Contract.Transaction
   , TransactionHash
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
-  , balanceAndSignTxE
+  , balanceAndSignTx
   , getTxFinalFee
   , lookupTxHash
   , submit
@@ -154,7 +154,7 @@ contract params@(ContractParams p) = do
   void $ TestUtils.withAssertions assertions do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
-    balancedSignedTx <- liftedE $ balanceAndSignTxE unbalancedTxWithMetadata
+    balancedSignedTx <- balanceAndSignTx unbalancedTxWithMetadata
 
     txId <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txId
