@@ -38,6 +38,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , SubCoin
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
+  , PoolRegistrationParams
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , URL(URL)
@@ -574,21 +575,23 @@ instance EncodeAeson MoveInstantaneousReward where
     ToOtherPot r -> encodeAeson' $ encodeTagged' "ToOtherPot" r
     ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
 
+type PoolRegistrationParams =
+  { operator :: Ed25519KeyHash
+  , vrfKeyhash :: VRFKeyHash
+  , pledge :: BigNum
+  , cost :: BigNum -- >= pparams.minPoolCost
+  , margin :: UnitInterval
+  , rewardAccount :: RewardAddress
+  , poolOwners :: Array Ed25519KeyHash
+  , relays :: Array Relay
+  , poolMetadata :: Maybe PoolMetadata
+  }
+
 data Certificate
   = StakeRegistration StakeCredential
   | StakeDeregistration StakeCredential
   | StakeDelegation StakeCredential Ed25519KeyHash
-  | PoolRegistration
-      { operator :: Ed25519KeyHash
-      , vrfKeyhash :: VRFKeyHash
-      , pledge :: BigNum
-      , cost :: BigNum
-      , margin :: UnitInterval
-      , rewardAccount :: RewardAddress
-      , poolOwners :: Array Ed25519KeyHash
-      , relays :: Array Relay
-      , poolMetadata :: Maybe PoolMetadata
-      }
+  | PoolRegistration PoolRegistrationParams
   | PoolRetirement
       { poolKeyhash :: Ed25519KeyHash
       , epoch :: Epoch

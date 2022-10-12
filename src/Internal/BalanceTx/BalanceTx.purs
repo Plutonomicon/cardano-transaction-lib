@@ -64,11 +64,13 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
+  ( Certificate(StakeRegistration)
+  , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , UtxoMap
   , _body
+  , _certs
   , _fee
   , _inputs
   , _mint
@@ -78,6 +80,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , Value
+  , coinToValue
   , geq
   , getNonAdaAsset
   , minus
@@ -106,8 +109,9 @@ import Ctl.Internal.Wallet (cip30Wallet)
 import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
-import Data.Foldable (foldMap, foldl, foldr)
+import Data.Foldable (fold, foldMap, foldl, foldr, sum)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
@@ -141,8 +145,12 @@ balanceTxWithAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
+  pparams <- asks $ _.runtime >>> _.pparams
   changeAddr <- liftMaybe CouldNotGetWalletAddress $ head ownAddrs
-
+  let
+    depositValuePerCert = (unwrap pparams).stakeAddressDeposit
+    certsFee = getStakeCertsFee (unbalancedTx ^. _transaction')
+      depositValuePerCert
   utxos <- ExceptT $ traverse utxosAt ownAddrs <#>
     traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
 
@@ -168,7 +176,7 @@ balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
   -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos changeAddr
+  ExceptT $ runBalancer availableUtxos changeAddr certsFee
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
@@ -204,9 +212,10 @@ type Iteration = Int
 runBalancer
   :: UtxoMap
   -> ChangeAddress
+  -> Coin
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-runBalancer utxos changeAddress =
+runBalancer utxos changeAddress certsFee =
   runExceptT <<<
     (mainLoop one zero <=< addLovelacesToTransactionOutputs)
   where
@@ -229,6 +238,7 @@ runBalancer utxos changeAddress =
     let
       prebalancedTx =
         addTransactionChangeOutput changeAddress utxos unbalancedTxWithInputs
+          certsFee
 
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
@@ -305,8 +315,9 @@ buildTransactionChangeOutput
   :: ChangeAddress
   -> UtxoMap
   -> UnattachedUnbalancedTx
+  -> Coin
   -> TransactionChangeOutput
-buildTransactionChangeOutput changeAddress utxos tx =
+buildTransactionChangeOutput changeAddress utxos tx certsFee =
   let
     txBody :: TxBody
     txBody = tx ^. _body'
@@ -317,7 +328,10 @@ buildTransactionChangeOutput changeAddress utxos tx =
     changeValue :: Value
     changeValue = posValue $
       (totalInputValue <> mintValue txBody)
-        `minus` (totalOutputValue txBody <> minFeeValue txBody)
+        `minus`
+          ( totalOutputValue txBody <> minFeeValue txBody <> coinToValue
+              certsFee
+          )
   in
     TransactionOutput
       { address: changeAddress
@@ -330,10 +344,27 @@ addTransactionChangeOutput
   :: ChangeAddress
   -> UtxoMap
   -> UnattachedUnbalancedTx
+  -> Coin
   -> PrebalancedTransaction
-addTransactionChangeOutput changeAddress utxos unbalancedTx =
+addTransactionChangeOutput changeAddress utxos unbalancedTx certsFee =
   PrebalancedTransaction $ unbalancedTx # _body' <<< _outputs %~
-    Array.cons (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
+    Array.cons
+      (buildTransactionChangeOutput changeAddress utxos unbalancedTx certsFee)
+
+getStakeCertsFee :: Transaction -> Coin -> Coin
+getStakeCertsFee tx cost =
+  let
+    fee :: BigInt.BigInt
+    fee =
+      (tx ^. _body <<< _certs) # fold
+        >>> map
+          ( \(cert :: _) -> case cert of
+              StakeRegistration _ -> unwrap cost
+              _ -> zero
+          )
+        >>> sum
+  in
+    Coin fee
 
 -- | Selects a combination of unspent transaction outputs from the wallet's
 -- | utxo set so that the total input value is sufficient to cover all
@@ -349,12 +380,19 @@ addTransactionInputs
   -> UnattachedUnbalancedTx
   -> BalanceTxM UnattachedUnbalancedTx
 addTransactionInputs changeAddress utxos unbalancedTx = do
+  pparams <- asks $ _.runtime >>> _.pparams
   let
     txBody :: TxBody
     txBody = unbalancedTx ^. _body'
 
     txInputs :: Set TransactionInput
     txInputs = txBody ^. _inputs
+
+    depositValuePerCert = (unwrap pparams).stakeAddressDeposit
+
+    certsFee = getStakeCertsFee (unbalancedTx ^. _transaction')
+      depositValuePerCert
+    depositsValue = coinToValue certsFee
 
     nonMintedValue :: Value
     nonMintedValue = totalOutputValue txBody `minus` mintValue txBody
@@ -363,15 +401,15 @@ addTransactionInputs changeAddress utxos unbalancedTx = do
     (_.runtime >>> _.pparams >>> unwrap >>> _.coinsPerUtxoUnit)
   txChangeOutput <-
     addLovelacesToTransactionOutput coinsPerUtxoUnit
-      (buildTransactionChangeOutput changeAddress utxos unbalancedTx)
-
+      (buildTransactionChangeOutput changeAddress utxos unbalancedTx certsFee)
   let
+
     changeValue :: Value
     changeValue = (unwrap txChangeOutput).amount
 
     requiredInputValue :: Value
     requiredInputValue =
-      nonMintedValue <> minFeeValue txBody <> changeValue
+      nonMintedValue <> minFeeValue txBody <> changeValue <> depositsValue
 
   newTxInputs <-
     except $ collectTransactionInputs txInputs utxos requiredInputValue

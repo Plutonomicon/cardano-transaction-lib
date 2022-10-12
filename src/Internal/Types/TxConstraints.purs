@@ -20,6 +20,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustHashDatum
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
+      , MustRegisterPool
       , MustSatisfyAnyOf
       , MustNotBeValid
       )
@@ -71,6 +72,7 @@ import Prelude hiding (join)
 
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
+import Ctl.Internal.Cardano.Types.Transaction (PoolRegistrationParams)
 import Ctl.Internal.NativeScripts (NativeScriptHash)
 import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
@@ -91,8 +93,7 @@ import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicyHash
-  , StakeValidator(StakeValidator)
-  , StakeValidatorHash(StakeValidatorHash)
+  , StakeValidator
   , ValidatorHash
   )
 import Ctl.Internal.Types.TokenName (TokenName)
@@ -139,6 +140,7 @@ data TxConstraint
   | MustPayToScript ValidatorHash Datum DatumPresence (Maybe ScriptRef) Value
   | MustHashDatum DataHash Datum
   | MustRegisterStakePubKey StakePubKeyHash
+  | MustRegisterPool PoolRegistrationParams
   | MustRegisterStakeScript StakeValidator Redeemer
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
@@ -619,6 +621,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendScriptOutput _ _ _ -> true
       MustRegisterStakePubKey _ -> true
       MustRegisterStakeScript _ _ -> true
+      MustRegisterPool _ -> true
       MustValidateIn _ -> false
 
   in
