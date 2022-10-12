@@ -176,6 +176,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
       , MustRegisterStakePubKey
+      , MustRegisterStakeScript
       , MustValidateIn
       )
   , TxConstraints(TxConstraints)
@@ -1132,7 +1133,8 @@ processConstraint mpsMap osMap = do
       _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
       ExceptT $ attachToCps attachRedeemer redeemer
       ExceptT $ attachToCps attachPlutusScript $ unwrap script
-
+    MustRegisterPool _ -> runExceptT do
+      pure unit
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
