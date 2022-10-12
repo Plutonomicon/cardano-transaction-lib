@@ -7,12 +7,12 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (catchJust, liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Logger.Class (trace) as Logger
+import Control.Monad.Logger.Class (trace, warn) as Logger
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
-  , SelectionStrategy(SelectionStrategyOptimal)
+  , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , _leftoverUtxos
   , performMultiAssetSelection
   , selectedInputs
@@ -36,6 +36,7 @@ import Ctl.Internal.BalanceTx.Error
       , CouldNotGetWalletAddresses
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
+      , InsufficientUtxoBalanceToCoverAsset
       , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
@@ -48,6 +49,7 @@ import Ctl.Internal.BalanceTx.Error
       ( CouldNotGetCollateral
       , CouldNotGetUtxos
       , CouldNotGetWalletAddresses
+      , InsufficientUtxoBalanceToCoverAsset
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
       )
@@ -177,7 +179,7 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx =
     availableUtxos <- liftQueryM $ filterLockedUtxos allUtxos
 
     -- Balance and finalize the transaction:
-    runBalancer availableUtxos changeAddr
+    runBalancer SelectionStrategyOptimal availableUtxos changeAddr
       (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
@@ -207,11 +209,12 @@ type BalancerState =
   }
 
 runBalancer
-  :: UtxoMap
+  :: SelectionStrategy
+  -> UtxoMap
   -> Address
   -> UnattachedUnbalancedTx
   -> BalanceTxM FinalizedTransaction
-runBalancer utxos changeAddress unbalancedTx' = do
+runBalancer strategy utxos changeAddress unbalancedTx' = do
   spendableUtxos <- getSpendableUtxos
   addLovelacesToTransactionOutputs unbalancedTx'
     >>= ((\tx -> mkBalancerState tx mempty spendableUtxos) >>> prebalanceTx)
@@ -239,26 +242,49 @@ runBalancer utxos changeAddress unbalancedTx' = do
   prebalanceTx state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
     logBalancerState "Pre-balancing (Stage 1)" utxos state
 
-    selectionState <-
-      performCoinSelection
-        (setTxChangeOutputs changeOutputs unbalancedTx ^. _body')
-    let
-      leftoverUtxos' :: UtxoMap
-      leftoverUtxos' = selectionState ^. _leftoverUtxos
+    performCoinSelection >>= case _ of
+      Nothing ->
+        runBalancer SelectionStrategyMinimal utxos changeAddress unbalancedTx'
 
-      selectedInputs' :: Set TransactionInput
-      selectedInputs' = selectedInputs selectionState
+      Just selectionState ->
+        let
+          leftoverUtxos' :: UtxoMap
+          leftoverUtxos' = selectionState ^. _leftoverUtxos
 
-      unbalancedTxWithInputs :: UnattachedUnbalancedTx
-      unbalancedTxWithInputs =
-        unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
+          selectedInputs' :: Set TransactionInput
+          selectedInputs' = selectedInputs selectionState
 
-    runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
+          unbalancedTxWithInputs :: UnattachedUnbalancedTx
+          unbalancedTxWithInputs =
+            unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
+        in
+          runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
     where
-    performCoinSelection :: TxBody -> BalanceTxM SelectionState
-    performCoinSelection txBody =
-      except (getRequiredValue utxos txBody)
-        >>= performMultiAssetSelection SelectionStrategyOptimal leftoverUtxos
+    performCoinSelection :: BalanceTxM (Maybe SelectionState)
+    performCoinSelection = do
+      let
+        txBody :: TxBody
+        txBody = setTxChangeOutputs changeOutputs unbalancedTx ^. _body'
+
+        worker :: Value -> BalanceTxM (Maybe SelectionState)
+        worker = map Just <<< performMultiAssetSelection strategy leftoverUtxos
+
+        exception :: BalanceTxError -> Maybe BalanceTxError
+        exception err@(InsufficientUtxoBalanceToCoverAsset _) = Just err
+        exception _ = Nothing
+
+      requiredValue <- except $ getRequiredValue utxos txBody
+
+      case strategy of
+        SelectionStrategyMinimal ->
+          worker requiredValue
+
+        SelectionStrategyOptimal ->
+          catchJust exception (worker requiredValue) \e -> do
+            Logger.warn ("Exception" `tag` e)
+              "Multi-asset coin selection using the `Optimal` strategy failed. \
+              \Switching to the `Minimal` strategy as a fallback."
+            pure Nothing
 
   balanceChangeAndMinFee :: BalancerState -> BalanceTxM FinalizedTransaction
   balanceChangeAndMinFee
@@ -405,6 +431,9 @@ mkBalancerState
 mkBalancerState unbalancedTx changeOutputs leftoverUtxos =
   { unbalancedTx, changeOutputs, leftoverUtxos }
 
+tag :: forall (a :: Type). Show a => String -> a -> TagSet
+tag title = TagSet.tag title <<< show
+
 logBalancerState :: String -> UtxoMap -> BalancerState -> BalanceTxM Unit
 logBalancerState message utxos { unbalancedTx, changeOutputs } =
   logTransactionWithChange message utxos (Just changeOutputs) unbalancedTx
@@ -424,9 +453,6 @@ logTransactionWithChange message utxos mChangeOutputs unbalancedTx =
   let
     txBody :: TxBody
     txBody = unbalancedTx ^. _body'
-
-    tag :: forall (a :: Type). Show a => String -> a -> TagSet
-    tag title = TagSet.tag title <<< show
 
     outputValuesTagSet :: Maybe (Array TransactionOutput) -> Array TagSet
     outputValuesTagSet Nothing =
