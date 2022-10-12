@@ -18,6 +18,8 @@ module Ctl.Internal.Types.TxConstraints
       , MustPayToScript
       , MustPayToNativeScript
       , MustHashDatum
+      , MustRegisterStakePubKey
+      , MustRegisterStakeScript
       , MustSatisfyAnyOf
       , MustNotBeValid
       )
@@ -48,6 +50,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
+  , mustRegisterStakePubKey
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -86,7 +89,12 @@ import Ctl.Internal.Types.Interval
   )
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
-import Ctl.Internal.Types.Scripts (MintingPolicyHash, ValidatorHash)
+import Ctl.Internal.Types.Scripts
+  ( MintingPolicyHash
+  , StakeValidator(StakeValidator)
+  , StakeValidatorHash(StakeValidatorHash)
+  , ValidatorHash
+  )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
 import Data.Array (concat, (:))
@@ -130,6 +138,8 @@ data TxConstraint
   | MustPayToNativeScript NativeScriptHash Value
   | MustPayToScript ValidatorHash Datum DatumPresence (Maybe ScriptRef) Value
   | MustHashDatum DataHash Datum
+  | MustRegisterStakePubKey StakePubKeyHash
+  | MustRegisterStakeScript StakeValidator Redeemer
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
 
@@ -490,6 +500,9 @@ mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
+mustRegisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
+mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
+
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
    . Foldable f
@@ -604,7 +617,10 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustSpendNativeScriptOutput _ _ -> true
       MustSpendPubKeyOutput _ -> true
       MustSpendScriptOutput _ _ _ -> true
+      MustRegisterStakePubKey _ -> true
+      MustRegisterStakeScript _ _ -> true
       MustValidateIn _ -> false
+
   in
     any requiresInputOutput constraints
       || not (null ownInputs)

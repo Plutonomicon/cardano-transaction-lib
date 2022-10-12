@@ -18,13 +18,7 @@ import Contract.Address
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractM
-  , liftedE
-  , liftedM
-  , wrapContract
-  )
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
@@ -36,11 +30,7 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
-import Contract.Test.Plutip
-  ( InitialUTxOs
-  , runPlutipContract
-  , withStakeKey
-  )
+import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -116,6 +106,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Types.Interval (getSlotLength)
+import Ctl.Internal.Types.TxConstraints (mustRegisterStakePubKey)
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
@@ -131,13 +122,14 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -938,6 +930,29 @@ suite = do
         let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
         result <- liftedE $ applyArgs unappliedScriptFixture args
         result `shouldEqual` fullyAppliedScriptFixture
+
+  only $ group "Staking" do
+    test "mustRegisterStakePubKey" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution $ flip withKeyWallet do
+        alicePkh /\ aliceStakePkh <- do
+          Tuple <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash <*>
+            liftedM "Failed to get Stake PKH" ownStakePubKeyHash
+        let
+          constraints = mustRegisterStakePubKey aliceStakePkh
+
+          lookups :: Lookups.ScriptLookups Void
+          lookups =
+            Lookups.ownPaymentPubKeyHash alicePkh <>
+              Lookups.ownStakePubKeyHash aliceStakePkh
+        ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+        bsTx <-
+          liftedE $ balanceAndSignTxE ubTx
+        submitAndLog bsTx
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
