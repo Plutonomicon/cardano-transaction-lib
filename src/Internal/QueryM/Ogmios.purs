@@ -1168,6 +1168,8 @@ type ChainPoint =
 
 newtype AdditionalUtxoSet = AdditionalUtxoSet OgmiosUtxoMap
 
+derive instance Newtype AdditionalUtxoSet _
+
 derive newtype instance Show AdditionalUtxoSet
 
 type OgmiosUtxoMap = Map OgmiosTxOutRef OgmiosTxOut

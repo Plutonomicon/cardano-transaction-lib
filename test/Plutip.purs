@@ -15,6 +15,10 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
+import Contract.BalanceTxConstraints
+  ( BalanceTxConstraintsBuilder
+  , mustUseAdditionalUtxos
+  ) as BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
@@ -50,9 +54,8 @@ import Contract.Transaction
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , awaitTxConfirmed
   , balanceAndSignTx
-  , balanceAndSignTxE
+  , balanceAndSignTxWithConstraints
   , balanceTx
-  , balanceTxWithAdditionalUtxos
   , getTxByHash
   , signTransaction
   , submit
@@ -76,6 +79,7 @@ import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
+import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
@@ -97,7 +101,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
-import Ctl.Examples.TxChaining (createAdditionalUtxos) as TxChaining
+import Ctl.Examples.TxChaining (contract, createAdditionalUtxos) as TxChaining
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -161,6 +165,7 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.NetworkId as NetworkId
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.TestM (TestPlanM)
@@ -172,10 +177,11 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
-    $ do
-        suite
-        UtxoDistribution.suite
+    defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
+    do
+      suite
+      UtxoDistribution.suite
+      NetworkId.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -407,8 +413,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- balanceAndSignTx ubTx
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -508,8 +513,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- balanceAndSignTx ubTx
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -574,8 +578,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: Datums" do
@@ -638,8 +641,7 @@ suite = do
                 <> Lookups.mintingPolicy mp3
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          bsTx <- balanceAndSignTx ubTx
           submitAndLog bsTx
 
     test "runPlutipContract: SignMultiple" do
@@ -867,7 +869,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- liftedE $ balanceAndSignTxE ubTx
+          bsTx <- balanceAndSignTx ubTx
           submit bsTx >>= awaitTxConfirmed
 
           logInfo' "Attempt to lock value"
@@ -948,7 +950,31 @@ suite = do
             , txMetadata: cip25MetadataFixture1
             }
 
+    test "runPlutipContract: Examples.BalanceTxConstraints" do
+      let
+        initialUtxos :: InitialUTxOs
+        initialUtxos =
+          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution = initialUtxos /\ initialUtxos
+
+      runPlutipContract config distribution \(alice /\ bob) ->
+        withKeyWallet alice $ BalanceTxConstraintsExample.contract $
+          BalanceTxConstraintsExample.ContractParams
+            { aliceKeyWallet: alice, bobKeyWallet: bob }
+
   group "Evaluation with additional UTxOs and tx chaining" do
+    test "runPlutipContract: Examples.TxChaining" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice ->
+        withKeyWallet alice TxChaining.contract
+
     test "Evaluation with additional UTxOs with native scripts" do
       let
         distribution :: InitialUTxOs
@@ -958,9 +984,6 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
           pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
-
-          wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
-          logInfo' $ "wUtxos0 " <> show wUtxos0
 
           let
             constraints0 :: TxConstraints Unit Unit
@@ -1001,13 +1024,17 @@ suite = do
                     (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
 
             lookups0 :: Lookups.ScriptLookups PlutusData
-            lookups0 = Lookups.unspentOutputs wUtxos0
+            lookups0 = mempty
 
-          ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
-          bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
+          unbalancedTx0 <-
+            liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
 
-          additionalUtxos <- TxChaining.createAdditionalUtxos (unwrap bsTx0)
-          logInfo' $ "Additional UTXOS " <> show additionalUtxos
+          balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
+
+          additionalUtxos <-
+            TxChaining.createAdditionalUtxos (unwrap balancedSignedTx0)
+
+          logInfo' $ "Additional utxos: " <> show additionalUtxos
           length additionalUtxos `shouldNotEqual` 0
 
           let
@@ -1019,15 +1046,20 @@ suite = do
             lookups1 :: Lookups.ScriptLookups PlutusData
             lookups1 = Lookups.unspentOutputs additionalUtxos
 
-          ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-          bTx1 <- liftedE $ balanceTxWithAdditionalUtxos ubTx1 additionalUtxos
+            balanceTxConstraints
+              :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+            balanceTxConstraints =
+              BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-          bsTx1 <- liftedM "Unable to sign transaction."
-            $ signTransaction
-            $ unwrap bTx1
+          unbalancedTx1 <-
+            liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
 
-          txId0 <- submit bsTx0
-          txId1 <- submit (wrap bsTx1)
+          balancedSignedTx1 <-
+            balanceAndSignTxWithConstraints
+              (unbalancedTx1 /\ balanceTxConstraints)
+
+          txId0 <- submit balancedSignedTx0
+          txId1 <- submit balancedSignedTx1
 
           awaitTxConfirmed txId0
           awaitTxConfirmed txId1
@@ -1115,37 +1147,41 @@ suite = do
 
           let
             lookups0 :: Lookups.ScriptLookups PlutusData
-            lookups0 = Lookups.unspentOutputs wUtxos0
-              <> Lookups.mintingPolicy mp
-              <> datumLookup
+            lookups0 = Lookups.mintingPolicy mp <> datumLookup
 
-          ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
-          bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
+          unbalancedTx0 <-
+            liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+          balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
 
-          additionalUtxos <- TxChaining.createAdditionalUtxos (unwrap bsTx0)
-          logInfo' $ "Additional UTXOS " <> show additionalUtxos
+          additionalUtxos <-
+            TxChaining.createAdditionalUtxos (unwrap balancedSignedTx0)
+
+          logInfo' $ "Additional utxos: " <> show additionalUtxos
           length additionalUtxos `shouldNotEqual` 0
 
           let
             constraints1 :: TxConstraints Unit Unit
             constraints1 =
-              Constraints.mustPayToPubKey pkh
-                ( (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
-                    <> (Value.singleton cs tn $ BigInt.fromInt 50)
-                )
+              Constraints.mustPayToPubKey pkh $
+                Value.lovelaceValueOf (BigInt.fromInt 60_000_000)
+                  <> Value.singleton cs tn (BigInt.fromInt 50)
 
             lookups1 :: Lookups.ScriptLookups PlutusData
             lookups1 = Lookups.unspentOutputs additionalUtxos
 
-          ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-          bTx1 <- liftedE $ balanceTxWithAdditionalUtxos ubTx1 additionalUtxos
+            balanceTxConstraints
+              :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+            balanceTxConstraints =
+              BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-          bsTx1 <- liftedM "Unable to sign transaction."
-            $ signTransaction
-            $ unwrap bTx1
+          unbalancedTx1 <-
+            liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+          balancedSignedTx1 <-
+            balanceAndSignTxWithConstraints
+              (unbalancedTx1 /\ balanceTxConstraints)
 
-          txId0 <- submit bsTx0
-          txId1 <- submit (wrap bsTx1)
+          txId0 <- submit balancedSignedTx0
+          txId1 <- submit balancedSignedTx1
 
           awaitTxConfirmed txId0
           awaitTxConfirmed txId1
@@ -1332,8 +1368,7 @@ pkh2PkhContract pkh stakePkh = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <-
-    liftedE $ balanceAndSignTxE ubTx
+  bsTx <- balanceAndSignTx ubTx
   submitAndLog bsTx
 
 submitAndLog

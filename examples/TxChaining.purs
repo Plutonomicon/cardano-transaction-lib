@@ -8,6 +8,10 @@ module Ctl.Examples.TxChaining
 import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeyHash)
+import Contract.BalanceTxConstraints
+  ( BalanceTxConstraintsBuilder
+  , mustUseAdditionalUtxos
+  ) as BalanceTxConstraints
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -25,14 +29,13 @@ import Contract.Transaction
   ( Transaction
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , balanceAndSignTxE
-  , balanceTxWithAdditionalUtxos
-  , signTransaction
+  , balanceAndSignTx
+  , balanceAndSignTxWithConstraints
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoMap, getWalletUtxos)
+import Contract.Utxos (UtxoMap)
 import Contract.Value as Value
 import Ctl.Internal.Hashing (transactionHash)
 import Ctl.Internal.Plutus.Conversion (toPlutusTxOutputWithRefScript)
@@ -51,41 +54,32 @@ example cfg = launchAff_ do
 contract :: Contract () Unit
 contract = do
   pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
-
-  wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
-  logInfo' $ "wUtxos0 " <> show wUtxos0
-
   let
-    value :: Value.Value
-    value =
-      (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
-
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayToPubKey pkh value
+      Constraints.mustPayToPubKey pkh
+        (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
 
-    lookups0 :: Lookups.ScriptLookups PlutusData
-    lookups0 = Lookups.unspentOutputs wUtxos0
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = mempty
 
-  ubTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints
-  bsTx0 <- liftedE $ balanceAndSignTxE ubTx0
+  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
 
-  additionalUtxos <- createAdditionalUtxos (unwrap bsTx0)
-  logInfo' $ "Additional UTXOS " <> show additionalUtxos
+  additionalUtxos <- createAdditionalUtxos (unwrap balancedSignedTx0)
+  logInfo' $ "Additional utxos: " <> show additionalUtxos
 
   let
-    lookups1 :: Lookups.ScriptLookups PlutusData
-    lookups1 = Lookups.unspentOutputs additionalUtxos
+    balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+    balanceTxConstraints =
+      BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints
-  bTx1 <- liftedE $ balanceTxWithAdditionalUtxos ubTx1 additionalUtxos
+  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  balancedSignedTx1 <-
+    balanceAndSignTxWithConstraints (unbalancedTx1 /\ balanceTxConstraints)
 
-  bsTx1 <- liftedM "Unable to sign transaction."
-    $ signTransaction
-    $ unwrap bTx1
-
-  txId0 <- submit bsTx0
-  txId1 <- submit (wrap bsTx1)
+  txId0 <- submit balancedSignedTx0
+  txId1 <- submit balancedSignedTx1
 
   awaitTxConfirmed txId0
   awaitTxConfirmed txId1
