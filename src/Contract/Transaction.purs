@@ -287,8 +287,8 @@ submit tx = do
     Left json -> liftEffect $ throw $
       "`submit` call failed. Error from Ogmios: " <> show json
 
--- | Like submit except when ogmios sends a SubmitFail
--- | the error is returned as an Array of Aesons
+-- | Like `submit` except when Ogmios sends a SubmitFail the error is returned 
+-- | as an Array of Aesons.
 submitE
   :: forall (r :: Row Type)
    . BalancedSignedTransaction
@@ -304,7 +304,7 @@ submitE tx = do
     SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json
 
--- | Query the Haskell server for the minimum transaction fee
+-- | Query the Haskell server for the minimum transaction fee.
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
