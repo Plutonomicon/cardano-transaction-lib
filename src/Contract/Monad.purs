@@ -245,7 +245,7 @@ type ConfigParams (r :: Row Type) =
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
@@ -356,6 +356,9 @@ withContractEnv
   { addLogEntry, printLogs } <-
     liftEffect $ setupLogs params.logLevel params.customLogger
   let
+    addLogEntry' :: LogLevel -> Message -> Aff Unit
+    addLogEntry' lgl msg = liftEffect $ addLogEntry lgl msg
+
     config :: QueryConfig
     config =
       { ctlServerConfig
@@ -365,7 +368,7 @@ withContractEnv
       , logLevel
       , walletSpec
       , customLogger:
-          if suppressLogs then Just $ liftEffect <<< addLogEntry
+          if suppressLogs then Just addLogEntry'
           else customLogger
       , suppressLogs
       }
