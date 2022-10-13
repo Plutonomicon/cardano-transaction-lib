@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 - `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
 - new functions `addressWithNetworkTagFromBech32` and `addressFromBech32`in `Contract.Address`, the second checking that address network Id corresponds to the contract environment network Id. ([#1062](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1062))
+- `Contract.CborBytes` for CBOR-related functionality. ([#850](https://github.com/Plutonomicon/cardano-transaction-lib/issues/850))
 
 ### Changed
 
