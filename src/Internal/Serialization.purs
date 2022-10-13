@@ -259,7 +259,7 @@ foreign import _publicKeyFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe PublicKey
 
 foreign import publicKeyFromPrivateKey
-  :: PrivateKey -> Effect PublicKey
+  :: PrivateKey -> PublicKey
 
 foreign import _privateKeyFromBytes
   :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey

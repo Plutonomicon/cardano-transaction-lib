@@ -52,6 +52,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustProduceAtLeastTotal
   , mustReferenceOutput
   , mustRegisterStakePubKey
+  , mustRegisterPool
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -504,6 +505,9 @@ mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
 mustRegisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
+
+mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
+mustRegisterPool = singleton <<< MustRegisterPool
 
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)

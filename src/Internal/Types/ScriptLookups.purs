@@ -58,7 +58,7 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Certificate(StakeRegistration)
+  ( Certificate(StakeRegistration, PoolRegistration)
   , Costmdls
   , Transaction
   , TransactionOutput(TransactionOutput)
@@ -89,7 +89,7 @@ import Ctl.Internal.Cardano.Types.Value
   , split
   )
 import Ctl.Internal.Hashing (datumHash) as Hashing
-import Ctl.Internal.Helpers (liftM, liftedM, (<\>))
+import Ctl.Internal.Helpers (liftM, (<\>))
 import Ctl.Internal.IsData (class IsData)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
@@ -99,7 +99,6 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.Plutus.Types.Value as Plutus
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
@@ -143,9 +142,7 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
-import Ctl.Internal.Types.Redeemer (unitRedeemer)
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
-import Ctl.Internal.Types.RedeemerTag as T
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend))
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -177,6 +174,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustSpendScriptOutput
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
+      , MustRegisterPool
       , MustValidateIn
       )
   , TxConstraints(TxConstraints)
@@ -1125,7 +1123,7 @@ processConstraint mpsMap osMap = do
           unwrap script
         redeemer =
           T.Redeemer
-            { tag: T.Cert
+            { tag: Cert
             , index: zero -- hardcoded and tweaked after balancing.
             , data: unwrap redeemerDatum
             , exUnits: zero
@@ -1133,8 +1131,10 @@ processConstraint mpsMap osMap = do
       _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
       ExceptT $ attachToCps attachRedeemer redeemer
       ExceptT $ attachToCps attachPlutusScript $ unwrap script
-    MustRegisterPool _ -> runExceptT do
-      pure unit
+    MustRegisterPool poolParams -> runExceptT do
+      let
+        cert = PoolRegistration poolParams
+      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
     MustSatisfyAnyOf xs -> do
       cps <- get
       let

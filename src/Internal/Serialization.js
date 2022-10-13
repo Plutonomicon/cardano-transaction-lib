@@ -101,9 +101,7 @@ exports._publicKeyFromBech32 = maybe => bech32 => {
   }
 };
 
-exports.publicKeyFromPrivateKey = private_key => () => {
-  return private_key.to_public();
-};
+exports.publicKeyFromPrivateKey = private_key => private_key.to_public();
 
 exports._privateKeyFromBytes = maybe => bytes => {
   try {

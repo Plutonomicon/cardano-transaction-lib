@@ -14,3 +14,4 @@ import Ctl.Internal.Hashing
   , transactionHash
   ) as X
 import Ctl.Internal.NativeScripts (nativeScriptHash) as X
+import Ctl.Internal.Serialization (publicKeyHash) as X

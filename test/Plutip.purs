@@ -7,13 +7,15 @@ module Test.Ctl.Plutip
 import Prelude
 
 import Contract.Address
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  ( AddressWithNetworkTag(AddressWithNetworkTag)
+  , PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
   , getWalletAddress
   , getWalletCollateral
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
+  , payPubKeyHashRewardAddress
   )
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
@@ -26,8 +28,12 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (mconcat)
-import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
+import Contract.Prelude (liftM, mconcat)
+import Contract.Prim.ByteArray
+  ( byteArrayFromAscii
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  )
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
@@ -57,6 +63,7 @@ import Contract.Wallet
   , isNamiAvailable
   , withKeyWallet
   )
+import Contract.Wallet.Key (keyWalletPrivateStakeKey)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
@@ -83,6 +90,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -94,6 +102,7 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse(StopClusterSuccess)
   )
 import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
+import Ctl.Internal.Plutus.Conversion (fromPlutusAddressWithNetworkTag)
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -105,8 +114,21 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
+import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
+import Ctl.Internal.Serialization.Address
+  ( RewardAddress
+  , keyHashCredential
+  , rewardAddress
+  , rewardAddressFromAddress
+  , rewardAddressPaymentCred
+  )
+import Ctl.Internal.Serialization.Types (VRFKeyHash)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Types.TxConstraints (mustRegisterStakePubKey)
+import Ctl.Internal.Types.TxConstraints
+  ( mustRegisterPool
+  , mustRegisterStakePubKey
+  )
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
@@ -119,7 +141,7 @@ import Data.Either (isLeft)
 import Data.Foldable (fold, foldM)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
@@ -127,10 +149,12 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Console as Console
+import Effect.Exception (error, throw)
 import Effect.Ref as Ref
 import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
+import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.Fixtures
@@ -944,6 +968,87 @@ suite = do
             liftedM "Failed to get Stake PKH" ownStakePubKeyHash
         let
           constraints = mustRegisterStakePubKey aliceStakePkh
+
+          lookups :: Lookups.ScriptLookups Void
+          lookups =
+            Lookups.ownPaymentPubKeyHash alicePkh <>
+              Lookups.ownStakePubKeyHash aliceStakePkh
+        ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+        bsTx <-
+          liftedE $ balanceAndSignTxE ubTx
+        submitAndLog bsTx
+    test "mustRegisterPool" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> withKeyWallet alice do
+        alicePkh /\ aliceStakePkh <- Tuple
+          <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
+          <*>
+            liftedM "Failed to get Stake PKH" ownStakePubKeyHash
+        liftEffect $ Console.log $ show aliceStakePkh
+        do
+          -- register stake key
+          let
+            constraints = mustRegisterStakePubKey aliceStakePkh
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups =
+              Lookups.ownPaymentPubKeyHash alicePkh <>
+                Lookups.ownStakePubKeyHash aliceStakePkh
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          bsTx <-
+            liftedE $ balanceAndSignTxE ubTx
+          submitAndLog bsTx
+
+        privateStakeKey <- liftM (error "Failed to get private stake key") $
+          keyWalletPrivateStakeKey alice
+        networkId <- asks $ unwrap >>> _.config >>> _.networkId
+
+        -- rewardAddr <- liftM (error "failed to get reward address") $
+        --    payPubKeyHashRewardAddress networkId alicePkh
+        let
+          rewardAddr' =
+            rewardAddress
+              { network: networkId
+              , paymentCred: keyHashCredential $ unwrap $ unwrap aliceStakePkh
+              }
+        --   rewardAddressCsl =
+        --     fromPlutusAddressWithNetworkTag (AddressWithNetworkTag { address: rewardAddr, networkId: networkId })
+        -- rewardAccount <- liftM (error "failed to get reward address 2") $ rewardAddressFromAddress rewardAddressCsl
+        let
+          vrfKeyHash = unsafePartial $ fromJust $ fromBytes
+            $ unsafePartial
+            $ fromJust
+            $ hexToByteArray
+                "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+          poolParams =
+            { operator: publicKeyHash $ publicKeyFromPrivateKey
+                (unwrap privateStakeKey)
+            , vrfKeyhash: vrfKeyHash :: VRFKeyHash -- needed to prove that the pool won the lottery
+            , pledge: unsafePartial $ fromJust $ BigNum.fromBigInt $
+                BigInt.fromInt 1
+            , cost: unsafePartial $ fromJust $ BigNum.fromBigInt $
+                BigInt.fromInt 1
+            , margin:
+                { numerator: unsafePartial $ fromJust $ BigNum.fromBigInt $
+                    BigInt.fromInt 1
+                , denominator: unsafePartial $ fromJust $ BigNum.fromBigInt $
+                    BigInt.fromInt 1
+                }
+            , rewardAccount: rewardAddr' :: RewardAddress
+            , poolOwners:
+                [ publicKeyHash $ publicKeyFromPrivateKey
+                    (unwrap privateStakeKey)
+                ]
+            , relays: []
+            , poolMetadata: Nothing -- Just $ PoolMetadata { url: URL "http://example.com"
+            --             , hash:
+            }
+
+          constraints = mustRegisterPool poolParams
 
           lookups :: Lookups.ScriptLookups Void
           lookups =
