@@ -17,8 +17,9 @@ import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
 import Contract.Scripts (class ValidatorTypes, MintingPolicy)
 import Contract.Transaction
   ( TransactionHash
-  , balanceAndSignTx
+  , balanceTx
   , getTxFinalFee
+  , signTransaction
   , submit
   )
 import Contract.TxConstraints as Constraints
@@ -37,7 +38,8 @@ buildBalanceSignAndSubmitTx'
   -> Contract r { txHash :: TransactionHash, txFinalFee :: BigInt }
 buildBalanceSignAndSubmitTx' lookups constraints = do
   unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  balancedSignedTx <- balanceAndSignTx unbalancedTx
+  balancedTx <- liftedE $ balanceTx unbalancedTx
+  balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   logInfo' $ "Tx ID: " <> show txHash
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }

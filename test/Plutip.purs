@@ -53,14 +53,13 @@ import Contract.Transaction
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , awaitTxConfirmed
-  , balanceAndSignTx
-  , balanceAndSignTxWithConstraints
   , balanceTx
+  , balanceTxWithConstraints
   , createAdditionalUtxos
   , getTxByHash
   , signTransaction
   , submit
-  , withBalancedAndSignedTxs
+  , withBalancedTxs
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -414,7 +413,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <- balanceAndSignTx ubTx
+            bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -452,15 +451,12 @@ suite = do
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bTx <- liftedE $ map unwrap <$> balanceTx ubTx
-            tx <- liftContractM "Unable to sign transaction" =<< signTransaction
-              bTx
+            tx <- signTransaction =<< liftedE (balanceTx ubTx)
             let
-              signWithWallet txToSign wallet = withKeyWallet wallet do
-                liftContractM "Unable to sign transaction" =<<
-                  signTransaction txToSign
+              signWithWallet txToSign wallet =
+                withKeyWallet wallet (signTransaction txToSign)
             txSigned <- foldM signWithWallet tx [ alice, bob, charlie, dan ]
-            submit (wrap txSigned) >>= awaitTxConfirmed
+            submit txSigned >>= awaitTxConfirmed
 
     test "NativeScript: NOfK (2)" do
       let
@@ -514,7 +510,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <- balanceAndSignTx ubTx
+            bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -542,17 +538,14 @@ suite = do
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bTx <- liftedE $ map unwrap <$> balanceTx ubTx
             -- Bob signs the tx
-            tx <- liftContractM "Unable to sign transaction" =<< signTransaction
-              bTx
+            tx <- signTransaction =<< liftedE (balanceTx ubTx)
             let
-              signWithWallet txToSign wallet = withKeyWallet wallet do
-                liftContractM "Unable to sign transaction" =<<
-                  signTransaction txToSign
+              signWithWallet txToSign wallet =
+                withKeyWallet wallet (signTransaction txToSign)
             -- Dan signs the tx
             txSigned <- foldM signWithWallet tx [ dan ]
-            submit (wrap txSigned) >>= awaitTxConfirmed
+            submit txSigned >>= awaitTxConfirmed
 
     test "runPlutipContract: AlwaysMints" do
       let
@@ -579,7 +572,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- balanceAndSignTx ubTx
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
 
     test "runPlutipContract: Datums" do
@@ -642,7 +635,7 @@ suite = do
                 <> Lookups.mintingPolicy mp3
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- balanceAndSignTx ubTx
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
 
     test "runPlutipContract: SignMultiple" do
@@ -870,7 +863,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- balanceAndSignTx ubTx
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submit bsTx >>= awaitTxConfirmed
 
           logInfo' "Attempt to lock value"
@@ -1030,7 +1023,8 @@ suite = do
           unbalancedTx0 <-
             liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
 
-          balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
+          balancedSignedTx0 <-
+            signTransaction =<< liftedE (balanceTx unbalancedTx0)
 
           additionalUtxos <- createAdditionalUtxos balancedSignedTx0
 
@@ -1053,10 +1047,10 @@ suite = do
 
           unbalancedTx1 <-
             liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-
-          balancedSignedTx1 <-
-            balanceAndSignTxWithConstraints
-              (unbalancedTx1 /\ balanceTxConstraints)
+          balancedTx1 <-
+            liftedE $ balanceTxWithConstraints unbalancedTx1
+              balanceTxConstraints
+          balancedSignedTx1 <- signTransaction balancedTx1
 
           txId0 <- submit balancedSignedTx0
           txId1 <- submit balancedSignedTx1
@@ -1151,7 +1145,8 @@ suite = do
 
           unbalancedTx0 <-
             liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
-          balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
+          balancedSignedTx0 <-
+            signTransaction =<< liftedE (balanceTx unbalancedTx0)
 
           additionalUtxos <- createAdditionalUtxos balancedSignedTx0
 
@@ -1175,9 +1170,10 @@ suite = do
 
           unbalancedTx1 <-
             liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-          balancedSignedTx1 <-
-            balanceAndSignTxWithConstraints
-              (unbalancedTx1 /\ balanceTxConstraints)
+          balancedTx1 <-
+            liftedE $ balanceTxWithConstraints unbalancedTx1
+              balanceTxConstraints
+          balancedSignedTx1 <- signTransaction balancedTx1
 
           txId0 <- submit balancedSignedTx0
           txId1 <- submit balancedSignedTx1
@@ -1340,11 +1336,11 @@ signMultipleContract = do
   ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  withBalancedTxs [ ubTx1, ubTx2 ] $ \txs -> do
     locked <- getLockedInputs
     logInfo' $ "Locked inputs inside bracket (should be nonempty): "
       <> show locked
-    traverse_ submitAndLog txs
+    traverse_ (submitAndLog <=< signTransaction) txs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): "
@@ -1367,7 +1363,7 @@ pkh2PkhContract pkh stakePkh = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- balanceAndSignTx ubTx
+  bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
   submitAndLog bsTx
 
 submitAndLog
