@@ -19,9 +19,9 @@ import Effect.Ref as Ref
 -- | Setup internal machinery for log suppression.
 setupLogs
   :: LogLevel
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Effect
-       { addLogEntry :: Message -> Effect Unit
+       { addLogEntry :: LogLevel -> Message -> Effect Unit
        , logger :: LogLevel -> String -> Effect Unit
        , printLogs :: Effect Unit
        , suppressedLogger :: LogLevel -> String -> Effect Unit
@@ -31,8 +31,8 @@ setupLogs logLevel customLogger = do
   logsRef <- liftEffect $ Ref.new Nil
   let
     -- Logger that stores a message in the queue
-    addLogEntry :: Message -> Effect Unit
-    addLogEntry msg = do
+    addLogEntry :: LogLevel -> Message -> Effect Unit
+    addLogEntry _ msg = do
       Ref.modify_ (Cons msg) logsRef
 
     -- Logger that is used to actually print messages
