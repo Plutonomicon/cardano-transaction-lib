@@ -26,8 +26,7 @@ import Contract.Test.Utils
   )
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
-  ( Transaction
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput
   , awaitTxConfirmed
   , balanceTxWithConstraints
@@ -148,13 +147,13 @@ contract (ContractParams p) = do
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
     balancedTx <-
-      liftedE $ map unwrap <$>
-        balanceTxWithConstraints (unbalancedTx /\ balanceTxConstraints)
+      liftedE $ balanceTxWithConstraints (unbalancedTx /\ balanceTxConstraints)
 
     balancedSignedTx <-
-      foldM signWithWallet balancedTx [ p.aliceKeyWallet, p.bobKeyWallet ]
+      (withKeyWallet p.bobKeyWallet <<< signTransaction)
+        =<< withKeyWallet p.aliceKeyWallet (signTransaction balancedTx)
 
-    txHash <- submit (wrap balancedSignedTx)
+    txHash <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txHash
 
     awaitTxConfirmed txHash
@@ -162,9 +161,3 @@ contract (ContractParams p) = do
 
     let changeAddress = (unwrap bobAddress).address
     pure { txHash, changeAddress, mintedToken: cs /\ tn, nonSpendableOref }
-  where
-  signWithWallet :: Transaction -> KeyWallet -> Contract () Transaction
-  signWithWallet txToSign wallet =
-    liftedM "Failed to sign transaction"
-      (withKeyWallet wallet $ signTransaction txToSign)
-
