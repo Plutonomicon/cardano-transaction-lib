@@ -168,7 +168,7 @@ balanceTxWithAddress ownAddrs unbalancedTx = runExceptT do
   logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
   -- Balance and finalize the transaction:
-  ExceptT $ runBalancer availableUtxos changeAddr
+  ExceptT $ runBalancer allUtxos availableUtxos changeAddr
     (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: QueryM Transaction
@@ -203,10 +203,11 @@ type Iteration = Int
 
 runBalancer
   :: UtxoMap
+  -> UtxoMap
   -> ChangeAddress
   -> UnattachedUnbalancedTx
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-runBalancer utxos changeAddress =
+runBalancer allUtxos utxos changeAddress =
   runExceptT <<<
     (mainLoop one zero <=< addLovelacesToTransactionOutputs)
   where
@@ -233,13 +234,13 @@ runBalancer utxos changeAddress =
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx allUtxos
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
     case newMinFee == minFee of
       true -> do
-        finalizedTransaction <- finalizeTransaction balancedTx utxos -- TODO: all available?
+        finalizedTransaction <- finalizeTransaction balancedTx allUtxos
 
         traceMainLoop "finalized transaction" "finalizedTransaction"
           finalizedTransaction
