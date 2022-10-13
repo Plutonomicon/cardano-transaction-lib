@@ -6,12 +6,15 @@ import Prelude
 
 import Control.Monad.State (class MonadState, get, put)
 import Control.Monad.Writer (class MonadWriter)
-import Data.Foldable (for_, intercalate)
+import Data.Foldable (fold, for_, intercalate)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
+import Data.Newtype (un)
+import Data.Number.Format (fixed, toStringWith)
 import Data.Show.Generic (genericShow)
+import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Test.Spec.Console (tellLn)
 import Test.Spec.Reporter.Base
   ( RunningItem(RunningTest, RunningPending)
@@ -107,8 +110,15 @@ print path a = do
           $ intercalate " » " (parentSuiteName suite.path <> [ suite.name ])
         put s { lastPrintedSuitePath = Just suite.path }
   case a of
-    PrintTest name (Success _ _) -> do
-      tellLn $ "  " <> styled Style.green "✓︎ " <> styled Style.dim name
+    PrintTest name (Success _ timeElapsed) -> do
+      let
+        timeStr = styled Style.cyan $ fold
+          [ " ("
+          , toStringWith (fixed 2) $ un Seconds $ convertDuration timeElapsed
+          , "s)"
+          ]
+      tellLn $ "  " <> styled Style.green "✓︎ " <> styled Style.dim name <>
+        timeStr
     PrintTest name (Failure err) -> do
       tellLn $ "  " <> styled Style.red ("✗ " <> name <> ":")
       tellLn $ ""
