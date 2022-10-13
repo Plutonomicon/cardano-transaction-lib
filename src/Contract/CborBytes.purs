@@ -3,7 +3,7 @@ module Contract.CborBytes (module CborBytes) where
 
 import Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
-  , byteLength
+  , cborByteLength
   , cborBytesFromAscii
   , cborBytesFromByteArray
   , cborBytesFromIntArray
