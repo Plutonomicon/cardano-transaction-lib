@@ -133,10 +133,10 @@ import Effect.Class (class MonadEffect, liftEffect)
 -- | Balances an unbalanced transaction using the specified balancer 
 -- | constraints.
 balanceTxWithConstraints
-  :: BalanceTxConstraintsBuilder
-  -> UnattachedUnbalancedTx
+  :: UnattachedUnbalancedTx
+  -> BalanceTxConstraintsBuilder
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints constraintsBuilder unbalancedTx =
+balanceTxWithConstraints unbalancedTx constraintsBuilder =
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
       getWalletAddresses :: BalanceTxM (Array Address)

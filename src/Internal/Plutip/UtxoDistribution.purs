@@ -192,8 +192,9 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    balancedTx <- liftedE $ balanceTx unbalancedTx
-    signedTx <- withKeyWallet ourWallet $ signTransaction balancedTx
+    signedTx <-
+      withKeyWallet ourWallet $
+        signTransaction =<< liftedE (balanceTx unbalancedTx)
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx

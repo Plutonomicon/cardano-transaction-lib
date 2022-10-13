@@ -190,13 +190,14 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     ...
   ```
 
-- Sign it and balance it using `Contract.Transaction.balanceAndSignTxWithConstraints` or `Contract.Transaction.balanceAndSignTx` (if you prefer to use the default balancer constraints):
-
+- Balance it using `Contract.Transaction.balanceTx` (or `Contract.Transaction.balanceTxWithConstraints` if you need to adjust the balancer behaviour) and then sign it using `signTransaction`:
   ```purescript
   contract = do
     ...
-    balancedTx <- 
-      balanceAndSignTxWithConstraints (unbalancedTx /\ balanceTxConstraints)
+    -- `liftedE` will throw a runtime exception on `Left`s
+    balancedTx <-
+      liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
+    balancedSignedTx <- signTransaction balancedTx 
     ...
   ```
 
@@ -205,7 +206,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   ```purescript
   contract = do
     ...
-    txId <- submit balancedTx
+    txId <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txId
   ```
 
