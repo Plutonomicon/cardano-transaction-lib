@@ -28,7 +28,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Serialization as Serialization
-import Serialization.Address (Address, addressFromBytes)
+import Serialization.Address (Address, NetworkId(..), addressFromBytes)
 import Types.ByteArray (byteArrayToHex)
 import Types.CborBytes (rawBytesAsCborBytes)
 import Types.RawBytes (RawBytes, hexToRawBytes)
@@ -50,6 +50,7 @@ type Cip30Wallet =
       Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
   -- Sign a transaction with the given wallet
   , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
+  , getNetworkId :: Cip30Connection -> Aff NetworkId
   }
 
 mkCip30WalletAff
@@ -70,6 +71,7 @@ mkCip30WalletAff walletName enableWallet = do
     , signTx
     , getBalance
     , getUtxos
+    , getNetworkId
     }
 
 -------------------------------------------------------------------------------
@@ -132,6 +134,14 @@ getBalance wallet = do
     bytes <- mbBytes
     fromBytes (unwrap bytes) >>= convertValue
 
+getNetworkId :: Cip30Connection -> Aff NetworkId
+getNetworkId wallet = do
+  networkId <- toAffE $ _getNetworkId wallet
+  case networkId of
+    0 -> pure TestnetId
+    1 -> pure MainnetId
+    _ -> throwError $ error "Unknown network ID"
+
 fromHexString
   :: (Cip30Connection -> Effect (Promise String))
   -> Cip30Connection
@@ -169,6 +179,8 @@ foreign import _signTx
   -> Effect (Promise String)
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
+
+foreign import _getNetworkId :: Cip30Connection -> Effect (Promise Int)
 
 foreign import _getUtxos
   :: MaybeFfiHelper

@@ -2,6 +2,8 @@
 
 exports._getAddresses = conn => conn.getUsedAddresses;
 
+exports._getNetworkId = conn => conn.getNetworkId;
+
 exports._getCollateral = maybe => conn => () =>
   conn.experimental.getCollateral().then(utxos => {
     return utxos.length ? maybe.just(utxos) : maybe.nothing;
