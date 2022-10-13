@@ -4,7 +4,9 @@ module Contract.Address
   , enterpriseAddressStakeValidatorHash
   , enterpriseAddressValidatorHash
   , getNetworkId
+  , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
+  , addressFromBech32
   , addressToBech32
   , getWalletAddress
   , getWalletCollateral
@@ -33,7 +35,8 @@ module Contract.Address
 
 import Prelude
 
-import Contract.Monad (Contract, liftedM, wrapContract)
+import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
+import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
   , enterpriseAddressStakeValidatorHash
@@ -84,7 +87,12 @@ import Ctl.Internal.Serialization.Address
   , Slot(Slot)
   , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
-import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
+import Ctl.Internal.Serialization.Address
+  ( NetworkId(MainnetId)
+  , addressBech32
+  , addressNetworkId
+  )
+import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
@@ -118,6 +126,7 @@ import Ctl.Internal.Types.UnbalancedTransaction
 import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
+import Effect.Exception (error)
 
 -- | Get the `Address` of the browser wallet.
 -- TODO: change this to Maybe (Array Address)
@@ -184,6 +193,14 @@ addressWithNetworkTagToBech32 :: AddressWithNetworkTag -> Bech32String
 addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
   addressBech32
 
+-- | Convert `Bech32String` to `AddressWithNetworkTag`.
+addressWithNetworkTagFromBech32 :: Bech32String -> Maybe AddressWithNetworkTag
+addressWithNetworkTagFromBech32 str = do
+  cslAddress <- SA.addressFromBech32 str
+  address <- toPlutusAddress cslAddress
+  let networkId = addressNetworkId cslAddress
+  pure $ AddressWithNetworkTag { address, networkId }
+
 -- | Convert `Address` to `Bech32String`, using current `NetworkId` provided by
 -- | `Contract` configuration to determine the network tag.
 addressToBech32 :: forall (r :: Row Type). Address -> Contract r Bech32String
@@ -191,6 +208,21 @@ addressToBech32 address = do
   networkId <- getNetworkId
   pure $ addressWithNetworkTagToBech32
     (AddressWithNetworkTag { address, networkId })
+
+-- | Convert `Bech32String` to `Address`, asserting that the address `networkId`
+-- | corresponds to the contract environment `networkId`
+addressFromBech32
+  :: forall (r :: Row Type). Bech32String -> Contract r Address
+addressFromBech32 str = do
+  networkId <- getNetworkId
+  cslAddress <- liftContractM "addressFromBech32: unable to read address" $
+    SA.addressFromBech32 str
+  address <-
+    liftContractM "addressFromBech32: unable to convert to plutus address" $
+      toPlutusAddress cslAddress
+  when (networkId /= addressNetworkId cslAddress)
+    (throwError $ error "addressFromBech32: address has wrong NetworkId")
+  pure address
 
 -- | Get the `ValidatorHash` with an Plutus `Address`
 enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
