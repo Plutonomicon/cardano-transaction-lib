@@ -11,14 +11,6 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 
 exports.hashTransaction = body => () => lib.hash_transaction(body);
 
-exports.newBigNum = maybe => string => {
-  try {
-    return maybe.just(lib.BigNum.from_str(string));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
 exports.newValue = coin => () => lib.Value.new(coin);
 
 exports.newValueFromAssets = multiasset => () =>
@@ -139,9 +131,24 @@ exports.setTxBodyMint = setter("mint");
 
 exports.newMint = () => lib.Mint.new();
 
+const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
+
+const bigNumLimitNeg = BigInt("-18446744073709551616"); // 2 ^ 64
+
+const checkLimit = (num, lower_limit, upper_limit) => {
+  if (lower_limit < num && num < upper_limit) {
+    return num;
+  } else {
+    throw new Error("Overflow detected");
+  }
+};
+
 exports._bigIntToInt = maybe => bigInt => {
+  // this is needed because try/catch overuse breaks runtime badly
+  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
     const str = bigInt.to_str();
+    checkLimit(BigInt(str), bigNumLimitNeg, bigNumLimit);
     if (str[0] == "-") {
       return maybe.just(
         lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))

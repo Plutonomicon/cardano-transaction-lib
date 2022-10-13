@@ -79,6 +79,7 @@ import Ctl.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
+import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
@@ -149,6 +150,7 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.NetworkId as NetworkId
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.TestM (TestPlanM)
@@ -160,10 +162,11 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
-    $ do
-        suite
-        UtxoDistribution.suite
+    defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
+    do
+      suite
+      UtxoDistribution.suite
+      NetworkId.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -758,6 +761,23 @@ suite = do
             validator
             txId
           eResult `shouldSatisfy` isLeft
+
+    test "runPlutipContract: IncludeDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- IncludeDatum.only42Script
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- IncludeDatum.payToIncludeDatum vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          IncludeDatum.spendFromIncludeDatum vhash validator txId
 
     test "runPlutipContract: AlwaysSucceeds PlutusV2" do
       let
