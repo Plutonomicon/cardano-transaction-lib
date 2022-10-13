@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Balancer constraints interface (check [Building and submitting transactions](https://github.com/Plutonomicon/cardano-transaction-lib/blob/95bdd213eff16a5e00df82fb27bbe2479e8b4196/doc/getting-started.md#building-and-submitting-transactions) and `examples/BalanceTxConstraints.purs` for reference) ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
 - New `Contract.Transaction` functions accepting balancer constraints as a parameter: `balanceTxWithConstraints`, `balanceTxsWithConstraints`, `withBalancedTxWithConstraints`, `withBalancedTxsWithConstraints` ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053)) 
 - New functions `addressWithNetworkTagFromBech32` and `addressFromBech32` in `Contract.Address`, the second checking that address network Id corresponds to the contract environment network Id. ([#1062](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1062))
+- `Contract.CborBytes` for CBOR-related functionality. ([#850](https://github.com/Plutonomicon/cardano-transaction-lib/issues/850))
 
 ### Changed
 
