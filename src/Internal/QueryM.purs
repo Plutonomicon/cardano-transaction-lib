@@ -322,8 +322,8 @@ instance MonadLogger (QueryMExtended r Aff) where
     config <- asks $ _.config
     let
       logFunction =
-        config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
-    liftAff $ logFunction msg
+        config # _.customLogger >>> fromMaybe logWithLevel
+    liftAff $ logFunction config.logLevel msg
 
 -- Newtype deriving complains about overlapping instances, so we wrap and
 -- unwrap manually
