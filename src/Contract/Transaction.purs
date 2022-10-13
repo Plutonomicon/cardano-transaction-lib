@@ -17,6 +17,7 @@ module Contract.Transaction
   , balanceTxMWithConstraints
   , calculateMinFee
   , calculateMinFeeM
+  , createAdditionalUtxos
   , getTxByHash
   , getTxFinalFee
   , module BalanceTxError
@@ -53,6 +54,7 @@ import Aeson (class EncodeAeson, Aeson)
 import Contract.Log (logDebug')
 import Contract.Monad
   ( Contract
+  , liftContractM
   , liftedE
   , liftedM
   , runContractInEnv
@@ -139,12 +141,18 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   ) as Transaction
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Transaction
+  , TransactionOutput
+  , _body
+  , _outputs
+  )
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusUtxoMap
   , toPlutusCoin
   , toPlutusTxOutput
+  , toPlutusTxOutputWithRefScript
   )
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
@@ -180,6 +188,7 @@ import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
 import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.TxOutput (scriptOutputToTransactionOutput) as TxOutput
@@ -227,7 +236,10 @@ import Ctl.Internal.Types.Transaction
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   ) as Transaction
-import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.Transaction
+  ( TransactionHash
+  , TransactionInput(TransactionInput)
+  )
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
@@ -248,8 +260,10 @@ import Ctl.Internal.Types.UsedTxOuts
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)
+import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
+import Data.Map (empty, insert) as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -257,6 +271,7 @@ import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
 import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -656,3 +671,31 @@ awaitTxConfirmedWithTimeoutSlots
 awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
   <<< AwaitTx.awaitTxConfirmedWithTimeoutSlots timeout
   <<< unwrap
+
+-- | Builds an expected utxo set from transaction outputs. Predicts output 
+-- | references (`TransactionInput`s) for each output by calculating the
+-- | transaction hash and indexing the outputs in the order they appear in the 
+-- | transaction. This function should be used for transaction chaining 
+-- | in conjunction with `mustUseAdditionalUtxos` balancer constraint.  
+-- | Throws an exception if conversion to Plutus outputs fails. 
+createAdditionalUtxos
+  :: forall (tx :: Type) (r :: Row Type)
+   . Newtype tx Transaction
+  => tx
+  -> Contract r UtxoMap
+createAdditionalUtxos tx = do
+  transactionId <-
+    liftEffect $ Hashing.transactionHash <$> convertTransaction (unwrap tx)
+  let
+    txOutputs :: Array TransactionOutput
+    txOutputs = view (_body <<< _outputs) (unwrap tx)
+
+    txIn :: UInt -> TransactionInput
+    txIn index = TransactionInput { transactionId, index }
+
+  plutusOutputs <-
+    liftContractM "createAdditionalUtxos: Failed to convert to Plutus outputs"
+      (traverse toPlutusTxOutputWithRefScript txOutputs)
+
+  pure $ plutusOutputs #
+    foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty

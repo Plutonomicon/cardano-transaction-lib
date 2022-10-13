@@ -56,6 +56,7 @@ import Contract.Transaction
   , balanceAndSignTx
   , balanceAndSignTxWithConstraints
   , balanceTx
+  , createAdditionalUtxos
   , getTxByHash
   , signTransaction
   , submit
@@ -101,7 +102,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
-import Ctl.Examples.TxChaining (contract, createAdditionalUtxos) as TxChaining
+import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
   , startPlutipServer
@@ -1031,8 +1032,7 @@ suite = do
 
           balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
 
-          additionalUtxos <-
-            TxChaining.createAdditionalUtxos (unwrap balancedSignedTx0)
+          additionalUtxos <- createAdditionalUtxos balancedSignedTx0
 
           logInfo' $ "Additional utxos: " <> show additionalUtxos
           length additionalUtxos `shouldNotEqual` 0
@@ -1153,8 +1153,7 @@ suite = do
             liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
           balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
 
-          additionalUtxos <-
-            TxChaining.createAdditionalUtxos (unwrap balancedSignedTx0)
+          additionalUtxos <- createAdditionalUtxos balancedSignedTx0
 
           logInfo' $ "Additional utxos: " <> show additionalUtxos
           length additionalUtxos `shouldNotEqual` 0
