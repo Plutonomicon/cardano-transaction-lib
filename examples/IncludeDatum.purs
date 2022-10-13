@@ -15,7 +15,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedE, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -27,15 +27,14 @@ import Contract.TextEnvelope
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , balanceAndSignTxE
   , lookupTxHash
   , plutusV1Script
-  , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
@@ -62,7 +61,7 @@ datum :: Datum
 datum = Datum $ Integer $ BigInt.fromInt 42
 
 payToIncludeDatum :: ValidatorHash -> Contract () TransactionHash
-payToIncludeDatum vhash = do
+payToIncludeDatum vhash =
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -74,7 +73,8 @@ payToIncludeDatum vhash = do
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
-  buildBalanceSignAndSubmitTx lookups constraints
+  in
+    Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 spendFromIncludeDatum
   :: ValidatorHash
@@ -97,21 +97,10 @@ spendFromIncludeDatum vhash validator txId = do
             <> Constraints.mustIncludeDatum datum
       in
         do
-          spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
+          spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
           awaitTxConfirmed spendTxId
           logInfo' "Successfully spent locked values."
     _ -> logInfo' "no locked output at address"
-
-buildBalanceSignAndSubmitTx
-  :: Lookups.ScriptLookups PlutusData
-  -> TxConstraints Unit Unit
-  -> Contract () TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints = do
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceAndSignTxE ubTx
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  pure txId
 
 foreign import includeDatum :: String
 
