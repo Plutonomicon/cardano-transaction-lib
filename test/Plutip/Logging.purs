@@ -25,7 +25,7 @@ suite = do
         config' =
           config
             { customLogger = Just
-                \_ -> liftEffect $ Ref.write true hasLogged
+                \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = false
             }
       runPlutipContract config' unit \_ -> do
@@ -38,7 +38,7 @@ suite = do
         config' =
           config
             { customLogger = Just
-                \_ -> liftEffect $ Ref.write true hasLogged
+                \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = true
             }
       runPlutipContract config' unit \_ -> do
@@ -51,7 +51,7 @@ suite = do
         config' =
           config
             { customLogger = Just
-                \_ -> liftEffect $ Ref.write true hasLogged
+                \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = true
             }
       void $ try $ runPlutipContract config' unit \_ -> do

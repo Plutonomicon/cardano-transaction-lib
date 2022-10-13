@@ -23,7 +23,7 @@ suite = do
         config' =
           testnetConfig
             { customLogger = Just
-                \_ -> liftEffect $ Ref.write true hasLogged
+                \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = false
             }
       runContract config' do
@@ -36,7 +36,7 @@ suite = do
         config' =
           testnetConfig
             { customLogger = Just
-                \_ -> liftEffect $ Ref.write true hasLogged
+                \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = true
             }
       runContract config' do
@@ -49,7 +49,7 @@ suite = do
         config' =
           testnetConfig
             { customLogger = Just
-                \_ -> liftEffect $ Ref.write true hasLogged
+                \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = true
             }
       void $ try $ runContract config' do

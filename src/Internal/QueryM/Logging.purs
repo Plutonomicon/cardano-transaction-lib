@@ -42,7 +42,10 @@ setupLogs logLevel customLogger = do
     -- Looger that adds message to the queue, respecting LogLevel
     suppressedLogger :: Logger
     suppressedLogger = mkLogger logLevel
-      (Just $ liftEffect <<< addLogEntry)
+      (Just $ addLogEntry')
+      where
+      addLogEntry' :: LogLevel -> Message -> Aff Unit
+      addLogEntry' lgl msg = liftEffect $ addLogEntry lgl msg
 
     -- Print suppressed logs
     printLogs :: Effect Unit

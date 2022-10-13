@@ -70,6 +70,7 @@ import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Foldable (sum)
 import Data.HTTP.Method as Method
+import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
@@ -186,7 +187,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     -> Aff a
   withWallets env ourKey response cc = do
     wallets <- runContractInEnv
-      (over wrap (_ { config { customLogger = Just (const $ pure unit) } }) env)
+      (over wrap (_ { config { customLogger = Just (\_ _ -> pure unit) } }) env)
       do
         wallets <-
           liftContractM
@@ -203,8 +204,9 @@ withPlutipContractEnv plutipCfg distr cont = do
     -- the bracket
     { addLogEntry, suppressedLogger, printLogs } <-
       liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
-
-    let configLogger = Just $ liftEffect <<< addLogEntry
+    let
+      addLogEntry' lgl msg = liftEffect $ addLogEntry lgl msg
+      configLogger = Just addLogEntry'
 
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
       (liftEffect <<< stopContractEnv)
@@ -475,7 +477,7 @@ startOgmiosDatumCache cfg _params = do
 mkClusterContractEnv
   :: PlutipConfig
   -> Logger
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg logger customLogger = do
   datumCacheWs <-
