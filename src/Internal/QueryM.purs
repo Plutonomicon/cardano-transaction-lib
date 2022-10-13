@@ -1142,7 +1142,8 @@ mkLogger logLevel mbCustomLogger level message =
     Nothing -> logString logLevel level message
     Just logger -> liftEffect do
       timestamp <- now
-      launchAff_ $ logger logLevel { level, message, tags: Map.empty, timestamp }
+      launchAff_ $ logger logLevel
+        { level, message, tags: Map.empty, timestamp }
 
 getLogger :: QueryM Logger
 getLogger = do
