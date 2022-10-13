@@ -25,6 +25,7 @@ module Ctl.Internal.Types.ScriptLookups
       , TypedValidatorMissing
       , ValidatorHashNotFound
       , WrongRefScriptHash
+      , ExpectedPlutusScriptGotNativeScript
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
@@ -810,6 +811,7 @@ data MkUnbalancedTxError
   | CannotHashValidator Validator
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
+  | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -1013,9 +1015,6 @@ processConstraint mpsMap osMap = do
     MustReferenceOutput refInput -> runExceptT do
       _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
-      -- `isNative` is here in case MustMintValue is used with native script.
-      -- TODO: amir: perhaps handle this better such that instead of submission
-      -- error due to redeemer, it returns a suggestion to use `mustMintCurrencyUsingNativeScript`
       isNative <- case scriptRefUnspentOut of
         Nothing -> do
           mp <- except $ lookupMintingPolicy mpsHash mpsMap
@@ -1037,6 +1036,10 @@ processConstraint mpsMap osMap = do
               scriptRefUnspentOut'
           )
 
+      when isNative
+        $ throwError
+        $ ExpectedPlutusScriptGotNativeScript mpsHash
+
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
@@ -1054,24 +1057,23 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
 
-      when (not isNative) $ do
-        let
-          -- Create a redeemer with zero execution units then call Ogmios to
-          -- add the units in at the very end.
-          -- Hardcode minting policy index, then reindex with
-          -- `reindexMintRedeemers`.
-          redeemer = T.Redeemer
-            { tag: Mint
-            , index: zero
-            , data: unwrap red
-            , exUnits: zero
-            }
-        -- Remove mint redeemers from array before reindexing.
-        _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
-        -- Reindex mint redeemers.
-        mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
-        -- Append reindexed mint redeemers to array.
-        _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
+      let
+        -- Create a redeemer with zero execution units then call Ogmios to
+        -- add the units in at the very end.
+        -- Hardcode minting policy index, then reindex with
+        -- `reindexMintRedeemers`.
+        redeemer = T.Redeemer
+          { tag: Mint
+          , index: zero
+          , data: unwrap red
+          , exUnits: zero
+          }
+      -- Remove mint redeemers from array before reindexing.
+      _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
+      -- Reindex mint redeemers.
+      mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
+      -- Append reindexed mint redeemers to array.
+      _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
 
       _cpsToTxBody <<< _mint <>= map wrap mintVal
 
