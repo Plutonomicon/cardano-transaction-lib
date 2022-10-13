@@ -109,6 +109,47 @@
           cp -rT ogmios $out
         '';
 
+      psProjectTemplateFor = pkgs:
+        let
+          projectName = "ctl-scaffold";
+          # `filterSource` will still trigger rebuilds with flakes, even if a
+          # filtered path is modified as the output path name is impurely
+          # derived. Setting an explicit `name` with `path` helps mitigate this
+          src = builtins.path {
+            path = ./templates/ctl-scaffold;
+            name = "${projectName}-src";
+            filter = path: ftype:
+              !(pkgs.lib.hasSuffix ".md" path)
+              && !(ftype == "directory" && builtins.elem
+                (baseNameOf path) [ "server" "doc" ]
+              );
+          };
+          ogmiosFixtures = buildOgmiosFixtures pkgs;
+          project = pkgs.purescriptProject {
+            inherit src pkgs projectName;
+            packageJson = ./package.json;
+            packageLock = ./package-lock.json;
+            shell = {
+              withRuntime = true;
+              shellHook = exportOgmiosFixtures;
+              packageLockOnly = true;
+              packages = with pkgs; [
+                arion
+                fd
+                haskellPackages.fourmolu
+                nixpkgs-fmt
+                nodePackages.eslint
+                nodePackages.prettier
+              ];
+            };
+          };
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${ogmiosFixtures}"
+            '';
+        in
+        project;
+
       psProjectFor = pkgs:
         let
           projectName = "cardano-transaction-lib";
@@ -316,6 +357,8 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
+          project = psProjectFor pkgs;
+          templateProject = psProjectTemplateFor pkgs;
         in
         (psProjectFor pkgs).checks
         // self.hsFlake.${system}.checks
@@ -336,16 +379,42 @@
               make check-format
               touch $out
             '';
+          template-build = templateProject.compiled;
+          template-main =
+            templateProject.runPursTest {
+              name = "ctl-scaffold-test";
+              testMain = "Test.Scaffold.Main";
+            };
+          template-plutip =
+            templateProject.runPlutipTest {
+              name = "ctl-scaffold-test";
+              # testMain = "Test.Scaffold.Main";
+            };
           template-deps-json = pkgs.runCommand "template-deps-check"
             {
-              ctlPackageJson = builtins.readFile ../package.json;
-              ctlScaffoldPackageJson = builtins.readFile ../templates/ctl-scaffold/package.json;
+              ctlPackageJson = builtins.readFile ./package.json;
+              ctlScaffoldPackageJson = builtins.readFile ./templates/ctl-scaffold/package.json;
               nativeBuildInputs = [ pkgs.jq ];
             } ''
+            cd ${self}
             diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
             touch $out
           '';
+          template-dhall-diff = pkgs.runCommand "template-dhall-diff-check"
+            {
+              ctlPackages = builtins.readFile ./packages.dhall;
+              ctlScaffoldPackages = builtins.readFile ./templates/ctl-scaffold/packages.dhall;
+              nativeBuildInputs = [ pkgs.jq pkgs.dhall-json ];
+            } ''
+            cd ${self}
+            ctlPackagesJson=$(dhall-to-json <<< $ctlPackages)
+            echo ctlPackagesJson
+            exit 1
+            touch $out
+          '';
         });
+
+      templatePath = builtins.toString self + self.templates.ctl-scaffold.path;
 
       check = perSystem (system:
         (nixpkgsFor system).runCommand "combined-check"
