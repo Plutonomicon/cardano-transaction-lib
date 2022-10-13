@@ -576,13 +576,14 @@ instance EncodeAeson MoveInstantaneousReward where
     ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
 
 type PoolRegistrationParams =
-  { operator :: Ed25519KeyHash
-  , vrfKeyhash :: VRFKeyHash
+  { operator :: Ed25519KeyHash -- cwitness (cert)
+  , vrfKeyhash :: VRFKeyHash -- needed to prove that the pool won the lottery
   , pledge :: BigNum
   , cost :: BigNum -- >= pparams.minPoolCost
-  , margin :: UnitInterval
+  , margin :: UnitInterval -- proportion that goes to the reward account
   , rewardAccount :: RewardAddress
-  , poolOwners :: Array Ed25519KeyHash
+  , poolOwners ::
+      Array Ed25519KeyHash -- payment key hashes that contribute to pledge amount
   , relays :: Array Relay
   , poolMetadata :: Maybe PoolMetadata
   }

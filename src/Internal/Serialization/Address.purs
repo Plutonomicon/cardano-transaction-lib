@@ -36,6 +36,7 @@ module Ctl.Internal.Serialization.Address
   , addressFromBytes
   , addressFromBech32
   , addressPaymentCred
+  , addressStakeCred
   , baseAddressFromAddress
   , baseAddressBytes
   , baseAddressBech32
@@ -449,6 +450,10 @@ addressPaymentCred addr =
     <|> (pointerAddressPaymentCred <$> pointerAddressFromAddress addr)
     <|>
       (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
+
+addressStakeCred :: Address -> Maybe StakeCredential
+addressStakeCred addr =
+  (baseAddressDelegationCred <$> baseAddressFromAddress addr)
 
 baseAddressFromAddress :: Address -> Maybe BaseAddress
 baseAddressFromAddress = _baseAddressFromAddress maybeFfiHelper
