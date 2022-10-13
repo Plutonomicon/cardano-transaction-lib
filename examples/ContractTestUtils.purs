@@ -39,9 +39,10 @@ import Contract.Transaction
   , TransactionHash
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
-  , balanceAndSignTx
+  , balanceTx
   , getTxFinalFee
   , lookupTxHash
+  , signTransaction
   , submit
   )
 import Contract.TxConstraints (DatumPresence(DatumWitness))
@@ -154,7 +155,8 @@ contract params@(ContractParams p) = do
   void $ TestUtils.withAssertions assertions do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
-    balancedSignedTx <- balanceAndSignTx unbalancedTxWithMetadata
+    balancedTx <- liftedE $ balanceTx unbalancedTxWithMetadata
+    balancedSignedTx <- signTransaction balancedTx
 
     txId <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txId

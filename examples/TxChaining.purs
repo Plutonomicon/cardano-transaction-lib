@@ -19,9 +19,10 @@ import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceAndSignTx
-  , balanceAndSignTxWithConstraints
+  , balanceTx
+  , balanceTxWithConstraints
   , createAdditionalUtxos
+  , signTransaction
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
@@ -50,7 +51,7 @@ contract = do
     lookups = mempty
 
   unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  balancedSignedTx0 <- balanceAndSignTx unbalancedTx0
+  balancedSignedTx0 <- signTransaction =<< liftedE (balanceTx unbalancedTx0)
 
   additionalUtxos <- createAdditionalUtxos balancedSignedTx0
   logInfo' $ "Additional utxos: " <> show additionalUtxos
@@ -61,8 +62,9 @@ contract = do
       BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
   unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  balancedSignedTx1 <-
-    balanceAndSignTxWithConstraints (unbalancedTx1 /\ balanceTxConstraints)
+  balancedTx1 <-
+    liftedE $ balanceTxWithConstraints unbalancedTx1 balanceTxConstraints
+  balancedSignedTx1 <- signTransaction balancedTx1
 
   txId0 <- submit balancedSignedTx0
   txId1 <- submit balancedSignedTx1
