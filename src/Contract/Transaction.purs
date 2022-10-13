@@ -5,22 +5,18 @@ module Contract.Transaction
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
-  , balanceAndSignTx
-  , balanceAndSignTxWithConstraints
-  , balanceAndSignTxs
-  , balanceAndSignTxsWithConstraints
   , balanceTx
   , balanceTxWithConstraints
   , balanceTxs
   , balanceTxsWithConstraints
   , balanceTxM
-  , balanceTxMWithConstraints
   , calculateMinFee
   , calculateMinFeeM
   , getTxByHash
   , getTxFinalFee
   , module BalanceTxError
   , module ExportQueryM
+  , module FinalizedTransaction
   , module NativeScript
   , module OutputDatum
   , module PTransaction
@@ -41,10 +37,6 @@ module Contract.Transaction
   , withBalancedTxWithConstraints
   , withBalancedTxs
   , withBalancedTxsWithConstraints
-  , withBalancedAndSignedTx
-  , withBalancedAndSignedTxWithConstraints
-  , withBalancedAndSignedTxs
-  , withBalancedAndSignedTxsWithConstraints
   ) where
 
 import Prelude
@@ -63,6 +55,9 @@ import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
+import Ctl.Internal.BalanceTx
+  ( FinalizedTransaction(FinalizedTransaction)
+  ) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -258,21 +253,18 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Untagged.Union (asOneOf)
 
--- | This module defines transaction-related requests. Currently signing and
--- | submission is done with Nami.
-
--- | Signs a `Transaction` with potential failure.
+-- | Signs a transaction with potential failure.
 signTransaction
-  :: forall (r :: Row Type). Transaction -> Contract r (Maybe Transaction)
-signTransaction = wrapContract <<< QueryM.signTransaction
-
--- | Signs a `FinalizedTransaction` with potential failure.
-signTransaction'
-  :: forall (r :: Row Type)
-   . FinalizedTransaction
-  -> Contract r (Maybe BalancedSignedTransaction)
-signTransaction' =
-  map (map BalancedSignedTransaction) <<< signTransaction <<< unwrap
+  :: forall (tx :: Type) (r :: Row Type)
+   . Newtype tx Transaction
+  => tx
+  -> Contract r BalancedSignedTransaction
+signTransaction =
+  map BalancedSignedTransaction
+    <<< liftedM "Error signing the transaction"
+    <<< wrapContract
+    <<< QueryM.signTransaction
+    <<< unwrap
 
 -- | Submits a `BalancedSignedTransaction`, which is the output of
 -- | `signTransaction` or `balanceAndSignTx`
@@ -409,53 +401,6 @@ withBalancedTx
   -> Contract r a
 withBalancedTx = withSingleTransaction (liftedE <<< balanceTx) unwrap
 
--- | Execute an action on an array of balanced and signed
--- | transactions (`balanceAndSignTxs` will be called). Within
--- | this function, all transaction inputs used by these
--- | transactions will be locked, so that they are not used
--- | in any other context.
--- | After the function completes, the locks will be removed.
--- | Errors will be thrown.
-withBalancedAndSignedTxsWithConstraints
-  :: forall (r :: Row Type) (a :: Type)
-   . Array (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> (Array BalancedSignedTransaction -> Contract r a)
-  -> Contract r a
-withBalancedAndSignedTxsWithConstraints =
-  withTransactions balanceAndSignTxsWithConstraints unwrap
-
--- | Same as `withBalancedAndSignedTxsWithConstraints`, but uses the default
--- | balancer constraints.
-withBalancedAndSignedTxs
-  :: forall (r :: Row Type) (a :: Type)
-   . Array UnattachedUnbalancedTx
-  -> (Array BalancedSignedTransaction -> Contract r a)
-  -> Contract r a
-withBalancedAndSignedTxs = withTransactions balanceAndSignTxs unwrap
-
--- | Execute an action on a balanced and signed transaction.
--- | (`balanceAndSignTx` will be called). Within this function,
--- | all transaction inputs used by this transaction will be
--- | locked, so that they are not used in any other context.
--- | After the function completes, the locks will be removed.
--- | Errors will be thrown.
-withBalancedAndSignedTxWithConstraints
-  :: forall (a :: Type) (r :: Row Type)
-   . (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> (BalancedSignedTransaction -> Contract r a)
-  -> Contract r a
-withBalancedAndSignedTxWithConstraints =
-  withSingleTransaction balanceAndSignTxWithConstraints unwrap
-
--- | Same as `withBalancedAndSignedTxWithConstraints`, but uses the default
--- | balancer constraints.
-withBalancedAndSignedTx
-  :: forall (a :: Type) (r :: Row Type)
-   . UnattachedUnbalancedTx
-  -> (BalancedSignedTransaction -> Contract r a)
-  -> Contract r a
-withBalancedAndSignedTx = withSingleTransaction balanceAndSignTx unwrap
-
 -- | Attempts to balance an `UnattachedUnbalancedTx` using the specified 
 -- | balancer constraints.
 balanceTxWithConstraints
@@ -513,14 +458,6 @@ balanceTxs
 balanceTxs = balanceTxsWithConstraints <<< map (flip Tuple mempty)
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
-balanceTxMWithConstraints
-  :: forall (r :: Row Type)
-   . (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> Contract r (Maybe FinalizedTransaction)
-balanceTxMWithConstraints = map hush <<< balanceTxWithConstraints
-
--- | Same as `balanceTxMWithConstraints`, but uses the default balancer
--- | constraints.
 balanceTxM
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
@@ -551,53 +488,6 @@ derive newtype instance EncodeAeson BalancedSignedTransaction
 
 instance Show BalancedSignedTransaction where
   show = genericShow
-
--- | Like `balanceAndSignTx`, but for more than one transaction.
--- | This function may throw errors through the contract Monad.
--- | If successful, transaction inputs will be locked afterwards.
--- | If you want to re-use them in the same 'QueryM' context, call
--- | `unlockTransactionInputs`.
-balanceAndSignTxsWithConstraints
-  :: forall (r :: Row Type)
-   . Array (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> Contract r (Array BalancedSignedTransaction)
-balanceAndSignTxsWithConstraints =
-  balanceTxsWithConstraints >=>
-    traverse (liftedM "error signing a transaction" <<< signTransaction')
-
--- | Same as `balanceAndSignTxsWithConstraints`, but uses the default balancer
--- | constraints.
-balanceAndSignTxs
-  :: forall (r :: Row Type)
-   . Array UnattachedUnbalancedTx
-  -> Contract r (Array BalancedSignedTransaction)
-balanceAndSignTxs = balanceAndSignTxsWithConstraints <<< map (flip Tuple mempty)
-
--- | Balances an unbalanced transaction and signs it.
--- |
--- | The return type includes the balanced transaction to be used with `submit`
--- | to submit the transaction.
--- | If successful, transaction inputs will be locked afterwards.
--- | If you want to re-use them in the same 'QueryM' context, call
--- | `unlockTransactionInputs`.
-balanceAndSignTxWithConstraints
-  :: forall (r :: Row Type)
-   . (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> Contract r BalancedSignedTransaction
-balanceAndSignTxWithConstraints unbalancedTxWithConstraints =
-  balanceAndSignTxsWithConstraints [ unbalancedTxWithConstraints ] >>=
-    case _ of
-      [ x ] -> pure x
-      _ -> liftEffect $ throw $
-        "Unexpected internal error during transaction signing"
-
--- | Same as `balanceAndSignTxWithConstraints`, but uses the default balancer 
--- | constraints.
-balanceAndSignTx
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
-  -> Contract r BalancedSignedTransaction
-balanceAndSignTx = balanceAndSignTxWithConstraints <<< flip Tuple mempty
 
 getTxFinalFee :: BalancedSignedTransaction -> BigInt
 getTxFinalFee =

@@ -16,12 +16,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftedE
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Integer)
@@ -40,14 +35,13 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , balanceAndSignTx
   , plutusV2Script
-  , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Test.Spec.Assertions (shouldEqual)
@@ -87,7 +81,7 @@ payToCheckDatumIsInline vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 spendFromCheckDatumIsInline
   :: ValidatorHash
@@ -111,7 +105,7 @@ spendFromCheckDatumIsInline vhash validator txId = do
         constraints =
           Constraints.mustSpendScriptOutput txInput redeemer
 
-      spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
+      spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
       awaitTxConfirmed spendTxId
       logInfo' "Successfully spent locked values."
 
@@ -141,7 +135,7 @@ payToCheckDatumIsInlineWrong vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 readFromCheckDatumIsInline
   :: ValidatorHash
@@ -164,17 +158,6 @@ readFromCheckDatumIsInline vhash txId = do
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
-
-buildBalanceSignAndSubmitTx
-  :: Lookups.ScriptLookups PlutusData
-  -> TxConstraints Unit Unit
-  -> Contract () TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints = do
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- balanceAndSignTx ubTx
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  pure txId
 
 foreign import checkDatumIsInline :: String
 
