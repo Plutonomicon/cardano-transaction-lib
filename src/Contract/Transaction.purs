@@ -246,7 +246,7 @@ import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple.Nested (type (/\), tuple2, uncurry2, (/\))
 import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -386,11 +386,15 @@ withBalancedTxs = withTransactions balanceTxs unwrap
 -- | Errors will be thrown.
 withBalancedTxWithConstraints
   :: forall (a :: Type) (r :: Row Type)
-   . (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
+   . UnattachedUnbalancedTx
+  -> BalanceTxConstraintsBuilder
   -> (FinalizedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTxWithConstraints =
-  withSingleTransaction (liftedE <<< balanceTxWithConstraints) unwrap
+withBalancedTxWithConstraints unbalancedTx constraints =
+  withSingleTransaction
+    (liftedE <<< uncurry2 balanceTxWithConstraints)
+    unwrap
+    (unbalancedTx `tuple2` constraints)
 
 -- | Same as `withBalancedTxWithConstraints`, but uses the default balancer 
 -- | constraints.
@@ -405,10 +409,11 @@ withBalancedTx = withSingleTransaction (liftedE <<< balanceTx) unwrap
 -- | balancer constraints.
 balanceTxWithConstraints
   :: forall (r :: Row Type)
-   . (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
+   . UnattachedUnbalancedTx
+  -> BalanceTxConstraintsBuilder
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints (unbalancedTx /\ constraints) =
-  wrapContract $ BalanceTx.balanceTxWithConstraints constraints unbalancedTx
+balanceTxWithConstraints unbalancedTx =
+  wrapContract <<< BalanceTx.balanceTxWithConstraints unbalancedTx
 
 -- | Same as `balanceTxWithConstraints`, but uses the default balancer
 -- | constraints.
@@ -416,7 +421,7 @@ balanceTx
   :: forall (r :: Row Type)
    . UnattachedUnbalancedTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTx = balanceTxWithConstraints <<< flip Tuple mempty
+balanceTx = flip balanceTxWithConstraints mempty
 
 -- | Balances each transaction using specified balancer constraint sets and 
 -- | locks the used inputs so that they cannot be reused by subsequent 
@@ -444,7 +449,7 @@ balanceTxsWithConstraints unbalancedTxs =
   balanceAndLock (unbalancedTx /\ constraints) = do
     balancedTx <-
       liftedE $ wrapContract $
-        BalanceTx.balanceTxWithConstraints constraints unbalancedTx
+        BalanceTx.balanceTxWithConstraints unbalancedTx constraints
     void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
     pure balancedTx
 

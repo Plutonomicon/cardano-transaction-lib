@@ -147,7 +147,7 @@ contract (ContractParams p) = do
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
     balancedTx <-
-      liftedE $ balanceTxWithConstraints (unbalancedTx /\ balanceTxConstraints)
+      liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)
