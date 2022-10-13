@@ -7,9 +7,9 @@ import Ctl.Internal.Types.BigNum
   , fromInt
   , fromString
   , fromStringUnsafe
+  , fromUInt
   , maxValue
   , mul
   , one
-  , fromUInt
   , zero
   ) as X
