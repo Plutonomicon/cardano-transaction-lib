@@ -195,7 +195,7 @@ import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), either, isRight, note)
+import Data.Either (Either(..), either, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -892,8 +892,12 @@ processScriptRefUnspentOut scriptHash = case _ of
       if Just (unwrap scriptHash) /= refScriptHash then err
       else pure (Right unit)
 
-isRefNative :: InputWithScriptRef -> Maybe Boolean
-isRefNative scriptRef = isNative (unwrap (unwrap uout).output).scriptRef
+checkRefNative
+  :: forall (a :: Type)
+   . InputWithScriptRef
+  -> ConstraintsM a (Either MkUnbalancedTxError Boolean)
+checkRefNative scriptRef = pure $ note (WrongRefScriptHash Nothing) $ isNative
+  (unwrap (unwrap uout).output).scriptRef
   where
   isNative ref = ref >>=
     ( case _ of
@@ -1015,7 +1019,7 @@ processConstraint mpsMap osMap = do
     MustReferenceOutput refInput -> runExceptT do
       _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
-      isNative <- case scriptRefUnspentOut of
+      case scriptRefUnspentOut of
         Nothing -> do
           mp <- except $ lookupMintingPolicy mpsHash mpsMap
           ( case mp of
@@ -1023,22 +1027,15 @@ processConstraint mpsMap osMap = do
                 ( ExceptT $ attachToCps
                     attachPlutusScript
                     p
-                ) $> false
-              NativeMintingPolicy n ->
-                ( ExceptT $ attachToCps
-                    attachNativeScript
-                    n
-                ) $> true
+                )
+              NativeMintingPolicy _ -> throwError $
+                ExpectedPlutusScriptGotNativeScript mpsHash
           )
         Just scriptRefUnspentOut' -> do
+          isNative <- ExceptT $ checkRefNative scriptRefUnspentOut'
+          when isNative $ throwError $ ExpectedPlutusScriptGotNativeScript
+            mpsHash
           (ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut')
-          ( ExceptT $ pure $ note (WrongRefScriptHash Nothing) $ isRefNative
-              scriptRefUnspentOut'
-          )
-
-      when isNative
-        $ throwError
-        $ ExpectedPlutusScriptGotNativeScript mpsHash
 
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
