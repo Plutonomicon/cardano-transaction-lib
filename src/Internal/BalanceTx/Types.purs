@@ -5,6 +5,7 @@ module Ctl.Internal.BalanceTx.Types
   , PrebalancedTransaction(PrebalancedTransaction)
   , askCip30Wallet
   , askCoinsPerUtxoUnit
+  , askCostModelsForLanguages
   , askNetworkId
   , asksConstraints
   , liftEitherQueryM
@@ -26,18 +27,22 @@ import Ctl.Internal.BalanceTx.Constraints
   ( buildBalanceTxConstraints
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
 import Ctl.Internal.QueryM (QueryEnv, QueryM)
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.Scripts (Language)
 import Ctl.Internal.Wallet (Cip30Wallet, cip30Wallet)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view)
+import Data.Map (filterKeys) as Map
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, over, unwrap)
+import Data.Set (Set)
+import Data.Set (member) as Set
 import Data.Show.Generic (genericShow)
 
 type BalanceTxMContext = { constraints :: BalanceTxConstraints }
@@ -79,6 +84,11 @@ withBalanceTxConstraints constraintsBuilder =
   where
   constraints :: BalanceTxConstraints
   constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
+
+askCostModelsForLanguages :: Set Language -> BalanceTxM Costmdls
+askCostModelsForLanguages languages =
+  asksQueryEnv (_.costModels <<< unwrap <<< _.pparams <<< _.runtime)
+    <#> over Costmdls (Map.filterKeys (flip Set.member languages))
 
 newtype FinalizedTransaction = FinalizedTransaction Transaction
 
