@@ -3,7 +3,6 @@ module Test.Ctl.Serialization.Address (suite) where
 import Prelude
 
 import Contract.Address (addressWithNetworkTagFromBech32)
-import Contract.Numeric.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
@@ -43,6 +42,7 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
