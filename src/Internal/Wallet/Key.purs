@@ -129,10 +129,5 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
     pure witnessSet'
 
   signData :: RawBytes -> Aff DataSignature
-  signData dat = do
-    _ <- liftEffect $ (privateKeySign <<< unwrap) payKey $
-      (unwrap <<< unwrap) dat
-    -- liftEffect $ log $ show encoded
-    liftEffect $ throw "not implemented"
--- pure $ { key: encoded, signature: encoded }
-
+  signData _ = do
+    liftEffect $ throw "signData is not implemented for KeyWallet"

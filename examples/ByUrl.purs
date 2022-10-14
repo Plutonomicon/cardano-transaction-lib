@@ -25,6 +25,7 @@ import Contract.Wallet.KeyFile
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.OneShotMinting as OneShotMinting
@@ -113,6 +114,7 @@ examples =
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
+  , "Cip30" /\ Cip30.contract
   ]
 
 -- Address is:

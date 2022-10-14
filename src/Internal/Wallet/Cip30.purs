@@ -67,8 +67,8 @@ type DataSignature =
 type Cip30Wallet =
   { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
     connection :: Cip30Connection
-  -- Returns the network id of the currently connected account. 0 is testnet 
-  -- and 1 is mainnet but other networks can possibly be returned by wallets.
+  -- Returns the network id of the currently connected account. 0 is for any
+  -- of the test networks, and 1 is mainnet.
   , getNetworkId :: Cip30Connection -> Aff Int
   -- Returns a list of all UTXOs controlled by the wallet.
   , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
@@ -84,7 +84,7 @@ type Cip30Wallet =
   -- Returns a list of unused addresses controlled by the wallet.
   , getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
   -- Returns an address owned by the wallet that should be used as a change
-  -- address to return leftover assets during transaction creation back to 
+  -- address to return leftover assets during transaction creation back to
   -- the connected wallet.
   , getChangeAddress :: Cip30Connection -> Aff (Maybe Address)
   -- Returns the reward addresses owned by the wallet. This can return multiple
@@ -192,7 +192,7 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
--- | Supports : `BaseAddress`, `EnterpriseAddress`, 
+-- | Supports : `BaseAddress`, `EnterpriseAddress`,
 -- | `PointerAddress` and `RewardAddress`
 signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
 signData conn address dat = do
@@ -291,4 +291,3 @@ foreign import _signData
   -> String -- Hex-encoded data
   -> Cip30Connection
   -> Effect (Promise { key :: String, signature :: String })
-

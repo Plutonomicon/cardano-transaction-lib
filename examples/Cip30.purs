@@ -1,8 +1,10 @@
--- | This module demonstrates the use of the Cip30 functions 
--- | using a external wallet 
+-- | This module demonstrates the use of the CIP-30 functions
+-- | using an external wallet.
 module Ctl.Examples.Cip30
   ( main
   , example
+  , contract
+  , noSignDataContract
   ) where
 
 import Contract.Prelude
@@ -62,23 +64,43 @@ nonConfigFunctions extensionWallet = do
     result <- f extensionWallet
     log $ msg <> ":" <> (show result)
 
-contract :: Contract () Unit
-contract = do
+-- a version without the `signData` call, which is not implemented for KeyWallet
+noSignDataContract :: Contract () Unit
+noSignDataContract = do
   logInfo' "Running Examples.Cip30"
   logInfo' "Funtions that depend on `Contract`"
   _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
+  mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
+  _ <- liftMaybe (error "can't get reward address") (mRewardAddress >>= head)
+  mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
+  _ <- liftMaybe (error "can't get change address") mChangeAddress
+  void $ liftMaybe (error "can't get reward address") (mRewardAddress >>= head)
+  where
+  performAndLog
+    :: forall (a :: Type)
+     . Show a
+    => String
+    -> Contract () a
+    -> Contract () a
+  performAndLog logMsg cont = do
+    result <- cont
+    logInfo' $ logMsg <> ": " <> show result
+    pure result
+
+contract :: Contract () Unit
+contract = do
+  noSignDataContract
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
     (pure mDataBytes)
+  mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
+  rewardAddr <- liftMaybe (error "can't get reward address")
+    (mRewardAddress >>= head)
   mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
   changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
   _ <- performAndLog "signData changeAddress" $ signData changeAddress dataBytes
-  mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
-  rewardAddr <- liftMaybe (error "can't get change address")
-    (mRewardAddress >>= head)
-  _ <- performAndLog "signData rewardAddress" $ signData rewardAddr dataBytes
-  pure unit
+  void $ performAndLog "signData rewardAddress" $ signData rewardAddr dataBytes
   where
   msg = "hello world!"
   mDataBytes = rawBytesFromAscii msg
@@ -93,4 +115,3 @@ contract = do
     result <- cont
     logInfo' $ logMsg <> ": " <> show result
     pure result
-
