@@ -114,6 +114,8 @@ mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
 -- | Tells the balancer to use the provided utxo set when evaluating script 
--- | execution units (Sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
+-- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
+-- | Note that you need to use `unspentOutputs` lookup to make these utxos 
+-- | spendable by the transaction (see `Examples.TxChaining` for reference).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
