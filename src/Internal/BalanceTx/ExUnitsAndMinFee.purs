@@ -6,9 +6,7 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 import Prelude
 
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(ExUnitsEvaluationFailed, ReindexRedeemersError)
   )
@@ -17,6 +15,8 @@ import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction(FinalizedTransaction)
   , PrebalancedTransaction(PrebalancedTransaction)
+  , liftEitherQueryM
+  , liftQueryM
   )
 import Ctl.Internal.Cardano.Types.ScriptRef as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
@@ -75,8 +75,8 @@ evalTxExecutionUnits tx unattachedTx = do
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  eResult <- unwrap <$> lift (QueryM.evaluateTxOgmios txBytes)
-  case eResult of
+  eResult <- liftQueryM (QueryM.evaluateTxOgmios txBytes)
+  case unwrap eResult of
     Right a -> pure a
     Left e | tx ^. _isValid -> throwError $ ExUnitsEvaluationFailed unattachedTx
       e
@@ -92,8 +92,8 @@ evalExUnitsAndMinFee
   -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
 evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   -- Reindex `Spent` script redeemers:
-  reindexedUnattachedTx <-
-    ExceptT $ reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
+  reindexedUnattachedTx <- liftEitherQueryM $
+    reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
   -- Reattach datums and redeemers before evaluating ex units:
   let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
   -- Evaluate transaction ex units:
@@ -103,11 +103,11 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
     reindexedUnattachedTxWithExUnits =
       updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
   -- Attach datums and redeemers, set the script integrity hash:
-  FinalizedTransaction finalizedTx <- lift $
+  FinalizedTransaction finalizedTx <- liftQueryM $
     finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
-  minFee <- ExceptT $ QueryM.calculateMinFee finalizedTx <#> pure <<< unwrap
-  pure $ reindexedUnattachedTxWithExUnits /\ minFee
+  minFee <- liftQueryM $ QueryM.calculateMinFee finalizedTx
+  pure $ reindexedUnattachedTxWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
