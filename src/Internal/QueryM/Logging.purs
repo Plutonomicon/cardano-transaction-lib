@@ -32,7 +32,7 @@ setupLogs logLevel customLogger = do
   let
     -- Logger that stores a message in the queue
     addLogEntry :: LogLevel -> Message -> Effect Unit
-    addLogEntry _ msg = do
+    addLogEntry lgl msg = when (msg.level >= lgl) do
       Ref.modify_ (Cons msg) logsRef
 
     -- Logger that is used to actually print messages
