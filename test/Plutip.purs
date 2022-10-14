@@ -1043,8 +1043,9 @@ suite = do
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
           ]
-      runPlutipContract config distribution \alice -> withKeyWallet alice do
-        Cip30.noSignDataContract
+      runPlutipContract config distribution \alice -> do
+        withCip30Mock alice MockNami do
+          Cip30.noSignDataContract
 
     -- TODO
     skip $ test "CIP-30 mock: failing getWalletBalance - investigate" do

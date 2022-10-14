@@ -28,7 +28,7 @@ import Contract.Wallet
   )
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
-import Ctl.Internal.Wallet (WalletExtension(ExtensionKeyWallet))
+import Ctl.Internal.Wallet (WalletExtension)
 import Data.Array (head)
 import Effect.Exception (error)
 
@@ -38,14 +38,11 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   mWallet <- runContract cfg getWallet
-  let mSupportWallet = walletToWalletExtension <$> mWallet
+  let mSupportWallet = walletToWalletExtension =<< mWallet
   _ <- traverse nonConfigFunctions mSupportWallet
   runContract cfg contract
 
 nonConfigFunctions :: WalletExtension -> Aff Unit
-nonConfigFunctions (ExtensionKeyWallet) = do
-  log "Functions that don't depend on `Contract`"
-  log "skipping for ExtensionKeyWallet"
 nonConfigFunctions extensionWallet = do
   log "Functions that don't depend on `Contract`"
   performAndLog "isWalletAvailable" (liftEffect <<< isWalletAvailable)
