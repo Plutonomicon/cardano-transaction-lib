@@ -49,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
 - `addressFromBech32` checks that address network Id corresponds to the contract environment Id and is therefore lifted to the `Contract` monad ([#1062](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1062))
 - `keyWalletPrivatePaymentKey` and `keyWalletPrivateStakeKey` are now in to the public `Contract.Wallet.Key` API. ([#1094](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1094))
-- the `logLevel` from the config parameters is passed to the `customLogger` to allow consistent filtering of the logs. ([#1110](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1110)).
+- The `logLevel` from the config parameters is passed to the `customLogger` to allow consistent filtering of the logs. ([#1110](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1110)).
 - Functions for working with `BigNum` are now in the public `Contract.Numeric.BigNum` API ([#1109](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1109))
 
 ### Removed
