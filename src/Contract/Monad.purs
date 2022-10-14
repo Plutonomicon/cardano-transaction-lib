@@ -356,9 +356,6 @@ withContractEnv
   { addLogEntry, printLogs } <-
     liftEffect $ setupLogs params.logLevel params.customLogger
   let
-    addLogEntry' :: LogLevel -> Message -> Aff Unit
-    addLogEntry' lgl msg = liftEffect $ addLogEntry lgl msg
-
     config :: QueryConfig
     config =
       { ctlServerConfig
@@ -368,7 +365,7 @@ withContractEnv
       , logLevel
       , walletSpec
       , customLogger:
-          if suppressLogs then Just addLogEntry'
+          if suppressLogs then Just $ map liftEffect <<< addLogEntry
           else customLogger
       , suppressLogs
       }

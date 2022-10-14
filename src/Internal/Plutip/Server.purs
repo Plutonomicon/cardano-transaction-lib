@@ -205,8 +205,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     { addLogEntry, suppressedLogger, printLogs } <-
       liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
     let
-      addLogEntry' lgl msg = liftEffect $ addLogEntry lgl msg
-      configLogger = Just addLogEntry'
+      configLogger = Just $ map liftEffect <<< addLogEntry
 
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
       (liftEffect <<< stopContractEnv)
