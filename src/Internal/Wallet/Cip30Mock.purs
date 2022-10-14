@@ -25,9 +25,8 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
 import Ctl.Internal.Wallet
   ( Wallet
-  , mkFlintWalletAff
-  , mkGeroWalletAff
-  , mkNamiWalletAff
+  , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet)
+  , mkWalletAff
   )
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key
@@ -58,7 +57,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Type.Proxy (Proxy(Proxy))
 import Untagged.Union (asOneOf)
 
-data WalletMock = MockFlint | MockGero | MockNami
+data WalletMock = MockFlint | MockGero | MockNami | MockLode
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -83,7 +82,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
   cip30Mock <- wrapContract $ mkCip30Mock keyWallet.paymentKey
     keyWallet.stakeKey
   deleteMock <- liftEffect $ injectCip30Mock mockString cip30Mock
-  wallet <- liftAff mkWalletAff
+  wallet <- liftAff mkWalletAff'
   let
     setUpdatedWallet :: ContractEnv r -> ContractEnv r
     setUpdatedWallet =
@@ -94,17 +93,19 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
   liftEffect deleteMock
   liftEither res
   where
-  mkWalletAff :: Aff Wallet
-  mkWalletAff = case mock of
-    MockFlint -> mkFlintWalletAff
-    MockGero -> mkGeroWalletAff
-    MockNami -> mkNamiWalletAff
+  mkWalletAff' :: Aff Wallet
+  mkWalletAff' = case mock of
+    MockFlint -> mkWalletAff FlintWallet
+    MockGero -> mkWalletAff GeroWallet
+    MockNami -> mkWalletAff NamiWallet
+    MockLode -> mkWalletAff LodeWallet
 
   mockString :: String
   mockString = case mock of
     MockFlint -> "flint"
     MockGero -> "gerowallet"
     MockNami -> "nami"
+    MockLode -> "LodeWallet"
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
@@ -112,7 +113,7 @@ type Cip30Mock =
   , getCollateral :: Effect (Promise (Array String))
   , getBalance :: Effect (Promise String)
   , getUsedAddresses :: Effect (Promise (Array String))
-  , getUnUsedAddresses :: Effect (Promise (Array String))
+  , getUnusedAddresses :: Effect (Promise (Array String))
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
@@ -177,7 +178,7 @@ mkCip30Mock pKey mSKey = do
     , getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
           [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
-    , getUnUsedAddresses: fromAff $ pure ([] :: Array String)
+    , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
         (unwrap keyWallet).address config.networkId <#>
           (byteArrayToHex <<< toBytes <<< asOneOf)

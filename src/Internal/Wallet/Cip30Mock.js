@@ -25,14 +25,18 @@ exports.injectCip30Mock = walletName => mock => () => {
     enable: () => {
       return new Promise((resolve, _reject) =>
         resolve({
+          getNetworkId: mock.getNetworkId,
+          getUtxos: mock.getUtxos,
           experimental: {
             getCollateral: mock.getCollateral,
           },
+          getBalance: mock.getBalance,
+          getUsedAddresses: mock.getUsedAddresses,
+          getUnusedAddresses: mock.getUnusedAddresses,
+          getChangeAddress: mock.getChangeAddress,
+          getRewardAddresses: mock.getRewardAddresses,
           signTx: mock.signTx,
           signData: mock.signData,
-          getUsedAddresses: mock.getUsedAddresses,
-          getBalance: mock.getBalance,
-          getUtxos: mock.getUtxos,
         })
       );
     },

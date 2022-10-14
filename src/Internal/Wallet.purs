@@ -3,12 +3,11 @@ module Ctl.Internal.Wallet
   , module Cip30Wallet
   , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
   , WalletExtension
-      ( ExtensionNami
-      , ExtensionLode
-      , ExtensionGero
-      , ExtensionFlint
-      , ExtensionEternl
-      , ExtensionKeyWallet
+      ( NamiWallet
+      , LodeWallet
+      , GeroWallet
+      , FlintWallet
+      , EternlWallet
       )
   , isEternlAvailable
   , isGeroAvailable
@@ -79,12 +78,11 @@ data Wallet
   | KeyWallet KeyWallet
 
 data WalletExtension
-  = ExtensionNami
-  | ExtensionGero
-  | ExtensionFlint
-  | ExtensionEternl
-  | ExtensionLode
-  | ExtensionKeyWallet
+  = NamiWallet
+  | GeroWallet
+  | FlintWallet
+  | EternlWallet
+  | LodeWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
@@ -100,64 +98,102 @@ foreign import _icon :: String -> Effect String
 mkWalletAff :: WalletExtension -> Aff Wallet
 mkWalletAff walletExtension =
   case walletExtension of
-    ExtensionNami -> Nami <$> mkCip30WalletAff "Nami" (_enableWallet walletName)
-    ExtensionGero -> Gero <$> mkCip30WalletAff "Gero" (_enableWallet walletName)
-    ExtensionEternl -> Eternl <$> mkCip30WalletAff "Eternl"
+    NamiWallet -> Nami <$> mkCip30WalletAff "Nami" (_enableWallet walletName)
+    GeroWallet -> Gero <$> mkCip30WalletAff "Gero" (_enableWallet walletName)
+    EternlWallet -> Eternl <$> mkCip30WalletAff "Eternl"
       (_enableWallet walletName)
-    ExtensionFlint -> Flint <$> mkCip30WalletAff "Flint"
+    FlintWallet -> Flint <$> mkCip30WalletAff "Flint"
       (_enableWallet walletName)
-    ExtensionLode -> _mkLodeWalletAff
-    ExtensionKeyWallet -> liftEffect $ throw
-      "Can't use makeWalletAff with a KeyWallet"
+    LodeWallet -> _mkLodeWalletAff
   where
-  walletName = fromMaybe "" $ walletExtensionToName walletExtension
+  walletName = walletExtensionToName walletExtension
 
 isNamiAvailable
-  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  :: Warn
+       ( Text
+           "`isNamiAvailable` is deprecated, please use `isWalletAvailable NamiWallet`"
+       )
   => Effect Boolean
-isNamiAvailable = isWalletAvailable ExtensionNami
+isNamiAvailable = isWalletAvailable NamiWallet
 
 mkNamiWalletAff
-  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  :: Warn
+       ( Text
+           "`mkNamiWalletAff` is deprecated, please use `mkWalletAff NamiWallet`"
+       )
   => Aff Wallet
-mkNamiWalletAff = mkWalletAff ExtensionNami
+mkNamiWalletAff = mkWalletAff NamiWallet
 
 isGeroAvailable
-  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  :: Warn
+       ( Text
+           "`isGeroAvailable` is deprecated, please use `isWalletAvailable GeroWallet`"
+       )
   => Effect Boolean
-isGeroAvailable = isWalletAvailable ExtensionGero
+isGeroAvailable = isWalletAvailable GeroWallet
 
 mkGeroWalletAff
-  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  :: Warn
+       ( Text
+           "`mkGeroWalletAff` is deprecated, please use `mkWalletAff GeroWallet`"
+       )
   => Aff Wallet
-mkGeroWalletAff = mkWalletAff ExtensionGero
+mkGeroWalletAff = mkWalletAff GeroWallet
 
 isFlintAvailable
-  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  :: Warn
+       ( Text
+           "`isFlintAvailable` is deprecated, please use `isWalletAvailable FlintWallet`"
+       )
   => Effect Boolean
-isFlintAvailable = isWalletAvailable ExtensionFlint
+isFlintAvailable = isWalletAvailable FlintWallet
 
 mkFlintWalletAff
-  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  :: Warn
+       ( Text
+           "`mkFlintWalletAff` is deprecated, please use `mkWalletAff FlintWallet`"
+       )
   => Aff Wallet
-mkFlintWalletAff = mkWalletAff ExtensionFlint
+mkFlintWalletAff = mkWalletAff FlintWallet
 
 isLodeAvailable
-  :: Warn (Text "Deprecated, please use `isWalletAvailable`")
+  :: Warn
+       ( Text
+           "`isLodeAvailable` is deprecated, please use `isWalletAvailable LodeWallet`"
+       )
   => Effect Boolean
-isLodeAvailable = isWalletAvailable ExtensionLode
+isLodeAvailable = isWalletAvailable LodeWallet
 
 mkLodeWalletAff
-  :: Warn (Text "Deprecated, please use `mkWalletAff`")
+  :: Warn
+       ( Text
+           "`mkLodeWalletAff` is deprecated, please use `mkWalletAff LodeWallet`"
+       )
   => Aff Wallet
-mkLodeWalletAff = _mkLodeWalletAff
+mkLodeWalletAff = mkWalletAff LodeWallet
+
+isEternlAvailable
+  :: Warn
+       ( Text
+           "`isEternlAvailable` is deprecated, please use `isWalletAvailable EternlWallet`"
+       )
+  => Effect Boolean
+isEternlAvailable = isWalletAvailable EternlWallet
+
+mkEternlWalletAff
+  :: Warn
+       ( Text
+           "`mkEternlWalletAff` is deprecated, please use `mkWalletAff EternlWallet`"
+       )
+  => Aff Wallet
+mkEternlWalletAff = mkWalletAff EternlWallet
 
 -- Lode does not inject on page load, so this function retries up to set
 -- number of times, for Lode to be available.
 _mkLodeWalletAff :: Aff Wallet
 _mkLodeWalletAff = do
   retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
-    $ liftEffect (isWalletAvailable ExtensionLode)
+    $ liftEffect (isWalletAvailable LodeWallet)
   catchError
     (Lode <$> mkCip30WalletAff "Lode" (_enableWallet "LodeWallet"))
     ( \e -> throwError <<< error $ (show e) <>
@@ -170,17 +206,8 @@ _mkLodeWalletAff = do
       if _ then pure unit
       else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
 
-isEternlAvailable :: Effect Boolean
-isEternlAvailable = isWalletAvailable ExtensionEternl
-
-mkEternlWalletAff :: Aff Wallet
-mkEternlWalletAff = mkWalletAff ExtensionEternl
-
 isWalletAvailable :: WalletExtension -> Effect Boolean
-isWalletAvailable swallet =
-  case walletExtensionToName swallet of
-    Just walletName -> _isWalletAvailable walletName
-    Nothing -> throw "Not implemented yet"
+isWalletAvailable = _isWalletAvailable <<< walletExtensionToName
 
 cip30Wallet :: Wallet -> Maybe Cip30Wallet
 cip30Wallet = case _ of
@@ -191,50 +218,35 @@ cip30Wallet = case _ of
   Lode c30 -> Just c30
   KeyWallet _ -> Nothing
 
-walletExtensionToName :: WalletExtension -> Maybe String
+walletExtensionToName :: WalletExtension -> String
 walletExtensionToName = case _ of
-  ExtensionNami -> Just "nami"
-  ExtensionGero -> Just "gerowallet"
-  ExtensionFlint -> Just "flint"
-  ExtensionEternl -> Just "eternl"
-  ExtensionLode -> Just "LodeWallet"
-  ExtensionKeyWallet -> Nothing
+  NamiWallet -> "nami"
+  GeroWallet -> "gerowallet"
+  FlintWallet -> "flint"
+  EternlWallet -> "eternl"
+  LodeWallet -> "LodeWallet"
 
-walletToWalletExtension :: Wallet -> WalletExtension
+walletToWalletExtension :: Wallet -> Maybe WalletExtension
 walletToWalletExtension = case _ of
-  Nami _ -> ExtensionNami
-  Gero _ -> ExtensionGero
-  Flint _ -> ExtensionFlint
-  Eternl _ -> ExtensionEternl
-  Lode _ -> ExtensionLode
-  KeyWallet _ -> ExtensionKeyWallet
+  Nami _ -> Just NamiWallet
+  Gero _ -> Just GeroWallet
+  Flint _ -> Just FlintWallet
+  Eternl _ -> Just EternlWallet
+  Lode _ -> Just LodeWallet
+  KeyWallet _ -> Nothing
 
 isEnabled :: WalletExtension -> Aff Boolean
-isEnabled wallet =
-  case walletExtensionToName wallet of
-    Just walletName -> toAffE $ _isEnabled walletName
-    Nothing -> pure true
+isEnabled =
+  toAffE <<< _isEnabled <<< walletExtensionToName
 
 apiVersion :: WalletExtension -> Aff String
-apiVersion wallet = do
-  walletName <- liftMaybe
-    (error "Can't get the name of the Wallet in apiVersion call")
-    (walletExtensionToName wallet)
-  liftEffect $ _apiVersion walletName
+apiVersion = liftEffect <<< _apiVersion <<< walletExtensionToName
 
 name :: WalletExtension -> Aff String
-name wallet = do
-  walletName <- liftMaybe
-    (error "Can't get the name of the Wallet in `name` call")
-    (walletExtensionToName wallet)
-  liftEffect $ _name walletName
+name = liftEffect <<< _name <<< walletExtensionToName
 
 icon :: WalletExtension -> Aff String
-icon wallet = do
-  walletName <- liftMaybe
-    (error "Can't get the name of the Wallet in `icon` call")
-    (walletExtensionToName wallet)
-  liftEffect $ _icon walletName
+icon = liftEffect <<< _icon <<< walletExtensionToName
 
 -- Attach a dummy vkey witness to a transaction. Helpful for when we need to
 -- know the number of witnesses (e.g. fee calculation) but the wallet hasn't

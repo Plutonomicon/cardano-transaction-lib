@@ -178,13 +178,16 @@ import Ctl.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
   , KeyWallet
-  , Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet)
-  , mkEternlWalletAff
-  , mkFlintWalletAff
-  , mkGeroWalletAff
+  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
+  , WalletExtension
+      ( LodeWallet
+      , EternlWallet
+      , FlintWallet
+      , GeroWallet
+      , NamiWallet
+      )
   , mkKeyWallet
-  , mkLodeWalletAff
-  , mkNamiWalletAff
+  , mkWalletAff
   )
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.KeyFile
@@ -412,11 +415,11 @@ mkWalletBySpec = case _ of
       PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
       PrivateStakeKeyValue key -> pure key
     pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
-  ConnectToNami -> mkNamiWalletAff
-  ConnectToGero -> mkGeroWalletAff
-  ConnectToFlint -> mkFlintWalletAff
-  ConnectToEternl -> mkEternlWalletAff
-  ConnectToLode -> mkLodeWalletAff
+  ConnectToNami -> mkWalletAff NamiWallet
+  ConnectToGero -> mkWalletAff GeroWallet
+  ConnectToFlint -> mkWalletAff FlintWallet
+  ConnectToEternl -> mkWalletAff EternlWallet
+  ConnectToLode -> mkWalletAff LodeWallet
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
