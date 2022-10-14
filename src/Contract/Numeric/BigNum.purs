@@ -6,7 +6,6 @@ import Ctl.Internal.Types.BigNum
   , fromBigInt
   , fromInt
   , fromString
-  , fromStringUnsafe
   , fromUInt
   , maxValue
   , mul
