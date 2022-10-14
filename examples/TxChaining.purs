@@ -19,11 +19,11 @@ import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceTx
   , balanceTxWithConstraints
   , createAdditionalUtxos
   , signTransaction
   , submit
+  , withBalancedTx
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -47,28 +47,33 @@ contract = do
       Constraints.mustPayToPubKey pkh
         (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
 
-    lookups :: Lookups.ScriptLookups PlutusData
-    lookups = mempty
+    lookups0 :: Lookups.ScriptLookups PlutusData
+    lookups0 = mempty
 
-  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  balancedSignedTx0 <- signTransaction =<< liftedE (balanceTx unbalancedTx0)
+  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints
 
-  additionalUtxos <- createAdditionalUtxos balancedSignedTx0
-  logInfo' $ "Additional utxos: " <> show additionalUtxos
+  withBalancedTx unbalancedTx0 \balancedTx0 -> do
+    balancedSignedTx0 <- signTransaction balancedTx0
 
-  let
-    balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
-    balanceTxConstraints =
-      BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
+    additionalUtxos <- createAdditionalUtxos balancedSignedTx0
+    logInfo' $ "Additional utxos: " <> show additionalUtxos
 
-  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  balancedTx1 <-
-    liftedE $ balanceTxWithConstraints unbalancedTx1 balanceTxConstraints
-  balancedSignedTx1 <- signTransaction balancedTx1
+    let
+      lookups1 :: Lookups.ScriptLookups PlutusData
+      lookups1 = Lookups.unspentOutputs additionalUtxos
 
-  txId0 <- submit balancedSignedTx0
-  txId1 <- submit balancedSignedTx1
+      balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+      balanceTxConstraints =
+        BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-  awaitTxConfirmed txId0
-  awaitTxConfirmed txId1
+    unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints
+    balancedTx1 <-
+      liftedE $ balanceTxWithConstraints unbalancedTx1 balanceTxConstraints
+    balancedSignedTx1 <- signTransaction balancedTx1
+
+    txId0 <- submit balancedSignedTx0
+    txId1 <- submit balancedSignedTx1
+
+    awaitTxConfirmed txId0
+    awaitTxConfirmed txId1
 
