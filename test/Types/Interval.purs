@@ -7,11 +7,11 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Contract.Numeric.BigNum (fromInt) as BigNum
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Types.BigNum (fromInt) as BigNum
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , PosixTimeToSlotError(PosixTimeBeforeSystemStart)

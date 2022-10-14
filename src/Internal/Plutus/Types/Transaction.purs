@@ -2,6 +2,7 @@ module Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  , _amount
   , _datum
   , _output
   , _scriptRef
@@ -35,6 +36,9 @@ newtype TransactionOutput = TransactionOutput
   , datum :: OutputDatum
   , referenceScript :: Maybe ScriptHash
   }
+
+_amount :: Lens' TransactionOutput Value
+_amount = _Newtype <<< prop (Proxy :: Proxy "amount")
 
 _datum :: Lens' TransactionOutput OutputDatum
 _datum = _Newtype <<< prop (Proxy :: Proxy "datum")
