@@ -7,15 +7,12 @@ module Ctl.Internal.BalanceTx.Collateral
 import Prelude
 
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
-import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral) as X
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(CollateralReturnError, CollateralReturnMinAdaValueCalcError)
   )
-import Ctl.Internal.BalanceTx.Types
-  ( BalanceTxM
-  )
+import Ctl.Internal.BalanceTx.Types (BalanceTxM, askCoinsPerUtxoUnit)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
@@ -92,8 +89,7 @@ addTxCollateralReturn collateral transaction ownAddress =
         , scriptRef: Nothing
         }
 
-    coinsPerUtxoUnit <-
-      asks (_.runtime >>> _.pparams) <#> unwrap >>> _.coinsPerUtxoUnit
+    coinsPerUtxoUnit <- askCoinsPerUtxoUnit
 
     -- Calculate the required min ada value for the collateral return output:
     minAdaValue <-
