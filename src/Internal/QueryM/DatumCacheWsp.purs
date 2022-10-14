@@ -175,12 +175,12 @@ datumCacheMethodToString = case _ of
 getDatumByHashCall :: JsonWspCall DataHash GetDatumByHashR
 getDatumByHashCall = mkDatumCacheCallType
   GetDatumByHash
-  ({ hash: _ } <<< byteArrayToHex <<< unwrap <<< unwrap)
+  ({ hash: _ } <<< byteArrayToHex <<< unwrap)
 
 getDatumsByHashesCall :: JsonWspCall (Array DataHash) GetDatumsByHashesR
 getDatumsByHashesCall = mkDatumCacheCallType
   GetDatumsByHashes
-  ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap <<< unwrap))
+  ({ hashes: _ } <<< map (byteArrayToHex <<< unwrap))
 
 type TxHash = ByteArray
 

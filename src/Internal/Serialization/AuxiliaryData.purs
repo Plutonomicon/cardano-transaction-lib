@@ -33,7 +33,7 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T
 import Data.Map as Map
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -79,7 +79,8 @@ foreign import _hashAuxiliaryData
 
 hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
 hashAuxiliaryData =
-  map (wrap <<< toBytes <<< _hashAuxiliaryData) <<< convertAuxiliaryData
+  map (wrap <<< unwrap <<< toBytes <<< _hashAuxiliaryData) <<<
+    convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData
 convertAuxiliaryData

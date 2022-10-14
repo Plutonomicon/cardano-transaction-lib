@@ -109,7 +109,6 @@ import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, VRFKeyHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData)
@@ -288,7 +287,7 @@ instance EncodeAeson TxBody where
     , referenceInputs = encodeSet r.referenceInputs
     }
 
-newtype ScriptDataHash = ScriptDataHash CborBytes
+newtype ScriptDataHash = ScriptDataHash ByteArray
 
 derive instance Newtype ScriptDataHash _
 derive instance Generic ScriptDataHash _
@@ -310,7 +309,7 @@ derive newtype instance EncodeAeson Mint
 instance Show Mint where
   show = genericShow
 
-newtype AuxiliaryDataHash = AuxiliaryDataHash CborBytes
+newtype AuxiliaryDataHash = AuxiliaryDataHash ByteArray
 
 derive instance Generic AuxiliaryDataHash _
 derive instance Newtype AuxiliaryDataHash _
@@ -340,7 +339,7 @@ instance Show ProposedProtocolParameterUpdates where
 instance EncodeAeson ProposedProtocolParameterUpdates where
   encodeAeson' (ProposedProtocolParameterUpdates r) = encodeAeson' $ encodeMap r
 
-newtype GenesisHash = GenesisHash CborBytes
+newtype GenesisHash = GenesisHash ByteArray
 
 derive instance Newtype GenesisHash _
 derive newtype instance Eq GenesisHash
@@ -532,7 +531,7 @@ instance Show PoolMetadata where
 instance EncodeAeson PoolMetadata where
   encodeAeson' (PoolMetadata r) = encodeAeson' r
 
-newtype GenesisDelegateHash = GenesisDelegateHash CborBytes
+newtype GenesisDelegateHash = GenesisDelegateHash ByteArray
 
 derive instance Eq GenesisDelegateHash
 derive instance Generic GenesisDelegateHash _

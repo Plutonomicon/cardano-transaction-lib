@@ -497,7 +497,8 @@ convertTxBody (T.TxBody body) = do
   for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
   for_ body.auxiliaryDataHash $
-    unwrap >>> fromBytes >>> fromJustEff "Failed to convert auxiliary data hash"
+    unwrap >>> wrap >>> fromBytes >>> fromJustEff
+      "Failed to convert auxiliary data hash"
       >=> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval $
     unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
@@ -507,7 +508,8 @@ convertTxBody (T.TxBody body) = do
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash $
-    unwrap >>> fromBytes >>> fromJustEff "Failed to convert script data hash"
+    unwrap >>> wrap >>> fromBytes >>> fromJustEff
+      "Failed to convert script data hash"
       >=> setTxBodyScriptDataHash txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   for_ body.requiredSigners $
@@ -552,7 +554,7 @@ convertProposedProtocolParameterUpdates ppus =
       Tuple
         <$>
           ( fromJustEff "Failed to convert genesis hash" $ fromBytes
-              (unwrap genesisHash)
+              (wrap $ unwrap genesisHash)
           )
         <*>
           convertProtocolParamUpdate ppu
@@ -692,12 +694,14 @@ convertCert = case _ of
     } -> do
     join $ newGenesisKeyDelegationCertificate
       <$>
-        ( fromJustEff "Failed to convert genesis hash" $
-            fromBytes genesisHash
+        ( fromJustEff "Failed to convert genesis hash"
+            $ fromBytes
+            $ wrap genesisHash
         )
       <*>
-        ( fromJustEff "Failed to convert genesis delegate hash" $
-            fromBytes genesisDelegateHash
+        ( fromJustEff "Failed to convert genesis delegate hash"
+            $ fromBytes
+            $ wrap genesisDelegateHash
         )
       <*>
         pure vrfKeyhash
@@ -748,7 +752,7 @@ convertMint (T.Mint nonAdaAssets) = do
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"
@@ -777,7 +781,7 @@ convertTxInputs fInputs = do
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
 convertTxInput (T.TransactionInput { transactionId, index }) = do
-  tx_hash <- fromBytesEffect (unwrap transactionId)
+  tx_hash <- fromBytesEffect (wrap $ unwrap transactionId)
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
@@ -794,7 +798,7 @@ convertTxOutput
   case datum of
     NoOutputDatum -> pure unit
     OutputDatumHash dataHash -> do
-      for_ (fromBytes $ unwrap dataHash) $
+      for_ (fromBytes $ wrap $ unwrap dataHash) $
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
@@ -819,7 +823,7 @@ convertValue val = do
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"

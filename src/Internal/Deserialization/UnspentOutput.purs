@@ -79,7 +79,7 @@ convertInput :: TransactionInput -> Maybe T.TransactionInput
 convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
-    { transactionId: T.TransactionHash $ toBytes
+    { transactionId: T.TransactionHash $ unwrap $ toBytes
         (getTransactionHash input)
     , index
     }
@@ -91,7 +91,7 @@ convertOutput output = do
     address = getAddress output
     mbDataHash =
       getDataHash maybeFfiHelper output <#>
-        toBytes >>> T.DataHash
+        toBytes >>> unwrap >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail

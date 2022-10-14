@@ -213,7 +213,7 @@ import Type.Row (type (+))
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
   :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
-deserializeTransaction txCbor = fromBytes' txCbor >>=
+deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
   convertTransaction
 
 -- | Converts transaction from foreign CSL representation to CTL's one.
@@ -296,7 +296,7 @@ convertTxBody txBody = do
     , withdrawals
     , update
     , auxiliaryDataHash:
-        T.AuxiliaryDataHash <<< toBytes <$>
+        T.AuxiliaryDataHash <<< unwrap <<< toBytes <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
@@ -321,7 +321,7 @@ convertUpdate u = do
   epoch <- map T.Epoch $ cslNumberToUInt "convertUpdate: epoch" e
   ppus <- traverse
     ( bitraverse
-        (pure <<< T.GenesisHash <<< toBytes)
+        (pure <<< T.GenesisHash <<< unwrap <<< toBytes)
         convertProtocolParamUpdate
     )
     paramUpdates
@@ -344,9 +344,9 @@ convertCertificate = _convertCert certConvHelper
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         pure $ T.GenesisKeyDelegation
-          { genesisHash: T.GenesisHash $ toBytes genesisHash
+          { genesisHash: T.GenesisHash $ unwrap $ toBytes genesisHash
           , genesisDelegateHash: T.GenesisDelegateHash
-              (toBytes genesisDelegateHash)
+              (unwrap $ toBytes genesisDelegateHash)
           , vrfKeyhash: vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
@@ -655,7 +655,7 @@ convertExUnits nm cslExunits =
       <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
-convertScriptDataHash = toBytes >>> T.ScriptDataHash
+convertScriptDataHash = toBytes >>> unwrap >>> T.ScriptDataHash
 
 convertProtocolVersion
   :: forall (r :: Row Type)

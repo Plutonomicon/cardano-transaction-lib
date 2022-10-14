@@ -27,16 +27,18 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , Value
   )
+import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Exception (throw)
 import Type.Row (type (+))
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where
-  fromBytes' :: forall (r :: Row Type). CborBytes -> E (FromBytesError + r) a
+  fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes AuxiliaryDataHash where
   fromBytes' = _fromBytes "AuxiliaryDataHash" fromBytesErrorHelper
@@ -85,7 +87,7 @@ instance FromBytes VRFKeyHash where
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => CborBytes -> Maybe a
-fromBytes = fromBytes' >>> hush
+fromBytes = unwrap >>> fromBytes' >>> hush
 
 fromBytesEffect :: forall (a :: Type). FromBytes a => CborBytes -> Effect a
 fromBytesEffect bytes =
@@ -99,5 +101,5 @@ foreign import _fromBytes
   :: forall (r :: Row Type) (a :: Type)
    . String
   -> ErrorFfiHelper r
-  -> CborBytes
+  -> ByteArray
   -> E r a

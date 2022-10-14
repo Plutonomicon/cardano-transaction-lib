@@ -170,10 +170,6 @@ import Ctl.Internal.Types.ByteArray
   , byteArrayFromIntArrayUnsafe
   , hexToByteArrayUnsafe
   )
-import Ctl.Internal.Types.CborBytes
-  ( cborBytesFromIntArrayUnsafe
-  , hexToCborBytesUnsafe
-  )
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Ctl.Internal.Types.PlutusData as PD
@@ -220,13 +216,13 @@ txOutputFixture1 =
             keyHashCredential $ unsafePartial $ fromJust
               $ ed25519KeyHashFromBytes
               -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-              $ hexToCborBytesUnsafe
+              $ hexToByteArrayUnsafe
                   "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
         , paymentCred:
             keyHashCredential $ unsafePartial $ fromJust
               $ ed25519KeyHashFromBytes
               -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-              $ hexToCborBytesUnsafe
+              $ hexToByteArrayUnsafe
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
     , amount: Value (Coin $ BigInt.fromInt 0) mempty
@@ -286,7 +282,7 @@ proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
 proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
   Map.fromFoldable
     [ GenesisHash
-        ( wrap $ hexToByteArrayUnsafe
+        ( hexToByteArrayUnsafe
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
         ) /\
         { minfeeA: Just $ Coin $ BigInt.fromInt 1
@@ -604,11 +600,9 @@ txFixture4 =
                 }
             , GenesisKeyDelegation
                 { genesisHash: GenesisHash
-                    $ wrap
                     $ hexToByteArrayUnsafe
                         "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
                 , genesisDelegateHash: GenesisDelegateHash
-                    $ wrap
                     $ hexToByteArrayUnsafe
                         "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
                 , vrfKeyhash: unsafePartial $ fromJust $ fromBytes $ wrap
@@ -633,7 +627,6 @@ txFixture4 =
             , epoch: Epoch one
             }
         , auxiliaryDataHash: Just $ AuxiliaryDataHash
-            $ wrap
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
         , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
@@ -869,7 +862,7 @@ utxoFixture1' =
         ( TransactionInput
             { index: UInt.fromInt 0
             , transactionId: TransactionHash
-                ( wrap $ byteArrayFromIntArrayUnsafe
+                ( byteArrayFromIntArrayUnsafe
                     [ 198
                     , 181
                     , 74
@@ -913,7 +906,7 @@ utxoFixture1' =
                 , paymentCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
                     $
-                      cborBytesFromIntArrayUnsafe
+                      byteArrayFromIntArrayUnsafe
                         [ 243
                         , 63
                         , 250
@@ -946,7 +939,7 @@ utxoFixture1' =
                 , delegationCred: keyHashCredential $ unsafePartial $ fromJust
                     $ ed25519KeyHashFromBytes
                     $
-                      ( cborBytesFromIntArrayUnsafe
+                      ( byteArrayFromIntArrayUnsafe
                           [ 57
                           , 3
                           , 16
@@ -1173,7 +1166,6 @@ mkTxInput :: { txId :: String, ix :: Int } -> TransactionInput
 mkTxInput { txId, ix } =
   TransactionInput
     { transactionId: TransactionHash
-        $ wrap
         $ hexToByteArrayUnsafe txId
     , index: UInt.fromInt ix
     }
@@ -1189,7 +1181,7 @@ ed25519KeyHashFixture1 =
   -- $ Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
   unsafePartial $ fromJust
     $ ed25519KeyHashFromBytes
-    $ hexToCborBytesUnsafe
+    $ hexToByteArrayUnsafe
         "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 ed25519KeyHashFixture2 :: Ed25519KeyHash
@@ -1197,7 +1189,7 @@ ed25519KeyHashFixture2 =
   -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
   unsafePartial $ fromJust
     $ ed25519KeyHashFromBytes
-    $ hexToCborBytesUnsafe
+    $ hexToByteArrayUnsafe
         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
 nativeScriptFixture1 :: NativeScript
@@ -1228,11 +1220,11 @@ keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
   , delegationCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
-        $ hexToCborBytesUnsafe stake
+        $ hexToByteArrayUnsafe stake
   , paymentCred:
       keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
         -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-        $ hexToCborBytesUnsafe payment
+        $ hexToByteArrayUnsafe payment
   }
 
 plutusDataFixture1 :: PD.PlutusData
@@ -1305,7 +1297,7 @@ plutusDataFixture8Bytes' = hexToByteArrayUnsafe
 
 scriptHash1 :: ScriptHash
 scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToCborBytesUnsafe
+  hexToByteArrayUnsafe
     "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
 
 policyId :: MintingPolicyHash

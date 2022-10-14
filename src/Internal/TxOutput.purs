@@ -54,7 +54,7 @@ import Data.Traversable (traverse)
 txOutRefToTransactionInput
   :: Ogmios.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
-  transactionId <- hexToByteArray txId <#> (wrap >>> wrap)
+  transactionId <- hexToByteArray txId <#> wrap
   pure $ wrap
     { transactionId
     , index
@@ -65,7 +65,7 @@ transactionInputToTxOutRef
   :: Transaction.TransactionInput -> Ogmios.OgmiosTxOutRef
 transactionInputToTxOutRef
   (Transaction.TransactionInput { transactionId, index }) =
-  { txId: byteArrayToHex (unwrap $ unwrap transactionId)
+  { txId: byteArrayToHex (unwrap transactionId)
   , index
   }
 
@@ -175,7 +175,7 @@ scriptOutputToTransactionOutput
 --------------------------------------------------------------------------------
 -- | Converts an Ogmios datum hash `String` to an internal `DataHash`
 ogmiosDatumHashToDatumHash :: String -> Maybe DataHash
-ogmiosDatumHashToDatumHash str = hexToByteArray str <#> (wrap >>> wrap)
+ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 
 -- | Converts an Ogmios datum `String` to an internal `Datum`
 ogmiosDatumToDatum :: String -> Maybe Datum
@@ -187,7 +187,7 @@ ogmiosDatumToDatum =
 
 -- | Converts an internal `DataHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DataHash -> String
-datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap <<< unwrap
+datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 
 -- | Converts an internal `Datum` to an Ogmios datum `String`
 datumToOgmiosDatum :: Datum -> Maybe String

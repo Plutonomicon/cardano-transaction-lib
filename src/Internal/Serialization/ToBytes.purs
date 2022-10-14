@@ -4,6 +4,8 @@ module Ctl.Internal.Serialization.ToBytes
   , toBytes'
   ) where
 
+import Prelude
+
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Serialization.Types
@@ -24,13 +26,14 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , Value
   )
-import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
-foreign import _toBytes :: forall (a :: Type). a -> CborBytes
+foreign import _toBytes :: forall (a :: Type). a -> ByteArray
 
 class ToBytes a where
-  toBytes' :: a -> CborBytes
+  toBytes' :: a -> ByteArray
 
 instance ToBytes Address where
   toBytes' = _toBytes
@@ -90,4 +93,4 @@ instance ToBytes Value where
   toBytes' = _toBytes
 
 toBytes :: forall (a :: Type). ToBytes a => a -> CborBytes
-toBytes = toBytes'
+toBytes = CborBytes <<< toBytes'

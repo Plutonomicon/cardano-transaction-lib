@@ -69,7 +69,7 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   , null rs
   , null ds = pure tx
   | otherwise = do
-      scriptDataHash <- ScriptDataHash <<< toBytes
+      scriptDataHash <- ScriptDataHash <<< unwrap <<< toBytes
         <$> hashScriptData costModels rs (unwrap <$> ds)
       pure $ over Transaction
         _

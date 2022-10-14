@@ -297,9 +297,9 @@ submitE tx = do
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
   let txCborBytes = Serialization.toBytes cslTx
   result <- wrapContract $
-    QueryM.submitTxOgmios (unwrap $ unwrap txHash) txCborBytes
+    QueryM.submitTxOgmios (unwrap txHash) txCborBytes
   pure $ case result of
-    SubmitTxSuccess th -> Right $ wrap $ wrap th
+    SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json
 
 -- | Query the Haskell server for the minimum transaction fee
@@ -607,7 +607,7 @@ getTxByHash
   :: forall (r :: Row Type)
    . TransactionHash
   -> Contract r (Maybe Transaction)
-getTxByHash = wrapContract <<< QueryM.getTxByHash <<< unwrap <<< unwrap
+getTxByHash = wrapContract <<< QueryM.getTxByHash <<< unwrap
 
 -- | Wait until a transaction with given hash is confirmed.
 -- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.
@@ -615,8 +615,7 @@ awaitTxConfirmed
   :: forall (r :: Row Type)
    . TransactionHash
   -> Contract r Unit
-awaitTxConfirmed = wrapContract <<< AwaitTx.awaitTxConfirmed <<< unwrap <<<
-  unwrap
+awaitTxConfirmed = wrapContract <<< AwaitTx.awaitTxConfirmed <<< unwrap
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.
@@ -628,7 +627,6 @@ awaitTxConfirmedWithTimeout
 awaitTxConfirmedWithTimeout timeout = wrapContract
   <<< AwaitTx.awaitTxConfirmedWithTimeout timeout
   <<< unwrap
-  <<< unwrap
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
 -- | Throws an exception on timeout.
@@ -639,5 +637,4 @@ awaitTxConfirmedWithTimeoutSlots
   -> Contract r Unit
 awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
   <<< AwaitTx.awaitTxConfirmedWithTimeoutSlots timeout
-  <<< unwrap
   <<< unwrap

@@ -54,14 +54,14 @@ foreign import sha3_256HashHex :: ByteArray -> String
 
 datumHash :: Datum -> Maybe DataHash
 datumHash =
-  map (wrap <<< toBytes <<< hashPlutusData) <<< convertPlutusData <<< unwrap
+  map (wrap <<< unwrap <<< toBytes <<< hashPlutusData) <<< convertPlutusData <<<
+    unwrap
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
-  wrap <<< wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<<
-    _txBody
+  wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript

@@ -11,7 +11,7 @@ import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
@@ -34,7 +34,7 @@ unitRedeemer :: Redeemer
 unitRedeemer = Redeemer (toData unit)
 
 -- We could also use `type RedeemerHash = DataHash`?
-newtype RedeemerHash = RedeemerHash CborBytes
+newtype RedeemerHash = RedeemerHash ByteArray
 
 derive instance Generic RedeemerHash _
 derive instance Newtype RedeemerHash _
@@ -50,4 +50,4 @@ instance Show RedeemerHash where
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> Maybe RedeemerHash
 redeemerHash =
-  map (wrap <<< toBytes) <<< convertPlutusData <<< unwrap
+  map (wrap <<< unwrap <<< toBytes) <<< convertPlutusData <<< unwrap

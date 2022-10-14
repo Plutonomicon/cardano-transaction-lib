@@ -17,7 +17,7 @@ import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap)
 import Data.Unit (Unit)
 import Effect.Aff (Aff)
 import Test.Ctl.TestM (TestPlanM)
@@ -43,7 +43,7 @@ suite = do
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
     pkhBts = toBytes pkh
-    pkh2 = ed25519KeyHashFromBytes pkhBts
+    pkh2 = ed25519KeyHashFromBytes $ unwrap pkhBts
 
   assertTrue
     "Safe ed25519KeyHashToBech32 should produce Just when unsafe version works"
@@ -66,14 +66,13 @@ suite = do
     (isNothing $ scriptHashFromBech32 invalidBech32)
 
   scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes
-    $ wrap
     $ hexToByteArrayUnsafe
         scriptHashHex
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
     scrhBts = toBytes scrh
-    scrhFromBytes = scriptHashFromBytes scrhBts
+    scrhFromBytes = scriptHashFromBytes $ unwrap scrhBts
     scrhFromBech = scriptHashFromBech32 scrhB32
 
   assertTrue "Safe scriptHashToBech32 should produce Just when unsafe works"
