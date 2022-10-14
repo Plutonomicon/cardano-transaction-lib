@@ -265,7 +265,7 @@ import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst)
-import Data.Tuple.Nested (type (/\), tuple2, uncurry2, (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
@@ -335,11 +335,11 @@ calculateMinFeeM tx additionalUtxos =
   map hush $ calculateMinFee tx additionalUtxos
 
 -- | Helper to adapt to UsedTxOuts
-withUsedTxouts
+withUsedTxOuts
   :: forall (r :: Row Type) (a :: Type)
    . ReaderT UsedTxOuts (Contract r) a
   -> Contract r a
-withUsedTxouts f = asks (_.usedTxOuts <<< _.runtime <<< unwrap) >>= runReaderT f
+withUsedTxOuts f = asks (_.usedTxOuts <<< _.runtime <<< unwrap) >>= runReaderT f
 
 -- Helper to avoid repetition
 withTransactions
@@ -365,7 +365,7 @@ withTransactions prepare extract utxs action = do
     (run <<< action)
   where
   cleanup txs = for_ txs
-    (withUsedTxouts <<< unlockTransactionInputs <<< extract)
+    (withUsedTxOuts <<< unlockTransactionInputs <<< extract)
 
 withSingleTransaction
   :: forall (a :: Type) (ubtx :: Type) (tx :: Type) (r :: Row Type)
@@ -414,11 +414,9 @@ withBalancedTxWithConstraints
   -> BalanceTxConstraintsBuilder
   -> (FinalizedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTxWithConstraints unbalancedTx constraints =
-  withSingleTransaction
-    (liftedE <<< uncurry2 balanceTxWithConstraints)
-    unwrap
-    (unbalancedTx `tuple2` constraints)
+withBalancedTxWithConstraints unbalancedTx =
+  withSingleTransaction balanceAndLockWithConstraints unwrap
+    <<< Tuple unbalancedTx
 
 -- | Same as `withBalancedTxWithConstraints`, but uses the default balancer 
 -- | constraints.
@@ -427,7 +425,7 @@ withBalancedTx
    . UnattachedUnbalancedTx
   -> (FinalizedTransaction -> Contract r a)
   -> Contract r a
-withBalancedTx = withSingleTransaction (liftedE <<< balanceTx) unwrap
+withBalancedTx = withSingleTransaction balanceAndLock unwrap
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` using the specified 
 -- | balancer constraints.
@@ -456,26 +454,16 @@ balanceTxsWithConstraints
   => t (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
   -> Contract r (t FinalizedTransaction)
 balanceTxsWithConstraints unbalancedTxs =
-  unlockAllOnError $ traverse balanceAndLock unbalancedTxs
+  unlockAllOnError $ traverse balanceAndLockWithConstraints unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract r a -> Contract r a
   unlockAllOnError f = catchError f $ \e -> do
     for_ unbalancedTxs $
-      withUsedTxouts <<< unlockTransactionInputs <<< uutxToTx <<< fst
+      withUsedTxOuts <<< unlockTransactionInputs <<< uutxToTx <<< fst
     throwError e
 
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
   uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
-
-  balanceAndLock
-    :: UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder
-    -> Contract r FinalizedTransaction
-  balanceAndLock (unbalancedTx /\ constraints) = do
-    balancedTx <-
-      liftedE $ wrapContract $
-        BalanceTx.balanceTxWithConstraints unbalancedTx constraints
-    void $ withUsedTxouts $ lockTransactionInputs (unwrap balancedTx)
-    pure balancedTx
 
 -- | Same as `balanceTxsWithConstraints`, but uses the default balancer
 -- | constraints.
@@ -492,6 +480,23 @@ balanceTxM
    . UnattachedUnbalancedTx
   -> Contract r (Maybe FinalizedTransaction)
 balanceTxM = map hush <<< balanceTx
+
+balanceAndLockWithConstraints
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder
+  -> Contract r FinalizedTransaction
+balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
+  balancedTx <-
+    liftedE $ balanceTxWithConstraints unbalancedTx constraints
+  void $ withUsedTxOuts $
+    lockTransactionInputs (unwrap balancedTx)
+  pure balancedTx
+
+balanceAndLock
+  :: forall (r :: Row Type)
+   . UnattachedUnbalancedTx
+  -> Contract r FinalizedTransaction
+balanceAndLock = balanceAndLockWithConstraints <<< flip Tuple mempty
 
 -- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
 -- | reindex the redeemers with such inputs. This must be crucially called after
