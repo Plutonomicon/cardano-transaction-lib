@@ -3,6 +3,7 @@ module Test.Ctl.AffInterface (suite) where
 import Prelude
 
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
+import Contract.Numeric.BigNum (add, fromInt) as BigNum
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Address (ogmiosAddressToAddress)
 import Ctl.Internal.QueryM
@@ -21,7 +22,6 @@ import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
 import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Types.BigNum (add, fromInt) as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Transaction (DataHash(DataHash))
 import Data.Either (Either(Left, Right))

@@ -522,6 +522,10 @@ mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
+-- | Attempts to solve, in order, a sequence of constraints until the first
+-- | successful try.
+-- | `mustSatisfyaAnyOf` is just a way to define a chain of try-catch expressions
+-- | in a declarative manner. It does not do any analysis of the constraints' semantics.
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
    . Foldable f
