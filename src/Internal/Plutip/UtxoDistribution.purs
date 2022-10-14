@@ -25,7 +25,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , balanceAndSignTxE
+  , balanceTx
   , signTransaction
   , submit
   )
@@ -52,7 +52,7 @@ import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -192,15 +192,14 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    signedTx <- liftedE $ withKeyWallet ourWallet $
-      balanceAndSignTxE unbalancedTx
+    signedTx <-
+      withKeyWallet ourWallet $
+        signTransaction =<< liftedE (balanceTx unbalancedTx)
     signedTx' <- foldM
-      ( \tx { wallet } -> liftedM "Could not sign" $ withKeyWallet wallet $
-          signTransaction tx
-      )
-      (unwrap signedTx)
+      (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
+      signedTx
       walletsInfo
-    txHash <- submit (wrap signedTx')
+    txHash <- submit signedTx'
     awaitTxConfirmed txHash
     -- Clear the used txouts cache because we know the state of these
     -- utxos is settled, see here:
