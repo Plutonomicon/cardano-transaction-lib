@@ -586,7 +586,7 @@ getWalletAddresses = do
 
 actionBasedOnWallet
   :: forall (a :: Type)
-   . (Cip30Wallet -> (Cip30Connection -> Aff (Maybe a)))
+   . (Cip30Wallet -> Cip30Connection -> Aff (Maybe a))
   -> (KeyWallet -> Aff a)
   -> QueryM (Maybe a)
 actionBasedOnWallet walletAction keyWalletAction =

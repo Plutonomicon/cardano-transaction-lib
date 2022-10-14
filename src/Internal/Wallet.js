@@ -24,8 +24,7 @@ const checkNotNode = () => {
 };
 
 const enableWallet = wallet => () => {
-  const isAvailable = isWalletAvailable(wallet)();
-  if (isAvailable) {
+  if (isWalletAvailable(wallet)()) {
     return window.cardano[wallet].enable().catch(e => {
       throw new Error(
         "enableWallet failed: " +
@@ -55,8 +54,7 @@ const isWalletAvailable = walletName => () => {
 exports._isWalletAvailable = isWalletAvailable;
 
 exports._isEnabled = walletName => () => {
-  const isAvailable = isWalletAvailable(walletName)();
-  if (isAvailable) {
+  if (isWalletAvailable(walletName)()) {
     return window.cardano[walletName].isEnabled();
   } else {
     throw new Error("Wallet `" + walletName + "` is not available");
@@ -64,8 +62,7 @@ exports._isEnabled = walletName => () => {
 };
 
 exports._apiVersion = walletName => () => {
-  const isAvailable = isWalletAvailable(walletName)();
-  if (isAvailable) {
+  if (isWalletAvailable(walletName)()) {
     return window.cardano[walletName].apiVersion;
   } else {
     throw new Error("Wallet `" + walletName + "` is not available");
@@ -73,8 +70,7 @@ exports._apiVersion = walletName => () => {
 };
 
 exports._name = walletName => () => {
-  const isAvailable = isWalletAvailable(walletName)();
-  if (isAvailable) {
+  if (isWalletAvailable(walletName)()) {
     return window.cardano[walletName].name;
   } else {
     throw new Error("Wallet `" + walletName + "` is not available");
@@ -82,8 +78,7 @@ exports._name = walletName => () => {
 };
 
 exports._icon = walletName => () => {
-  const isAvailable = isWalletAvailable(walletName)();
-  if (isAvailable) {
+  if (isWalletAvailable(walletName)()) {
     return window.cardano[walletName].icon;
   } else {
     throw new Error("Wallet `" + walletName + "` is not available");
