@@ -6,16 +6,21 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 import Prelude
 
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Class (asks)
+import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos) as Constraints
 import Ctl.Internal.BalanceTx.Error
-  ( BalanceTxError(ExUnitsEvaluationFailed, ReindexRedeemersError)
+  ( BalanceTxError
+      ( ExUnitsEvaluationFailed
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      )
   )
 import Ctl.Internal.BalanceTx.Helpers (_body', _redeemersTxIns)
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction(FinalizedTransaction)
   , PrebalancedTransaction(PrebalancedTransaction)
+  , askCostModelsForLanguages
   , askNetworkId
   , asksConstraints
   , liftEitherQueryM
@@ -23,11 +28,14 @@ import Ctl.Internal.BalanceTx.Types
   )
 import Ctl.Internal.Cardano.Types.ScriptRef as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
+  ( Costmdls
+  , Redeemer(Redeemer)
   , Transaction
   , TransactionOutput(TransactionOutput)
+  , TransactionWitnessSet
   , TxBody(TxBody)
   , UtxoMap
+  , _body
   , _inputs
   , _isValid
   , _plutusData
@@ -52,26 +60,29 @@ import Ctl.Internal.TxOutput
   ( transactionInputToTxOutRef
   , transactionOutputToOgmiosTxOut
   )
+import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.ScriptLookups
   ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   )
-import Ctl.Internal.Types.Scripts (PlutusScript)
+import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
 import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), note)
+import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((%~), (.~), (?~))
-import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable) as Map
+import Data.Map (empty, fromFoldable, lookup, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
+import Data.Set (Set)
 import Data.Set as Set
-import Data.Traversable (foldMap, traverse)
+import Data.Traversable (for)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
@@ -128,7 +139,7 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
     reindexedUnattachedTxWithExUnits =
       updateTxExecutionUnits reindexedUnattachedTx rdmrPtrExUnitsList
   -- Attach datums and redeemers, set the script integrity hash:
-  FinalizedTransaction finalizedTx <- liftQueryM $
+  FinalizedTransaction finalizedTx <-
     finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
   networkId <- askNetworkId
@@ -141,33 +152,49 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
 finalizeTransaction
-  :: UnattachedUnbalancedTx -> UtxoMap -> QueryM FinalizedTransaction
+  :: UnattachedUnbalancedTx -> UtxoMap -> BalanceTxM FinalizedTransaction
 finalizeTransaction reindexedUnattachedTxWithExUnits utxos = do
   let
-    txBody = reindexedUnattachedTxWithExUnits ^. _body'
+    attachedTxWithExUnits :: Transaction
     attachedTxWithExUnits =
       reattachDatumsAndRedeemers reindexedUnattachedTxWithExUnits
-    ws = attachedTxWithExUnits ^. _witnessSet # unwrap
-    redeemers = fromMaybe mempty ws.redeemers
-    datums = wrap <$> fromMaybe mempty ws.plutusData
-    scripts = fromMaybe mempty ws.plutusScripts <> getRefPlutusScripts txBody
-    languages = foldMap (unwrap >>> snd >>> Set.singleton) scripts
-  costModels <- asks $ _.runtime >>> _.pparams <#> unwrap >>> _.costModels
-    >>> unwrap
-    >>> Map.filterKeys (flip Set.member languages)
-    >>> wrap
+
+    txBody :: TxBody
+    txBody = attachedTxWithExUnits ^. _body
+
+    ws :: TransactionWitnessSet
+    ws = attachedTxWithExUnits ^. _witnessSet
+
+    redeemers :: Array Redeemer
+    redeemers = fromMaybe mempty (_.redeemers $ unwrap ws)
+
+    datums :: Array Datum
+    datums = wrap <$> fromMaybe mempty (_.plutusData $ unwrap ws)
+
+  refPlutusScripts <- except $ getRefPlutusScripts txBody
+
+  let
+    scripts :: Array PlutusScript
+    scripts = fromMaybe mempty (_.plutusScripts $ unwrap ws) <> refPlutusScripts
+
+    languages :: Set Language
+    languages = foldMap (Set.singleton <<< snd <<< unwrap) scripts
+
+  (costModels :: Costmdls) <- askCostModelsForLanguages languages
+
   liftEffect $ FinalizedTransaction <$>
     setScriptDataHash costModels redeemers datums attachedTxWithExUnits
   where
-  getRefPlutusScripts :: TxBody -> Array PlutusScript
+  getRefPlutusScripts :: TxBody -> Either BalanceTxError (Array PlutusScript)
   getRefPlutusScripts (TxBody txBody) =
     let
       spendAndRefInputs :: Array TransactionInput
       spendAndRefInputs =
         Array.fromFoldable (txBody.inputs <> txBody.referenceInputs)
     in
-      fromMaybe mempty $ catMaybes <<< map getPlutusScript <$>
-        traverse (flip Map.lookup utxos) spendAndRefInputs
+      catMaybes <<< map getPlutusScript <$>
+        for spendAndRefInputs \oref ->
+          note (UtxoLookupFailedFor oref) (Map.lookup oref utxos)
 
   getPlutusScript :: TransactionOutput -> Maybe PlutusScript
   getPlutusScript (TransactionOutput { scriptRef }) =
