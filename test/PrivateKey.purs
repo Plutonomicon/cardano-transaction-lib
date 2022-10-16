@@ -4,9 +4,13 @@ import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
-import Contract.Transaction (signTransaction)
+import Contract.Transaction
+  ( FinalizedTransaction(FinalizedTransaction)
+  , signTransaction
+  )
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
+  ( Ed25519Signature
+  , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
@@ -56,10 +60,11 @@ suite = do
                 )
             }
       runContract cfg do
-        mbTx <- signTransaction txFixture1
+        signedTx <- unwrap <$> signTransaction (FinalizedTransaction txFixture1)
         let
-          mbSignature =
-            mbTx ^? _Just
+          signature :: Maybe Ed25519Signature
+          signature =
+            Just signedTx ^? _Just
               <<< unto Transaction
               <<< prop (Proxy :: Proxy "witnessSet")
               <<< unto TransactionWitnessSet
@@ -67,10 +72,9 @@ suite = do
               <<< _Just
               <<< ix 0
               <<< unto Vkeywitness
-              <<<
-                _2
-        mbSignature `shouldEqual` Just
-          ( unsafePartial $ fromJust $ mkEd25519Signature
+              <<< _2
+        signature `shouldEqual` Just
+          ( unsafePartial $ fromJust $ mkEd25519Signature $
               "ed25519_sig1w7nkmvk57r6094j9u85r4pddve0hg3985ywl9yzwecx03aa9fnfspl9zmtngmqmczd284lnusjdwkysgukxeq05a548dyepr6vn62qs744wxz"
           )
     test "privateKeyToFile round-trips" do

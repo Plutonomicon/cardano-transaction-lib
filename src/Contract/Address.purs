@@ -9,6 +9,7 @@ module Contract.Address
   , addressFromBech32
   , addressToBech32
   , getWalletAddress
+  , getWalletAddressWithNetworkTag
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
@@ -44,10 +45,11 @@ import Ctl.Internal.Address
   ) as Address
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
+  , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
+  , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -135,11 +137,22 @@ getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
   mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
-  for mbAddr
-    ( liftedM "getWalletAddress: failed to deserialize address" <<< wrapContract
-        <<< pure
-        <<< toPlutusAddress
-    )
+  for mbAddr $
+    liftedM "getWalletAddress: failed to deserialize Address"
+      <<< pure
+      <<< toPlutusAddress
+
+-- | Get the `AddressWithNetworkTag` of the browser wallet.
+-- TODO: change this to Maybe (Array Address)
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+getWalletAddressWithNetworkTag
+  :: forall (r :: Row Type). Contract r (Maybe AddressWithNetworkTag)
+getWalletAddressWithNetworkTag = do
+  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
+  for mbAddr $
+    liftedM "getWalletAddressWithNetworkTag: failed to deserialize Address"
+      <<< pure
+      <<< toPlutusAddressWithNetworkTag
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
@@ -153,7 +166,6 @@ getWalletCollateral = do
   for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
-      <<< wrapContract
       <<< pure
       <<< toPlutusTxUnspentOutput
 
