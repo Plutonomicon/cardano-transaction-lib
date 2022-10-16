@@ -36,7 +36,7 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [ ] `mustBeSignedBy`
   - **Note**: This constraint is also included in our Plutip stake key integration, as with `mustSpendPubKeyOutput`
 - [ ] `mustHashDatum`
-- [ ] `mustIncludeDatum`
+- [x] `mustIncludeDatum`
 - [x] `mustPayToPubKeyWithDatum`
 - [x] `mustPayToPubKeyAddressWithDatum`
 - [ ] `mustProduceAtLeastTotal`. Also implies
