@@ -398,18 +398,53 @@
             } ''
             cd ${self}
             diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+            diff <(jq -S .devDependencies <<< $ctlPackageJson) <(jq -S .devDependencies <<< $ctlScaffoldPackageJson)
             touch $out
           '';
           template-dhall-diff = pkgs.runCommand "template-dhall-diff-check"
-            {
-              ctlPackages = builtins.readFile ./packages.dhall;
-              ctlScaffoldPackages = builtins.readFile ./templates/ctl-scaffold/packages.dhall;
-              nativeBuildInputs = [ pkgs.jq pkgs.dhall-json ];
-            } ''
-            cd ${self}
-            ctlPackagesJson=$(dhall-to-json <<< $ctlPackages)
-            echo ctlPackagesJson
-            exit 1
+            (
+              let
+                ctlPackages = import ./spago-packages.nix { inherit pkgs; };
+                ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+                conflictOp = acc: depattr: with builtins;
+                  if elem depattr (attrNames ctlScaffoldPackages.inputs) &&
+                  ctlPackages.inputs.${depattr}.version == ctlScaffoldPackages.inputs.${depattr}.version
+                  then acc else [ depattr ] ++ acc;
+                conflicts = builtins.foldl' conflictOp [ ] (builtins.attrNames ctlPackages.inputs);
+              in
+              {
+                inherit conflicts;
+                nativeBuildInputs = [ ];
+              }
+            ) ''
+            if [ -z "$conflicts" ]
+            then
+              echo "\$conflicts is empty"
+            else
+              echo "Conflcting dependencies: $conflicts"
+              exit 1
+            fi
+            touch $out
+          '';
+          template-version = pkgs.runCommand "template-consistent-version-check"
+            (
+              let
+                ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+                ctlScaffoldFlake = import ./templates/ctl-scaffold/flake.nix;
+                versionCheck = ctlScaffoldPackages.inputs."cardano-transaction-lib".version == ctlScaffoldFlake.inputs.ctl.rev;
+              in
+              {
+                packagesLibRev = ctlScaffoldPackages.inputs."cardano-transaction-lib".version;
+                flakeLibRev = ctlScaffoldFlake.inputs.ctl.rev;
+                nativeBuildInputs = [ ];
+              }
+            ) ''
+
+            if [ $packagesLibRev != $flakeLibRev ]
+            then
+              echo "CTL Version mismatch $packagesLibRev $flakeLibRev"
+              exit 1
+            fi
             touch $out
           '';
         });
