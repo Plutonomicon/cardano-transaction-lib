@@ -6,7 +6,6 @@ import Contract.Numeric.BigNum (fromString) as BN
 import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey
   , Transaction
-  , Transaction
   , convertPubKey
   , mkFromCslPubKey
   , mkPublicKey
