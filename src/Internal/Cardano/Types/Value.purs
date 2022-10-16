@@ -8,6 +8,7 @@ module Ctl.Internal.Cardano.Types.Value
   , coinToValue
   , currencyMPSHash
   , eq
+  , equipartitionValueWithTokenQuantityUpperBound
   , filterNonAda
   , flattenNonAdaValue
   , geq
@@ -62,6 +63,7 @@ import Aeson
   )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
+import Ctl.Internal.Equipartition (class Equipartition, equipartition)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
@@ -87,14 +89,17 @@ import Ctl.Internal.Types.TokenName
   , mkTokenNames
   )
 import Data.Array (cons, filter)
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt, fromInt)
+import Data.BigInt (BigInt, fromInt, toNumber)
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
+import Data.Int (ceil) as Int
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
@@ -135,6 +140,7 @@ class Split (a :: Type) where
 --------------------------------------------------------------------------------
 -- Coin (Ada)
 --------------------------------------------------------------------------------
+
 newtype Coin = Coin BigInt
 
 derive instance Generic Coin _
@@ -142,6 +148,7 @@ derive instance Newtype Coin _
 derive newtype instance Eq Coin
 derive newtype instance Ord Coin
 derive newtype instance EncodeAeson Coin
+derive newtype instance Equipartition Coin
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
@@ -196,6 +203,7 @@ valueToCoin' v = valueOf v unsafeAdaSymbol adaToken
 --------------------------------------------------------------------------------
 -- CurrencySymbol
 --------------------------------------------------------------------------------
+
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
 derive newtype instance Eq CurrencySymbol
@@ -281,6 +289,49 @@ instance Split NonAdaAsset where
 
 instance EncodeAeson NonAdaAsset where
   encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeMap $ encodeMap <$> m
+
+instance Equipartition NonAdaAsset where
+  equipartition nonAdaAssets numParts =
+    foldl accumulate (NEArray.replicate numParts mempty)
+      (flattenNonAdaValue nonAdaAssets)
+    where
+    accumulate
+      :: NonEmptyArray NonAdaAsset
+      -> (CurrencySymbol /\ TokenName /\ BigInt)
+      -> NonEmptyArray NonAdaAsset
+    accumulate xs (cs /\ tn /\ tokenQuantity) =
+      NEArray.zipWith append xs $
+        map (mkSingletonNonAdaAsset cs tn)
+          (equipartition tokenQuantity numParts)
+
+-- | Partitions a `NonAdaAsset` into smaller `NonAdaAsset`s, where the 
+-- | quantity of each token is equipartitioned across the resultant 
+-- | `NonAdaAsset`s, with the goal that no token quantity in any of the 
+-- | resultant `NonAdaAsset`s exceeds the given upper bound. 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenMap.hs#L780
+equipartitionAssetsWithTokenQuantityUpperBound
+  :: NonAdaAsset -> BigInt -> NonEmptyArray NonAdaAsset /\ Int
+equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
+  case
+    maxTokenQuantity <= zero || currentMaxTokenQuantity <= maxTokenQuantity
+    of
+    true ->
+      NEArray.singleton nonAdaAssets /\ one
+    false ->
+      equipartition nonAdaAssets numParts /\ numParts
+  where
+  numParts :: Int
+  numParts =
+    Int.ceil (toNumber currentMaxTokenQuantity / toNumber maxTokenQuantity)
+
+  tokenQuantity :: (CurrencySymbol /\ TokenName /\ BigInt) -> BigInt
+  tokenQuantity (_ /\ _ /\ quantity) = quantity
+
+  currentMaxTokenQuantity :: BigInt
+  currentMaxTokenQuantity =
+    foldl (\quantity tn -> quantity `max` tokenQuantity tn) zero
+      (flattenNonAdaValue nonAdaAssets)
 
 unwrapNonAdaAsset :: NonAdaAsset -> Map CurrencySymbol (Map TokenName BigInt)
 unwrapNonAdaAsset (NonAdaAsset mp) = mp
@@ -388,6 +439,29 @@ instance EncodeAeson Value where
     { coin
     , nonAdaAsset
     }
+
+instance Equipartition Value where
+  equipartition (Value coin nonAdaAssets) numParts =
+    NEArray.zipWith mkValue
+      (equipartition coin numParts)
+      (equipartition nonAdaAssets numParts)
+
+-- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the 
+-- | quantity of each token is equipartitioned across the resultant `Value`s, 
+-- | with the goal that no token quantity in any of the resultant `Value`s 
+-- | exceeds the given upper bound. 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenBundle.hs#L381
+equipartitionValueWithTokenQuantityUpperBound
+  :: Value -> BigInt -> NonEmptyArray Value
+equipartitionValueWithTokenQuantityUpperBound value maxTokenQuantity =
+  let
+    Value coin nonAdaAssets = value
+    ms /\ numParts =
+      equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets
+        maxTokenQuantity
+  in
+    NEArray.zipWith mkValue (equipartition coin numParts) ms
 
 -- | Create a `Value` from `Coin` and `NonAdaAsset`, the latter should have been
 -- | constructed safely at this point.
