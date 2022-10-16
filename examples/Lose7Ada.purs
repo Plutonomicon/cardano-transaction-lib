@@ -16,12 +16,7 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftedE
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
@@ -34,14 +29,13 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , balanceAndSignTxE
   , plutusV1Script
-  , submit
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 -- TODO Re-export into Contract or drop the usage
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
 import Ctl.Internal.BalanceTx.Collateral (minRequiredCollateral)
@@ -79,7 +73,7 @@ payToAlwaysFails vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 spendFromAlwaysFails
   :: ValidatorHash
@@ -102,7 +96,7 @@ spendFromAlwaysFails vhash validator txId = do
           Constraints.mustSpendScriptOutput txInput unitRedeemer
             <> Constraints.mustNotBeValid
 
-      spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
+      spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
       logInfo' $ "Tx ID: " <> show spendTxId
       awaitTxConfirmed spendTxId
       logInfo' "Successfully spent locked values."
@@ -120,17 +114,6 @@ spendFromAlwaysFails vhash validator txId = do
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
-
-buildBalanceSignAndSubmitTx
-  :: Lookups.ScriptLookups PlutusData
-  -> TxConstraints Unit Unit
-  -> Contract () TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints = do
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceAndSignTxE ubTx
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  pure txId
 
 foreign import alwaysFails :: String
 
