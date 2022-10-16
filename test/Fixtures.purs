@@ -76,6 +76,8 @@ module Test.Ctl.Fixtures
 import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
+import Contract.Numeric.BigNum (BigNum)
+import Contract.Numeric.BigNum (fromBigInt, fromInt) as BigNum
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -163,8 +165,6 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -1435,4 +1435,3 @@ fullyAppliedScriptFixture =
     \2333573466e1c00800404003c0152002333500b22333573466e3c00800404003c011220100\
     \10091326353008009498cd4015d680119a802bae0011200120011200112001122002122001\
     \20014c01021820004c010544746573740001"
-

@@ -2,8 +2,10 @@ module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
+import Contract.Numeric.BigNum (fromString) as BN
 import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey
+  , Transaction
   , Transaction
   , convertPubKey
   , mkFromCslPubKey
@@ -17,7 +19,6 @@ import Ctl.Internal.Serialization (convertTxOutput, toBytes)
 import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
-import Ctl.Internal.Types.BigNum (fromString) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
