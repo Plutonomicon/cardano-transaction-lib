@@ -112,7 +112,6 @@ import Ctl.Internal.JsWebSocket
   , _removeOnWsError
   , _wsClose
   , _wsFinalize
-  , _wsReconnect
   , _wsSend
   )
 import Ctl.Internal.QueryM.DatumCacheWsp
@@ -843,9 +842,6 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
-        launchAff_ do
-          delay (wrap 500.0)
-          liftEffect $ _wsReconnect ws
       continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
     _wsFinalize ws
@@ -968,9 +964,6 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
-        launchAff_ do
-          delay (wrap 500.0)
-          liftEffect $ _wsReconnect ws
       continue $ Right $ WebSocket ws
         { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
             getDatumByHashPendingRequests
