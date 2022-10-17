@@ -3,15 +3,15 @@ module Test.Ctl.Transaction (suite) where
 import Prelude
 
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
-  , PublicKey(PublicKey)
-  , Redeemer(Redeemer)
+  ( Redeemer(Redeemer)
   , ScriptDataHash(ScriptDataHash)
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
+  , mkPublicKey
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Helpers (fromRightEff)
@@ -33,7 +33,7 @@ import Ctl.Internal.Types.Scripts
   )
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
@@ -41,6 +41,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -138,6 +139,7 @@ testPreserveWitness = liftEffect $ do
       pd `shouldEqual` unwrap datum
       vk' <- Deserialization.WitnessSet.convertVkeyWitnesses <$>
         Serialization.WitnessSet.convertVkeywitnesses vs
+
       vk' `shouldEqual` [ vk ]
     Just _ /\ Just _ -> throw "Incorrect number of witnesses"
     Nothing /\ _ -> throw "Datum wasn't attached"
@@ -156,15 +158,15 @@ testPreserveWitness = liftEffect $ do
 
   vk :: Vkeywitness
   vk = Vkeywitness
-    ( ( Vkey
-          ( PublicKey
-              "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-          )
-      ) /\
-        ( Ed25519Signature
-            "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
-            \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
+    ( Vkey
+        ( unsafePartial $ fromJust <<< mkPublicKey $
+            "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
+        /\
+          ( unsafePartial $ fromJust <<< mkEd25519Signature $
+              "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08qrz0mgdx\
+              \v5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq6faxl6"
+          )
     )
 
 mkRedeemer :: PlutusData -> Effect Redeemer

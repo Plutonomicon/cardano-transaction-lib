@@ -2,11 +2,19 @@ module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( PublicKey
+  , Transaction
+  , convertPubKey
+  , mkFromCslPubKey
+  , mkPublicKey
+  )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction) as TS
 import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -15,10 +23,12 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.Maybe (isJust, isNothing)
+import Data.Maybe (Maybe, isJust, isNothing)
+import Data.Newtype (unwrap)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import Mote (group, test)
 import Test.Ctl.Fixtures
   ( txBinaryFixture1
@@ -44,6 +54,22 @@ suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "cardano-serialization-lib bindings" $ do
     group "conversion between types" $ do
+      test "PublicKey serialization" do
+        let
+          pkStr =
+            "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
+          mPk = mkPublicKey pkStr
+
+        pk <- liftM
+          (error $ "Failed to create PubKey from bech32string: " <> pkStr)
+          mPk
+
+        let
+          pkBytes = bytesFromPublicKey $ convertPubKey pk
+          (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> fromBytes
+            (unwrap pkBytes)
+
+        pk'' `shouldSatisfy` isJust
       test "newTransactionHash" do
         let
           txString =
