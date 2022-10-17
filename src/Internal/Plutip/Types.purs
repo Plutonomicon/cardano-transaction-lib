@@ -34,8 +34,8 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
-import Ctl.Internal.Serialization (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
