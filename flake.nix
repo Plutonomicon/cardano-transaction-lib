@@ -45,6 +45,7 @@
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.follows = "plutip/haskell-nix";
     nixpkgs.follows = "plutip/nixpkgs";
+    cardano-node.url = "github:input-output-hk/cardano-node";
   };
 
   outputs =
@@ -134,6 +135,8 @@
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
               packages = with pkgs; [
+                cardano-node
+                cardano-cli
                 arion
                 fd
                 haskellPackages.fourmolu
@@ -277,6 +280,7 @@
           )
 
         ];
+        cardano-node = inputs.cardano-node.overlay;
       };
 
       # flake from haskell.nix project
