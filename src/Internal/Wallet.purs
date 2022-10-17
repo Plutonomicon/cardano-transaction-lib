@@ -33,8 +33,7 @@ module Ctl.Internal.Wallet
 
 import Prelude
 
-import Contract.Prelude (fromMaybe)
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Control.Monad.Error.Class (catchError, throwError)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature(Ed25519Signature)
@@ -66,7 +65,6 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Prim.TypeError (class Warn, Text)
 
 data Wallet
