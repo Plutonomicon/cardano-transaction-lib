@@ -87,48 +87,9 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
-exports._publicKeyFromBech32 = maybe => bech32 => {
-  // this is needed because try/catch overuse breaks runtime badly
-  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
-  try {
-    if (/^ed25519_pk1[0-9a-z]+$/.test(bech32)) {
-      return maybe.just(lib.PublicKey.from_str(bech32));
-    } else {
-      throw new Error("Wrong prefix");
-    }
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
-exports.publicKeyFromPrivateKey = private_key => () => {
-  return private_key.to_public();
-};
-
-exports._privateKeyFromBytes = maybe => bytes => {
-  try {
-    return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
-exports._bytesFromPrivateKey = maybe => key => {
-  try {
-    return maybe.just(key.as_bytes());
-  } catch (err) {
-    return maybe.nothing;
-  }
-};
-
 exports.publicKeyHash = pk => pk.hash();
 
-exports.newEd25519Signature = bech32 => () =>
-  lib.Ed25519Signature.from_bech32(bech32);
-
 exports.transactionWitnessSetSetVkeys = setter("vkeys");
-
-exports.toBytes = sth => sth.to_bytes();
 
 exports.newCostmdls = () => lib.Costmdls.new();
 
