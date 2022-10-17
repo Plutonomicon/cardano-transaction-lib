@@ -22,7 +22,7 @@ class Equipartition a where
 -- | ascending order.
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/numeric/src/Cardano/Numeric/Util.hs#L127
-instance equipartitionBigInt :: Equipartition BigInt where
+instance Equipartition BigInt where
   equipartition bi numParts
     | numParts <= one =
         NEArray.singleton bi

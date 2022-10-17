@@ -17,7 +17,19 @@
     };
 
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/880a69a03fbfd06a4990ba8873f06907d4cd16a7";
+    plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
+    plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
+    plutip.inputs.iohk-nix.follows = "bot-plutus-interface/iohk-nix";
+    plutip.inputs.nixpkgs.follows = "bot-plutus-interface/haskell-nix/nixpkgs";
+
+    bot-plutus-interface = {
+      url = "github:mlabs-haskell/bot-plutus-interface?rev=7235aa6fba12b0cf368d9976e1e1b21ba642c038";
+      inputs.cardano-wallet.follows = "cardano-wallet";
+    };
+
+    cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
+
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";

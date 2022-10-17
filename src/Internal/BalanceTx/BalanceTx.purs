@@ -1,7 +1,6 @@
 module Ctl.Internal.BalanceTx
   ( module BalanceTxErrorExport
   , module FinalizedTransaction
-  , balanceTx
   , balanceTxWithConstraints
   ) where
 
@@ -131,19 +130,13 @@ import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
 import Effect.Class (liftEffect)
 
--- | Balances an unbalanced transaction using the default constraints.
-balanceTx
-  :: UnattachedUnbalancedTx
-  -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTx = balanceTxWithConstraints mempty
-
--- | Like `balanceTx`, but allows to specify constraints to be considered when
--- | balancing a transaction.
+-- | Balances an unbalanced transaction using the specified balancer 
+-- | constraints.
 balanceTxWithConstraints
-  :: BalanceTxConstraintsBuilder
-  -> UnattachedUnbalancedTx
+  :: UnattachedUnbalancedTx
+  -> BalanceTxConstraintsBuilder
   -> QueryM (Either BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints constraintsBuilder unbalancedTx =
+balanceTxWithConstraints unbalancedTx constraintsBuilder =
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
       getWalletAddresses :: BalanceTxM (Array Address)
@@ -179,7 +172,7 @@ balanceTxWithConstraints constraintsBuilder unbalancedTx =
     availableUtxos <- liftQueryM $ filterLockedUtxos allUtxos
 
     -- Balance and finalize the transaction:
-    runBalancer SelectionStrategyOptimal availableUtxos changeAddr
+    runBalancer SelectionStrategyOptimal allUtxos availableUtxos changeAddr
       (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
@@ -211,10 +204,11 @@ type BalancerState =
 runBalancer
   :: SelectionStrategy
   -> UtxoMap
+  -> UtxoMap
   -> Address
   -> UnattachedUnbalancedTx
   -> BalanceTxM FinalizedTransaction
-runBalancer strategy utxos changeAddress unbalancedTx' = do
+runBalancer strategy allUtxos utxos changeAddress unbalancedTx' = do
   spendableUtxos <- getSpendableUtxos
   addLovelacesToTransactionOutputs unbalancedTx'
     >>= ((\tx -> mkBalancerState tx mempty spendableUtxos) >>> prebalanceTx)
@@ -244,7 +238,8 @@ runBalancer strategy utxos changeAddress unbalancedTx' = do
 
     performCoinSelection >>= case _ of
       Nothing ->
-        runBalancer SelectionStrategyMinimal utxos changeAddress unbalancedTx'
+        runBalancer SelectionStrategyMinimal allUtxos utxos changeAddress
+          unbalancedTx'
 
       Just selectionState ->
         let
@@ -297,11 +292,11 @@ runBalancer strategy utxos changeAddress unbalancedTx' = do
       minFee :: BigInt
       minFee = unwrap $ unbalancedTx ^. _body' <<< _fee
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx utxos
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx allUtxos
 
     case newMinFee <= minFee of
       true ->
-        liftQueryM (finalizeTransaction balancedTx utxos)
+        finalizeTransaction balancedTx allUtxos
           <* logTransaction "Balanced transaction (Done)" utxos balancedTx
       false ->
         let

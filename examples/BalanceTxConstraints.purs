@@ -26,8 +26,7 @@ import Contract.Test.Utils
   )
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
-  ( Transaction
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput
   , awaitTxConfirmed
   , balanceTxWithConstraints
@@ -59,6 +58,9 @@ type ContractResult =
   , nonSpendableOref :: TransactionInput
   }
 
+-- | Checks that the resultant change outputs of the transaction are partitioned 
+-- | correctly, i.e. their token quantities do not exceed the specified upper
+-- | limit of 4 tokens per change output.
 assertChangeOutputsPartitionedCorrectly
   :: ContractBasicAssertion () ContractResult Unit
 assertChangeOutputsPartitionedCorrectly
@@ -83,6 +85,8 @@ assertChangeOutputsPartitionedCorrectly
 
         tokenQuantities == map fromInt [ 3, 4, 4 ]
 
+-- | Checks that the utxo with the specified output reference 
+-- | (`nonSpendableOref`) is not consumed during transaction balancing.
 assertSelectedUtxoIsNotSpent
   :: ContractBasicAssertion () ContractResult Unit
 assertSelectedUtxoIsNotSpent { changeAddress, nonSpendableOref } =
@@ -143,13 +147,13 @@ contract (ContractParams p) = do
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
     balancedTx <-
-      liftedE $ map unwrap <$>
-        balanceTxWithConstraints balanceTxConstraints unbalancedTx
+      liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
 
     balancedSignedTx <-
-      foldM signWithWallet balancedTx [ p.aliceKeyWallet, p.bobKeyWallet ]
+      (withKeyWallet p.bobKeyWallet <<< signTransaction)
+        =<< withKeyWallet p.aliceKeyWallet (signTransaction balancedTx)
 
-    txHash <- submit (wrap balancedSignedTx)
+    txHash <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txHash
 
     awaitTxConfirmed txHash
@@ -157,9 +161,3 @@ contract (ContractParams p) = do
 
     let changeAddress = (unwrap bobAddress).address
     pure { txHash, changeAddress, mintedToken: cs /\ tn, nonSpendableOref }
-  where
-  signWithWallet :: Transaction -> KeyWallet -> Contract () Transaction
-  signWithWallet txToSign wallet =
-    liftedM "Failed to sign transaction"
-      (withKeyWallet wallet $ signTransaction txToSign)
-

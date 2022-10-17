@@ -9,5 +9,4 @@ import Ctl.Internal.BalanceTx.Constraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustNotSpendUtxosWithOutRefs
-  , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
