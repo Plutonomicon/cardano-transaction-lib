@@ -366,7 +366,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "d9d4db819545c0c3202f9dea52e6d741724f04f8"
+        , version = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc"
         }
       }
 

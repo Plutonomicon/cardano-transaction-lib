@@ -12,6 +12,7 @@ import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
 import Test.Ctl.Deserialization as Deserialization
 import Test.Ctl.E2E.Route as E2E.Route
+import Test.Ctl.Equipartition as Equipartition
 import Test.Ctl.Hashing as Hashing
 import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
@@ -46,6 +47,7 @@ testPlan = do
   Cip25.suite
   Data.suite
   Deserialization.suite
+  Equipartition.suite
   Hashing.suite
   Parser.suite
   Plutus.Conversion.Address.suite
