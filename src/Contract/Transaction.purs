@@ -90,7 +90,7 @@ import Ctl.Internal.Cardano.Types.Transaction
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
+  , Ed25519Signature
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
@@ -100,7 +100,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(PublicKey)
+  , PublicKey
   , Redeemer
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
