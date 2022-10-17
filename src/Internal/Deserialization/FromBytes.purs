@@ -14,9 +14,11 @@ import Ctl.Internal.Error (E)
 import Ctl.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
 import Ctl.Internal.Serialization.Types
   ( DataHash
+  , Ed25519Signature
   , Mint
   , NativeScript
   , PlutusData
+  , PublicKey
   , Transaction
   , TransactionHash
   , TransactionUnspentOutput
@@ -66,6 +68,12 @@ instance FromBytes VRFKeyHash where
 
 instance FromBytes Value where
   fromBytes' = _fromBytesValue eh
+
+instance FromBytes PublicKey where
+  fromBytes' = _fromBytesPublicKey eh
+
+instance FromBytes Ed25519Signature where
+  fromBytes' = _fromBytesEd25519Signature eh
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
@@ -136,3 +144,13 @@ foreign import _fromBytesVRFKeyHash
 
 foreign import _fromBytesValue
   :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Value
+
+foreign import _fromBytesPublicKey
+  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PublicKey
+
+foreign import _fromBytesEd25519Signature
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper r
+  -> ByteArray
+  -> E r Ed25519Signature
+

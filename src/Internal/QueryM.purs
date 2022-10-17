@@ -252,7 +252,7 @@ type QueryConfig =
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
 
@@ -323,8 +323,8 @@ instance MonadLogger (QueryMExtended r Aff) where
     config <- asks $ _.config
     let
       logFunction =
-        config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
-    liftAff $ logFunction msg
+        config # _.customLogger >>> fromMaybe logWithLevel
+    liftAff $ logFunction config.logLevel msg
 
 -- Newtype deriving complains about overlapping instances, so we wrap and
 -- unwrap manually
@@ -1140,14 +1140,15 @@ type Logger = LogLevel -> String -> Effect Unit
 
 mkLogger
   :: LogLevel
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Logger
 mkLogger logLevel mbCustomLogger level message =
   case mbCustomLogger of
     Nothing -> logString logLevel level message
     Just logger -> liftEffect do
       timestamp <- now
-      launchAff_ $ logger { level, message, tags: Map.empty, timestamp }
+      launchAff_ $ logger logLevel
+        { level, message, tags: Map.empty, timestamp }
 
 getLogger :: QueryM Logger
 getLogger = do

@@ -13,7 +13,7 @@ module Contract.Config
   , module Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
-  , module Ctl.Internal.Serialization
+  , module Ctl.Internal.Deserialization.Keys
   , module Ctl.Internal.QueryM.ServerConfig
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
@@ -21,6 +21,7 @@ module Contract.Config
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Contract.Monad (ConfigParams)
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
@@ -28,7 +29,6 @@ import Ctl.Internal.QueryM.ServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
-import Ctl.Internal.Serialization (privateKeyFromBytes)
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
