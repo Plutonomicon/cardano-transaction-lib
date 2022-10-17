@@ -88,7 +88,7 @@ spendFromAlwaysSucceeds vhash txId = do
         (SpendInput $ mkTxUnspentOut txInput txOutput)
 
     lookups :: Lookups.ScriptLookups PlutusData
-    lookups = Lookups.unspentOutputs utxos
+    lookups = mempty
 
   spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
   awaitTxConfirmed spendTxId

@@ -4,7 +4,7 @@ module Contract.Wallet
   , withKeyWallet
   , module Contract.Address
   , module Contract.Utxos
-  , module Serialization
+  , module Deserialization.Keys
   , module Wallet
   , module Ctl.Internal.Wallet.Key
   , module Ctl.Internal.Wallet.KeyFile
@@ -17,7 +17,7 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
-import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
 import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
 import Ctl.Internal.Wallet
   ( isEternlAvailable
