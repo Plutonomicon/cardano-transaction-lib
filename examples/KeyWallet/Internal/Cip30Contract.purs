@@ -45,8 +45,8 @@ runKeyWalletContract_ contract =
           , ctlServerConfig = Nothing
           }
 
-        printLog :: Message -> Aff Unit
-        printLog m = liftEffect $ when (m.level >= Trace) $ do
+        printLog :: LogLevel -> Message -> Aff Unit
+        printLog level m = liftEffect $ when (m.level >= level) $ do
           prettyFormatter m >>= log
           log' (HtmlForm.levelColor m.level)
             ("[" <> HtmlForm.levelName m.level <> "] " <> m.message)
