@@ -2,7 +2,7 @@ module Test.Ctl.Equipartition (suite) where
 
 import Prelude
 
-import Ctl.Internal.Equipartition (class Equipartition, equipartition)
+import Ctl.Internal.Partition (class Equipartition, equipartition)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (length, singleton, sort) as NEArray

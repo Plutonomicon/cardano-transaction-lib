@@ -67,11 +67,11 @@ import Aeson
   )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Equipartition (class Equipartition, equipartition)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Partition (class Equipartition, equipartition)
 import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , scriptHashFromBytes
