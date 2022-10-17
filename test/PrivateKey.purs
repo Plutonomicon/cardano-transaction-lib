@@ -9,12 +9,14 @@ import Contract.Transaction
   , signTransaction
   )
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Ed25519Signature(Ed25519Signature)
+  ( Ed25519Signature
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
   )
-import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
+import Ctl.Internal.Serialization (publicKeyHash)
+import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyToFile
@@ -30,12 +32,13 @@ import Data.Lens (_2, _Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Node.FS.Sync (unlink)
+import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (txFixture1)
 import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
@@ -71,7 +74,7 @@ suite = do
               <<< unto Vkeywitness
               <<< _2
         signature `shouldEqual` Just
-          ( Ed25519Signature
+          ( unsafePartial $ fromJust $ mkEd25519Signature $
               "ed25519_sig1w7nkmvk57r6094j9u85r4pddve0hg3985ywl9yzwecx03aa9fnfspl9zmtngmqmczd284lnusjdwkysgukxeq05a548dyepr6vn62qs744wxz"
           )
     test "privateKeyToFile round-trips" do
@@ -86,9 +89,9 @@ suite = do
         "fixtures/test/parsing/PrivateKey/payment_round_trip.skey"
       -- converting to pub key hashes to check equality isn't great
       -- but there aren't Eq instances for PrivateKeys or PublicKeys
-      pkh <- liftEffect $ publicKeyHash <$> publicKeyFromPrivateKey (unwrap key)
-      pkh2 <- liftEffect $ publicKeyHash <$> publicKeyFromPrivateKey
-        (unwrap key2)
+      let
+        pkh = publicKeyHash $ publicKeyFromPrivateKey (unwrap key)
+        pkh2 = publicKeyHash $ publicKeyFromPrivateKey (unwrap key2)
       pkh `shouldEqual` pkh2
     test "stakeKeyToFile round-trips" do
       key <- privateStakeKeyFromFile
@@ -100,7 +103,6 @@ suite = do
         "fixtures/test/parsing/PrivateKey/stake_round_trip.skey"
       liftEffect $ unlink
         "fixtures/test/parsing/PrivateKey/stake_round_trip.skey"
-      pkh <- liftEffect $ publicKeyHash <$> publicKeyFromPrivateKey (unwrap key)
-      pkh2 <- liftEffect $ publicKeyHash <$> publicKeyFromPrivateKey
-        (unwrap key2)
+      let pkh = publicKeyHash $ publicKeyFromPrivateKey (unwrap key)
+      let pkh2 = publicKeyHash $ publicKeyFromPrivateKey (unwrap key2)
       pkh `shouldEqual` pkh2

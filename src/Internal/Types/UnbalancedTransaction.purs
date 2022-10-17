@@ -14,18 +14,16 @@ import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson')
 import Ctl.Internal.Cardano.Types.Transaction
-  ( PublicKey(PublicKey)
+  ( PublicKey
   , RequiredSigner(RequiredSigner)
   , Transaction
   , TransactionOutput
   , Vkey(Vkey)
+  , convertPubKey
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Helpers (encodeMap, encodeTagged')
-import Ctl.Internal.Serialization
-  ( publicKeyFromBech32
-  , publicKeyHash
-  )
+import Ctl.Internal.Serialization (publicKeyHash)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -33,7 +31,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Types (Lens')
 import Data.Map (Map, empty)
-import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
@@ -82,9 +79,9 @@ instance Show ScriptOutput where
 payPubKeyVkey :: PaymentPubKey -> Vkey
 payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 
-payPubKeyRequiredSigner :: PaymentPubKey -> Maybe RequiredSigner
-payPubKeyRequiredSigner (PaymentPubKey (PublicKey bech32)) =
-  RequiredSigner <<< publicKeyHash <$> publicKeyFromBech32 bech32
+payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
+payPubKeyRequiredSigner (PaymentPubKey pk) =
+  RequiredSigner <<< publicKeyHash $ convertPubKey pk
 
 -- | An unbalanced transaction. It needs to be balanced and signed before it
 -- | can be submitted to the ledger.

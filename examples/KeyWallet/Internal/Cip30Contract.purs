@@ -18,10 +18,10 @@ import Ctl.Examples.KeyWallet.Internal.Cip30HtmlForm
   , logError
   , mkForm
   ) as HtmlForm
-import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesFromAscii)
 import Data.Log.Formatter.Pretty (prettyFormatter)
-import Data.Log.Level (LogLevel(Trace))
+import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)

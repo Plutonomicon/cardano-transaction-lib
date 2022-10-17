@@ -10,7 +10,7 @@ module Contract.Wallet
   , signData
   , module Contract.Address
   , module Contract.Utxos
-  , module Serialization
+  , module Deserialization.Keys
   , module Wallet
   , module Ctl.Internal.Wallet.Key
   , module Ctl.Internal.Wallet.KeyFile
@@ -23,15 +23,8 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
-import Ctl.Internal.QueryM
-  ( getChangeAddress
-  , getNetworkId
-  , getRewardAddresses
-  , getUnusedAddresses
-  , getWallet
-  , signData
-  ) as QueryM
-import Ctl.Internal.Serialization (privateKeyFromBytes) as Serialization
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
+import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
