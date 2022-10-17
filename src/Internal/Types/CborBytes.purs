@@ -8,7 +8,7 @@ module Ctl.Internal.Types.CborBytes
   , cborBytesFromIntArray
   , cborBytesFromIntArrayUnsafe
   , cborBytesToHex
-  , byteLength
+  , cborByteLength
   , hexToCborBytes
   , hexToCborBytesUnsafe
   , rawBytesAsCborBytes
@@ -57,8 +57,8 @@ cborBytesFromIntArrayUnsafe = wrap <<< BytesArray.byteArrayFromIntArrayUnsafe
 cborBytesToHex :: CborBytes -> String
 cborBytesToHex = BytesArray.byteArrayToHex <<< unwrap
 
-byteLength :: CborBytes -> Int
-byteLength = BytesArray.byteLength <<< unwrap
+cborByteLength :: CborBytes -> Int
+cborByteLength = BytesArray.byteLength <<< unwrap
 
 hexToCborBytes :: String -> Maybe CborBytes
 hexToCborBytes = map wrap <<< BytesArray.hexToByteArray

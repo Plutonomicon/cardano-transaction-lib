@@ -18,13 +18,14 @@ import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
 import Data.Array as Array
 import Data.Lens ((.~))
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
+import Partial.Unsafe (unsafePartial)
 
 calculateMinFeeCsl
   :: forall (m :: Type -> Type)
@@ -84,12 +85,13 @@ addFakeSignatures selfSigners tx =
 fakeVkeywitness :: T.Vkeywitness
 fakeVkeywitness = T.Vkeywitness
   ( ( T.Vkey
-        ( T.PublicKey
+        ( unsafePartial $ fromJust $ T.mkPublicKey
+            -- This should not fail assuming the hardcoded bech32 key is valid.
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
     )
       /\
-        ( T.Ed25519Signature
+        ( unsafePartial $ fromJust $ T.mkEd25519Signature
             "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
             \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
             \kzs9m6t6x"

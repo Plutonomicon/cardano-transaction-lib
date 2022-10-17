@@ -1,6 +1,5 @@
 module Ctl.Internal.Serialization
-  ( bytesFromPrivateKey
-  , convertExUnitPrices
+  ( convertExUnitPrices
   , convertTransaction
   , convertTxBody
   , convertTxInput
@@ -8,17 +7,14 @@ module Ctl.Internal.Serialization
   , defaultCostmdls
   , convertTransactionUnspentOutput
   , convertValue
-  , toBytes
   , serializeData
   , newTransactionUnspentOutputFromBytes
   , newTransactionWitnessSetFromBytes
   , hashScriptData
   , hashTransaction
   , publicKeyHash
-  , publicKeyFromBech32
-  , publicKeyFromPrivateKey
-  , privateKeyFromBytes
   , makeVkeywitness
+  , module Ctl.Internal.Serialization.ToBytes
   ) where
 
 import Prelude
@@ -88,11 +84,11 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
-  , AuxiliaryDataHash
   , BigInt
   , Certificate
   , Certificates
@@ -153,7 +149,6 @@ import Ctl.Internal.Serialization.WitnessSet
   , convertWitnessSet
   )
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
@@ -163,7 +158,6 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Ctl.Internal.Types.PlutusData as PlutusData
-import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
@@ -179,7 +173,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Untagged.Union (type (|+|), UndefinedOr, asOneOf, maybeToUor)
+import Untagged.Union (UndefinedOr, asOneOf, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
@@ -255,20 +249,8 @@ foreign import makeVkeywitness
 foreign import newVkeywitness :: Vkey -> Ed25519Signature -> Effect Vkeywitness
 foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
-foreign import _publicKeyFromBech32
-  :: MaybeFfiHelper -> Bech32String -> Maybe PublicKey
-
-foreign import publicKeyFromPrivateKey
-  :: PrivateKey -> Effect PublicKey
-
-foreign import _privateKeyFromBytes
-  :: MaybeFfiHelper -> RawBytes -> Maybe PrivateKey
-
-foreign import _bytesFromPrivateKey
-  :: MaybeFfiHelper -> PrivateKey -> Maybe RawBytes
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
-foreign import newEd25519Signature :: Bech32String -> Effect Ed25519Signature
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
@@ -495,28 +477,6 @@ foreign import newProposedProtocolParameterUpdates
 
 foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
 
--- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
-foreign import toBytes
-  :: ( Transaction
-         |+| TransactionBody
-         |+| TransactionOutput
-         |+| TransactionUnspentOutput
-         |+| TransactionHash
-         |+| DataHash
-         |+| PlutusData
-         |+| TransactionWitnessSet
-         |+| NativeScript
-         |+| ScriptDataHash
-         |+| Redeemers
-         |+| GenesisHash
-         |+| GenesisDelegateHash
-         |+| AuxiliaryDataHash
-         |+| Address
-         |+| Value
-     -- Add more as needed.
-     )
-  -> ByteArray
-
 convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do
   inputs <- convertTxInputs body.inputs
@@ -528,15 +488,21 @@ convertTxBody (T.TxBody body) = do
   for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
-  for_ body.auxiliaryDataHash $
-    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
-  for_ body.validityStartInterval $
-    unwrap >>> BigNum.toString >>> BigNum.fromStringUnsafe >>>
-      transactionBodySetValidityStartInterval txBody
-  for_ body.requiredSigners $
-    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
-  for_ body.auxiliaryDataHash $
-    unwrap >>> transactionBodySetAuxiliaryDataHash txBody
+  for_ body.auxiliaryDataHash
+    $ unwrap
+        >>> transactionBodySetAuxiliaryDataHash txBody
+  for_ body.validityStartInterval
+    $ unwrap
+        >>> BigNum.toString
+        >>> BigNum.fromStringUnsafe
+        >>>
+          transactionBodySetValidityStartInterval txBody
+  for_ body.requiredSigners
+    $ map unwrap
+        >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.auxiliaryDataHash
+    $ unwrap
+        >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash
@@ -544,14 +510,19 @@ convertTxBody (T.TxBody body) = do
         setTxBodyScriptDataHash txBody
     )
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
-  for_ body.requiredSigners $
-    map unwrap >>> transactionBodySetRequiredSigners containerHelper txBody
+  for_ body.requiredSigners
+    $ map unwrap
+        >>> transactionBodySetRequiredSigners containerHelper txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.collateralReturn $ convertTxOutput >=> setTxBodyCollateralReturn
     txBody
-  for_ body.totalCollateral $
-    unwrap >>> BigNum.fromBigInt >>> fromJustEff "Failed to convert fee" >=>
-      setTxBodyTotalCollateral txBody
+  for_ body.totalCollateral
+    $
+      unwrap
+        >>> BigNum.fromBigInt
+        >>> fromJustEff "Failed to convert fee"
+        >=>
+          setTxBodyTotalCollateral txBody
   if Foldable.null body.referenceInputs then pure unit
   else convertTxInputs body.referenceInputs >>= setTxBodyReferenceInputs txBody
   pure txBody
@@ -611,33 +582,40 @@ convertProtocolParamUpdate
   , maxValueSize
   } = do
   ppu <- newProtocolParamUpdate
-  for_ minfeeA $ ppuSetMinfeeA ppu <=<
-    fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
+  for_ minfeeA $ ppuSetMinfeeA ppu
+    <=< fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
       <<< BigNum.fromBigInt
       <<< unwrap
-  for_ minfeeB $ ppuSetMinfeeB ppu <=<
-    fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
+  for_ minfeeB $ ppuSetMinfeeB ppu
+    <=< fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
       <<< BigNum.fromBigInt
       <<< unwrap
   for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
   for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
   for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
-  for_ keyDeposit $ ppuSetKeyDeposit ppu <=<
-    fromJustEff "convertProtocolParamUpdate: key_deposit must not be negative"
-      <<< BigNum.fromBigInt
-      <<< unwrap
-  for_ poolDeposit $ ppuSetPoolDeposit ppu <=<
-    fromJustEff "convertProtocolParamUpdate: pool_deposit must not be negative"
-      <<< BigNum.fromBigInt
-      <<< unwrap
+  for_ keyDeposit $ ppuSetKeyDeposit ppu
+    <=<
+      fromJustEff
+        "convertProtocolParamUpdate: key_deposit must not be negative"
+        <<< BigNum.fromBigInt
+        <<< unwrap
+  for_ poolDeposit $ ppuSetPoolDeposit ppu
+    <=<
+      fromJustEff
+        "convertProtocolParamUpdate: pool_deposit must not be negative"
+        <<< BigNum.fromBigInt
+        <<< unwrap
   for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
   for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
-  for_ poolPledgeInfluence $
-    mkUnitInterval >=> ppuSetPoolPledgeInfluence ppu
-  for_ expansionRate $
-    mkUnitInterval >=> ppuSetExpansionRate ppu
-  for_ treasuryGrowthRate $
-    mkUnitInterval >=> ppuSetTreasuryGrowthRate ppu
+  for_ poolPledgeInfluence
+    $ mkUnitInterval
+        >=> ppuSetPoolPledgeInfluence ppu
+  for_ expansionRate
+    $ mkUnitInterval
+        >=> ppuSetExpansionRate ppu
+  for_ treasuryGrowthRate
+    $ mkUnitInterval
+        >=> ppuSetTreasuryGrowthRate ppu
   for_ protocolVersion \pv ->
     ppuSetProtocolVersion ppu =<<
       newProtocolVersion (UInt.toInt pv.major)
@@ -668,15 +646,6 @@ convertWithdrawals mp =
     for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
       Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
         (BigNum.fromBigInt v)
-
-publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
-publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
-
-privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
-privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
-
-bytesFromPrivateKey :: PrivateKey -> Maybe RawBytes
-bytesFromPrivateKey = _bytesFromPrivateKey maybeFfiHelper
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
@@ -821,8 +790,9 @@ convertTxOutput
       transactionOutputSetPlutusData txo
         =<< fromJustEff "convertTxOutput"
           (convertPlutusData $ unwrap datumValue)
-  for_ scriptRef $
-    convertScriptRef >=> transactionOutputSetScriptRef txo
+  for_ scriptRef
+    $ convertScriptRef
+        >=> transactionOutputSetScriptRef txo
   pure txo
 
 convertScriptRef :: T.ScriptRef -> Effect ScriptRef
