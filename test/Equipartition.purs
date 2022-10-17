@@ -2,7 +2,7 @@ module Test.Ctl.Equipartition (suite) where
 
 import Prelude
 
-import Ctl.Internal.Equipartition (class Equipartition, equipartition)
+import Ctl.Internal.Partition (class Equipartition, equipartition)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
