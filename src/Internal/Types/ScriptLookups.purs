@@ -1,6 +1,7 @@
 module Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( CannotConvertPOSIXTimeRange
+      , CannotSolveTimeConstraints
       , CannotConvertPaymentPubKeyHash
       , CannotFindDatum
       , CannotGetMintingPolicyScriptIndex
@@ -50,7 +51,8 @@ import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
 import Control.Alt ((<|>))
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Control.Apply (lift2)
+import Control.Monad.Error.Class (catchError, liftEither, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
@@ -71,6 +73,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
+  , _ttl
+  , _validityStartInterval
   , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
@@ -119,8 +123,14 @@ import Ctl.Internal.Transaction
 import Ctl.Internal.Types.Any (Any)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Interval
-  ( POSIXTimeRange
+  ( Extended(NegInf, PosInf)
+  , LowerBound(LowerBound)
+  , POSIXTimeRange
   , PosixTimeToSlotError
+  , UpperBound(UpperBound)
+  , intersection
+  , isEmpty
+  , mkInterval
   , posixTimeRangeToTransactionValidity
   )
 import Ctl.Internal.Types.OutputDatum
@@ -188,7 +198,7 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   )
-import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
+import Data.Array (cons, filter, mapWithIndex, partition, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
@@ -215,6 +225,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import MedeaPrelude (mapMaybe)
 import Type.Proxy (Proxy(Proxy))
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
@@ -540,7 +551,11 @@ processLookupsAndConstraints
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
 
-  ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
+  -- TODO : This must make us abort the constraint solving without throwing
+  timeConstraintsSolved <- liftEither $ resumeTimeConstraints constraints
+
+  ExceptT $ foldConstraints (processConstraint mpsMap osMap)
+    timeConstraintsSolved
 
   -- Attach mint redeemers to witness set.
   mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
@@ -781,6 +796,45 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provideValue value'
 
+resumeTimeConstraints
+  :: Array TxConstraint -> Either MkUnbalancedTxError (Array TxConstraint)
+resumeTimeConstraints constraints =
+  let
+    { no: nonTimeConstraints, yes: timeConstraints } = partition
+      isTimeConstraint
+      constraints
+    intervals = mapMaybe constraintToInterval timeConstraints
+  in
+    do
+      newInterval <- foldM mergeIntervals bigInterval intervals
+      pure $ cons (MustValidateIn newInterval) nonTimeConstraints
+
+  where
+  mergeIntervals
+    :: POSIXTimeRange
+    -> POSIXTimeRange
+    -> Either MkUnbalancedTxError POSIXTimeRange
+  mergeIntervals interval1 interval2 =
+    let
+      newInterval :: POSIXTimeRange
+      newInterval = intersection interval1 interval2
+    in
+      if isEmpty newInterval then Left $ CannotSolveTimeConstraints interval1
+        interval2
+      else pure newInterval
+
+  bigInterval :: POSIXTimeRange
+  bigInterval = mkInterval (LowerBound NegInf true) (UpperBound PosInf true)
+
+  constraintToInterval :: TxConstraint -> Maybe POSIXTimeRange
+  constraintToInterval = case _ of
+    MustValidateIn x -> Just x
+    _ -> Nothing
+
+  isTimeConstraint :: TxConstraint -> Boolean
+  isTimeConstraint (MustValidateIn _) = true
+  isTimeConstraint _ = false
+
 data MkUnbalancedTxError
   = TypeCheckFailed TypeCheckError
   | ModifyTx ModifyTxError
@@ -799,6 +853,7 @@ data MkUnbalancedTxError
   | CannotQueryDatum DataHash
   | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
+  | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
   | MkTypedTxOutFailed
@@ -905,9 +960,13 @@ processConstraint mpsMap osMap = do
       es <- lift getEraSummaries
       ss <- lift getSystemStart
       runExceptT do
-        { timeToLive, validityStartInterval } <- ExceptT $ liftEffect $
-          posixTimeRangeToTransactionValidity es ss posixTimeRange
-            <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
+        { timeToLive: timeToLive
+        , validityStartInterval: validityStartInterval
+        } <- ExceptT
+          $ liftEffect
+          $
+            posixTimeRangeToTransactionValidity es ss posixTimeRange
+              <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsToTxBody <<< _Newtype %=
           _
             { ttl = timeToLive
