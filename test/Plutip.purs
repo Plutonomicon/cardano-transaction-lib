@@ -92,6 +92,7 @@ import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import Ctl.Examples.SatisfiesAnyOf as SatisfiesAnyOf
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Internal.Plutip.Server
   ( startPlutipCluster
@@ -137,7 +138,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -169,7 +170,7 @@ main = launchAff_ do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  group "Plutip" do
+  group "Plutip" $ do
     Logging.suite
 
     test "startPlutipCluster / stopPlutipCluster" do
@@ -767,6 +768,23 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           IncludeDatum.spendFromIncludeDatum vhash validator txId
+
+    only $ test "runPlutipContract: SatisfiesAnyOf" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- SatisfiesAnyOf.payToSatisfiesAnyOf vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          SatisfiesAnyOf.spendFromSatisfiesAnyOf vhash validator txId
 
     test "runPlutipContract: AlwaysSucceeds PlutusV2" do
       let
