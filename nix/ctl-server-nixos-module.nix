@@ -38,7 +38,12 @@ with lib; {
     systemd.services.ctl-server = {
       enable = true;
       wantedBy = [ "multi-user.target" ];
-      after = [ "network.target" "cardano-node.service" ];
+      after = [
+        "network.target"
+        "cardano-node.service"
+        "ogmios.service"
+        "ogmios-datum-cache.service"
+      ];
       serviceConfig = {
         User = cfg.user;
         Group = cfg.group;
