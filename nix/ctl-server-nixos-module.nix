@@ -6,7 +6,7 @@ with lib; {
   options.services.ctl-server = with types; {
     enable = mkEnableOption "ctl-server";
     package = mkOption {
-      description = "The ctl package to use.";
+      description = "The ctl-server package to use.";
       type = package;
       default = pkgs.ctl-server;
     };
