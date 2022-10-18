@@ -526,12 +526,10 @@ newtype PoolMetadata = PoolMetadata
 
 derive instance Eq PoolMetadata
 derive instance Generic PoolMetadata _
+derive newtype instance EncodeAeson PoolMetadata
 
 instance Show PoolMetadata where
   show = genericShow
-
-instance EncodeAeson PoolMetadata where
-  encodeAeson' (PoolMetadata r) = encodeAeson' r
 
 newtype GenesisDelegateHash = GenesisDelegateHash ByteArray
 

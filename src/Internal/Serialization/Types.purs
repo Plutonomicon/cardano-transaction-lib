@@ -175,7 +175,8 @@ foreign import data Vkeywitnesses :: Type
 foreign import data Withdrawals :: Type
 
 instance Show VRFKeyHash where
-  show = _vrfKeyHashBytes >>> byteArrayToHex
+  show kh =
+    "(VRFKeyHash " <> show (byteArrayToHex $ _vrfKeyHashBytes kh) <> ")"
 
 instance Eq VRFKeyHash where
   eq = eq `on` show

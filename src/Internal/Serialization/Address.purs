@@ -92,7 +92,14 @@ module Ctl.Internal.Serialization.Address
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson, encodeAeson')
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , decodeAeson
+  , encodeAeson
+  , encodeAeson'
+  )
 import Aeson.Encode (encodeTagged)
 import Control.Alt ((<|>))
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -105,6 +112,7 @@ import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
+import Data.Either (note)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -287,6 +295,10 @@ instance ToData RewardAddress where
 
 instance EncodeAeson RewardAddress where
   encodeAeson' = encodeAeson' <<< rewardAddressBech32
+
+instance DecodeAeson RewardAddress where
+  decodeAeson = decodeAeson >=>
+    note (TypeMismatch "RewardAddress") <<< rewardAddressFromBech32
 
 foreign import data StakeCredential :: Type
 
