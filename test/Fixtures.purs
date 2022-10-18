@@ -567,7 +567,7 @@ txFixture4 =
             , StakeDeregistration stake1
             , StakeDelegation stake1 ed25519KeyHash1
             , PoolRegistration
-                { operator: ed25519KeyHash1
+                { operator: wrap ed25519KeyHash1
                 , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
                     $ byteArrayFromIntArrayUnsafe
                     $ Array.replicate 32 0
@@ -1436,4 +1436,3 @@ fullyAppliedScriptFixture =
     \2333573466e1c00800404003c0152002333500b22333573466e3c00800404003c011220100\
     \10091326353008009498cd4015d680119a802bae0011200120011200112001122002122001\
     \20014c01021820004c010544746573740001"
-

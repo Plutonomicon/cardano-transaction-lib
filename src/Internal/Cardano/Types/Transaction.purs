@@ -27,6 +27,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , Nonce(IdentityNonce, HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
+  , PoolPubKeyHash(PoolPubKeyHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -106,7 +107,11 @@ import Ctl.Internal.Serialization.Address
   , Slot(Slot)
   , StakeCredential
   )
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Serialization.Hash
+  ( Ed25519KeyHash
+  , ed25519KeyHashFromBech32
+  , ed25519KeyHashToBech32
+  )
 import Ctl.Internal.Serialization.Types (VRFKeyHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -120,7 +125,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (union)
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left))
+import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -574,7 +579,7 @@ instance EncodeAeson MoveInstantaneousReward where
     ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
 
 type PoolRegistrationParams =
-  { operator :: Ed25519KeyHash -- cwitness (cert)
+  { operator :: PoolPubKeyHash -- cwitness (cert)
   , vrfKeyhash :: VRFKeyHash -- needed to prove that the pool won the lottery
   , pledge :: BigNum
   , cost :: BigNum -- >= pparams.minPoolCost
@@ -585,6 +590,25 @@ type PoolRegistrationParams =
   , relays :: Array Relay
   , poolMetadata :: Maybe PoolMetadata
   }
+
+newtype PoolPubKeyHash = PoolPubKeyHash Ed25519KeyHash
+
+derive instance Newtype PoolPubKeyHash _
+derive instance Eq PoolPubKeyHash
+derive instance Generic PoolPubKeyHash _
+
+instance EncodeAeson PoolPubKeyHash where
+  encodeAeson' (PoolPubKeyHash kh) =
+    encodeAeson' (ed25519KeyHashToBech32 "pool" kh)
+
+instance DecodeAeson PoolPubKeyHash where
+  decodeAeson aeson = do
+    str <- decodeAeson aeson
+    PoolPubKeyHash <$> note (TypeMismatch "PoolPubKeyHash")
+      (ed25519KeyHashFromBech32 str)
+
+instance Show PoolPubKeyHash where
+  show = genericShow
 
 data Certificate
   = StakeRegistration StakeCredential

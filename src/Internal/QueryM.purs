@@ -101,6 +101,7 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Helpers (logString, logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
@@ -122,7 +123,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (PoolId, PoolIdsR, TxHash)
+import Ctl.Internal.QueryM.Ogmios (PoolIdsR, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -1040,7 +1041,7 @@ type OgmiosListeners =
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR
-  , poolParameters :: ListenerSet (Array PoolId) Aeson
+  , poolParameters :: ListenerSet (Array PoolPubKeyHash) Aeson
   }
 
 type DatumCacheListeners =

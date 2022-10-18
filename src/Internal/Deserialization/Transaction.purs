@@ -103,6 +103,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , URL(URL)
   , Update
   ) as T
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , mkNonAdaAsset
@@ -371,7 +372,7 @@ convertPoolRegistration
 convertPoolRegistration params = do
   relays <- traverse convertRelay $ poolParamsRelays containerHelper params
   pure $ T.PoolRegistration
-    { operator: poolParamsOperator params
+    { operator: PoolPubKeyHash $ poolParamsOperator params
     , vrfKeyhash: poolParamsVrfKeyhash params
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params

@@ -11,9 +11,11 @@ import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
 import Contract.Transaction (balanceAndSignTxE)
+import Contract.TxConstraints (mustDelegateStake)
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey)
 import Control.Monad.Reader (asks)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.QueryM.Pools (getPoolIds, getPoolParameters)
 import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
@@ -28,6 +30,7 @@ import Ctl.Internal.Types.TxConstraints
   ( mustRegisterPool
   , mustRegisterStakePubKey
   )
+import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Nothing), fromJust)
@@ -116,7 +119,7 @@ suite = do
             $ hexToByteArray
                 "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
           poolParams =
-            { operator: publicKeyHash $ publicKeyFromPrivateKey
+            { operator: PoolPubKeyHash $ publicKeyHash $ publicKeyFromPrivateKey
                 (unwrap privateStakeKey)
             , vrfKeyhash: vrfKeyHash :: VRFKeyHash -- needed to prove that the pool won the lottery
             , pledge: unsafePartial $ fromJust $ BigNum.fromBigInt $
@@ -149,7 +152,43 @@ suite = do
         bsTx <-
           liftedE $ balanceAndSignTxE ubTx
         submitAndLog bsTx
+    test "Stake delegation to existing pool" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> withKeyWallet alice do
+        alicePkh /\ aliceStakePkh <- Tuple
+          <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
+          <*>
+            liftedM "Failed to get Stake PKH" ownStakePubKeyHash
+        do
+          let
+            constraints = mustRegisterStakePubKey aliceStakePkh
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups =
+              Lookups.ownPaymentPubKeyHash alicePkh <>
+                Lookups.ownStakePubKeyHash aliceStakePkh
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          bsTx <-
+            liftedE $ balanceAndSignTxE ubTx
+          submitAndLog bsTx
+
         pools <- wrapContract getPoolIds
         for_ pools \poolId -> do
           params <- wrapContract $ getPoolParameters poolId
           liftEffect $ Console.log $ show params
+        poolId <- liftM (error "unable to get any pools") (head pools)
+        let
+          constraints =
+            mustDelegateStake aliceStakePkh poolId
+
+          lookups :: Lookups.ScriptLookups Void
+          lookups =
+            Lookups.ownPaymentPubKeyHash alicePkh <>
+              Lookups.ownStakePubKeyHash aliceStakePkh
+        ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+        bsTx <- liftedE $ balanceAndSignTxE ubTx
+        submitAndLog bsTx

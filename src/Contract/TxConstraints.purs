@@ -29,6 +29,7 @@ import Ctl.Internal.Types.TxConstraints
   , isSatisfiable
   , modifiesUtxoSet
   , mustBeSignedBy
+  , mustDelegateStake
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
@@ -52,6 +53,8 @@ import Ctl.Internal.Types.TxConstraints
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
+  , mustRegisterPool
+  , mustRegisterStakePubKey
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
