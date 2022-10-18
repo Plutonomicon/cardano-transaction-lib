@@ -21,6 +21,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
       , MustRegisterPool
+      , MustDelegateStake
       , MustSatisfyAnyOf
       , MustNotBeValid
       )
@@ -53,6 +54,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustReferenceOutput
   , mustRegisterStakePubKey
   , mustRegisterPool
+  , mustDelegateStake
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -73,7 +75,10 @@ import Prelude hiding (join)
 
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Transaction (PoolRegistrationParams)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( PoolPubKeyHash(PoolPubKeyHash)
+  , PoolRegistrationParams
+  )
 import Ctl.Internal.NativeScripts (NativeScriptHash)
 import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
@@ -143,6 +148,7 @@ data TxConstraint
   | MustRegisterStakePubKey StakePubKeyHash
   | MustRegisterPool PoolRegistrationParams
   | MustRegisterStakeScript StakeValidator Redeemer
+  | MustDelegateStake StakePubKeyHash PoolPubKeyHash
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
 
@@ -509,6 +515,10 @@ mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
 
+mustDelegateStake
+  :: forall i o. StakePubKeyHash -> PoolPubKeyHash -> TxConstraints i o
+mustDelegateStake spkh ppkh = singleton $ MustDelegateStake spkh ppkh
+
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
    . Foldable f
@@ -626,6 +636,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustRegisterStakePubKey _ -> true
       MustRegisterStakeScript _ _ -> true
       MustRegisterPool _ -> true
+      MustDelegateStake _ _ -> true
       MustValidateIn _ -> false
 
   in

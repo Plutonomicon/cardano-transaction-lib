@@ -45,7 +45,6 @@ module Ctl.Internal.QueryM.Ogmios
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
-  , PoolId
   , PoolIdsR
   , TxHash
   , UtxoQR(UtxoQR)
@@ -111,6 +110,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , ExUnitPrices
   , ExUnits
   , Nonce
+  , PoolPubKeyHash(PoolPubKeyHash)
   , SubCoin
   )
 import Ctl.Internal.Cardano.Types.Transaction as T
@@ -158,13 +158,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String
-  ( Pattern(Pattern)
-  , indexOf
-  , split
-  , splitAt
-  , uncons
-  )
+import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
 import Data.String.Common (split) as String
 import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (snd, uncurry)
@@ -224,7 +218,7 @@ queryPoolIdsCall = mkOgmiosCallType
   , args: const { query: "poolIds" }
   }
 
-queryPoolParameters :: JsonWspCall (Array PoolId) Aeson
+queryPoolParameters :: JsonWspCall (Array PoolPubKeyHash) Aeson
 queryPoolParameters = mkOgmiosCallType
   { methodname: "Query"
   , args: \params -> { query: { poolParameters: params } }
@@ -1171,9 +1165,7 @@ type ChainPoint =
 
 ---------------- POOL ID RESPONSE
 
-type PoolId = String
-
-type PoolIdsR = Array PoolId
+type PoolIdsR = Array PoolPubKeyHash
 
 ---------------- UTXO QUERY RESPONSE & PARSING
 

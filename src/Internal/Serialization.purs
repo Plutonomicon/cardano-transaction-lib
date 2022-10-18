@@ -707,7 +707,8 @@ convertCert = case _ of
     poolOwners' <- convertPoolOwners containerHelper poolOwners
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
-    newPoolRegistrationCertificate operator vrfKeyhash pledge cost margin'
+    newPoolRegistrationCertificate (unwrap operator) vrfKeyhash pledge cost
+      margin'
       rewardAccount
       poolOwners'
       relays'

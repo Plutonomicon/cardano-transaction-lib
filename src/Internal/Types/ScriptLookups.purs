@@ -58,7 +58,7 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Certificate(StakeRegistration, PoolRegistration)
+  ( Certificate(StakeRegistration, PoolRegistration, StakeDelegation)
   , Costmdls
   , Transaction
   , TransactionOutput(TransactionOutput)
@@ -175,6 +175,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
       , MustRegisterPool
+      , MustDelegateStake
       , MustValidateIn
       )
   , TxConstraints(TxConstraints)
@@ -1134,6 +1135,11 @@ processConstraint mpsMap osMap = do
     MustRegisterPool poolParams -> runExceptT do
       let
         cert = PoolRegistration poolParams
+      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+    MustDelegateStake skh pkh -> runExceptT do
+      let
+        cert = StakeDelegation (keyHashCredential $ unwrap $ unwrap $ skh)
+          (unwrap pkh)
       _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
     MustSatisfyAnyOf xs -> do
       cps <- get

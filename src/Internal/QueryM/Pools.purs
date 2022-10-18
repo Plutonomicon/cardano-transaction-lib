@@ -13,17 +13,20 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Ipv6(Ipv6)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
+  , PoolPubKeyHash
   , PoolRegistrationParams
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
   , URL(URL)
   , UnitInterval
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
-import Ctl.Internal.QueryM.Ogmios (PoolId)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
+import Ctl.Internal.Serialization.Hash
+  ( ed25519KeyHashFromBech32
+  , ed25519KeyHashToBech32
+  )
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayFromIntArray, hexToByteArray)
 import Data.Bifunctor (lmap)
@@ -31,6 +34,7 @@ import Data.Either (Either(Left), note)
 import Data.Foldable (fold)
 import Data.Int as Int
 import Data.Maybe (Maybe)
+import Data.Newtype (unwrap)
 import Data.String (Pattern(Pattern), Replacement(Replacement))
 import Data.String as String
 import Data.String.Utils as StringUtils
@@ -38,7 +42,7 @@ import Data.Traversable (for, traverse)
 import Effect.Exception (error)
 import Foreign.Object (Object)
 
-getPoolIds :: QueryM (Array PoolId)
+getPoolIds :: QueryM (Array PoolPubKeyHash)
 getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
   _.poolIds
   unit
@@ -108,7 +112,7 @@ decodePoolMetadata aeson = do
   url <- obj .: "url" <#> URL
   pure $ PoolMetadata { hash, url }
 
-getPoolParameters :: PoolId -> QueryM PoolRegistrationParams
+getPoolParameters :: PoolPubKeyHash -> QueryM PoolRegistrationParams
 getPoolParameters id = do
   aeson <- mkOgmiosRequest Ogmios.queryPoolParameters
     _.poolParameters
@@ -116,9 +120,9 @@ getPoolParameters id = do
   let
     (params :: Either JsonDecodeError PoolRegistrationParams) = do
       obj <- decodeAeson aeson
-      objParams :: Object Aeson <- obj .: id
-      operator <- note (TypeMismatch "operator (Ed25519KeyHash)") $
-        ed25519KeyHashFromBech32 id
+      poolIdStr <- liftEither $ note (TypeMismatch "PoolPubKeyHash") $
+        ed25519KeyHashToBech32 "pool" (unwrap $ id)
+      objParams :: Object Aeson <- obj .: poolIdStr
       vrfKeyhashHex <- objParams .: "vrf"
       vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
         vrfKeyhashHex
@@ -132,7 +136,7 @@ getPoolParameters id = do
       relays <- for relayArr decodeRelay
       poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
       pure
-        { operator
+        { operator: id
         , vrfKeyhash
         , pledge
         , cost
