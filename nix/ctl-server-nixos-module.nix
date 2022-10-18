@@ -47,7 +47,12 @@ with lib; {
     systemd.services.ctl-server = {
       enable = true;
       wantedBy = [ "multi-user.target" ];
-      after = [ "network.target" "postgresql.service" "cardano-node.service" "ogmios.service" ];
+      after = [
+        "network.target"
+        "postgresql.service"
+        "cardano-node.service"
+        "ogmios.service"
+      ];
       serviceConfig = {
         User = cfg.user;
         Group = cfg.group;
@@ -81,7 +86,9 @@ with lib; {
         RemoveIPC = true;
         PrivateMounts = true;
         SystemCallArchitectures = "native";
-        SystemCallFilter = [ "~@cpu-emulation @debug @keyring @mount @obsolete @privileged @setuid @resources" ];
+        SystemCallFilter = [
+          "~@cpu-emulation @debug @keyring @mount @obsolete @privileged @setuid @resources"
+        ];
         MemoryDenyWriteExecute = true;
       };
     };
