@@ -25,16 +25,6 @@ with lib; {
       type = str;
       default = "ctl-server";
     };
-    configurePostgresql = mkOption {
-      description = "Whether to configure postgresql service, create user and databse.";
-      type = bool;
-      default = true;
-    };
-    databaseName = mkOption {
-      description = "Database to create if configurePostgresql is true.";
-      type = str;
-      default = "ctl-server";
-    };
   };
 
   config = mkIf cfg.enable {
@@ -48,12 +38,7 @@ with lib; {
     systemd.services.ctl-server = {
       enable = true;
       wantedBy = [ "multi-user.target" ];
-      after = [
-        "network.target"
-        "postgresql.service"
-        "cardano-node.service"
-        "ogmios.service"
-      ];
+      after = [ "network.target" "cardano-node.service" ];
       serviceConfig = {
         User = cfg.user;
         Group = cfg.group;
