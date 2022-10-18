@@ -92,16 +92,25 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _withdrawals
   )
 import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
+  ( AssetClass
+  , Coin(Coin)
   , Value(Value)
   , coinToValue
   , equipartitionValueWithTokenQuantityUpperBound
   , getNonAdaAsset
+  , lovelaceValueOf
   , minus
   , mkValue
   , posNonAdaAsset
   , valueToCoin'
   )
+import Ctl.Internal.Cardano.Types.Value
+  ( assetToValue
+  , getAssetQuantity
+  , valueAssets
+  ) as Value
+import Ctl.Internal.Helpers ((??))
+import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
 import Ctl.Internal.QueryM (getChangeAddress, getWalletAddresses) as QueryM
 import Ctl.Internal.QueryM.Utxos
@@ -116,22 +125,35 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty (toArray) as NEArray
+import Data.Array.NonEmpty
+  ( cons'
+  , fromArray
+  , replicate
+  , singleton
+  , sortWith
+  , toArray
+  , uncons
+  , zip
+  , zipWith
+  ) as NEArray
 import Data.BigInt (BigInt)
 import Data.Either (Either, note)
-import Data.Foldable (fold, foldMap, foldr, sum)
+import Data.Foldable (fold, foldMap, foldr, length, sum)
+import Data.Function (on)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (TagSet)
 import Data.Log.Tag (fromArray, tag) as TagSet
 import Data.Map (empty, filterKeys, lookup, union) as Map
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isJust, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust, maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple (fst, snd)
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
+import Partial.Unsafe (unsafePartial)
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
@@ -232,8 +254,9 @@ runBalancer allUtxos utxos changeAddress certsFee unbalancedTx' = do
   runNextBalancingStep
     :: UnattachedUnbalancedTx -> UtxoMap -> BalanceTxM FinalizedTransaction
   runNextBalancingStep unbalancedTx leftoverUtxos = do
-    changeOutputs <-
-      genTransactionChangeOutputs certsFee (unbalancedTx ^. _body')
+    let txBody = unbalancedTx ^. _body'
+    inputValue <- except $ getInputValue allUtxos txBody
+    changeOutputs <- makeChange changeAddress inputValue certsFee txBody
 
     requiredValue <-
       except $ getRequiredValue certsFee utxos
@@ -292,55 +315,6 @@ runBalancer allUtxos utxos changeAddress certsFee unbalancedTx' = do
         in
           runNextBalancingStep unbalancedTxWithMinFee leftoverUtxos
 
-  -- | Generates change outputs to return all excess `Value` back to the owner's
-  -- | address. If necessary, adds lovelaces to the generated change outputs to
-  -- | cover the utxo min-ada-value requirement.
-  -- |
-  -- | If the `maxChangeOutputTokenQuantity` constraint is set, partitions the
-  -- | change `Value` into smaller `Value`s (where the Ada amount and the quantity
-  -- | of each token is equipartitioned across the resultant `Value`s; and no
-  -- | token quantity in any of the resultant `Value`s exceeds the given upper
-  -- | bound). Then builds `TransactionChangeOutput`s using those `Value`s.
-  genTransactionChangeOutputs
-    :: Coin -> TxBody -> BalanceTxM (Array TransactionOutput)
-  genTransactionChangeOutputs certsFee txBody = do
-    inputValue <- except $ getInputValue utxos txBody
-    let
-      posValue :: Value -> Value
-      posValue (Value (Coin coin) nonAdaAsset) =
-        mkValue (Coin $ max coin zero) (posNonAdaAsset nonAdaAsset)
-
-      changeValue :: Value
-      changeValue = posValue $
-        (inputValue <> mintValue txBody) `minus`
-          (outputValue txBody <> minFeeValue txBody <> coinToValue certsFee)
-
-      mkChangeOutput :: Value -> TransactionOutput
-      mkChangeOutput amount =
-        TransactionOutput
-          { address: changeAddress
-          , amount
-          , datum: NoOutputDatum
-          , scriptRef: Nothing
-          }
-
-    if changeValue == mempty then pure mempty
-    else
-      asksConstraints Constraints._maxChangeOutputTokenQuantity >>= case _ of
-        Nothing ->
-          Array.singleton <$>
-            addLovelacesToTransactionOutput (mkChangeOutput changeValue)
-
-        Just maxChangeOutputTokenQuantity ->
-          let
-            values :: NonEmptyArray Value
-            values =
-              equipartitionValueWithTokenQuantityUpperBound changeValue
-                maxChangeOutputTokenQuantity
-          in
-            traverse (addLovelacesToTransactionOutput <<< mkChangeOutput)
-              (NEArray.toArray values)
-
 -- | For each transaction output, if necessary, adds some number of lovelaces
 -- | to cover the utxo min-ada-value requirement.
 addLovelacesToTransactionOutputs
@@ -372,6 +346,138 @@ addLovelacesToTransactionOutput txOutput = do
 setTxChangeOutputs
   :: Array TransactionOutput -> UnattachedUnbalancedTx -> UnattachedUnbalancedTx
 setTxChangeOutputs outputs = _body' <<< _outputs %~ flip append outputs
+
+--------------------------------------------------------------------------------
+-- Making change
+--------------------------------------------------------------------------------
+
+makeChange
+  :: Address -> Value -> Coin -> TxBody -> BalanceTxM (Array TransactionOutput)
+makeChange changeAddress inputValue certsFee txBody =
+  map (mkChangeOutput changeAddress) <$>
+    assignCoinsToChangeValues changeAddress excessCoin
+      changeValueOutputCoinPairs
+  where
+  changeValueOutputCoinPairs :: NonEmptyArray (Value /\ BigInt)
+  changeValueOutputCoinPairs = outputCoins
+    # NEArray.zip changeForAssets
+    # NEArray.sortWith (AssetCount <<< fst)
+
+  changeForAssets :: NonEmptyArray Value
+  changeForAssets = foldr
+    (NEArray.zipWith (<>) <<< makeChangeForAsset txOutputs)
+    (NEArray.replicate (length txOutputs) mempty)
+    excessAssets
+
+  outputCoins :: NonEmptyArray BigInt
+  outputCoins =
+    NEArray.fromArray (valueToCoin' <<< _.amount <<< unwrap <$> txOutputs)
+      ?? NEArray.singleton zero
+
+  txOutputs :: Array TransactionOutput
+  txOutputs = txBody ^. _outputs
+
+  excessAssets :: Array (AssetClass /\ BigInt)
+  excessAssets = Value.valueAssets excessValue
+
+  excessCoin :: BigInt
+  excessCoin = valueToCoin' excessValue
+
+  excessValue :: Value
+  excessValue = posValue $
+    (inputValue <> mintValue txBody) `minus`
+      (outputValue txBody <> minFeeValue txBody <> coinToValue certsFee)
+
+  posValue :: Value -> Value
+  posValue (Value (Coin coin) nonAdaAsset) =
+    mkValue (Coin $ max coin zero) (posNonAdaAsset nonAdaAsset)
+
+makeChangeForAsset
+  :: Array TransactionOutput -> (AssetClass /\ BigInt) -> NonEmptyArray Value
+makeChangeForAsset txOutputs (assetClass /\ excess) =
+  Value.assetToValue assetClass <$>
+    partition excess weights ?? equipartition excess (length weights)
+  where
+  weights :: NonEmptyArray BigInt
+  weights = NEArray.fromArray assetQuantities ?? NEArray.singleton one
+
+  assetQuantities :: Array BigInt
+  assetQuantities =
+    txOutputs <#> Value.getAssetQuantity assetClass <<< _.amount <<< unwrap
+
+makeChangeForCoin :: NonEmptyArray BigInt -> BigInt -> NonEmptyArray Value
+makeChangeForCoin weights excess =
+  (map lovelaceValueOf <$> partition excess weights)
+    ?? NEArray.singleton (lovelaceValueOf excess)
+
+assignCoinsToChangeValues
+  :: Address
+  -> BigInt
+  -> NonEmptyArray (Value /\ BigInt)
+  -> BalanceTxM (Array Value)
+assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
+  flip worker pairsAtStart =<< adaRequiredAtStart
+  where
+  worker
+    :: BigInt
+    -> NonEmptyArray (Value /\ BigInt)
+    -> BalanceTxM (Array Value)
+  worker adaRequired = NEArray.uncons >>> case _ of
+    { head: pair, tail: [] } | noTokens pair && adaAvailable < adaRequired ->
+      pure mempty
+
+    { head: pair, tail: pairs } | noTokens pair && adaAvailable < adaRequired ->
+      minCoinFor (fst pair) >>= \minCoin ->
+        worker (adaRequired - minCoin) (fromArrayUnsafe pairs)
+
+    { head, tail } -> do
+      let
+        pairs :: NonEmptyArray (Value /\ BigInt)
+        pairs = NEArray.cons' head tail
+
+        adaRemaining :: BigInt
+        adaRemaining = adaAvailable - adaRequired
+
+        changeValuesForOutputCoins :: NonEmptyArray Value
+        changeValuesForOutputCoins =
+          makeChangeForCoin (snd <$> pairs) adaRemaining
+
+      changeValuesWithMinCoins <- traverse (assignMinimumCoin <<< fst) pairs
+      pure $ NEArray.toArray $
+        NEArray.zipWith (<>) changeValuesWithMinCoins changeValuesForOutputCoins
+    where
+    assignMinimumCoin :: Value -> BalanceTxM Value
+    assignMinimumCoin value@(Value _ assets) =
+      flip mkValue assets <<< wrap <$> minCoinFor value
+
+    fromArrayUnsafe :: forall (a :: Type). Array a -> NonEmptyArray a
+    fromArrayUnsafe = unsafePartial fromJust <<< NEArray.fromArray
+
+    noTokens :: Value /\ BigInt -> Boolean
+    noTokens = Array.null <<< Value.valueAssets <<< fst
+
+  adaRequiredAtStart :: BalanceTxM BigInt
+  adaRequiredAtStart =
+    foldr (+) zero <$> traverse (minCoinFor <<< fst) pairsAtStart
+
+  minCoinFor :: Value -> BalanceTxM BigInt
+  minCoinFor value = do
+    let txOutput = mkChangeOutput changeAddress value
+    coinsPerUtxoUnit <- askCoinsPerUtxoUnit
+    ExceptT $ liftEffect $ utxoMinAdaValue coinsPerUtxoUnit txOutput
+      <#> note UtxoMinAdaValueCalculationFailed
+
+newtype AssetCount = AssetCount Value
+
+derive instance Newtype AssetCount _
+derive newtype instance Eq AssetCount
+
+instance Ord AssetCount where
+  compare = compare `on` (Array.length <<< Value.valueAssets <<< unwrap)
+
+mkChangeOutput :: Address -> Value -> TransactionOutput
+mkChangeOutput changeAddress amount = wrap
+  { address: changeAddress, amount, datum: NoOutputDatum, scriptRef: Nothing }
 
 --------------------------------------------------------------------------------
 -- Getters for various `Value`s

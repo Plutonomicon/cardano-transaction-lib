@@ -11,6 +11,7 @@ import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty
   ( appendArray
+  , fromArray
   , range
   , replicate
   , singleton
@@ -55,8 +56,9 @@ instance Partition BigInt where
         round portions =
           NEArray.zipWith (+)
             (map (fst <<< unwrap) <$> portions)
-            ( NEArray.replicate shortfall one
-                <> NEArray.replicate (length portions - shortfall) zero
+            ( fromArrayUnsafe $
+                replicate shortfall one
+                  <> replicate (length portions - shortfall) zero
             )
 
         shortfall :: Int
@@ -90,6 +92,9 @@ instance Equipartition BigInt where
 
 toIntUnsafe :: BigInt -> Int
 toIntUnsafe = unsafePartial fromJust <<< BigInt.toInt
+
+fromArrayUnsafe :: forall (a :: Type). Array a -> NonEmptyArray a
+fromArrayUnsafe = unsafePartial fromJust <<< NEArray.fromArray
 
 quotRem :: forall (a :: Type). EuclideanRing a => a -> a -> (a /\ a)
 quotRem a b = (a `div` b) /\ (a `mod` b)
