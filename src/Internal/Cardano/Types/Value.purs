@@ -6,6 +6,7 @@ module Ctl.Internal.Cardano.Types.Value
   , Value(Value)
   , class Negate
   , class Split
+  , assetToValue
   , coinToValue
   , currencyMPSHash
   , eq
@@ -507,6 +508,10 @@ derive instance Ord AssetClass
 
 instance Show AssetClass where
   show = genericShow
+
+assetToValue :: AssetClass -> BigInt -> Value
+assetToValue (AssetClass cs tn) quantity =
+  mkValue mempty (mkSingletonNonAdaAsset cs tn quantity)
 
 getAssetQuantity :: AssetClass -> Value -> BigInt
 getAssetQuantity (AssetClass cs tn) value = valueOf value cs tn

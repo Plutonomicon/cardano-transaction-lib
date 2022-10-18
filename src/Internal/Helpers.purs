@@ -2,6 +2,7 @@ module Ctl.Internal.Helpers
   ( (</>)
   , (<<>>)
   , (<\>)
+  , (??)
   , appendFirstMaybe
   , appendLastMaybe
   , appendMap
@@ -10,6 +11,7 @@ module Ctl.Internal.Helpers
   , filterMapM
   , filterMapWithKeyM
   , fromJustEff
+  , fromMaybeFlipped
   , fromRightEff
   , liftEither
   , liftM
@@ -44,7 +46,7 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Newtype (unwrap)
@@ -246,3 +248,8 @@ encodeTagged' str x = encodeTagged str x (Op encodeAeson)
 
 encodeSet :: forall (a :: Type). EncodeAeson a => Set a -> Aeson
 encodeSet set = encodeAeson (Set.toUnfoldable set :: Array a)
+
+fromMaybeFlipped :: forall (a :: Type). Maybe a -> a -> a
+fromMaybeFlipped = flip fromMaybe
+
+infixl 5 fromMaybeFlipped as ??
