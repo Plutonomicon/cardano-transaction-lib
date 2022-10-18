@@ -62,6 +62,7 @@ module Ctl.Internal.Types.TxConstraints
   , requiredMonetaryPolicies
   , requiredSignatories
   , singleton
+  , utxoWithScriptRef
   ) where
 
 import Prelude hiding (join)
@@ -73,8 +74,9 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , currencyMPSHash
   )
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
 import Ctl.Internal.Types.Datum (Datum)
@@ -96,7 +98,8 @@ import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, any, foldMap, foldl, foldr, null)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Map (fromFoldableWith, toUnfoldable)
+import Data.Map (Map, fromFoldableWith, toUnfoldable)
+import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
@@ -107,6 +110,7 @@ import Prim.TypeError (class Warn, Text)
 --------------------------------------------------------------------------------
 -- TxConstraints Type and related
 --------------------------------------------------------------------------------
+
 -- Taken from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints.html
 -- Plutus rev: cc72a56eafb02333c96f662581b57504f8f8992f via Plutus-apps (localhost): abe4785a4fc4a10ba0c4e6417f0ab9f1b4169b26
 
@@ -139,8 +143,15 @@ derive instance Generic TxConstraint _
 instance Show TxConstraint where
   show x = genericShow x
 
+-- | `InputWithScriptRef` specifies whether the underlying utxo with the 
+-- | reference script should be included in the transaction as a reference 
+-- | input.
 data InputWithScriptRef
+  -- | `RefInput` asserts the utxo containing the reference script should be
+  -- | used as a reference input and therefore cannot be spent.
   = RefInput TransactionUnspentOutput
+  -- | `SpendInput` asserts the utxo containing the reference script should be
+  -- | used as a regular input and therefore can be spent.
   | SpendInput TransactionUnspentOutput
 
 derive instance Eq InputWithScriptRef
@@ -148,6 +159,15 @@ derive instance Generic InputWithScriptRef _
 
 instance Show InputWithScriptRef where
   show = genericShow
+
+utxoWithScriptRef
+  :: InputWithScriptRef -> Map TransactionInput TransactionOutputWithRefScript
+utxoWithScriptRef inputWithRefScript = Map.singleton input output
+  where
+  TransactionUnspentOutput { input, output } =
+    case inputWithRefScript of
+      RefInput unspentOut -> unspentOut
+      SpendInput unspentOut -> unspentOut
 
 -- | `DatumPresence` describes how datum should be stored in the transaction
 -- | when paying to a script.
@@ -218,6 +238,7 @@ instance Bifunctor TxConstraints where
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
+
 -- | Adds a `TransactionInput` as an input constraint with an arbitrary
 -- | redeemer.
 addTxIn
@@ -257,8 +278,7 @@ mustReferenceOutput
   :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
 mustReferenceOutput = singleton <<< MustReferenceOutput
 
--- | Lock the value with a payment public key hash and (optionally) a stake
--- | public key hash.
+-- | Lock the value with a public key address.
 mustPayToPubKeyAddress
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -268,8 +288,7 @@ mustPayToPubKeyAddress
 mustPayToPubKeyAddress pkh skh =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing Nothing
 
--- | Lock the value and datum with a payment public key hash and (optionally) a
--- | stake public key hash.
+-- | Lock the value and datum with a public key address.
 mustPayToPubKeyAddressWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -282,6 +301,7 @@ mustPayToPubKeyAddressWithDatum pkh skh datum dtp =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
     Nothing
 
+-- | Lock the value and reference script with a public key address.
 mustPayToPubKeyAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -292,6 +312,7 @@ mustPayToPubKeyAddressWithScriptRef
 mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing (Just scriptRef)
 
+-- | Lock the value, datum and reference script with a public key address.
 mustPayToPubKeyAddressWithDatumAndScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -305,7 +326,7 @@ mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh datum dtp scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
     (Just scriptRef)
 
--- | Lock the value with a public key
+-- | Lock the value with a public key.
 mustPayToPubKey
   :: forall (i :: Type) (o :: Type)
    . Warn
@@ -318,7 +339,7 @@ mustPayToPubKey
 mustPayToPubKey pkh =
   singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing Nothing
 
--- | Lock the value and datum with a payment public key hash
+-- | Lock the value and datum with a payment public key hash.
 mustPayToPubKeyWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -329,6 +350,7 @@ mustPayToPubKeyWithDatum
 mustPayToPubKeyWithDatum pkh datum dtp =
   singleton <<< MustPayToPubKeyAddress pkh Nothing (Just $ datum /\ dtp) Nothing
 
+-- | Lock the value and reference script with a payment public key hash.
 mustPayToPubKeyWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -338,6 +360,7 @@ mustPayToPubKeyWithScriptRef
 mustPayToPubKeyWithScriptRef pkh scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing (Just scriptRef)
 
+-- | Lock the value, datum and reference script with a payment public key hash.
 mustPayToPubKeyWithDatumAndScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -366,6 +389,9 @@ mustPayToScript vh dt dtp vl =
   singleton (MustPayToScript vh dt dtp Nothing vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
+-- | Lock the value, datum and reference script with a script. 
+-- | Note that the provided reference script does *not* necessarily need to 
+-- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
@@ -417,6 +443,7 @@ mustMintCurrency
 mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph unitRedeemer
 
+-- | Create the given amount of the currency using a reference minting policy.
 mustMintCurrencyUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -427,7 +454,7 @@ mustMintCurrencyUsingScriptRef
 mustMintCurrencyUsingScriptRef mph =
   mustMintCurrencyWithRedeemerUsingScriptRef mph unitRedeemer
 
--- | Create the given amount of the currency
+-- | Create the given amount of the currency.
 mustMintCurrencyWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -438,6 +465,7 @@ mustMintCurrencyWithRedeemer
 mustMintCurrencyWithRedeemer mph red tn amount =
   singleton (MustMintValue mph red tn amount Nothing)
 
+-- | Create the given amount of the currency using a reference minting policy.
 mustMintCurrencyWithRedeemerUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -457,10 +485,12 @@ mustSpendAtLeast = singleton <<< MustSpendAtLeast
 mustProduceAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustProduceAtLeast = singleton <<< MustProduceAtLeast
 
+-- | Spend the given unspent transaction public key output.
 mustSpendPubKeyOutput
   :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
 mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 
+-- | Spend the given unspent transaction script output.
 mustSpendScriptOutput
   :: forall (i :: Type) (o :: Type)
    . TransactionInput
@@ -469,6 +499,8 @@ mustSpendScriptOutput
 mustSpendScriptOutput txOutRef red =
   singleton (MustSpendScriptOutput txOutRef red Nothing)
 
+-- | Spend the given unspent transaction script output, using a reference script 
+-- | to satisfy the script witnessing requirement.
 mustSpendScriptOutputUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . TransactionInput
@@ -490,6 +522,10 @@ mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
+-- | Attempts to solve, in order, a sequence of constraints until the first
+-- | successful try.
+-- | `mustSatisfyaAnyOf` is just a way to define a chain of try-catch expressions
+-- | in a declarative manner. It does not do any analysis of the constraints' semantics.
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
    . Foldable f

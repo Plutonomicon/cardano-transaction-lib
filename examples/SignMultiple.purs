@@ -22,8 +22,9 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
+  , signTransaction
   , submit
-  , withBalancedAndSignedTxs
+  , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
@@ -57,24 +58,24 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  txIds <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs
-    logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
-      locked
-    traverse submitAndLog txs
+    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+      <> show locked
+    traverse (submitAndLog <=< signTransaction) balancedTxs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
   case txIds of
-    [ txId1, txId2 ] -> do
+    [ txId0, txId1 ] -> do
+      awaitTxConfirmed txId0
+      logInfo' $ "Tx 0 submitted successfully!"
       awaitTxConfirmed txId1
       logInfo' $ "Tx 1 submitted successfully!"
-      awaitTxConfirmed txId2
-      logInfo' $ "Tx 2 submitted successfully!"
     _ -> throwContractError "Unexpected error - no transaction IDs"
 
   where
