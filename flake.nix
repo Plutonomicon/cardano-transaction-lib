@@ -478,7 +478,8 @@
 
       nixosModules.ctl-server = { pkgs, lib, ... }: {
         imports = [ ./nix/ctl-server-nixos-module.nix ];
-        services.ctl-server.package = lib.mkDefault self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
+        services.ctl-server.package = lib.mkDefault
+          self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
       };
 
       nixosConfigurations.test = nixpkgs.lib.nixosSystem {
@@ -486,9 +487,15 @@
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
           inputs.ogmios-nixos.nixosModules.ogmios
-          { services.ogmios.package = inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios"; }
+          {
+            services.ogmios.package =
+              inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
+          }
           inputs.ogmios-datum-cache-nixos.nixosModules.ogmios-datum-cache
-          { services.ogmios-datum-cache.package = inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache"; }
+          {
+            services.ogmios-datum-cache.package =
+              inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache";
+          }
           self.nixosModules.ctl-server
           ./nix/test-nixos-configuration.nix
         ];
