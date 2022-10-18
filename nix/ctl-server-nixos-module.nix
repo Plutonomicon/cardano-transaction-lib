@@ -8,6 +8,7 @@ with lib; {
     package = mkOption {
       description = "The ctl package to use.";
       type = package;
+      default = pkgs.ctl-server;
     };
     port = mkOption {
       type = port;
