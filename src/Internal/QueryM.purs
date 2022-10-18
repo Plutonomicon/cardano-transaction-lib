@@ -122,7 +122,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (TxHash)
+import Ctl.Internal.QueryM.Ogmios (PoolId, PoolIdsR, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -735,6 +735,8 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
   systemStartDispatchMap <- createMutableDispatch
   acquireMempoolDispatchMap <- createMutableDispatch
   mempoolHasTxDispatchMap <- createMutableDispatch
+  poolIdsDispatchMap <- createMutableDispatch
+  poolParametersDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   utxosAtPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
@@ -746,6 +748,8 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
   systemStartPendingRequests <- createPendingRequests
   acquireMempoolPendingRequests <- createPendingRequests
   mempoolHasTxPendingRequests <- createPendingRequests
+  poolIdsPendingRequests <- createPendingRequests
+  poolParametersPendingRequests <- createPendingRequests
   let
     messageDispatch = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -759,6 +763,8 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       , systemStartDispatchMap
       , acquireMempoolDispatchMap
       , mempoolHasTxDispatchMap
+      , poolIdsDispatchMap
+      , poolParametersDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -788,6 +794,9 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
           mkListenerSet acquireMempoolDispatchMap acquireMempoolPendingRequests
       , mempoolHasTx:
           mkListenerSet mempoolHasTxDispatchMap mempoolHasTxPendingRequests
+      , poolIds: mkListenerSet poolIdsDispatchMap poolIdsPendingRequests
+      , poolParameters:
+          mkListenerSet poolParametersDispatchMap poolParametersPendingRequests
       }
 
     sendRequest :: forall (req :: Type). RequestBody /\ req -> Effect Unit
@@ -802,6 +811,8 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
       Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
       Ref.read systemStartPendingRequests >>= traverse_ sendRequest
+      Ref.read poolIdsPendingRequests >>= traverse_ sendRequest
+      Ref.read poolParametersPendingRequests >>= traverse_ sendRequest
 
       logger Debug "Resent all pending requests"
 
@@ -1028,6 +1039,8 @@ type OgmiosListeners =
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
+  , poolIds :: ListenerSet Unit PoolIdsR
+  , poolParameters :: ListenerSet (Array PoolId) Aeson
   }
 
 type DatumCacheListeners =
@@ -1253,6 +1266,8 @@ ogmiosMessageDispatch
      , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
      , acquireMempoolDispatchMap :: DispatchIdMap Ogmios.MempoolSnapshotAcquired
      , mempoolHasTxDispatchMap :: DispatchIdMap Boolean
+     , poolIdsDispatchMap :: DispatchIdMap Ogmios.PoolIdsR
+     , poolParametersDispatchMap :: DispatchIdMap Aeson
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -1267,6 +1282,8 @@ ogmiosMessageDispatch
   , systemStartDispatchMap
   , acquireMempoolDispatchMap
   , mempoolHasTxDispatchMap
+  , poolIdsDispatchMap
+  , poolParametersDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch utxosAtDispatchMap
@@ -1279,6 +1296,8 @@ ogmiosMessageDispatch
   , queryDispatch systemStartDispatchMap
   , queryDispatch acquireMempoolDispatchMap
   , queryDispatch mempoolHasTxDispatchMap
+  , queryDispatch poolIdsDispatchMap
+  , queryDispatch poolParametersDispatchMap
   ]
 
 datumCacheMessageDispatch

@@ -45,6 +45,8 @@ module Ctl.Internal.QueryM.Ogmios
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
+  , PoolId
+  , PoolIdsR
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
@@ -52,6 +54,7 @@ module Ctl.Internal.QueryM.Ogmios
   , aesonArray
   , aesonObject
   , evaluateTxCall
+  , queryPoolIdsCall
   , mempoolSnapshotHasTxCall
   , mkOgmiosCallType
   , queryChainTipCall
@@ -62,6 +65,7 @@ module Ctl.Internal.QueryM.Ogmios
   , queryUtxoCall
   , queryUtxosAtCall
   , queryUtxosCall
+  , queryPoolParameters
   , submitTxCall
   , slotLengthFactor
   ) where
@@ -212,6 +216,18 @@ queryChainTipCall :: JsonWspCall Unit ChainTipQR
 queryChainTipCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "chainTip" }
+  }
+
+queryPoolIdsCall :: JsonWspCall Unit PoolIdsR
+queryPoolIdsCall = mkOgmiosCallType
+  { methodname: "Query"
+  , args: const { query: "poolIds" }
+  }
+
+queryPoolParameters :: JsonWspCall (Array PoolId) Aeson
+queryPoolParameters = mkOgmiosCallType
+  { methodname: "Query"
+  , args: \params -> { query: { poolParameters: params } }
   }
 
 -- | Queries Ogmios for utxos at given addresses.
@@ -1152,6 +1168,12 @@ type ChainPoint =
   -- for details on why we lose a neglible amount of precision.
   , hash :: OgmiosBlockHeaderHash
   }
+
+---------------- POOL ID RESPONSE
+
+type PoolId = String
+
+type PoolIdsR = Array PoolId
 
 ---------------- UTXO QUERY RESPONSE & PARSING
 

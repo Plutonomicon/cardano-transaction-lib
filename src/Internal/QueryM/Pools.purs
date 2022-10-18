@@ -1,0 +1,145 @@
+module Ctl.Internal.QueryM.Pools
+  ( getPoolIds
+  , getPoolParameters
+  , parseIpv6String
+  ) where
+
+import Prelude
+
+import Aeson (Aeson, JsonDecodeError(TypeMismatch), decodeAeson, (.:), (.:?))
+import Control.Alt ((<|>))
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , PoolRegistrationParams
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , URL(URL)
+  , UnitInterval
+  )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
+import Ctl.Internal.QueryM.Ogmios (PoolId)
+import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.ByteArray (byteArrayFromIntArray, hexToByteArray)
+import Data.Bifunctor (lmap)
+import Data.Either (Either(Left), note)
+import Data.Foldable (fold)
+import Data.Int as Int
+import Data.Maybe (Maybe)
+import Data.String (Pattern(Pattern), Replacement(Replacement))
+import Data.String as String
+import Data.String.Utils as StringUtils
+import Data.Traversable (for, traverse)
+import Effect.Exception (error)
+import Foreign.Object (Object)
+
+getPoolIds :: QueryM (Array PoolId)
+getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
+  _.poolIds
+  unit
+
+decodeUnitInterval :: Aeson -> Either JsonDecodeError UnitInterval
+decodeUnitInterval aeson = do
+  str <- decodeAeson aeson
+  case String.split (Pattern "/") str of
+    [ num, den ] -> do
+      numerator <- note (TypeMismatch "BigNum") $ BigNum.fromString num
+      denominator <- note (TypeMismatch "BigNum") $ BigNum.fromString den
+      pure
+        { numerator
+        , denominator
+        }
+    _ -> Left $ TypeMismatch "UnitInterval"
+
+-- [{"port":0,"ipv4":"192.0.2.1","ipv6":null},{"hostname":"foo.example.com","port":null},{"port":2,"ipv4":"192.0.2.1","ipv6":"2001:db8::1"},{"hostname":"foo.example.com","port":7},{"hostname":"foo.example.com","port":null},{"port":7,"ipv4":"192.0.2.1","ipv6":null}]
+
+decodeIpv4 :: Aeson -> Either JsonDecodeError Ipv4
+decodeIpv4 aeson = do
+  str <- decodeAeson aeson
+  case String.split (Pattern ".") str of
+    bs@[ _, _, _, _ ] -> do
+      ints <- for bs $
+        note (TypeMismatch "Ipv4") <<< Int.fromString
+      Ipv4 <$> note (TypeMismatch "Ipv4") (byteArrayFromIntArray ints)
+    _ -> Left $ TypeMismatch "Ipv4"
+
+decodeIpv6 :: Aeson -> Either JsonDecodeError Ipv6
+decodeIpv6 aeson = do
+  decodeAeson aeson >>= parseIpv6String >>> note (TypeMismatch "Ipv6")
+
+parseIpv6String :: String -> Maybe Ipv6
+parseIpv6String str = do
+  let
+    parts = String.split (Pattern ":") str
+    padded = String.replaceAll (Pattern " ") (Replacement "0") $ fold $ parts
+      <#>
+        StringUtils.padStart 4
+  Ipv6 <$> hexToByteArray padded
+
+decodeRelay :: Aeson -> Either JsonDecodeError Relay
+decodeRelay aeson = do
+  obj <- decodeAeson aeson
+  let
+    decodeSingleHostAddr = do
+      port <- obj .:? "port"
+      ipv4 <- obj .:? "ipv4" >>= traverse decodeIpv4
+      ipv6 <- obj .:? "ipv6" >>= traverse decodeIpv6
+      pure $ SingleHostAddr { port, ipv4, ipv6 }
+    decodeSingleHostName = do
+      port <- obj .: "port"
+      dnsName <- obj .: "hostname"
+      pure $ SingleHostName { port, dnsName }
+    decodeMultiHostName = do
+      dnsName <- obj .: "hostname"
+      pure $ MultiHostName { dnsName }
+  decodeSingleHostName <|> decodeSingleHostAddr <|> decodeMultiHostName
+
+decodePoolMetadata :: Aeson -> Either JsonDecodeError PoolMetadata
+decodePoolMetadata aeson = do
+  obj <- decodeAeson aeson
+  hash <- obj .: "hash" >>= note (TypeMismatch "PoolMetadataHash")
+    <<< map PoolMetadataHash
+    <<< hexToByteArray
+  url <- obj .: "url" <#> URL
+  pure $ PoolMetadata { hash, url }
+
+getPoolParameters :: PoolId -> QueryM PoolRegistrationParams
+getPoolParameters id = do
+  aeson <- mkOgmiosRequest Ogmios.queryPoolParameters
+    _.poolParameters
+    [ id ]
+  let
+    (params :: Either JsonDecodeError PoolRegistrationParams) = do
+      obj <- decodeAeson aeson
+      objParams :: Object Aeson <- obj .: id
+      operator <- note (TypeMismatch "operator (Ed25519KeyHash)") $
+        ed25519KeyHashFromBech32 id
+      vrfKeyhashHex <- objParams .: "vrf"
+      vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
+        vrfKeyhashHex
+      vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ fromBytes vrfKeyhashBytes
+      pledge <- objParams .: "pledge"
+      cost <- objParams .: "cost"
+      margin <- decodeUnitInterval =<< objParams .: "margin"
+      rewardAccount <- objParams .: "rewardAccount"
+      poolOwners <- objParams .: "owners"
+      relayArr <- objParams .: "relays"
+      relays <- for relayArr decodeRelay
+      poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
+      pure
+        { operator
+        , vrfKeyhash
+        , pledge
+        , cost
+        , margin
+        , rewardAccount
+        , poolOwners
+        , relays
+        , poolMetadata
+        }
+  liftEither $ lmap (error <<< show) params
