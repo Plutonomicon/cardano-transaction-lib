@@ -74,10 +74,17 @@ payToSatisfiesAnyOf vhash = do
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
+    payToConstraintTooMuch :: TxConstraints Unit Unit
+    payToConstraintTooMuch =
+      Constraints.mustPayToScript vhash unitDatum
+        Constraints.DatumWitness
+        $ Value.lovelaceValueOf
+        $ BigInt.fromInt 2_000_000_000
+
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustSatisfyAnyOf
-      [ payToConstraint <> Constraints.mustHashDatum correctDatumHash unitDatum
-      , payToConstraint <> Constraints.mustHashDatum wrongDatumHash unitDatum
+      [ payToConstraintTooMuch <> Constraints.mustHashDatum correctDatumHash unitDatum
+      , payToConstraint <> Constraints.mustHashDatum correctDatumHash unitDatum
       ]
 
     lookups :: Lookups.ScriptLookups PlutusData
