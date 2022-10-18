@@ -1143,8 +1143,11 @@ processConstraint mpsMap osMap = do
           -- `put`)
           foldM
             ( \_ constr -> runExceptT do
-                ExceptT $ processConstraint mpsMap osMap constr
-                  `catchError` \_ -> put cps *> tryNext zs
+                let cont = put cps *> tryNext zs
+                ( ExceptT $ processConstraint mpsMap osMap constr
+                    `catchError` \_ -> cont
+                )
+                  `catchError` \_ -> ExceptT cont
             )
             (Right unit)
             ys
