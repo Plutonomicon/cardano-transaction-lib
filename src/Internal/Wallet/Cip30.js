@@ -20,16 +20,12 @@ exports._getChangeAddress = conn => () => conn.getChangeAddress();
 
 exports._getRewardAddresses = conn => () => conn.getRewardAddresses();
 
-exports._signTx = txHex => conn => () => {
-  return conn.signTx(txHex, true).catch(e => {
-    console.log("Error in signTx: ", e);
+exports._signTx = txHex => conn => () =>
+  conn.signTx(txHex, true).catch(e => {
     throw JSON.stringify(e);
   });
-};
 
-exports._signData = address => payload => conn => () => {
-  return conn.signData(address, payload).catch(e => {
-    console.log("Error in signData: ", e);
+exports._signData = address => payload => conn => () =>
+  conn.signData(address, payload).catch(e => {
     throw JSON.stringify(e);
   });
-};
