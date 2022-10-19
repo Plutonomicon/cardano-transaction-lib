@@ -81,6 +81,7 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
+  , byteArrayFromIntArrayUnsafe
   , byteArrayToHex
   , byteLength
   , hexToByteArray
@@ -111,6 +112,7 @@ import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
 import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
+import Data.Map.Gen (genMap)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
@@ -120,6 +122,8 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (Gen, chooseInt, suchThat, vectorOf)
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
 -- combine similar behaviour without satisfying any useful laws. I wonder
@@ -156,6 +160,9 @@ derive newtype instance Ord Coin
 derive newtype instance DecodeAeson Coin
 derive newtype instance EncodeAeson Coin
 derive newtype instance Equipartition Coin
+
+instance Arbitrary Coin where
+  arbitrary = Coin <<< fromInt <$> suchThat arbitrary (_ >= zero)
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
@@ -220,6 +227,11 @@ derive newtype instance Ord CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 derive newtype instance ToMetadata CurrencySymbol
 
+instance Arbitrary CurrencySymbol where
+  arbitrary =
+    unsafePartial fromJust <<< mkCurrencySymbol <<< byteArrayFromIntArrayUnsafe
+      <$> vectorOf 28 (chooseInt 0 255)
+
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
@@ -262,6 +274,17 @@ mkUnsafeAdaSymbol byteArr =
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive newtype instance Eq NonAdaAsset
+
+instance Arbitrary NonAdaAsset where
+  arbitrary =
+    NonAdaAsset <$>
+      genMap
+        (arbitrary :: Gen CurrencySymbol)
+        ( flip suchThat (not Map.isEmpty) $
+            genMap
+              (arbitrary :: Gen TokenName)
+              (fromInt <$> suchThat arbitrary (_ >= one) :: Gen BigInt)
+        )
 
 instance Show NonAdaAsset where
   show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset " <> show nonAdaAsset <> ")"
@@ -416,6 +439,9 @@ data Value = Value Coin NonAdaAsset
 
 derive instance Generic Value _
 derive instance Eq Value
+
+instance Arbitrary Value where
+  arbitrary = Value <$> arbitrary <*> arbitrary
 
 instance Show Value where
   show = genericShow
