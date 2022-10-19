@@ -60,11 +60,11 @@ Haskell is a language that is older than some of the people currently writing
 it; parts of its ecosystem are not exempt from it. With age comes legacy, and
 much of it is based on historical decisions which we now know to be problematic
 or wrong. We can't avoid our history, but we can minimize its impact on our
-current work. 
+current work.
 
 Thus, we aim to codify good practices in this document _as seen today_. We also
 try to avoid obvious 'sharp edges' by proscribing them away in a principled,
-consistent and justifiable manner. 
+consistent and justifiable manner.
 
 ## Automate away drudgery
 
@@ -107,7 +107,7 @@ this:
 data Foo = Bar {
    baz :: Int,
    quux :: String
-   } | 
+   } |
    Quux
 ```
 
@@ -184,7 +184,7 @@ difficult to read even without a split screen. We don't _enforce_ a maximum of
 ## Naming
 
 camelCase MUST be used for all non-type, non-data-constructor names; otherwise,
-TitleCase MUST be used. Acronyms used as part of a naming identifier (such as 
+TitleCase MUST be used. Acronyms used as part of a naming identifier (such as
 'JSON', 'API', etc) SHOULD be downcased; thus ``repairJson`` and
 ``fromHttpService`` are correct. Exceptions are allowed for external libraries
 (Aeson's ``parseJSON`` for example).
@@ -306,15 +306,15 @@ qualified, is good practice, and saves on a lot of prefixing.
 
 ## Plutus module import naming conventions
 
-In addition to the general module import rules, we follow some conventions 
-on how we import the Plutus API modules, allowing for some flexibility 
+In addition to the general module import rules, we follow some conventions
+on how we import the Plutus API modules, allowing for some flexibility
 depending on the needs of a particular module.
 
-Modules under the names `Plutus`, `Ledger` and `Plutus.V1.Ledger` SHOULD 
-be imported qualified with their module name, as per the general module standards. 
+Modules under the names `Plutus`, `Ledger` and `Plutus.V1.Ledger` SHOULD
+be imported qualified with their module name, as per the general module standards.
 An exception to this is `Plutus.V1.Ledger.Api`, where the `Ledger` name is preferred.
 
-Some other exceptions to this are allowed where it may be more convenient to 
+Some other exceptions to this are allowed where it may be more convenient to
 avoid longer qualified names.
 
 For example:
@@ -333,10 +333,10 @@ In some cases it may be justified to use a shortened module name:
 import Plutus.V1.Ledger.AddressMap qualified as AddrMap
 ```
 
-Modules under `PlutusTx` that are extensions to `PlutusTx.Prelude` MAY be 
-imported unqualified when it is reasonable to do so. 
+Modules under `PlutusTx` that are extensions to `PlutusTx.Prelude` MAY be
+imported unqualified when it is reasonable to do so.
 
-The `Plutus.V1.Ledger.Api` module SHOULD be avoided in favour of more 
+The `Plutus.V1.Ledger.Api` module SHOULD be avoided in favour of more
 specific modules where possible. For example, we should avoid:
 
 ```haskell
@@ -351,8 +351,8 @@ import Plutus.V1.Ledger.Scripts qualified as Scripts (ValidatorHash)
 
 ### Justification
 
-The Plutus API modules can be confusing, with numerous modules involved, many 
-exporting the same items. Consistent qualified names help ease this problem, 
+The Plutus API modules can be confusing, with numerous modules involved, many
+exporting the same items. Consistent qualified names help ease this problem,
 and decrease ambiguity about where imported items come from.
 
 ## LANGUAGE pragmata
@@ -449,11 +449,11 @@ wrappers around monadic stacks:
 ```haskell
 newtype FooM a = FooM (ReaderT Int (StateT Text IO) a)
   deriving newtype (
-    Functor, 
-    Applicative, 
-    Monad, 
-    MonadReader Int, 
-    MonadState Text, 
+    Functor,
+    Applicative,
+    Monad,
+    MonadReader Int,
+    MonadState Text,
     MonadIO
     )
 ```
@@ -498,8 +498,8 @@ Thus, even for popularity and compatibility reasons, these should be on by
 default.
 
 ``InstanceSigs`` are harmless by default, and introduce no complications. Their
-not being default is strange. ``ImportQualifiedPost`` is already a convention 
-of this project, and helps with formatting of imports. 
+not being default is strange. ``ImportQualifiedPost`` is already a convention
+of this project, and helps with formatting of imports.
 
 ``KindSignatures`` become extremely useful in any setting where 'exotic kinds'
 (meaning, anything which isn't `Type` or `Type -> Type` or similar) are
@@ -512,7 +512,7 @@ and the code. Since this project is Plutus-based, we use 'exotic kinds'
 extensively, especially in row-polymorphic records; thus, in our case, this is
 especially important. This also serves as justification for
 `ScopedTypeVariables`, as well as ironing out a weird behaviour where in cases
-such as 
+such as
 
 ```haskell
 foo :: a -> b
@@ -578,7 +578,7 @@ instead of the one from ``base``.
 ``OverloadedStrings`` deals with the problem that ``String`` is a suboptimal
 choice of string representation for basically _any_ problem, with the general
 recommendation being to use ``Text`` instead. It is not, however, without its
-problems: 
+problems:
 
 * ``ByteString``s are treated as ASCII strings by their ``IsString`` instance;
 * Overly polymorphic behaviour of many functions (especially in the presence of
@@ -660,7 +660,7 @@ problems than it solves.
 
 ## ``record-dot-preprocessor``
 
-The GHC plugin from ``record-dot-preprocessor`` SHOULD be enabled globally. 
+The GHC plugin from ``record-dot-preprocessor`` SHOULD be enabled globally.
 
 ### Justification
 
@@ -717,8 +717,8 @@ alternatives. This means that, when a non-``base`` ``Prelude`` is in scope, it
 often requires familiarity with its specific decisions, in addition to whatever
 cognitive load the current module and its other imports impose. Given that we
 already use an alternative prelude (in tandem with the one from ``base``),
-additional alternatives present an unnecessary cognitive load. Lastly, the 
-dependency footprint of many alternative ``Prelude``s is _highly_ non-trivial; 
+additional alternatives present an unnecessary cognitive load. Lastly, the
+dependency footprint of many alternative ``Prelude``s is _highly_ non-trivial;
 it isn't clear if we need all of this in our dependency tree.
 
 For all of the above reasons, the best choice is 'default to Plutus, with local
@@ -749,7 +749,7 @@ Every publically-exported definition MUST have a Haddock comment, detailing its
 purpose. If a definition is a function, it SHOULD also have examples of use
 using [Bird tracks][bird-tracks]. The Haddock for a publically-exported
 definition SHOULD also provide an explanation of any caveats, complexities of
-its use, or common issues a user is likely to encounter. 
+its use, or common issues a user is likely to encounter.
 
 If the code project is a library, these Haddock comments SHOULD carry an
 [``@since``][haddock-since] annotation, stating what version of the library they
@@ -781,15 +781,15 @@ also the expected behaviour of its instances.
 ## Other
 
 Lists SHOULD NOT be field values of types; this extends to ``String``s. Instead,
-``Vector``s (``Text``s) SHOULD be used, unless a more appropriate structure exists. 
+``Vector``s (``Text``s) SHOULD be used, unless a more appropriate structure exists.
 On-chain code, due to a lack of alternatives, is one place lists can be used as
 field values of types.
 
 Partial functions MUST NOT be defined. Partial functions SHOULD NOT be used
 except to ensure that another function is total (and the type system cannot be
-used to prove it). 
+used to prove it).
 
-Derivations MUST use an explicit [strategy][deriving-strategies]. Thus, the 
+Derivations MUST use an explicit [strategy][deriving-strategies]. Thus, the
 following is wrong:
 
 ```haskell
@@ -1020,7 +1020,7 @@ additional flexibility.
 [hlint]: http://hackage.haskell.org/package/hlint
 [fourmolu]: http://hackage.haskell.org/package/fourmolu
 [rfc-2119]: https://tools.ietf.org/html/rfc2119
-[boolean-blindness]: http://dev.stephendiehl.com/hask/#boolean-blindness
+[boolean-blindness]: https://smunix.github.io/dev.stephendiehl.com/hask/index.html#boolean-blindness
 [parse-dont-validate]: https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
 [hspec]: http://hackage.haskell.org/package/hspec
 [rdp]: https://hackage.haskell.org/package/record-dot-preprocessor
