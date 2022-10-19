@@ -355,13 +355,32 @@ makeChange
   :: Address -> Value -> Coin -> TxBody -> BalanceTxM (Array TransactionOutput)
 makeChange changeAddress inputValue certsFee txBody =
   map (mkChangeOutput changeAddress) <$>
-    assignCoinsToChangeValues changeAddress excessCoin
-      changeValueOutputCoinPairs
+    ( assignCoinsToChangeValues changeAddress excessCoin
+        =<< splitOversizedValues changeValueOutputCoinPairs
+    )
   where
   changeValueOutputCoinPairs :: NonEmptyArray (Value /\ BigInt)
   changeValueOutputCoinPairs = outputCoins
     # NEArray.zip changeForAssets
     # NEArray.sortWith (AssetCount <<< fst)
+
+  splitOversizedValues
+    :: NonEmptyArray (Value /\ BigInt)
+    -> BalanceTxM (NonEmptyArray (Value /\ BigInt))
+  splitOversizedValues pairs =
+    asksConstraints Constraints._maxChangeOutputTokenQuantity <#> case _ of
+      Nothing -> pairs
+      Just maxTokenQuantity ->
+        unbundle <$>
+          ( equipartitionValueWithTokenQuantityUpperBound maxTokenQuantity
+              =<< map bundle pairs
+          )
+    where
+    bundle :: Value /\ BigInt -> Value
+    bundle (Value _ assets /\ coin) = mkValue (wrap coin) assets
+
+    unbundle :: Value -> Value /\ BigInt
+    unbundle (Value coin assets) = mkValue mempty assets /\ unwrap coin
 
   changeForAssets :: NonEmptyArray Value
   changeForAssets = foldr
@@ -407,8 +426,8 @@ makeChangeForAsset txOutputs (assetClass /\ excess) =
 
 makeChangeForCoin :: NonEmptyArray BigInt -> BigInt -> NonEmptyArray Value
 makeChangeForCoin weights excess =
-  (map lovelaceValueOf <$> partition excess weights)
-    ?? NEArray.singleton (lovelaceValueOf excess)
+  lovelaceValueOf <$>
+    partition excess weights ?? equipartition excess (length weights)
 
 assignCoinsToChangeValues
   :: Address
@@ -436,7 +455,7 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
         pairs = NEArray.cons' head tail
 
         adaRemaining :: BigInt
-        adaRemaining = adaAvailable - adaRequired
+        adaRemaining = max zero (adaAvailable - adaRequired)
 
         changeValuesForOutputCoins :: NonEmptyArray Value
         changeValuesForOutputCoins =
