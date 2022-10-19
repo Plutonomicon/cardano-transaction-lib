@@ -65,6 +65,7 @@ module Ctl.Internal.QueryM.Ogmios
   , queryUtxosAtCall
   , queryUtxosCall
   , queryPoolParameters
+  , queryDelegationsAndRewards
   , submitTxCall
   , slotLengthFactor
   ) where
@@ -125,13 +126,17 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot)
-import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
+import Ctl.Internal.Serialization.Hash
+  ( ed25519KeyHashFromBytes
+  , ed25519KeyHashToBytes
+  )
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash(StakePubKeyHash))
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
@@ -222,6 +227,18 @@ queryPoolParameters :: JsonWspCall (Array PoolPubKeyHash) Aeson
 queryPoolParameters = mkOgmiosCallType
   { methodname: "Query"
   , args: \params -> { query: { poolParameters: params } }
+  }
+
+queryDelegationsAndRewards :: JsonWspCall (Array StakePubKeyHash) Aeson
+queryDelegationsAndRewards = mkOgmiosCallType
+  { methodname: "Query"
+  , args: \skhs ->
+      { query:
+          { delegationsAndRewards: map
+              (ed25519KeyHashToBytes <<< unwrap <<< unwrap)
+              skhs
+          }
+      }
   }
 
 -- | Queries Ogmios for utxos at given addresses.

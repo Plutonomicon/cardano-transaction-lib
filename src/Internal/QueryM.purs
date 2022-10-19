@@ -738,6 +738,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
   mempoolHasTxDispatchMap <- createMutableDispatch
   poolIdsDispatchMap <- createMutableDispatch
   poolParametersDispatchMap <- createMutableDispatch
+  delegationsAndRewardsDispatchMap <- createMutableDispatch
   utxoPendingRequests <- createPendingRequests
   utxosAtPendingRequests <- createPendingRequests
   chainTipPendingRequests <- createPendingRequests
@@ -751,6 +752,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
   mempoolHasTxPendingRequests <- createPendingRequests
   poolIdsPendingRequests <- createPendingRequests
   poolParametersPendingRequests <- createPendingRequests
+  delegationsAndRewardsRequests <- createPendingRequests
   let
     messageDispatch = ogmiosMessageDispatch
       { utxoDispatchMap
@@ -766,6 +768,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       , mempoolHasTxDispatchMap
       , poolIdsDispatchMap
       , poolParametersDispatchMap
+      , delegationsAndRewardsDispatchMap
       }
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
@@ -798,6 +801,9 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       , poolIds: mkListenerSet poolIdsDispatchMap poolIdsPendingRequests
       , poolParameters:
           mkListenerSet poolParametersDispatchMap poolParametersPendingRequests
+      , delegationsAndRewards:
+          mkListenerSet delegationsAndRewardsDispatchMap
+            delegationsAndRewardsRequests
       }
 
     sendRequest :: forall (req :: Type). RequestBody /\ req -> Effect Unit
@@ -814,6 +820,7 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       Ref.read systemStartPendingRequests >>= traverse_ sendRequest
       Ref.read poolIdsPendingRequests >>= traverse_ sendRequest
       Ref.read poolParametersPendingRequests >>= traverse_ sendRequest
+      Ref.read delegationsAndRewardsRequests >>= traverse_ sendRequest
 
       logger Debug "Resent all pending requests"
 
@@ -1042,6 +1049,7 @@ type OgmiosListeners =
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) Aeson
+  , delegationsAndRewards :: ListenerSet (Array StakePubKeyHash) Aeson
   }
 
 type DatumCacheListeners =
@@ -1269,6 +1277,7 @@ ogmiosMessageDispatch
      , mempoolHasTxDispatchMap :: DispatchIdMap Boolean
      , poolIdsDispatchMap :: DispatchIdMap Ogmios.PoolIdsR
      , poolParametersDispatchMap :: DispatchIdMap Aeson
+     , delegationsAndRewardsDispatchMap :: DispatchIdMap Aeson
      }
   -> Array WebsocketDispatch
 ogmiosMessageDispatch
@@ -1285,6 +1294,7 @@ ogmiosMessageDispatch
   , mempoolHasTxDispatchMap
   , poolIdsDispatchMap
   , poolParametersDispatchMap
+  , delegationsAndRewardsDispatchMap
   } =
   [ queryDispatch utxoDispatchMap
   , queryDispatch utxosAtDispatchMap
@@ -1299,6 +1309,7 @@ ogmiosMessageDispatch
   , queryDispatch mempoolHasTxDispatchMap
   , queryDispatch poolIdsDispatchMap
   , queryDispatch poolParametersDispatchMap
+  , queryDispatch delegationsAndRewardsDispatchMap
   ]
 
 datumCacheMessageDispatch

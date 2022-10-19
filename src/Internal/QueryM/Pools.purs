@@ -2,6 +2,8 @@ module Ctl.Internal.QueryM.Pools
   ( getPoolIds
   , getPoolParameters
   , parseIpv6String
+  , getDelegationsAndRewards
+  , DelegationsAndRewards
   ) where
 
 import Prelude
@@ -21,14 +23,21 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.Plutus.Types.Value (Coin(Coin))
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , ed25519KeyHashToBech32
+  , ed25519KeyHashToBytes
   )
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (byteArrayFromIntArray, hexToByteArray)
+import Ctl.Internal.Types.ByteArray
+  ( byteArrayFromIntArray
+  , byteArrayToHex
+  , hexToByteArray
+  )
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash(StakePubKeyHash))
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), note)
 import Data.Foldable (fold)
@@ -112,16 +121,19 @@ decodePoolMetadata aeson = do
   url <- obj .: "url" <#> URL
   pure $ PoolMetadata { hash, url }
 
+-- TODO: batched variant
 getPoolParameters :: PoolPubKeyHash -> QueryM PoolRegistrationParams
-getPoolParameters id = do
+getPoolParameters poolPubKeyHash = do
   aeson <- mkOgmiosRequest Ogmios.queryPoolParameters
     _.poolParameters
-    [ id ]
+    [ poolPubKeyHash ]
   let
     (params :: Either JsonDecodeError PoolRegistrationParams) = do
       obj <- decodeAeson aeson
-      poolIdStr <- liftEither $ note (TypeMismatch "PoolPubKeyHash") $
-        ed25519KeyHashToBech32 "pool" (unwrap $ id)
+      poolIdStr <- liftEither $ note (TypeMismatch "PoolPubKeyHash")
+        $ ed25519KeyHashToBech32 "pool"
+        $ unwrap
+        $ poolPubKeyHash
       objParams :: Object Aeson <- obj .: poolIdStr
       vrfKeyhashHex <- objParams .: "vrf"
       vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
@@ -136,7 +148,7 @@ getPoolParameters id = do
       relays <- for relayArr decodeRelay
       poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
       pure
-        { operator: id
+        { operator: poolPubKeyHash
         , vrfKeyhash
         , pledge
         , cost
@@ -147,3 +159,25 @@ getPoolParameters id = do
         , poolMetadata
         }
   liftEither $ lmap (error <<< show) params
+
+type DelegationsAndRewards =
+  { rewards :: Coin
+  , delegate :: Maybe PoolPubKeyHash
+  }
+
+-- TODO: batched variant
+getDelegationsAndRewards :: StakePubKeyHash -> QueryM DelegationsAndRewards
+getDelegationsAndRewards pkh = do
+  aeson <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
+    _.delegationsAndRewards
+    [ pkh ]
+  liftEither $ lmap (error <<< show) do
+    obj <- decodeAeson aeson
+    let
+      pkhStr =
+        byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $ unwrap
+          pkh
+    obj' <- decodeAeson =<< obj .: pkhStr
+    rewards <- Coin <$> obj' .: "rewards"
+    delegate <- obj' .:? "delegate"
+    pure { rewards, delegate }
