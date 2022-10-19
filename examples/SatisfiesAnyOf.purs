@@ -1,7 +1,9 @@
--- | This module creates a transaction
--- | that pays 2 Ada to the `IncludeDatum` script address
--- | and then spends the script Utxo. The script only checks
--- | that the value of the datum is equal to 42.
+-- | This module creates a transaction that tries to pay
+-- | 2 Ada to the `AlwaysSucceeds` script address by
+-- | providing an incorrect DatumHash in the first constraints
+-- | list in `mustSatisfyAnyOf`. The transaction then
+-- | goes through with the second constraints list.
+-- | In a second transaction, the funds are returned to the wallet.
 module Ctl.Examples.SatisfiesAnyOf
   ( example
   , main
@@ -59,14 +61,17 @@ example cfg = launchAff_ do
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
+wrongDatumHash :: DataHash
+wrongDatumHash = fromMaybe (DataHash $ hexToByteArrayUnsafe "bb") $
+  Hashing.datumHash wrongDatum
+
+correctDatumHash :: DataHash
+correctDatumHash = fromMaybe (DataHash $ hexToByteArrayUnsafe "bb") $
+  Hashing.datumHash unitDatum
+
 payToSatisfiesAnyOf :: ValidatorHash -> Contract () TransactionHash
 payToSatisfiesAnyOf vhash = do
   let
-    wrongDatumHash = fromMaybe (DataHash $ hexToByteArrayUnsafe "bb") $
-      Hashing.datumHash wrongDatum
-    correctDatumHash = fromMaybe (DataHash $ hexToByteArrayUnsafe "bb") $
-      Hashing.datumHash unitDatum
-
     payToConstraint :: TxConstraints Unit Unit
     payToConstraint =
       Constraints.mustPayToScript vhash unitDatum
@@ -74,16 +79,9 @@ payToSatisfiesAnyOf vhash = do
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    payToConstraintTooMuch :: TxConstraints Unit Unit
-    payToConstraintTooMuch =
-      Constraints.mustPayToScript vhash unitDatum
-        Constraints.DatumWitness
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000_000
-
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustSatisfyAnyOf
-      [ payToConstraintTooMuch <> Constraints.mustHashDatum correctDatumHash unitDatum
+      [ payToConstraint <> Constraints.mustHashDatum wrongDatumHash unitDatum
       , payToConstraint <> Constraints.mustHashDatum correctDatumHash unitDatum
       ]
 
