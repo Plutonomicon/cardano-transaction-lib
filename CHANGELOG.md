@@ -44,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.CborBytes` for CBOR-related functionality. ([#850](https://github.com/Plutonomicon/cardano-transaction-lib/issues/850))
 - `ToData` & `FromData` instances for `PublicKey` in `Cardano.Types.Transaction` ([#998](https://github.com/Plutonomicon/cardano-transaction-lib/issues/998))
 - `Contract.Keys` module that exposes smart constructors for `PublicKey` & `Ed25519Signature`, namely: `mkEd25519Signature`, `mkPubKey`.
-- Configuration options for plutip clusters: slot length and epoch size can be adjusted using `clusterConfig` field of `PlutipConfig`.
+- Configuration options for plutip clusters: slot length and epoch size can be adjusted using `clusterConfig` field of `PlutipConfig` ([#1130](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1130))
 
 ### Changed
 
