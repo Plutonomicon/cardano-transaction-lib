@@ -1,8 +1,7 @@
--- | This module creates a transaction that tries to pay
--- | 2 Ada to the `AlwaysSucceeds` script address by
--- | providing an incorrect DatumHash in the first constraints
--- | list in `mustSatisfyAnyOf`. The transaction then
--- | goes through with the second constraints list.
+-- | This module creates an unbalanced transaction
+-- | with the `mustSatisfyAnyOf` constraint in which
+-- | the evaluation of the first constraint list throws
+-- | a catched error and the evaluation of the second list succeeds.
 module Ctl.Examples.SatisfiesAnyOf
   ( example
   , main
@@ -13,22 +12,17 @@ import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Monad (Contract, launchAff_, liftedE, runContract)
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Integer)
   , unitDatum
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript) as AlwaysSucceeds
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Data.BigInt as BigInt
 import Effect.Exception (error)
@@ -40,38 +34,27 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.SatisfiesAnyOf"
-    validator <- AlwaysSucceeds.alwaysSucceedsScript
-    let vhash = validatorHash validator
     logInfo' "Attempt to lock value"
-    testMustSatisfyAnyOf vhash
+    testMustSatisfyAnyOf
   publishTestFeedback true
 
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
-testMustSatisfyAnyOf :: ValidatorHash -> Contract () Unit
-testMustSatisfyAnyOf vhash = do
+testMustSatisfyAnyOf :: Contract () Unit
+testMustSatisfyAnyOf = do
   wrongDatumHash <- liftMaybe (error "Cannot get DatumHash") $ Hashing.datumHash
     wrongDatum
   correctDatumHash <- liftMaybe (error "Cannot get DatumHash") $
     Hashing.datumHash unitDatum
   let
-    payToConstraint :: TxConstraints Unit Unit
-    payToConstraint =
-      Constraints.mustPayToScript vhash unitDatum
-        Constraints.DatumWitness
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
-
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustSatisfyAnyOf
-      [ payToConstraint <> Constraints.mustHashDatum wrongDatumHash unitDatum
-      , payToConstraint <> Constraints.mustHashDatum correctDatumHash unitDatum
+      [ Constraints.mustHashDatum wrongDatumHash unitDatum
+      , Constraints.mustHashDatum correctDatumHash unitDatum
       ]
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  lockTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-  awaitTxConfirmed lockTxId
-  logInfo' "Successfully locked value"
+  void $ liftedE $ Lookups.mkUnbalancedTx lookups constraints
