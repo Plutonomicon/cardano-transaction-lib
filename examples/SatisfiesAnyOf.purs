@@ -18,7 +18,6 @@ import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Integer)
   , unitDatum
-  , unitRedeemer
   )
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (ValidatorHash, validatorHash)
