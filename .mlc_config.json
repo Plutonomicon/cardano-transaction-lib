@@ -1,4 +1,9 @@
 {
+    "ignorePatterns": [
+        {
+            "pattern": "^https://gerowallet.io"
+        }
+    ],
     "aliveStatusCodes": [
         200,
         429
