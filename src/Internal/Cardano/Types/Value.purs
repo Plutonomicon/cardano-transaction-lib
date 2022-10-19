@@ -459,8 +459,8 @@ instance Equipartition Value where
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenBundle.hs#L381
 equipartitionValueWithTokenQuantityUpperBound
-  :: Value -> BigInt -> NonEmptyArray Value
-equipartitionValueWithTokenQuantityUpperBound value maxTokenQuantity =
+  :: BigInt -> Value -> NonEmptyArray Value
+equipartitionValueWithTokenQuantityUpperBound maxTokenQuantity value =
   let
     Value coin nonAdaAssets = value
     ms /\ numParts =

@@ -22,7 +22,8 @@ import Ctl.Internal.BalanceTx.Collateral
   )
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Constraints
-  ( _nonSpendableInputs
+  ( _maxChangeOutputTokenQuantity
+  , _nonSpendableInputs
   , _ownAddresses
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error
@@ -92,6 +93,7 @@ import Ctl.Internal.Cardano.Types.Value
   ( AssetClass
   , Coin(Coin)
   , Value(Value)
+  , equipartitionValueWithTokenQuantityUpperBound
   , getNonAdaAsset
   , lovelaceValueOf
   , minus
@@ -366,13 +368,32 @@ setTxChangeOutputs outputs = _body' <<< _outputs %~ flip append outputs
 makeChange :: Address -> Value -> TxBody -> BalanceTxM (Array TransactionOutput)
 makeChange changeAddress inputValue txBody =
   map (mkChangeOutput changeAddress) <$>
-    assignCoinsToChangeValues changeAddress excessCoin
-      changeValueOutputCoinPairs
+    ( assignCoinsToChangeValues changeAddress excessCoin
+        =<< splitOversizedValues changeValueOutputCoinPairs
+    )
   where
   changeValueOutputCoinPairs :: NonEmptyArray (Value /\ BigInt)
   changeValueOutputCoinPairs = outputCoins
     # NEArray.zip changeForAssets
     # NEArray.sortWith (AssetCount <<< fst)
+
+  splitOversizedValues
+    :: NonEmptyArray (Value /\ BigInt)
+    -> BalanceTxM (NonEmptyArray (Value /\ BigInt))
+  splitOversizedValues pairs =
+    asksConstraints Constraints._maxChangeOutputTokenQuantity <#> case _ of
+      Nothing -> pairs
+      Just maxTokenQuantity ->
+        unbundle <$>
+          ( equipartitionValueWithTokenQuantityUpperBound maxTokenQuantity
+              =<< map bundle pairs
+          )
+    where
+    bundle :: Value /\ BigInt -> Value
+    bundle (Value _ assets /\ coin) = mkValue (wrap coin) assets
+
+    unbundle :: Value -> Value /\ BigInt
+    unbundle (Value coin assets) = mkValue mempty assets /\ unwrap coin
 
   changeForAssets :: NonEmptyArray Value
   changeForAssets = foldr
@@ -418,8 +439,8 @@ makeChangeForAsset txOutputs (assetClass /\ excess) =
 
 makeChangeForCoin :: NonEmptyArray BigInt -> BigInt -> NonEmptyArray Value
 makeChangeForCoin weights excess =
-  (map lovelaceValueOf <$> partition excess weights)
-    ?? NEArray.singleton (lovelaceValueOf excess)
+  lovelaceValueOf <$>
+    partition excess weights ?? equipartition excess (length weights)
 
 assignCoinsToChangeValues
   :: Address
@@ -447,7 +468,7 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
         pairs = NEArray.cons' head tail
 
         adaRemaining :: BigInt
-        adaRemaining = adaAvailable - adaRequired
+        adaRemaining = max zero (adaAvailable - adaRequired)
 
         changeValuesForOutputCoins :: NonEmptyArray Value
         changeValuesForOutputCoins =
