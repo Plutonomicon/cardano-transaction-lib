@@ -774,7 +774,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
