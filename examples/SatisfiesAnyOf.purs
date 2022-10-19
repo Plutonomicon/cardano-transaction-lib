@@ -34,7 +34,6 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.SatisfiesAnyOf"
-    logInfo' "Attempt to lock value"
     testMustSatisfyAnyOf
   publishTestFeedback true
 
