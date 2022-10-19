@@ -1,12 +1,12 @@
 /* global BROWSER_RUNTIME */
 
-const getIsWalletAvailableFunctionName = wallet => {
+const getIsWalletAvailableTagName = wallet => {
   const strs = {
-    nami: "isNamiWalletAvailable",
-    gerowallet: "isGeroWalletAvailable",
-    flint: "isFlintWalletAvailable",
-    LodeWallet: "isLodeWalletAvailable",
-    eternl: "isEternlWalletAvailable",
+    nami: "NamiWallet",
+    gerowallet: "GeroWallet",
+    flint: "FlintWallet",
+    LodeWallet: "LodeWallet",
+    eternl: "EternlWallet",
   };
 
   return strs[wallet] || "is?WalletAvailable";
@@ -33,8 +33,8 @@ const enableWallet = wallet => () => {
     });
   } else {
     throw new Error(
-      "Wallet is not available. Use `" +
-        getIsWalletAvailableFunctionName(wallet) +
+      "Wallet is not available. Use `isWalletAvailable " +
+        getIsWalletAvailableTagName(wallet) +
         "` before connecting."
     );
   }
