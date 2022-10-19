@@ -18,13 +18,7 @@ import Contract.Address
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractM
-  , liftedE
-  , liftedM
-  , wrapContract
-  )
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
@@ -36,11 +30,7 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, validatorHash)
-import Contract.Test.Plutip
-  ( InitialUTxOs
-  , runPlutipContract
-  , withStakeKey
-  )
+import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -781,10 +771,7 @@ suite = do
           validator <- AlwaysSucceeds.alwaysSucceedsScript
           let vhash = validatorHash validator
           logInfo' "Attempt to lock value"
-          txId <- SatisfiesAnyOf.payToSatisfiesAnyOf vhash
-          awaitTxConfirmed txId
-          logInfo' "Try to spend locked values"
-          SatisfiesAnyOf.spendFromSatisfiesAnyOf vhash validator txId
+          SatisfiesAnyOf.testMustSatisfyAnyOf vhash
 
     test "runPlutipContract: AlwaysSucceeds PlutusV2" do
       let
