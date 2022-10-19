@@ -49,7 +49,6 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
-import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 
@@ -66,10 +65,6 @@ type PlutipConfig =
   , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
-  , clusterConfig ::
-      { slotLength :: Seconds
-      , epochSize :: UInt
-      }
   }
 
 type PostgresConfig =
@@ -95,17 +90,9 @@ data InitialUTxOsWithStakeKey =
 type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
-  { keysToGenerate :: InitialUTxODistribution
-  , epochSize :: UInt
-  , slotLength :: Seconds
-  }
+  { keysToGenerate :: InitialUTxODistribution }
 
-instance EncodeAeson ClusterStartupRequest where
-  encodeAeson'
-    ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength }
-    ) =
-    encodeAeson' { keysToGenerate, epochSize, slotLength }
+derive newtype instance EncodeAeson ClusterStartupRequest
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
 
