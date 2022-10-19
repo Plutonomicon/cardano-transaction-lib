@@ -150,8 +150,8 @@ data TxConstraint
   | MustPayToScript ValidatorHash Datum DatumPresence (Maybe ScriptRef) Value
   | MustHashDatum DataHash Datum
   | MustRegisterStakePubKey StakePubKeyHash
-  | MustRegisterPool PoolRegistrationParams
   | MustRegisterStakeScript StakeValidator Redeemer
+  | MustRegisterPool PoolRegistrationParams
   | MustDelegateStake StakePubKeyHash PoolPubKeyHash
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid

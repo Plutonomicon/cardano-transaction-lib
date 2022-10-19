@@ -51,7 +51,7 @@ import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Utils (submitAndLog)
 import Test.Ctl.TestM (TestPlanM)
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -198,4 +198,5 @@ suite = do
           do
             dels <- wrapContract $ getDelegationsAndRewards aliceStakePkh
             dels.delegate `shouldEqual` Just poolId
+            dels.rewards `shouldSatisfy` \reward -> unwrap reward > zero
             liftEffect $ Console.log $ show dels
