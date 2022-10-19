@@ -71,13 +71,13 @@ subscribeToBrowserEvents timeout page cont = do
       process :: Maybe Int -> Aff Unit
       process attempts = do
         events <- getBrowserEvents page
-        continue <- for events \event -> do
+        continue <- and <$> for events \event -> do
           void $ liftEffect $ try $ cont event
           case event of
             Success -> pure false
             Failure err -> liftEffect $ throw err
             _ -> pure true
-        if all identity continue then do
+        if continue then do
           delay $ Milliseconds $ 1000.0
           if Array.length events == 0 && attempts /= Just 0 then
             process (flip sub one <$> attempts)
@@ -111,7 +111,6 @@ getBrowserEvents page = do
   frgn <- Toppokki.unsafeEvaluateStringFunction collectEventsJS page
   let
     (encodedEvents :: Array String) = unsafeFromForeign frgn
-  -- liftEffect $ Console.log $ "getBrowserEvenrs: " <> show encodedEvents
   for encodedEvents \event -> do
     liftEither $ note (error $ "Unable to decode BrowserEvent from: " <> event)
       $ hush

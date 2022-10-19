@@ -87,7 +87,7 @@ instance plusValidationM :: Plus ValidationM where
 
 instance alternativeValidationM :: Alternative ValidationM
 
-runValidationM :: forall a. ValidationM a -> Either ValidationError a
+runValidationM :: forall (a :: Type). ValidationM a -> Either ValidationError a
 runValidationM (ValidationM etvia) = do
   let (Identity eva) = runExceptT etvia
   eva
