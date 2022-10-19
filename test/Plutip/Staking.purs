@@ -17,7 +17,11 @@ import Contract.Wallet.Key (keyWalletPrivateStakeKey)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.QueryM.Pools (getPoolIds, getPoolParameters)
+import Ctl.Internal.QueryM.Pools
+  ( getDelegationsAndRewards
+  , getPoolIds
+  , getPoolParameters
+  )
 import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Ctl.Internal.Serialization.Address
   ( RewardAddress
@@ -33,19 +37,21 @@ import Ctl.Internal.Types.TxConstraints
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Foldable (for_)
-import Data.Maybe (Maybe(Nothing), fromJust)
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (unwrap, wrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, delay)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception (error)
-import Mote (group, test)
+import Mote (group, only, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Utils (submitAndLog)
 import Test.Ctl.TestM (TestPlanM)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -152,43 +158,53 @@ suite = do
         bsTx <-
           liftedE $ balanceAndSignTxE ubTx
         submitAndLog bsTx
-    test "Stake delegation to existing pool" do
+
+    only $ test "Stake delegation to existing pool" do
       let
         distribution = withStakeKey privateStakeKey
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
           ]
-      runPlutipContract config distribution \alice -> withKeyWallet alice do
-        alicePkh /\ aliceStakePkh <- Tuple
-          <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
-          <*>
-            liftedM "Failed to get Stake PKH" ownStakePubKeyHash
-        do
+      runPlutipContract config { suppressLogs = false } distribution \alice ->
+        withKeyWallet alice do
+          alicePkh /\ aliceStakePkh <- Tuple
+            <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
+            <*>
+              liftedM "Failed to get Stake PKH" ownStakePubKeyHash
+          do
+            let
+              constraints = mustRegisterStakePubKey aliceStakePkh
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups =
+                Lookups.ownPaymentPubKeyHash alicePkh <>
+                  Lookups.ownStakePubKeyHash aliceStakePkh
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            bsTx <-
+              liftedE $ balanceAndSignTxE ubTx
+            submitAndLog bsTx
+
+          do
+            dels <- wrapContract $ getDelegationsAndRewards aliceStakePkh
+            liftEffect $ Console.log $ show dels
+          pools <- wrapContract getPoolIds
+          for_ pools \poolId -> do
+            params <- wrapContract $ getPoolParameters poolId
+            liftEffect $ Console.log $ show params
+          poolId <- liftM (error "unable to get any pools") (head pools)
           let
-            constraints = mustRegisterStakePubKey aliceStakePkh
+            constraints =
+              mustDelegateStake aliceStakePkh poolId
 
             lookups :: Lookups.ScriptLookups Void
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
+          bsTx <- liftedE $ balanceAndSignTxE ubTx
           submitAndLog bsTx
-
-        pools <- wrapContract getPoolIds
-        for_ pools \poolId -> do
-          params <- wrapContract $ getPoolParameters poolId
-          liftEffect $ Console.log $ show params
-        poolId <- liftM (error "unable to get any pools") (head pools)
-        let
-          constraints =
-            mustDelegateStake aliceStakePkh poolId
-
-          lookups :: Lookups.ScriptLookups Void
-          lookups =
-            Lookups.ownPaymentPubKeyHash alicePkh <>
-              Lookups.ownStakePubKeyHash aliceStakePkh
-        ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-        bsTx <- liftedE $ balanceAndSignTxE ubTx
-        submitAndLog bsTx
+          liftAff $ delay $ wrap 100000.0
+          do
+            dels <- wrapContract $ getDelegationsAndRewards aliceStakePkh
+            dels.delegate `shouldEqual` Just poolId
+            liftEffect $ Console.log $ show dels

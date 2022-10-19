@@ -2,6 +2,7 @@ module Ctl.Internal.QueryM.MinFee (calculateMinFee) where
 
 import Prelude
 
+import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeRegistration)
   , Transaction
@@ -18,7 +19,6 @@ import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.QueryM (QueryM, getWalletAddresses)
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
-import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -47,7 +47,7 @@ import Effect.Aff (error)
 calculateMinFee :: Transaction -> QueryM Coin
 calculateMinFee tx = do
   selfSigners <- getSelfSigners tx
-  pparams <- getProtocolParameters
+  pparams <- asks $ _.runtime >>> _.pparams
   stakeCertsFee <- getStakeCertsFee tx pparams
   calculateMinFeeCsl pparams selfSigners tx
     <#> unwrap >>> add (unwrap stakeCertsFee) >>> wrap
