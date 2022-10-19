@@ -270,10 +270,7 @@ startPlutipCluster cfg keysToGenerate = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate
-                    , slotLength: cfg.clusterConfig.slotLength
-                    , epochSize: cfg.clusterConfig.epochSize
-                    }
+                    { keysToGenerate }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -282,9 +279,9 @@ startPlutipCluster cfg keysToGenerate = do
       )
     pure $ response # either
       (Left <<< ClientHttpError)
-      ( _.body >>> \body ->
-          lmap (ClientDecodeJsonError body)
-            $ (decodeAeson <=< parseJsonStringToAeson) body
+      ( lmap ClientDecodeJsonError
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
       )
   either (liftEffect <<< throw <<< show) pure res >>=
     case _ of
@@ -331,9 +328,9 @@ stopPlutipCluster cfg = do
       )
     pure $ response # either
       (Left <<< ClientHttpError)
-      ( _.body >>> \body -> lmap (ClientDecodeJsonError body)
-          $ (decodeAeson <=< parseJsonStringToAeson)
-              body
+      ( lmap ClientDecodeJsonError
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+          <<< _.body
       )
   either (liftEffect <<< throw <<< show) pure res
 

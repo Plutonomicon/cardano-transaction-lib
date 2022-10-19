@@ -588,7 +588,7 @@ callCip30Wallet wallet act = act wallet wallet.connection
 data ClientError
   = ClientHttpError Affjax.Error
   | ClientHttpResponseError String
-  | ClientDecodeJsonError String JsonDecodeError
+  | ClientDecodeJsonError JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
 
@@ -602,8 +602,8 @@ instance Show ClientError where
     "(ClientHttpResponseError "
       <> show err
       <> ")"
-  show (ClientDecodeJsonError jsonStr err) =
-    "(ClientDecodeJsonError (" <> show jsonStr <> ") "
+  show (ClientDecodeJsonError err) =
+    "(ClientDecodeJsonError "
       <> show err
       <> ")"
   show (ClientEncodingError err) =
@@ -684,7 +684,7 @@ handleAffjaxResponse
   | statusCode < 200 || statusCode > 299 =
       Left (ClientHttpResponseError body)
   | otherwise =
-      body # lmap (ClientDecodeJsonError body)
+      body # lmap ClientDecodeJsonError
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
