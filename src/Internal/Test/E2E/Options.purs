@@ -1,4 +1,22 @@
-module Ctl.Internal.Test.E2E.Options where
+module Ctl.Internal.Test.E2E.Options
+  ( TestOptions
+  , BrowserOptions
+  , ExtensionOptions
+  , NoHeadless_
+  , Tests_
+  , TestTimeout_
+  , CommonOptions_
+  , SettingsOptions
+  , E2ECommand
+      ( RunE2ETests
+      , RunBrowser
+      , PackSettings
+      , UnpackSettings
+      )
+  , parseCliArgs
+  , commands
+  , parseOptions
+  ) where
 
 import Prelude
 
@@ -59,11 +77,11 @@ import Type.Row (type (+))
 type TestOptions = Record
   (NoHeadless_ + Tests_ + TestTimeout_ + CommonOptions_ + ())
 
-type NoHeadless_ r = (noHeadless :: Boolean | r)
+type NoHeadless_ (r :: Row Type) = (noHeadless :: Boolean | r)
 
-type Tests_ r = (tests :: Array E2ETest | r)
+type Tests_ (r :: Row Type) = (tests :: Array E2ETest | r)
 
-type TestTimeout_ r = (testTimeout :: Maybe Int | r)
+type TestTimeout_ (r :: Row Type) = (testTimeout :: Maybe Int | r)
 
 -- | CLI options for both E2E tests and the `browser` command
 type CommonOptions_ (r :: Row Type) =
