@@ -31,16 +31,16 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript) as AlwaysSucceeds
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import Ctl.Internal.Types.Transaction (DataHash(DataHash))
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
 import Data.Map as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -61,16 +61,12 @@ example cfg = launchAff_ do
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
-wrongDatumHash :: DataHash
-wrongDatumHash = fromMaybe (DataHash $ hexToByteArrayUnsafe "bb") $
-  Hashing.datumHash wrongDatum
-
-correctDatumHash :: DataHash
-correctDatumHash = fromMaybe (DataHash $ hexToByteArrayUnsafe "bb") $
-  Hashing.datumHash unitDatum
-
 payToSatisfiesAnyOf :: ValidatorHash -> Contract () TransactionHash
 payToSatisfiesAnyOf vhash = do
+  wrongDatumHash <- liftMaybe (error "Cannot get DatumHash") $ Hashing.datumHash
+    wrongDatum
+  correctDatumHash <- liftMaybe (error "Cannot get DatumHash") $
+    Hashing.datumHash unitDatum
   let
     payToConstraint :: TxConstraints Unit Unit
     payToConstraint =
