@@ -6,6 +6,7 @@ import Contract.Monad as Contract.Monad
 import Contract.Test.Plutip as Contract.Test.Plutip
 import Contract.Wallet as Contract.Wallet
 import Data.BigInt as BigInt
+import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt as UInt
 import Scaffold as Scaffold
 
@@ -53,4 +54,8 @@ config =
       }
   , customLogger: Nothing
   , suppressLogs: false
+  , clusterConfig:
+      { slotLength: Seconds 0.1
+      , epochSize: UInt.fromInt 30
+      }
   }
