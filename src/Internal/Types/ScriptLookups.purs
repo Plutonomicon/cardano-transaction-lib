@@ -1151,6 +1151,7 @@ processConstraint mpsMap osMap = do
       _valueSpentBalancesOutputs <>= provideValue
         ( coinToValue (unwrap pparams).stakeAddressDeposit
         )
+    -- TODO: test
     MustRegisterStakeScript script redeemerDatum -> runExceptT do
       let
         cert = StakeRegistration $ scriptHashCredential $ plutusScriptHash $
