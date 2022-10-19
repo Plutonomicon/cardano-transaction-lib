@@ -138,7 +138,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -769,7 +769,7 @@ suite = do
           logInfo' "Try to spend locked values"
           IncludeDatum.spendFromIncludeDatum vhash validator txId
 
-    only $ test "runPlutipContract: SatisfiesAnyOf" do
+    test "runPlutipContract: SatisfiesAnyOf" do
       let
         distribution :: InitialUTxOs
         distribution =
