@@ -12,9 +12,9 @@ import Prelude
 import Aeson (decodeAeson, parseJsonStringToAeson)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
-import Data.Array (all)
 import Data.Array as Array
 import Data.Either (Either(Left), hush, note)
+import Data.Foldable (and)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
