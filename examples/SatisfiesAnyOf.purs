@@ -3,7 +3,6 @@
 -- | providing an incorrect DatumHash in the first constraints
 -- | list in `mustSatisfyAnyOf`. The transaction then
 -- | goes through with the second constraints list.
--- | In a second transaction, the funds are returned to the wallet.
 module Ctl.Examples.SatisfiesAnyOf
   ( example
   , main
@@ -24,7 +23,7 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction (TransactionHash, awaitTxConfirmed)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
