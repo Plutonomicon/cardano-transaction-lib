@@ -32,12 +32,15 @@ import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Right, Left), either, note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.String.CodePoints (drop, take)
 import Data.TextEncoding (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
+import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (resize)
 
 newtype TokenName = TokenName RawBytes
 
@@ -47,6 +50,9 @@ derive newtype instance FromMetadata TokenName
 derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
+
+instance Arbitrary TokenName where
+  arbitrary = unsafePartial fromJust <<< mkTokenName <$> resize 32 arbitrary
 
 foreign import _decodeUtf8
   :: forall (r :: Type). Uint8Array -> (String -> r) -> (String -> r) -> r
