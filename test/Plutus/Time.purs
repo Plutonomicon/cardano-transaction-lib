@@ -4,6 +4,7 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
+import Contract.Numeric.BigNum as BigNum
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
@@ -18,7 +19,6 @@ import Ctl.Internal.QueryM.Ogmios
   , SystemStart(SystemStart)
   )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)

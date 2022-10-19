@@ -27,8 +27,7 @@ import Ctl.Internal.Plutus.Types.Value (Coin(Coin))
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
-  ( ed25519KeyHashFromBech32
-  , ed25519KeyHashToBech32
+  ( ed25519KeyHashToBech32
   , ed25519KeyHashToBytes
   )
 import Ctl.Internal.Types.BigNum as BigNum
@@ -37,7 +36,7 @@ import Ctl.Internal.Types.ByteArray
   , byteArrayToHex
   , hexToByteArray
   )
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash(StakePubKeyHash))
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left), note)
 import Data.Foldable (fold)

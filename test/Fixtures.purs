@@ -76,6 +76,8 @@ module Test.Ctl.Fixtures
 import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
+import Contract.Numeric.BigNum (BigNum)
+import Contract.Numeric.BigNum (fromBigInt, fromInt) as BigNum
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -93,15 +95,14 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
   , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
+      ( MoveInstantaneousRewardsCert
       , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
+      , PoolRetirement
+      , PoolRegistration
+      , StakeDelegation
+      , StakeDeregistration
+      , StakeRegistration
       )
-  , Ed25519Signature(Ed25519Signature)
   , Epoch(Epoch)
   , GenesisDelegateHash(GenesisDelegateHash)
   , GenesisHash(GenesisHash)
@@ -109,13 +110,12 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Ipv6(Ipv6)
   , MIRToStakeCredentials(MIRToStakeCredentials)
   , Mint(Mint)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
+  , MoveInstantaneousReward(ToStakeCreds, ToOtherPot)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , PublicKey(PublicKey)
   , Redeemer(Redeemer)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
   , RequiredSigner(RequiredSigner)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
@@ -124,6 +124,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , URL(URL)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
+  , mkPublicKey
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -163,8 +165,6 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -1071,13 +1071,12 @@ witnessSetFixture2Value =
     , redeemers: Nothing
     , vkeys: Just
         [ Vkeywitness
-            ( ( Vkey
-                  ( PublicKey
-                      "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-                  )
-              )
+            ( Vkey
+                ( unsafePartial $ fromJust $ mkPublicKey
+                    "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
+                )
                 /\
-                  ( Ed25519Signature
+                  ( unsafePartial $ fromJust <<< mkEd25519Signature $
                       "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
                       \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
                       \kzs9m6t6x"
@@ -1141,16 +1140,16 @@ witnessSetFixture3Value =
     , redeemers: Nothing
     , vkeys: Just
         [ Vkeywitness
-            ( ( Vkey
-                  ( PublicKey
-                      "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-                  )
-              ) /\
-                ( Ed25519Signature
-                    "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
-                    \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
-                    \6faxl6"
+            ( Vkey
+                ( unsafePartial $ fromJust $ mkPublicKey
+                    "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
+                /\
+                  ( unsafePartial $ fromJust <<< mkEd25519Signature $
+                      "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
+                      \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
+                      \6faxl6"
+                  )
             )
         ]
     }

@@ -34,8 +34,8 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
-import Ctl.Internal.Serialization (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
@@ -49,6 +49,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
+import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 
@@ -63,8 +64,12 @@ type PlutipConfig =
   , ctlServerConfig :: Maybe ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
+  , clusterConfig ::
+      { slotLength :: Seconds
+      , epochSize :: UInt
+      }
   }
 
 type PostgresConfig =
@@ -90,9 +95,17 @@ data InitialUTxOsWithStakeKey =
 type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
-  { keysToGenerate :: InitialUTxODistribution }
+  { keysToGenerate :: InitialUTxODistribution
+  , epochSize :: UInt
+  , slotLength :: Seconds
+  }
 
-derive newtype instance EncodeAeson ClusterStartupRequest
+instance EncodeAeson ClusterStartupRequest where
+  encodeAeson'
+    ( ClusterStartupRequest
+        { keysToGenerate, epochSize, slotLength: Seconds slotLength }
+    ) =
+    encodeAeson' { keysToGenerate, epochSize, slotLength }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
 

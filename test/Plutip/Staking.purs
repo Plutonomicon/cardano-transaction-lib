@@ -5,15 +5,16 @@ module Test.Ctl.Plutip.Staking
 import Prelude
 
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Hashing (publicKeyHash)
 import Contract.Monad (liftedE, liftedM, wrapContract)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
-import Contract.Transaction (balanceAndSignTxE)
+import Contract.Transaction (balanceTx, signTransaction)
 import Contract.TxConstraints (mustDelegateStake)
 import Contract.Wallet (withKeyWallet)
-import Contract.Wallet.Key (keyWalletPrivateStakeKey)
+import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
@@ -22,7 +23,6 @@ import Ctl.Internal.QueryM.Pools
   , getPoolIds
   , getPoolParameters
   )
-import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
 import Ctl.Internal.Serialization.Address
   ( RewardAddress
   , keyHashCredential
@@ -74,9 +74,7 @@ suite = do
             Lookups.ownPaymentPubKeyHash alicePkh <>
               Lookups.ownStakePubKeyHash aliceStakePkh
         ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-        bsTx <-
-          liftedE $ balanceAndSignTxE ubTx
-        submitAndLog bsTx
+        liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
     test "mustRegisterPool" do
       let
         distribution = withStakeKey privateStakeKey
@@ -99,9 +97,7 @@ suite = do
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedE $ balanceAndSignTxE ubTx
-          submitAndLog bsTx
+          liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
@@ -155,9 +151,7 @@ suite = do
             Lookups.ownPaymentPubKeyHash alicePkh <>
               Lookups.ownStakePubKeyHash aliceStakePkh
         ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-        bsTx <-
-          liftedE $ balanceAndSignTxE ubTx
-        submitAndLog bsTx
+        liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
     only $ test "Stake delegation to existing pool" do
       let
@@ -180,9 +174,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
-            submitAndLog bsTx
+            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
           do
             dels <- wrapContract $ getDelegationsAndRewards aliceStakePkh
@@ -201,8 +193,7 @@ suite = do
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- liftedE $ balanceAndSignTxE ubTx
-          submitAndLog bsTx
+          liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
           liftAff $ delay $ wrap 100000.0
           do
             dels <- wrapContract $ getDelegationsAndRewards aliceStakePkh
