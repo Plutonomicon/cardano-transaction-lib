@@ -9,9 +9,6 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 
 exports.newTransactionWitnessSet = () => lib.TransactionWitnessSet.new();
 
-exports.newEd25519Signature = bech32 => () =>
-  lib.Ed25519Signature.from_bech32(bech32);
-
 exports.newPublicKey = bech32 => () => lib.PublicKey.from_bech32(bech32);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);

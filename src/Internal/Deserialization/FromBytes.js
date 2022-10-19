@@ -27,3 +27,5 @@ exports._fromBytesNativeScript = fromBytes("NativeScript");
 exports._fromBytesMint = fromBytes("Mint");
 exports._fromBytesVRFKeyHash = fromBytes("VRFKeyHash");
 exports._fromBytesValue = fromBytes("Value");
+exports._fromBytesPublicKey = fromBytes("PublicKey");
+exports._fromBytesEd25519Signature = fromBytes("Ed25519Signature");
