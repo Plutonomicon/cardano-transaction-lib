@@ -68,11 +68,11 @@ noSignDataContract = do
   logInfo' "Funtions that depend on `Contract`"
   _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
-  mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
-  _ <- liftMaybe (error "can't get reward address") (mRewardAddress >>= head)
+  rewardAddresses <- performAndLog "getRewardAddresses" getRewardAddresses
+  _ <- liftMaybe (error "can't get reward address") $ head rewardAddresses
   mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
   _ <- liftMaybe (error "can't get change address") mChangeAddress
-  void $ liftMaybe (error "can't get reward address") (mRewardAddress >>= head)
+  void $ liftMaybe (error "can't get reward address") $ head rewardAddresses
   where
   performAndLog
     :: forall (a :: Type)
@@ -93,7 +93,7 @@ contract = do
     (pure mDataBytes)
   mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
   rewardAddr <- liftMaybe (error "can't get reward address")
-    (mRewardAddress >>= head)
+    $ head mRewardAddress
   mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
   changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
   _ <- performAndLog "signData changeAddress" $ signData changeAddress dataBytes

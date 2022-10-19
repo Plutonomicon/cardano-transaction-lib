@@ -107,7 +107,7 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
-import Ctl.Internal.Helpers (logString, logWithLevel)
+import Ctl.Internal.Helpers (liftM, logString, logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -209,7 +209,7 @@ import Ctl.Internal.Wallet.Spec
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
-import Data.Foldable (foldl)
+import Data.Foldable (fold, foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
@@ -565,8 +565,8 @@ getNetworkId = do
       MainnetId -> 1
     Nothing -> liftEffect $ throw "Can't get Wallet from config"
 
-getUnusedAddresses :: QueryM (Maybe (Array Address))
-getUnusedAddresses =
+getUnusedAddresses :: QueryM (Array Address)
+getUnusedAddresses = fold <$> do
   actionBasedOnWallet _.getUnusedAddresses
     (\_ -> pure [])
 
@@ -575,14 +575,14 @@ getChangeAddress = do
   networkId <- asks $ _.config >>> _.networkId
   actionBasedOnWallet _.getChangeAddress (\kw -> (unwrap kw).address networkId)
 
-getRewardAddresses :: QueryM (Maybe (Array Address))
-getRewardAddresses = do
+getRewardAddresses :: QueryM (Array Address)
+getRewardAddresses = fold <$> do
   networkId <- asks $ _.config >>> _.networkId
   actionBasedOnWallet _.getRewardAddresses
     (\kw -> Array.singleton <$> (unwrap kw).address networkId)
 
-getWalletAddresses :: QueryM (Maybe (Array Address))
-getWalletAddresses = do
+getWalletAddresses :: QueryM (Array Address)
+getWalletAddresses = fold <$> do
   networkId <- asks $ _.config >>> _.networkId
   actionBasedOnWallet _.getWalletAddresses
     (\kw -> Array.singleton <$> (unwrap kw).address networkId)
@@ -609,21 +609,20 @@ signData address dat = actionBasedOnWallet
 getWallet :: QueryM (Maybe Wallet)
 getWallet = asks (_.runtime >>> _.wallet)
 
-ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
+ownPubKeyHashes :: QueryM (Array PubKeyHash)
 ownPubKeyHashes = do
-  mbAddress <- getWalletAddresses
-  pure $
-    map wrap <$>
-      (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
+  getWalletAddresses >>= traverse \address -> do
+    liftM (error "Failed to convert Address to PubKeyHash") $
+      (addressPaymentCred >=> stakeCredentialToKeyHash >>> map wrap) address
 
-ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
-ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
+ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
+ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
 -- TODO: change to array of StakePubKeyHash
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
+  mbAddress <- getWalletAddresses <#> Array.head
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash

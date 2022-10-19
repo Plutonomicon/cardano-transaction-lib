@@ -136,7 +136,7 @@ import Effect.Exception (error)
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
-  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
+  mbAddr <- wrapContract $ QueryM.getWalletAddresses <#> head
   for mbAddr $
     liftedM "getWalletAddress: failed to deserialize Address"
       <<< pure
@@ -148,7 +148,7 @@ getWalletAddress = do
 getWalletAddressWithNetworkTag
   :: forall (r :: Row Type). Contract r (Maybe AddressWithNetworkTag)
 getWalletAddressWithNetworkTag = do
-  mbAddr <- wrapContract $ (QueryM.getWalletAddresses <#> (_ >>= head))
+  mbAddr <- wrapContract $ QueryM.getWalletAddresses <#> head
   for mbAddr $
     liftedM "getWalletAddressWithNetworkTag: failed to deserialize Address"
       <<< pure
@@ -174,14 +174,13 @@ ownPaymentPubKeyHash
   :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
 -- TODO: change this to Maybe (Array PaymentPubKeyHash)
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownPaymentPubKeyHash = wrapContract
-  (QueryM.ownPaymentPubKeyHashes <#> (_ >>= head))
+ownPaymentPubKeyHash = wrapContract $ QueryM.ownPaymentPubKeyHashes <#> head
 
 -- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
 ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
 -- TODO: change this to Maybe (Array PubKeyHash)
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownPubKeyHash = wrapContract (QueryM.ownPubKeyHashes <#> (_ >>= head))
+ownPubKeyHash = wrapContract $ QueryM.ownPubKeyHashes <#> head
 
 -- TODO: change this to Maybe (Array StakePubKeyHash)
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045

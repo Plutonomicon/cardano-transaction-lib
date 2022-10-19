@@ -26,7 +26,7 @@ import Ctl.Internal.BalanceTx.Error
       ( CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , CouldNotGetWalletAddresses
+      , CouldNotGetWalletAddress
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
       , ReindexRedeemersError
@@ -42,7 +42,7 @@ import Ctl.Internal.BalanceTx.Error
       ( CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , CouldNotGetWalletAddresses
+      , CouldNotGetWalletAddress
       , InsufficientTxInputs
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
@@ -130,7 +130,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 
--- | Balances an unbalanced transaction using the specified balancer 
+-- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
 balanceTxWithConstraints
   :: UnattachedUnbalancedTx
@@ -138,17 +138,12 @@ balanceTxWithConstraints
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder =
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
-    let
-      getWalletAddresses :: BalanceTxM (Array Address)
-      getWalletAddresses =
-        liftEitherQueryM $
-          QueryM.getWalletAddresses <#> note CouldNotGetWalletAddresses
 
     ownAddrs <-
-      maybe getWalletAddresses pure
+      maybe (liftQueryM QueryM.getWalletAddresses) pure
         =<< asksConstraints Constraints._ownAddresses
 
-    changeAddr <- liftMaybe CouldNotGetWalletAddresses $ Array.head ownAddrs
+    changeAddr <- liftMaybe CouldNotGetWalletAddress $ Array.head ownAddrs
 
     utxos <- liftEitherQueryM $ traverse utxosAt ownAddrs <#>
       traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
@@ -290,15 +285,15 @@ addLovelacesToTransactionOutput txOutput = do
   pure $ wrap txOutputRec
     { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
 
--- | Generates change outputs to return all excess `Value` back to the owner's 
--- | address. If necessary, adds lovelaces to the generated change outputs to 
+-- | Generates change outputs to return all excess `Value` back to the owner's
+-- | address. If necessary, adds lovelaces to the generated change outputs to
 -- | cover the utxo min-ada-value requirement.
--- | 
--- | If the `maxChangeOutputTokenQuantity` constraint is set, partitions the 
--- | change `Value` into smaller `Value`s (where the Ada amount and the quantity 
--- | of each token is equipartitioned across the resultant `Value`s; and no 
--- | token quantity in any of the resultant `Value`s exceeds the given upper 
--- | bound). Then builds `TransactionChangeOutput`s using those `Value`s. 
+-- |
+-- | If the `maxChangeOutputTokenQuantity` constraint is set, partitions the
+-- | change `Value` into smaller `Value`s (where the Ada amount and the quantity
+-- | of each token is equipartitioned across the resultant `Value`s; and no
+-- | token quantity in any of the resultant `Value`s exceeds the given upper
+-- | bound). Then builds `TransactionChangeOutput`s using those `Value`s.
 genTransactionChangeOutputs
   :: ChangeAddress
   -> UtxoMap
