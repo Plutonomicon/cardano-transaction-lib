@@ -54,7 +54,7 @@ signTransaction tx = withMWallet case _ of
 -- | keys to use for signing. As a result, we get `MissingVKeyWitnesses`.
 walletWaitForInputs :: Array TransactionInput -> QueryM Unit
 walletWaitForInputs txInputs = do
-  ownAddrs <- liftedM (error "Could not get addresses") getWalletAddresses
+  ownAddrs <- getWalletAddresses
   ownInputUtxos <- txInputs #
     traverse
       ( \txInput -> do

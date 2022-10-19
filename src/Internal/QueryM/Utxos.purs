@@ -179,13 +179,11 @@ getWalletBalance = do
     Lode wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
-      mbAddresses <- getWalletAddresses
-
-      map join $ for mbAddresses \addresses ->
-        (map fold <<< sequence) <$> for addresses \address ->
-          utxosAt address <#> map
-            -- Combine `Value`s
-            (fold <<< map _.amount <<< map unwrap <<< Map.values)
+      addresses <- getWalletAddresses
+      fold <$> for addresses \address -> do
+        utxosAt address <#> map
+          -- Combine `Value`s
+          (fold <<< map _.amount <<< map unwrap <<< Map.values)
 
 getWalletUtxos :: QueryM (Maybe UtxoMap)
 getWalletUtxos = do
@@ -198,7 +196,7 @@ getWalletUtxos = do
       toUtxoMap
     Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     KeyWallet _ -> do
-      mbAddress <- getWalletAddresses <#> (_ >>= head)
+      mbAddress <- getWalletAddresses <#> head
       map join $ for mbAddress utxosAt
   where
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap

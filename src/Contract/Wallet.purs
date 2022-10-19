@@ -72,13 +72,13 @@ import Type.Proxy (Proxy(Proxy))
 getNetworkId :: forall (r :: Row Type). Contract r Int
 getNetworkId = wrapContract QueryM.getNetworkId
 
-getUnusedAddresses :: forall (r :: Row Type). Contract r (Maybe (Array Address))
+getUnusedAddresses :: forall (r :: Row Type). Contract r (Array Address)
 getUnusedAddresses = wrapContract QueryM.getUnusedAddresses
 
 getChangeAddress :: forall (r :: Row Type). Contract r (Maybe Address)
 getChangeAddress = wrapContract QueryM.getChangeAddress
 
-getRewardAddresses :: forall (r :: Row Type). Contract r (Maybe (Array Address))
+getRewardAddresses :: forall (r :: Row Type). Contract r (Array Address)
 getRewardAddresses = wrapContract QueryM.getRewardAddresses
 
 signData

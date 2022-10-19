@@ -1,4 +1,4 @@
--- | This module demonstrates the use of the Cip30 functions 
+-- | This module demonstrates the use of the Cip30 functions
 -- | using the `KeyWallet` provided by CTL
 module Ctl.Examples.KeyWallet.Cip30
   ( main
@@ -33,9 +33,9 @@ mkContract dat = do
   mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
   changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
   _ <- performAndLog "signData changeAddress" $ try $ signData changeAddress dat
-  mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
-  rewardAddr <- liftMaybe (error "can't get change address")
-    (mRewardAddress >>= head)
+  rewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
+  rewardAddr <- liftMaybe (error "can't get change address") $ head
+    rewardAddress
   _ <- performAndLog "signData rewardAddress" $ try $ signData rewardAddr dat
   pure unit
   where
@@ -50,4 +50,3 @@ mkContract dat = do
     result <- cont
     logInfo' $ logMsg <> ": " <> show result
     pure result
-
