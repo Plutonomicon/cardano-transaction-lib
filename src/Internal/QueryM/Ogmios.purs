@@ -111,7 +111,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , ExUnitPrices
   , ExUnits
   , Nonce
-  , PoolPubKeyHash(PoolPubKeyHash)
+  , PoolPubKeyHash
   , SubCoin
   )
 import Ctl.Internal.Cardano.Types.Transaction as T
@@ -136,7 +136,7 @@ import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash(StakePubKeyHash))
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)

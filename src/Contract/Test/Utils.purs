@@ -38,11 +38,15 @@ module Contract.Test.Utils
   , assertTokenLossAtAddress'
   , assertTxHasMetadata
   , checkBalanceDeltaAtAddress
+  , checkNewUtxosAtAddress
   , checkOutputHasDatum
   , checkOutputHasRefScript
   , checkTxHasMetadata
   , label
+  , runContractAssertionM
+  , runContractAssertionM'
   , unlabel
+  , utxosAtAddress
   , valueAtAddress
   , withAssertions
   , wrapAndAssert
@@ -73,14 +77,20 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer.Trans (WriterT, runWriterT, tell)
 import Ctl.Internal.Metadata.FromMetadata (fromMetadata)
 import Ctl.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
-import Ctl.Internal.Plutus.Types.Transaction (_datum, _output, _scriptRef)
+import Ctl.Internal.Plutus.Types.Transaction
+  ( UtxoMap
+  , _amount
+  , _datum
+  , _output
+  , _scriptRef
+  )
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Data.Array (mapWithIndex)
+import Data.Array (fromFoldable, mapWithIndex) as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Foldable (foldMap, null)
-import Data.Lens.Getter ((^.))
-import Data.Map (lookup) as Map
+import Data.Lens.Getter (view, (^.))
+import Data.Map (filterKeys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Monoid.Endo (Endo(Endo))
 import Data.Newtype (class Newtype, ala, unwrap)
@@ -168,7 +178,7 @@ instance Show ContractAssertionFailures where
   show =
     append "The following `Contract` assertions failed: \n    "
       <<< String.joinWith "\n\n    "
-      <<< mapWithIndex (\idx elem -> show (idx + one) <> ". " <> show elem)
+      <<< Array.mapWithIndex (\ix elem -> show (ix + one) <> ". " <> show elem)
       <<< unwrap
 
 instance Show ContractAssertionFailure where
@@ -203,7 +213,7 @@ instance Show ContractAssertionFailure where
     "Unexpected token delta " <> show tn <> " at address "
       <> (show addr <> show expectedActual)
 
-  show (CustomFailure msg) = show msg
+  show (CustomFailure msg) = msg
 
 showTxHash :: TransactionHash -> String
 showTxHash = byteArrayToHex <<< unwrap
@@ -337,13 +347,19 @@ mkCheckFromAssertion =
 -- Assertions and checks
 --------------------------------------------------------------------------------
 
+utxosAtAddress
+  :: forall (r :: Row Type) (w :: Type)
+   . Labeled Address
+  -> ContractAssertionM r w UtxoMap
+utxosAtAddress addr =
+  assertContractM (CouldNotGetUtxosAtAddress addr) (utxosAt $ unlabel addr)
+
 valueAtAddress
   :: forall (r :: Row Type) (w :: Type)
    . Labeled Address
   -> ContractAssertionM r w Value
-valueAtAddress addr =
-  assertContractM (CouldNotGetUtxosAtAddress addr) (utxosAt $ unlabel addr)
-    <#> foldMap (_.amount <<< unwrap <<< _.output <<< unwrap)
+valueAtAddress =
+  map (foldMap (view (_output <<< _amount))) <<< utxosAtAddress
 
 checkBalanceDeltaAtAddress
   :: forall (r :: Row Type) (w :: Type) (a :: Type)
@@ -357,6 +373,17 @@ checkBalanceDeltaAtAddress addr contract check = do
   tell (Just $ Last res)
   valueAfter <- valueAtAddress addr
   check res valueBefore valueAfter
+
+checkNewUtxosAtAddress
+  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+   . Labeled Address
+  -> TransactionHash
+  -> (Array TransactionOutputWithRefScript -> ContractAssertionM r w a)
+  -> ContractAssertionM r w a
+checkNewUtxosAtAddress addr txHash check =
+  utxosAtAddress addr >>= \utxos ->
+    check $ Array.fromFoldable $ Map.values $
+      Map.filterKeys (\oref -> (unwrap oref).transactionId == txHash) utxos
 
 assertLovelaceDeltaAtAddress
   :: forall (r :: Row Type) (a :: Type)

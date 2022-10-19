@@ -22,7 +22,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
-import Ctl.Internal.Serialization (publicKeyFromPrivateKey, publicKeyHash)
+import Ctl.Internal.Serialization (publicKeyHash)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -33,6 +33,7 @@ import Ctl.Internal.Serialization.Address
   , enterpriseAddressToAddress
   , keyHashCredential
   )
+import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Data.Array (fromFoldable)
 import Data.Foldable (fold)
