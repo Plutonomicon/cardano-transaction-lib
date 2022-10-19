@@ -13,7 +13,6 @@ import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
 import Test.Ctl.Deserialization as Deserialization
 import Test.Ctl.E2E.Route as E2E.Route
-import Test.Ctl.Equipartition as Equipartition
 import Test.Ctl.Hashing as Hashing
 import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
@@ -26,6 +25,7 @@ import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.Ctl.OgmiosDatumCache as OgmiosDatumCache
 import Test.Ctl.Parser as Parser
+import Test.Ctl.Partition as Partition
 import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Address as Serialization.Address
@@ -54,9 +54,9 @@ testPlan = do
   Cip30SignData.suite
   Data.suite
   Deserialization.suite
-  Equipartition.suite
   Hashing.suite
   Parser.suite
+  Partition.suite
   Plutus.Conversion.Address.suite
   Plutus.Conversion.Value.suite
   Plutus.Time.suite
