@@ -7,12 +7,19 @@ module Ctl.Internal.Cardano.Types.ScriptRef
 import Prelude
 
 import Aeson
-  ( class EncodeAeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch, UnexpectedValue)
+  , caseAesonObject
   , encodeAeson'
+  , fromString
+  , toStringifiedNumbersJson
+  , (.:)
   )
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Types.Scripts (PlutusScript)
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
@@ -29,6 +36,21 @@ instance EncodeAeson ScriptRef where
   encodeAeson' = case _ of
     NativeScriptRef r -> encodeAeson' $ encodeTagged' "NativeScriptRef" r
     PlutusScriptRef r -> encodeAeson' $ encodeTagged' "PlutusScriptRef" r
+
+instance DecodeAeson ScriptRef where
+  decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $
+    \obj -> do
+      tag <- obj .: "tag"
+      case tag of
+        "NativeScriptRef" -> do
+          nativeScript <- obj .: "contents"
+          pure $ NativeScriptRef nativeScript
+        "PlutusScriptRef" -> do
+          plutusScript <- obj .: "contents"
+          pure $ PlutusScriptRef plutusScript
+        tagValue -> do
+          Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
+            tagValue
 
 getNativeScript :: ScriptRef -> Maybe NativeScript
 getNativeScript (NativeScriptRef nativeScript) = Just nativeScript

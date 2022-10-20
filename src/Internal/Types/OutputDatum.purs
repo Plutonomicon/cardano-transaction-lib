@@ -7,8 +7,14 @@ module Ctl.Internal.Types.OutputDatum
 import Prelude
 
 import Aeson
-  ( class EncodeAeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch, UnexpectedValue)
+  , caseAesonObject
   , encodeAeson'
+  , fromString
+  , toStringifiedNumbersJson
+  , (.:)
   )
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Helpers (encodeTagged')
@@ -23,6 +29,7 @@ import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Transaction (DataHash)
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
@@ -58,6 +65,23 @@ instance EncodeAeson OutputDatum where
     NoOutputDatum -> encodeAeson' $ encodeTagged' "NoOutputDatum" {}
     OutputDatumHash r -> encodeAeson' $ encodeTagged' "OutputDatumHash" r
     OutputDatum r -> encodeAeson' $ encodeTagged' "OutputDatum" r
+
+instance DecodeAeson OutputDatum where
+  decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $
+    \obj -> do
+      tag <- obj .: "tag"
+      case tag of
+        "NoOutputDatum" ->
+          pure NoOutputDatum
+        "OutputDatumHash" -> do
+          dataHash <- obj .: "contents"
+          pure $ OutputDatumHash dataHash
+        "OutputDatum" -> do
+          datum <- obj .: "contents"
+          pure $ OutputDatumHash datum
+        tagValue -> do
+          Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
+            tagValue
 
 outputDatumDataHash :: OutputDatum -> Maybe DataHash
 outputDatumDataHash (OutputDatumHash hash) = Just hash

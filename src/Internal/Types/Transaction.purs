@@ -8,7 +8,7 @@ module Ctl.Internal.Types.Transaction
 
 import Prelude
 
-import Aeson (class EncodeAeson)
+import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
@@ -28,6 +28,7 @@ derive instance Newtype TransactionInput _
 derive instance Generic TransactionInput _
 derive newtype instance Eq TransactionInput
 derive newtype instance EncodeAeson TransactionInput
+derive newtype instance DecodeAeson TransactionInput
 
 -- Potential fix me: the below is based on a small sample of smart contract
 -- transactions, so fix this as required.
@@ -64,6 +65,7 @@ derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
 derive newtype instance Eq TransactionHash
 derive newtype instance EncodeAeson TransactionHash
+derive newtype instance DecodeAeson TransactionHash
 
 -- This is not newtyped derived because it will be used for ordering a
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
@@ -92,6 +94,7 @@ derive newtype instance FromData DataHash
 derive newtype instance Ord DataHash
 derive newtype instance ToData DataHash
 derive newtype instance EncodeAeson DataHash
+derive newtype instance DecodeAeson DataHash
 
 instance Show DataHash where
   show = genericShow
