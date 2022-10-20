@@ -2,7 +2,7 @@ module Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
-  , Interval(Interval)
+  , Interval
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -38,13 +38,11 @@ module Ctl.Internal.Types.Interval
   , getSlotLength
   , hull
   , intersection
-  , interval
   , isEmpty
   , isEmpty'
   , lowerBound
   , maxSlot
   , member
-  , mkInterval
   , never
   , overlaps
   , overlaps'
@@ -79,10 +77,12 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
+import Contract.Prelude (class Foldable, class Traversable, traverseDefault)
+import Control.Applicative (Applicative)
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
-import Ctl.Internal.FromData (class FromData, genericFromData)
+import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -100,7 +100,7 @@ import Ctl.Internal.QueryM.Ogmios
   , slotLengthFactor
   )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.ToData (class ToData, genericToData)
+import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.BigNum
   ( add
@@ -131,9 +131,11 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Foreign.Object (Object)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
+import Prim.TypeError (class Warn, Text)
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -232,22 +234,23 @@ derive instance Functor UpperBound
 instance Show a => Show (UpperBound a) where
   show = genericShow
 
--- | An interval of `a`s.
+-- | An interval of `a`s in the same sense as in plutus.
 -- |
 -- | The interval may be either closed or open at either end, meaning
 -- | that the endpoints may or may not be included in the interval.
 -- |
 -- | The interval can also be unbounded on either side.
-newtype Interval :: Type -> Type
-newtype Interval a = Interval { from :: LowerBound a, to :: UpperBound a }
+newtype PlutusInterval :: Type -> Type
+newtype PlutusInterval a = PlutusInterval
+  { from :: LowerBound a, to :: UpperBound a }
 
-derive instance Generic (Interval a) _
-derive newtype instance Eq a => Eq (Interval a)
-derive instance Functor Interval
-derive instance Newtype (Interval a) _
+derive instance Generic (PlutusInterval a) _
+derive newtype instance Eq a => Eq (PlutusInterval a)
+derive instance Functor PlutusInterval
+derive instance Newtype (PlutusInterval a) _
 
 instance
-  HasPlutusSchema (Interval a)
+  HasPlutusSchema (PlutusInterval a)
     ( "Interval"
         :=
           ( "from" := I (LowerBound a)
@@ -259,35 +262,93 @@ instance
         :+ PNil
     )
 
-instance Show a => Show (Interval a) where
+instance Show a => Show (PlutusInterval a) where
   show = genericShow
 
-instance Ord a => JoinSemilattice (Interval a) where
+instance Ord a => JoinSemilattice (PlutusInterval a) where
   join = hull
 
-instance Ord a => BoundedJoinSemilattice (Interval a) where
-  bottom = never
+instance Ord a => BoundedJoinSemilattice (PlutusInterval a) where
+  bottom = mkPlutusInterval (LowerBound PosInf true) (UpperBound NegInf true)
+
+instance Ord a => MeetSemilattice (PlutusInterval a) where
+  meet = intersection
+
+instance Ord a => BoundedMeetSemilattice (PlutusInterval a) where
+  top = always
+
+instance ToData a => ToData (PlutusInterval a) where
+  toData = genericToData
+
+instance FromData a => FromData (PlutusInterval a) where
+  fromData i = genericFromData i
+
+instance EncodeAeson a => EncodeAeson (PlutusInterval a) where
+  encodeAeson' (PlutusInterval i) = encodeAeson' $ HaskInterval
+    { ivFrom: i.from, ivTo: i.to }
+
+instance DecodeAeson a => DecodeAeson (PlutusInterval a) where
+  decodeAeson a = do
+    HaskInterval i <- decodeAeson a
+    pure $ PlutusInterval { from: i.ivFrom, to: i.ivTo }
+
+data Interval :: Type -> Type
+data Interval a
+  = FiniteInterval a a
+  | LowerRay a
+  | UpperRay a
+  | AlwaysInterval
+  | EmptyInterval
+
+interval2PlutusInterval :: Interval POSIXTime -> PlutusInterval POSIXTime
+interval2PlutusInterval (FiniteInterval start end) = PlutusInterval
+  { from: (LowerBound start true)
+  , to: (UpperBound end false)
+  }
+interval2PlutusInterval (LowerRay end) = PlutusInterval
+  { from: (LowerBound NegInf true)
+  , to: (UpperBound (addOne end) false)
+  }
+interval2PlutusInterval (UpperRay start) = PlutusInterval
+  { from: (UpperBound start true)
+  , to: (UpperBound PosInf true)
+  }
+interval2PlutusInterval AlwaysInterval = PlutusInterval
+  { from: (UpperBound NegInf true)
+  , to: (UpperBound PosInf true)
+  }
+interval2PlutusInterval EmptyInterval = PlutusInterval
+  { from: (UpperBound PosInf true)
+  , to: (UpperBound NegInf true)
+  }
+
+derive instance Generic (Interval a) _
+derive instance Eq a => Eq (Interval a)
+derive instance Functor Interval
+
+instance (Show a, Newtype BigInt a) => Show (Interval a) where
+  show = show <<< interval2PlutusInterval
 
 instance Ord a => MeetSemilattice (Interval a) where
   meet = intersection
 
+instance (ToData a, Newtype BigInt a) => ToData (Interval a) where
+  toData = toData <<< interval2PlutusInterval
+
+instance Ord a => JoinSemilattice (Interval a) where
+  join = hull
+
 instance Ord a => BoundedMeetSemilattice (Interval a) where
-  top = always
+  top = AlwaysInterval
 
-instance ToData a => ToData (Interval a) where
-  toData = genericToData
+instance Ord a => BoundedJoinSemilattice (Interval a) where
+  bottom = EmptyInterval
 
-instance FromData a => FromData (Interval a) where
-  fromData i = genericFromData i
+instance (FromData a, Newtype BigInt a) => FromData (Interval a) where
+  fromData = fromData <<< interval2PlutusInterval
 
-instance EncodeAeson a => EncodeAeson (Interval a) where
-  encodeAeson' (Interval i) = encodeAeson' $ HaskInterval
-    { ivFrom: i.from, ivTo: i.to }
-
-instance DecodeAeson a => DecodeAeson (Interval a) where
-  decodeAeson a = do
-    HaskInterval i <- decodeAeson a
-    pure $ Interval { from: i.ivFrom, to: i.ivTo }
+instance (EncodeAeson a, Newtype BigInt a) => EncodeAeson (Interval POSIXTime) where
+  encodeAeson' = encodeAeson' <<< interval2PlutusInterval
 
 --------------------------------------------------------------------------------
 -- POSIXTIME Type and related
@@ -318,8 +379,11 @@ type POSIXTimeRange = Interval POSIXTime
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
-mkInterval :: forall (a :: Type). LowerBound a -> UpperBound a -> Interval a
-mkInterval from' to' = Interval { from: from', to: to' }
+
+mkPlutusInterval
+  :: forall (a :: Type). LowerBound a -> UpperBound a -> PlutusInterval
+mkPlutusInterval = PlutusInterval
+  { from: LowerBound PosInf true, to: (UpperBound NegInf true) }
 
 strictUpperBound :: forall (a :: Type). a -> UpperBound a
 strictUpperBound a = UpperBound (Finite a) false
@@ -333,31 +397,39 @@ lowerBound a = LowerBound (Finite a) true
 upperBound :: forall (a :: Type). a -> UpperBound a
 upperBound a = UpperBound (Finite a) true
 
--- | `interval a b` includes all values that are greater than or equal to `a`
--- | and smaller than or equal to `b`. Therefore it includes `a` and `b`.
-interval :: forall (a :: Type). a -> a -> Interval a
-interval s s' = mkInterval (lowerBound s) (upperBound s')
+addOne :: forall (a :: Type). Newtype BigInt a => a -> a
+addOne x = wrap (unwrap x <> BigInt.fromInt 1)
 
-singleton :: forall (a :: Type). a -> Interval a
-singleton s = interval s s
+substractOne :: forall (a :: Type). Newtype BigInt a => a -> a
+substractOne x = wrap (unwrap x + BigInt.fromInt (-1))
+
+mkFiniteInterval :: forall (a :: Type). Ord a => a -> a -> Interval a
+mkFiniteInterval x y = if x < y then FiniteInterval x y else EmptyInterval
+
+-- | `singleton a` is an `Interval` that contains just `a`,
+-- | represented as [a,a+1).
+singleton :: POSIXTimeRange -> Interval POSIXTimeRange
+singleton s = mkFiniteInterval s (addOne s)
 
 -- | `from a` is an `Interval` that includes all values that are
--- | greater than or equal to `a`.
+-- | greater than or equal to `a`, represented as [a,infinity].
 from :: forall (a :: Type). a -> Interval a
-from s = mkInterval (lowerBound s) (UpperBound PosInf true)
+from s = UpperRay s
 
 -- | `to a` is an `Interval` that includes all values that are
--- | smaller than or equal to `a`.
+-- | smaller than or equal to `a`, represented as [-infinity,a+1).
 to :: forall (a :: Type). a -> Interval a
-to s = mkInterval (LowerBound NegInf true) (upperBound s)
+to s = LowerRay s
 
--- | An `Interval` that covers every slot.
+-- | An `Interval` that covers every slot, represented 
+-- | as [-infinity,infinity]
 always :: forall (a :: Type). Interval a
-always = mkInterval (LowerBound NegInf true) (UpperBound PosInf true)
+always = AlwaysInterval
 
--- | An `Interval` that is empty.
+-- | An `Interval` that is empty, represented as 
+-- | [infinity,-infinity]
 never :: forall (a :: Type). Interval a
-never = mkInterval (LowerBound PosInf true) (UpperBound NegInf true)
+never = EmptyInterval
 
 -- | Check whether a value is in an interval.
 member :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
@@ -389,67 +461,59 @@ overlaps l r = not $ isEmpty (l `intersection` r)
 -- | `b`, if it exists.
 intersection
   :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
-intersection (Interval int) (Interval int') =
-  mkInterval (max int.from int'.from) (min int.to int'.to)
+intersection (FiniteInterval int) (FiniteInterval int') =
+  mkFiniteInterval (max int.from int'.from) (min int.to int'.to)
+intersection _ _ = EmptyInterval
 
 -- | `hull a b` is the smallest interval containing `a` and `b`.
 hull :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
-hull (Interval int) (Interval int') =
-  mkInterval (min int.from int'.from) (max int.to int'.to)
+hull (FiniteInterval int) (FiniteInterval int') =
+  mkFiniteInterval (min int.from int'.from) (max int.to int'.to)
+hull _ _ = EmptyInterval
 
 -- | `a` `contains` `b` is `true` if the `Interval b` is entirely contained in
 -- | `a`. That is, `a `contains` `b` if for every entry `s`, if `member s b` then
 -- | `member s a`.
 contains :: forall (a :: Type). Ord a => Interval a -> Interval a -> Boolean
-contains (Interval int) (Interval int') =
-  int.from <= int'.from && int'.to <= int.to
+contains (FiniteInterval start end) (FiniteInterval start' end') =
+  start <= start' && end' <= end
+contains (FiniteInterval _ _) EmptyInterval = true
+contains (FiniteInterval _ _) _ = false
+contains (LowerRay end) (FiniteInterval start' end') = end' <= end
+contains (LowerRay end) (LowerRay end') = end' <= end
+contains (LowerRay end) EmptyInterval = true
+contains (LowerRay end) _ = false
+contains _ _ = EmptyInterval
 
--- | Check if an `Interval` is empty. This is the Plutus implementation but
--- | BigInt used in `POSIXTime` is cannot be enumerated so the `isEmpty` we use in
--- | practice uses `Semiring` instead. See `isEmpty` for the practical version.
-isEmpty' :: forall (a :: Type). Enum a => Interval a -> Boolean
-isEmpty' (Interval { from: LowerBound v1 in1, to: UpperBound v2 in2 }) =
-  case v1 `compare` v2 of
-    LT -> if openInterval then checkEnds v1 v2 else false
-    GT -> true
-    EQ -> not (in1 && in2)
-  where
-  openInterval :: Boolean
-  openInterval = not in1 && not in2
+-- contains (UpperRay start) (FiniteInterval start' end') = start 
 
-  -- | We check two finite ends to figure out if there are elements between them.
-  -- | If there are no elements then the interval is empty.
-  checkEnds :: Extended a -> Extended a -> Boolean
-  checkEnds (Finite v1') (Finite v2') = (succ v1') `compare` (Just v2') == EQ
-  checkEnds _ _ = false
+-- | Check if an `Interval` is empty.
+isEmpty :: forall (a :: Type). Ord a => Interval a -> Boolean
+isEmpty (FiniteInterval start end) = end <= start
+isEmpty EmptyInterval = true
+isEmpty _ = false
 
--- Potential FIX ME: shall we just fix the type to POSIXTime and remove isEmpty'
--- and Semiring constraint?
--- | Check if an `Interval` is empty. This is the practical version to use
--- | with `a = POSIXTime`.
-isEmpty :: forall (a :: Type). Ord a => Semiring a => Interval a -> Boolean
-isEmpty (Interval { from: LowerBound v1 in1, to: UpperBound v2 in2 }) =
-  case v1 `compare` v2 of
-    LT -> if openInterval then checkEnds v1 v2 else false
-    GT -> true
-    EQ -> not (in1 && in2)
-  where
-  openInterval :: Boolean
-  openInterval = not in1 && not in2
-
-  -- | We check two finite ends to figure out if there are elements between them.
-  -- | If there are no elements then the interval is empty.
-  checkEnds :: Extended a -> Extended a -> Boolean
-  checkEnds (Finite v1') (Finite v2') = (v1' `add` one) `compare` v2' == EQ
-  checkEnds _ _ = false
+isEmpty'
+  :: forall (a :: Type)
+   . Ord a
+  => Warn (Text "Deprecated, use `isEmpty` instead")
+  => Interval a
+  -> Boolean
+isEmpty' = isEmpty
 
 -- | Check if a value is earlier than the beginning of an `Interval`.
 before :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
-before h (Interval { from: from' }) = lowerBound h < from'
+before h (FiniteInterval start _) = h < start
+before h (UpperRay start) = h < start
+before h EmptyInterval = true
+before h _ = false
 
 -- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
-after h (Interval { to: to' }) = upperBound h > to'
+after h (FiniteInterval _ end) = end < h
+after h (LowerRay end) = end < h
+after h EmptyInterval = true
+after h _ = false
 
 -- | A newtype wrapper over `POSIXTimeRange` to represent the on-chain version
 -- | of an off-chain `POSIXTimeRange`. In particular, there are a few steps
@@ -933,6 +997,17 @@ getSlotLength (EraSummary { parameters }) =
 
 --------------------------------------------------------------------------------
 
+sequenceInterval
+  :: forall (a :: Type) (m :: Type -> Type)
+   . Applicative m
+  -> Interval (m a)
+  -> m (Interval a)
+sequenceInterval (FiniteInterval start end) = (FiniteInterval <$> start) <*> end
+sequenceInterval (LowerRay end) = LowerRay <$> end
+sequenceInterval (UpperRay start) = UpperRay <$> start
+sequenceInterval EmptyInterval = pure EmptyInterval
+sequenceInterval AlwaysInterval = pure AlwaysInterval
+
 -- | Converts a `POSIXTimeRange` to `SlotRange` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
 posixTimeRangeToSlotRange
@@ -943,20 +1018,8 @@ posixTimeRangeToSlotRange
 posixTimeRangeToSlotRange
   eraSummaries
   sysStart
-  (Interval { from: LowerBound s sInc, to: UpperBound e endInc }) = runExceptT
-  do
-    s' <- ExceptT $ convertBounds s
-    e' <- ExceptT $ convertBounds e
-    liftEither $ Right
-      $ Interval { from: LowerBound s' sInc, to: UpperBound e' endInc }
-  where
-  convertBounds
-    :: Extended POSIXTime
-    -> Effect (Either PosixTimeToSlotError (Extended Slot))
-  convertBounds (Finite pt) = posixTimeToSlot eraSummaries sysStart pt
-    <#> map Finite
-  convertBounds NegInf = pure $ Right NegInf
-  convertBounds PosInf = pure $ Right PosInf
+  range = do
+  sequence <$> sequence (posixTimeToSlot eraSummaries sysStart <$> range)
 
 -- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
@@ -968,20 +1031,8 @@ slotRangeToPosixTimeRange
 slotRangeToPosixTimeRange
   eraSummaries
   sysStart
-  (Interval { from: LowerBound s sInc, to: UpperBound e endInc }) = runExceptT
-  do
-    s' <- ExceptT $ convertBounds s
-    e' <- ExceptT $ convertBounds e
-    liftEither $ Right
-      $ Interval { from: LowerBound s' sInc, to: UpperBound e' endInc }
-  where
-  convertBounds
-    :: Extended Slot
-    -> Effect (Either SlotToPosixTimeError (Extended POSIXTime))
-  convertBounds (Finite pt) = slotToPosixTime eraSummaries sysStart pt
-    <#> map Finite
-  convertBounds NegInf = pure $ Right NegInf
-  convertBounds PosInf = pure $ Right PosInf
+  range = do
+  sequence <$> sequence (slotToPosixTime eraSummaries sysStart <$> range)
 
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
@@ -998,7 +1049,9 @@ slotRangeToTransactionValidity
   :: SlotRange
   -> TransactionValiditySlot
 slotRangeToTransactionValidity
-  (Interval { from: LowerBound start startInc, to: UpperBound end endInc }) =
+  ( PlutusInterval
+      { from: LowerBound start startInc, to: UpperBound end endInc }
+  ) =
   { validityStartInterval, timeToLive }
   where
   -- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
@@ -1148,8 +1201,7 @@ instance DecodeAeson ToOnChainPosixTimeRangeError where
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain
 -- | POSIXTimeRange as follows:
 -- | 1) `POSIXTimeRange` -> `SlotRange`
--- | 2) `SlotRange` -> `TransactionValidity`
--- | 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
+-- | 2) `SlotRange` -> `TransactionValidity` 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
 -- | `OnchainPOSIXTimeRange` is intended to equal the validity range found in
 -- | the on-chain `ScriptContext`
 toOnchainPosixTimeRange
@@ -1170,4 +1222,4 @@ toOnchainPosixTimeRange es ss ptr = runExceptT do
     Just s1, Just s2 -> do
       t1 <- ExceptT $ slotToPosixTime es ss s1 <#> lmap SlotToPosixTimeError'
       t2 <- ExceptT $ slotToPosixTime es ss s2 <#> lmap SlotToPosixTimeError'
-      liftEither $ Right $ wrap $ interval t1 t2
+      liftEither $ Right $ wrap $ mkFiniteInterval t1 t2
