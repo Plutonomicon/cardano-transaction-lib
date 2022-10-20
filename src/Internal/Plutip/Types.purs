@@ -34,8 +34,8 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
-import Ctl.Internal.Serialization (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
@@ -63,7 +63,7 @@ type PlutipConfig =
   , ctlServerConfig :: Maybe ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
 

@@ -5,6 +5,7 @@
 module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashesWithErrors
   , module DataSchema
   , module Datum
   , module ExportQueryM
@@ -74,6 +75,7 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM
   ( getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashesWithErrors
   ) as QueryM
 import Ctl.Internal.Serialization (serializeData) as Serialization
 import Ctl.Internal.ToData
@@ -103,6 +105,7 @@ import Ctl.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
+import Data.Either (Either)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 
@@ -113,9 +116,19 @@ getDatumByHash
   -> Contract r (Maybe Datum.Datum)
 getDatumByHash = wrapContract <<< QueryM.getDatumByHash
 
--- | Get `PlutusData`s given a an `Array` of `DataHash`.
+-- | Get `PlutusData`s given an `Array` of `DataHash`.
+-- | This function discards all possible error getting a `DataHash`.
 getDatumsByHashes
   :: forall (r :: Row Type)
    . Array DataHash
   -> Contract r (Map DataHash Datum.Datum)
 getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
+
+-- | Get `PlutusData`s given an `Array` of `DataHash`.
+-- | In case of error, the returned string contains the needed information.
+getDatumsByHashesWithErrors
+  :: forall (r :: Row Type)
+   . Array DataHash
+  -> Contract r (Map DataHash (Either String Datum.Datum))
+getDatumsByHashesWithErrors = wrapContract <<<
+  QueryM.getDatumsByHashesWithErrors

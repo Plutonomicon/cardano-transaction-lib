@@ -31,6 +31,7 @@ module Ctl.Internal.QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashesWithErrors
   , getLogger
   , getProtocolParametersAff
   , getWalletAddresses
@@ -195,7 +196,7 @@ import Ctl.Internal.Wallet.Spec
   )
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, isRight)
+import Data.Either (Either(Left, Right), either, hush, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
@@ -250,7 +251,7 @@ type QueryConfig =
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
 
@@ -321,8 +322,8 @@ instance MonadLogger (QueryMExtended r Aff) where
     config <- asks $ _.config
     let
       logFunction =
-        config # _.customLogger >>> fromMaybe (logWithLevel config.logLevel)
-    liftAff $ logFunction msg
+        config # _.customLogger >>> fromMaybe logWithLevel
+    liftAff $ logFunction config.logLevel msg
 
 -- Newtype deriving complains about overlapping instances, so we wrap and
 -- unwrap manually
@@ -516,7 +517,12 @@ getDatumByHash hash = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
 
 getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
-getDatumsByHashes hashes = unwrap <$> do
+getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashesWithErrors
+  hashes
+
+getDatumsByHashesWithErrors
+  :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
+getDatumsByHashesWithErrors hashes = unwrap <$> do
   mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
 
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
@@ -612,12 +618,9 @@ instance Show ClientError where
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
-  :: forall (a :: Type)
-   . Newtype a PlutusScript
-  => DecodeAeson a
-  => a
+  :: PlutusScript
   -> Array PlutusData
-  -> QueryM (Either ClientError a)
+  -> QueryM (Either ClientError PlutusScript)
 applyArgs script args =
   asks (_.ctlServerConfig <<< _.config) >>= case _ of
     Nothing -> pure
@@ -636,7 +639,7 @@ applyArgs script args =
       Just ps -> do
         let
           language :: Language
-          language = snd $ unwrap $ unwrap script
+          language = snd $ unwrap script
 
           url :: String
           url = mkHttpUrl config <> "/apply-args"
@@ -644,11 +647,11 @@ applyArgs script args =
           reqBody :: Aeson
           reqBody = encodeAeson
             $ Object.fromFoldable
-                [ "script" /\ scriptToAeson (unwrap script)
+                [ "script" /\ scriptToAeson script
                 , "args" /\ encodeAeson ps
                 ]
         liftAff (postAeson url reqBody)
-          <#> map (wrap <<< PlutusScript <<< flip Tuple language) <<<
+          <#> map (PlutusScript <<< flip Tuple language) <<<
             handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Maybe Aeson
@@ -1129,14 +1132,15 @@ type Logger = LogLevel -> String -> Effect Unit
 
 mkLogger
   :: LogLevel
-  -> Maybe (Message -> Aff Unit)
+  -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Logger
 mkLogger logLevel mbCustomLogger level message =
   case mbCustomLogger of
     Nothing -> logString logLevel level message
     Just logger -> liftEffect do
       timestamp <- now
-      launchAff_ $ logger { level, message, tags: Map.empty, timestamp }
+      launchAff_ $ logger logLevel
+        { level, message, tags: Map.empty, timestamp }
 
 getLogger :: QueryM Logger
 getLogger = do

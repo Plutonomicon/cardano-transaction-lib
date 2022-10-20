@@ -14,13 +14,13 @@ import Prelude
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript) as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( BootstrapWitness
-  , Ed25519Signature(Ed25519Signature)
   , ExUnits
-  , PublicKey(PublicKey)
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , mkFromCslEd25519Signature
+  , mkFromCslPubKey
   ) as T
 import Ctl.Internal.Deserialization.Language (convertLanguage)
 import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
@@ -86,15 +86,12 @@ convertVkeyWitness witness =
   let
     vkey = getVkey witness
     publicKey = convertVkey vkey
-    signature = convertSignature $ getSignature witness
+    signature = T.mkFromCslEd25519Signature $ getSignature witness
   in
     T.Vkeywitness $ publicKey /\ signature
 
 convertVkey :: Vkey -> T.Vkey
-convertVkey = T.Vkey <<< T.PublicKey <<< publicKeyToBech32 <<< vkeyPublicKey
-
-convertSignature :: Ed25519Signature -> T.Ed25519Signature
-convertSignature = T.Ed25519Signature <<< signatureToBech32
+convertVkey = T.Vkey <<< T.mkFromCslPubKey <<< vkeyPublicKey
 
 convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
 convertNativeScripts nativeScripts =
@@ -103,7 +100,7 @@ convertNativeScripts nativeScripts =
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
   { vkey: convertVkey $ getBootstrapVkey bootstrap
-  , signature: convertSignature $ getBootstrapSignature bootstrap
+  , signature: T.mkFromCslEd25519Signature $ getBootstrapSignature bootstrap
   , chainCode: getBootstrapChainCode bootstrap
   , attributes: getBootstrapAttributes bootstrap
   }

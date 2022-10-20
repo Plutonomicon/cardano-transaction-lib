@@ -18,41 +18,34 @@ import Contract.Address
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , liftContractM
-  , liftedE
-  , liftedM
-  , wrapContract
-  )
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
   ( PlutusData(Bytes, Integer)
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashesWithErrors
   )
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, validatorHash)
-import Contract.Test.Plutip
-  ( InitialUTxOs
-  , runPlutipContract
-  , withStakeKey
+import Contract.Scripts
+  ( MintingPolicy(PlutusMintingPolicy)
+  , applyArgs
+  , validatorHash
   )
+import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , awaitTxConfirmed
-  , balanceAndSignTx
-  , balanceAndSignTxE
   , balanceTx
   , getTxByHash
   , signTransaction
   , submit
-  , withBalancedAndSignedTxs
+  , withBalancedTxs
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -72,18 +65,21 @@ import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
+import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraints
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
+import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
@@ -148,6 +144,7 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.NetworkId as NetworkId
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.TestM (TestPlanM)
@@ -159,10 +156,11 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 50_000.0, exit = true }
-    $ do
-        suite
-        UtxoDistribution.suite
+    defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
+    do
+      suite
+      UtxoDistribution.suite
+      NetworkId.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -380,8 +378,8 @@ suite = do
               , ScriptPubkey charliePaymentPKH
               , ScriptPubkey danPaymentPKH
               ]
-          nsHash <- liftContractM "Unable to hash NativeScript" $
-            nativeScriptHash nativeScript
+            nsHash = nativeScriptHash nativeScript
+
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
@@ -394,8 +392,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -433,15 +430,12 @@ suite = do
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bTx <- liftedE $ map unwrap <$> balanceTx ubTx
-            tx <- liftContractM "Unable to sign transaction" =<< signTransaction
-              bTx
+            tx <- signTransaction =<< liftedE (balanceTx ubTx)
             let
-              signWithWallet txToSign wallet = withKeyWallet wallet do
-                liftContractM "Unable to sign transaction" =<<
-                  signTransaction txToSign
+              signWithWallet txToSign wallet =
+                withKeyWallet wallet (signTransaction txToSign)
             txSigned <- foldM signWithWallet tx [ alice, bob, charlie, dan ]
-            submit (wrap txSigned) >>= awaitTxConfirmed
+            submit txSigned >>= awaitTxConfirmed
 
     test "NativeScript: NOfK (2)" do
       let
@@ -481,8 +475,8 @@ suite = do
               , ScriptPubkey charliePaymentPKH
               , ScriptPubkey danPaymentPKH
               ]
-          nsHash <- liftContractM "Unable to hash NativeScript" $
-            nativeScriptHash nativeScript
+            nsHash = nativeScriptHash nativeScript
+
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
@@ -495,8 +489,7 @@ suite = do
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <-
-              liftedE $ balanceAndSignTxE ubTx
+            bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -524,17 +517,14 @@ suite = do
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bTx <- liftedE $ map unwrap <$> balanceTx ubTx
             -- Bob signs the tx
-            tx <- liftContractM "Unable to sign transaction" =<< signTransaction
-              bTx
+            tx <- signTransaction =<< liftedE (balanceTx ubTx)
             let
-              signWithWallet txToSign wallet = withKeyWallet wallet do
-                liftContractM "Unable to sign transaction" =<<
-                  signTransaction txToSign
+              signWithWallet txToSign wallet =
+                withKeyWallet wallet (signTransaction txToSign)
             -- Dan signs the tx
             txSigned <- foldM signWithWallet tx [ dan ]
-            submit (wrap txSigned) >>= awaitTxConfirmed
+            submit txSigned >>= awaitTxConfirmed
 
     test "runPlutipContract: AlwaysMints" do
       let
@@ -561,9 +551,18 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
+
+    test "runPlutipContract: NativeScriptMints" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice NativeScriptMints.contract
 
     test "runPlutipContract: Datums" do
       runPlutipContract config unit \_ -> do
@@ -577,6 +576,12 @@ suite = do
               "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
           )
         logInfo' <<< show =<< getDatumsByHashes
+          [ mkDatumHash
+              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
+          , mkDatumHash
+              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
+          ]
+        logInfo' <<< show =<< getDatumsByHashesWithErrors
           [ mkDatumHash
               "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
           , mkDatumHash
@@ -619,8 +624,7 @@ suite = do
                 <> Lookups.mintingPolicy mp3
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <-
-            liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
 
     test "runPlutipContract: SignMultiple" do
@@ -752,6 +756,23 @@ suite = do
             txId
           eResult `shouldSatisfy` isLeft
 
+    test "runPlutipContract: IncludeDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          validator <- IncludeDatum.only42Script
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value"
+          txId <- IncludeDatum.payToIncludeDatum vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          IncludeDatum.spendFromIncludeDatum vhash validator txId
+
     test "runPlutipContract: AlwaysSucceeds PlutusV2" do
       let
         distribution :: InitialUTxOs
@@ -831,7 +852,7 @@ suite = do
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- liftedE $ balanceAndSignTxE ubTx
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submit bsTx >>= awaitTxConfirmed
 
           logInfo' "Attempt to lock value"
@@ -898,7 +919,9 @@ suite = do
           withKeyWallet bob ownPaymentPubKeyHash
         receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy /\ cs <- mkCurrencySymbol
+          (PlutusMintingPolicy <$> alwaysMintsPolicyV2)
+
         tn <- mkTokenName "TheToken"
 
         withKeyWallet alice $ ContractTestUtils.contract $
@@ -912,25 +935,39 @@ suite = do
             , txMetadata: cip25MetadataFixture1
             }
 
+    test "runPlutipContract: Examples.BalanceTxConstraints" do
+      let
+        initialUtxos :: InitialUTxOs
+        initialUtxos =
+          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+
+        distribution :: InitialUTxOs /\ InitialUTxOs
+        distribution = initialUtxos /\ initialUtxos
+
+      runPlutipContract config distribution \(alice /\ bob) ->
+        withKeyWallet alice $ BalanceTxConstraints.contract $
+          BalanceTxConstraints.ContractParams
+            { aliceKeyWallet: alice, bobKeyWallet: bob }
+
   group "applyArgs" do
     test "returns the same script when called without args" do
       runPlutipContract config unit \_ -> do
-        result <- liftedE $ applyArgs unappliedScriptFixture mempty
-        result `shouldEqual` unappliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+        result `shouldEqual` (unwrap unappliedScriptFixture)
 
     test "returns the correct partially applied Plutus script" do
       runPlutipContract config unit \_ -> do
         let args = [ Integer (BigInt.fromInt 32) ]
-        result <- liftedE $ applyArgs unappliedScriptFixture args
-        result `shouldEqual` partiallyAppliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+        result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
     test "returns the correct fully applied Plutus script" do
       runPlutipContract config unit \_ -> do
         bytes <-
           liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
         let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-        result <- liftedE $ applyArgs unappliedScriptFixture args
-        result `shouldEqual` fullyAppliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+        result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
@@ -1067,11 +1104,11 @@ signMultipleContract = do
   ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  withBalancedTxs [ ubTx1, ubTx2 ] $ \txs -> do
     locked <- getLockedInputs
     logInfo' $ "Locked inputs inside bracket (should be nonempty): "
       <> show locked
-    traverse_ submitAndLog txs
+    traverse_ (submitAndLog <=< signTransaction) txs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): "
@@ -1094,8 +1131,7 @@ pkh2PkhContract pkh stakePkh = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <-
-    liftedE $ balanceAndSignTxE ubTx
+  bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
   submitAndLog bsTx
 
 submitAndLog

@@ -1,5 +1,6 @@
 module Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  , scriptRefFromMintingPolicy
   , getNativeScript
   , getPlutusScript
   ) where
@@ -16,15 +17,23 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Data.Either (Either(Left))
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Helpers (encodeTagged')
-import Ctl.Internal.Types.Scripts (PlutusScript)
-import Data.Either (Either(Left))
+import Ctl.Internal.Types.Scripts
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
+  , PlutusScript
+  )
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 
 data ScriptRef = NativeScriptRef NativeScript | PlutusScriptRef PlutusScript
+
+scriptRefFromMintingPolicy :: MintingPolicy -> ScriptRef
+scriptRefFromMintingPolicy = case _ of
+  PlutusMintingPolicy ps -> PlutusScriptRef ps
+  NativeMintingPolicy ns -> NativeScriptRef ns
 
 derive instance Eq ScriptRef
 derive instance Generic ScriptRef _
