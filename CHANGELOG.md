@@ -33,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- Support passsing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](docs/plutip-testing.md).
+- Support passsing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
 - `Ctl.Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
 - `Ctl.Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
@@ -155,7 +155,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - The `ProtocolParameters` introduced in Alonzo (`prices`, `maxTxExUnits`, `maxBlockExUnits`, `maxValueSize`, `collateralPercent` and `maxCollateralInputs`) are no longer of type `Maybe` because we don't support pre-Alonzo eras. ([#971](https://github.com/Plutonomicon/cardano-transaction-lib/issues/971))
 - Renamed `UtxoM` to `UtxoMap` ([#963](https://github.com/Plutonomicon/cardano-transaction-lib/pull/963))
 - KeyWallet's `selectCollateral` field now allows multiple collateral to be selected, and is provided with `coinsPerUtxoByte` and `maxCollateralInputs` from the protocol parameters. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
-- `mustPayWithDatumToPubKey`, `mustPayWithDatumToPubKeyAddress`, and `mustPayToScript` now expect a `DatumPresence` tag in their arguments to mark whether the datum should be inline or hashed in the transaction output. ((#931)[https://github.com/Plutonomicon/cardano-transaction-lib/pull/931])
+- `mustPayWithDatumToPubKey`, `mustPayWithDatumToPubKeyAddress`, and `mustPayToScript` now expect a `DatumPresence` tag in their arguments to mark whether the datum should be inline or hashed in the transaction output. ((#931)[https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - Switched to [blakejs](https://github.com/dcposch/blakejs) for blake2b hashing. `blake2b256Hash` and `blake2b256HashHex` functions are now pure ([#991](https://github.com/Plutonomicon/cardano-transaction-lib/pull/991))
 - Updated ODC version, this includes a new function `getDatumsByHashesWithErrors`that does not discard errors, unlike `getDatumsByHashes`. **This update also changes the way we store transactions in the local database, meaning that we need to drop the `transactions` table.**
 
@@ -233,7 +233,7 @@ This release adds support for running CTL contracts against Babbage-era nodes. *
 - Changed the underlying type of `Slot`, `TransactionIndex` and `CertificateIndex` to `BigNum`.
 - Moved transaction finalization logic to `balanceTx`.
 - Upgraded to CSL v11.0.0-beta.1.
-- `purescriptProject` (exposed via the CTL overlay) was reworked significantly. Please see the [updated example](./doc/ctl-as-dependency#using-the-ctl-overlay) in the documentation for more details.
+- `purescriptProject` (exposed via the CTL overlay) was reworked significantly. Please see the [updated example](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/ctl-as-dependency.md#using-ctls-overlay) in the documentation for more details.
 - Switched to Ogmios for execution units evaluation ([#665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/665))
 - Changed `inputs` inside `TxBody` to be `Set TransactionInput` instead `Array TransactionInput`. This guarantees ordering of inputs inline with Cardano ([#641](https://github.com/Plutonomicon/cardano-transaction-lib/pull/661))
 - Upgraded to Ogmios v5.5.0
