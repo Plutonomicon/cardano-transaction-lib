@@ -11,14 +11,6 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 
 exports.hashTransaction = body => () => lib.hash_transaction(body);
 
-exports.newBigNum = maybe => string => {
-  try {
-    return maybe.just(lib.BigNum.from_str(string));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
 exports.newValue = coin => () => lib.Value.new(coin);
 
 exports.newValueFromAssets = multiasset => () =>
@@ -95,42 +87,9 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
-exports._publicKeyFromBech32 = maybe => bech32 => {
-  try {
-    return maybe.just(lib.PublicKey.from_bech32(bech32));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
-exports.publicKeyFromPrivateKey = private_key => () => {
-  return private_key.to_public();
-};
-
-exports._privateKeyFromBytes = maybe => bytes => {
-  try {
-    return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
-exports._bytesFromPrivateKey = maybe => key => {
-  try {
-    return maybe.just(key.as_bytes());
-  } catch (err) {
-    return maybe.nothing;
-  }
-};
-
 exports.publicKeyHash = pk => pk.hash();
 
-exports.newEd25519Signature = bech32 => () =>
-  lib.Ed25519Signature.from_bech32(bech32);
-
 exports.transactionWitnessSetSetVkeys = setter("vkeys");
-
-exports.toBytes = sth => sth.to_bytes();
 
 exports.newCostmdls = () => lib.Costmdls.new();
 
@@ -172,9 +131,24 @@ exports.setTxBodyMint = setter("mint");
 
 exports.newMint = () => lib.Mint.new();
 
+const bigNumLimit = BigInt("18446744073709551616"); // 2 ^ 64
+
+const bigNumLimitNeg = BigInt("-18446744073709551616"); // 2 ^ 64
+
+const checkLimit = (num, lower_limit, upper_limit) => {
+  if (lower_limit < num && num < upper_limit) {
+    return num;
+  } else {
+    throw new Error("Overflow detected");
+  }
+};
+
 exports._bigIntToInt = maybe => bigInt => {
+  // this is needed because try/catch overuse breaks runtime badly
+  // https://github.com/Plutonomicon/cardano-transaction-lib/issues/875
   try {
     const str = bigInt.to_str();
+    checkLimit(BigInt(str), bigNumLimitNeg, bigNumLimit);
     if (str[0] == "-") {
       return maybe.just(
         lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))

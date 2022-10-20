@@ -245,7 +245,7 @@ type ConfigParams (r :: Row Type) =
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
-  , customLogger :: Maybe (Message -> Aff Unit)
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
@@ -365,7 +365,7 @@ withContractEnv
       , logLevel
       , walletSpec
       , customLogger:
-          if suppressLogs then Just $ liftEffect <<< addLogEntry
+          if suppressLogs then Just $ map liftEffect <<< addLogEntry
           else customLogger
       , suppressLogs
       }

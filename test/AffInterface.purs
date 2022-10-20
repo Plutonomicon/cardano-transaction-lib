@@ -3,6 +3,7 @@ module Test.Ctl.AffInterface (suite) where
 import Prelude
 
 import Contract.Chain (ChainTip(ChainTip), Tip(Tip, TipAtGenesis))
+import Contract.Numeric.BigNum (add, fromInt) as BigNum
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Address (ogmiosAddressToAddress)
 import Ctl.Internal.QueryM
@@ -10,6 +11,7 @@ import Ctl.Internal.QueryM
   , getChainTip
   , getDatumByHash
   , getDatumsByHashes
+  , getDatumsByHashesWithErrors
   , submitTxOgmios
   )
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
@@ -20,7 +22,6 @@ import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
 import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Types.BigNum (add, fromInt) as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Transaction (DataHash(DataHash))
 import Data.Either (Either(Left, Right))
@@ -71,6 +72,8 @@ suite = do
       testOgmiosDatumCacheGetDatumByHash
     test "Can process GetDatumsByHashes" do
       testOgmiosDatumCacheGetDatumsByHashes
+    test "Can process GetDatumsByHashesWithErrors" do
+      testOgmiosDatumCacheGetDatumsByHashesWithErrors
 
 testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
 testOgmiosDatumCacheGetDatumByHash = do
@@ -80,6 +83,11 @@ testOgmiosDatumCacheGetDatumByHash = do
 testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
 testOgmiosDatumCacheGetDatumsByHashes = do
   void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+
+testOgmiosDatumCacheGetDatumsByHashesWithErrors :: QueryM Unit
+testOgmiosDatumCacheGetDatumsByHashesWithErrors = do
+  void $ getDatumsByHashesWithErrors $ pure $ DataHash $ hexToByteArrayUnsafe
     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testUtxosAt :: OgmiosAddress -> QueryM Unit
