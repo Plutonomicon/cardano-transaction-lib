@@ -17,13 +17,13 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
-import Data.Either (Either(Left))
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , PlutusScript
   )
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
