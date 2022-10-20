@@ -297,6 +297,13 @@
       packages = perSystem (system:
         self.hsFlake.${system}.packages
         // (psProjectFor (nixpkgsFor system)).packages
+        // {
+          dockerImage = (nixpkgsFor system).dockerTools.buildLayeredImage {
+            name = "ctl-server";
+            tag = "latest";
+            contents = [ self.packages.${system}."ctl-server:exe:ctl-server" ];
+          };
+        }
       );
 
       apps = perSystem (system:
