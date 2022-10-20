@@ -26,6 +26,7 @@ module Ctl.Internal.Types.ScriptLookups
       , TypedValidatorMissing
       , ValidatorHashNotFound
       , WrongRefScriptHash
+      , ExpectedPlutusScriptGotNativeScript
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
@@ -56,6 +57,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
   , Transaction
@@ -89,6 +91,7 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM, (<\>))
 import Ctl.Internal.IsData (class IsData)
+import Ctl.Internal.NativeScripts (nativeScriptHash)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
   , fromPlutusValue
@@ -143,7 +146,7 @@ import Ctl.Internal.Types.PubKeyHash
   )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash
   , Validator
   , ValidatorHash
@@ -172,6 +175,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
       , MustValidateIn
+      , MustMintValueUsingNativeScript
       )
   , TxConstraints(TxConstraints)
   , utxoWithScriptRef
@@ -571,6 +575,7 @@ processLookupsAndConstraints
   ExceptT addScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
+
   where
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
@@ -873,6 +878,7 @@ data MkUnbalancedTxError
   | CannotHashValidator Validator
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
+  | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -971,6 +977,24 @@ processScriptRefUnspentOut scriptHash inputWithRefScript = do
     in
       if Just (unwrap scriptHash) /= refScriptHash then err
       else pure (Right unit)
+
+checkRefNative
+  :: forall (a :: Type)
+   . InputWithScriptRef
+  -> ConstraintsM a (Either MkUnbalancedTxError Boolean)
+checkRefNative scriptRef = pure $ note (WrongRefScriptHash Nothing) $ isNative
+  (unwrap (unwrap uout).output).scriptRef
+  where
+  isNative ref = ref >>=
+    ( case _ of
+        NativeScriptRef _ -> pure true
+        _ -> pure false
+    )
+
+  uout :: TransactionUnspentOutput
+  uout = case scriptRef of
+    RefInput ref' -> ref'
+    SpendInput ref' -> ref'
 
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output
@@ -1083,11 +1107,22 @@ processConstraint mpsMap osMap = do
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
       case scriptRefUnspentOut of
         Nothing -> do
-          plutusScript <-
-            except $ unwrap <$> lookupMintingPolicy mpsHash mpsMap
-          ExceptT $ attachToCps attachPlutusScript plutusScript
-        Just scriptRefUnspentOut' ->
-          ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut'
+          mp <- except $ lookupMintingPolicy mpsHash mpsMap
+          ( case mp of
+              PlutusMintingPolicy p ->
+                ( ExceptT $ attachToCps
+                    attachPlutusScript
+                    p
+                )
+              NativeMintingPolicy _ -> throwError $
+                ExpectedPlutusScriptGotNativeScript mpsHash
+          )
+        Just scriptRefUnspentOut' -> do
+          isNative <- ExceptT $ checkRefNative scriptRefUnspentOut'
+          when isNative $ throwError $ ExpectedPlutusScriptGotNativeScript
+            mpsHash
+          (ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut')
+
       cs <-
         liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
       let value = mkSingletonValue' cs tn
@@ -1104,6 +1139,7 @@ processConstraint mpsMap osMap = do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
+
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -1121,7 +1157,32 @@ processConstraint mpsMap osMap = do
       mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
       -- Append reindexed mint redeemers to array.
       _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
+
       _cpsToTxBody <<< _mint <>= map wrap mintVal
+
+    MustMintValueUsingNativeScript ns tn i -> runExceptT do
+      let mpHash = wrap <<< unwrap <<< nativeScriptHash $ ns
+
+      ExceptT $ attachToCps attachNativeScript ns
+
+      cs <- liftM (MintingPolicyHashNotCurrencySymbol mpHash) (mpsSymbol mpHash)
+      let value = mkSingletonValue' cs tn
+      -- If i is negative we are burning tokens. The tokens burned must
+      -- be provided as an input. So we add the value burnt to
+      -- 'valueSpentBalancesInputs'. If i is positive then new tokens are
+      -- created which must be added to 'valueSpentBalancesOutputs'.
+      mintVal <-
+        if i < zero then do
+          v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
+          _valueSpentBalancesInputs <>= provideValue v
+          pure $ map getNonAdaAsset $ value i
+        else do
+          v <- liftM (CannotMakeValue cs tn i) (value i)
+          _valueSpentBalancesOutputs <>= provideValue v
+          pure $ map getNonAdaAsset $ value i
+
+      _cpsToTxBody <<< _mint <>= map wrap mintVal
+
     MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
@@ -1197,8 +1258,11 @@ processConstraint mpsMap osMap = do
           -- `put`)
           foldM
             ( \_ constr -> runExceptT do
-                ExceptT $ processConstraint mpsMap osMap constr
-                  `catchError` \_ -> put cps *> tryNext zs
+                let continue = put cps *> tryNext zs
+                ( ExceptT $ processConstraint mpsMap osMap constr
+                    `catchError` \_ -> continue
+                )
+                  `catchError` \_ -> ExceptT continue
             )
             (Right unit)
             ys
