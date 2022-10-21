@@ -28,7 +28,7 @@ import Contract.Monad
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
-  ( MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy)
   , MintingPolicyHash
   , PlutusScript
   , ValidatorHash
@@ -60,7 +60,6 @@ import Contract.Value (TokenName, Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -80,7 +79,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
   validator <- alwaysSucceedsScriptV2
-  mp /\ _ <- Helpers.mkCurrencySymbol alwaysMintsPolicyV2
+  mintsScript <- alwaysMintsPolicyV2
   tokenName <- Helpers.mkTokenName "TheToken"
   let
     vhash :: ValidatorHash
@@ -90,13 +89,14 @@ contract = do
     validatorRef = PlutusScriptRef (unwrap validator)
 
     mpRef :: ScriptRef
-    mpRef = PlutusScriptRef (unwrap mp)
+    mpRef = PlutusScriptRef mintsScript
 
   logInfo' "Attempt to lock value"
   txId <- payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully, Try to spend locked values"
-  spendFromAlwaysSucceeds vhash txId (unwrap validator) (unwrap mp) tokenName
+  spendFromAlwaysSucceeds vhash txId (unwrap validator) mintsScript
+    tokenName
 
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
@@ -149,7 +149,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
 
   let
     mph :: MintingPolicyHash
-    mph = mintingPolicyHash (wrap mp)
+    mph = mintingPolicyHash (PlutusMintingPolicy mp)
 
     constraints :: TxConstraints Unit Unit
     constraints = mconcat
@@ -195,7 +195,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
 
 foreign import alwaysMintsV2 :: String
 
-alwaysMintsPolicyV2 :: Contract () MintingPolicy
+alwaysMintsPolicyV2 :: Contract () PlutusScript
 alwaysMintsPolicyV2 =
-  map (wrap <<< plutusV2Script)
+  map plutusV2Script
     (textEnvelopeBytes alwaysMintsV2 PlutusScriptV2)
