@@ -186,7 +186,7 @@ Note that the test closes successfully after the first successful `Contract` exe
 
 CTL offers a function to serve the `Contract`s to be tested with a router, that dispatches contracts and configuration parameters based on query part of the URL.
 
-See [this file](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/templates/ctl-scaffold/exe/E2E.purs) for a quick example:
+See [this file](../templates/ctl-scaffold/test/E2E.purs) for a quick example:
 
 ```purescript
 main :: Effect Unit
