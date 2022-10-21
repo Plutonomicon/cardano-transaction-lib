@@ -9,4 +9,5 @@ import Ctl.Internal.BalanceTx.Constraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustNotSpendUtxosWithOutRefs
+  , mustUseCoinSelectionStrategy
   ) as BalanceTxConstraints

@@ -19,6 +19,7 @@ module Ctl.Internal.BalanceTx.Error
       , UtxoMinAdaValueCalculationFailed
       )
   , Expected(Expected)
+  , ImpossibleError(Impossible)
   , printTxEvaluationFailure
   ) where
 
@@ -76,7 +77,7 @@ data BalanceTxError
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
   | InsufficientTxInputs Expected Actual
-  | InsufficientUtxoBalanceToCoverAsset String
+  | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
   | ReindexRedeemersError ReindexErrors
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
@@ -102,6 +103,14 @@ derive instance Generic Expected _
 derive instance Newtype Expected _
 
 instance Show Expected where
+  show = genericShow
+
+-- | Indicates that an error should be impossible.
+data ImpossibleError = Impossible
+
+derive instance Generic ImpossibleError _
+
+instance Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------

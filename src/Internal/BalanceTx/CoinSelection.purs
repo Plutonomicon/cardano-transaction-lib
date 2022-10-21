@@ -1,6 +1,9 @@
+-- | This module provides a multi-asset coin selection algorithm replicated from 
+-- | cardano-wallet (https://github.com/input-output-hk/cardano-wallet/blob/master/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs). The algorithm supports two selection
+-- | strategies (optimal and minimal) and uses priority ordering and round-robin 
+-- | processing to handle the problem of over-selection.
 module Ctl.Internal.BalanceTx.CoinSelection
-  ( MultiAssetSelection(MultiAssetSelection)
-  , SelectionState(SelectionState)
+  ( SelectionState(SelectionState)
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , _leftoverUtxos
   , performMultiAssetSelection
@@ -18,13 +21,14 @@ import Ctl.Internal.BalanceTx.Error
       , InsufficientUtxoBalanceToCoverAsset
       )
   , Expected(Expected)
+  , ImpossibleError(Impossible)
   )
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass(AssetClass), Coin, Value)
 import Ctl.Internal.Cardano.Types.Value
   ( getAssetQuantity
   , getCurrencySymbol
-  , lt
+  , leq
   , valueAssetClasses
   , valueAssets
   , valueToCoin
@@ -59,14 +63,39 @@ import Effect.Random (randomInt) as Random
 import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
--- CoinSelection
+-- Coin Selection
 --------------------------------------------------------------------------------
 
-data MultiAssetSelection = MultiAssetSelection SelectionStrategy
+-- | A `SelectionStrategy` determines how much of each asset the selection 
+-- | algorithm will attempt to select from the available utxo set.
+-- |
+-- | Specifying `SelectionStrategyOptimal` will cause the selection algorithm to
+-- | attempt to select around twice the required amount of each asset from the 
+-- | available utxo set, making it possible to generate change outputs that are
+-- | roughly the same sizes and shapes as the user-specified outputs. Using this
+-- | strategy will help to ensure that a wallet's utxo distribution can evolve
+-- | over time to resemble the typical distribution of payments made by the
+-- | wallet owner.
+-- |
+-- | Specifying `SelectionStrategyMinimal` will cause the selection algorithm to
+-- | only select just enough of each asset from the available utxo set to meet
+-- | the required amount. It is advised to use this strategy only when 
+-- | necessary, as it increases the likelihood of generating change outputs that
+-- | are much smaller than user-specified outputs. If this strategy is used 
+-- | regularly, the utxo set can evolve to a state where the distribution no 
+-- | longer resembles the typical distribution of payments made by the user. 
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L325
+data SelectionStrategy = SelectionStrategyOptimal | SelectionStrategyMinimal
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L325
-data SelectionStrategy = SelectionStrategyMinimal | SelectionStrategyOptimal
-
+-- | Performs a coin selection using the specified selection strategy.
+-- | 
+-- | Throws a `BalanceInsufficientError` if the balance of the provided utxo 
+-- | set is insufficient to cover the balance required.
+-- | 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1128
 performMultiAssetSelection
   :: forall (m :: Type -> Type)
    . MonadEffect m
@@ -76,11 +105,11 @@ performMultiAssetSelection
   -> Value
   -> m SelectionState
 performMultiAssetSelection strategy utxos requiredValue =
-  case availableValue `Value.lt` requiredValue of
+  case requiredValue `Value.leq` availableValue of
     true ->
-      throwError balanceInsufficientError
-    false ->
       runRoundRobinM (mkSelectionState utxos) selectors
+    false ->
+      throwError balanceInsufficientError
   where
   balanceInsufficientError :: BalanceTxError
   balanceInsufficientError =
@@ -105,7 +134,10 @@ performMultiAssetSelection strategy utxos requiredValue =
       runSelectionStep $
         coinSelectionLens strategy (Value.valueToCoin requiredValue)
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L145
+-- | Represents the internal state of a selection. 
+-- | 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L145
 newtype SelectionState = SelectionState
   { leftoverUtxos :: UtxoMap
   , selectedUtxos :: UtxoMap
@@ -119,36 +151,58 @@ _leftoverUtxos = _Newtype <<< prop (Proxy :: Proxy "leftoverUtxos")
 _selectedUtxos :: Lens' SelectionState UtxoMap
 _selectedUtxos = _Newtype <<< prop (Proxy :: Proxy "selectedUtxos")
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L192
+-- | Creates an initial `SelectionState` where none of the utxos are selected.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L192
 mkSelectionState :: UtxoMap -> SelectionState
 mkSelectionState = wrap <<< { leftoverUtxos: _, selectedUtxos: Map.empty }
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L426
+-- | Moves a single utxo entry from the leftover set to the selected set.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L426
 selectUtxo :: TxUnspentOutput -> SelectionState -> SelectionState
 selectUtxo (oref /\ out) =
   over _selectedUtxos (Map.insert oref out)
     <<< over _leftoverUtxos (Map.delete oref)
 
+-- | Returns the balance of the given utxo set.
 balance :: UtxoMap -> Value
 balance = Foldable.foldMap (_.amount <<< unwrap)
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L375
+-- | Returns the balance of selected utxos.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L375
 selectedBalance :: SelectionState -> Value
 selectedBalance = balance <<< _.selectedUtxos <<< unwrap
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2169
+-- | Returns the quantity of the given asset in the selected `Value`.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2169
 selectedAssetQuantity :: AssetClass -> SelectionState -> BigInt
 selectedAssetQuantity assetClass =
   Value.getAssetQuantity assetClass <<< selectedBalance
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2175
+-- | Returns the selected amount of Ada.
+-- |
+-- | Taken from cardano-wallet:
+-- |https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2175
 selectedCoinQuantity :: SelectionState -> BigInt
 selectedCoinQuantity = Value.valueToCoin' <<< selectedBalance
 
+-- | Returns the output references of the selected utxos.
 selectedInputs :: SelectionState -> Set TransactionInput
 selectedInputs = Set.fromFoldable <<< Map.keys <<< view _selectedUtxos
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1254
+-- | A `SelectionLens` gives `runSelectionStep` the information on the current 
+-- | selection state along with the functions required to transition to the next 
+-- | state.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1254
 type SelectionLens (m :: Type -> Type) =
   { assetDisplayString :: String
   , currentQuantity :: SelectionState -> BigInt
@@ -158,7 +212,8 @@ type SelectionLens (m :: Type -> Type) =
   , selectionStrategy :: SelectionStrategy
   }
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1159
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1159
 assetSelectionLens
   :: forall (m :: Type -> Type)
    . MonadEffect m
@@ -178,7 +233,8 @@ assetSelectionLens selectionStrategy (assetClass /\ requiredQuantity) =
   , selectionStrategy
   }
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1173
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1173
 coinSelectionLens
   :: forall (m :: Type -> Type)
    . MonadEffect m
@@ -196,7 +252,15 @@ coinSelectionLens selectionStrategy coin =
   , selectionStrategy
   }
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1217
+-- | Selects an utxo entry that matches one of the filters derived from the
+-- | given `SelectionPriority`. This function traverses the list of filters from
+-- | left to right, in descending order of priority.
+-- | 
+-- | Returns `Nothing` if it traverses the entire list of filters without
+-- | successfully selecting an utxo entry. 
+-- | 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1217
 selectQuantityOf
   :: forall (m :: Type -> Type) (asset :: Type)
    . MonadEffect m
@@ -215,7 +279,25 @@ selectQuantityOf asset priority state =
   updateState :: TxUnspentOutput /\ UtxoMap -> SelectionState
   updateState = flip selectUtxo state <<< Tuple.fst
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1284
+-- | Runs just a single step of a coin selection.
+-- | 
+-- | It returns an updated state if (and only if) the updated selection
+-- | represents an improvement over the selection in the previous state.
+-- | 
+-- | An improvement, for a given asset quantity, is defined as follows:
+-- |
+-- |  - If the total selected asset quantity of the previous selection had
+-- |    not yet reached 100% of the output asset quantity, any additional
+-- |    selection is considered to be an improvement.
+-- |
+-- |  - If the total selected asset quantity of the previous selection had
+-- |    already reached or surpassed 100% of the output asset quantity, any
+-- |    additional selection is considered to be an improvement if and only
+-- |    if it takes the total selected asset quantity closer to the target
+-- |    asset quantity, but not further away. 
+-- | 
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1284
 runSelectionStep
   :: forall (m :: Type -> Type)
    . MonadThrow BalanceTxError m
@@ -227,11 +309,15 @@ runSelectionStep lens state
       let
         balanceInsufficientError :: BalanceTxError
         balanceInsufficientError =
-          InsufficientUtxoBalanceToCoverAsset lens.assetDisplayString
+          InsufficientUtxoBalanceToCoverAsset Impossible lens.assetDisplayString
       in
         lens.selectQuantityCover state
           >>= maybe (throwError balanceInsufficientError) (pure <<< Just)
   | otherwise =
+      -- Note that if the required asset quantity has already been reached, 
+      -- we attempt to improve the selection using `SelectionPriorityImprove`,
+      -- which allows us to select only utxos containing the given asset and no
+      -- other asset, i.e. we select from the "singleton" subset of utxos.
       bindFlipped requireImprovement <$> lens.selectQuantityImprove state
       where
       requireImprovement :: SelectionState -> Maybe SelectionState
@@ -267,7 +353,8 @@ runRoundRobinM
   -> m s
 runRoundRobinM state = runRoundRobinM' state identity
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2155
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2155
 runRoundRobinM'
   :: forall (m :: Type -> Type) (s :: Type) (s' :: Type)
    . Monad m
@@ -306,7 +393,8 @@ filtersForAssetWithPriority asset priority =
     SelectionPriorityImprove ->
       NEArray.singleton (SelectSingleton asset)
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L460
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L460
 selectRandomWithPriority
   :: forall (m :: Type -> Type) (asset :: Type)
    . MonadEffect m
@@ -327,7 +415,8 @@ selectRandomWithPriority utxos filters =
 -- SelectionFilter, ApplySelectionFilter
 --------------------------------------------------------------------------------
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L399
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L399
 data SelectionFilter (asset :: Type)
   = SelectSingleton asset
   | SelectPairWith asset
@@ -359,7 +448,8 @@ instance ApplySelectionFilter Coin where
 
 type TxUnspentOutput = TransactionInput /\ TransactionOutput
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L418
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L418
 selectRandomWithFilter
   :: forall (m :: Type -> Type) (asset :: Type)
    . MonadEffect m
@@ -375,7 +465,8 @@ selectRandomWithFilter utxos filter =
 -- Helpers
 --------------------------------------------------------------------------------
 
--- https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L598
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L598
 selectRandomMapMember
   :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
    . MonadEffect m

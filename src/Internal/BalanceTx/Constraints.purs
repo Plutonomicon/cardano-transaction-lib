@@ -7,13 +7,18 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
+  , mustUseCoinSelectionStrategy
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
   , _ownAddresses
+  , _selectionStrategy
   ) where
 
 import Prelude
 
+import Ctl.Internal.BalanceTx.CoinSelection
+  ( SelectionStrategy(SelectionStrategyOptimal)
+  )
 import Ctl.Internal.Plutus.Conversion (fromPlutusAddress)
 import Ctl.Internal.Plutus.Types.Address
   ( Address
@@ -27,7 +32,7 @@ import Data.Function (applyFlipped)
 import Data.Lens (Lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
-import Data.Lens.Setter (appendOver, setJust)
+import Data.Lens.Setter (appendOver, set, setJust)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Data.Set (Set)
@@ -38,6 +43,7 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   { maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
   , ownAddresses :: Maybe (Array Address)
+  , selectionStrategy :: SelectionStrategy
   }
 
 derive instance Newtype BalanceTxConstraints _
@@ -51,6 +57,9 @@ _nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
 
 _ownAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
 _ownAddresses = _Newtype <<< prop (Proxy :: Proxy "ownAddresses")
+
+_selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
+_selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
 
 newtype BalanceTxConstraintsBuilder =
   BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
@@ -71,6 +80,7 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     { maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
     , ownAddresses: Nothing
+    , selectionStrategy: SelectionStrategyOptimal
     }
 
 -- | Tells the balancer to treat the provided addresses like user's own.
@@ -103,6 +113,10 @@ mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
 -- | Tells the balancer not to spend a utxo with the specified output reference.
 mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
+
+-- | Tells the balancer to use the given strategy for coin selection.
+mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
+mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
 
 -- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/1046
 -- | Tells the balancer to use the provided utxo set when evaluating script 
