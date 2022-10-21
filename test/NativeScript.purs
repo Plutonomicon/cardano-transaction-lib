@@ -2,6 +2,7 @@ module Test.Ctl.NativeScript (suite) where
 
 import Prelude
 
+import Aeson (decodeAeson, encodeAeson)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
@@ -13,11 +14,14 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Data.Either (Either(Right))
 import Data.Maybe (fromJust)
 import Data.Set as Set
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck (quickCheck, (===))
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -212,6 +216,10 @@ suite = do
           ]
       getMaximumSigners Set.empty script
         `shouldEqual` 3
+
+    test "Property: encodeAeson <-> decodeAeson" do
+      liftEffect $ quickCheck $ \(script :: NativeScript) ->
+        decodeAeson (encodeAeson script) === Right script
 
 pk1 :: Ed25519KeyHash
 pk1 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $ hexToRawBytesUnsafe
