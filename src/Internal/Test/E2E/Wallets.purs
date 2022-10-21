@@ -14,6 +14,7 @@ module Ctl.Internal.Test.E2E.Wallets
 
 import Prelude
 
+import Control.MonadPlus (guard)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Test.E2E.Types
@@ -22,6 +23,7 @@ import Ctl.Internal.Test.E2E.Types
   , WalletPassword
   , unExtensionId
   )
+import Data.Array (mapMaybe)
 import Data.Either (fromRight, hush)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
@@ -47,29 +49,22 @@ typeInto selector text page = toAffE $ _typeInto selector text page
 findWalletPage :: Pattern -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
 findWalletPage pattern browser = do
   pages <- Toppokki.pages browser
-  walletPages <- fold <$> for pages \page -> do
-    try (pageUrl page) <#> hush >>> case _ of
-      Nothing -> []
-      Just url
-        | String.contains pattern url -> [ page ]
-        | otherwise -> []
+  let
+    walletPages = pages `flip mapMaybe` \page -> do
+      guard (String.contains pattern (pageUrl page))
+      pure page
   case walletPages of
     [] -> pure Nothing
     [ page ] -> pure $ Just page
     _ -> do
-      urls <- for pages pageUrl
       liftEffect $ throw $
         "findWalletPage: more than one page found when trying to find "
           <> "the wallet popup. URLs: "
-          <> intercalate ", " urls
+          <> intercalate ", " (pageUrl <$> pages)
           <> "; URL pattern: "
           <> show (unwrap pattern)
 
-pageUrl :: Toppokki.Page -> Aff String
-pageUrl page = do
-  unsafeFromForeign <$> Toppokki.unsafeEvaluateStringFunction
-    "document.location.href"
-    page
+foreign import pageUrl :: Toppokki.Page -> String
 
 -- | Wait until the wallet page pops up. Timout should be at least a few seconds.
 -- | The 'String' param is the text of jQuery, which will be injected.
@@ -132,12 +127,8 @@ inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
   where
   acquirePage = do
     page <- waitForWalletPage (Pattern $ unExtensionId extId) timeout browser
-    url <- liftedM (error "inWalletPageOptional: page closed")
-      $ map hush
-      $ try
-      $ pageUrl page
     if
-      String.contains pattern url then do
+      String.contains pattern (pageUrl page) then do
       injectJQuery page jQuery
       Just <$> cont page
     else do
