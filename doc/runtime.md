@@ -25,7 +25,7 @@ The services that are currently **required** are:
 
 Optional services:
 
-- [Our Haskell server](/server/README.md)
+- [Our Haskell server](../server/README.md)
   - We hope to deprecate this in the future, but we use it at the moment to apply arguments to Plutus scripts, which is hard to implement on front-end.
   - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
 

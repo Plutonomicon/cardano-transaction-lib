@@ -25,7 +25,11 @@ import Contract.Monad
 import Contract.PlutusData (PlutusData, toData)
 import Contract.Prim.ByteArray (ByteArray)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy, PlutusScript, applyArgs)
+import Contract.Scripts
+  ( MintingPolicy(PlutusMintingPolicy)
+  , PlutusScript
+  , applyArgs
+  )
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
@@ -128,10 +132,11 @@ mkOneShotMintingPolicy
   -> Contract () MintingPolicy
 mkOneShotMintingPolicy json ty mkPlutusScript oref = do
   unappliedMintingPolicy <-
-    map (wrap <<< mkPlutusScript) (textEnvelopeBytes json ty)
+    map mkPlutusScript (textEnvelopeBytes json ty)
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
 
-  liftedE $ applyArgs unappliedMintingPolicy mintingPolicyArgs
+  liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
+    mintingPolicyArgs
 
