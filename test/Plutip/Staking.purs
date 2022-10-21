@@ -8,15 +8,21 @@ import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Hashing (publicKeyHash)
 import Contract.Log (logInfo')
 import Contract.Monad (liftedE, liftedM, wrapContract)
+import Contract.PlutusData (unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
 import Contract.Transaction (balanceTx, signTransaction)
-import Contract.TxConstraints (mustDelegateStake, mustWithdrawStakePubKey)
+import Contract.TxConstraints
+  ( mustDelegateStakePubKey
+  , mustDelegateStakeScript
+  , mustWithdrawStakePubKey
+  )
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
+import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.QueryM.Pools
@@ -30,6 +36,7 @@ import Ctl.Internal.Types.TxConstraints
   ( mustDeregisterStakePubKey
   , mustRegisterPool
   , mustRegisterStakePubKey
+  , mustRegisterStakeScript
   )
 import Data.Array (head)
 import Data.BigInt as BigInt
@@ -174,6 +181,54 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
+    test "Stake script registration" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+          ]
+      runPlutipContract config' distribution \alice ->
+        withKeyWallet alice do
+          alicePkh /\ aliceStakePkh <- Tuple
+            <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
+            <*> liftedM "Failed to get Stake PKH" ownStakePubKeyHash
+          validator <- alwaysSucceedsScript <#> unwrap >>> wrap
+
+          -- Register stake script
+          do
+            let
+              constraints =
+                mustRegisterStakeScript validator
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+
+          -- List pools
+          poolId <- do
+            pools <- wrapContract getPoolIds
+            logInfo' "Pool IDs:"
+            logInfo' $ show pools
+            for_ pools \poolId -> do
+              logInfo' "Pool parameters"
+              logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+            liftM (error "unable to get any pools") (head pools)
+
+          -- Delegate
+          do
+            let
+              constraints =
+                mustDelegateStakeScript validator unitRedeemer poolId
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups =
+                Lookups.ownPaymentPubKeyHash alicePkh <>
+                  Lookups.ownStakePubKeyHash aliceStakePkh
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+
     test "Stake delegation to existing pool" do
       let
         distribution = withStakeKey privateStakeKey
@@ -212,7 +267,7 @@ suite = do
           do
             let
               constraints =
-                mustDelegateStake aliceStakePkh poolId
+                mustDelegateStakePubKey aliceStakePkh poolId
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
