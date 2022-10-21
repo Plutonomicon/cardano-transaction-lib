@@ -16,7 +16,6 @@ import Prelude
 
 import Control.MonadPlus (guard)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Test.E2E.Types
   ( ExtensionId
   , RunningE2ETest
@@ -24,18 +23,18 @@ import Ctl.Internal.Test.E2E.Types
   , unExtensionId
   )
 import Data.Array (mapMaybe)
-import Data.Either (fromRight, hush)
+import Data.Either (fromRight)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (fold, for)
+import Data.Traversable (fold)
 import Effect (Effect)
 import Effect.Aff (Aff, delay, try)
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
+import Effect.Exception (throw)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toppokki
 
