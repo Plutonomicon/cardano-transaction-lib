@@ -37,6 +37,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
   , applyArgs
+  , mintingPolicyHash
   , validatorHash
   )
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
@@ -1065,10 +1066,10 @@ suite = do
             awaitTxConfirmed txId1
 
     test "Evaluation with additional UTxOs" do
-      -- We create two transactions. First, we create outputs with Ada, non-Ada 
-      -- assets, script reference with Plutus script v1 and v2, inline datum, 
-      -- and datum with its witness. Then, we take those outputs as additional 
-      -- utxos for the next transaction. After both transactions are balanced 
+      -- We create two transactions. First, we create outputs with Ada, non-Ada
+      -- assets, script reference with Plutus script v1 and v2, inline datum,
+      -- and datum with its witness. Then, we take those outputs as additional
+      -- utxos for the next transaction. After both transactions are balanced
       -- and signed, we submit them.
       let
         distribution :: InitialUTxOs
