@@ -244,7 +244,13 @@ createUnspentOutput input output = do
 
 testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
-  serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
+  serialized <- pure $ NSS.convertNativeScript input
+  {-            ^^^^ This is necessary here as convertNativeScript can throw
+                a maximum call stack size runtime error (see excessive nesting
+                test above). It needs to be lifted into the Effect monad for 
+                purescript to handle it correctly.
+  -}
+
   let bytes = Serialization.toBytes (asOneOf serialized)
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res

@@ -29,7 +29,11 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, validatorHash)
+import Contract.Scripts
+  ( MintingPolicy(PlutusMintingPolicy)
+  , applyArgs
+  , validatorHash
+  )
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
@@ -75,6 +79,7 @@ import Ctl.Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
@@ -373,8 +378,8 @@ suite = do
               , ScriptPubkey charliePaymentPKH
               , ScriptPubkey danPaymentPKH
               ]
-          nsHash <- liftContractM "Unable to hash NativeScript" $
-            nativeScriptHash nativeScript
+            nsHash = nativeScriptHash nativeScript
+
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
@@ -470,8 +475,8 @@ suite = do
               , ScriptPubkey charliePaymentPKH
               , ScriptPubkey danPaymentPKH
               ]
-          nsHash <- liftContractM "Unable to hash NativeScript" $
-            nativeScriptHash nativeScript
+            nsHash = nativeScriptHash nativeScript
+
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
@@ -548,6 +553,16 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
+
+    test "runPlutipContract: NativeScriptMints" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice NativeScriptMints.contract
 
     test "runPlutipContract: Datums" do
       runPlutipContract config unit \_ -> do
@@ -904,7 +919,9 @@ suite = do
           withKeyWallet bob ownPaymentPubKeyHash
         receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy /\ cs <- mkCurrencySymbol
+          (PlutusMintingPolicy <$> alwaysMintsPolicyV2)
+
         tn <- mkTokenName "TheToken"
 
         withKeyWallet alice $ ContractTestUtils.contract $
@@ -935,22 +952,22 @@ suite = do
   group "applyArgs" do
     test "returns the same script when called without args" do
       runPlutipContract config unit \_ -> do
-        result <- liftedE $ applyArgs unappliedScriptFixture mempty
-        result `shouldEqual` unappliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+        result `shouldEqual` (unwrap unappliedScriptFixture)
 
     test "returns the correct partially applied Plutus script" do
       runPlutipContract config unit \_ -> do
         let args = [ Integer (BigInt.fromInt 32) ]
-        result <- liftedE $ applyArgs unappliedScriptFixture args
-        result `shouldEqual` partiallyAppliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+        result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
     test "returns the correct fully applied Plutus script" do
       runPlutipContract config unit \_ -> do
         bytes <-
           liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
         let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-        result <- liftedE $ applyArgs unappliedScriptFixture args
-        result `shouldEqual` fullyAppliedScriptFixture
+        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+        result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
