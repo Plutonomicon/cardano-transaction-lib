@@ -635,7 +635,11 @@ instance DecodeAeson PoolPubKeyHash where
       (ed25519KeyHashFromBech32 str)
 
 instance Show PoolPubKeyHash where
-  show = genericShow
+  show (PoolPubKeyHash kh) =
+    "(PoolPubKeyHash (Ed25519KeyHash (unsafePartial $ fromJust $ \
+    \ed25519KeyHashFromBech32 "
+      <> show (ed25519KeyHashToBech32 "pool" kh)
+      <> ")))"
 
 data Certificate
   = StakeRegistration StakeCredential

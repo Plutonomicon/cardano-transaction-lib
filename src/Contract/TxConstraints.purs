@@ -27,7 +27,6 @@ import Ctl.Internal.Types.TxConstraints
   , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
-  , modifiesUtxoSet
   , mustBeSignedBy
   , mustDelegateStake
   , mustHashDatum
@@ -63,6 +62,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
+  , mustWithdrawStakePubKey
   , pubKeyPayments
   , requiredDatums
   , requiredMonetaryPolicies

@@ -21,9 +21,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   , URL(URL)
   , UnitInterval
   )
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Plutus.Types.Value (Coin(Coin))
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
@@ -38,10 +38,10 @@ import Ctl.Internal.Types.ByteArray
   )
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Int as Int
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.String (Pattern(Pattern), Replacement(Replacement))
 import Data.String as String
@@ -84,6 +84,7 @@ decodeIpv6 :: Aeson -> Either JsonDecodeError Ipv6
 decodeIpv6 aeson = do
   decodeAeson aeson >>= parseIpv6String >>> note (TypeMismatch "Ipv6")
 
+-- TODO: test
 parseIpv6String :: String -> Maybe Ipv6
 parseIpv6String str = do
   let
@@ -131,8 +132,7 @@ getPoolParameters poolPubKeyHash = do
       obj <- decodeAeson aeson
       poolIdStr <- liftEither $ note (TypeMismatch "PoolPubKeyHash")
         $ ed25519KeyHashToBech32 "pool"
-        $ unwrap
-        $ poolPubKeyHash
+        $ unwrap poolPubKeyHash
       objParams :: Object Aeson <- obj .: poolIdStr
       vrfKeyhashHex <- objParams .: "vrf"
       vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
@@ -165,18 +165,25 @@ type DelegationsAndRewards =
   }
 
 -- TODO: batched variant
-getDelegationsAndRewards :: StakePubKeyHash -> QueryM DelegationsAndRewards
+getDelegationsAndRewards
+  :: StakePubKeyHash -> QueryM (Maybe DelegationsAndRewards)
 getDelegationsAndRewards pkh = do
   aeson <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
     _.delegationsAndRewards
     [ pkh ]
-  liftEither $ lmap (error <<< show) do
-    obj <- decodeAeson aeson
-    let
-      pkhStr =
-        byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $ unwrap
-          pkh
-    obj' <- decodeAeson =<< obj .: pkhStr
-    rewards <- Coin <$> obj' .: "rewards"
-    delegate <- obj' .:? "delegate"
-    pure { rewards, delegate }
+  let
+    result = do
+      obj <- decodeAeson aeson
+      let
+        pkhStr =
+          byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $
+            unwrap
+              pkh
+      decodeAeson =<< obj .: pkhStr
+  case result of
+    Left _ -> pure Nothing
+    Right obj -> Just <$> do
+      liftEither $ lmap (error <<< show) do
+        rewards <- Coin <$> obj .: "rewards"
+        delegate <- obj .:? "delegate"
+        pure { rewards, delegate }

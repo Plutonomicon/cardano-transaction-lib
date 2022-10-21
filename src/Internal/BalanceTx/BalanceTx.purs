@@ -75,7 +75,7 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Certificate(StakeRegistration)
+  ( Certificate(StakeRegistration, StakeDeregistration)
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
@@ -87,6 +87,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
+  , _withdrawals
   )
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
@@ -125,7 +126,7 @@ import Data.Foldable (fold, foldMap, foldl, foldr, sum)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
-import Data.Map (empty, filterKeys, lookup, toUnfoldable, union) as Map
+import Data.Map (empty, filterKeys, lookup, toUnfoldable, union, unionWith) as Map
 import Data.Maybe (Maybe(Nothing, Just), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -151,7 +152,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
           QueryM.getWalletAddresses <#> note CouldNotGetWalletAddresses
 
       depositValuePerCert = (unwrap pparams).stakeAddressDeposit
-      certsFee = getStakeCertsFee (unbalancedTx ^. _transaction')
+      certsFee = getStakingBalance (unbalancedTx ^. _transaction')
         depositValuePerCert
 
     ownAddrs <-
@@ -302,18 +303,28 @@ addLovelacesToTransactionOutput txOutput = do
   pure $ wrap txOutputRec
     { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
 
-getStakeCertsFee :: Transaction -> Coin -> Coin
-getStakeCertsFee tx cost =
+-- | Accounts for:
+-- |
+-- | - stake registration deposit
+-- | - stake deregistration deposit returns
+-- | - stake withdrawals fees
+getStakingBalance :: Transaction -> Coin -> Coin
+getStakingBalance tx depositLovelacesPerCert =
   let
-    fee :: BigInt
-    fee =
+    stakeDeposits :: BigInt
+    stakeDeposits =
       (tx ^. _body <<< _certs) # fold
         >>> map
-          ( \(cert :: _) -> case cert of
-              StakeRegistration _ -> unwrap cost
+          ( case _ of
+              StakeRegistration _ -> unwrap depositLovelacesPerCert
+              StakeDeregistration _ -> zero - unwrap depositLovelacesPerCert
               _ -> zero
           )
         >>> sum
+    stakeWithdrawals =
+      unwrap $ fold $ foldl (Map.unionWith append) Map.empty $ tx ^. _body <<<
+        _withdrawals
+    fee = stakeDeposits - stakeWithdrawals
   in
     Coin fee
 
