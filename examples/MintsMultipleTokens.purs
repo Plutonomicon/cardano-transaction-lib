@@ -17,7 +17,7 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
+import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
@@ -80,16 +80,19 @@ foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
 mintingPolicyRdmrInt1 :: Contract () MintingPolicy
-mintingPolicyRdmrInt1 = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  redeemerInt1
-  PlutusScriptV1
+mintingPolicyRdmrInt1 = PlutusMintingPolicy <<< plutusV1Script <$>
+  textEnvelopeBytes
+    redeemerInt1
+    PlutusScriptV1
 
 mintingPolicyRdmrInt2 :: Contract () MintingPolicy
-mintingPolicyRdmrInt2 = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  redeemerInt2
-  PlutusScriptV1
+mintingPolicyRdmrInt2 = PlutusMintingPolicy <<< plutusV1Script <$>
+  textEnvelopeBytes
+    redeemerInt2
+    PlutusScriptV1
 
 mintingPolicyRdmrInt3 :: Contract () MintingPolicy
-mintingPolicyRdmrInt3 = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  redeemerInt3
-  PlutusScriptV1
+mintingPolicyRdmrInt3 = PlutusMintingPolicy <<< plutusV1Script <$>
+  textEnvelopeBytes
+    redeemerInt3
+    PlutusScriptV1
