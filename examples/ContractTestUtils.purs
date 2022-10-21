@@ -35,13 +35,13 @@ import Contract.Test.Utils
   )
 import Contract.Test.Utils as TestUtils
 import Contract.Transaction
-  ( ScriptRef(PlutusScriptRef)
-  , TransactionHash
+  ( TransactionHash
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , balanceTx
   , getTxFinalFee
   , lookupTxHash
+  , scriptRefFromMintingPolicy
   , signTransaction
   , submit
   )
@@ -51,8 +51,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
 import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
@@ -112,7 +110,7 @@ mkAssertions params@(ContractParams p) = do
 
       , \{ txOutputUnderTest } ->
           TestUtils.assertOutputHasRefScript
-            (PlutusScriptRef $ unwrap p.mintingPolicy)
+            (scriptRefFromMintingPolicy p.mintingPolicy)
             (label txOutputUnderTest "Sender's output with reference script")
 
       , \{ txHash } ->
@@ -144,7 +142,7 @@ contract params@(ContractParams p) = do
 
       , mustPayToPubKeyStakeAddressWithDatumAndScriptRef ownPkh p.datumToAttach
           DatumWitness
-          (PlutusScriptRef $ unwrap p.mintingPolicy)
+          (scriptRefFromMintingPolicy p.mintingPolicy)
           nonAdaValue
       ]
 

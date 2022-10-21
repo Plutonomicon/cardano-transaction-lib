@@ -20,6 +20,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustHashDatum
       , MustSatisfyAnyOf
       , MustNotBeValid
+      , MustMintValueUsingNativeScript
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -32,6 +33,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
+  , mustMintCurrencyUsingNativeScript
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
@@ -127,6 +129,7 @@ data TxConstraint
   | MustReferenceOutput TransactionInput
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
       (Maybe InputWithScriptRef)
+  | MustMintValueUsingNativeScript NativeScript TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
@@ -443,6 +446,15 @@ mustMintCurrency
 mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph unitRedeemer
 
+mustMintCurrencyUsingNativeScript
+  :: forall (i :: Type) (o :: Type)
+   . NativeScript
+  -> TokenName
+  -> BigInt
+  -> TxConstraints i o
+mustMintCurrencyUsingNativeScript ns tk i = singleton
+  (MustMintValueUsingNativeScript ns tk i)
+
 -- | Create the given amount of the currency using a reference minting policy.
 mustMintCurrencyUsingScriptRef
   :: forall (i :: Type) (o :: Type)
@@ -629,6 +641,7 @@ modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
       MustHashDatum _ _ -> false
       MustIncludeDatum _ -> false
       MustMintValue _ _ _ _ _ -> true
+      MustMintValueUsingNativeScript _ _ _ -> true
       MustNotBeValid -> false
       MustPayToNativeScript _ vl -> not (isZero vl)
       MustPayToPubKeyAddress _ _ _ _ vl -> not (isZero vl)
