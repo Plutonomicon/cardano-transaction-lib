@@ -9,6 +9,7 @@ module Ctl.Internal.Types.PubKeyHash
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
+  , ed25519RewardAddress
   ) where
 
 import Prelude

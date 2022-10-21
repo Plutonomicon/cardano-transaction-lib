@@ -11,6 +11,7 @@ module Ctl.Internal.Types.ScriptLookups
       , CannotMakeValue
       , CannotQueryDatum
       , CannotSatisfyAny
+      , CannotWithdrawRewards
       , DatumNotFound
       , DatumWrongHash
       , MintingPolicyHashNotCurrencySymbol
@@ -57,7 +58,12 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (enterpriseAddressValidatorHash)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Certificate(StakeRegistration, PoolRegistration, StakeDelegation)
+  ( Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , PoolRegistration
+      , StakeDelegation
+      )
   , Costmdls
   , Transaction
   , TransactionOutput(TransactionOutput)
@@ -73,13 +79,13 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
+  , _withdrawals
   , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Ctl.Internal.Cardano.Types.Value
   ( CurrencySymbol
   , Value
-  , coinToValue
   , getNonAdaAsset
   , isZero
   , mkSingletonValue'
@@ -100,6 +106,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.Pools (getDelegationsAndRewards)
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
@@ -137,6 +144,7 @@ import Ctl.Internal.Types.OutputDatum
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , StakePubKeyHash
+  , ed25519RewardAddress
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
@@ -157,6 +165,8 @@ import Ctl.Internal.Types.TxConstraints
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
+      , MustDelegateStake
+      , MustDeregisterStakePubKey
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
@@ -166,16 +176,16 @@ import Ctl.Internal.Types.TxConstraints
       , MustPayToScript
       , MustProduceAtLeast
       , MustReferenceOutput
+      , MustRegisterPool
+      , MustRegisterStakePubKey
+      , MustRegisterStakeScript
       , MustSatisfyAnyOf
       , MustSpendAtLeast
       , MustSpendNativeScriptOutput
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
-      , MustRegisterStakePubKey
-      , MustRegisterStakeScript
-      , MustRegisterPool
-      , MustDelegateStake
       , MustValidateIn
+      , MustWithdrawStakePubKey
       )
   , TxConstraints(TxConstraints)
   , utxoWithScriptRef
@@ -216,7 +226,7 @@ import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
-import Data.Map (insert, toUnfoldable) as Map
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Set (insert) as Set
@@ -807,30 +817,31 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     _valueSpentBalancesOutputs <>= provideValue value'
 
 data MkUnbalancedTxError
-  = TypeCheckFailed TypeCheckError
-  | ModifyTx ModifyTxError
-  | TxOutRefNotFound TransactionInput
-  | TxOutRefWrongType TransactionInput
-  | DatumNotFound DataHash
-  | MintingPolicyNotFound MintingPolicyHash
-  | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
-  | CannotMakeValue CurrencySymbol TokenName BigInt
-  | ValidatorHashNotFound ValidatorHash
-  | WrongRefScriptHash (Maybe ScriptHash)
-  | OwnPubKeyAndStakeKeyMissing
-  | TypedValidatorMissing
-  | DatumWrongHash DataHash Datum
+  = CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
+  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotFindDatum
-  | CannotQueryDatum DataHash
-  | CannotHashDatum Datum
-  | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | MkTypedTxOutFailed
-  | TypedTxOutHasNoDatumHash
+  | CannotHashDatum Datum
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
-  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
+  | CannotMakeValue CurrencySymbol TokenName BigInt
+  | CannotQueryDatum DataHash
+  | CannotWithdrawRewards StakePubKeyHash
+  | DatumNotFound DataHash
+  | DatumWrongHash DataHash Datum
+  | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
+  | MintingPolicyNotFound MintingPolicyHash
+  | MkTypedTxOutFailed
+  | ModifyTx ModifyTxError
+  | OwnPubKeyAndStakeKeyMissing
+  | TxOutRefNotFound TransactionInput
+  | TxOutRefWrongType TransactionInput
+  | TypeCheckFailed TypeCheckError
+  | TypedTxOutHasNoDatumHash
+  | TypedValidatorMissing
+  | ValidatorHashNotFound ValidatorHash
+  | WrongRefScriptHash (Maybe ScriptHash)
   | CannotSatisfyAny
 
 derive instance Generic MkUnbalancedTxError _
@@ -1090,7 +1101,6 @@ processConstraint mpsMap osMap = do
         datum' <- for mDatum \(dat /\ datp) -> do
           when (datp == DatumWitness) $ ExceptT $ addDatum dat
           outputDatum dat datp
-
         let
           address = case skh of
             Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
@@ -1142,15 +1152,10 @@ processConstraint mpsMap osMap = do
       let
         cert = StakeRegistration $ keyHashCredential $ unwrap $ unwrap skh
       _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
-      -- cps <- get
-      -- let
-      --   lookups = cps.lookups
-      -- pkh <- liftM CannotSatisfyAny (unwrap lookups).ownPaymentPubKeyHash
-      pparams <- asks $ _.runtime >>> _.pparams
-      -- let skh2 = (unwrap lookups).ownStakePubKeyHash
-      _valueSpentBalancesOutputs <>= provideValue
-        ( coinToValue (unwrap pparams).stakeAddressDeposit
-        )
+    MustDeregisterStakePubKey skh -> runExceptT do
+      let
+        cert = StakeDeregistration $ keyHashCredential $ unwrap $ unwrap skh
+      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
     -- TODO: test
     MustRegisterStakeScript script redeemerDatum -> runExceptT do
       let
@@ -1175,6 +1180,14 @@ processConstraint mpsMap osMap = do
         cert = StakeDelegation (keyHashCredential $ unwrap $ unwrap $ skh)
           (unwrap pkh)
       _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+    MustWithdrawStakePubKey spkh -> runExceptT do
+      networkId <- lift getNetworkId
+      mbRewards <- lift $ lift $ getDelegationsAndRewards spkh
+      { rewards } <- ExceptT $ pure $ note (CannotWithdrawRewards spkh)
+        mbRewards
+      let rewardAddress = ed25519RewardAddress networkId (unwrap spkh)
+      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+        Map.union (Map.singleton rewardAddress rewards)
     MustSatisfyAnyOf xs -> do
       cps <- get
       let

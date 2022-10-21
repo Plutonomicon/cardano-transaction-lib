@@ -19,16 +19,17 @@ module Ctl.Internal.Types.TxConstraints
       , MustPayToNativeScript
       , MustHashDatum
       , MustRegisterStakePubKey
+      , MustDeregisterStakePubKey
       , MustRegisterStakeScript
       , MustRegisterPool
       , MustDelegateStake
+      , MustWithdrawStakePubKey
       , MustSatisfyAnyOf
       , MustNotBeValid
       )
   , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
-  , modifiesUtxoSet
   , mustBeSignedBy
   , mustHashDatum
   , mustIncludeDatum
@@ -54,6 +55,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustReferenceOutput
   , mustRegisterStakePubKey
   , mustRegisterPool
+  , mustDeregisterStakePubKey
   , mustDelegateStake
   , mustSatisfyAnyOf
   , mustSpendAtLeast
@@ -62,6 +64,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
+  , mustWithdrawStakePubKey
   , mustValidateIn
   , mustNotBeValid
   , pubKeyPayments
@@ -106,11 +109,11 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
-import Data.Array (concat, (:))
+import Data.Array ((:))
 import Data.Array as Array
 import Data.Bifunctor (class Bifunctor)
 import Data.BigInt (BigInt)
-import Data.Foldable (class Foldable, any, foldMap, foldl, foldr, null)
+import Data.Foldable (class Foldable, foldMap, foldl, foldr)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Map (Map, fromFoldableWith, toUnfoldable)
@@ -150,9 +153,11 @@ data TxConstraint
   | MustPayToScript ValidatorHash Datum DatumPresence (Maybe ScriptRef) Value
   | MustHashDatum DataHash Datum
   | MustRegisterStakePubKey StakePubKeyHash
+  | MustDeregisterStakePubKey StakePubKeyHash
   | MustRegisterStakeScript StakeValidator Redeemer
   | MustRegisterPool PoolRegistrationParams
   | MustDelegateStake StakePubKeyHash PoolPubKeyHash
+  | MustWithdrawStakePubKey StakePubKeyHash
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
 
@@ -544,12 +549,19 @@ mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 mustRegisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 
+mustDeregisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
+mustDeregisterStakePubKey = singleton <<< MustDeregisterStakePubKey
+
 mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
 
 mustDelegateStake
   :: forall i o. StakePubKeyHash -> PoolPubKeyHash -> TxConstraints i o
 mustDelegateStake spkh ppkh = singleton $ MustDelegateStake spkh ppkh
+
+mustWithdrawStakePubKey
+  :: forall i o. StakePubKeyHash -> TxConstraints i o
+mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
 
 -- | Attempts to solve, in order, a sequence of constraints until the first
 -- | successful try.
@@ -646,36 +658,3 @@ requiredDatums = foldMap f <<< _.constraints <<< unwrap
   f :: TxConstraint -> Array Datum
   f (MustIncludeDatum dt) = Array.singleton dt
   f _ = []
-
--- | Check whether every transaction that satisfies the constraints has to
--- | modify the UTXO set.
-modifiesUtxoSet :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
-modifiesUtxoSet (TxConstraints { constraints, ownInputs, ownOutputs }) =
-  let
-    requiresInputOutput :: TxConstraint -> Boolean
-    requiresInputOutput = case _ of
-      MustBeSignedBy _ -> false
-      MustHashDatum _ _ -> false
-      MustIncludeDatum _ -> false
-      MustMintValue _ _ _ _ _ -> true
-      MustNotBeValid -> false
-      MustPayToNativeScript _ vl -> not (isZero vl)
-      MustPayToPubKeyAddress _ _ _ _ vl -> not (isZero vl)
-      MustPayToScript _ _ _ _ vl -> not (isZero vl)
-      MustProduceAtLeast _ -> true
-      MustReferenceOutput _ -> false
-      MustSatisfyAnyOf xs -> any requiresInputOutput $ concat xs
-      MustSpendAtLeast _ -> true
-      MustSpendNativeScriptOutput _ _ -> true
-      MustSpendPubKeyOutput _ -> true
-      MustSpendScriptOutput _ _ _ -> true
-      MustRegisterStakePubKey _ -> true
-      MustRegisterStakeScript _ _ -> true
-      MustRegisterPool _ -> true
-      MustDelegateStake _ _ -> true
-      MustValidateIn _ -> false
-
-  in
-    any requiresInputOutput constraints
-      || not (null ownInputs)
-      || not (null ownOutputs)
