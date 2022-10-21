@@ -27,10 +27,12 @@ import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
+import Ctl.Examples.NativeScriptMints as NativeScriptMints
 import Ctl.Examples.OneShotMinting as OneShotMinting
 import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
+import Ctl.Examples.PlutusV2.ReferenceInputs as ReferenceInputsV2
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.Wallet as Wallet
@@ -103,6 +105,7 @@ wallets =
 examples :: Array (String /\ Contract () Unit)
 examples =
   [ "AlwaysMints" /\ AlwaysMints.contract
+  , "NativeScriptMints" /\ NativeScriptMints.contract
   , "AlwaysSucceeds" /\ AlwaysSucceeds.contract
   , "AlwaysSucceedsV2" /\ AlwaysSucceedsV2.contract
   , "Datums" /\ Datums.contract
@@ -113,6 +116,7 @@ examples =
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
+  , "ReferenceInputs" /\ ReferenceInputsV2.contract
   ]
 
 -- Address is:

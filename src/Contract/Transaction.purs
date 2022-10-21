@@ -72,6 +72,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
   ) as NativeScript
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  , scriptRefFromMintingPolicy
   ) as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
@@ -88,7 +89,7 @@ import Ctl.Internal.Cardano.Types.Transaction
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
+  , Ed25519Signature
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
@@ -98,7 +99,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(PublicKey)
+  , PublicKey
   , Redeemer
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)

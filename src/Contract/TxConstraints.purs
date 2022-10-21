@@ -32,6 +32,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
+  , mustMintCurrencyUsingNativeScript
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
