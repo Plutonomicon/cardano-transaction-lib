@@ -22,7 +22,8 @@ module Ctl.Internal.Types.TxConstraints
       , MustDeregisterStakePubKey
       , MustRegisterStakeScript
       , MustRegisterPool
-      , MustDelegateStake
+      , MustDelegateStakePubKey
+      , MustDelegateStakeScript
       , MustWithdrawStakePubKey
       , MustSatisfyAnyOf
       , MustNotBeValid
@@ -54,9 +55,11 @@ module Ctl.Internal.Types.TxConstraints
   , mustProduceAtLeastTotal
   , mustReferenceOutput
   , mustRegisterStakePubKey
+  , mustRegisterStakeScript
   , mustRegisterPool
   , mustDeregisterStakePubKey
-  , mustDelegateStake
+  , mustDelegateStakePubKey
+  , mustDelegateStakeScript
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -92,7 +95,7 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets, isZero)
+import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Interval
   ( POSIXTimeRange
@@ -154,9 +157,10 @@ data TxConstraint
   | MustHashDatum DataHash Datum
   | MustRegisterStakePubKey StakePubKeyHash
   | MustDeregisterStakePubKey StakePubKeyHash
-  | MustRegisterStakeScript StakeValidator Redeemer
+  | MustRegisterStakeScript StakeValidator -- TODO: use only hash
   | MustRegisterPool PoolRegistrationParams
-  | MustDelegateStake StakePubKeyHash PoolPubKeyHash
+  | MustDelegateStakePubKey StakePubKeyHash PoolPubKeyHash
+  | MustDelegateStakeScript StakeValidator Redeemer PoolPubKeyHash
   | MustWithdrawStakePubKey StakePubKeyHash
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
@@ -549,15 +553,30 @@ mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 mustRegisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 
+mustRegisterStakeScript :: forall i o. StakeValidator -> TxConstraints i o
+mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
+
 mustDeregisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustDeregisterStakePubKey = singleton <<< MustDeregisterStakePubKey
 
 mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
 
-mustDelegateStake
+mustDelegateStakePubKey
   :: forall i o. StakePubKeyHash -> PoolPubKeyHash -> TxConstraints i o
-mustDelegateStake spkh ppkh = singleton $ MustDelegateStake spkh ppkh
+mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
+  ppkh
+
+mustDelegateStakeScript
+  :: forall i o
+   . StakeValidator
+  -> Redeemer
+  -> PoolPubKeyHash
+  -> TxConstraints i o
+mustDelegateStakeScript sv redeemer ppkh = singleton $ MustDelegateStakeScript
+  sv
+  redeemer
+  ppkh
 
 mustWithdrawStakePubKey
   :: forall i o. StakePubKeyHash -> TxConstraints i o

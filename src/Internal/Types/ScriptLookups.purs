@@ -149,7 +149,7 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend, Reward))
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -165,7 +165,8 @@ import Ctl.Internal.Types.TxConstraints
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
-      , MustDelegateStake
+      , MustDelegateStakePubKey
+      , MustDelegateStakeScript
       , MustDeregisterStakePubKey
       , MustHashDatum
       , MustIncludeDatum
@@ -960,7 +961,7 @@ processConstraint mpsMap osMap = do
       es <- lift getEraSummaries
       ss <- lift getSystemStart
       runExceptT do
-        { timeToLive, validityStartInterval } <- ExceptT $ liftEffect $
+        ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
           posixTimeRangeToTransactionValidity es ss posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsToTxBody <<< _Newtype %=
@@ -1037,7 +1038,7 @@ processConstraint mpsMap osMap = do
               redeemer = T.Redeemer
                 { tag: Spend
                 , index: zero -- hardcoded and tweaked after balancing.
-                , data: unwrap red
+                , "data": unwrap red
                 , exUnits: zero
                 }
             _valueSpentBalancesInputs <>= provideValue amount
@@ -1082,7 +1083,7 @@ processConstraint mpsMap osMap = do
         redeemer = T.Redeemer
           { tag: Mint
           , index: zero
-          , data: unwrap red
+          , "data": unwrap red
           , exUnits: zero
           }
       -- Remove mint redeemers from array before reindexing.
@@ -1149,41 +1150,51 @@ processConstraint mpsMap osMap = do
       if mdh == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustRegisterStakePubKey skh -> runExceptT do
-      let
-        cert = StakeRegistration $ keyHashCredential $ unwrap $ unwrap skh
-      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+      lift $ addCertificate
+        $ StakeRegistration
+        $ keyHashCredential
+        $ unwrap
+        $ unwrap skh
     MustDeregisterStakePubKey skh -> runExceptT do
-      let
-        cert = StakeDeregistration $ keyHashCredential $ unwrap $ unwrap skh
-      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+      lift $ addCertificate
+        $ StakeDeregistration
+        $ keyHashCredential
+        $ unwrap
+        $ unwrap skh
     -- TODO: test
-    MustRegisterStakeScript script redeemerDatum -> runExceptT do
-      let
-        cert = StakeRegistration $ scriptHashCredential $ plutusScriptHash $
+    MustRegisterStakeScript script -> runExceptT do
+      lift $ addCertificate
+        $ StakeRegistration
+        $ scriptHashCredential
+        $ plutusScriptHash
+        $
           unwrap script
-        redeemer =
-          T.Redeemer
+    MustRegisterPool poolParams -> runExceptT do
+      lift $ addCertificate $ PoolRegistration poolParams
+    MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
+      lift $ addCertificate $
+        StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
+          (unwrap poolKeyHash)
+    MustDelegateStakeScript stakeValidator redeemerData poolKeyHash ->
+      runExceptT do
+        let
+          cert = StakeDelegation
+            (scriptHashCredential $ plutusScriptHash $ unwrap stakeValidator)
+            (unwrap poolKeyHash)
+          redeemer = T.Redeemer
             { tag: Cert
             , index: zero -- hardcoded and tweaked after balancing.
-            , data: unwrap redeemerDatum
+            , "data": unwrap redeemerData
             , exUnits: zero
             }
-      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
-      ExceptT $ attachToCps attachRedeemer redeemer
-      ExceptT $ attachToCps attachPlutusScript $ unwrap script
-    MustRegisterPool poolParams -> runExceptT do
-      let
-        cert = PoolRegistration poolParams
-      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
-    MustDelegateStake skh pkh -> runExceptT do
-      let
-        cert = StakeDelegation (keyHashCredential $ unwrap $ unwrap $ skh)
-          (unwrap pkh)
-      _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+        ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
+        ExceptT $ attachToCps attachRedeemer redeemer
+        _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
+        lift $ addCertificate cert
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ getDelegationsAndRewards spkh
-      { rewards } <- ExceptT $ pure $ note (CannotWithdrawRewards spkh)
+      ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewards spkh)
         mbRewards
       let rewardAddress = ed25519RewardAddress networkId (unwrap spkh)
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
@@ -1250,6 +1261,13 @@ addDatum
 addDatum dat = runExceptT do
   ExceptT $ attachToCps attachDatum dat
   _datums <>= Array.singleton dat
+
+addCertificate
+  :: forall (a :: Type)
+   . Certificate
+  -> ConstraintsM a Unit
+addCertificate cert =
+  _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction

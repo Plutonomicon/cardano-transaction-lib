@@ -28,7 +28,8 @@ import Ctl.Internal.Types.TxConstraints
   , addTxIn
   , isSatisfiable
   , mustBeSignedBy
-  , mustDelegateStake
+  , mustDelegateStakePubKey
+  , mustDelegateStakeScript
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
