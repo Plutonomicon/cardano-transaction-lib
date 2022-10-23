@@ -11,12 +11,8 @@ import Contract.ScriptLookups (UnattachedUnbalancedTx)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.Time
-  ( Extended(Finite)
-  , LowerBound(LowerBound)
-  , POSIXTime(POSIXTime)
-  , Slot
-  , UpperBound(UpperBound)
-  , mkInterval
+  ( Slot
+  , mkFiniteInterval
   )
 import Contract.TxConstraints as Constraints
 import Data.BigInt as BigInt
@@ -30,19 +26,13 @@ contract = do
   now <- currentTime
   let
     timeRange1 =
-      mkInterval
-        (LowerBound (Finite now) true)
-        ( UpperBound (Finite (POSIXTime (unwrap now + BigInt.fromInt 3600000)))
-            true
-        )
+      mkFiniteInterval
+        now
+        $ wrap (unwrap now + BigInt.fromInt 3600000)
     timeRange2 =
-      mkInterval
-        ( LowerBound (Finite (POSIXTime (unwrap now + BigInt.fromInt 8000000)))
-            true
-        )
-        ( UpperBound (Finite (POSIXTime (unwrap now + BigInt.fromInt 800000)))
-            true
-        )
+      mkFiniteInterval
+        (wrap (unwrap now + BigInt.fromInt 8000000))
+        (wrap (unwrap now + BigInt.fromInt 800000))
 
     constraints1 :: Constraints.TxConstraints Void Void
     constraints1 = Constraints.mustValidateIn timeRange1
