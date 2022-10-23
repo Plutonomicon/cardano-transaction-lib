@@ -2,7 +2,7 @@ module Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
-  , Interval
+  , Interval(EmptyInterval, LowerRay, UpperRay, AlwaysInterval, FiniteInterval)
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -1310,7 +1310,8 @@ instance DecodeAeson ToOnChainPosixTimeRangeError where
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain
 -- | POSIXTimeRange as follows:
 -- | 1) `POSIXTimeRange` -> `SlotRange`
--- | 2) `SlotRange` -> `TransactionValidity` 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
+-- | 2) `SlotRange` -> `TransactionValidity` 
+-- | 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
 -- | `OnchainPOSIXTimeRange` is intended to equal the validity range found in
 -- | the on-chain `ScriptContext`
 toOnchainPosixTimeRange
