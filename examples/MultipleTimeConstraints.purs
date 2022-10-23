@@ -10,10 +10,7 @@ import Contract.Monad (Contract, launchAff_, liftedE, runContract)
 import Contract.ScriptLookups (UnattachedUnbalancedTx)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Time
-  ( Slot
-  , mkFiniteInterval
-  )
+import Contract.Time (Slot, mkFiniteInterval, singleton)
 import Contract.TxConstraints as Constraints
 import Data.BigInt as BigInt
 
@@ -30,9 +27,8 @@ contract = do
         now
         $ wrap (unwrap now + BigInt.fromInt 3600000)
     timeRange2 =
-      mkFiniteInterval
+      singleton
         (wrap (unwrap now + BigInt.fromInt 8000000))
-        (wrap (unwrap now + BigInt.fromInt 800000))
 
     constraints1 :: Constraints.TxConstraints Void Void
     constraints1 = Constraints.mustValidateIn timeRange1

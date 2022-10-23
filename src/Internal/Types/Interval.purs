@@ -413,7 +413,13 @@ plutusIntervalToInterval
   ) = EmptyInterval
 
 instance (Show a, Ord a, Semiring a) => Show (Interval a) where
-  show = show <<< intervalToPlutusInterval
+  show (FiniteInterval start end) = "(FiniteInterval " <> show start <> " "
+    <> show end
+    <> ")"
+  show (LowerRay end) = "(LowerRay " <> show end <> ")"
+  show (UpperRay start) = "(UpperRay " <> show start <> ")"
+  show AlwaysInterval = "(AlwaysInterval)"
+  show EmptyInterval = "(EmptyInterval)"
 
 instance Ord a => MeetSemilattice (Interval a) where
   meet = intersection
@@ -486,13 +492,14 @@ addOne x = x `add` one
 substractOne :: forall (a :: Type). Ring a => a -> a
 substractOne x = x `add` (negate one)
 
+-- | `mkFiniteInterval` a b construct the interval [a,b+1)
 mkFiniteInterval :: forall (a :: Type). Ord a => a -> a -> Interval a
-mkFiniteInterval x y = if x < y then FiniteInterval x y else EmptyInterval
+mkFiniteInterval x y = if x <= y then FiniteInterval x y else EmptyInterval
 
 -- | `singleton a` is an `Interval` that contains just `a`,
 -- | represented as [a,a+1).
 singleton :: forall (a :: Type). Ord a => Semiring a => a -> Interval a
-singleton s = mkFiniteInterval s (addOne s)
+singleton s = mkFiniteInterval s s
 
 -- | `from a` is an `Interval` that includes all values that are
 -- | greater than or equal to `a`, represented as [a,infinity].
@@ -602,7 +609,7 @@ contains EmptyInterval _ = false
 
 -- | Check if an `Interval` is empty.
 isEmpty :: forall (a :: Type). Ord a => Interval a -> Boolean
-isEmpty (FiniteInterval start end) = end <= start
+isEmpty (FiniteInterval start end) = end < start
 isEmpty EmptyInterval = true
 isEmpty _ = false
 
