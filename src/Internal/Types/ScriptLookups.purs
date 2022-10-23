@@ -51,7 +51,7 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
-import Control.Monad.Error.Class (catchError, liftEither, liftMaybe, throwError)
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
@@ -555,8 +555,7 @@ processLookupsAndConstraints
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
 
-  -- TODO : This must make us abort the constraint solving without throwing
-  timeConstraintsSolved <- liftEither $ resumeTimeConstraints constraints
+  timeConstraintsSolved <- except $ resumeTimeConstraints constraints
 
   ExceptT $ foldConstraints (processConstraint mpsMap osMap)
     timeConstraintsSolved
