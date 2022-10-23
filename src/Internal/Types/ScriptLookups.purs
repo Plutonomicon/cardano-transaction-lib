@@ -73,8 +73,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
-  , _ttl
-  , _validityStartInterval
   , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
@@ -124,14 +122,11 @@ import Ctl.Internal.Transaction
 import Ctl.Internal.Types.Any (Any)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Interval
-  ( Extended(NegInf, PosInf)
-  , LowerBound(LowerBound)
-  , POSIXTimeRange
+  ( POSIXTimeRange
   , PosixTimeToSlotError
-  , UpperBound(UpperBound)
+  , always
   , intersection
   , isEmpty
-  , mkInterval
   , posixTimeRangeToTransactionValidity
   )
 import Ctl.Internal.Types.OutputDatum
@@ -822,7 +817,7 @@ resumeTimeConstraints constraints =
     intervals = mapMaybe constraintToInterval timeConstraints
   in
     do
-      newInterval <- foldM mergeIntervals bigInterval intervals
+      newInterval <- foldM mergeIntervals always intervals
       pure $ cons (MustValidateIn newInterval) nonTimeConstraints
 
   where
@@ -838,9 +833,6 @@ resumeTimeConstraints constraints =
       if isEmpty newInterval then Left $ CannotSolveTimeConstraints interval1
         interval2
       else pure newInterval
-
-  bigInterval :: POSIXTimeRange
-  bigInterval = mkInterval (LowerBound NegInf true) (UpperBound PosInf true)
 
   constraintToInterval :: TxConstraint -> Maybe POSIXTimeRange
   constraintToInterval = case _ of

@@ -77,13 +77,12 @@ import Ctl.Internal.Types.Interval
   , from
   , hull
   , intersection
-  , interval
   , isEmpty
-  -- , isEmpty'
   , lowerBound
+  -- , isEmpty'
   , maxSlot
   , member
-  , mkInterval
+  , mkFiniteInterval
   , never
   , overlaps
   -- , overlaps'

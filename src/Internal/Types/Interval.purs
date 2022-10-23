@@ -42,6 +42,7 @@ module Ctl.Internal.Types.Interval
   , isEmpty'
   , lowerBound
   , maxSlot
+  , mkFiniteInterval
   , member
   , never
   , overlaps
@@ -77,8 +78,6 @@ import Aeson.Decode ((</$\>), (</*\>))
 import Aeson.Decode as Decode
 import Aeson.Encode ((>$<), (>/\<))
 import Aeson.Encode as Encode
-import Contract.Prelude (class Foldable, class Traversable, traverseDefault)
-import Control.Applicative (class Applicative)
 import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -115,7 +114,6 @@ import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Data.Either (Either(Right), note)
-import Data.Enum (class Enum, succ)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
 import Data.Lattice
@@ -131,7 +129,6 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Foreign.Object (Object)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
@@ -265,18 +262,18 @@ instance
 instance Show a => Show (PlutusInterval a) where
   show = genericShow
 
-instance (Ord a, Newtype a BigInt) => JoinSemilattice (PlutusInterval a) where
+instance (Ord a, Ord a, Ring a) => JoinSemilattice (PlutusInterval a) where
   join i1 i2 = intervalToPlutusInterval $
     hull (plutusIntervalToInterval i1) (plutusIntervalToInterval i2)
 
-instance (Ord a, Newtype a BigInt) => BoundedJoinSemilattice (PlutusInterval a) where
+instance (Ord a, Ring a) => BoundedJoinSemilattice (PlutusInterval a) where
   bottom = mkPlutusInterval (LowerBound PosInf true) (UpperBound NegInf true)
 
-instance (Ord a, Newtype a BigInt) => MeetSemilattice (PlutusInterval a) where
+instance (Ord a, Ring a) => MeetSemilattice (PlutusInterval a) where
   meet i1 i2 = intervalToPlutusInterval $
     intersection (plutusIntervalToInterval i1) (plutusIntervalToInterval i2)
 
-instance (Ord a, Newtype a BigInt) => BoundedMeetSemilattice (PlutusInterval a) where
+instance (Ord a, Ring a) => BoundedMeetSemilattice (PlutusInterval a) where
   top = intervalToPlutusInterval always
 
 instance ToData a => ToData (PlutusInterval a) where
@@ -308,7 +305,8 @@ derive instance Functor Interval
 
 intervalToPlutusInterval
   :: forall (a :: Type)
-   . Newtype a BigInt
+   . Semiring a
+  => Ord a
   => Interval a
   -> PlutusInterval a
 intervalToPlutusInterval (FiniteInterval start end) = PlutusInterval
@@ -334,7 +332,7 @@ intervalToPlutusInterval EmptyInterval = PlutusInterval
 
 plutusIntervalToInterval
   :: forall (a :: Type)
-   . Newtype a BigInt
+   . Ring a
   => Ord a
   => PlutusInterval a
   -> Interval a
@@ -414,13 +412,13 @@ plutusIntervalToInterval
       }
   ) = EmptyInterval
 
-instance (Show a, Newtype a BigInt) => Show (Interval a) where
+instance (Show a, Ord a, Semiring a) => Show (Interval a) where
   show = show <<< intervalToPlutusInterval
 
 instance Ord a => MeetSemilattice (Interval a) where
   meet = intersection
 
-instance (ToData a, Newtype a BigInt) => ToData (Interval a) where
+instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
   toData = toData <<< intervalToPlutusInterval
 
 instance Ord a => JoinSemilattice (Interval a) where
@@ -432,10 +430,10 @@ instance Ord a => BoundedMeetSemilattice (Interval a) where
 instance Ord a => BoundedJoinSemilattice (Interval a) where
   bottom = EmptyInterval
 
-instance (FromData a, Newtype a BigInt, Ord a) => FromData (Interval a) where
+instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
   fromData x = plutusIntervalToInterval <$> fromData x
 
-instance (EncodeAeson a, Newtype a BigInt) => EncodeAeson (Interval POSIXTime) where
+instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval POSIXTime) where
   encodeAeson' = encodeAeson' <<< intervalToPlutusInterval
 
 --------------------------------------------------------------------------------
@@ -449,6 +447,8 @@ derive instance Generic POSIXTime _
 derive instance Newtype POSIXTime _
 derive newtype instance Eq POSIXTime
 derive newtype instance Ord POSIXTime
+derive newtype instance Semiring POSIXTime
+derive newtype instance Ring POSIXTime
 derive newtype instance FromData POSIXTime
 derive newtype instance ToData POSIXTime
 derive newtype instance DecodeAeson POSIXTime
@@ -480,18 +480,18 @@ lowerBound a = LowerBound (Finite a) true
 upperBound :: forall (a :: Type). a -> UpperBound a
 upperBound a = UpperBound (Finite a) true
 
-addOne :: forall (a :: Type). Newtype a BigInt => a -> a
-addOne x = wrap (unwrap x + BigInt.fromInt 1)
+addOne :: forall (a :: Type). Semiring a => a -> a
+addOne x = x `add` one
 
-substractOne :: forall (a :: Type). Newtype a BigInt => a -> a
-substractOne x = wrap (unwrap x + BigInt.fromInt (-1))
+substractOne :: forall (a :: Type). Ring a => a -> a
+substractOne x = x `add` (negate one)
 
 mkFiniteInterval :: forall (a :: Type). Ord a => a -> a -> Interval a
 mkFiniteInterval x y = if x < y then FiniteInterval x y else EmptyInterval
 
 -- | `singleton a` is an `Interval` that contains just `a`,
 -- | represented as [a,a+1).
-singleton :: forall (a :: Type). Ord a => Newtype a BigInt => a -> Interval a
+singleton :: forall (a :: Type). Ord a => Semiring a => a -> Interval a
 singleton s = mkFiniteInterval s (addOne s)
 
 -- | `from a` is an `Interval` that includes all values that are
@@ -519,8 +519,8 @@ member :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 member a (FiniteInterval start end) = start <= a && a <= end
 member a (LowerRay end) = a <= end
 member a (UpperRay start) = start <= a
-member a AlwaysInterval = true
-member a EmptyInterval = false
+member _ AlwaysInterval = true
+member _ EmptyInterval = false
 
 -- | Check whether two intervals overlap, that is, whether there is a value that
 -- | is a member of both intervals.
@@ -568,13 +568,13 @@ intersection i1 i2 = intersection i2 i1
 hull :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 hull (FiniteInterval start end) (FiniteInterval start' end') =
   mkFiniteInterval (min start start') (max end end')
-hull (FiniteInterval start end) (LowerRay end') =
+hull (FiniteInterval _ end) (LowerRay end') =
   LowerRay (max end end')
-hull (FiniteInterval start end) (UpperRay start') =
+hull (FiniteInterval start _) (UpperRay start') =
   UpperRay (min start start')
 hull (LowerRay end) (LowerRay end') =
   LowerRay (max end end')
-hull (LowerRay end) (UpperRay start') = AlwaysInterval
+hull (LowerRay _) (UpperRay _) = AlwaysInterval
 hull (UpperRay start) (UpperRay start') =
   UpperRay (min start start')
 hull _ AlwaysInterval = AlwaysInterval
@@ -589,14 +589,14 @@ contains (FiniteInterval start end) (FiniteInterval start' end') =
   start <= start' && end' <= end
 contains (FiniteInterval _ _) EmptyInterval = true
 contains (FiniteInterval _ _) _ = false
-contains (LowerRay end) (FiniteInterval start' end') = end' <= end
+contains (LowerRay end) (FiniteInterval _' end') = end' <= end
 contains (LowerRay end) (LowerRay end') = end' <= end
-contains (LowerRay end) EmptyInterval = true
-contains (LowerRay end) _ = false
-contains (UpperRay start) (FiniteInterval start' end') = start <= start'
+contains (LowerRay _) EmptyInterval = true
+contains (LowerRay _) _ = false
+contains (UpperRay start) (FiniteInterval start' _) = start <= start'
 contains (UpperRay start) (UpperRay start') = start <= start'
-contains (UpperRay start) EmptyInterval = true
-contains (UpperRay start) _ = false
+contains (UpperRay _) EmptyInterval = true
+contains (UpperRay _) _ = false
 contains AlwaysInterval _ = true
 contains EmptyInterval _ = false
 
@@ -618,15 +618,15 @@ isEmpty' = isEmpty
 before :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 before h (FiniteInterval start _) = h < start
 before h (UpperRay start) = h < start
-before h EmptyInterval = true
-before h _ = false
+before _ EmptyInterval = true
+before _ _ = false
 
 -- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 after h (FiniteInterval _ end) = end < h
 after h (LowerRay end) = end < h
-after h EmptyInterval = true
-after h _ = false
+after _ EmptyInterval = true
+after _ _ = false
 
 -- | A newtype wrapper over `POSIXTimeRange` to represent the on-chain version
 -- | of an off-chain `POSIXTimeRange`. In particular, there are a few steps
@@ -1157,17 +1157,16 @@ type TransactionValiditySlot =
 -- | The only finite interval we can represent is of the form [a,b)
 -- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
 -- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
-
 slotRangeToTransactionValidity
   :: SlotRange
   -> TransactionValiditySlot
 slotRangeToTransactionValidity (FiniteInterval start end) =
   { validityStartInterval: pure start
-  , timeToLive: Just $ wrap (unwrap end + wrap 1)
+  , timeToLive: wrap <$> BigNum.add BigNum.one (unwrap end)
   }
 slotRangeToTransactionValidity (LowerRay end) =
   { validityStartInterval: Nothing
-  , timeToLive: Just $ wrap (unwrap end + wrap 1)
+  , timeToLive: wrap <$> BigNum.add BigNum.one (unwrap end)
   }
 slotRangeToTransactionValidity (UpperRay start) =
   { validityStartInterval: pure start, timeToLive: Nothing }
