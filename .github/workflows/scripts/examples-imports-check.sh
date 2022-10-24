@@ -6,7 +6,7 @@ examples_imports_check() {
 
   for example_purs in $(find $examples_path -type f -name *.purs ! -path "$examples_path/KeyWallet/Internal/*"); do
     if $(grep -q "^import Ctl.Internal.*" "$example_purs"); then
-      examples_with_internal_imports+="\n$(basename $example_purs)"
+      examples_with_internal_imports+="\n${example_purs:2}"
     fi
   done
 
