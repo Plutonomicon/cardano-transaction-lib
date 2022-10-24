@@ -24,6 +24,7 @@ import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs as ReferenceInputsV2
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignMultiple as SignMultiple
+import Ctl.Examples.TxChaining as TxChaining
 import Ctl.Examples.Wallet as Wallet
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint, MockLode)
@@ -61,6 +62,7 @@ examples = Map.fromFoldable
   , "Datums" /\ Datums.contract
   , "Wallet" /\ Wallet.contract
   , "Pkh2Pkh" /\ Pkh2Pkh.contract
+  , "TxChaining" /\ TxChaining.contract
   , "SendsToken" /\ SendsToken.contract
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
