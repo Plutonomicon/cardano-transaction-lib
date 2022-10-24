@@ -2,7 +2,8 @@ module Ctl.Internal.Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
-  , StakeValidator(StakeValidator)
+  , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
+  , NativeScriptStakeValidator(NativeScriptStakeValidator)
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
@@ -26,6 +27,7 @@ import Aeson
   , getField
   , toStringifiedNumbersJson
   )
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
@@ -132,23 +134,33 @@ instance EncodeAeson Validator where
 instance Show Validator where
   show = genericShow
 
--- | `StakeValidator` is a wrapper around `PlutusScript`s which are used as
--- | validators for withdrawals and stake address certificates.
-newtype StakeValidator = StakeValidator PlutusScript
+-- | `NativeScriptStakeValidator`s are used as validators for withdrawals and
+-- | stake address certificates.
+newtype NativeScriptStakeValidator = NativeScriptStakeValidator NativeScript
 
-derive instance Generic StakeValidator _
-derive instance Newtype StakeValidator _
-derive newtype instance Eq StakeValidator
-derive newtype instance Ord StakeValidator
+derive instance Newtype NativeScriptStakeValidator _
+derive instance Generic NativeScriptStakeValidator _
+derive instance Eq NativeScriptStakeValidator
 
-instance DecodeAeson StakeValidator where
-  decodeAeson = decodeAesonHelper "getStakeValidator" StakeValidator
+instance Show NativeScriptStakeValidator where
+  show = genericShow
 
-instance EncodeAeson StakeValidator where
-  encodeAeson' (StakeValidator script) =
+-- | `PlutusScriptStakeValidator`s are used as validators for withdrawals and
+-- | stake address certificates.
+newtype PlutusScriptStakeValidator = PlutusScriptStakeValidator PlutusScript
+
+derive instance Newtype PlutusScriptStakeValidator _
+derive instance Generic PlutusScriptStakeValidator _
+derive instance Eq PlutusScriptStakeValidator
+
+instance DecodeAeson PlutusScriptStakeValidator where
+  decodeAeson = decodeAesonHelper "getStakeValidator" PlutusScriptStakeValidator
+
+instance EncodeAeson PlutusScriptStakeValidator where
+  encodeAeson' (PlutusScriptStakeValidator script) =
     encodeAeson' { "getStakeValidator": script }
 
-instance Show StakeValidator where
+instance Show PlutusScriptStakeValidator where
   show = genericShow
 
 --------------------------------------------------------------------------------

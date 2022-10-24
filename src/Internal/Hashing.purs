@@ -31,7 +31,7 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Untagged.Union (asOneOf)
 
@@ -64,8 +64,8 @@ transactionHash =
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript
 
-scriptRefHash :: ScriptRef -> Maybe ScriptHash
+scriptRefHash :: ScriptRef -> ScriptHash
 scriptRefHash (PlutusScriptRef plutusScript) =
-  Just (plutusScriptHash plutusScript)
+  plutusScriptHash plutusScript
 scriptRefHash (NativeScriptRef nativeScript) =
-  nativeScriptHash <$> convertNativeScript nativeScript
+  nativeScriptHash $ convertNativeScript nativeScript

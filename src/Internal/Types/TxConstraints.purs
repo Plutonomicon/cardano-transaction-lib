@@ -5,28 +5,29 @@ module Ctl.Internal.Types.TxConstraints
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustIncludeDatum
-      , MustValidateIn
       , MustBeSignedBy
-      , MustSpendAtLeast
-      , MustProduceAtLeast
-      , MustSpendPubKeyOutput
-      , MustSpendScriptOutput
-      , MustSpendNativeScriptOutput
-      , MustReferenceOutput
+      , MustDelegateStakePlutusScript
+      , MustDelegateStakePubKey
+      , MustDeregisterStakePubKey
+      , MustDeregisterStakePlutusScript
+      , MustHashDatum
       , MustMintValue
+      , MustNotBeValid
+      , MustPayToNativeScript
       , MustPayToPubKeyAddress
       , MustPayToScript
-      , MustPayToNativeScript
-      , MustHashDatum
-      , MustRegisterStakePubKey
-      , MustDeregisterStakePubKey
-      , MustRegisterStakeScript
+      , MustProduceAtLeast
+      , MustReferenceOutput
       , MustRegisterPool
-      , MustDelegateStakePubKey
-      , MustDelegateStakeScript
-      , MustWithdrawStakePubKey
+      , MustRegisterStakePubKey
+      , MustRegisterStakeScript
       , MustSatisfyAnyOf
-      , MustNotBeValid
+      , MustSpendAtLeast
+      , MustSpendNativeScriptOutput
+      , MustSpendPubKeyOutput
+      , MustSpendScriptOutput
+      , MustValidateIn
+      , MustWithdrawStakePubKey
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -59,7 +60,8 @@ module Ctl.Internal.Types.TxConstraints
   , mustRegisterPool
   , mustDeregisterStakePubKey
   , mustDelegateStakePubKey
-  , mustDelegateStakeScript
+  , mustDeregisterStakePlutusScript
+  , mustDelegateStakePlutusScript
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -107,7 +109,8 @@ import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicyHash
-  , StakeValidator
+  , PlutusScriptStakeValidator
+  , StakeValidatorHash
   , ValidatorHash
   )
 import Ctl.Internal.Types.TokenName (TokenName)
@@ -157,10 +160,13 @@ data TxConstraint
   | MustHashDatum DataHash Datum
   | MustRegisterStakePubKey StakePubKeyHash
   | MustDeregisterStakePubKey StakePubKeyHash
-  | MustRegisterStakeScript StakeValidator -- TODO: use only hash
+  | MustRegisterStakeScript StakeValidatorHash
+  | MustDeregisterStakePlutusScript PlutusScriptStakeValidator Redeemer
   | MustRegisterPool PoolRegistrationParams
   | MustDelegateStakePubKey StakePubKeyHash PoolPubKeyHash
-  | MustDelegateStakeScript StakeValidator Redeemer PoolPubKeyHash
+  | MustDelegateStakePlutusScript PlutusScriptStakeValidator Redeemer
+      PoolPubKeyHash
+  -- | MustDelegateStakeNativeScript NativeScriptStakeValidator PoolPubKeyHash
   | MustWithdrawStakePubKey StakePubKeyHash
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
@@ -553,11 +559,16 @@ mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 mustRegisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 
-mustRegisterStakeScript :: forall i o. StakeValidator -> TxConstraints i o
-mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
-
 mustDeregisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustDeregisterStakePubKey = singleton <<< MustDeregisterStakePubKey
+
+mustRegisterStakeScript :: forall i o. StakeValidatorHash -> TxConstraints i o
+mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
+
+mustDeregisterStakePlutusScript
+  :: forall i o. PlutusScriptStakeValidator -> Redeemer -> TxConstraints i o
+mustDeregisterStakePlutusScript sv = singleton <<<
+  MustDeregisterStakePlutusScript sv
 
 mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
@@ -567,16 +578,17 @@ mustDelegateStakePubKey
 mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
   ppkh
 
-mustDelegateStakeScript
+mustDelegateStakePlutusScript
   :: forall i o
-   . StakeValidator
+   . PlutusScriptStakeValidator
   -> Redeemer
   -> PoolPubKeyHash
   -> TxConstraints i o
-mustDelegateStakeScript sv redeemer ppkh = singleton $ MustDelegateStakeScript
-  sv
-  redeemer
-  ppkh
+mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
+  MustDelegateStakePlutusScript
+    sv
+    redeemer
+    ppkh
 
 mustWithdrawStakePubKey
   :: forall i o. StakePubKeyHash -> TxConstraints i o

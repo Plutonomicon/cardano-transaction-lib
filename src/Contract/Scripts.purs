@@ -51,8 +51,7 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM (applyArgs) as QueryM
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
-  , scriptHash
-  , stakeValidatorHash
+  , plutusScriptStakeValidatorHash
   , validatorHash
   ) as ExportScripts
 import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
@@ -61,7 +60,7 @@ import Ctl.Internal.Types.Scripts
   ( MintingPolicy(MintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
-  , StakeValidator(StakeValidator)
+  , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
