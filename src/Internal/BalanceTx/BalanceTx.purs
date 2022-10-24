@@ -255,6 +255,11 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
       \nonSpendableInputs ->
         Map.filterKeys (not <<< flip Set.member nonSpendableInputs) utxos
 
+  -- | Determines which balancing step will be performed next.
+  -- |
+  -- | If the transaction remains unbalanced (i.e. `requiredValue != mempty`)
+  -- | after generation of change, the first balancing step (`prebalanceTx`)
+  -- | is performed, otherwise we proceed to `balanceChangeAndMinFee`.
   runNextBalancingStep
     :: UnattachedUnbalancedTx -> UtxoMap -> BalanceTxM FinalizedTransaction
   runNextBalancingStep unbalancedTx leftoverUtxos = do
@@ -269,6 +274,9 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
     { unbalancedTx, changeOutputs, leftoverUtxos } #
       if requiredValue == mempty then balanceChangeAndMinFee else prebalanceTx
 
+  -- | Selects a combination of unspent transaction outputs from the wallet's
+  -- | utxo set so that the total input value is sufficient to cover all
+  -- | transaction outputs, including generated change and min fee.
   prebalanceTx :: BalancerState -> BalanceTxM FinalizedTransaction
   prebalanceTx state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
     logBalancerState "Pre-balancing (Stage 1)" utxos state
@@ -296,6 +304,12 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
         except (getRequiredValue certsFee utxos txBody)
           >>= performMultiAssetSelection strategy leftoverUtxos
 
+  -- | Calculates execution units for each script in the transaction and sets
+  -- | min fee.
+  -- |
+  -- | The transaction must be pre-balanced before evaluating execution units,
+  -- | since this pre-condition is sometimes required for successfull script
+  -- | execution during transaction evaluation.
   balanceChangeAndMinFee :: BalancerState -> BalanceTxM FinalizedTransaction
   balanceChangeAndMinFee
     state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
@@ -357,14 +371,34 @@ setTxChangeOutputs outputs = _body' <<< _outputs %~ flip append outputs
 -- Making change
 --------------------------------------------------------------------------------
 
+-- | Constructs change outputs to return all excess `Value` back to the owner's
+-- | address.
+-- |
+-- | Returns an array of change outputs even if the transaction becomes
+-- | unbalanced after attaching them (which can be the case if the specified
+-- | inputs do not provide enough ada to satisfy minimum ada quantites of the
+-- | change outputs generated).
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1396
 makeChange
   :: Address -> Value -> Coin -> TxBody -> BalanceTxM (Array TransactionOutput)
 makeChange changeAddress inputValue certsFee txBody =
-  map (mkChangeOutput changeAddress) <$>
-    ( assignCoinsToChangeValues changeAddress excessCoin
-        =<< splitOversizedValues changeValueOutputCoinPairs
-    )
+  if excessValue == mempty then pure mempty
+  else
+    map (mkChangeOutput changeAddress) <$>
+      ( assignCoinsToChangeValues changeAddress excessCoin
+          =<< splitOversizedValues changeValueOutputCoinPairs
+      )
   where
+  -- | Change `Value`s for all assets, where each change map is paired with a
+  -- | corresponding coin from the original outputs.
+  -- |
+  -- | This array is sorted into ascending order of asset count, where empty
+  -- | change `Value`s are all located at the start of the list.
+  -- |
+  -- | Taken from cardano-wallet:
+  -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1447
   changeValueOutputCoinPairs :: NonEmptyArray (Value /\ BigInt)
   changeValueOutputCoinPairs = outputCoins
     # NEArray.zip changeForAssets
@@ -417,6 +451,19 @@ makeChange changeAddress inputValue certsFee txBody =
   posValue (Value (Coin coin) nonAdaAsset) =
     mkValue (Coin $ max coin zero) (posNonAdaAsset nonAdaAsset)
 
+-- | Constructs change outputs for an asset.
+-- |
+-- | The given asset quantity is partitioned into a list of `Value`s that are
+-- | proportional to the weights withing the given distribution. If the given
+-- | asset quantity does not appear in the distribution, then it is equally
+-- | partitioned into a list of the same length.
+-- |
+-- | The length of the output list is always the same as the length of the input
+-- | list, and the sum of quantities is exactly equal to the asset quantity in
+-- | the second argument.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1729
 makeChangeForAsset
   :: Array TransactionOutput -> (AssetClass /\ BigInt) -> NonEmptyArray Value
 makeChangeForAsset txOutputs (assetClass /\ excess) =
@@ -430,11 +477,45 @@ makeChangeForAsset txOutputs (assetClass /\ excess) =
   assetQuantities =
     txOutputs <#> Value.getAssetQuantity assetClass <<< _.amount <<< unwrap
 
+-- | Constructs an array of ada change outputs based on the given distribution.
+-- |
+-- | The given ada amount is partitioned into a list of `Value`s that are
+-- | proportional to the weights withing the given distribution. If the sum of
+-- | weights in the given distribution is equal to zero, then the given excess
+-- | coin is equally partitioned into a list of the same length.
+-- |
+-- | The length of the output list is always the same as the length of the input
+-- | list, and the sum of its quantities is always exactly equal to the excess
+-- | ada amount given as the second argument.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1799
 makeChangeForCoin :: NonEmptyArray BigInt -> BigInt -> NonEmptyArray Value
 makeChangeForCoin weights excess =
   lovelaceValueOf <$>
     partition excess weights ?? equipartition excess (length weights)
 
+-- | Assigns coin quantities to a list of pre-computed change `Value`s.
+-- |
+-- | Each pre-computed change `Value` must be paired with the original coin
+-- | value of its corresponding output.
+-- |
+-- | This function:
+-- |   - expects the list of pre-computed change `Value`s to be sorted in an
+-- |     order that ensures all empty `Value`s are at the start of the list.
+-- |
+-- |   - attempts to assign a minimum ada quantity to every change `Value`, but
+-- |     iteratively drops empty change `Value`s from the start of the list if
+-- |     the amount of ada is insufficient to cover them all.
+-- |
+-- |   - continues dropping empty change maps from the start of the list until
+-- |     it is possible to assign a minimum ada value to all remaining entries.
+-- |
+-- |   - assigns the minimum ada quantity to all non-empty change `Value`s, even
+-- |     if `adaAvailable` is insufficient, does not fail.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1631
 assignCoinsToChangeValues
   :: Address
   -> BigInt
