@@ -38,7 +38,7 @@ import Ctl.Internal.Types.ByteArray
   )
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), note)
+import Data.Either (Either(Right, Left), note)
 import Data.Foldable (fold)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
@@ -160,7 +160,7 @@ getPoolParameters poolPubKeyHash = do
   liftEither $ lmap (error <<< show) params
 
 type DelegationsAndRewards =
-  { rewards :: Coin
+  { rewards :: Maybe Coin
   , delegate :: Maybe PoolPubKeyHash
   }
 
@@ -184,6 +184,6 @@ getDelegationsAndRewards pkh = do
     Left _ -> pure Nothing
     Right obj -> Just <$> do
       liftEither $ lmap (error <<< show) do
-        rewards <- Coin <$> obj .: "rewards"
+        rewards <- map Coin <$> obj .:? "rewards"
         delegate <- obj .:? "delegate"
         pure { rewards, delegate }
