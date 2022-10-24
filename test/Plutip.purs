@@ -34,12 +34,7 @@ import Contract.PlutusData
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(PlutusMintingPolicy)
-  , applyArgs
-  , mintingPolicyHash
-  , validatorHash
-  )
+import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
@@ -937,8 +932,7 @@ suite = do
           withKeyWallet bob ownPaymentPubKeyHash
         receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        mintingPolicy /\ cs <- mkCurrencySymbol
-          (PlutusMintingPolicy <$> alwaysMintsPolicyV2)
+        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
         tn <- mkTokenName "TheToken"
 
