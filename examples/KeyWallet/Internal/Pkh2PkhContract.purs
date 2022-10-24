@@ -19,13 +19,13 @@ import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   , logError
   , mkForm
   ) as HtmlForm
-import Ctl.Internal.Serialization (privateKeyFromBytes)
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString) as BigInt
 import Data.Log.Formatter.Pretty (prettyFormatter)
-import Data.Log.Level (LogLevel(Trace))
+import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)
@@ -52,8 +52,8 @@ runKeyWalletContract_ contract =
           , ctlServerConfig = Nothing
           }
 
-        printLog :: Message -> Aff Unit
-        printLog m = liftEffect $ when (m.level >= Trace) $ do
+        printLog :: LogLevel -> Message -> Aff Unit
+        printLog lgl m = liftEffect $ when (m.level >= lgl) $ do
           prettyFormatter m >>= log
           log' (HtmlForm.levelColor m.level)
             ("[" <> HtmlForm.levelName m.level <> "] " <> m.message)
