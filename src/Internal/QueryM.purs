@@ -111,7 +111,7 @@ import Ctl.Internal.JsWebSocket
   , _onWsMessage
   , _removeOnWsError
   , _wsClose
-  , _wsReconnect
+  , _wsFinalize
   , _wsSend
   )
 import Ctl.Internal.QueryM.DatumCacheWsp
@@ -122,7 +122,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (TxHash)
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -359,7 +359,9 @@ stopQueryRuntime
   :: QueryRuntime
   -> Effect Unit
 stopQueryRuntime runtime = do
+  _wsFinalize $ underlyingWebSocket runtime.ogmiosWs
   _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsFinalize $ underlyingWebSocket runtime.datumCacheWs
   _wsClose $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
@@ -470,8 +472,17 @@ submitTxOgmios txHash tx = do
     _.submit
     inp
 
-evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
-evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
+evaluateTxOgmios
+  :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
+evaluateTxOgmios cbor additionalUtxos = do
+  ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  cfg <- asks _.config
+  let inp = RequestInputToStoreInPendingRequests (cbor /\ additionalUtxos)
+  liftAff $ mkRequestAff' listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+    Ogmios.evaluateTxCall
+    _.evaluate
+    inp
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -814,10 +825,10 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
-      _wsClose ws
       logger Error $
         "First connection to Ogmios WebSocket failed. Terminating. Error: " <>
           errMessage
+      _wsFinalize ws
       _wsClose ws
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
@@ -837,11 +848,9 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
-        launchAff_ do
-          delay (wrap 500.0)
-          liftEffect $ _wsReconnect ws
       continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
+    _wsFinalize ws
     _wsClose ws
     continue $ Left $ err
 
@@ -929,7 +938,6 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
   let
     sendRequest :: forall (inp :: Type). RequestBody /\ inp -> Effect Unit
     sendRequest = _wsSend ws (logger Debug) <<< Tuple.fst
-
     resendPendingRequests = do
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
@@ -937,6 +945,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
+      _wsFinalize ws
       _wsClose ws
       logger Error $
         "First connection to Ogmios Datum Cache WebSocket failed. "
@@ -961,9 +970,6 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
-        launchAff_ do
-          delay (wrap 500.0)
-          liftEffect $ _wsReconnect ws
       continue $ Right $ WebSocket ws
         { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
             getDatumByHashPendingRequests
@@ -973,6 +979,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
             getTxByHashPendingRequests
         }
   pure $ Canceler $ \err -> liftEffect do
+    _wsFinalize ws
     _wsClose ws
     continue $ Left $ err
 
@@ -1018,7 +1025,8 @@ type OgmiosListeners =
   , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
-  , evaluate :: ListenerSet CborBytes Ogmios.TxEvaluationR
+  , evaluate ::
+      ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
