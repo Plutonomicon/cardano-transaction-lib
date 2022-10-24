@@ -576,8 +576,11 @@ awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
 -- | Builds an expected utxo set from transaction outputs. Predicts output 
 -- | references (`TransactionInput`s) for each output by calculating the
 -- | transaction hash and indexing the outputs in the order they appear in the 
--- | transaction. This function should be used for transaction chaining 
--- | in conjunction with `mustUseAdditionalUtxos` balancer constraint.  
+-- | transaction.
+-- | 
+-- | This function should be used for transaction chaining in conjunction with 
+-- | `mustUseAdditionalUtxos` balancer constraint. 
+-- | 
 -- | Throws an exception if conversion to Plutus outputs fails. 
 createAdditionalUtxos
   :: forall (tx :: Type) (r :: Row Type)
