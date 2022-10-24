@@ -13,13 +13,13 @@ import Contract.Prelude
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
+import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.Transaction (awaitTxConfirmedWithTimeout)
+import Contract.Transaction
+  ( TransactionHash(TransactionHash)
+  , awaitTxConfirmedWithTimeout
+  )
 import Control.Monad.Error.Class (try)
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import Ctl.Internal.Types.Transaction (TransactionHash(TransactionHash))
 
 main :: Effect Unit
 main = example testnetNamiConfig

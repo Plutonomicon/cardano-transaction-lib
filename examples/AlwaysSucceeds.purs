@@ -26,6 +26,7 @@ import Contract.TextEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
+  , _input
   , awaitTxConfirmed
   , lookupTxHash
   , plutusV1Script
@@ -35,9 +36,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
