@@ -7,6 +7,7 @@ import Prelude
 
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
+import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
       ( ExUnitsEvaluationFailed
@@ -20,6 +21,8 @@ import Ctl.Internal.BalanceTx.Types
   , FinalizedTransaction(FinalizedTransaction)
   , PrebalancedTransaction(PrebalancedTransaction)
   , askCostModelsForLanguages
+  , askNetworkId
+  , asksConstraints
   , liftEitherQueryM
   , liftQueryM
   )
@@ -39,16 +42,24 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
+import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios) as QueryM
 import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
-import Ctl.Internal.QueryM.Ogmios (TxEvaluationResult(TxEvaluationResult)) as Ogmios
+import Ctl.Internal.QueryM.Ogmios
+  ( AdditionalUtxoSet
+  , TxEvaluationResult(TxEvaluationResult)
+  ) as Ogmios
 import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors
   , reindexSpentScriptRedeemers'
   )
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Transaction (setScriptDataHash)
+import Ctl.Internal.TxOutput
+  ( transactionInputToTxOutRef
+  , transactionOutputToOgmiosTxOut
+  )
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.ScriptLookups
@@ -59,7 +70,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
 import Data.Array (catMaybes)
 import Data.Array (findIndex, fromFoldable, uncons) as Array
-import Data.Bifunctor (lmap)
+import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
@@ -86,12 +97,26 @@ evalTxExecutionUnits tx unattachedTx = do
     ( wrap <<< Serialization.toBytes <<< asOneOf <$>
         Serialization.convertTransaction tx
     )
-  eResult <- liftQueryM (QueryM.evaluateTxOgmios txBytes)
-  case unwrap eResult of
+  additionalUtxos <- getOgmiosAdditionalUtxoSet
+  evalResult <-
+    unwrap <$> liftQueryM (QueryM.evaluateTxOgmios txBytes additionalUtxos)
+
+  case evalResult of
     Right a -> pure a
-    Left e | tx ^. _isValid -> throwError $ ExUnitsEvaluationFailed unattachedTx
-      e
-    Left _ -> pure $ wrap $ Map.empty
+    Left evalFailure | tx ^. _isValid ->
+      throwError $ ExUnitsEvaluationFailed unattachedTx evalFailure
+    Left _ -> pure $ wrap Map.empty
+  where
+  getOgmiosAdditionalUtxoSet :: BalanceTxM Ogmios.AdditionalUtxoSet
+  getOgmiosAdditionalUtxoSet = do
+    networkId <- askNetworkId
+    additionalUtxos <-
+      asksConstraints Constraints._additionalUtxos
+        <#> fromPlutusUtxoMap networkId
+    pure $ wrap $ Map.fromFoldable
+      ( bimap transactionInputToTxOutRef transactionOutputToOgmiosTxOut
+          <$> (Map.toUnfoldable :: _ -> Array _) additionalUtxos
+      )
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
@@ -117,7 +142,11 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   FinalizedTransaction finalizedTx <-
     finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
-  minFee <- liftQueryM $ QueryM.calculateMinFee finalizedTx
+  networkId <- askNetworkId
+  additionalUtxos <-
+    fromPlutusUtxoMap networkId
+      <$> asksConstraints Constraints._additionalUtxos
+  minFee <- liftQueryM $ QueryM.calculateMinFee finalizedTx additionalUtxos
   pure $ reindexedUnattachedTxWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
