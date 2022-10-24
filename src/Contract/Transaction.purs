@@ -95,6 +95,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Mint(Mint)
   , Nonce(IdentityNonce, HashNonce)
+  , PoolPubKeyHash(PoolPubKeyHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion

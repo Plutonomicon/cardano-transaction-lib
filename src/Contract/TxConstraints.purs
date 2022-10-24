@@ -40,6 +40,8 @@ import Ctl.Internal.Types.TxConstraints
   , mustReferenceOutput
   , mustRegisterPool
   , mustRegisterStakePubKey
+  , mustRegisterStakeScript
+  , mustRetirePool
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal

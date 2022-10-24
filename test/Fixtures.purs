@@ -78,6 +78,7 @@ import Prelude
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromBigInt, fromInt) as BigNum
+import Contract.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -576,7 +577,7 @@ txFixture4 =
                 , margin: { numerator: bigNumOne, denominator: bigNumOne }
                 , rewardAccount: rewardAddress
                     { network: MainnetId, paymentCred: stake1 }
-                , poolOwners: [ ed25519KeyHash1 ]
+                , poolOwners: [ wrap $ wrap ed25519KeyHash1 ]
                 , relays:
                     [ SingleHostAddr
                         { port: Just 8080
@@ -599,7 +600,7 @@ txFixture4 =
                     }
                 }
             , PoolRetirement
-                { poolKeyhash: ed25519KeyHash1
+                { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
                 , epoch: Epoch one
                 }
             , GenesisKeyDelegation

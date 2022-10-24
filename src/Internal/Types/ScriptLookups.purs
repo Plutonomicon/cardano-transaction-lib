@@ -62,6 +62,7 @@ import Ctl.Internal.Cardano.Types.Transaction
       ( StakeRegistration
       , StakeDeregistration
       , PoolRegistration
+      , PoolRetirement
       , StakeDelegation
       )
   , Costmdls
@@ -182,6 +183,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustRegisterPool
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
+      , MustRetirePool
       , MustSatisfyAnyOf
       , MustSpendAtLeast
       , MustSpendNativeScriptOutput
@@ -1186,6 +1188,8 @@ processConstraint mpsMap osMap = do
       lift $ addCertificate cert
     MustRegisterPool poolParams -> runExceptT do
       lift $ addCertificate $ PoolRegistration poolParams
+    MustRetirePool poolKeyHash epoch -> runExceptT do
+      lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
     MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
       lift $ addCertificate $
         StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
