@@ -9,6 +9,9 @@ module Contract.Config
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
+  , mainnetFlintConfig
+  , mainnetEternlConfig
+  , mainnetLodeConfig
   , module Contract.Address
   , module Contract.Monad
   , module Data.Log.Level
@@ -88,3 +91,12 @@ mainnetNamiConfig = mainnetConfig { walletSpec = Just ConnectToNami }
 
 mainnetGeroConfig :: ConfigParams ()
 mainnetGeroConfig = mainnetConfig { walletSpec = Just ConnectToGero }
+
+mainnetFlintConfig :: ConfigParams ()
+mainnetFlintConfig = mainnetConfig { walletSpec = Just ConnectToFlint }
+
+mainnetEternlConfig :: ConfigParams ()
+mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
+
+mainnetLodeConfig :: ConfigParams ()
+mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }
