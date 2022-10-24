@@ -35,10 +35,11 @@ Support is planned for the following light wallets:
 - [x] [Nami](https://namiwallet.io/)
 - [x] [Gero](https://gerowallet.io/)
 - [x] [Flint](https://flint-wallet.com/)
+- [x] [Lode](https://lodewallet.io/)
+- [x] [Eternl (formerly CCvault)](https://eternl.io/)
 - [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
-- [ ] [Eternl (formerly CCvault)](https://eternl.io/)
 
 Due to recent ecosystem migration from legacy testnet to `preprod` and `preview` networks, some of the wallets stopped working. The progress of adapting them is tracked in [this issue](https://github.com/Plutonomicon/cardano-transaction-lib/issues/994).
 
