@@ -122,7 +122,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (TxHash)
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -470,8 +470,17 @@ submitTxOgmios txHash tx = do
     _.submit
     inp
 
-evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
-evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
+evaluateTxOgmios
+  :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
+evaluateTxOgmios cbor additionalUtxos = do
+  ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  cfg <- asks _.config
+  let inp = RequestInputToStoreInPendingRequests (cbor /\ additionalUtxos)
+  liftAff $ mkRequestAff' listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+    Ogmios.evaluateTxCall
+    _.evaluate
+    inp
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -618,12 +627,9 @@ instance Show ClientError where
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
-  :: forall (a :: Type)
-   . Newtype a PlutusScript
-  => DecodeAeson a
-  => a
+  :: PlutusScript
   -> Array PlutusData
-  -> QueryM (Either ClientError a)
+  -> QueryM (Either ClientError PlutusScript)
 applyArgs script args =
   asks (_.ctlServerConfig <<< _.config) >>= case _ of
     Nothing -> pure
@@ -642,7 +648,7 @@ applyArgs script args =
       Just ps -> do
         let
           language :: Language
-          language = snd $ unwrap $ unwrap script
+          language = snd $ unwrap script
 
           url :: String
           url = mkHttpUrl config <> "/apply-args"
@@ -650,11 +656,11 @@ applyArgs script args =
           reqBody :: Aeson
           reqBody = encodeAeson
             $ Object.fromFoldable
-                [ "script" /\ scriptToAeson (unwrap script)
+                [ "script" /\ scriptToAeson script
                 , "args" /\ encodeAeson ps
                 ]
         liftAff (postAeson url reqBody)
-          <#> map (wrap <<< PlutusScript <<< flip Tuple language) <<<
+          <#> map (PlutusScript <<< flip Tuple language) <<<
             handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Maybe Aeson
@@ -1021,7 +1027,8 @@ type OgmiosListeners =
   , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
-  , evaluate :: ListenerSet CborBytes Ogmios.TxEvaluationR
+  , evaluate ::
+      ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch

@@ -7,7 +7,9 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
+  , mustUseAdditionalUtxos
   , mustUseCoinSelectionStrategy
+  , _additionalUtxos
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
   , _ownAddresses
@@ -24,6 +26,7 @@ import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   ) as Plutus
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as Plutus
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton) as Array
@@ -33,6 +36,7 @@ import Data.Lens (Lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter (appendOver, set, setJust)
+import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Data.Set (Set)
@@ -40,13 +44,17 @@ import Data.Set (singleton) as Set
 import Type.Proxy (Proxy(Proxy))
 
 newtype BalanceTxConstraints = BalanceTxConstraints
-  { maxChangeOutputTokenQuantity :: Maybe BigInt
+  { additionalUtxos :: Plutus.UtxoMap
+  , maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
   , ownAddresses :: Maybe (Array Address)
   , selectionStrategy :: SelectionStrategy
   }
 
 derive instance Newtype BalanceTxConstraints _
+
+_additionalUtxos :: Lens' BalanceTxConstraints Plutus.UtxoMap
+_additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
 
 _maxChangeOutputTokenQuantity :: Lens' BalanceTxConstraints (Maybe BigInt)
 _maxChangeOutputTokenQuantity =
@@ -77,7 +85,8 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
   where
   defaultConstraints :: BalanceTxConstraints
   defaultConstraints = wrap
-    { maxChangeOutputTokenQuantity: Nothing
+    { additionalUtxos: Map.empty
+    , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
     , ownAddresses: Nothing
     , selectionStrategy: SelectionStrategyOptimal
@@ -118,8 +127,9 @@ mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
 mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
 
--- TODO: https://github.com/Plutonomicon/cardano-transaction-lib/pull/1046
 -- | Tells the balancer to use the provided utxo set when evaluating script 
--- | execution units (Sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
--- mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
--- mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
+-- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
+-- | Note that you need to use `unspentOutputs` lookup to make these utxos 
+-- | spendable by the transaction (see `Examples.TxChaining` for reference).
+mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
+mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
