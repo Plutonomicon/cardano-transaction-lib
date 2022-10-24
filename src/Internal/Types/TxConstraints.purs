@@ -21,6 +21,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustRegisterPool
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
+      , MustRetirePool
       , MustSatisfyAnyOf
       , MustSpendAtLeast
       , MustSpendNativeScriptOutput
@@ -58,6 +59,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustRegisterStakePubKey
   , mustRegisterStakeScript
   , mustRegisterPool
+  , mustRetirePool
   , mustDeregisterStakePubKey
   , mustDelegateStakePubKey
   , mustDeregisterStakePlutusScript
@@ -85,7 +87,8 @@ import Prelude hiding (join)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( PoolPubKeyHash
+  ( Epoch
+  , PoolPubKeyHash
   , PoolRegistrationParams
   )
 import Ctl.Internal.NativeScripts (NativeScriptHash)
@@ -163,6 +166,7 @@ data TxConstraint
   | MustRegisterStakeScript StakeValidatorHash
   | MustDeregisterStakePlutusScript PlutusScriptStakeValidator Redeemer
   | MustRegisterPool PoolRegistrationParams
+  | MustRetirePool PoolPubKeyHash Epoch
   | MustDelegateStakePubKey StakePubKeyHash PoolPubKeyHash
   | MustDelegateStakePlutusScript PlutusScriptStakeValidator Redeemer
       PoolPubKeyHash
@@ -572,6 +576,9 @@ mustDeregisterStakePlutusScript sv = singleton <<<
 
 mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
+
+mustRetirePool :: forall i o. PoolPubKeyHash -> Epoch -> TxConstraints i o
+mustRetirePool poolPubKeyHash = singleton <<< MustRetirePool poolPubKeyHash
 
 mustDelegateStakePubKey
   :: forall i o. StakePubKeyHash -> PoolPubKeyHash -> TxConstraints i o

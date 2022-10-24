@@ -673,7 +673,8 @@ convertCert = case _ of
     , poolMetadata
     } -> do
     margin' <- newUnitInterval margin.numerator margin.denominator
-    poolOwners' <- convertPoolOwners containerHelper poolOwners
+    poolOwners' <- convertPoolOwners containerHelper
+      (unwrap <<< unwrap <$> poolOwners)
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
     newPoolRegistrationCertificate (unwrap operator) vrfKeyhash pledge cost
@@ -682,8 +683,9 @@ convertCert = case _ of
       poolOwners'
       relays'
       (maybeToUor poolMetadata')
-  T.PoolRetirement { poolKeyhash, epoch } ->
-    newPoolRetirementCertificate poolKeyhash (UInt.toInt $ unwrap epoch)
+  T.PoolRetirement { poolKeyHash, epoch } ->
+    newPoolRetirementCertificate (unwrap poolKeyHash)
+      (UInt.toInt $ unwrap epoch)
   T.GenesisKeyDelegation
     { genesisHash: T.GenesisHash genesisHash
     , genesisDelegateHash: T.GenesisDelegateHash genesisDelegateHash

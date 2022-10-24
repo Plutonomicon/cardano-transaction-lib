@@ -6,8 +6,7 @@ import Prelude
 
 import Contract.Numeric.BigNum as BigNum
 import Ctl.Internal.QueryM.Ogmios
-  ( CurrentEpoch(CurrentEpoch)
-  , Epoch(Epoch)
+  ( Epoch(Epoch)
   , EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -76,8 +75,8 @@ relTimeFixture = RelTime $ BigInt.fromInt 85723
 relSlotFixture :: RelSlot
 relSlotFixture = RelSlot $ BigInt.fromInt 12855
 
-currentEpochFixture :: CurrentEpoch
-currentEpochFixture = CurrentEpoch $ BigInt.fromInt 58326646
+currentEpochFixture :: Epoch
+currentEpochFixture = Epoch $ BigInt.fromInt 58326646
 
 systemStartFixture :: SystemStart
 systemStartFixture = SystemStart "2019-07-24T20:20:16Z"

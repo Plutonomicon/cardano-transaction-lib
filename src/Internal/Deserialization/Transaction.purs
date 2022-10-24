@@ -378,7 +378,7 @@ convertPoolRegistration params = do
     , cost: poolParamsCost params
     , margin: _unpackUnitInterval $ poolParamsMargin params
     , rewardAccount: poolParamsRewardAccount params
-    , poolOwners: poolParamsPoolOwners containerHelper params
+    , poolOwners: wrap <<< wrap <$> poolParamsPoolOwners containerHelper params
     , relays
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
         convertPoolMetadata_
@@ -443,9 +443,9 @@ convertPoolRetirement
    . Ed25519KeyHash
   -> Int
   -> Err r T.Certificate
-convertPoolRetirement poolKeyhash epochInt = do
+convertPoolRetirement poolKeyHash epochInt = do
   epoch <- wrap <$> cslIntToUInt "PoolRetirement.epoch" epochInt
-  pure $ T.PoolRetirement { poolKeyhash, epoch }
+  pure $ T.PoolRetirement { poolKeyHash: wrap poolKeyHash, epoch }
 
 convertMint :: Csl.Mint -> T.Mint
 convertMint mint = T.Mint $ mkNonAdaAsset

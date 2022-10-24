@@ -135,7 +135,6 @@ import Ctl.Internal.Serialization.Types
   , PublicKey
   , VRFKeyHash
   ) as Serialization
-import Ctl.Internal.Serialization.Types (VRFKeyHash)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -143,6 +142,7 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
@@ -607,13 +607,14 @@ instance EncodeAeson MoveInstantaneousReward where
 
 type PoolRegistrationParams =
   { operator :: PoolPubKeyHash -- cwitness (cert)
-  , vrfKeyhash :: VRFKeyHash -- needed to prove that the pool won the lottery
+  , vrfKeyhash :: Serialization.VRFKeyHash
+  -- needed to prove that the pool won the lottery
   , pledge :: BigNum
   , cost :: BigNum -- >= pparams.minPoolCost
   , margin :: UnitInterval -- proportion that goes to the reward account
   , rewardAccount :: RewardAddress
-  , poolOwners ::
-      Array Ed25519KeyHash -- payment key hashes that contribute to pledge amount
+  , poolOwners :: Array PaymentPubKeyHash
+  -- payment key hashes that contribute to pledge amount
   , relays :: Array Relay
   , poolMetadata :: Maybe PoolMetadata
   }
@@ -647,7 +648,7 @@ data Certificate
   | StakeDelegation StakeCredential Ed25519KeyHash
   | PoolRegistration PoolRegistrationParams
   | PoolRetirement
-      { poolKeyhash :: Ed25519KeyHash
+      { poolKeyHash :: PoolPubKeyHash
       , epoch :: Epoch
       }
   | GenesisKeyDelegation

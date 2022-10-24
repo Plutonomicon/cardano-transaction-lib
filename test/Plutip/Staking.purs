@@ -4,27 +4,42 @@ module Test.Ctl.Plutip.Staking
 
 import Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Address
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  , ownPaymentPubKeyHash
+  , ownStakePubKeyHash
+  )
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (liftedE, liftedM, wrapContract)
+import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
 import Contract.PlutusData (unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
-import Contract.Transaction (balanceTx, signTransaction)
+import Contract.Time (getCurrentEpoch)
+import Contract.Transaction
+  ( Epoch
+  , PoolPubKeyHash(PoolPubKeyHash)
+  , balanceTx
+  , signTransaction
+  )
 import Contract.TxConstraints
   ( mustDelegateStakePlutusScript
   , mustDelegateStakePubKey
   , mustDeregisterStakePlutusScript
+  , mustDeregisterStakePubKey
+  , mustRegisterPool
+  , mustRegisterStakePubKey
+  , mustRegisterStakeScript
+  , mustRetirePool
   , mustWithdrawStakePubKey
   )
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
-import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.QueryM.Pools
   ( getDelegationsAndRewards
@@ -33,13 +48,8 @@ import Ctl.Internal.QueryM.Pools
   )
 import Ctl.Internal.Serialization.Address (keyHashCredential, rewardAddress)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.TxConstraints
-  ( mustDeregisterStakePubKey
-  , mustRegisterPool
-  , mustRegisterStakePubKey
-  , mustRegisterStakeScript
-  )
 import Data.Array (head)
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -148,7 +158,7 @@ suite = do
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-    test "Register pool" do
+    test "Pool registration" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000
@@ -175,7 +185,10 @@ suite = do
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
         networkId <- asks $ unwrap >>> _.config >>> _.networkId
-
+        let
+          poolOperator = PoolPubKeyHash $ publicKeyHash $
+            publicKeyFromPrivateKey
+              (unwrap privateStakeKey)
         -- Register pool
         do
           let
@@ -190,9 +203,7 @@ suite = do
               $ hexToByteArray
                   "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
             poolParams =
-              { operator: PoolPubKeyHash $ publicKeyHash $
-                  publicKeyFromPrivateKey
-                    (unwrap privateStakeKey)
+              { operator: poolOperator
               , vrfKeyhash: vrfKeyHash -- needed to prove that the pool won the lottery
               , pledge: unsafePartial $ fromJust $ BigNum.fromBigInt $
                   BigInt.fromInt 1
@@ -206,8 +217,9 @@ suite = do
                   }
               , rewardAccount
               , poolOwners:
-                  [ publicKeyHash $ publicKeyFromPrivateKey
-                      (unwrap privateStakeKey)
+                  [ PaymentPubKeyHash $ PubKeyHash $ publicKeyHash $
+                      publicKeyFromPrivateKey
+                        (unwrap privateStakeKey)
                   ]
               , relays: []
               , poolMetadata: Nothing
@@ -223,7 +235,56 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-    test "Stake script registration" do
+        -- List pools
+        do
+          pools <- wrapContract getPoolIds
+          logInfo' "Pool IDs:"
+          logInfo' $ show pools
+          for_ pools \poolId -> do
+            logInfo' "Pool parameters"
+            logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+          pools `shouldSatisfy` Array.elem poolOperator
+
+        currentEpoch <- getCurrentEpoch
+        let
+          retirementEpoch :: Epoch
+          retirementEpoch = wrap (unwrap currentEpoch + UInt.fromInt 3)
+
+        -- Retire pool
+        do
+          let
+            constraints = mustRetirePool poolOperator retirementEpoch
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups =
+              Lookups.ownPaymentPubKeyHash alicePkh <>
+                Lookups.ownStakePubKeyHash aliceStakePkh
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+
+        let
+          waitEpoch :: forall (r :: Row Type). Epoch -> Contract r Epoch
+          waitEpoch epoch = do
+            epochNow <- getCurrentEpoch
+            if unwrap epochNow >= unwrap epoch then pure epochNow
+            else do
+              liftAff $ delay $ wrap 1000.0
+              waitEpoch epoch
+
+        void $ waitEpoch retirementEpoch
+
+        -- List pools
+        do
+          pools <- wrapContract getPoolIds
+          logInfo' "Pool IDs:"
+          logInfo' $ show pools
+          for_ pools \poolId -> do
+            logInfo' "Pool parameters"
+            logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+          pools `shouldSatisfy` (not <<< Array.elem poolOperator)
+
+    test "Stake scripts: register, delegate" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
@@ -237,6 +298,7 @@ suite = do
             <*> liftedM "Failed to get Stake PKH" ownStakePubKeyHash
           validator <- alwaysSucceedsScript <#> unwrap >>> wrap
           let validatorHash = plutusScriptStakeValidatorHash validator
+
           -- Register stake script
           do
             let
@@ -272,7 +334,7 @@ suite = do
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-    test "Stake delegation to existing pool" do
+    test "PubKey: delegation to existing pool & withdrawals" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
