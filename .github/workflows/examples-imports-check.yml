@@ -1,0 +1,10 @@
+name: Check examples don't import internal modules
+
+on: push
+
+jobs:
+  examples-imports-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: bash .github/workflows/scripts/examples-imports-check.sh
