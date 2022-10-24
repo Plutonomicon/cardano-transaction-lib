@@ -272,25 +272,6 @@ suite = do
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-          -- Wait until rewards
-          let
-            -- No need for limit on number of retries, because we have a
-            -- timeout for tests.
-            waitUntilRewards = do
-              mbDelegationsAndRewards <- wrapContract $
-                getDelegationsAndRewards aliceStakePkh
-              (mbDelegationsAndRewards <#> _.delegate) `shouldEqual` Just
-                (Just poolId)
-              case mbDelegationsAndRewards of
-                Just dels@{ rewards } | unwrap rewards > zero ->
-                  pure dels
-                _ -> do
-                  liftAff $ delay $ wrap 5000.0
-                  waitUntilRewards
-
-          { rewards: rewardsBefore } <- waitUntilRewards
-          pure unit
-
     test "Stake delegation to existing pool" do
       let
         distribution = withStakeKey privateStakeKey
@@ -343,12 +324,12 @@ suite = do
             -- No need for limit on number of retries, because we have a
             -- timeout for tests.
             waitUntilRewards = do
-              mbDelegationsAndRewards <- wrapContract $
-                getDelegationsAndRewards aliceStakePkh
+              mbDelegationsAndRewards <- wrapContract
+                $ getDelegationsAndRewards aliceStakePkh
               (mbDelegationsAndRewards <#> _.delegate) `shouldEqual` Just
                 (Just poolId)
               case mbDelegationsAndRewards of
-                Just dels@{ rewards } | unwrap rewards > zero ->
+                Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
                   pure dels
                 _ -> do
                   liftAff $ delay $ wrap 5000.0
@@ -377,6 +358,6 @@ suite = do
           -- (usually) significantly longer.
           do
             { rewards: rewardsAfter } <-
-              liftedM "Unable to get rewards" $ wrapContract $
-                getDelegationsAndRewards aliceStakePkh
+              liftedM "Unable to get rewards" $ wrapContract
+                $ getDelegationsAndRewards aliceStakePkh
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore

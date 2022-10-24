@@ -84,7 +84,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Ctl.Internal.Cardano.Types.Value
-  ( CurrencySymbol
+  ( Coin(Coin)
+  , CurrencySymbol
   , Value
   , getNonAdaAsset
   , isZero
@@ -1214,7 +1215,7 @@ processConstraint mpsMap osMap = do
         mbRewards
       let rewardAddress = ed25519RewardAddress networkId (unwrap spkh)
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
-        Map.union (Map.singleton rewardAddress rewards)
+        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
