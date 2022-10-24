@@ -27,6 +27,7 @@ exports._mkWebSocket = logger => url => () => {
         WebSocket: NoPerMessageDeflateWebSocket,
       });
     }
+    ws.finalizers = [];
     logger("Created a new WebSocket")();
     return ws;
   } catch (e) {
@@ -35,13 +36,21 @@ exports._mkWebSocket = logger => url => () => {
   }
 };
 
-exports._onWsConnect = ws => fn => () => ws.addEventListener("open", fn);
+exports._onWsConnect = ws => fn => () => {
+  ws.addEventListener("open", fn);
+  ws.finalizers.push(() => {
+    ws.removeEventListener("open", fn);
+  });
+};
 
 exports._onWsError = ws => fn => () => {
   const listener = function (event) {
     fn(event.toString())();
   };
   ws.addEventListener("error", listener);
+  ws.finalizers.push(() => {
+    ws.removeEventListener("error", listener);
+  });
   return listener;
 };
 
@@ -49,11 +58,26 @@ exports._removeOnWsError = ws => listener => () =>
   ws.removeEventListener("error", listener);
 
 exports._onWsMessage = ws => logger => fn => () => {
-  ws.addEventListener("message", function func(event) {
+  const listener = function func(event) {
     const str = event.data;
     logger(`message: ${str}`)();
     fn(str)();
+  };
+  ws.addEventListener("message", listener);
+  ws.finalizers.push(() => {
+    ws.removeEventListener("message", listener);
   });
+};
+
+exports._wsFinalize = ws => () => {
+  for (let finalizer of ws.finalizers) {
+    /* eslint-disable no-empty */
+    try {
+      finalizer();
+    } catch (_) {}
+    /* eslint-enable */
+  }
+  ws.finalizers = [];
 };
 
 exports._wsSend = ws => logger => str => () => {
@@ -65,4 +89,6 @@ exports._wsReconnect = ws => () => {
   ws.reconnect();
 };
 
-exports._wsClose = ws => () => ws.close();
+exports._wsClose = ws => () => {
+  ws.close();
+};

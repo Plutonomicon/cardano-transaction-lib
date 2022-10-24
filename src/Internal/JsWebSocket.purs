@@ -10,6 +10,7 @@ module Ctl.Internal.JsWebSocket
   , _wsSend
   , _wsReconnect
   , _wsClose
+  , _wsFinalize
   ) where
 
 import Prelude
@@ -58,3 +59,5 @@ foreign import _wsReconnect
   :: JsWebSocket -> Effect Unit
 
 foreign import _wsClose :: JsWebSocket -> Effect Unit
+
+foreign import _wsFinalize :: JsWebSocket -> Effect Unit
