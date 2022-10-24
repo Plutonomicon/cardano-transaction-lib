@@ -87,9 +87,7 @@ convertAuxiliaryData
     convertGeneralTransactionMetadata >=>
       setAuxiliaryDataGeneralTransactionMetadata ad
   for_ nativeScripts $
-    ( fromJustEff "convertAuxiliaryData: failed to convert NativeScripts"
-        <<< convertNativeScripts
-    ) >=> setAuxiliaryDataNativeScripts ad
+    convertNativeScripts >>> setAuxiliaryDataNativeScripts ad
   for_ plutusScripts \ps -> do
     scripts <- newPlutusScripts
     for_ ps (convertPlutusScript >>> addPlutusScript scripts)

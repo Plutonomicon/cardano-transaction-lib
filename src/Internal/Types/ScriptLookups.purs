@@ -50,7 +50,7 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
-import Contract.Hashing (plutusScriptHash)
+import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -149,7 +149,7 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend, Reward))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend))
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -166,8 +166,9 @@ import Ctl.Internal.Types.TxConstraints
   , TxConstraint
       ( MustBeSignedBy
       , MustDelegateStakePubKey
-      , MustDelegateStakeScript
+      , MustDelegateStakePlutusScript
       , MustDeregisterStakePubKey
+      , MustDeregisterStakePlutusScript
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
@@ -1155,31 +1156,46 @@ processConstraint mpsMap osMap = do
         $ keyHashCredential
         $ unwrap
         $ unwrap skh
-    MustDeregisterStakePubKey skh -> runExceptT do
+    MustDeregisterStakePubKey pubKey -> runExceptT do
       lift $ addCertificate
         $ StakeDeregistration
         $ keyHashCredential
         $ unwrap
-        $ unwrap skh
-    -- TODO: test
-    MustRegisterStakeScript script -> runExceptT do
+        $ unwrap pubKey
+    MustRegisterStakeScript scriptHash -> runExceptT do
       lift $ addCertificate
         $ StakeRegistration
         $ scriptHashCredential
-        $ plutusScriptHash
-        $
-          unwrap script
+        $ unwrap scriptHash
+    MustDeregisterStakePlutusScript plutusScript redeemerData -> runExceptT do
+      let
+        cert = StakeDeregistration
+          ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
+              plutusScript
+          )
+        redeemer = T.Redeemer
+          { tag: Cert
+          , index: zero -- hardcoded and tweaked after balancing.
+          , "data": unwrap redeemerData
+          , exUnits: zero
+          }
+      ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
+      ExceptT $ attachToCps attachRedeemer redeemer
+      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
+      lift $ addCertificate cert
     MustRegisterPool poolParams -> runExceptT do
       lift $ addCertificate $ PoolRegistration poolParams
     MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
       lift $ addCertificate $
         StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
           (unwrap poolKeyHash)
-    MustDelegateStakeScript stakeValidator redeemerData poolKeyHash ->
+    MustDelegateStakePlutusScript stakeValidator redeemerData poolKeyHash ->
       runExceptT do
         let
           cert = StakeDelegation
-            (scriptHashCredential $ plutusScriptHash $ unwrap stakeValidator)
+            ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
+                stakeValidator
+            )
             (unwrap poolKeyHash)
           redeemer = T.Redeemer
             { tag: Cert

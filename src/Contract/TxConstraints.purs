@@ -7,29 +7,14 @@ import Ctl.Internal.Types.TxConstraints
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
-  , TxConstraint
-      ( MustIncludeDatum
-      , MustValidateIn
-      , MustBeSignedBy
-      , MustSpendAtLeast
-      , MustProduceAtLeast
-      , MustSpendPubKeyOutput
-      , MustSpendScriptOutput
-      , MustSpendNativeScriptOutput
-      , MustReferenceOutput
-      , MustMintValue
-      , MustPayToPubKeyAddress
-      , MustPayToScript
-      , MustHashDatum
-      , MustSatisfyAnyOf
-      , MustNotBeValid
-      )
   , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
   , mustBeSignedBy
+  , mustDelegateStakePlutusScript
   , mustDelegateStakePubKey
-  , mustDelegateStakeScript
+  , mustDeregisterStakePlutusScript
+  , mustDeregisterStakePubKey
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
