@@ -644,6 +644,7 @@ contains (UpperRay start) (UpperRay start') = start <= start'
 contains (UpperRay _) EmptyInterval = true
 contains (UpperRay _) _ = false
 contains AlwaysInterval _ = true
+contains EmptyInterval EmptyInterval = true
 contains EmptyInterval _ = false
 
 -- | Check if an `Interval` is empty.
