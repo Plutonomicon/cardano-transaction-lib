@@ -13,11 +13,16 @@ import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.Interval
-  ( POSIXTime(POSIXTime)
+  ( Interval
+  , POSIXTime(POSIXTime)
   , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
   , always
+  , contains
   , from
+  , hull
+  , intersection
   , intervalToPlutusInterval
+  , isEmpty
   , member
   , mkFiniteInterval
   , never
@@ -58,9 +63,12 @@ suite = do
         liftToTest testIntervalConvertion
       test "UpperRay" $ liftToTest testUpperRay
       test "LowerRay" $ liftToTest testLowerRay
-      test "testAlways" $ liftToTest testAlways
-      test "testEmpty" $ liftToTest testEmpty
-      test "testFiniteInterval" $ liftToTest testFiniteInterval
+      test "Always" $ liftToTest testAlways
+      test "Empty" $ liftToTest testEmpty
+      test "FiniteInterval" $ liftToTest testFiniteInterval
+      test "Contains" $ liftToTest testContains
+      test "Hull" $ liftToTest testHull
+      test "Intersection" $ liftToTest testIntersection
 
 loadOgmiosFixture
   :: forall (a :: Type). DecodeAeson a => String -> String -> Effect a
@@ -288,8 +296,8 @@ testEmpty = quickCheck test
 testFiniteInterval :: Effect Unit
 testFiniteInterval = quickCheck test
   where
-  test :: (Int /\ Int) -> Result
-  test (in1 /\ in2) =
+  test :: Int -> Int -> Result
+  test in1 in2 =
     let
       start = BigInt.fromInt (min in1 in2)
       end = BigInt.fromInt (max in1 in2)
@@ -309,3 +317,98 @@ testFiniteInterval = quickCheck test
             <> show inter
         )
         $ startIn &=& endIn &=& beforeNotIn &=& afterNotIn
+
+testContains :: Effect Unit
+testContains = quickCheck test
+  where
+  test :: Int -> Interval Int -> Result
+  test value interval =
+    let
+      inAlways =
+        value `member` always
+          && always `contains` interval
+          <?> "always has all the values and intervals"
+      cantContainAlways =
+        ( interval == always
+            || not (interval `contains` always)
+        )
+          <?> "always can't be contained in other intervals"
+      hasEmpty = interval `contains` never
+        <?> "i `contains` EmptyInterval"
+      notInEmpty =
+        not (value `member` never)
+          &&
+            ( never == interval
+                || not (never `contains` interval)
+            )
+          <?> "empty can't contain others values or intervals"
+      reflexivity = interval `contains` interval
+        <?> "i `contains` i"
+    in
+      withMsg
+        ( "value : " <> show value
+            <> ", interval : "
+            <> show value
+        )
+        $ inAlways &=& cantContainAlways &=& hasEmpty &=& notInEmpty
+            &=& reflexivity
+
+testHull :: Effect Unit
+testHull = quickCheck test
+  where
+  test :: Interval Int -> Interval Int -> Result
+  test i1 i2 =
+    let
+      theHull = hull i1 i2
+      contains1 = theHull `contains` i1 <?> "i1 contained in `hull i1 i2`"
+      contains2 = theHull `contains` i2 <?> "i2 contained in `hull i1 i2`"
+      symmetric = hull i2 i1 == theHull <?> "`hull i1 i2 == hull i2 i1`"
+      -- since it's symmetric we only need to check this for idempotence
+      idempotent = hull theHull i2 == theHull
+        <?> "`hull (hull i1 i2) i1 == hull i1 i2`"
+      alwaysTest =
+        hull i1 always `contains` i1
+          && hull i2 always `contains` i2
+          <?> "hull i always `contains` i"
+    in
+      withMsg
+        ( "i1 : " <> show i1
+            <> ", i2 : "
+            <> show i2
+            <> ", hull i1 i2 : "
+            <> show theHull
+        )
+        $ contains1 &=& contains2 &=& symmetric &=& idempotent &=& alwaysTest
+
+testIntersection :: Effect Unit
+testIntersection = quickCheck test
+  where
+  test :: Interval Int -> Interval Int -> Result
+  test i1 i2 =
+    let
+      theHull = hull i1 i2
+      inter1 = intersection i1 theHull
+      inHull = inter1 == i1 <?> "i1 `intersection` hull i1 i2 is i1"
+      symmetric =
+        inter1 == intersection theHull i1
+          && intersection i1 i2 == intersection i2 i1
+          <?> "intersection i1 i2 = intersection i2 i1"
+      idempotent =
+        intersection i1 inter1 == inter1
+          && intersection i1 (intersection i1 i2) == intersection i1 i2
+          <?> "intersection i1 (intersection i1 i2) == intersection i1 i2"
+      neverTest =
+        isEmpty (intersection i1 never)
+          && isEmpty (intersection i2 never)
+          <?> "intersection i EmptyInterval == EmptyInterval"
+    in
+      withMsg
+        ( "i1 : " <> show i1
+            <> ", i2 : "
+            <> show i2
+            <> ", hull i1 i2 : "
+            <> show theHull
+            <> ", inter : "
+            <> show inter1
+        )
+        $ inHull &=& symmetric &=& idempotent &=& neverTest
