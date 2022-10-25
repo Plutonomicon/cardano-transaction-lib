@@ -40,7 +40,8 @@ import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.TestM (TestPlanM)
-import Test.QuickCheck (Result, quickCheck, (<?>), (===))
+import Test.QuickCheck (Result(Success, Failed), quickCheck, (<?>), (===))
+import Test.QuickCheck.Combinators ((&=&))
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
@@ -233,52 +234,78 @@ testIntervalConvertion = quickCheck test
 liftToTest :: Effect Unit -> (EraSummaries -> SystemStart -> Effect Unit)
 liftToTest = pure <<< pure
 
+withMsg :: String -> Result -> Result
+withMsg _ Success = Success
+withMsg msg (Failed original) = Failed $ "(" <> msg <> ") : " <> original
+
 -- All this test can be generalized to use : 
 -- forall (a::Type) . Arbitrary a => Ord a => Ring a 
 
 testUpperRay :: Effect Unit
 testUpperRay = quickCheck test
   where
-  test :: Int -> Boolean
+  test :: Int -> Result
   test value =
     let
-      ray = to value
+      ray = from value
+      isIn = value `member` ray <?> "value is member of ray"
+      notIn = not ((sub value one) `member` ray)
+        <?> "check that " <> show (sub value one) <> " is not in ray"
     in
-      value `member` ray && not ((sub one value) `member` ray)
+      withMsg
+        ("value : " <> show value <> ", ray :" <> show ray)
+        $ isIn &=& notIn
 
 testLowerRay :: Effect Unit
 testLowerRay = quickCheck test
   where
-  test :: Int -> Boolean
+  test :: Int -> Result
   test value =
     let
-      ray = from value
+      ray = to value
+      isIn = value `member` ray <?> "value is member of ray"
+      notIn = not ((add one value) `member` ray)
+        <?> "check that " <> show (add one value) <> " is not in ray"
     in
-      value `member` ray && not ((add one value) `member` ray)
+      withMsg
+        ("value : " <> show value <> ", ray :" <> show ray)
+        $ isIn &=& notIn
 
 testAlways :: Effect Unit
 testAlways = quickCheck test
   where
-  test :: Int -> Boolean
+  test :: Int -> Result
   test value = value `member` always
+    <?> "check that " <> show value <> ", is in always"
 
 testEmpty :: Effect Unit
 testEmpty = quickCheck test
   where
-  test :: Int -> Boolean
-  test value = not $ value `member` never
+  test :: Int -> Result
+  test value = (not $ value `member` never)
+    <?> "check that " <> show value <> ", isn't in empty"
 
 testFiniteInterval :: Effect Unit
 testFiniteInterval = quickCheck test
   where
-  test :: (Int /\ Int) -> Boolean
+  test :: (Int /\ Int) -> Result
   test (in1 /\ in2) =
     let
       start = BigInt.fromInt (min in1 in2)
       end = BigInt.fromInt (max in1 in2)
       inter = mkFiniteInterval start end
+      startIn = start `member` inter <?> "start in interval"
+      endIn = end `member` inter <?> "end in interval"
+      beforeNotIn = (not $ (sub start one) `member` inter)
+        <?> "values before start aren't in interval"
+      afterNotIn = (not $ (add one end) `member` inter)
+        <?> "values after end aren't in interval"
     in
-      start `member` inter
-        && end `member` inter
-        && not ((sub one start) `member` inter)
-        && not ((add one end) `member` inter)
+      withMsg
+        ( "start : " <> show start
+            <> ", end : "
+            <> show end
+            <> ", interval :"
+            <> show inter
+        )
+        $ startIn &=& endIn &=& beforeNotIn &=& afterNotIn
