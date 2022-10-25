@@ -56,8 +56,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `keyWalletPrivatePaymentKey` and `keyWalletPrivateStakeKey` are now in to the public `Contract.Wallet.Key` API. ([#1094](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1094))
 - Completely new E2E (headless browser) test suite. It is now both easier to set up and use, and less flaky. The shell script has been removed (and re-implemented in PureScript). The suite can now be configured using environment variables (`test/e2e.env`) or CLI arguments. It is no more required to provide an accompanying tester script for each of the `Contract`s to be tested. ([#1058](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1058), [#986](https://github.com/Plutonomicon/cardano-transaction-lib/issues/986))
 - The `logLevel` from the config parameters is passed to the `customLogger` to allow consistent filtering of the logs. ([#1110](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1110)).
-- Functions for working with `BigNum` are now in the public `Contract.Numeric.BigNum` API ([#1109](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1109))
+- Functions for working with `BigNum` are now in the public `Contract.Numeric.BigNum` API ([#1109](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1109)).
 - `PublicKey` and `Ed25519Signature` types now wrap `RawBytes` instead of `Bech32String`.
+- `TypeLevel.Nat`, needed to implement `HasPlutusSchema`, gets exported in `Contract.PlutusData` ([#1143](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1143)).
 - `MintingPolicy` to an enum consisting of `PlutusScript` or `NativeScript` ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
 - `Contract.Scripts` `applyArgs` is now monomorphic on the script parameter ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
 - Adapted Gero wallet extension to `preview` network in E2E test suite ([#1086](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1086))
