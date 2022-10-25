@@ -33,7 +33,6 @@ module Ctl.Internal.QueryM
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   , getLogger
-  , getNetworkId
   , getUnusedAddresses
   , getChangeAddress
   , getRewardAddresses
@@ -363,8 +362,39 @@ withQueryRuntime
   -> Aff a
 withQueryRuntime config action = do
   runtime <- mkQueryRuntime config
-  supervise (action runtime) `flip finally` do
+  supervise (newtorkIdCheck config runtime *> action runtime) `flip finally` do
     liftEffect $ stopQueryRuntime runtime
+
+-- | Ensure that `NetworkId` from wallet is the same as specified in the
+-- | `QueryConfig`.
+newtorkIdCheck :: QueryConfig -> QueryRuntime -> Aff Unit
+newtorkIdCheck config runtime = do
+  mbNetworkId <- runQueryMInRuntime config runtime getNetworkId
+  for_ mbNetworkId \networkId ->
+    unless (networkToInt config.networkId == networkId) do
+      liftEffect $ throw $
+        "The networkId that is specified is not equal to the one from wallet."
+          <> " The wallet is using "
+          <> printNetworkIdName networkId
+          <> " while "
+          <> printNetworkIdName (networkToInt config.networkId)
+          <> " is specified in the config."
+  where
+  networkToInt :: NetworkId -> Int
+  networkToInt = case _ of
+    TestnetId -> 0
+    MainnetId -> 1
+
+  printNetworkIdName :: Int -> String
+  printNetworkIdName = case _ of
+    0 -> "Testnet"
+    _ -> "Mainnet"
+
+  getNetworkId :: QueryM (Maybe Int)
+  getNetworkId = do
+    join <$> actionBasedOnWallet
+      (\w -> map (Just <<< Just) <<< _.getNetworkId w)
+      (\_ -> pure Nothing)
 
 -- | Close the websockets in `QueryRuntime`, effectively making it unusable
 stopQueryRuntime
@@ -549,21 +579,6 @@ allowError func = func <<< Right
 --------------------------------------------------------------------------------
 -- Wallet
 --------------------------------------------------------------------------------
-
-getNetworkId :: QueryM Int
-getNetworkId = do
-  maybeWallet <- asks $ _.wallet <<< _.runtime
-  configId <- asks $ _.networkId <<< _.config
-  liftAff case maybeWallet of
-    Just (Eternl wallet) -> callCip30Wallet wallet _.getNetworkId
-    Just (Nami wallet) -> callCip30Wallet wallet _.getNetworkId
-    Just (Gero wallet) -> callCip30Wallet wallet _.getNetworkId
-    Just (Flint wallet) -> callCip30Wallet wallet _.getNetworkId
-    Just (Lode wallet) -> callCip30Wallet wallet _.getNetworkId
-    Just (KeyWallet _) -> pure $ case configId of
-      TestnetId -> 0
-      MainnetId -> 1
-    Nothing -> liftEffect $ throw "Can't get Wallet from config"
 
 getUnusedAddresses :: QueryM (Array Address)
 getUnusedAddresses = fold <$> do

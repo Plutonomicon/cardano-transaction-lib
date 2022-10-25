@@ -24,8 +24,15 @@ import Contract.Monad (Contract, ContractEnv, wrapContract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
-import Ctl.Internal.QueryM as QueryM
-import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.QueryM
+  ( getChangeAddress
+  , getRewardAddresses
+  , getUnusedAddresses
+  , getWallet
+  , signData
+  ) as QueryM
+import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
+import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
   ( Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
@@ -69,7 +76,7 @@ import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
 import Type.Proxy (Proxy(Proxy))
 
-getNetworkId :: forall (r :: Row Type). Contract r Int
+getNetworkId :: forall (r :: Row Type). Contract r NetworkId
 getNetworkId = wrapContract QueryM.getNetworkId
 
 getUnusedAddresses :: forall (r :: Row Type). Contract r (Array Address)
