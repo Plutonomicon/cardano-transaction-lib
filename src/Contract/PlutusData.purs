@@ -1,7 +1,7 @@
 -- | This module that defines query functionality via Ogmios to get `PlutusData`
 -- | from `DatumHash` along with related `PlutusData` newtype wrappers such as
 -- | `Datum` and `Redeemer`. It also contains typeclasses like `FromData` and
--- | `ToData`.
+-- | `ToData` plus everything related to `PlutusSchema`.
 module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
@@ -11,6 +11,7 @@ module Contract.PlutusData
   , module ExportQueryM
   , module Hashing
   , module IsData
+  , module Nat
   , module PlutusData
   , module Serialization
   , module Deserialization
@@ -91,6 +92,7 @@ import Ctl.Internal.ToData
   , toDataArgsRec'
   , toDataWithSchema
   ) as ToData
+import Ctl.Internal.TypeLevel.Nat (Nat, S, Z) as Nat
 import Ctl.Internal.Types.Datum (DataHash)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Ctl.Internal.Types.OutputDatum
