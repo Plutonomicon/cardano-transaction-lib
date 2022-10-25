@@ -79,7 +79,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
   validator <- alwaysSucceedsScriptV2
-  mintsScript <- alwaysMintsPolicyV2
+  mintsScript <- alwaysMintsPolicyScriptV2
   tokenName <- Helpers.mkTokenName "TheToken"
   let
     vhash :: ValidatorHash
@@ -195,7 +195,10 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
 
 foreign import alwaysMintsV2 :: String
 
-alwaysMintsPolicyV2 :: Contract () PlutusScript
-alwaysMintsPolicyV2 =
-  map plutusV2Script
-    (textEnvelopeBytes alwaysMintsV2 PlutusScriptV2)
+alwaysMintsPolicyV2 :: Contract () MintingPolicy
+alwaysMintsPolicyV2 = PlutusMintingPolicy <$> alwaysMintsPolicyScriptV2
+
+alwaysMintsPolicyScriptV2 :: Contract () PlutusScript
+alwaysMintsPolicyScriptV2 =
+  plutusV2Script <$> textEnvelopeBytes alwaysMintsV2 PlutusScriptV2
+

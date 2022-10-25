@@ -27,29 +27,36 @@ import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable)
 import Data.Lens.Getter ((^.))
-import Data.Map (empty, fromFoldable, lookup) as Map
+import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
 import Data.Maybe (fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
-import Data.Set (fromFoldable, intersection, union) as Set
+import Data.Set (difference, fromFoldable, intersection, union) as Set
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
 
 -- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
-calculateMinFee :: Transaction -> QueryM Coin
-calculateMinFee tx = do
-  selfSigners <- getSelfSigners tx
+calculateMinFee :: Transaction -> UtxoMap -> QueryM Coin
+calculateMinFee tx additionalUtxos = do
+  selfSigners <- getSelfSigners tx additionalUtxos
   pparams <- getProtocolParameters
   calculateMinFeeCsl pparams selfSigners tx
 
-getSelfSigners :: Transaction -> QueryM (Set Ed25519KeyHash)
-getSelfSigners tx = do
+getSelfSigners :: Transaction -> UtxoMap -> QueryM (Set Ed25519KeyHash)
+getSelfSigners tx additionalUtxos = do
 
-  -- Get all tx input addresses
+  -- Get all tx inputs and remove the additional ones.
   let
     txInputs :: Set TransactionInput
-    txInputs = tx ^. _body <<< _inputs
+    txInputs =
+      Set.difference
+        (tx ^. _body <<< _inputs)
+        (Map.keys additionalUtxos)
+
+    additionalUtxosAddrs :: Set Address
+    additionalUtxosAddrs = Set.fromFoldable $
+      (_.address <<< unwrap) <$> Map.values additionalUtxos
 
   (inUtxosAddrs :: Set Address) <- setFor txInputs $ \txInput ->
     liftedM (error $ "Couldn't get tx output for " <> show txInput) $
@@ -75,7 +82,7 @@ getSelfSigners tx = do
   -- Combine to get all self tx input addresses
   let
     txOwnAddrs = ownAddrs `Set.intersection`
-      (inUtxosAddrs `Set.union` inCollatAddrs)
+      (additionalUtxosAddrs `Set.union` inUtxosAddrs `Set.union` inCollatAddrs)
 
   -- Convert addresses to key hashes
   setFor txOwnAddrs $
