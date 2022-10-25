@@ -158,7 +158,7 @@ suite = do
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-    test "Pool registration" do
+    test "Pool registration & retirement" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000
@@ -187,8 +187,8 @@ suite = do
         networkId <- asks $ unwrap >>> _.config >>> _.networkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $
-            publicKeyFromPrivateKey
-              (unwrap privateStakeKey)
+            publicKeyFromPrivateKey (unwrap privateStakeKey)
+
         -- Register pool
         do
           let
@@ -235,7 +235,7 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-        -- List pools
+        -- List pools: the pool must appear in the list
         do
           pools <- wrapContract getPoolIds
           logInfo' "Pool IDs:"
@@ -274,7 +274,7 @@ suite = do
 
         void $ waitEpoch retirementEpoch
 
-        -- List pools
+        -- List pools: the pool must not appear in the list
         do
           pools <- wrapContract getPoolIds
           logInfo' "Pool IDs:"

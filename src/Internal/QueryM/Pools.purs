@@ -10,6 +10,7 @@ import Prelude
 
 import Aeson (Aeson, JsonDecodeError(TypeMismatch), decodeAeson, (.:), (.:?))
 import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Ipv4(Ipv4)
   , Ipv6(Ipv6)
@@ -37,6 +38,7 @@ import Ctl.Internal.Types.ByteArray
   , hexToByteArray
   )
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), note)
 import Data.Foldable (fold)
@@ -84,14 +86,27 @@ decodeIpv6 :: Aeson -> Either JsonDecodeError Ipv6
 decodeIpv6 aeson = do
   decodeAeson aeson >>= parseIpv6String >>> note (TypeMismatch "Ipv6")
 
--- TODO: test
 parseIpv6String :: String -> Maybe Ipv6
 parseIpv6String str = do
   let
     parts = String.split (Pattern ":") str
-    padded = String.replaceAll (Pattern " ") (Replacement "0") $ fold $ parts
-      <#>
-        StringUtils.padStart 4
+    partsFixed =
+      if Array.length parts < 8 then
+        -- Normalize double colon
+        -- see https://ipcisco.com/lesson/ipv6-address/
+        do
+          part <- parts
+          if part == "" then
+            Array.replicate (8 - Array.length parts + 1) ""
+          else
+            pure part
+      else
+        parts
+  guard (Array.length partsFixed == 8)
+  let
+    padded = String.replaceAll (Pattern " ") (Replacement "0") $ fold $
+      partsFixed
+        <#> StringUtils.padStart 4
   Ipv6 <$> hexToByteArray padded
 
 decodeRelay :: Aeson -> Either JsonDecodeError Relay

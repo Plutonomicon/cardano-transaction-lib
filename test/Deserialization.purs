@@ -42,7 +42,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
-import Mote (group, test)
+import Mote (group, skip, test)
 import Test.Ctl.Fixtures
   ( nativeScriptFixture1
   , nativeScriptFixture2
@@ -204,12 +204,12 @@ suite = do
       test "fixture #7" do
         liftEffect $ testNativeScript nativeScriptFixture7
       -- This is here just to acknowledge the problem
-      test "too much nesting leads to recursion error" do
+      skip $ test "too much nesting leads to recursion error" do
         expectError $ do
           let
             longNativeScript =
               Array.foldr (\_ acc -> T.ScriptAny [ acc ]) nativeScriptFixture1 $
-                Array.range 0 5000
+                Array.range 0 50 -- change this to 50000
           liftEffect $ testNativeScript longNativeScript
     group "WitnessSet - deserialization is inverse to serialization" do
       let
