@@ -68,7 +68,6 @@ findWalletPage pattern browser = do
 foreign import pageUrl :: Toppokki.Page -> Effect String
 
 -- | Wait until the wallet page pops up. Timout should be at least a few seconds.
--- | The 'String' param is the text of jQuery, which will be injected.
 waitForWalletPage
   :: Pattern -> Seconds -> Toppokki.Browser -> Aff Toppokki.Page
 waitForWalletPage pattern timeout browser =
