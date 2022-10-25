@@ -22,7 +22,7 @@ import Ctl.Internal.Test.E2E.Types
   , WalletPassword
   , unExtensionId
   )
-import Data.Array (mapMaybe)
+import Data.Array as Array
 import Data.Either (fromRight)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
@@ -30,7 +30,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (fold)
+import Data.Traversable (fold, for)
 import Effect (Effect)
 import Effect.Aff (Aff, delay, try)
 import Effect.Class (liftEffect)
@@ -48,22 +48,24 @@ typeInto selector text page = toAffE $ _typeInto selector text page
 findWalletPage :: Pattern -> Toppokki.Browser -> Aff (Maybe Toppokki.Page)
 findWalletPage pattern browser = do
   pages <- Toppokki.pages browser
-  let
-    walletPages = pages `flip mapMaybe` \page -> do
-      guard (String.contains pattern (pageUrl page))
+  walletPages <- Array.catMaybes <$> for pages \page -> do
+    url <- liftEffect $ pageUrl page
+    pure do
+      guard (String.contains pattern url)
       pure page
   case walletPages of
     [] -> pure Nothing
     [ page ] -> pure $ Just page
-    _ -> do
+    foundPages -> do
+      urls <- for foundPages (liftEffect <<< pageUrl)
       liftEffect $ throw $
         "findWalletPage: more than one page found when trying to find "
           <> "the wallet popup. URLs: "
-          <> intercalate ", " (pageUrl <$> pages)
+          <> intercalate ", " urls
           <> "; URL pattern: "
           <> show (unwrap pattern)
 
-foreign import pageUrl :: Toppokki.Page -> String
+foreign import pageUrl :: Toppokki.Page -> Effect String
 
 -- | Wait until the wallet page pops up. Timout should be at least a few seconds.
 -- | The 'String' param is the text of jQuery, which will be injected.
@@ -126,8 +128,8 @@ inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
   where
   acquirePage = do
     page <- waitForWalletPage (Pattern $ unExtensionId extId) timeout browser
-    if
-      String.contains pattern (pageUrl page) then do
+    url <- liftEffect $ pageUrl page
+    if String.contains pattern url then do
       injectJQuery page jQuery
       Just <$> cont page
     else do
