@@ -348,7 +348,7 @@ testContains = quickCheck test
       withMsg
         ( "value : " <> show value
             <> ", interval : "
-            <> show value
+            <> show interval
         )
         $ inAlways &=& cantContainAlways &=& hasEmpty &=& notInEmpty
             &=& reflexivity
