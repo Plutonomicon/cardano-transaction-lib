@@ -3,6 +3,7 @@ module Ctl.Internal.Types.Interval
   , Closure
   , Extended(NegInf, Finite, PosInf)
   , Interval(EmptyInterval, LowerRay, UpperRay, AlwaysInterval, FiniteInterval)
+  , PlutusInterval(PlutusInterval)
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -40,6 +41,8 @@ module Ctl.Internal.Types.Interval
   , intersection
   , isEmpty
   , isEmpty'
+  , intervalToPlutusInterval
+  , plutusIntervalToInterval
   , lowerBound
   , maxSlot
   , mkFiniteInterval
@@ -122,9 +125,11 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
+import Data.List (List(Nil), (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -133,6 +138,8 @@ import Foreign.Object (Object)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
+import Test.QuickCheck (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (Gen, frequency)
 
 --------------------------------------------------------------------------------
 -- Interval Type and related
@@ -439,8 +446,40 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
   fromData x = plutusIntervalToInterval <$> fromData x
 
-instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval POSIXTime) where
+instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval a) where
   encodeAeson' = encodeAeson' <<< intervalToPlutusInterval
+
+instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
+  arbitrary = frequency $ wrap $
+    (0.25 /\ genFiniteInterval)
+      :| (0.25 /\ genUpperRay)
+        : (0.25 /\ genLowerRay)
+        : (0.1 /\ genSingletonInterval)
+        : (0.075 /\ pure always)
+        : (0.075 /\ pure never)
+        : Nil
+
+genFiniteInterval
+  :: forall (a :: Type). Ord a => Arbitrary a => Gen (Interval a)
+genFiniteInterval = do
+  in1 <- arbitrary
+  in2 <- arbitrary
+  let
+    start = min in1 in2
+    end = max in1 in2
+  pure $ mkFiniteInterval start end
+
+genUpperRay
+  :: forall (a :: Type). Ord a => Arbitrary a => Gen (Interval a)
+genUpperRay = from <$> arbitrary
+
+genLowerRay
+  :: forall (a :: Type). Ord a => Arbitrary a => Gen (Interval a)
+genLowerRay = to <$> arbitrary
+
+genSingletonInterval
+  :: forall (a :: Type). Ord a => Arbitrary a => Semiring a => Gen (Interval a)
+genSingletonInterval = singleton <$> arbitrary
 
 --------------------------------------------------------------------------------
 -- POSIXTIME Type and related

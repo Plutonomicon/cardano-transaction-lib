@@ -15,14 +15,23 @@ import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
+  , always
+  , from
+  , intervalToPlutusInterval
+  , member
+  , mkFiniteInterval
+  , never
+  , plutusIntervalToInterval
   , posixTimeToSlot
   , slotToPosixTime
+  , to
   )
 import Data.Bifunctor (lmap)
-import Data.BigInt (fromString) as BigInt
+import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
+import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Exception (error)
 import Mote (group, test)
@@ -31,16 +40,26 @@ import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.TestM (TestPlanM)
+import Test.QuickCheck (Result, quickCheck, (<?>), (===))
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
-  group "Interval type" do
-    test "Inverse posixTimeToSlot >>> slotToPosixTime " $
-      testPosixTimeToSlot
-    test "Inverse slotToPosixTime >>> posixTimeToSlot " $
-      testSlotToPosixTime
-    test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
+  group "Interval" do
+    group "EraSumaries related" do
+      test "Inverse posixTimeToSlot >>> slotToPosixTime " $
+        testPosixTimeToSlot
+      test "Inverse slotToPosixTime >>> posixTimeToSlot " $
+        testSlotToPosixTime
+      test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
+    group "Properties" do
+      test "Inverse plutusIntervalToInterval <<< intervalToPlutusInterval" $
+        liftToTest testIntervalConvertion
+      test "UpperRay" $ liftToTest testUpperRay
+      test "LowerRay" $ liftToTest testLowerRay
+      test "testAlways" $ liftToTest testAlways
+      test "testEmpty" $ liftToTest testEmpty
+      test "testFiniteInterval" $ liftToTest testFiniteInterval
 
 loadOgmiosFixture
   :: forall (a :: Type). DecodeAeson a => String -> String -> Effect a
@@ -197,3 +216,69 @@ testPosixTimeToSlotError eraSummaries sysStart = do
       Right _ ->
         throwError $ error $ "Test should have failed giving: " <> show
           expectedErr
+
+testIntervalConvertion :: Effect Unit
+testIntervalConvertion = quickCheck test
+  where
+  test :: (Int /\ Int) -> Result
+  test (in1 /\ in2) =
+    let
+      start' = min in1 in2
+      end' = max in1 in2
+      inter = mkFiniteInterval start' end'
+    in
+      inter ===
+        (plutusIntervalToInterval <<< intervalToPlutusInterval) inter
+
+liftToTest :: Effect Unit -> (EraSummaries -> SystemStart -> Effect Unit)
+liftToTest = pure <<< pure
+
+-- All this test can be generalized to use : 
+-- forall (a::Type) . Arbitrary a => Ord a => Ring a 
+
+testUpperRay :: Effect Unit
+testUpperRay = quickCheck test
+  where
+  test :: Int -> Boolean
+  test value =
+    let
+      ray = to value
+    in
+      value `member` ray && not ((sub one value) `member` ray)
+
+testLowerRay :: Effect Unit
+testLowerRay = quickCheck test
+  where
+  test :: Int -> Boolean
+  test value =
+    let
+      ray = from value
+    in
+      value `member` ray && not ((add one value) `member` ray)
+
+testAlways :: Effect Unit
+testAlways = quickCheck test
+  where
+  test :: Int -> Boolean
+  test value = value `member` always
+
+testEmpty :: Effect Unit
+testEmpty = quickCheck test
+  where
+  test :: Int -> Boolean
+  test value = not $ value `member` never
+
+testFiniteInterval :: Effect Unit
+testFiniteInterval = quickCheck test
+  where
+  test :: (Int /\ Int) -> Boolean
+  test (in1 /\ in2) =
+    let
+      start = BigInt.fromInt (min in1 in2)
+      end = BigInt.fromInt (max in1 in2)
+      inter = mkFiniteInterval start end
+    in
+      start `member` inter
+        && end `member` inter
+        && not ((sub one start) `member` inter)
+        && not ((add one end) `member` inter)
