@@ -6,10 +6,10 @@ import Prelude
 
 import Aeson (decodeAeson)
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils as Utils
 import Test.Spec.Assertions (shouldSatisfy)
 

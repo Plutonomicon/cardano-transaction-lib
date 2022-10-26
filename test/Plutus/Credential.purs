@@ -12,6 +12,7 @@ import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , scriptHashFromBech32
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
@@ -19,7 +20,6 @@ import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (toFromAesonTest)
 
 suite :: TestPlanM (Aff Unit) Unit
