@@ -316,7 +316,6 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-          project = psProjectFor pkgs;
         in
         (psProjectFor pkgs).checks
         // self.hsFlake.${system}.checks
