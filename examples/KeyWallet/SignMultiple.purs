@@ -8,7 +8,6 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
-  , TxOutRefCache
   , awaitTxConfirmed
   , signTransaction
   , submit
@@ -18,10 +17,14 @@ import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
 import Control.Monad.Reader (asks)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import Data.Map (Map)
 import Data.Newtype (unwrap)
+import Data.Set (Set)
+import Data.UInt (UInt)
 import Effect.Ref (read) as Ref
 
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs
+  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
 getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache

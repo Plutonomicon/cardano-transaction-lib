@@ -21,7 +21,6 @@ import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
-  , TxOutRefCache
   , awaitTxConfirmed
   , signTransaction
   , submit
@@ -31,9 +30,13 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
 import Data.BigInt as BigInt
+import Data.Map (Map)
+import Data.Set (Set)
+import Data.UInt (UInt)
 import Effect.Ref as Ref
 
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs
+  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
 getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
