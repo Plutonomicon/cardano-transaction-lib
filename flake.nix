@@ -109,47 +109,6 @@
           cp -rT ogmios $out
         '';
 
-      psProjectTemplateFor = pkgs:
-        let
-          projectName = "ctl-scaffold";
-          # `filterSource` will still trigger rebuilds with flakes, even if a
-          # filtered path is modified as the output path name is impurely
-          # derived. Setting an explicit `name` with `path` helps mitigate this
-          src = builtins.path {
-            path = ./templates/ctl-scaffold;
-            name = "${projectName}-src";
-            filter = path: ftype:
-              !(pkgs.lib.hasSuffix ".md" path)
-              && !(ftype == "directory" && builtins.elem
-                (baseNameOf path) [ "server" "doc" ]
-              );
-          };
-          ogmiosFixtures = buildOgmiosFixtures pkgs;
-          project = pkgs.purescriptProject {
-            inherit src pkgs projectName;
-            packageJson = ./package.json;
-            packageLock = ./package-lock.json;
-            shell = {
-              withRuntime = true;
-              shellHook = exportOgmiosFixtures;
-              packageLockOnly = true;
-              packages = with pkgs; [
-                arion
-                fd
-                haskellPackages.fourmolu
-                nixpkgs-fmt
-                nodePackages.eslint
-                nodePackages.prettier
-              ];
-            };
-          };
-          exportOgmiosFixtures =
-            ''
-              export OGMIOS_FIXTURES="${ogmiosFixtures}"
-            '';
-        in
-        project;
-
       psProjectFor = pkgs:
         let
           projectName = "cardano-transaction-lib";
@@ -358,7 +317,6 @@
         let
           pkgs = nixpkgsFor system;
           project = psProjectFor pkgs;
-          templateProject = psProjectTemplateFor pkgs;
         in
         (psProjectFor pkgs).checks
         // self.hsFlake.${system}.checks
@@ -379,17 +337,6 @@
               make check-format
               touch $out
             '';
-          template-build = templateProject.compiled;
-          template-main =
-            templateProject.runPursTest {
-              name = "ctl-scaffold-test";
-              testMain = "Test.Scaffold.Main";
-            };
-          template-plutip =
-            templateProject.runPlutipTest {
-              name = "ctl-scaffold-test";
-              # testMain = "Test.Scaffold.Main";
-            };
           template-deps-json = pkgs.runCommand "template-deps-check"
             {
               ctlPackageJson = builtins.readFile ./package.json;
