@@ -28,6 +28,7 @@ import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
+import Debug (spy)
 import Effect (Effect)
 import Foreign.Object (Object)
 import Record as Record
@@ -113,9 +114,9 @@ parseJsonWspResponse = aesonObject $ \o -> do
   version <- getField o "version"
   servicename <- getField o "servicename"
   methodname <- getFieldOptional o "methodname"
-  result <- traverse decodeAeson =<< getFieldOptional o "result"
-  fault <- traverse decodeAeson =<< getFieldOptional o "fault"
-  reflection <- parseMirror =<< getField o "reflection"
+  result <- getFieldOptional o "result"
+  fault <- getFieldOptional o "fault"
+  reflection <- getField o "reflection"
   pure
     { "type": typeField
     , version
@@ -130,8 +131,8 @@ parseJsonWspResponse = aesonObject $ \o -> do
 parseJsonWspResponseId
   :: Aeson
   -> Either JsonDecodeError ListenerId
-parseJsonWspResponseId = aesonObject $ \o -> do
-  parseMirror =<< getField o "reflection"
+parseJsonWspResponseId aeson =
+  aesonObject (spy "parseJsonWspResponseId" $ flip getField "reflection") aeson
 
 -- | Helper for assuming we get an object
 aesonObject
@@ -140,9 +141,3 @@ aesonObject
   -> Aeson
   -> Either JsonDecodeError a
 aesonObject = caseAesonObject (Left (TypeMismatch "expected object"))
-
--- parsing json
-
--- | A parser for the `Mirror` type.
-parseMirror :: Aeson -> Either JsonDecodeError ListenerId
-parseMirror = caseAesonString (Left (TypeMismatch "expected string")) pure
