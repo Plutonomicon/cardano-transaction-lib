@@ -5,10 +5,10 @@ import Prelude
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff, error)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 testnetAddrFixture1 :: OgmiosAddress

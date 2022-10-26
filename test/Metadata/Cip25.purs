@@ -15,6 +15,7 @@ import Ctl.Internal.Metadata.MetadataType
   ( fromGeneralTxMetadata
   , toGeneralTxMetadata
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.ToData (toData)
 import Data.Either (Either(Right), hush)
 import Data.Maybe (Maybe(Just))
@@ -31,7 +32,6 @@ import Test.Ctl.Fixtures
   , cip25MetadataJsonFixture2
   , unsafeMkCip25String
   )
-import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Combinators ((==>))
 import Test.Spec.Assertions (shouldEqual)
