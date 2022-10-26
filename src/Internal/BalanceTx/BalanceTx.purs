@@ -98,8 +98,6 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (getWalletAddresses) as QueryM
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
-import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
   , getWalletCollateral
@@ -175,10 +173,8 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder =
 
     logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
-    pparams <- liftQueryM $ getProtocolParameters
-
     -- Balance and finalize the transaction:
-    runBalancer pparams allUtxos availableUtxos changeAddr
+    runBalancer allUtxos availableUtxos changeAddr
       (unbalancedTx # _transaction' .~ unbalancedCollTx)
   where
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
@@ -207,13 +203,12 @@ type MinFee = BigInt
 type Iteration = Int
 
 runBalancer
-  :: ProtocolParameters
-  -> UtxoMap
+  :: UtxoMap
   -> UtxoMap
   -> ChangeAddress
   -> UnattachedUnbalancedTx
   -> BalanceTxM FinalizedTransaction
-runBalancer pparams allUtxos utxos changeAddress =
+runBalancer allUtxos utxos changeAddress =
   mainLoop one zero <=< addLovelacesToTransactionOutputs
   where
   mainLoop
@@ -238,8 +233,7 @@ runBalancer pparams allUtxos utxos changeAddress =
     traceMainLoop "added transaction change output" "prebalancedTx"
       prebalancedTx
 
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee pparams prebalancedTx
-      allUtxos
+    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx allUtxos
 
     traceMainLoop "calculated ex units and min fee" "balancedTx" balancedTx
 
