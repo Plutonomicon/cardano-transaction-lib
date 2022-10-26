@@ -116,6 +116,8 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.TestPlanM as Utils
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Ctl.Internal.Wallet.Cip30Mock
@@ -160,8 +162,6 @@ import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.NetworkId as NetworkId
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
-import Test.Ctl.TestM (TestPlanM)
-import Test.Ctl.Utils as Utils
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 

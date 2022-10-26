@@ -41,6 +41,7 @@ import Ctl.Internal.Plutip.Types
   )
 import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (foldl, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
@@ -58,7 +59,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
-import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
