@@ -9,12 +9,7 @@ module Ctl.Internal.Plutip.Server
 
 import Prelude
 
-import Aeson
-  ( decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header

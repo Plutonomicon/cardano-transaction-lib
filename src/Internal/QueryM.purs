@@ -10,8 +10,7 @@ module Ctl.Internal.QueryM
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DefaultQueryEnv
-  , DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
-  , DispatchIdMap
+  , module X
   , ListenerSet
   , Logger
   , OgmiosListeners
@@ -23,7 +22,6 @@ module Ctl.Internal.QueryM
   , QueryMExtended(QueryMExtended)
   , QueryEnv
   , QueryRuntime
-  , RequestBody
   , WebSocket(WebSocket)
   , Hooks
   , allowError
@@ -68,6 +66,7 @@ module Ctl.Internal.QueryM
   , callCip30Wallet
   ) where
 
+import Ctl.Internal.QueryM.Dispatcher
 import Prelude
 
 import Aeson
@@ -89,6 +88,7 @@ import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
+  , liftEither
   , throwError
   )
 import Control.Monad.Logger.Class (class MonadLogger)
@@ -121,7 +121,11 @@ import Ctl.Internal.QueryM.DatumCacheWsp
   , GetTxByHashR
   )
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
-import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
+import Ctl.Internal.QueryM.Dispatcher as X
+import Ctl.Internal.QueryM.JsonWsp
+  ( parseJsonWspResponse
+  , parseJsonWspResponseId
+  )
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
 import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
@@ -227,7 +231,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, try)
+import Effect.Exception (Error, error, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -936,32 +940,37 @@ resendPendingSubmitRequests ogmiosWs datumCacheWs logger sendRequest dim pr = do
     liftEffect $ logger Debug $
       label <> ": " <> show value <> " TxHash: " <> show txHash
 
-mkDatumCacheWebSocket'
+mkOdcWebSocket
   :: Logger
   -> ServerConfig
   -> (Either Error DatumCacheWebSocket -> Effect Unit)
   -> Effect Canceler
-mkDatumCacheWebSocket' logger serverCfg continue = do
-  getDatumByHashDispatchMap <- createMutableDispatch
-  getDatumsByHashesDispatchMap <- createMutableDispatch
-  getTxByHashDispatchMap <- createMutableDispatch
-  getDatumByHashPendingRequests <- createPendingRequests
-  getDatumsByHashesPendingRequests <- createPendingRequests
-  getTxByHashPendingRequests <- createPendingRequests
+mkOdcWebSocket logger serverConfig continue = do
+  dispatcher <- Ref.new Map.empty
+  pending <- Ref.new Map.empty
   let
-    messageDispatch = datumCacheMessageDispatch
-      { getDatumByHashDispatchMap
-      , getDatumsByHashesDispatchMap
-      , getTxByHashDispatchMap
-      }
-  ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverCfg
+    (messageDispatch :: WebsocketDispatch) =
+      \aeson -> do
+        case parseJsonWspResponseId aeson of
+          Left parseError ->
+            pure $ Left $ JsonError parseError
+          Right reflection -> do
+            idMap <- Ref.read dispatcher
+            let
+              mbAction =
+                Map.lookup reflection idMap
+                  :: Maybe (Aeson -> Effect Unit)
+            case mbAction of
+              Nothing -> pure $ Left $ ListenerCancelled reflection
+              Just action -> pure $ Right $ action aeson
+
+  ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverConfig
   let
-    sendRequest :: forall (inp :: Type). RequestBody /\ inp -> Effect Unit
-    sendRequest = _wsSend ws (logger Debug) <<< Tuple.fst
+    sendRequest :: forall (inp :: Type). RequestBody -> Effect Unit
+    sendRequest = _wsSend ws (logger Debug)
+
     resendPendingRequests = do
-      Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
-      Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
-      Ref.read getTxByHashPendingRequests >>= traverse_ sendRequest
+      Ref.read pending >>= traverse_ sendRequest
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
@@ -973,6 +982,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
           <> errMessage
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
+
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
@@ -985,18 +995,15 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
       _onWsMessage ws (logger Debug) $ defaultMessageListener logger
-        messageDispatch
+        [ messageDispatch ]
       void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
       continue $ Right $ WebSocket ws
-        { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
-            getDatumByHashPendingRequests
-        , getDatumsByHashes: mkListenerSet getDatumsByHashesDispatchMap
-            getDatumsByHashesPendingRequests
-        , getTxByHash: mkListenerSet getTxByHashDispatchMap
-            getTxByHashPendingRequests
+        { getDatumByHash: mkListenerSet' dispatcher pending
+        , getDatumsByHashes: mkListenerSet' dispatcher pending
+        , getTxByHash: mkListenerSet' dispatcher pending
         }
   pure $ Canceler $ \err -> liftEffect do
     _wsFinalize ws
@@ -1007,7 +1014,7 @@ mkDatumCacheWebSocketAff
   :: Logger
   -> ServerConfig
   -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff logger = makeAff <<< mkDatumCacheWebSocket' logger
+mkDatumCacheWebSocketAff logger = makeAff <<< mkOdcWebSocket logger
 
 mkOgmiosWebSocketAff
   :: DatumCacheWebSocket -> Logger -> ServerConfig -> Aff OgmiosWebSocket
@@ -1037,8 +1044,6 @@ getRequestInputToStore
   :: forall (request :: Type). RequestInput request -> Maybe request
 getRequestInputToStore (RequestInput _) = Nothing
 getRequestInputToStore (RequestInputToStoreInPendingRequests inp) = Just inp
-
-type RequestBody = String
 
 type OgmiosListeners =
   { utxo :: ListenerSet TransactionInput Ogmios.UtxoQR
@@ -1092,6 +1097,34 @@ mkListenerSet dim pr =
   , addRequest:
       \id req ->
         Ref.modify_ (Map.insert id req) pr
+  }
+
+-- we manipluate closures to make the DispatchIdMap updateable using these
+-- methods, this can be picked up by a query or cancellation function
+mkListenerSet'
+  :: forall (request :: Type) (response :: Type)
+   . DecodeAeson response
+  => Dispatcher
+  -> Pending
+  -> ListenerSet request response
+mkListenerSet' dispatcher pendingRequests =
+  { addMessageListener:
+      \reflection handler -> do
+        Ref.modify_
+          ( Map.insert reflection \aeson ->
+              case parseJsonWspResponse aeson of
+                Left err -> handler $ Left $ JsonError err
+                Right { result: Just result } -> handler $ Right result
+                Right { result: Nothing } -> handler $ Left $ FaultError aeson
+          )
+          dispatcher
+  , removeMessageListener:
+      \reflection -> do
+        Ref.modify_ (Map.delete reflection) dispatcher
+        Ref.modify_ (Map.delete reflection) pendingRequests
+  , addRequest:
+      \reflection (requestBody /\ _) ->
+        Ref.modify_ (Map.insert reflection requestBody) pendingRequests
   }
 
 -- | Builds an Ogmios request action using `QueryM`
@@ -1227,44 +1260,6 @@ mkRequestAff' listeners' webSocket logger jsonWspCall getLs inp = do
         liftEffect $ throwError $ err
   makeAff affFunc
 
--------------------------------------------------------------------------------
--- Dispatch Setup
---------------------------------------------------------------------------------
-
-data DispatchError
-  = JsError Error
-  | JsonError JsonDecodeError
-  -- Server response has been parsed succesfully, but it contains error
-  -- message
-  | FaultError Aeson
-  -- The listener that was added for this message has been cancelled
-  | ListenerCancelled ListenerId
-
-instance Show DispatchError where
-  show (JsError err) = "(JsError (message " <> show (message err) <> "))"
-  show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
-  show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
-  show (ListenerCancelled listenerId) =
-    "(ListenerCancelled " <> show listenerId <> ")"
-
-dispatchErrorToError :: DispatchError -> Error
-dispatchErrorToError (JsError err) = err
-dispatchErrorToError (JsonError err) = error $ show err
-dispatchErrorToError (FaultError err) =
-  error $ "Server responded with `fault`: " <> stringifyAeson err
-dispatchErrorToError (ListenerCancelled listenerId) =
-  error $ "Listener cancelled (" <> listenerId <> ")"
-
--- A function which accepts some unparsed Json, and checks it against one or
--- more possible types to perform an appropriate effect (such as supplying the
--- parsed result to an async fiber/Aff listener)
-type WebsocketDispatch =
-  String -> Effect (Either DispatchError (Effect Unit))
-
--- A mutable queue of requests
-type DispatchIdMap response = Ref
-  (MultiMap ListenerId (Either DispatchError response -> Effect Unit))
-
 -- an immutable queue of response type handlers
 ogmiosMessageDispatch
   :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
@@ -1342,12 +1337,11 @@ queryDispatch
    . DecodeAeson response
   => Show response
   => DispatchIdMap response
-  -> String
+  -> Aeson
   -> Effect (Either DispatchError (Effect Unit))
-queryDispatch ref str = do
-  let eiAeson = parseJsonStringToAeson str
+queryDispatch ref aeson = do
   -- Parse response id
-  case parseJsonWspResponseId =<< eiAeson of
+  case parseJsonWspResponseId aeson of
     Left parseError ->
       pure $ Left $ JsonError parseError
     Right reflection -> do
@@ -1357,7 +1351,7 @@ queryDispatch ref str = do
         Just action -> do
           -- Parse response
           Right $ action $
-            case JsonWsp.parseJsonWspResponse =<< eiAeson of
+            case JsonWsp.parseJsonWspResponse aeson of
               Left parseError -> Left $ JsonError parseError
               Right { result: Just result } -> Right result
               -- If result is empty, then fault must be present
@@ -1370,7 +1364,7 @@ queryDispatch ref str = do
   impossibleErrorMsg =
     "Impossible happened: response does not contain neither "
       <> "`fault` nor `result`, please report as bug. Response: "
-      <> str
+      <> show aeson
 
   withAction
     :: ListenerId
@@ -1396,11 +1390,13 @@ defaultMessageListener
   -> String
   -> Effect Unit
 defaultMessageListener logger dispatchArray msg = do
+  aeson <- liftEither $ lmap (const $ error "Unable to parse response") $
+    parseJsonStringToAeson msg
   -- here, we need to fold the input over the array of functions until we get
   -- a success, then execute the effect.
   -- using a fold instead of a traverse allows us to skip a bunch of execution
   eAction :: Either DispatchError (Effect Unit) <- foldl
-    (messageFoldF msg)
+    (messageFoldF aeson)
     (pure $ Left $ JsonError defaultErr)
     dispatchArray
   either
@@ -1421,9 +1417,9 @@ defaultMessageListener logger dispatchArray msg = do
     eAction
 
 messageFoldF
-  :: String
+  :: Aeson
   -> Effect (Either DispatchError (Effect Unit))
-  -> (String -> (Effect (Either DispatchError (Effect Unit))))
+  -> (Aeson -> (Effect (Either DispatchError (Effect Unit))))
   -> Effect (Either DispatchError (Effect Unit))
 messageFoldF msg acc' func = do
   acc <- acc'
