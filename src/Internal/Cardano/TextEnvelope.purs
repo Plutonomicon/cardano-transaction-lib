@@ -1,5 +1,6 @@
 module Ctl.Internal.Cardano.TextEnvelope
-  ( decodeTextEnvelope
+  ( decodeCborHexToBytes
+  , decodeTextEnvelope
   , printTextEnvelopeDecodeError
   , textEnvelopeBytes
   , TextEnvelope(TextEnvelope)
@@ -75,16 +76,20 @@ data TextEnvelopeDecodeError
   = JsonDecodeError JsonDecodeError
   | CborParseError CborParseError
 
+decodeCborHexToBytes :: String -> Either TextEnvelopeDecodeError ByteArray
+decodeCborHexToBytes cborHex = do
+  cborBa <- note (JsonDecodeError $ TypeMismatch "Hex") $ hexToByteArray cborHex
+  -- NOTE PlutusScriptV1 is doubly-encoded cbor, so the resulting `ByteArray`
+  -- is *still* cbor encoded.
+  -- https://github.com/Emurgo/cardano-serialization-lib/issues/268#issuecomment-1042986055
+  lmap CborParseError $ toByteArray $ wrap $ wrap cborBa
+
 decodeTextEnvelope
   :: Aeson -> Either TextEnvelopeDecodeError TextEnvelope
 decodeTextEnvelope aeson = do
   { "type": type_, description, cborHex } <-
     lmap JsonDecodeError $ decodeAeson aeson :: _ TextEnvelopeRaw
-  cborBa <- note (JsonDecodeError $ TypeMismatch "Hex") $ hexToByteArray cborHex
-  -- NOTE PlutusScriptV1 is doubly-encoded cbor, so the resulting `ByteArray`
-  -- is *still* cbor encoded.
-  -- https://github.com/Emurgo/cardano-serialization-lib/issues/268#issuecomment-1042986055
-  ba <- lmap CborParseError $ toByteArray $ wrap $ wrap cborBa
+  ba <- decodeCborHexToBytes cborHex
   pure $ wrap { type_, description, bytes: ba }
 
 printTextEnvelopeDecodeError :: TextEnvelopeDecodeError -> String
