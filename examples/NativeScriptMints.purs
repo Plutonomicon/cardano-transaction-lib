@@ -17,7 +17,6 @@ import Contract.Scripts
   ( MintingPolicy(NativeMintingPolicy)
   , NativeScript(ScriptPubkey)
   )
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
@@ -82,7 +81,6 @@ toSelfContract cs tn amount = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
-  publishTestFeedback true
 
 nsPolicy :: PaymentPubKeyHash -> NativeScript
 nsPolicy = ScriptPubkey <<< unwrap <<< unwrap
