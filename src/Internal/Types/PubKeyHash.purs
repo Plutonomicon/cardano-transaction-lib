@@ -133,6 +133,10 @@ instance DecodeAeson PaymentPubKeyHash where
     $ flip getField "unPaymentPubKeyHash" >=> decodeAeson >>> map
         PaymentPubKeyHash
 
+instance EncodeAeson PaymentPubKeyHash where
+  encodeAeson' (PaymentPubKeyHash pkh) = encodeAeson'
+    { "unPaymentPubKeyHash": pkh }
+
 newtype StakePubKeyHash = StakePubKeyHash PubKeyHash
 
 derive instance Generic StakePubKeyHash _
