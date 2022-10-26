@@ -336,8 +336,8 @@ unspentOutputs
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
--- | should not fail.
+-- | Same as `unspentOutputs` but in `Maybe` context for convenience. 
+-- | This should not fail.
 unspentOutputsM
   :: forall (a :: Type)
    . Map TransactionInput Plutus.TransactionOutputWithRefScript
