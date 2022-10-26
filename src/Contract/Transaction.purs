@@ -52,6 +52,7 @@ import Contract.Monad
   , runContractInEnv
   , wrapContract
   )
+import Contract.ProtocolParameters (getProtocolParameters)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
@@ -326,8 +327,9 @@ calculateMinFee
 calculateMinFee tx additionalUtxos = do
   networkId <- asks $ unwrap >>> _.config >>> _.networkId
   let additionalUtxos' = fromPlutusUtxoMap networkId additionalUtxos
+  pparams <- getProtocolParameters
   map (pure <<< toPlutusCoin)
-    (wrapContract $ QueryM.calculateMinFee tx additionalUtxos')
+    (wrapContract $ QueryM.calculateMinFee pparams tx additionalUtxos')
 
 -- | Same as `calculateMinFee` hushing the error.
 calculateMinFeeM
