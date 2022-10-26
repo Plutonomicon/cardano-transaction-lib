@@ -25,6 +25,7 @@ module Ctl.Internal.QueryM
   , QueryRuntime
   , RequestBody
   , WebSocket(WebSocket)
+  , Hooks
   , allowError
   , applyArgs
   , evaluateTxOgmios
@@ -111,7 +112,7 @@ import Ctl.Internal.JsWebSocket
   , _onWsMessage
   , _removeOnWsError
   , _wsClose
-  , _wsReconnect
+  , _wsFinalize
   , _wsSend
   )
 import Ctl.Internal.QueryM.DatumCacheWsp
@@ -216,6 +217,7 @@ import Effect.Aff
   ( Aff
   , Canceler(Canceler)
   , ParAff
+  , attempt
   , delay
   , finally
   , launchAff_
@@ -225,7 +227,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message)
+import Effect.Exception (Error, error, message, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -235,6 +237,13 @@ import Untagged.Union (asOneOf)
 -- Since WebSockets do not define a mechanism for linking request/response
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
+
+type Hooks =
+  { beforeSign :: Maybe (Effect Unit)
+  , beforeInit :: Maybe (Effect Unit)
+  , onSuccess :: Maybe (Effect Unit)
+  , onError :: Maybe (Error -> Effect Unit)
+  }
 
 -- | `QueryConfig` contains a complete specification on how to initialize a
 -- | `QueryM` environment.
@@ -253,6 +262,7 @@ type QueryConfig =
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
+  , hooks :: Hooks
   }
 
 -- | Reusable part of `QueryRuntime` that can be shared between many `QueryM`
@@ -350,16 +360,27 @@ withQueryRuntime
   -> (QueryRuntime -> Aff a)
   -> Aff a
 withQueryRuntime config action = do
-  runtime <- mkQueryRuntime config
-  supervise (action runtime) `flip finally` do
-    liftEffect $ stopQueryRuntime runtime
+  eiRes <- attempt do
+    runtime <- mkQueryRuntime config
+    supervise (action runtime) `flip finally` liftEffect do
+      stopQueryRuntime runtime
+  case eiRes of
+    Right res -> do
+      liftEffect $ for_ config.hooks.onSuccess (void <<< try)
+      pure res
+    Left err -> do
+      for_ config.hooks.onError \f -> do
+        void $ liftEffect $ try $ f err
+      liftEffect $ throwError err
 
 -- | Close the websockets in `QueryRuntime`, effectively making it unusable
 stopQueryRuntime
   :: QueryRuntime
   -> Effect Unit
 stopQueryRuntime runtime = do
+  _wsFinalize $ underlyingWebSocket runtime.ogmiosWs
   _wsClose $ underlyingWebSocket runtime.ogmiosWs
+  _wsFinalize $ underlyingWebSocket runtime.datumCacheWs
   _wsClose $ underlyingWebSocket runtime.datumCacheWs
 
 -- | Used in `mkQueryRuntime` only
@@ -371,6 +392,7 @@ mkQueryRuntime
   :: QueryConfig
   -> Aff QueryRuntime
 mkQueryRuntime config = do
+  for_ config.hooks.beforeInit (void <<< liftEffect <<< try)
   usedTxOuts <- newUsedTxOuts
   QueryRuntimeModel (ogmiosWs /\ datumCacheWs /\ pparams) wallet <- sequential $
     QueryRuntimeModel
@@ -823,10 +845,10 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
-      _wsClose ws
       logger Error $
         "First connection to Ogmios WebSocket failed. Terminating. Error: " <>
           errMessage
+      _wsFinalize ws
       _wsClose ws
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
@@ -846,11 +868,9 @@ mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
       void $ _onWsError ws \err -> do
         logger Debug $
           "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
-        launchAff_ do
-          delay (wrap 500.0)
-          liftEffect $ _wsReconnect ws
       continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
+    _wsFinalize ws
     _wsClose ws
     continue $ Left $ err
 
@@ -938,7 +958,6 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
   let
     sendRequest :: forall (inp :: Type). RequestBody /\ inp -> Effect Unit
     sendRequest = _wsSend ws (logger Debug) <<< Tuple.fst
-
     resendPendingRequests = do
       Ref.read getDatumByHashPendingRequests >>= traverse_ sendRequest
       Ref.read getDatumsByHashesPendingRequests >>= traverse_ sendRequest
@@ -946,6 +965,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
+      _wsFinalize ws
       _wsClose ws
       logger Error $
         "First connection to Ogmios Datum Cache WebSocket failed. "
@@ -970,9 +990,6 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
         logger Debug $
           "Ogmios Datum Cache WebSocket error (" <> err <>
             "). Reconnecting..."
-        launchAff_ do
-          delay (wrap 500.0)
-          liftEffect $ _wsReconnect ws
       continue $ Right $ WebSocket ws
         { getDatumByHash: mkListenerSet getDatumByHashDispatchMap
             getDatumByHashPendingRequests
@@ -982,6 +999,7 @@ mkDatumCacheWebSocket' logger serverCfg continue = do
             getTxByHashPendingRequests
         }
   pure $ Canceler $ \err -> liftEffect do
+    _wsFinalize ws
     _wsClose ws
     continue $ Left $ err
 

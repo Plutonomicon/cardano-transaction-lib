@@ -14,6 +14,7 @@ import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
 import Ctl.Internal.QueryM.Ogmios (UtxoQR)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array as Array
 import Data.Either (Either, either, isRight)
 import Data.Medea (validate)
@@ -26,7 +27,7 @@ import Effect.Exception (error, throw)
 import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile)
-import Test.Ctl.TestM (TestPlanM, ValidationM, runValidationM)
+import Test.Ctl.Utils (ValidationM, runValidationM)
 import Test.Spec.Assertions (shouldNotSatisfy, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit

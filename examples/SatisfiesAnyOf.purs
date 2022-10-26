@@ -19,7 +19,6 @@ import Contract.PlutusData
   , unitDatum
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Control.Monad.Error.Class (liftMaybe)
@@ -35,7 +34,6 @@ example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.SatisfiesAnyOf"
     testMustSatisfyAnyOf
-  publishTestFeedback true
 
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42
