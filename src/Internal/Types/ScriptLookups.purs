@@ -99,7 +99,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
+import Ctl.Internal.QueryM.ProtocolParameters (askProtocolParameters)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
@@ -584,7 +584,7 @@ runConstraintsM
   -> TxConstraints redeemer datum
   -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState validator))
 runConstraintsM lookups txConstraints = do
-  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
+  costModels <- askProtocolParameters <#> unwrap >>> _.costModels
   let
     initCps :: ConstraintProcessingState validator
     initCps =
