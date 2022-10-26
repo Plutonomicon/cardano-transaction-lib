@@ -28,7 +28,6 @@ module Contract.Transaction
   , module ScriptRef
   , module Transaction
   , module UnbalancedTx
-  , module UsedTxOuts
   , reindexSpentScriptRedeemers
   , scriptOutputToTransactionOutput
   , signTransaction
@@ -245,7 +244,6 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
-import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache) as UsedTxOuts
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
