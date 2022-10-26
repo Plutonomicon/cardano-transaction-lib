@@ -336,10 +336,10 @@
               make check-format
               touch $out
             '';
-          examples-imports-check = pkgs.runCommand "examples-imports-check" {}
+          examples-imports-check = pkgs.runCommand "examples-imports-check" { }
             ''
               cd ${self}
-              make examples-imports-check
+              make check-examples-imports
               touch $out 
             '';
         });
