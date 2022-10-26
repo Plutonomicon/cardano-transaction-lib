@@ -48,6 +48,7 @@ import Ctl.Internal.QueryM (evaluateTxOgmios) as QueryM
 import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
+  , ProtocolParameters
   , TxEvaluationResult(TxEvaluationResult)
   ) as Ogmios
 import Ctl.Internal.ReindexRedeemers
@@ -123,10 +124,11 @@ evalTxExecutionUnits tx unattachedTx = do
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
 -- the minimum fee.
 evalExUnitsAndMinFee
-  :: PrebalancedTransaction
+  :: Ogmios.ProtocolParameters
+  -> PrebalancedTransaction
   -> UtxoMap
   -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
-evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
+evalExUnitsAndMinFee pparams (PrebalancedTransaction unattachedTx) allUtxos = do
   -- Reindex `Spent` script redeemers:
   reindexedUnattachedTx <- liftEitherQueryM $
     reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
@@ -146,7 +148,8 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   additionalUtxos <-
     fromPlutusUtxoMap networkId
       <$> asksConstraints Constraints._additionalUtxos
-  minFee <- liftQueryM $ QueryM.calculateMinFee finalizedTx additionalUtxos
+  minFee <- liftQueryM $ QueryM.calculateMinFee pparams finalizedTx
+    additionalUtxos
   pure $ reindexedUnattachedTxWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,

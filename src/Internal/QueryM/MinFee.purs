@@ -15,7 +15,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.QueryM (QueryM, getWalletAddresses)
-import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -37,10 +37,9 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
 
 -- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
-calculateMinFee :: Transaction -> UtxoMap -> QueryM Coin
-calculateMinFee tx additionalUtxos = do
+calculateMinFee :: ProtocolParameters -> Transaction -> UtxoMap -> QueryM Coin
+calculateMinFee pparams tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
-  pparams <- getProtocolParameters
   calculateMinFeeCsl pparams selfSigners tx
 
 getSelfSigners :: Transaction -> UtxoMap -> QueryM (Set Ed25519KeyHash)
