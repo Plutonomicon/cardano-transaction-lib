@@ -15,7 +15,6 @@ import Ctl.Internal.QueryM.Ogmios
   , queryProtocolParametersCall
   )
 
-
 askProtocolParameters :: QueryM ProtocolParameters
 askProtocolParameters =
   asks $ _.runtime >>> _.pparams
