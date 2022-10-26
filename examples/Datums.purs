@@ -24,7 +24,6 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
-import Contract.Test.E2E (publishTestFeedback)
 
 main :: Effect Unit
 main = example testnetConfig
@@ -49,4 +48,3 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
-  publishTestFeedback true
