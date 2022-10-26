@@ -9,12 +9,7 @@ module Ctl.Internal.Plutip.Server
 
 import Prelude
 
-import Aeson
-  ( decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -98,8 +93,10 @@ import Node.ChildProcess
   , defaultSpawnOptions
   , execSync
   , kill
+  , onExit
   , spawn
   )
+import Node.FS.Sync (rmdir) as Sync
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -395,6 +392,7 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
   liftEffect $ killOnExit pgChildProcess
+  liftEffect $ onExit pgChildProcess \_ -> Sync.rmdir databaseDir
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
