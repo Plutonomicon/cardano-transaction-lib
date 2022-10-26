@@ -35,6 +35,9 @@ check-format: check-explicit-exports
 	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
 
+check-examples-imports:
+	bash ./scripts/examples-imports-check.sh
+
 format:
 	@purs-tidy format-in-place ${ps-sources}
 	nixpkgs-fmt ${nix-sources}
