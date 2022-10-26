@@ -135,7 +135,7 @@ import Data.Array.NonEmpty
   ) as NEArray
 import Data.BigInt (BigInt)
 import Data.Either (Either, note)
-import Data.Foldable (foldMap, foldr, length)
+import Data.Foldable (foldMap, foldr, length, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
@@ -269,19 +269,19 @@ runBalancer strategy allUtxos utxos changeAddress unbalancedTx' = do
   prebalanceTx state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
     logBalancerState "Pre-balancing (Stage 1)" utxos state
 
-    performCoinSelection >>= \selectionState ->
-      let
-        leftoverUtxos' :: UtxoMap
-        leftoverUtxos' = selectionState ^. _leftoverUtxos
+    selectionState <- performCoinSelection
+    let
+      leftoverUtxos' :: UtxoMap
+      leftoverUtxos' = selectionState ^. _leftoverUtxos
 
-        selectedInputs' :: Set TransactionInput
-        selectedInputs' = selectedInputs selectionState
+      selectedInputs' :: Set TransactionInput
+      selectedInputs' = selectedInputs selectionState
 
-        unbalancedTxWithInputs :: UnattachedUnbalancedTx
-        unbalancedTxWithInputs =
-          unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
-      in
-        runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
+      unbalancedTxWithInputs :: UnattachedUnbalancedTx
+      unbalancedTxWithInputs =
+        unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
+
+    runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
     where
     performCoinSelection :: BalanceTxM SelectionState
     performCoinSelection =
@@ -550,8 +550,7 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
     noTokens = Array.null <<< Value.valueAssets <<< fst
 
   adaRequiredAtStart :: BalanceTxM BigInt
-  adaRequiredAtStart =
-    foldr (+) zero <$> traverse (minCoinFor <<< fst) pairsAtStart
+  adaRequiredAtStart = sum <$> traverse (minCoinFor <<< fst) pairsAtStart
 
   minCoinFor :: Value -> BalanceTxM BigInt
   minCoinFor value = do
