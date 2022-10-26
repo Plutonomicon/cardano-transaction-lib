@@ -76,8 +76,16 @@ import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
+import Effect (Effect, foreachE)
+import Effect.Aff
+  ( Aff
+  , Milliseconds(Milliseconds)
+  , bracket
+  , nonCanceler
+  , runAff_
+  , throwError
+  , try
+  )
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -96,6 +104,7 @@ import Node.ChildProcess
   , onExit
   , spawn
   )
+import Node.FS.Sync (readdir, unlink)
 import Node.FS.Sync (rmdir) as Sync
 import Type.Prelude (Proxy(Proxy))
 
@@ -392,7 +401,12 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
   liftEffect $ killOnExit pgChildProcess
-  liftEffect $ onExit pgChildProcess \_ -> Sync.rmdir databaseDir
+  liftEffect $ onExit pgChildProcess \_ ->
+    do
+      file <- readdir databaseDir
+      foreachE file unlink
+      Sync.rmdir databaseDir
+  -- liftEffect $ onExit pgChildProcess \_ -> Sync.rmdir databaseDir
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
