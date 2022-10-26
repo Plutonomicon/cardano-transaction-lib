@@ -122,7 +122,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (TxHash)
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -470,8 +470,17 @@ submitTxOgmios txHash tx = do
     _.submit
     inp
 
-evaluateTxOgmios :: CborBytes -> QueryM Ogmios.TxEvaluationR
-evaluateTxOgmios = mkOgmiosRequest Ogmios.evaluateTxCall _.evaluate
+evaluateTxOgmios
+  :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
+evaluateTxOgmios cbor additionalUtxos = do
+  ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
+  listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
+  cfg <- asks _.config
+  let inp = RequestInputToStoreInPendingRequests (cbor /\ additionalUtxos)
+  liftAff $ mkRequestAff' listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+    Ogmios.evaluateTxCall
+    _.evaluate
+    inp
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -1018,7 +1027,8 @@ type OgmiosListeners =
   , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
-  , evaluate :: ListenerSet CborBytes Ogmios.TxEvaluationR
+  , evaluate ::
+      ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
