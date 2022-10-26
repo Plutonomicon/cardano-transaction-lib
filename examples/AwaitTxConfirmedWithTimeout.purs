@@ -13,7 +13,6 @@ import Contract.Prelude
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Control.Monad.Error.Class (try)
 -- TODO Re-export into Contract or drop the usage
@@ -27,7 +26,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 contract :: Contract () Unit
 contract = do

@@ -8,11 +8,11 @@ import Ctl.Internal.Base64
   , toByteArray
   , unBase64String
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (quickCheck, (===))
 
 suite :: TestPlanM (Aff Unit) Unit
