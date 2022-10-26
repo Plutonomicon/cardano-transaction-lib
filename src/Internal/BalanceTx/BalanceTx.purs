@@ -78,8 +78,8 @@ import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction))
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeRegistration, StakeDeregistration)
-  , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
+  , Transaction
+  , TransactionOutput
   , TxBody
   , UtxoMap
   , _body
@@ -253,7 +253,9 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
   getSpendableUtxos =
     asksConstraints Constraints._nonSpendableInputs <#>
       \nonSpendableInputs ->
-        Map.filterKeys (not <<< flip Set.member nonSpendableInputs) utxos
+        flip Map.filterKeys utxos \oref -> not $
+          Set.member oref nonSpendableInputs
+            || Set.member oref (unbalancedTx' ^. _body' <<< _referenceInputs)
 
   -- | Determines which balancing step will be performed next.
   -- |
@@ -281,19 +283,19 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
   prebalanceTx state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
     logBalancerState "Pre-balancing (Stage 1)" utxos state
 
-    performCoinSelection >>= \selectionState ->
-      let
-        leftoverUtxos' :: UtxoMap
-        leftoverUtxos' = selectionState ^. _leftoverUtxos
+    selectionState <- performCoinSelection
+    let
+      leftoverUtxos' :: UtxoMap
+      leftoverUtxos' = selectionState ^. _leftoverUtxos
 
-        selectedInputs' :: Set TransactionInput
-        selectedInputs' = selectedInputs selectionState
+      selectedInputs' :: Set TransactionInput
+      selectedInputs' = selectedInputs selectionState
 
-        unbalancedTxWithInputs :: UnattachedUnbalancedTx
-        unbalancedTxWithInputs =
-          unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
-      in
-        runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
+      unbalancedTxWithInputs :: UnattachedUnbalancedTx
+      unbalancedTxWithInputs =
+        unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
+
+    runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
     where
     performCoinSelection :: BalanceTxM SelectionState
     performCoinSelection =
@@ -563,8 +565,7 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
     noTokens = Array.null <<< Value.valueAssets <<< fst
 
   adaRequiredAtStart :: BalanceTxM BigInt
-  adaRequiredAtStart =
-    foldr (+) zero <$> traverse (minCoinFor <<< fst) pairsAtStart
+  adaRequiredAtStart = sum <$> traverse (minCoinFor <<< fst) pairsAtStart
 
   minCoinFor :: Value -> BalanceTxM BigInt
   minCoinFor value = do
