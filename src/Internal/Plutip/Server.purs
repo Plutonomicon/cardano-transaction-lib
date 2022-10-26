@@ -81,7 +81,6 @@ import Effect.Aff
   ( Aff
   , Milliseconds(Milliseconds)
   , bracket
-  , nonCanceler
   , runAff_
   , throwError
   , try
@@ -94,6 +93,7 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
+import Effect.Console (log)
 import Effect.Exception (throw)
 import Node.ChildProcess
   ( ChildProcess
@@ -104,8 +104,9 @@ import Node.ChildProcess
   , onExit
   , spawn
   )
-import Node.FS.Sync (readdir, unlink)
-import Node.FS.Sync (rmdir) as Sync
+import Node.FS.Aff as A
+import Node.FS.Sync (unlink)
+import Node.Path (FilePath)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -401,12 +402,21 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
   liftEffect $ killOnExit pgChildProcess
-  liftEffect $ onExit pgChildProcess \_ ->
-    do
-      file <- readdir databaseDir
-      foreachE file unlink
-      Sync.rmdir databaseDir
+  -- liftEffect $ onExit pgChildProcess \_ ->
+  --   do
+  --     files <- readdir databaseDir
+  --     foreachE files unlink
+  --     Sync.rmdir databaseDir
+
   -- liftEffect $ onExit pgChildProcess \_ -> Sync.rmdir databaseDir
+  liftEffect $ onExit pgChildProcess
+    ( \_ -> runAff_
+        ( either
+            (\error -> log $ show error)
+            (\_ -> pure unit)
+        )
+        (delDir databaseDir)
+    )
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
@@ -436,6 +446,12 @@ startPostgresServer pgConfig _ = do
     )
     defaultExecSyncOptions
   pure pgChildProcess
+
+delDir :: FilePath -> Aff Unit
+delDir dir = do
+  files <- A.readdir dir
+  liftEffect $ foreachE files unlink
+  A.rmdir dir
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ChildProcess -> Aff Unit
