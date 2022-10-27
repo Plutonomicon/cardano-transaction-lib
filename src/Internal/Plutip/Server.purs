@@ -299,11 +299,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
       (liftEffect <<< stopContractEnv)
       (\a -> pure (a /\ liftEffect printLogs))
-  -- $ contractEnvCont >>> try >=> case _ of
-  --     Left err -> do
-  --       liftEffect printLogs
-  --       throwError err
-  --     Right res -> pure res
   mkContractEnv' =
     -- otherwise, proceed with the env setup and provide a normal logger
     bracket
