@@ -30,7 +30,7 @@ import Node.ChildProcess
   , stdout
   )
 import Node.ChildProcess as ChildProcess
-import Node.ReadLine (close, createInterface, setLineHandler) as RL
+import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 
 -- | Carry along an `AVar` which resolves when the process closes.
 -- | Necessary due to `child_process` having no way to query if a process has
@@ -75,6 +75,9 @@ spawn' cmd args opts mbFilter cont = do
     cont $ Left $ error $
       "Process " <> cmd <> " exited. Output:\n" <> output
 
+  -- Ideally we close the interface instead of detaching the listener
+  -- but it seems to issue a close on the output stream of the process too
+  -- which breaks some processes
   case mbFilter of
     Nothing -> cont (pure mp)
     Just filter -> do
@@ -83,16 +86,18 @@ spawn' cmd args opts mbFilter cont = do
           output <- Ref.modify (_ <> str <> "\n") outputRef
           case filter output of
             Success -> do
-              RL.close interface
+              clearLineHandler interface
               cont (pure mp)
             Cancel -> do
-              RL.close interface
               kill SIGINT child
+              clearLineHandler interface
               cont $ Left $ error
                 $ "Process cancelled because output received: " <> str
             _ -> pure unit
 
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child
+
+foreign import clearLineHandler :: RL.Interface -> Effect Unit
 
 stop :: ManagedProcess -> Aff Unit
 stop (ManagedProcess child closedAVar) = do
