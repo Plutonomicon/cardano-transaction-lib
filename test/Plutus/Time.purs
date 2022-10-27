@@ -4,7 +4,6 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
-import Contract.Numeric.BigNum as BigNum
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , Epoch(Epoch)
@@ -19,6 +18,8 @@ import Ctl.Internal.QueryM.Ogmios
   , SystemStart(SystemStart)
   )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)
@@ -46,7 +47,6 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Mote (group)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
 
 slotFixture :: Slot

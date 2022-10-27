@@ -22,6 +22,8 @@ module Contract.Config
   , module Ctl.Internal.Wallet.Key
   ) where
 
+import Prelude
+
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Contract.Monad (ConfigParams)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -63,6 +65,7 @@ testnetConfig =
   , logLevel: Trace
   , customLogger: Nothing
   , suppressLogs: false
+  , hooks: mempty
   }
 
 testnetNamiConfig :: ConfigParams ()

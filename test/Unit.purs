@@ -2,6 +2,7 @@ module Test.Ctl.Unit (main, testPlan) where
 
 import Prelude
 
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -10,6 +11,7 @@ import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
 import Test.Ctl.Deserialization as Deserialization
+import Test.Ctl.E2E.Route as E2E.Route
 import Test.Ctl.Equipartition as Equipartition
 import Test.Ctl.Hashing as Hashing
 import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
@@ -26,18 +28,16 @@ import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Address as Serialization.Address
 import Test.Ctl.Serialization.Hash as Serialization.Hash
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Transaction as Transaction
 import Test.Ctl.TxOutput as TxOutput
 import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.UsedTxOuts as UsedTxOuts
-import Test.Ctl.Utils as Utils
 
 -- Run with `spago test --main Test.Ctl.Unit`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret testPlan
+  interpret testPlan
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
@@ -68,3 +68,4 @@ testPlan = do
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
+  E2E.Route.suite
