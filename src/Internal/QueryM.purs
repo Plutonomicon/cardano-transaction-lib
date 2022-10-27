@@ -747,132 +747,137 @@ data WebSocket listeners = WebSocket JsWebSocket listeners
 type OgmiosWebSocket = WebSocket OgmiosListeners
 type DatumCacheWebSocket = WebSocket DatumCacheListeners
 
--- smart-constructor for OgmiosWebSocket in Aff Context
--- (prevents sending messages before the websocket opens, etc)
-mkOgmiosWebSocket'
-  :: DatumCacheWebSocket
+mkServiceWebSocket
+  :: String
   -> Logger
   -> ServerConfig
-  -> (Either Error OgmiosWebSocket -> Effect Unit)
+  -> Aff (JsWebSocket /\ Dispatcher /\ Pending)
+mkServiceWebSocket serviceName logger serverConfig =
+  makeAff $ mkServiceWebSocket' serviceName logger serverConfig
+
+mkServiceWebSocket'
+  :: String
+  -> Logger
+  -> ServerConfig
+  -> (Either Error (JsWebSocket /\ Dispatcher /\ Pending) -> Effect Unit)
   -> Effect Canceler
-mkOgmiosWebSocket' datumCacheWs logger serverCfg continue = do
-  utxoDispatchMap <- createMutableDispatch
-  utxosAtDispatchMap <- createMutableDispatch
-  chainTipDispatchMap <- createMutableDispatch
-  evaluateTxDispatchMap <- createMutableDispatch
-  getProtocolParametersDispatchMap <- createMutableDispatch
-  submitDispatchMap <- createMutableDispatch
-  eraSummariesDispatchMap <- createMutableDispatch
-  currentEpochDispatchMap <- createMutableDispatch
-  systemStartDispatchMap <- createMutableDispatch
-  acquireMempoolDispatchMap <- createMutableDispatch
-  mempoolHasTxDispatchMap <- createMutableDispatch
-  utxoPendingRequests <- createPendingRequests
-  utxosAtPendingRequests <- createPendingRequests
-  chainTipPendingRequests <- createPendingRequests
-  evaluateTxPendingRequests <- createPendingRequests
-  getProtocolParametersPendingRequests <- createPendingRequests
-  submitPendingRequests <- createPendingRequests
-  eraSummariesPendingRequests <- createPendingRequests
-  currentEpochPendingRequests <- createPendingRequests
-  systemStartPendingRequests <- createPendingRequests
-  acquireMempoolPendingRequests <- createPendingRequests
-  mempoolHasTxPendingRequests <- createPendingRequests
+mkServiceWebSocket' serviceName logger serverCfg continue = do
+  dispatcher <- Ref.new Map.empty
+  pending <- Ref.new Map.empty
   let
-    messageDispatch = ogmiosMessageDispatch
-      { utxoDispatchMap
-      , utxosAtDispatchMap
-      , chainTipDispatchMap
-      , evaluateTxDispatchMap
-      , getProtocolParametersDispatchMap
-      , submitDispatchMap
-      , eraSummariesDispatchMap
-      , currentEpochDispatchMap
-      , systemStartDispatchMap
-      , acquireMempoolDispatchMap
-      , mempoolHasTxDispatchMap
-      }
+    (messageDispatch :: WebsocketDispatch) =
+      mkWebsocketDispatch dispatcher
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-
-    ogmiosWs :: OgmiosWebSocket
-    ogmiosWs = WebSocket ws
-      { utxo:
-          mkListenerSet utxoDispatchMap utxoPendingRequests
-      , utxosAt:
-          mkListenerSet utxosAtDispatchMap utxosAtPendingRequests
-      , chainTip:
-          mkListenerSet chainTipDispatchMap chainTipPendingRequests
-      , evaluate:
-          mkListenerSet evaluateTxDispatchMap evaluateTxPendingRequests
-      , getProtocolParameters:
-          mkListenerSet getProtocolParametersDispatchMap
-            getProtocolParametersPendingRequests
-      , submit:
-          mkListenerSet submitDispatchMap submitPendingRequests
-      , eraSummaries:
-          mkListenerSet eraSummariesDispatchMap eraSummariesPendingRequests
-      , currentEpoch:
-          mkListenerSet currentEpochDispatchMap currentEpochPendingRequests
-      , systemStart:
-          mkListenerSet systemStartDispatchMap systemStartPendingRequests
-      , acquireMempool:
-          mkListenerSet acquireMempoolDispatchMap acquireMempoolPendingRequests
-      , mempoolHasTx:
-          mkListenerSet mempoolHasTxDispatchMap mempoolHasTxPendingRequests
-      }
-
-    sendRequest :: forall (req :: Type). RequestBody /\ req -> Effect Unit
-    sendRequest = _wsSend ws (logger Debug) <<< Tuple.fst
+    sendRequest :: forall (inp :: Type). RequestBody -> Effect Unit
+    sendRequest = _wsSend ws (logger Debug)
 
     resendPendingRequests = do
-      Ref.read utxoPendingRequests >>= traverse_ sendRequest
-      Ref.read utxosAtPendingRequests >>= traverse_ sendRequest
-      Ref.read chainTipPendingRequests >>= traverse_ sendRequest
-      Ref.read evaluateTxPendingRequests >>= traverse_ sendRequest
-      Ref.read getProtocolParametersPendingRequests >>= traverse_ sendRequest
-      Ref.read eraSummariesPendingRequests >>= traverse_ sendRequest
-      Ref.read currentEpochPendingRequests >>= traverse_ sendRequest
-      Ref.read systemStartPendingRequests >>= traverse_ sendRequest
-
-      logger Debug "Resent all pending requests"
-
-      Ref.write MultiMap.empty acquireMempoolDispatchMap
-      Ref.write Map.empty acquireMempoolPendingRequests
-      Ref.write MultiMap.empty mempoolHasTxDispatchMap
-      Ref.write Map.empty mempoolHasTxPendingRequests
-
-      resendPendingSubmitRequests ogmiosWs datumCacheWs logger sendRequest
-        submitDispatchMap
-        submitPendingRequests
-
+      Ref.read pending >>= traverse_ sendRequest
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
-      logger Error $
-        "First connection to Ogmios WebSocket failed. Terminating. Error: " <>
-          errMessage
       _wsFinalize ws
       _wsClose ws
+      logger Error $
+        "First connection to " <> serviceName <> " WebSocket failed. "
+          <> "Terminating. Error: "
+          <> errMessage
       continue $ Left $ error errMessage
   firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
   hasConnectedOnceRef <- Ref.new false
   _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
     true -> do
-      logger Debug
-        "Ogmios WS connection re-established, resending pending requests..."
+      logger Debug $
+        serviceName <>
+          " WebSocket connection re-established, resending pending requests..."
       resendPendingRequests
-      logger Debug "Resent all pending requests"
     false -> do
-      logger Debug "Ogmios Connection established"
+      logger Debug $ "Connection to " <> serviceName <> " established"
       Ref.write true hasConnectedOnceRef
       _removeOnWsError ws firstConnectionErrorRef
       _onWsMessage ws (logger Debug) $ defaultMessageListener logger
-        messageDispatch
+        [ messageDispatch ]
       void $ _onWsError ws \err -> do
         logger Debug $
-          "Ogmios WebSocket error (" <> err <> "). Reconnecting..."
-      continue (Right ogmiosWs)
+          serviceName <> " WebSocket error (" <> err <>
+            "). Reconnecting..."
+      continue $ Right (ws /\ dispatcher /\ pending)
+  pure $ Canceler $ \err -> liftEffect do
+    _wsFinalize ws
+    _wsClose ws
+    continue $ Left $ err
+
+mkOgmiosWebSocket
+  :: DatumCacheWebSocket
+  -> Logger
+  -> ServerConfig
+  -> (Either Error OgmiosWebSocket -> Effect Unit)
+  -> Effect Canceler
+mkOgmiosWebSocket datumCacheWs logger serverCfg continue = do
+  dispatcher <- Ref.new Map.empty
+  pending <- Ref.new Map.empty
+  let
+    (messageDispatch :: WebsocketDispatch) =
+      mkWebsocketDispatch dispatcher
+  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  let
+    sendRequest :: forall (inp :: Type). RequestBody -> Effect Unit
+    sendRequest = _wsSend ws (logger Debug)
+
+    resendPendingRequests = do
+      Ref.read pending >>= traverse_ sendRequest
+    -- We want to fail if the first connection attempt is not successful.
+    -- Otherwise, we start reconnecting indefinitely.
+    onFirstConnectionError errMessage = do
+      _wsFinalize ws
+      _wsClose ws
+      logger Error $
+        "First connection to Ogmios WebSocket failed. "
+          <> "Terminating. Error: "
+          <> errMessage
+      continue $ Left $ error errMessage
+  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
+  hasConnectedOnceRef <- Ref.new false
+  _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
+    true -> do
+      logger Debug $
+        "Ogmios WS connection re-established, resending pending requests..."
+      resendPendingRequests
+    false -> do
+      logger Debug "Connection to Ogmios established"
+      Ref.write true hasConnectedOnceRef
+      _removeOnWsError ws firstConnectionErrorRef
+      _onWsMessage ws (logger Debug) $ defaultMessageListener logger
+        [ messageDispatch ]
+      void $ _onWsError ws \err -> do
+        logger Debug $
+          "Ogmios WebSocket error (" <> err <>
+            "). Reconnecting..."
+      continue $ Right $ WebSocket ws
+        { utxo:
+            mkListenerSet' dispatcher pending
+        , utxosAt:
+            mkListenerSet' dispatcher pending
+        , chainTip:
+            mkListenerSet' dispatcher pending
+        , evaluate:
+            mkListenerSet' dispatcher pending
+        , getProtocolParameters:
+            mkListenerSet' dispatcher pending
+        , submit:
+            mkListenerSet' dispatcher pending
+        , eraSummaries:
+            mkListenerSet' dispatcher pending
+        , currentEpoch:
+            mkListenerSet' dispatcher pending
+        , systemStart:
+            mkListenerSet' dispatcher pending
+        , acquireMempool:
+            mkListenerSet' dispatcher pending
+        , mempoolHasTx:
+            mkListenerSet' dispatcher pending
+        }
   pure $ Canceler $ \err -> liftEffect do
     _wsFinalize ws
     _wsClose ws
@@ -940,86 +945,23 @@ resendPendingSubmitRequests ogmiosWs datumCacheWs logger sendRequest dim pr = do
     liftEffect $ logger Debug $
       label <> ": " <> show value <> " TxHash: " <> show txHash
 
-mkOdcWebSocket
-  :: Logger
-  -> ServerConfig
-  -> (Either Error DatumCacheWebSocket -> Effect Unit)
-  -> Effect Canceler
-mkOdcWebSocket logger serverConfig continue = do
-  dispatcher <- Ref.new Map.empty
-  pending <- Ref.new Map.empty
-  let
-    (messageDispatch :: WebsocketDispatch) =
-      \aeson -> do
-        case parseJsonWspResponseId aeson of
-          Left parseError ->
-            pure $ Left $ JsonError parseError
-          Right reflection -> do
-            idMap <- Ref.read dispatcher
-            let
-              mbAction =
-                Map.lookup reflection idMap
-                  :: Maybe (Aeson -> Effect Unit)
-            case mbAction of
-              Nothing -> pure $ Left $ ListenerCancelled reflection
-              Just action -> pure $ Right $ action aeson
-
-  ws <- _mkWebSocket (logger Debug) $ mkOgmiosDatumCacheWsUrl serverConfig
-  let
-    sendRequest :: forall (inp :: Type). RequestBody -> Effect Unit
-    sendRequest = _wsSend ws (logger Debug)
-
-    resendPendingRequests = do
-      Ref.read pending >>= traverse_ sendRequest
-    -- We want to fail if the first connection attempt is not successful.
-    -- Otherwise, we start reconnecting indefinitely.
-    onFirstConnectionError errMessage = do
-      _wsFinalize ws
-      _wsClose ws
-      logger Error $
-        "First connection to Ogmios Datum Cache WebSocket failed. "
-          <> "Terminating. Error: "
-          <> errMessage
-      continue $ Left $ error errMessage
-  firstConnectionErrorRef <- _onWsError ws onFirstConnectionError
-
-  hasConnectedOnceRef <- Ref.new false
-  _onWsConnect ws $ Ref.read hasConnectedOnceRef >>= case _ of
-    true -> do
-      logger Debug $
-        "Ogmios Datum Cache WS connection re-established, resending " <>
-          "pending requests..."
-      resendPendingRequests
-    false -> do
-      logger Debug "Ogmios Datum Cache Connection established"
-      Ref.write true hasConnectedOnceRef
-      _removeOnWsError ws firstConnectionErrorRef
-      _onWsMessage ws (logger Debug) $ defaultMessageListener logger
-        [ messageDispatch ]
-      void $ _onWsError ws \err -> do
-        logger Debug $
-          "Ogmios Datum Cache WebSocket error (" <> err <>
-            "). Reconnecting..."
-      continue $ Right $ WebSocket ws
-        { getDatumByHash: mkListenerSet' dispatcher pending
-        , getDatumsByHashes: mkListenerSet' dispatcher pending
-        , getTxByHash: mkListenerSet' dispatcher pending
-        }
-  pure $ Canceler $ \err -> liftEffect do
-    _wsFinalize ws
-    _wsClose ws
-    continue $ Left $ err
-
 mkDatumCacheWebSocketAff
   :: Logger
   -> ServerConfig
   -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff logger = makeAff <<< mkOdcWebSocket logger
+mkDatumCacheWebSocketAff logger serverConfig = do
+  ws /\ dispatcher /\ pending <- mkServiceWebSocket "ogmios-datum-cache" logger
+    serverConfig
+  pure $ WebSocket ws
+    { getDatumByHash: mkListenerSet' dispatcher pending
+    , getDatumsByHashes: mkListenerSet' dispatcher pending
+    , getTxByHash: mkListenerSet' dispatcher pending
+    }
 
 mkOgmiosWebSocketAff
   :: DatumCacheWebSocket -> Logger -> ServerConfig -> Aff OgmiosWebSocket
 mkOgmiosWebSocketAff datumCacheWs logger =
-  makeAff <<< mkOgmiosWebSocket' datumCacheWs logger
+  makeAff <<< mkOgmiosWebSocket datumCacheWs logger
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
