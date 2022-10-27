@@ -34,13 +34,12 @@ import Contract.Test.E2E (publishTestFeedback)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , plutusV1Script
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
@@ -121,18 +120,16 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
-oneShotMintingPolicy =
-  mkOneShotMintingPolicy oneShotMinting PlutusScriptV1 plutusV1Script
+oneShotMintingPolicy txInput = do
+  script <- liftEitherTextEnvelopeDecodeError $
+    plutusScriptV1FromEnvelope oneShotMinting
+  mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
-  :: String
-  -> TextEnvelopeType
-  -> (ByteArray -> PlutusScript)
+  :: PlutusScript
   -> TransactionInput
   -> Contract () MintingPolicy
-mkOneShotMintingPolicy json ty mkPlutusScript oref = do
-  unappliedMintingPolicy <-
-    map mkPlutusScript (textEnvelopeBytes json ty)
+mkOneShotMintingPolicy unappliedMintingPolicy oref = do
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)

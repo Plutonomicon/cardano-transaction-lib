@@ -2,7 +2,8 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
 module Ctl.Examples.AlwaysSucceeds
-  ( alwaysSucceedsScript
+  ( alwaysSucceeds
+  , alwaysSucceedsScript
   , contract
   , example
   , main
@@ -18,17 +19,16 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(..), ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
   , lookupTxHash
-  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -111,6 +111,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
-alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  alwaysSucceeds
-  PlutusScriptV1
+alwaysSucceedsScript =
+  liftEitherTextEnvelopeDecodeError
+    $ Validator
+    <$> plutusScriptV1FromEnvelope alwaysSucceeds

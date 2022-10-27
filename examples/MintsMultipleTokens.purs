@@ -20,10 +20,10 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Ctl.Examples.Helpers
@@ -80,19 +80,19 @@ foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
 mintingPolicyRdmrInt1 :: Contract () MintingPolicy
-mintingPolicyRdmrInt1 = PlutusMintingPolicy <<< plutusV1Script <$>
-  textEnvelopeBytes
-    redeemerInt1
-    PlutusScriptV1
+mintingPolicyRdmrInt1 =
+  liftEitherTextEnvelopeDecodeError
+    $ PlutusMintingPolicy
+    <$> plutusScriptV1FromEnvelope redeemerInt1
 
 mintingPolicyRdmrInt2 :: Contract () MintingPolicy
-mintingPolicyRdmrInt2 = PlutusMintingPolicy <<< plutusV1Script <$>
-  textEnvelopeBytes
-    redeemerInt2
-    PlutusScriptV1
+mintingPolicyRdmrInt2 =
+  liftEitherTextEnvelopeDecodeError
+    $ PlutusMintingPolicy
+    <$> plutusScriptV1FromEnvelope redeemerInt2
 
 mintingPolicyRdmrInt3 :: Contract () MintingPolicy
-mintingPolicyRdmrInt3 = PlutusMintingPolicy <<< plutusV1Script <$>
-  textEnvelopeBytes
-    redeemerInt3
-    PlutusScriptV1
+mintingPolicyRdmrInt3 =
+  liftEitherTextEnvelopeDecodeError
+    $ PlutusMintingPolicy
+    <$> plutusScriptV1FromEnvelope redeemerInt3
