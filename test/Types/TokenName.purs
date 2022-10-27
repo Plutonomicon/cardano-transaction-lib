@@ -2,13 +2,13 @@ module Test.Ctl.Types.TokenName (suite) where
 
 import Prelude
 
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.TokenName (mkTokenName)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (toFromAesonTest)
 import Test.Spec.Assertions (shouldSatisfy)
 
