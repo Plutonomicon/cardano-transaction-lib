@@ -9,6 +9,10 @@ import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Plutip.Server
   ( runPlutipContract
   , testPlutipContracts
+  , testPlutipContracts'
+  , withWallets
+  , noWallet
+  , WithWallets
   , withPlutipContractEnv
   ) as X
 import Ctl.Internal.Plutip.Types
