@@ -8,6 +8,7 @@ import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Plutip.Server
   ( runPlutipContract
+  , testPlutipContracts
   , withPlutipContractEnv
   ) as X
 import Ctl.Internal.Plutip.Types

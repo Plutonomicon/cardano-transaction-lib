@@ -4,7 +4,9 @@ module Ctl.Internal.Plutip.Server
   , startPlutipCluster
   , stopPlutipCluster
   , startPlutipServer
+  , checkPlutipServer
   , stopChildProcessWithPort
+  , testPlutipContracts
   ) where
 
 import Prelude
@@ -26,6 +28,7 @@ import Contract.Monad
   , liftContractM
   , runContractInEnv
   )
+import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
@@ -64,12 +67,13 @@ import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.ProtocolParameters as Ogmios
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either)
+import Data.Either (Either(Left), either, isLeft)
 import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
@@ -78,12 +82,13 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (foldMap, for, for_, traverse_)
+import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
+import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -92,7 +97,12 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
+import Mote (bracket) as Mote
+import Mote (group)
+import Mote.Monad (mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Type.Prelude (Proxy(Proxy))
 
@@ -108,6 +118,17 @@ runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
   \env wallets ->
     runContractInEnv env (cont wallets)
 
+cleanup :: Ref (Array (Aff Unit)) -> Aff Unit
+cleanup cleanupRef = do
+  afters <- liftEffect $ Ref.read cleanupRef
+  sequence_ (try <$> afters)
+
+runWithLogs :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
+runWithLogs printLogs action = do
+  res <- try $ action
+  when (isLeft res) printLogs
+  liftEither res
+
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | can be used to run multiple `Contract`s using `runContractInEnv`.
 withPlutipContractEnv
@@ -118,25 +139,96 @@ withPlutipContractEnv
   -> (ContractEnv () -> wallets -> Aff a)
   -> Aff a
 withPlutipContractEnv plutipCfg distr cont = do
-  configCheck plutipCfg
-  withPlutipServer $
-    withPlutipCluster \(ourKey /\ response) ->
-      withPostgres
-        $ withOgmios response
-        $ withOgmiosDatumCache response
-        $ withMCtlServer
-        $ withContractEnv \env ->
-            withWallets env ourKey response (cont env)
+  cleanupRef <- liftEffect $ Ref.new mempty
+  Aff.bracket
+    (startPlutipContractEnv plutipCfg distr cleanupRef)
+    (const $ cleanup cleanupRef)
+    \{ env, wallets, printLogs } -> do
+      runWithLogs printLogs (cont env wallets)
+
+-- | Run `Contract`s in tests in a single Plutip instance.
+testPlutipContracts
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> TestPlanM (wallets -> Contract () Unit) Unit
+  -> TestPlanM (Aff Unit) Unit
+testPlutipContracts plutipCfg distr tests = do
+  let groupedTests = group "HIDDEN_GROUP" tests
+  cleanupRef <- liftEffect $ Ref.new mempty
+  bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
+    (cleanup cleanupRef)
+    $ flip mapTest groupedTests \test { env, wallets, printLogs } -> do
+        runWithLogs printLogs (runContractInEnv env (test wallets))
   where
-  withPlutipServer :: Aff a -> Aff a
-  withPlutipServer act =
+  bracket
+    :: forall a b
+     . Aff a
+    -> Aff Unit
+    -> TestPlanM (a -> Aff b) Unit
+    -> TestPlanM (Aff b) Unit
+  bracket before' after' act = do
+    resultRef <- liftEffect $ Ref.new (Left $ error "Plutip not initialized")
+    let
+      before = do
+        res <- try $ before'
+        liftEffect $ Ref.write res resultRef
+        pure res
+      after = const $ after'
+    Mote.bracket { before, after } $ flip mapTest act \t -> do
+      result <- liftEffect $ Ref.read resultRef >>= liftEither
+      t result
+
+-- | Provide a `ContractEnv` connected to Plutip.
+-- | can be used to run multiple `Contract`s using `runContractInEnv`.
+startPlutipContractEnv
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> Ref (Array (Aff Unit))
+  -> Aff
+       { env :: ContractEnv ()
+       , wallets :: wallets
+       , printLogs :: Aff Unit
+       }
+startPlutipContractEnv plutipCfg distr cleanupRef = do
+  configCheck plutipCfg
+  startPlutipServer'
+  ourKey /\ response <- startPlutipCluster'
+  startPostgres'
+  startOgmios' response
+  startOgmiosDatumCache' response
+  startMCtlServer'
+  env /\ printLogs <- mkContractEnv'
+  wallets <- mkWallets' env ourKey response
+  pure
+    { env
+    , wallets
+    , printLogs
+    }
+  where
+  bracket
+    :: forall (a :: Type) (b :: Type)
+     . Aff a
+    -> (a -> Aff Unit)
+    -> (a -> Aff b)
+    -> Aff b
+  bracket before after action = do
+    res <- before
+    liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef
+    action res
+
+  startPlutipServer' :: Aff Unit
+  startPlutipServer' =
     bracket (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port)
-      (const $ checkPlutipServer plutipCfg *> act)
+      (const $ checkPlutipServer plutipCfg)
 
-  withPlutipCluster
-    :: (PrivatePaymentKey /\ ClusterStartupParameters -> Aff a) -> Aff a
-  withPlutipCluster cc = do
+  startPlutipCluster'
+    :: Aff (PrivatePaymentKey /\ ClusterStartupParameters)
+  startPlutipCluster' = do
     let
       distrArray =
         encodeDistribution $
@@ -148,41 +240,42 @@ withPlutipContractEnv plutipCfg distr cont = do
     bracket
       (startPlutipCluster plutipCfg distrArray)
       (const $ void $ stopPlutipCluster plutipCfg)
-      cc
+      pure
 
-  withPostgres :: Aff a -> Aff a
-  withPostgres act =
+  startPostgres' :: Aff Unit
+  startPostgres' =
     bracket (startPostgresServer plutipCfg.postgresConfig)
       (stopChildProcessWithPort plutipCfg.postgresConfig.port)
-      (const $ configurePostgresServer plutipCfg.postgresConfig *> act)
+      (const $ configurePostgresServer plutipCfg.postgresConfig)
 
-  withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
-  withOgmios response =
+  startOgmios' :: ClusterStartupParameters -> Aff Unit
+  startOgmios' response =
     bracket (startOgmios plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.ogmiosConfig.port) <<< const
+      (stopChildProcessWithPort plutipCfg.ogmiosConfig.port)
+      (const $ pure unit)
 
-  withOgmiosDatumCache :: ClusterStartupParameters -> Aff a -> Aff a
-  withOgmiosDatumCache response =
+  startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
+  startOgmiosDatumCache' response =
     bracket (startOgmiosDatumCache plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) <<< const
+      (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) $ const
+      (pure unit)
 
-  withMCtlServer :: Aff a -> Aff a
-  withMCtlServer x = case plutipCfg.ctlServerConfig of
-    Nothing -> x
+  startMCtlServer' :: Aff Unit
+  startMCtlServer' = case plutipCfg.ctlServerConfig of
+    Nothing -> pure unit
     Just config ->
       bracket
         (startCtlServer config.port)
         (stopChildProcessWithPort config.port)
-        $ const x
+        $ const (pure unit)
 
-  withWallets
+  mkWallets'
     :: ContractEnv ()
     -> PrivatePaymentKey
     -> ClusterStartupParameters
-    -> (wallets -> Aff a)
-    -> Aff a
-  withWallets env ourKey response cc = do
-    wallets <- runContractInEnv
+    -> Aff wallets
+  mkWallets' env ourKey response = do
+    runContractInEnv
       (over wrap (_ { config { customLogger = Just (\_ _ -> pure unit) } }) env)
       do
         wallets <-
@@ -192,10 +285,9 @@ withPlutipContractEnv plutipCfg distr cont = do
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
-    cc wallets
 
-  withContractEnv :: (ContractEnv () -> Aff a) -> Aff a
-  withContractEnv | plutipCfg.suppressLogs = \contractEnvCont -> do
+  mkContractEnv' :: Aff (ContractEnv () /\ Aff Unit)
+  mkContractEnv' | plutipCfg.suppressLogs = do
     -- if logs should be suppressed, setup the machinery and continue with
     -- the bracket
     { addLogEntry, suppressedLogger, printLogs } <-
@@ -205,12 +297,13 @@ withPlutipContractEnv plutipCfg distr cont = do
 
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
       (liftEffect <<< stopContractEnv)
-      $ contractEnvCont >>> try >=> case _ of
-          Left err -> do
-            liftEffect printLogs
-            throwError err
-          Right res -> pure res
-  withContractEnv =
+      (\a -> pure (a /\ liftEffect printLogs))
+  -- $ contractEnvCont >>> try >=> case _ of
+  --     Left err -> do
+  --       liftEffect printLogs
+  --       throwError err
+  --     Right res -> pure res
+  mkContractEnv' =
     -- otherwise, proceed with the env setup and provide a normal logger
     bracket
       ( mkClusterContractEnv plutipCfg
@@ -218,6 +311,7 @@ withPlutipContractEnv plutipCfg distr cont = do
           plutipCfg.customLogger
       )
       (liftEffect <<< stopContractEnv)
+      (\a -> pure (a /\ pure unit))
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
   stopContractEnv :: ContractEnv () -> Effect Unit
