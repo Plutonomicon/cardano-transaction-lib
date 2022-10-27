@@ -628,9 +628,11 @@ actionBasedOnWallet walletAction keyWalletAction =
     KeyWallet kw -> pure <$> keyWalletAction kw
 
 signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)
-signData address dat = actionBasedOnWallet
-  (\wallet conn -> wallet.signData conn address dat)
-  (\kw -> (unwrap kw).signData dat)
+signData address payload = do
+  networkId <- asks $ _.config >>> _.networkId
+  actionBasedOnWallet
+    (\wallet conn -> wallet.signData conn address payload)
+    (\kw -> (unwrap kw).signData networkId payload)
 
 getWallet :: QueryM (Maybe Wallet)
 getWallet = asks (_.runtime >>> _.wallet)

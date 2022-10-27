@@ -198,7 +198,7 @@ mkCip30Mock pKey mSKey = do
     , signData: \msg -> do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)
-        (unwrap keyWallet).signData (wrap msgBytes)
+        (unwrap keyWallet).signData config.networkId (wrap msgBytes)
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey

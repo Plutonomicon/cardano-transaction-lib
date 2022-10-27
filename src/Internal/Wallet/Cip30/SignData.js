@@ -1,12 +1,10 @@
 /* global BROWSER_RUNTIME */
 
-let lib, csl;
+let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-message-signing-asmjs");
-  csl = require("@emurgo/cardano-serialization-lib-browser");
 } else {
   lib = require("@emurgo/cardano-message-signing-nodejs");
-  csl = require("@emurgo/cardano-serialization-lib-nodejs");
 }
 
 // newCoseSign1Builder :: ByteArray -> Headers -> COSESign1Builder
@@ -56,3 +54,41 @@ exports.setAddressHeader = addressBytes => headerMap => {
   headerMap.set_header(label, value);
   return headerMap;
 };
+
+// newCoseKeyWithOkpType :: COSEKey
+exports.newCoseKeyWithOkpType = lib.COSEKey.new(
+  lib.Label.from_key_type(lib.KeyType.OKP)
+);
+
+// setCoseKeyAlgHeaderToEdDsa :: COSEKey -> COSEKey
+exports.setCoseKeyAlgHeaderToEdDsa = key => {
+  key.set_algorithm_id(lib.Label.from_algorithm_id(lib.AlgorithmId.EdDSA));
+  return key;
+};
+
+// setCoseKeyCrvHeaderToEd25519 :: COSEKey -> COSEKey
+exports.setCoseKeyCrvHeaderToEd25519 = key => {
+  key.set_header(
+    lib.Label.new_int(
+      lib.Int.new_negative(lib.BigNum.from_str("1")) // crv (-1)
+    ),
+    lib.CBORValue.new_int(
+      lib.Int.new_i32(6) // Ed25519 (6)
+    )
+  );
+  return key;
+};
+
+// setCoseKeyXHeader :: RawBytes -> COSEKey -> COSEKey
+exports.setCoseKeyXHeader = publicKeyBytes => key => {
+  key.set_header(
+    lib.Label.new_int(
+      lib.Int.new_negative(lib.BigNum.from_str("2")) // x (-2)
+    ),
+    lib.CBORValue.new_bytes(publicKeyBytes) // public key bytes
+  );
+  return key;
+};
+
+// bytesFromCoseKey :: COSEKey -> CborBytes
+exports.bytesFromCoseKey = key => key.to_bytes();
