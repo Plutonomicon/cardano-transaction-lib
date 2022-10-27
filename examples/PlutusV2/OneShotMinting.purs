@@ -12,7 +12,6 @@ import Contract.Prelude
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (MintingPolicy)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( plutusScriptV2FromEnvelope
   )
@@ -30,7 +29,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 contract :: Contract () Unit
 contract =

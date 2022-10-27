@@ -20,7 +20,6 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( plutusScriptV1FromEnvelope
   )
@@ -62,7 +61,6 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do

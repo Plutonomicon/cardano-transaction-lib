@@ -18,6 +18,7 @@ import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashFromBech32
   , scriptHashFromBech32
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.Array (length, range, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -27,7 +28,6 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (errMaybe, toFromAesonTest)
 import Test.Spec.Assertions (shouldEqual)
 
