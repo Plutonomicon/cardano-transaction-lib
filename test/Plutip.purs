@@ -35,7 +35,12 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
-import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
+import Contract.Test.Plutip
+  ( InitialUTxOs
+  , runPlutipContract
+  , testPlutipContracts
+  , withStakeKey
+  )
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -95,7 +100,8 @@ import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutip.Server
-  ( startPlutipCluster
+  ( checkPlutipServer
+  , startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
@@ -183,14 +189,65 @@ suite = do
     test "startPlutipCluster / stopPlutipCluster" do
       bracket (startPlutipServer config)
         (stopChildProcessWithPort config.port) $ const do
+        checkPlutipServer config
         _startRes <- startPlutipCluster config [ [] ]
         stopRes <- stopPlutipCluster config
         stopRes `shouldSatisfy` case _ of
           StopClusterSuccess -> true
           _ -> false
 
-    flip mapTest AffInterface.suite
-      (runPlutipContract config unit <<< const <<< wrapContract)
+    testPlutipContracts config unit $ group "No Wallet" do
+      mapTest (const <<< wrapContract) AffInterface.suite
+
+      test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout"
+        \_ -> do
+          AwaitTxConfirmedWithTimeout.contract
+
+      test "runPlutipContract: Datums" \_ -> do
+        let
+          mkDatumHash :: String -> DataHash
+          mkDatumHash = wrap <<< hexToByteArrayUnsafe
+        -- Nothing is expected, because we are in an empty chain.
+        -- This test only checks for ability to connect to ODC
+        logInfo' <<< show =<< getDatumByHash
+          ( mkDatumHash
+              "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
+          )
+        logInfo' <<< show =<< getDatumsByHashes
+          [ mkDatumHash
+              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
+          , mkDatumHash
+              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
+          ]
+        logInfo' <<< show =<< getDatumsByHashesWithErrors
+          [ mkDatumHash
+              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
+          , mkDatumHash
+              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
+          ]
+
+      test "runPlutipContract: currentTime" \_ -> do
+        void $ currentTime
+        void $ getEraSummaries >>= unwrap >>> traverse
+          (getSlotLength >>> show >>> logInfo')
+
+      group "applyArgs" do
+        test "returns the same script when called without args" \_ -> do
+          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+          result `shouldEqual` (unwrap unappliedScriptFixture)
+
+        test "returns the correct partially applied Plutus script" \_ -> do
+          let args = [ Integer (BigInt.fromInt 32) ]
+          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
+
+        test "returns the correct fully applied Plutus script" \_ -> do
+          bytes <-
+            liftContractM "Could not create ByteArray"
+              (byteArrayFromAscii "test")
+          let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
+          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
     test "runPlutipContract" do
       let
@@ -345,13 +402,6 @@ suite = do
               stakePkh <- withKeyWallet alice ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
             in unit
-
-    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
-      let
-        distribution = withStakeKey privateStakeKey
-          [ BigInt.fromInt 1_000_000_000 ]
-      runPlutipContract config distribution \_ ->
-        AwaitTxConfirmedWithTimeout.contract
 
     test "NativeScript: require all signers" do
       let
@@ -577,30 +627,6 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice NativeScriptMints.contract
 
-    test "runPlutipContract: Datums" do
-      runPlutipContract config unit \_ -> do
-        let
-          mkDatumHash :: String -> DataHash
-          mkDatumHash = wrap <<< hexToByteArrayUnsafe
-        -- Nothing is expected, because we are in an empty chain.
-        -- This test only checks for ability to connect to ODC
-        logInfo' <<< show =<< getDatumByHash
-          ( mkDatumHash
-              "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
-          )
-        logInfo' <<< show =<< getDatumsByHashes
-          [ mkDatumHash
-              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
-          , mkDatumHash
-              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
-          ]
-        logInfo' <<< show =<< getDatumsByHashesWithErrors
-          [ mkDatumHash
-              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
-          , mkDatumHash
-              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
-          ]
-
     test "runPlutipContract: MintsMultipleTokens" do
       let
         distribution :: InitialUTxOs
@@ -678,12 +704,6 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
-
-    test "runPlutipContract: currentTime" do
-      runPlutipContract config unit \_ -> do
-        void $ currentTime
-        void $ getEraSummaries >>= unwrap >>> traverse
-          (getSlotLength >>> show >>> logInfo')
 
     test "runPlutipContract: SendsToken" do
       let
@@ -1182,26 +1202,6 @@ suite = do
 
             awaitTxConfirmed txId0
             awaitTxConfirmed txId1
-
-  group "applyArgs" do
-    test "returns the same script when called without args" do
-      runPlutipContract config unit \_ -> do
-        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
-        result `shouldEqual` (unwrap unappliedScriptFixture)
-
-    test "returns the correct partially applied Plutus script" do
-      runPlutipContract config unit \_ -> do
-        let args = [ Integer (BigInt.fromInt 32) ]
-        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
-        result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
-
-    test "returns the correct fully applied Plutus script" do
-      runPlutipContract config unit \_ -> do
-        bytes <-
-          liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
-        let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-        result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
-        result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
   group "CIP-30 mock + Plutip" do
     test "CIP-30 mock: wallet cleanup" do
