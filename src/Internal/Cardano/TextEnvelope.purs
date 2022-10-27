@@ -24,6 +24,7 @@ import Aeson
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Deserialization.FromBytes (FromBytesError, fromBytes')
 import Ctl.Internal.Error (E)
+import Ctl.Internal.Serialization.PlutusScript (bytes) as SPS
 import Ctl.Internal.Serialization.Types as ST
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Ctl.Internal.Types.Cbor (toByteArray)
@@ -107,7 +108,7 @@ _plutusScriptVxFromEnvelope
 _plutusScriptVxFromEnvelope version bytesToScript str = do
   bytes <- textEnvelopeBytes str version
   map
-    (bytesToScript <<< ST.bytes)
+    (bytesToScript <<< SPS.bytes)
     (hush ((fromBytes' bytes) :: E (FromBytesError + ()) ST.PlutusScript))
 
 plutusScriptV1FromEnvelope
