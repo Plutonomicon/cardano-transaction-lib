@@ -23,7 +23,6 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
-import Contract.Prim.ByteArray (ByteArray)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)

@@ -2,9 +2,6 @@ module Contract.TextEnvelope
   ( module TextEnvelope
   ) where
 
-import Contract.Prelude
-
-import Contract.Monad (Contract)
 import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelopeType
       ( PlutusScriptV1
@@ -16,5 +13,3 @@ import Ctl.Internal.Cardano.TextEnvelope
   , plutusScriptV1FromEnvelope
   , plutusScriptV2FromEnvelope
   ) as TextEnvelope
-import Data.Bifunctor (lmap)
-import Effect.Exception (error)
