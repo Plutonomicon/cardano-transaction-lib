@@ -35,8 +35,7 @@ import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 -- | Carry along an `AVar` which resolves when the process closes.
 -- | Necessary due to `child_process` having no way to query if a process has
 -- | closed, so we must listen immediately after spawning.
-data ManagedProcess = ManagedProcess {- String -}  ChildProcess
-  (AVar ChildProcess.Exit)
+data ManagedProcess = ManagedProcess ChildProcess (AVar ChildProcess.Exit)
 
 -- | Provides a way to react on update of a program output.
 -- | Do nothing, indicate startup success, or thrown an exception to the Aff
