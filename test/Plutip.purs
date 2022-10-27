@@ -38,7 +38,9 @@ import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , runPlutipContract
-  , testPlutipContracts
+  , testPlutipContracts'
+  , withWallets
+  , noWallet
   , withStakeKey
   )
 import Contract.Time (getEraSummaries)
@@ -196,82 +198,96 @@ suite = do
           StopClusterSuccess -> true
           _ -> false
 
-    testPlutipContracts config unit $ mapTest const $ group "No Wallet" do
-      mapTest wrapContract AffInterface.suite
+    testPlutipContracts' config do
+      noWallet do
+        mapTest wrapContract AffInterface.suite
 
-      test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout"
-        AwaitTxConfirmedWithTimeout.contract
+        test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout"
+          AwaitTxConfirmedWithTimeout.contract
 
-      test "runPlutipContract: Datums" do
+        test "runPlutipContract: Datums" do
+          let
+            mkDatumHash :: String -> DataHash
+            mkDatumHash = wrap <<< hexToByteArrayUnsafe
+          -- Nothing is expected, because we are in an empty chain.
+          -- This test only checks for ability to connect to ODC
+          logInfo' <<< show =<< getDatumByHash
+            ( mkDatumHash
+                "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
+            )
+          logInfo' <<< show =<< getDatumsByHashes
+            [ mkDatumHash
+                "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
+            , mkDatumHash
+                "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
+            ]
+          logInfo' <<< show =<< getDatumsByHashesWithErrors
+            [ mkDatumHash
+                "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
+            , mkDatumHash
+                "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
+            ]
+
+        test "runPlutipContract: currentTime" do
+          void $ currentTime
+          void $ getEraSummaries >>= unwrap >>> traverse
+            (getSlotLength >>> show >>> logInfo')
+
+        group "applyArgs" do
+          test "returns the same script when called without args" do
+            result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+            result `shouldEqual` (unwrap unappliedScriptFixture)
+
+          test "returns the correct partially applied Plutus script" do
+            let args = [ Integer (BigInt.fromInt 32) ]
+            result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+            result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
+
+          test "returns the correct fully applied Plutus script" do
+            bytes <-
+              liftContractM "Could not create ByteArray"
+                (byteArrayFromAscii "test")
+            let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
+            result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+            result `shouldEqual` (unwrap fullyAppliedScriptFixture)
+      do
         let
-          mkDatumHash :: String -> DataHash
-          mkDatumHash = wrap <<< hexToByteArrayUnsafe
-        -- Nothing is expected, because we are in an empty chain.
-        -- This test only checks for ability to connect to ODC
-        logInfo' <<< show =<< getDatumByHash
-          ( mkDatumHash
-              "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
-          )
-        logInfo' <<< show =<< getDatumsByHashes
-          [ mkDatumHash
-              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
-          , mkDatumHash
-              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
-          ]
-        logInfo' <<< show =<< getDatumsByHashesWithErrors
-          [ mkDatumHash
-              "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
-          , mkDatumHash
-              "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
-          ]
+          distribution :: InitialUTxOs /\ InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ] /\
+              [ BigInt.fromInt 2_000_000_000 ]
+        withWallets distribution $ test "runPlutipContract" \(alice /\ bob) -> do
+          withKeyWallet alice do
+            getWalletCollateral >>= liftEffect <<< case _ of
+              Nothing -> throw "Unable to get collateral"
+              Just
+                [ TransactionUnspentOutput
+                    { output: TransactionOutputWithRefScript { output } }
+                ] -> do
+                let amount = (unwrap output).amount
+                unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+                  $ throw "Wrong UTxO selected as collateral"
+              Just _ -> do
+                -- not a bug, but unexpected
+                throw "More than one UTxO in collateral"
+          withKeyWallet bob do
+            pure unit -- sign, balance, submit, etc.
 
-      test "runPlutipContract: currentTime" do
-        void $ currentTime
-        void $ getEraSummaries >>= unwrap >>> traverse
-          (getSlotLength >>> show >>> logInfo')
-
-      group "applyArgs" do
-        test "returns the same script when called without args" do
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
-          result `shouldEqual` (unwrap unappliedScriptFixture)
-
-        test "returns the correct partially applied Plutus script" do
-          let args = [ Integer (BigInt.fromInt 32) ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
-          result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
-
-        test "returns the correct fully applied Plutus script" do
-          bytes <-
-            liftContractM "Could not create ByteArray"
-              (byteArrayFromAscii "test")
-          let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
-          result `shouldEqual` (unwrap fullyAppliedScriptFixture)
-
-    test "runPlutipContract" do
-      let
-        distribution :: InitialUTxOs /\ InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ] /\
-            [ BigInt.fromInt 2_000_000_000 ]
-      runPlutipContract config distribution \(alice /\ bob) -> do
-        withKeyWallet alice do
-          getWalletCollateral >>= liftEffect <<< case _ of
-            Nothing -> throw "Unable to get collateral"
-            Just
-              [ TransactionUnspentOutput
-                  { output: TransactionOutputWithRefScript { output } }
-              ] -> do
-              let amount = (unwrap output).amount
-              unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
-                $ throw "Wrong UTxO selected as collateral"
-            Just _ -> do
-              -- not a bug, but unexpected
-              throw "More than one UTxO in collateral"
-        withKeyWallet bob do
-          pure unit -- sign, balance, submit, etc.
+      do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution $ test "runPlutipContract: Pkh2Pkh" \alice -> do
+          checkUtxoDistribution distribution alice
+          pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
+            ownPaymentPubKeyHash
+          stakePkh <- withKeyWallet alice ownStakePubKeyHash
+          withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
     let
       arrayTest
@@ -313,20 +329,6 @@ suite = do
         distribution = withStakeKey privateStakeKey <$> replicate 2
           [ BigInt.fromInt 1_000_000_000 ]
       arrayTest distribution
-
-    test "runPlutipContract: Pkh2Pkh" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
-        checkUtxoDistribution distribution alice
-        pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-          ownPaymentPubKeyHash
-        stakePkh <- withKeyWallet alice ownStakePubKeyHash
-        withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
     test "runPlutipContract: Pkh2Pkh with stake key" do
       let

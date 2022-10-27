@@ -7,10 +7,15 @@ module Ctl.Internal.Plutip.Server
   , checkPlutipServer
   , stopChildProcessWithPort
   , testPlutipContracts
+  , testPlutipContracts'
+  , withWallets
+  , noWallet
+  , WithWallets
   ) where
 
 import Prelude
 
+import Control.Monad.Writer (Writer, execWriter, tell)
 import Aeson
   ( decodeAeson
   , encodeAeson
@@ -83,6 +88,7 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -145,6 +151,85 @@ withPlutipContractEnv plutipCfg distr cont = do
     (const $ cleanup cleanupRef)
     \{ env, wallets, printLogs } -> do
       runWithLogs printLogs (cont env wallets)
+
+newtype WalletTest = WalletTest (forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r)
+
+mkWalletTest :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> WalletTest
+mkWalletTest distr tests = WalletTest \f -> f distr tests
+
+runWalletTest :: WalletTest -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
+runWalletTest (WalletTest thing) = thing
+
+data Test = WalletTest' WalletTest | NoWalletTest (TestPlanM (Contract () Unit) Unit)
+
+-- TODO Use a record
+runTest :: Test -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> (TestPlanM (Contract () Unit) Unit -> r) -> r
+runTest (WalletTest' wt) f _ = runWalletTest wt f
+runTest (NoWalletTest t) _ f = f t
+
+newtype WithWallets a = WithWallets (Writer (Array Test) a)
+
+derive newtype instance Functor WithWallets
+derive newtype instance Apply WithWallets
+derive newtype instance Applicative WithWallets
+derive newtype instance Bind WithWallets
+derive newtype instance Monad WithWallets
+
+withWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> WithWallets Unit
+withWallets distr tests = WithWallets do
+  tell [ WalletTest' $ mkWalletTest distr tests ]
+
+noWallet :: TestPlanM (Contract () Unit) Unit -> WithWallets Unit
+noWallet tests = withWallets unit (mapTest const tests)
+
+-- interpret
+interpret :: forall r. WithWallets Unit -> (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
+interpret (WithWallets ww) f = do
+  let asdf = execWriter ww
+  runWalletTest (go asdf) f
+  where
+    go :: Array Test -> WalletTest
+    go xs = case Array.uncons xs of
+      Just { head, tail } -> runWalletTest (go tail) \distrTail testsTail -> runTest head
+        (\distrHead testsHead -> mkWalletTest (distrHead /\ distrTail) do
+          mapTest (_ <<< fst) testsHead
+          mapTest (_ <<< snd) testsTail)
+        \testsHead -> mkWalletTest distrTail do
+          mapTest const testsHead
+          testsTail
+      Nothing -> mkWalletTest unit (pure unit)
+
+-- | Run `Contract`s in tests in a single Plutip instance.
+testPlutipContracts'
+  :: PlutipConfig
+  -> WithWallets Unit
+  -> TestPlanM (Aff Unit) Unit
+testPlutipContracts' plutipCfg ww = 
+  interpret ww \distr tests -> do
+    let groupedTests = group "HIDDEN_GROUP" tests
+    cleanupRef <- liftEffect $ Ref.new mempty
+    bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
+      (cleanup cleanupRef)
+      $ flip mapTest groupedTests \test { env, wallets, printLogs } -> do
+          runWithLogs printLogs (runContractInEnv env (test wallets))
+  where
+  bracket
+    :: forall a b
+     . Aff a
+    -> Aff Unit
+    -> TestPlanM (a -> Aff b) Unit
+    -> TestPlanM (Aff b) Unit
+  bracket before' after' act = do
+    resultRef <- liftEffect $ Ref.new (Left $ error "Plutip not initialized")
+    let
+      before = do
+        res <- try $ before'
+        liftEffect $ Ref.write res resultRef
+        pure res
+      after = const $ after'
+    Mote.bracket { before, after } $ flip mapTest act \t -> do
+      result <- liftEffect $ Ref.read resultRef >>= liftEither
+      t result
 
 -- | Run `Contract`s in tests in a single Plutip instance.
 testPlutipContracts
