@@ -11,4 +11,4 @@ exports.newPlutusV1Script = bytes => lib.PlutusScript.new(bytes);
 
 exports.newPlutusV2Script = bytes => lib.PlutusScript.new_v2(bytes);
 
-exports.bytes = script => script.bytes;
+exports.plutusScriptBytes = script => script.bytes();

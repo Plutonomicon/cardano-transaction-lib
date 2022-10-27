@@ -1,5 +1,5 @@
 module Ctl.Internal.Serialization.PlutusScript
-  ( bytes
+  ( plutusScriptBytes
   , convertPlutusScript
   ) where
 
@@ -13,7 +13,7 @@ import Ctl.Internal.Types.Scripts
   ) as T
 import Data.Tuple.Nested ((/\))
 
-foreign import bytes :: PlutusScript -> ByteArray
+foreign import plutusScriptBytes :: PlutusScript -> ByteArray
 
 foreign import newPlutusV1Script :: ByteArray -> PlutusScript
 
