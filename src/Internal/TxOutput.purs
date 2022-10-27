@@ -13,7 +13,6 @@ import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Address
   ( addressToOgmiosAddress
-  , enterpriseAddressValidatorHash
   , ogmiosAddressToAddress
   )
 import Ctl.Internal.Cardano.Types.Transaction
@@ -32,7 +31,6 @@ import Ctl.Internal.Types.OutputDatum
   , outputDatumDatum
   )
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
-import Ctl.Internal.Types.UnbalancedTransaction as UTx
 import Data.Maybe (Maybe, fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
@@ -124,12 +122,3 @@ datumToOgmiosDatum (Datum plutusData) =
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
 toOutputDatum d dh =
   OutputDatum <$> d <|> OutputDatumHash <$> dh # fromMaybe NoOutputDatum
-
-ogmiosDatumToScriptDatum
-  :: Maybe String -> Maybe String -> Maybe UTx.ScriptDatum
-ogmiosDatumToScriptDatum d dh =
-  let
-    datum = d >>= ogmiosDatumToDatum <#> UTx.ScriptDatum
-    datumHash = dh >>= ogmiosDatumHashToDatumHash <#> UTx.ScriptDatumHash
-  in
-    datum <|> datumHash
