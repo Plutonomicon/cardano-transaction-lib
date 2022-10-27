@@ -33,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- Support passsing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
+- Support passing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
 - `Ctl.Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
 - `Ctl.Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
@@ -46,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Keys` module that exposes smart constructors for `PublicKey` & `Ed25519Signature`, namely: `mkEd25519Signature`, `mkPubKey`.
 - `Contract.createAdditionalUtxos` to build an expected utxo set from transaction outputs, useful for transaction chaining ([#1046](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1046)) 
 - `DecodeAeson` instance for `NativeScript` data type ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069)).
+- `Contract.Test.Plutip.testPlutipContracts` to run multiple Plutip tests under the same Plutip instance ([#1154](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1154)).
 
 ### Changed
 
