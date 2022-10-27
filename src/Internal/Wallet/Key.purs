@@ -39,6 +39,7 @@ import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
+import Ctl.Internal.Wallet.Cip30.SignData (signData) as Cip30SignData
 import Data.Array (fromFoldable)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -46,7 +47,6 @@ import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 
 -------------------------------------------------------------------------------
 -- Key backend
@@ -59,7 +59,7 @@ newtype KeyWallet = KeyWallet
       -> UtxoMap
       -> Effect (Maybe (Array TransactionUnspentOutput))
   , signTx :: Transaction -> Aff TransactionWitnessSet
-  , signData :: RawBytes -> Aff DataSignature
+  , signData :: NetworkId -> RawBytes -> Aff DataSignature
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
   }
@@ -127,6 +127,7 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
     let witnessSet' = set _vkeys (pure $ pure wit) mempty
     pure witnessSet'
 
-  signData :: RawBytes -> Aff DataSignature
-  signData _ = do
-    liftEffect $ throw "signData is not implemented for KeyWallet"
+  signData :: NetworkId -> RawBytes -> Aff DataSignature
+  signData networkId payload = do
+    addr <- address networkId
+    pure $ Cip30SignData.signData (unwrap payKey) addr payload
