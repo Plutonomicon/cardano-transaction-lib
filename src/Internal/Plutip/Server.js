@@ -1,7 +1,3 @@
-const fs = require("fs").promises;
+const fs = require("fs");
 
-exports._removeDir = function (path) {
-  return function () {
-    return fs.rm(path, { recursive: true, force: true });
-  };
-};
+exports._rmdirSync = path => () => fs.rmdirSync(path, { recursive: true });
