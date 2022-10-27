@@ -18,17 +18,16 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(..), ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
   , lookupTxHash
-  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -106,6 +105,7 @@ foreign import includeDatum :: String
 
 -- | checks if the datum equals 42
 only42Script :: Contract () Validator
-only42Script = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  includeDatum
-  PlutusScriptV1
+only42Script =
+  liftEitherTextEnvelopeDecodeError
+    $ Validator
+    <$> plutusScriptV1FromEnvelope includeDatum

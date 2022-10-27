@@ -13,8 +13,11 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (MintingPolicy)
 import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope (TextEnvelopeType(PlutusScriptV2))
-import Contract.Transaction (TransactionInput, plutusV2Script)
+import Contract.TextEnvelope
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV2FromEnvelope
+  )
+import Contract.Transaction (TransactionInput)
 import Ctl.Examples.OneShotMinting
   ( mkContractWithAssertions
   , mkOneShotMintingPolicy
@@ -36,6 +39,7 @@ contract =
 foreign import oneShotMinting :: String
 
 oneShotMintingPolicyV2 :: TransactionInput -> Contract () MintingPolicy
-oneShotMintingPolicyV2 =
-  mkOneShotMintingPolicy oneShotMinting PlutusScriptV2 plutusV2Script
-
+oneShotMintingPolicyV2 txInput = do
+  script <- liftEitherTextEnvelopeDecodeError $
+    plutusScriptV2FromEnvelope oneShotMinting
+  mkOneShotMintingPolicy script txInput

@@ -12,10 +12,10 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Ctl.Examples.Helpers
@@ -55,6 +55,7 @@ example cfg = launchAff_ $ do
 foreign import alwaysMints :: String
 
 alwaysMintsPolicy :: Contract () MintingPolicy
-alwaysMintsPolicy = PlutusMintingPolicy <<< plutusV1Script <$> textEnvelopeBytes
-  alwaysMints
-  PlutusScriptV1
+alwaysMintsPolicy =
+  liftEitherTextEnvelopeDecodeError
+    $ PlutusMintingPolicy
+    <$> plutusScriptV1FromEnvelope alwaysMints

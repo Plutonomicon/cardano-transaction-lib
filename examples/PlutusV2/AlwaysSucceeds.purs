@@ -17,15 +17,14 @@ import Contract.Monad
   , launchAff_
   , runContract
   )
-import Contract.Scripts (Validator, validatorHash)
+import Contract.Scripts (Validator(..), validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( awaitTxConfirmed
-  , plutusV2Script
   )
 import Ctl.Examples.AlwaysSucceeds
   ( payToAlwaysSucceeds
@@ -54,6 +53,7 @@ example cfg = launchAff_ do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScriptV2 :: Contract () Validator
-alwaysSucceedsScriptV2 = wrap <<< plutusV2Script <$> textEnvelopeBytes
-  alwaysSucceeds
-  PlutusScriptV2
+alwaysSucceedsScriptV2 =
+  liftEitherTextEnvelopeDecodeError
+    $ Validator
+    <$> plutusScriptV2FromEnvelope alwaysSucceeds

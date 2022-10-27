@@ -19,17 +19,16 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(..), ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -41,6 +40,7 @@ import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
+import Data.Functor ((<$>))
 import Data.Map as Map
 import Test.Spec.Assertions (shouldEqual)
 
@@ -118,6 +118,6 @@ spendFromAlwaysFails vhash validator txId = do
 foreign import alwaysFails :: String
 
 alwaysFailsScript :: Contract () Validator
-alwaysFailsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  alwaysFails
-  PlutusScriptV1
+alwaysFailsScript =
+  liftEitherTextEnvelopeDecodeError $
+    Validator <$> plutusScriptV1FromEnvelope alwaysFails

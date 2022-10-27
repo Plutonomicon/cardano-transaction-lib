@@ -37,8 +37,8 @@ import Contract.Scripts
   )
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
@@ -47,7 +47,6 @@ import Contract.Transaction
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , mkTxUnspentOut
-  , plutusV2Script
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -200,5 +199,5 @@ alwaysMintsPolicyV2 = PlutusMintingPolicy <$> alwaysMintsPolicyScriptV2
 
 alwaysMintsPolicyScriptV2 :: Contract () PlutusScript
 alwaysMintsPolicyScriptV2 =
-  plutusV2Script <$> textEnvelopeBytes alwaysMintsV2 PlutusScriptV2
-
+  liftEitherTextEnvelopeDecodeError $
+    plutusScriptV2FromEnvelope alwaysMintsV2

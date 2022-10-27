@@ -23,11 +23,11 @@ import Contract.PlutusData
   , Redeemer(Redeemer)
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(..), ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
+  ( liftEitherTextEnvelopeDecodeError
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( OutputDatum(OutputDatum)
@@ -35,7 +35,6 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , plutusV2Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -162,6 +161,7 @@ readFromCheckDatumIsInline vhash txId = do
 foreign import checkDatumIsInline :: String
 
 checkDatumIsInlineScript :: Contract () Validator
-checkDatumIsInlineScript = wrap <<< plutusV2Script <$> textEnvelopeBytes
-  checkDatumIsInline
-  PlutusScriptV2
+checkDatumIsInlineScript =
+  liftEitherTextEnvelopeDecodeError
+    $ Validator
+    <$> plutusScriptV2FromEnvelope checkDatumIsInline
