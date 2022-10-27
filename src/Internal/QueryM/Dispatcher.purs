@@ -3,13 +3,17 @@ module Ctl.Internal.QueryM.Dispatcher where
 import Prelude
 
 import Aeson (Aeson, JsonDecodeError, stringifyAeson)
+import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Ctl.Internal.Types.MultiMap (MultiMap)
-import Data.Either (Either)
+import Data.Either (Either(Left, Right))
 import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing))
 import Effect (Effect)
 import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
+import Effect.Ref as Ref
 
 data DispatchError
   = JsError Error
@@ -44,6 +48,21 @@ type DispatchIdMap response = Ref
 type RequestBody = String
 
 type Dispatcher = Ref (Map ListenerId (Aeson -> Effect Unit))
+
+mkWebsocketDispatch :: Dispatcher -> WebsocketDispatch
+mkWebsocketDispatch dispatcher aeson = do
+  case parseJsonWspResponseId aeson of
+    Left parseError ->
+      pure $ Left $ JsonError parseError
+    Right reflection -> do
+      idMap <- Ref.read dispatcher
+      let
+        mbAction =
+          Map.lookup reflection idMap
+            :: Maybe (Aeson -> Effect Unit)
+      case mbAction of
+        Nothing -> pure $ Left $ ListenerCancelled reflection
+        Just action -> pure $ Right $ action aeson
 
 type ShouldResend = Boolean
 

@@ -18,8 +18,6 @@ import Aeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , caseAesonString
-  , decodeAeson
   , encodeAeson
   , getField
   , getFieldOptional
@@ -27,8 +25,6 @@ import Aeson
 import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
-import Debug (spy)
 import Effect (Effect)
 import Foreign.Object (Object)
 import Record as Record
@@ -131,8 +127,8 @@ parseJsonWspResponse = aesonObject $ \o -> do
 parseJsonWspResponseId
   :: Aeson
   -> Either JsonDecodeError ListenerId
-parseJsonWspResponseId aeson =
-  aesonObject (spy "parseJsonWspResponseId" $ flip getField "reflection") aeson
+parseJsonWspResponseId =
+  aesonObject $ flip getField "reflection"
 
 -- | Helper for assuming we get an object
 aesonObject
