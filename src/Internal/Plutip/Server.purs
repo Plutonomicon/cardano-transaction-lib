@@ -76,7 +76,6 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
-import Data.Posix.Signal (Signal(SIGINT))
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, traverse_)
@@ -122,7 +121,7 @@ withPlutipContractEnv plutipCfg distr cont = do
   configCheck plutipCfg
   withPlutipServer $
     withPlutipCluster \(ourKey /\ response) ->
-      withPostgres response
+      withPostgres
         $ withOgmios response
         $ withOgmiosDatumCache response
         $ withMCtlServer
@@ -130,9 +129,10 @@ withPlutipContractEnv plutipCfg distr cont = do
             withWallets env ourKey response (cont env)
   where
   withPlutipServer :: Aff a -> Aff a
-  withPlutipServer =
+  withPlutipServer act =
     bracket (startPlutipServer plutipCfg)
-      (stopChildProcessWithPort plutipCfg.port) <<< const
+      (stopChildProcessWithPort plutipCfg.port)
+      (const $ checkPlutipServer plutipCfg *> act)
 
   withPlutipCluster
     :: (PrivatePaymentKey /\ ClusterStartupParameters -> Aff a) -> Aff a
@@ -150,10 +150,11 @@ withPlutipContractEnv plutipCfg distr cont = do
       (const $ void $ stopPlutipCluster plutipCfg)
       cc
 
-  withPostgres :: ClusterStartupParameters -> Aff a -> Aff a
-  withPostgres response =
-    bracket (startPostgresServer plutipCfg.postgresConfig response)
-      (stopChildProcessWithPort plutipCfg.postgresConfig.port) <<< const
+  withPostgres :: Aff a -> Aff a
+  withPostgres act =
+    bracket (startPostgresServer plutipCfg.postgresConfig)
+      (stopChildProcessWithPort plutipCfg.postgresConfig.port)
+      (const $ configurePostgresServer plutipCfg.postgresConfig *> act)
 
   withOgmios :: ClusterStartupParameters -> Aff a -> Aff a
   withOgmios response =
@@ -334,10 +335,9 @@ startOgmios cfg params = do
   -- We wait for any output, because CTL-server tries to connect to Ogmios
   -- repeatedly, and we can just wait for CTL-server to connect, instead of
   -- waiting for Ogmios first.
-  child <- spawn "ogmios" ogmiosArgs defaultSpawnOptions
+  spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
     $ pure Success
-  pure child
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -353,9 +353,12 @@ startOgmios cfg params = do
 
 startPlutipServer :: PlutipConfig -> Aff ManagedProcess
 startPlutipServer cfg = do
-  p <- spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
+  spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions
     Nothing
+
+checkPlutipServer :: PlutipConfig -> Aff Unit
+checkPlutipServer cfg = do
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -363,11 +366,10 @@ startPlutipServer cfg = do
         ([ \_ _ -> pure true ])
     $ const
     $ stopPlutipCluster cfg
-  pure p
 
 startPostgresServer
-  :: PostgresConfig -> ClusterStartupParameters -> Aff ManagedProcess
-startPostgresServer pgConfig _ = do
+  :: PostgresConfig -> Aff ManagedProcess
+startPostgresServer pgConfig = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
@@ -375,7 +377,7 @@ startPostgresServer pgConfig _ = do
     databaseDir = workingDir <> "/postgres/data"
     postgresSocket = workingDir <> "/postgres"
   waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
-  pgChildProcess <- spawn "postgres"
+  spawn "postgres"
     [ "-D"
     , databaseDir
     , "-p"
@@ -387,6 +389,10 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
     Nothing
+
+configurePostgresServer
+  :: PostgresConfig -> Aff Unit
+configurePostgresServer pgConfig = do
   defaultRecovering $ waitForStop =<< spawn "psql"
     [ "-h"
     , pgConfig.host
@@ -427,7 +433,6 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
     Nothing
-  pure pgChildProcess
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
@@ -469,13 +474,11 @@ startOgmiosDatumCache cfg _params = do
       , "--use-latest"
       , "--from-origin"
       ]
-  child <-
-    spawn "ogmios-datum-cache" arguments defaultSpawnOptions
-      -- Wait for "Intersection found" string in the output
-      $ Just
-      $ String.indexOf (Pattern "Intersection found")
-          >>> maybe NoOp (const Success)
-  pure child
+  spawn "ogmios-datum-cache" arguments defaultSpawnOptions
+    -- Wait for "Intersection found" string in the output
+    $ Just
+    $ String.indexOf (Pattern "Intersection found")
+        >>> maybe NoOp (const Success)
 
 mkClusterContractEnv
   :: PlutipConfig
@@ -521,12 +524,11 @@ mkClusterContractEnv plutipCfg logger customLogger = do
 startCtlServer :: UInt -> Aff ManagedProcess
 startCtlServer serverPort = do
   let ctlServerArgs = [ "--port", UInt.toString serverPort ]
-  child <- spawn "ctl-server" ctlServerArgs defaultSpawnOptions
+  spawn "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "CTL server starting on port" string in the output
     $ Just
     $ String.indexOf (Pattern "CTL server starting on port")
         >>> maybe NoOp (const Success)
-  pure child
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
