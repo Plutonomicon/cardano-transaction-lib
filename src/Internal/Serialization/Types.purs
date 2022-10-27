@@ -82,7 +82,6 @@ module Ctl.Internal.Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   , Withdrawals
-  , bytes
   ) where
 
 import Prelude
@@ -133,7 +132,6 @@ foreign import data PlutusData :: Type
 foreign import data PlutusList :: Type
 foreign import data PlutusMap :: Type
 foreign import data PlutusScript :: Type
-foreign import bytes :: PlutusScript -> ByteArray
 foreign import data PlutusScripts :: Type
 
 foreign import data PoolMetadata :: Type
