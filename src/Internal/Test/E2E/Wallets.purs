@@ -313,23 +313,5 @@ injectJQuery page jQuery = do
   unless alreadyInjected $ void $ Toppokki.unsafeEvaluateStringFunction jQuery
     page
 
--- | Set the value of an item with the browser's native value setter.
--- | This is necessary for react items so that react reacts.
--- | (sometimes 'typeInto' is an alternative).
--- | React is used in Nami.
--- | https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
-reactSetValue :: Selector -> String -> Toppokki.Page -> Aff Unit
-reactSetValue selector value page = void
-  $ flip Toppokki.unsafeEvaluateStringFunction page
-  $ fold
-      [ "let input = $('" <> unwrap selector <> "').get(0);"
-      , "var nativeInputValueSetter = "
-          <>
-            " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
-      , "nativeInputValueSetter.call(input, '" <> value <> "');"
-      , "var ev2 = new Event('input', { bubbles: true});"
-      , "input.dispatchEvent(ev2);"
-      ]
-
 foreign import _typeInto
   :: Selector -> String -> Toppokki.Page -> Effect (Promise Unit)
