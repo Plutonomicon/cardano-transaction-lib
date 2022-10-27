@@ -169,10 +169,13 @@ namiConfirmAccess extId re =
 
 namiSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 namiSign extId wpassword re = do
-  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \nami -> do
-    clickButton "Sign" nami
-    reactSetValue (Selector ":password") wpassword nami
-    clickButton "Confirm" nami
+  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \page -> do
+    clickButton "Sign" page
+    void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
+      {}
+      page
+    typeInto (inputType "password") wpassword page
+    clickButton "Confirm" page
 
 geroConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 geroConfirmAccess extId re = do
