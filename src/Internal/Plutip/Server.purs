@@ -216,9 +216,10 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     -> (a -> Aff b)
     -> Aff b
   bracket before after action = do
-    res <- before
-    liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef
-    action res
+    Aff.bracket
+      before
+      (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
+      action
 
   startPlutipServer' :: Aff Unit
   startPlutipServer' =
