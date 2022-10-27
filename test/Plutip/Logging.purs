@@ -6,6 +6,7 @@ import Prelude
 
 import Contract.Log (logWarn')
 import Contract.Test.Plutip (runPlutipContract)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
@@ -14,7 +15,6 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

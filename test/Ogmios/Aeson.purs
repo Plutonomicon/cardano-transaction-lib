@@ -13,6 +13,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
 import Ctl.Internal.QueryM.Ogmios as O
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (bimap, lmap)
@@ -36,8 +37,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
-import Test.Ctl.TestM (TestPlanM)
-import Test.Ctl.Utils as Utils
 import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
@@ -173,4 +172,4 @@ suite = group "Ogmios Aeson tests" do
 
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret suite
+  interpret suite

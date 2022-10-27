@@ -17,6 +17,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Serialization (publicKeyHash)
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyToFile
@@ -40,7 +41,6 @@ import Mote (group, test)
 import Node.FS.Sync (unlink)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (txFixture1)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 import Type.Proxy (Proxy(Proxy))
 
@@ -58,6 +58,7 @@ suite = do
                 ( Just $ PrivateStakeKeyFile
                     "fixtures/test/parsing/PrivateKey/stake.skey"
                 )
+            , suppressLogs = true
             }
       runContract cfg do
         signedTx <- unwrap <$> signTransaction (FinalizedTransaction txFixture1)
