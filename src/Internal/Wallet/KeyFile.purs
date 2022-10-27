@@ -32,8 +32,6 @@ import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Data.Bifunctor (lmap)
-import Data.Either (hush)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)

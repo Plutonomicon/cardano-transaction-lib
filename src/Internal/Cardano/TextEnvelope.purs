@@ -20,25 +20,21 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , parseJsonStringToAeson
-  , printJsonDecodeError
   )
-import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Deserialization.FromBytes (FromBytesError, fromBytes')
 import Ctl.Internal.Error (E)
 import Ctl.Internal.Serialization.Types as ST
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import Ctl.Internal.Types.Cbor (CborParseError, toByteArray)
+import Ctl.Internal.Types.Cbor (toByteArray)
 import Ctl.Internal.Types.Scripts
   ( PlutusScript
   , plutusV1Script
   , plutusV2Script
   )
-import Data.Bifunctor (bimap, lmap)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
-import Data.Variant (match)
 import Type.Row (type (+))
 
 data TextEnvelopeType
