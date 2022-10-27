@@ -20,7 +20,6 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -55,7 +54,6 @@ example cfg = launchAff_ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysFails vhash validator txId
-  publishTestFeedback true
 
 payToAlwaysFails :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysFails vhash = do
