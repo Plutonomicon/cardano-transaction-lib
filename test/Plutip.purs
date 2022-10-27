@@ -196,14 +196,13 @@ suite = do
           StopClusterSuccess -> true
           _ -> false
 
-    testPlutipContracts config unit $ group "No Wallet" do
-      mapTest (const <<< wrapContract) AffInterface.suite
+    testPlutipContracts config unit $ mapTest const $ group "No Wallet" do
+      mapTest wrapContract AffInterface.suite
 
       test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout"
-        \_ -> do
-          AwaitTxConfirmedWithTimeout.contract
+        AwaitTxConfirmedWithTimeout.contract
 
-      test "runPlutipContract: Datums" \_ -> do
+      test "runPlutipContract: Datums" do
         let
           mkDatumHash :: String -> DataHash
           mkDatumHash = wrap <<< hexToByteArrayUnsafe
@@ -226,22 +225,22 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
-      test "runPlutipContract: currentTime" \_ -> do
+      test "runPlutipContract: currentTime" do
         void $ currentTime
         void $ getEraSummaries >>= unwrap >>> traverse
           (getSlotLength >>> show >>> logInfo')
 
       group "applyArgs" do
-        test "returns the same script when called without args" \_ -> do
+        test "returns the same script when called without args" do
           result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
           result `shouldEqual` (unwrap unappliedScriptFixture)
 
-        test "returns the correct partially applied Plutus script" \_ -> do
+        test "returns the correct partially applied Plutus script" do
           let args = [ Integer (BigInt.fromInt 32) ]
           result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
           result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
-        test "returns the correct fully applied Plutus script" \_ -> do
+        test "returns the correct fully applied Plutus script" do
           bytes <-
             liftContractM "Could not create ByteArray"
               (byteArrayFromAscii "test")
