@@ -444,12 +444,6 @@ startPostgresServer pgConfig _ = do
     defaultExecSyncOptions
   pure pgChildProcess
 
--- delDir :: FilePath -> Aff Unit
--- delDir dir = do
---   files <- A.readdir dir
---   liftEffect $ foreachE files unlink
---   A.rmdir dir
-
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ChildProcess -> Aff Unit
 stopChildProcessWithPort port childProcess = do
