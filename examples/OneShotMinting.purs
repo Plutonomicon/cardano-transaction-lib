@@ -30,7 +30,6 @@ import Contract.Scripts
   , PlutusScript
   , applyArgs
   )
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
@@ -61,7 +60,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 mkAssertions
   :: Address
@@ -137,4 +135,3 @@ mkOneShotMintingPolicy unappliedMintingPolicy oref = do
 
   liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
     mintingPolicyArgs
-
