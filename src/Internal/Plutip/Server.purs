@@ -21,6 +21,7 @@ import Contract.Monad
   , liftContractM
   , runContractInEnv
   )
+import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
@@ -76,7 +77,7 @@ import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect (Effect, foreachE)
+import Effect (Effect)
 import Effect.Aff
   ( Aff
   , Milliseconds(Milliseconds)
@@ -104,8 +105,6 @@ import Node.ChildProcess
   , onExit
   , spawn
   )
-import Node.FS.Aff as A
-import Node.FS.Sync (unlink)
 import Node.Path (FilePath)
 import Type.Prelude (Proxy(Proxy))
 
@@ -380,6 +379,11 @@ startPlutipServer cfg = do
     $ stopPlutipCluster cfg
   pure p
 
+foreign import _removeDir :: FilePath -> Effect (Promise Unit)
+
+removeDir :: FilePath -> Aff Unit
+removeDir path = toAffE $ _removeDir path
+
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
 startPostgresServer pgConfig _ = do
@@ -402,20 +406,13 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
   liftEffect $ killOnExit pgChildProcess
-  -- liftEffect $ onExit pgChildProcess \_ ->
-  --   do
-  --     files <- readdir databaseDir
-  --     foreachE files unlink
-  --     Sync.rmdir databaseDir
-
-  -- liftEffect $ onExit pgChildProcess \_ -> Sync.rmdir databaseDir
   liftEffect $ onExit pgChildProcess
     ( \_ -> runAff_
         ( either
             (\error -> log $ show error)
             (\_ -> pure unit)
         )
-        (delDir databaseDir)
+        (removeDir workingDir)
     )
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
@@ -447,11 +444,11 @@ startPostgresServer pgConfig _ = do
     defaultExecSyncOptions
   pure pgChildProcess
 
-delDir :: FilePath -> Aff Unit
-delDir dir = do
-  files <- A.readdir dir
-  liftEffect $ foreachE files unlink
-  A.rmdir dir
+-- delDir :: FilePath -> Aff Unit
+-- delDir dir = do
+--   files <- A.readdir dir
+--   liftEffect $ foreachE files unlink
+--   A.rmdir dir
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ChildProcess -> Aff Unit
