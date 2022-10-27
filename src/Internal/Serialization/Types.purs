@@ -133,7 +133,6 @@ foreign import data PlutusList :: Type
 foreign import data PlutusMap :: Type
 foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
-
 foreign import data PoolMetadata :: Type
 foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
