@@ -9,6 +9,7 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol) as Plutus
 import Ctl.Internal.Plutus.Types.CurrencySymbol as Plutus.CurrencySymbol
 import Ctl.Internal.Plutus.Types.Value (Value) as Plutus
 import Ctl.Internal.Plutus.Types.Value as Plutus.Value
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (length, range, zip)
 import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
@@ -19,7 +20,6 @@ import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (currencySymbol1, tokenName1, tokenName2)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
