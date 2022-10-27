@@ -28,15 +28,15 @@ check-explicit-exports:
 		echo "All imports/exports are explicit"
 	fi
 
-check-format: check-explicit-exports
+check-examples-imports:
+	bash ./scripts/examples-imports-check.sh
+
+check-format: check-explicit-exports check-examples-imports
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
 	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
-
-check-examples-imports:
-	bash ./scripts/examples-imports-check.sh
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
