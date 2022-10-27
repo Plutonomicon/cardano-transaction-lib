@@ -15,45 +15,13 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad
-  ( Contract
-  , ContractEnv(ContractEnv)
-  , liftContractM
-  , runContractInEnv
-  )
-import Control.Promise (Promise, toAffE)
+import Contract.Monad (Contract, ContractEnv(ContractEnv), liftContractM, runContractInEnv)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
-import Ctl.Internal.Plutip.Spawn
-  ( NewOutputAction(Success, NoOp)
-  , killOnExit
-  , spawnAndWaitForOutput
-  )
-import Ctl.Internal.Plutip.Types
-  ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxODistribution
-  , InitialUTxOs
-  , PlutipConfig
-  , PostgresConfig
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
-  , StopClusterRequest(StopClusterRequest)
-  , StopClusterResponse
-  )
+import Ctl.Internal.Plutip.Spawn (NewOutputAction(Success, NoOp), killOnExit, spawnAndWaitForOutput)
+import Ctl.Internal.Plutip.Types (ClusterStartupParameters, ClusterStartupRequest(ClusterStartupRequest), InitialUTxODistribution, InitialUTxOs, PlutipConfig, PostgresConfig, PrivateKeyResponse(PrivateKeyResponse), StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure), StopClusterRequest(StopClusterRequest), StopClusterResponse)
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Plutip.UtxoDistribution
-  ( class UtxoDistribution
-  , decodeWallets
-  , encodeDistribution
-  , keyWallets
-  , transferFundsFromEnterpriseToBase
-  )
-import Ctl.Internal.QueryM
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  , Logger
-  , mkLogger
-  , stopQueryRuntime
-  )
+import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution, decodeWallets, encodeDistribution, keyWallets, transferFundsFromEnterpriseToBase)
+import Ctl.Internal.QueryM (ClientError(ClientDecodeJsonError, ClientHttpError), Logger, mkLogger, stopQueryRuntime)
 import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.ProtocolParameters as Ogmios
@@ -78,33 +46,12 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Milliseconds(Milliseconds)
-  , bracket
-  , runAff_
-  , throwError
-  , try
-  )
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
 import Effect.Aff.Class (liftAff)
-import Effect.Aff.Retry
-  ( RetryPolicy
-  , constantDelay
-  , limitRetriesByCumulativeDelay
-  , recovering
-  )
+import Effect.Aff.Retry (RetryPolicy, constantDelay, limitRetriesByCumulativeDelay, recovering)
 import Effect.Class (liftEffect)
-import Effect.Console (log)
 import Effect.Exception (throw)
-import Node.ChildProcess
-  ( ChildProcess
-  , defaultExecSyncOptions
-  , defaultSpawnOptions
-  , execSync
-  , kill
-  , onExit
-  , spawn
-  )
+import Node.ChildProcess (ChildProcess, defaultExecSyncOptions, defaultSpawnOptions, execSync, kill, onExit, spawn)
 import Node.Path (FilePath)
 import Type.Prelude (Proxy(Proxy))
 
@@ -379,10 +326,7 @@ startPlutipServer cfg = do
     $ stopPlutipCluster cfg
   pure p
 
-foreign import _removeDir :: FilePath -> Effect (Promise Unit)
-
-removeDir :: FilePath -> Aff Unit
-removeDir path = toAffE $ _removeDir path
+foreign import _rmdirSync :: FilePath -> Effect Unit
 
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
@@ -406,14 +350,7 @@ startPostgresServer pgConfig _ = do
     ]
     defaultSpawnOptions
   liftEffect $ killOnExit pgChildProcess
-  liftEffect $ onExit pgChildProcess
-    ( \_ -> runAff_
-        ( either
-            (\error -> log $ show error)
-            (\_ -> pure unit)
-        )
-        (removeDir workingDir)
-    )
+  liftEffect $ onExit pgChildProcess \_ -> _rmdirSync workingDir
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
