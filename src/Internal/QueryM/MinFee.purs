@@ -14,8 +14,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.Helpers (liftM, liftedM)
-import Ctl.Internal.QueryM (QueryM, getWalletAddresses)
-import Ctl.Internal.QueryM.ProtocolParameters (askProtocolParameters)
+import Ctl.Internal.QueryM (QueryM, getProtocolParameters, getWalletAddresses)
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -40,7 +39,7 @@ import Effect.Aff (error)
 calculateMinFee :: Transaction -> UtxoMap -> QueryM Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
-  pparams <- askProtocolParameters
+  pparams <- getProtocolParameters
   calculateMinFeeCsl pparams selfSigners tx
 
 getSelfSigners :: Transaction -> UtxoMap -> QueryM (Set Ed25519KeyHash)
