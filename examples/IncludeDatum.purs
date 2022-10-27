@@ -18,11 +18,10 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(..), ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( liftEitherTextEnvelopeDecodeError
-  , plutusScriptV1FromEnvelope
+  ( plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
@@ -33,12 +32,14 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
 import Data.Map as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -106,6 +107,6 @@ foreign import includeDatum :: String
 -- | checks if the datum equals 42
 only42Script :: Contract () Validator
 only42Script =
-  liftEitherTextEnvelopeDecodeError
+  liftMaybe (error "Error decoding includeDatum")
     $ Validator
     <$> plutusScriptV1FromEnvelope includeDatum

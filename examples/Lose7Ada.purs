@@ -19,11 +19,10 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(..), ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( liftEitherTextEnvelopeDecodeError
-  , plutusScriptV1FromEnvelope
+  ( plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
@@ -34,6 +33,7 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 -- TODO Re-export into Contract or drop the usage
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
@@ -42,6 +42,7 @@ import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
 import Data.Map as Map
+import Effect.Exception (error)
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -119,5 +120,5 @@ foreign import alwaysFails :: String
 
 alwaysFailsScript :: Contract () Validator
 alwaysFailsScript =
-  liftEitherTextEnvelopeDecodeError $
+  liftMaybe (error "Error decoding alwaysFails") $
     Validator <$> plutusScriptV1FromEnvelope alwaysFails
