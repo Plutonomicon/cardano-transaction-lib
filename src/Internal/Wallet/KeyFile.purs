@@ -14,13 +14,12 @@ module Ctl.Internal.Wallet.KeyFile
 import Prelude
 
 import Aeson (encodeAeson)
-import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelopeType
       ( PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
-  , printTextEnvelopeDecodeError
   , textEnvelopeBytes
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -47,17 +46,17 @@ import Node.Path (FilePath)
 keyFromFile :: FilePath -> TextEnvelopeType -> Aff ByteArray
 keyFromFile filePath ty = do
   fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
-  liftEither $ lmap (error <<< printTextEnvelopeDecodeError) $
-    textEnvelopeBytes fileContents ty
+  let errorMsg = error "Error while decoding key"
+  liftMaybe errorMsg $ textEnvelopeBytes fileContents ty
 
 privatePaymentKeyFromString :: String -> Maybe PrivatePaymentKey
 privatePaymentKeyFromString jsonString = do
-  bytes <- hush $ textEnvelopeBytes jsonString PaymentSigningKeyShelleyed25519
+  bytes <- textEnvelopeBytes jsonString PaymentSigningKeyShelleyed25519
   PrivatePaymentKey <$> privateKeyFromBytes (wrap bytes)
 
 privateStakeKeyFromString :: String -> Maybe PrivateStakeKey
 privateStakeKeyFromString jsonString = do
-  bytes <- hush $ textEnvelopeBytes jsonString StakeSigningKeyShelleyed25519
+  bytes <- textEnvelopeBytes jsonString StakeSigningKeyShelleyed25519
   PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey

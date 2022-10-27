@@ -12,18 +12,19 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( liftEitherTextEnvelopeDecodeError
-  , plutusScriptV1FromEnvelope
+  ( plutusScriptV1FromEnvelope
   )
 import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Data.BigInt as BigInt
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -56,6 +57,6 @@ foreign import alwaysMints :: String
 
 alwaysMintsPolicy :: Contract () MintingPolicy
 alwaysMintsPolicy =
-  liftEitherTextEnvelopeDecodeError
+  liftMaybe (error "Error decoding alwaysMintsPolicy")
     $ PlutusMintingPolicy
     <$> plutusScriptV1FromEnvelope alwaysMints

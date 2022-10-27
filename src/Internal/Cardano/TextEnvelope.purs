@@ -1,11 +1,14 @@
 module Ctl.Internal.Cardano.TextEnvelope
-  ( TextEnvelope(..)
-  , TextEnvelopeDecodeError(..)
-  , TextEnvelopeType(..)
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeType
+      ( PlutusScriptV1
+      , PlutusScriptV2
+      , PaymentSigningKeyShelleyed25519
+      , StakeSigningKeyShelleyed25519
+      )
   , decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   , plutusScriptV2FromEnvelope
-  , printTextEnvelopeDecodeError
   , textEnvelopeBytes
   ) where
 
@@ -32,7 +35,8 @@ import Ctl.Internal.Types.Scripts
   , plutusV2Script
   )
 import Data.Bifunctor (bimap, lmap)
-import Data.Either (Either, note)
+import Data.Either (hush)
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
 import Data.Variant (match)
 import Type.Row (type (+))
@@ -79,60 +83,43 @@ newtype TextEnvelope =
 
 derive instance Newtype TextEnvelope _
 
-data TextEnvelopeDecodeError
-  = JsonDecodeError JsonDecodeError
-  | CborParseError CborParseError
-  | CSLError String -- Error produced by Cardano-serialization-lib
-
-decodeCborHexToBytes :: String -> Either TextEnvelopeDecodeError ByteArray
+decodeCborHexToBytes :: String -> Maybe ByteArray
 decodeCborHexToBytes cborHex = do
-  cborBa <- note (JsonDecodeError $ TypeMismatch "Hex") $ hexToByteArray cborHex
-  -- NOTE PlutusScriptV1 is doubly-encoded cbor, so the resulting `ByteArray`
-  -- is *still* cbor encoded.
-  -- https://github.com/Emurgo/cardano-serialization-lib/issues/268#issuecomment-1042986055
-  lmap CborParseError $ toByteArray $ wrap $ wrap cborBa
+  cborBa <- hexToByteArray cborHex
+  hush $ toByteArray $ wrap $ wrap cborBa
 
 decodeTextEnvelope
-  :: Aeson -> Either TextEnvelopeDecodeError TextEnvelope
+  :: Aeson -> Maybe TextEnvelope
 decodeTextEnvelope aeson = do
   { "type": type_, description, cborHex } <-
-    lmap JsonDecodeError $ decodeAeson aeson :: _ TextEnvelopeRaw
+    hush $ decodeAeson aeson :: _ TextEnvelopeRaw
   ba <- decodeCborHexToBytes cborHex
   pure $ wrap { type_, description, bytes: ba }
 
-printTextEnvelopeDecodeError :: TextEnvelopeDecodeError -> String
-printTextEnvelopeDecodeError = case _ of
-  JsonDecodeError err -> printJsonDecodeError err
-  CborParseError err -> show err
-  CSLError errMessage -> errMessage
-
 textEnvelopeBytes
-  :: String -> TextEnvelopeType -> Either TextEnvelopeDecodeError ByteArray
+  :: String -> TextEnvelopeType -> Maybe ByteArray
 textEnvelopeBytes json ty = do
-  aeson <- lmap JsonDecodeError $ parseJsonStringToAeson json
+  aeson <- hush $ parseJsonStringToAeson json
   TextEnvelope te <- decodeTextEnvelope aeson
-  unless (te.type_ == ty) $ throwError $ JsonDecodeError $ TypeMismatch $
-    show ty
-  pure te.bytes
+  if (te.type_ == ty) then pure te.bytes else Nothing
 
 _plutusScriptVxFromEnvelope
   :: TextEnvelopeType
   -> (ByteArray -> PlutusScript)
   -> String
-  -> Either TextEnvelopeDecodeError PlutusScript
+  -> Maybe PlutusScript
 _plutusScriptVxFromEnvelope version bytesToScript str = do
   bytes <- textEnvelopeBytes str version
-  bimap
-    (CSLError <<< match { fromBytesError: \x -> x })
+  map
     (bytesToScript <<< ST.bytes)
-    (fromBytes' bytes :: E (FromBytesError + ()) ST.PlutusScript)
+    (hush ((fromBytes' bytes) :: E (FromBytesError + ()) ST.PlutusScript))
 
 plutusScriptV1FromEnvelope
-  :: String -> Either TextEnvelopeDecodeError PlutusScript
+  :: String -> Maybe PlutusScript
 plutusScriptV1FromEnvelope str = do
   _plutusScriptVxFromEnvelope PlutusScriptV1 plutusV1Script str
 
 plutusScriptV2FromEnvelope
-  :: String -> Either TextEnvelopeDecodeError PlutusScript
+  :: String -> Maybe PlutusScript
 plutusScriptV2FromEnvelope str =
   _plutusScriptVxFromEnvelope PlutusScriptV2 plutusV2Script str

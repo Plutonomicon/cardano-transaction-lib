@@ -1,5 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
--- | used to build scripts with the provided arguments applied. It creates a 
+-- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | used to build scripts with the provided arguments applied. It creates a
 -- | transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.OneShotMinting
   ( contract
@@ -34,8 +34,7 @@ import Contract.Test.E2E (publishTestFeedback)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
-  ( liftEitherTextEnvelopeDecodeError
-  , plutusScriptV1FromEnvelope
+  ( plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionInput
@@ -45,6 +44,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
@@ -53,6 +53,7 @@ import Ctl.Examples.Helpers
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -121,7 +122,7 @@ foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
 oneShotMintingPolicy txInput = do
-  script <- liftEitherTextEnvelopeDecodeError $
+  script <- liftMaybe (error "Error decoding oneShotMinting") $
     plutusScriptV1FromEnvelope oneShotMinting
   mkOneShotMintingPolicy script txInput
 

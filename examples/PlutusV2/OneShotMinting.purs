@@ -1,5 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
--- | used to build PlutusV2 scripts with the provided arguments applied. It 
+-- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | used to build PlutusV2 scripts with the provided arguments applied. It
 -- | creates a transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.PlutusV2.OneShotMinting
   ( contract
@@ -14,14 +14,15 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (MintingPolicy)
 import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( liftEitherTextEnvelopeDecodeError
-  , plutusScriptV2FromEnvelope
+  ( plutusScriptV2FromEnvelope
   )
 import Contract.Transaction (TransactionInput)
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.OneShotMinting
   ( mkContractWithAssertions
   , mkOneShotMintingPolicy
   )
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -40,6 +41,6 @@ foreign import oneShotMinting :: String
 
 oneShotMintingPolicyV2 :: TransactionInput -> Contract () MintingPolicy
 oneShotMintingPolicyV2 txInput = do
-  script <- liftEitherTextEnvelopeDecodeError $
+  script <- liftMaybe (error "Error decoding oneShotMinting") $
     plutusScriptV2FromEnvelope oneShotMinting
   mkOneShotMintingPolicy script txInput
