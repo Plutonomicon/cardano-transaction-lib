@@ -269,9 +269,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Untagged.Union (asOneOf)
 
--- | NOTE: `scriptOutputToTransactionOutput` is deprecated. See
--- | [here](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1153).
-
 -- | Signs a transaction with potential failure.
 signTransaction
   :: forall (tx :: Type) (r :: Row Type)

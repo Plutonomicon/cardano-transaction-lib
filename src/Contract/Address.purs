@@ -132,8 +132,6 @@ import Effect.Exception (error)
 -- | Get the `Address` of the browser wallet.
 -- TODO: change this to Maybe (Array Address)
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
--- | NOTE: `ScriptOutput` is deprecated. See
--- | [here](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1153).
 getWalletAddress
   :: forall (r :: Row Type). Contract r (Maybe Address)
 getWalletAddress = do
