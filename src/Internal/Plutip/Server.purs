@@ -527,6 +527,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         , walletSpec: Nothing
         , customLogger: customLogger
         , suppressLogs: plutipCfg.suppressLogs
+        , hooks: mempty
         }
     , runtime:
         { ogmiosWs

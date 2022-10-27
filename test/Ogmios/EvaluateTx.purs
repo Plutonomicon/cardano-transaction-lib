@@ -8,6 +8,7 @@ import Ctl.Internal.QueryM.Ogmios
   , RedeemerPointer
   , TxEvaluationResult
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Natural (fromInt')
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
 import Data.Either (Either(Left, Right))
@@ -21,7 +22,6 @@ import Test.Ctl.Fixtures
   ( ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   )
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit

@@ -2,6 +2,7 @@ module Test.Ctl.ByteArray where
 
 import Prelude
 
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArray
@@ -14,7 +15,6 @@ import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (quickCheck, (===))
 import Test.QuickCheck.Laws.Data.Eq (checkEq)
 import Test.QuickCheck.Laws.Data.Monoid (checkMonoid)
