@@ -29,7 +29,6 @@ module Contract.Transaction
   , module Transaction
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
-  , scriptOutputToTransactionOutput
   , signTransaction
   , submit
   , submitE
@@ -146,7 +145,6 @@ import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusUtxoMap
   , toPlutusCoin
-  , toPlutusTxOutput
   , toPlutusTxOutputWithRefScript
   )
 import Ctl.Internal.Plutus.Types.Transaction
@@ -187,8 +185,6 @@ import Ctl.Internal.ReindexRedeemers
 import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
 import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
-import Ctl.Internal.Serialization.Address (NetworkId)
-import Ctl.Internal.TxOutput (scriptOutputToTransactionOutput) as TxOutput
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
@@ -238,8 +234,7 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Ctl.Internal.Types.UnbalancedTransaction
-  ( ScriptOutput(ScriptOutput)
-  , UnbalancedTx(UnbalancedTx)
+  ( UnbalancedTx(UnbalancedTx)
   , _transaction
   , _utxoIndex
   , emptyUnbalancedTx
@@ -296,7 +291,7 @@ submit tx = do
     Left json -> liftEffect $ throw $
       "`submit` call failed. Error from Ogmios: " <> show json
 
--- | Like `submit` except when Ogmios sends a SubmitFail the error is returned 
+-- | Like `submit` except when Ogmios sends a SubmitFail the error is returned
 -- | as an Array of Aesons.
 submitE
   :: forall (r :: Row Type)
@@ -390,7 +385,7 @@ withBalancedTxsWithConstraints
 withBalancedTxsWithConstraints =
   withTransactions balanceTxsWithConstraints unwrap
 
--- | Same as `withBalancedTxsWithConstraints`, but uses the default balancer 
+-- | Same as `withBalancedTxsWithConstraints`, but uses the default balancer
 -- | constraints.
 withBalancedTxs
   :: forall (a :: Type) (r :: Row Type)
@@ -415,7 +410,7 @@ withBalancedTxWithConstraints unbalancedTx =
   withSingleTransaction balanceAndLockWithConstraints unwrap
     <<< Tuple unbalancedTx
 
--- | Same as `withBalancedTxWithConstraints`, but uses the default balancer 
+-- | Same as `withBalancedTxWithConstraints`, but uses the default balancer
 -- | constraints.
 withBalancedTx
   :: forall (a :: Type) (r :: Row Type)
@@ -424,7 +419,7 @@ withBalancedTx
   -> Contract r a
 withBalancedTx = withSingleTransaction balanceAndLock unwrap
 
--- | Attempts to balance an `UnattachedUnbalancedTx` using the specified 
+-- | Attempts to balance an `UnattachedUnbalancedTx` using the specified
 -- | balancer constraints.
 balanceTxWithConstraints
   :: forall (r :: Row Type)
@@ -442,8 +437,8 @@ balanceTx
   -> Contract r (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTx = flip balanceTxWithConstraints mempty
 
--- | Balances each transaction using specified balancer constraint sets and 
--- | locks the used inputs so that they cannot be reused by subsequent 
+-- | Balances each transaction using specified balancer constraint sets and
+-- | locks the used inputs so that they cannot be reused by subsequent
 -- | transactions.
 balanceTxsWithConstraints
   :: forall (r :: Row Type) (t :: Type -> Type)
@@ -524,14 +519,6 @@ getTxFinalFee :: BalancedSignedTransaction -> BigInt
 getTxFinalFee =
   unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
 
-scriptOutputToTransactionOutput
-  :: NetworkId
-  -> UnbalancedTx.ScriptOutput
-  -> Maybe PTransaction.TransactionOutput
-scriptOutputToTransactionOutput networkId =
-  toPlutusTxOutput
-    <<< TxOutput.scriptOutputToTransactionOutput networkId
-
 -- | Get `Transaction` contents by hash
 getTxByHash
   :: forall (r :: Row Type)
@@ -569,12 +556,12 @@ awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
   <<< AwaitTx.awaitTxConfirmedWithTimeoutSlots timeout
   <<< unwrap
 
--- | Builds an expected utxo set from transaction outputs. Predicts output 
+-- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the
--- | transaction hash and indexing the outputs in the order they appear in the 
--- | transaction. This function should be used for transaction chaining 
--- | in conjunction with `mustUseAdditionalUtxos` balancer constraint.  
--- | Throws an exception if conversion to Plutus outputs fails. 
+-- | transaction hash and indexing the outputs in the order they appear in the
+-- | transaction. This function should be used for transaction chaining
+-- | in conjunction with `mustUseAdditionalUtxos` balancer constraint.
+-- | Throws an exception if conversion to Plutus outputs fails.
 createAdditionalUtxos
   :: forall (tx :: Type) (r :: Row Type)
    . Newtype tx Transaction

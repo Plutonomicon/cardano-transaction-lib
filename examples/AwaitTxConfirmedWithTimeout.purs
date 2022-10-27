@@ -14,7 +14,6 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( TransactionHash(TransactionHash)
   , awaitTxConfirmedWithTimeout
@@ -27,7 +26,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 contract :: Contract () Unit
 contract = do

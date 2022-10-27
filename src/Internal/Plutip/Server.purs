@@ -60,7 +60,6 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
-import Ctl.Internal.QueryM.ProtocolParameters as Ogmios
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
@@ -491,7 +490,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
       , host = plutipCfg.ogmiosConfig.host
       }
   usedTxOuts <- newUsedTxOuts
-  pparams <- Ogmios.getProtocolParametersAff ogmiosWs logger
+  pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
     { config:
         { ctlServerConfig: plutipCfg.ctlServerConfig
@@ -502,6 +501,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         , walletSpec: Nothing
         , customLogger: customLogger
         , suppressLogs: plutipCfg.suppressLogs
+        , hooks: mempty
         }
     , runtime:
         { ogmiosWs

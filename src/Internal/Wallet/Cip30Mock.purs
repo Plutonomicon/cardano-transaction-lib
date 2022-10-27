@@ -26,6 +26,7 @@ import Ctl.Internal.Wallet
   ( Wallet
   , mkFlintWalletAff
   , mkGeroWalletAff
+  , mkLodeWalletAff
   , mkNamiWalletAff
   )
 import Ctl.Internal.Wallet.Key
@@ -56,7 +57,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Type.Proxy (Proxy(Proxy))
 import Untagged.Union (asOneOf)
 
-data WalletMock = MockFlint | MockGero | MockNami
+data WalletMock = MockFlint | MockGero | MockNami | MockLode
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -97,12 +98,14 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockFlint -> mkFlintWalletAff
     MockGero -> mkGeroWalletAff
     MockNami -> mkNamiWalletAff
+    MockLode -> mkLodeWalletAff
 
   mockString :: String
   mockString = case mock of
     MockFlint -> "flint"
     MockGero -> "gerowallet"
     MockNami -> "nami"
+    MockLode -> "LodeWallet"
 
 type Cip30Mock =
   { getUsedAddresses :: Effect (Promise (Array String))

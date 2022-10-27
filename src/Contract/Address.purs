@@ -123,7 +123,6 @@ import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Ctl.Internal.Types.TypedValidator (TypedValidator)
 import Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
-  , ScriptOutput(ScriptOutput)
   ) as ExportUnbalancedTransaction
 import Data.Array (head)
 import Data.Maybe (Maybe)
