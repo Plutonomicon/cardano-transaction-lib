@@ -28,9 +28,11 @@ import Contract.Monad
   )
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
-  ( NewOutputAction(Success, NoOp)
-  , killOnExit
-  , spawnAndWaitForOutput
+  ( ManagedProcess
+  , NewOutputAction(Success, NoOp)
+  , spawn
+  , stop
+  , waitForStop
   )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
@@ -92,14 +94,7 @@ import Effect.Aff.Retry
   )
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Node.ChildProcess
-  ( ChildProcess
-  , defaultExecSyncOptions
-  , defaultSpawnOptions
-  , execSync
-  , kill
-  , spawn
-  )
+import Node.ChildProcess (defaultSpawnOptions)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -334,14 +329,14 @@ stopPlutipCluster cfg = do
       )
   either (liftEffect <<< throw <<< show) pure res
 
-startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
+startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startOgmios cfg params = do
   -- We wait for any output, because CTL-server tries to connect to Ogmios
   -- repeatedly, and we can just wait for CTL-server to connect, instead of
   -- waiting for Ogmios first.
-  child <- spawnAndWaitForOutput "ogmios" ogmiosArgs defaultSpawnOptions
+  child <- spawn "ogmios" ogmiosArgs defaultSpawnOptions
+    $ Just
     $ pure Success
-  liftEffect $ killOnExit child
   pure child
   where
   ogmiosArgs :: Array String
@@ -356,14 +351,11 @@ startOgmios cfg params = do
     , params.nodeConfigPath
     ]
 
-stopChildProcess :: ChildProcess -> Aff Unit
-stopChildProcess = liftEffect <<< kill SIGINT
-
-startPlutipServer :: PlutipConfig -> Aff ChildProcess
+startPlutipServer :: PlutipConfig -> Aff ManagedProcess
 startPlutipServer cfg = do
-  p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
+  p <- spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions
-  liftEffect $ killOnExit p
+    Nothing
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -374,7 +366,7 @@ startPlutipServer cfg = do
   pure p
 
 startPostgresServer
-  :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
+  :: PostgresConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startPostgresServer pgConfig _ = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
@@ -382,8 +374,8 @@ startPostgresServer pgConfig _ = do
     workingDir = tmpDir <> "/" <> randomStr
     databaseDir = workingDir <> "/postgres/data"
     postgresSocket = workingDir <> "/postgres"
-  liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
-  pgChildProcess <- liftEffect $ spawn "postgres"
+  waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
+  pgChildProcess <- spawn "postgres"
     [ "-D"
     , databaseDir
     , "-p"
@@ -394,41 +386,53 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     defaultSpawnOptions
-  liftEffect $ killOnExit pgChildProcess
-  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
-    $ const
-    $ liftEffect
-    $ execSync
-        ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
-            <> " -d postgres"
-        )
-        defaultExecSyncOptions
-  liftEffect $ void $ execSync
-    ( "psql -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
-        <> " -d postgres"
-        <> " -c \"CREATE ROLE "
-        <> pgConfig.user
+    Nothing
+  defaultRecovering $ waitForStop =<< spawn "psql"
+    [ "-h"
+    , pgConfig.host
+    , "-p"
+    , UInt.toString pgConfig.port
+    , "-d"
+    , "postgres"
+    , "-c"
+    , "\\q"
+    ]
+    defaultSpawnOptions
+    Nothing
+  waitForStop =<< spawn "psql"
+    [ "-h"
+    , pgConfig.host
+    , "-p"
+    , UInt.toString pgConfig.port
+    , "-d"
+    , "postgres"
+    , "-c"
+    , "CREATE ROLE " <> pgConfig.user
         <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
         <> pgConfig.password
-        <> "';\""
-    )
-    defaultExecSyncOptions
-  liftEffect $ void $ execSync
-    ( "createdb -h " <> pgConfig.host <> " -p " <> UInt.toString pgConfig.port
-        <> " -U "
-        <> pgConfig.user
-        <> " -O "
-        <> pgConfig.user
-        <> " "
-        <> pgConfig.dbname
-    )
-    defaultExecSyncOptions
+        <> "';"
+    ]
+    defaultSpawnOptions
+    Nothing
+  waitForStop =<< spawn "createdb"
+    [ "-h"
+    , pgConfig.host
+    , "-p"
+    , UInt.toString pgConfig.port
+    , "-U"
+    , pgConfig.user
+    , "-O"
+    , pgConfig.user
+    , pgConfig.dbname
+    ]
+    defaultSpawnOptions
+    Nothing
   pure pgChildProcess
 
 -- | Kill a process and wait for it to stop listening on a specific port.
-stopChildProcessWithPort :: UInt -> ChildProcess -> Aff Unit
+stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
 stopChildProcessWithPort port childProcess = do
-  stopChildProcess childProcess
+  stop childProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     \_ -> do
       isAvailable <- isPortAvailable port
@@ -438,7 +442,7 @@ stopChildProcessWithPort port childProcess = do
 startOgmiosDatumCache
   :: PlutipConfig
   -> ClusterStartupParameters
-  -> Aff ChildProcess
+  -> Aff ManagedProcess
 startOgmiosDatumCache cfg _params = do
   apiKey <- liftEffect $ uniqueId "token"
   let
@@ -466,11 +470,11 @@ startOgmiosDatumCache cfg _params = do
       , "--from-origin"
       ]
   child <-
-    spawnAndWaitForOutput "ogmios-datum-cache" arguments defaultSpawnOptions
+    spawn "ogmios-datum-cache" arguments defaultSpawnOptions
       -- Wait for "Intersection found" string in the output
+      $ Just
       $ String.indexOf (Pattern "Intersection found")
           >>> maybe NoOp (const Success)
-  liftEffect $ killOnExit child
   pure child
 
 mkClusterContractEnv
@@ -514,19 +518,27 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , extraConfig: {}
     }
 
-startCtlServer :: UInt -> Aff ChildProcess
+startCtlServer :: UInt -> Aff ManagedProcess
 startCtlServer serverPort = do
   let ctlServerArgs = [ "--port", UInt.toString serverPort ]
-  child <- spawnAndWaitForOutput "ctl-server" ctlServerArgs defaultSpawnOptions
+  child <- spawn "ctl-server" ctlServerArgs defaultSpawnOptions
     -- Wait for "CTL server starting on port" string in the output
+    $ Just
     $ String.indexOf (Pattern "CTL server starting on port")
         >>> maybe NoOp (const Success)
-  liftEffect $ killOnExit child
   pure child
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
+
+defaultRecovering :: forall (a :: Type). Aff a -> Aff a
+defaultRecovering f =
+  recovering retryPolicy ([ \_ _ -> pure true ]) $ const f
+  where
+  retryPolicy :: RetryPolicy
+  retryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+    constantDelay (Milliseconds 100.0)
 
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do
