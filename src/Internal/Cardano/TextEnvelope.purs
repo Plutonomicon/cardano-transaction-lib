@@ -10,7 +10,6 @@ module Ctl.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   , plutusScriptV2FromEnvelope
-  , textEnvelopeBytes
   ) where
 
 import Prelude
@@ -87,37 +86,34 @@ decodeCborHexToBytes cborHex = do
   hush $ toByteArray $ wrap $ wrap cborBa
 
 decodeTextEnvelope
-  :: Aeson -> Maybe TextEnvelope
-decodeTextEnvelope aeson = do
+  :: String -> Maybe TextEnvelope
+decodeTextEnvelope json = do
+  aeson <- hush $ parseJsonStringToAeson json
   { "type": type_, description, cborHex } <-
     hush $ decodeAeson aeson :: _ TextEnvelopeRaw
   ba <- decodeCborHexToBytes cborHex
   pure $ wrap { type_, description, bytes: ba }
 
-textEnvelopeBytes
-  :: String -> TextEnvelopeType -> Maybe ByteArray
-textEnvelopeBytes json ty = do
-  aeson <- hush $ parseJsonStringToAeson json
-  TextEnvelope te <- decodeTextEnvelope aeson
-  if (te.type_ == ty) then pure te.bytes else Nothing
-
-_plutusScriptVxFromEnvelope
+plutusScriptFromEnvelope
   :: TextEnvelopeType
   -> (ByteArray -> PlutusScript)
-  -> String
+  -> TextEnvelope
   -> Maybe PlutusScript
-_plutusScriptVxFromEnvelope version bytesToScript str = do
-  bytes <- textEnvelopeBytes str version
+plutusScriptFromEnvelope type_ bytesToScript (TextEnvelope envelope) = do
+  -- Check TextEnvelope type match to desirable
+  unless (envelope.type_ == type_) Nothing
   map
     (bytesToScript <<< plutusScriptBytes)
-    (hush ((fromBytes' bytes) :: E (FromBytesError + ()) ST.PlutusScript))
+    ( hush
+        ((fromBytes' envelope.bytes) :: E (FromBytesError + ()) ST.PlutusScript)
+    )
 
 plutusScriptV1FromEnvelope
-  :: String -> Maybe PlutusScript
-plutusScriptV1FromEnvelope str = do
-  _plutusScriptVxFromEnvelope PlutusScriptV1 plutusV1Script str
+  :: TextEnvelope -> Maybe PlutusScript
+plutusScriptV1FromEnvelope envelope = do
+  plutusScriptFromEnvelope PlutusScriptV1 plutusV1Script envelope
 
 plutusScriptV2FromEnvelope
-  :: String -> Maybe PlutusScript
-plutusScriptV2FromEnvelope str =
-  _plutusScriptVxFromEnvelope PlutusScriptV2 plutusV2Script str
+  :: TextEnvelope -> Maybe PlutusScript
+plutusScriptV2FromEnvelope envelope =
+  plutusScriptFromEnvelope PlutusScriptV2 plutusV2Script envelope

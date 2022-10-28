@@ -36,7 +36,8 @@ import Contract.Scripts
   , validatorHash
   )
 import Contract.TextEnvelope
-  ( plutusScriptV2FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
@@ -198,5 +199,6 @@ alwaysMintsPolicyV2 = PlutusMintingPolicy <$> alwaysMintsPolicyScriptV2
 
 alwaysMintsPolicyScriptV2 :: Contract () PlutusScript
 alwaysMintsPolicyScriptV2 =
-  liftMaybe (error "Error decoding alwaysMintsV2") $
-    plutusScriptV2FromEnvelope alwaysMintsV2
+  liftMaybe (error "Error decoding alwaysMintsV2") do
+    envelope <- decodeTextEnvelope alwaysMintsV2
+    plutusScriptV2FromEnvelope envelope

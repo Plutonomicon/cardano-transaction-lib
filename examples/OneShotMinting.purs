@@ -32,7 +32,8 @@ import Contract.Scripts
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
-  ( plutusScriptV1FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionInput
@@ -119,8 +120,9 @@ foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
 oneShotMintingPolicy txInput = do
-  script <- liftMaybe (error "Error decoding oneShotMinting") $
-    plutusScriptV1FromEnvelope oneShotMinting
+  script <- liftMaybe (error "Error decoding oneShotMinting") do
+    envelope <- decodeTextEnvelope oneShotMinting
+    plutusScriptV1FromEnvelope envelope
   mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy

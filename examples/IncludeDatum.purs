@@ -20,7 +20,8 @@ import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( plutusScriptV1FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
@@ -105,6 +106,6 @@ foreign import includeDatum :: String
 -- | checks if the datum equals 42
 only42Script :: Contract () Validator
 only42Script =
-  liftMaybe (error "Error decoding includeDatum")
-    $ Validator
-    <$> plutusScriptV1FromEnvelope includeDatum
+  liftMaybe (error "Error decoding includeDatum") do
+    envelope <- decodeTextEnvelope includeDatum
+    Validator <$> plutusScriptV1FromEnvelope envelope
