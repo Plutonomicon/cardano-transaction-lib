@@ -3,7 +3,6 @@ module Test.Ctl.BalanceTx.Time (suite) where
 import Contract.Prelude
 
 import Contract.Config (testnetConfig)
-import Contract.Log (logInfo')
 import Contract.Monad (Contract, runContract)
 import Contract.ScriptLookups
   ( ScriptLookups
@@ -18,7 +17,6 @@ import Contract.Time
   , maxSlot
   , mkFiniteInterval
   , never
-  , posixTimeToSlot
   , slotToPosixTime
   , to
   )
@@ -43,9 +41,17 @@ import Test.Spec.Assertions (fail, shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  group "BalanceTx.Time"
-    $ test "simple time constraint"
-    $ run oneTimeConstrainTest
+  group "BalanceTx.Time" do
+    test "empty interval" $
+      run (mkTestFromInterval never)
+    test "always interval" $
+      run (mkTestFromInterval always)
+    test "lowerRay interval" $
+      run (mkTestFromInterval $ to now)
+    test "upperRay interval" $
+      run (mkTestFromInterval $ from now)
+    test "finite interval" $
+      run (mkTestFromInterval (mkFiniteInterval now now))
 
   where
   run = runContract testnetConfig { suppressLogs = true }
@@ -72,14 +78,14 @@ toPosixTime time = do
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value
 
-toSlot :: POSIXTime -> Effect Slot
-toSlot time = do
-  eraSummaries <- eraSummariesFixture
-  systemStart <- systemStartFixture
-  eitherTime <- posixTimeToSlot eraSummaries systemStart time
-  case eitherTime of
-    Left e -> (throwError <<< error <<< show) e
-    Right value -> pure value
+-- toSlot :: POSIXTime -> Effect Slot
+-- toSlot time = do
+--   eraSummaries <- eraSummariesFixture
+--   systemStart <- systemStartFixture
+--   eitherTime <- posixTimeToSlot eraSummaries systemStart time
+--   case eitherTime of
+--     Left e -> (throwError <<< error <<< show) e
+--     Right value -> pure value
 
 validityToPosixTime
   :: forall (r :: Row Type)
@@ -107,19 +113,14 @@ validityToPosixTime { validityStartInterval, ttl: timeToLive } =
 mkPosixTime :: String -> POSIXTime
 mkPosixTime = wrap <<< unsafePartial fromJust <<< BigInt.fromString
 
-oneTimeConstrainTest :: Contract () Unit
-oneTimeConstrainTest = do
+mkTestFromInterval :: Interval POSIXTime -> Contract () Unit
+mkTestFromInterval interval = do
   let
-    interval = mkFiniteInterval now now
     constraint = mustValidateIn interval
   mutx <- mkUnbalancedTx emptyLookup constraint
-  now2 <- liftEffect $ toSlot now
-  logInfo' $ show now2
-  logInfo' $ show mutx
   case mutx of
     Left e -> fail $ show e
     Right utx ->
       do
         returnedInterval <- liftEffect $ getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` interval
-
