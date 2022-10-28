@@ -5,6 +5,7 @@ module Ctl.Internal.Cardano.TextEnvelope
       , PlutusScriptV2
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
+      , Other
       )
   , decodeTextEnvelope
   , plutusScriptV1FromEnvelope
@@ -43,6 +44,7 @@ data TextEnvelopeType
   | PlutusScriptV2
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
+  | Other String -- TextEnvelope we can parse from String, but cannot use now
 
 derive instance Eq TextEnvelopeType
 
@@ -52,6 +54,7 @@ instance Show TextEnvelopeType where
     PlutusScriptV2 -> "PlutusScriptV2"
     PaymentSigningKeyShelleyed25519 -> "PaymentSigningKeyShelley_ed25519"
     StakeSigningKeyShelleyed25519 -> "StakeSigningKeyShelley_ed25519"
+    Other other -> other
 
 instance DecodeAeson TextEnvelopeType where
   decodeAeson aeson = do
@@ -62,7 +65,7 @@ instance DecodeAeson TextEnvelopeType where
         PaymentSigningKeyShelleyed25519
       "StakeSigningKeyShelley_ed25519" -> pure
         StakeSigningKeyShelleyed25519
-      _ -> throwError $ TypeMismatch "TextEnvelopeType"
+      other -> pure $ Other other
 
 type TextEnvelopeRaw =
   { "type" :: TextEnvelopeType
