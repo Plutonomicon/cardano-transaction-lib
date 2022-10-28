@@ -19,10 +19,6 @@ import Aeson
   , decodeAeson
   , parseJsonStringToAeson
   )
-import Ctl.Internal.Deserialization.FromBytes (FromBytesError, fromBytes')
-import Ctl.Internal.Error (E)
-import Ctl.Internal.Serialization.PlutusScript (plutusScriptBytes)
-import Ctl.Internal.Serialization.Types as ST
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Ctl.Internal.Types.Cbor (toByteArray)
 import Ctl.Internal.Types.Scripts
@@ -33,7 +29,6 @@ import Ctl.Internal.Types.Scripts
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
-import Type.Row (type (+))
 
 data TextEnvelopeType
   = PlutusScriptV1
@@ -101,11 +96,7 @@ plutusScriptFromEnvelope
 plutusScriptFromEnvelope type_ bytesToScript (TextEnvelope envelope) = do
   -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == type_) Nothing
-  map
-    (bytesToScript <<< plutusScriptBytes)
-    ( hush
-        ((fromBytes' envelope.bytes) :: E (FromBytesError + ()) ST.PlutusScript)
-    )
+  pure $ bytesToScript envelope.bytes
 
 plutusScriptV1FromEnvelope
   :: TextEnvelope -> Maybe PlutusScript
