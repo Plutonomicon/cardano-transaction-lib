@@ -10,7 +10,7 @@ module Ctl.Internal.Plutip.Server
   , testPlutipContracts'
   , withWallets
   , noWallet
-  , WithWallets
+  , PlutipTest
   ) where
 
 import Prelude
@@ -159,49 +159,62 @@ mkWalletTest distr tests = WalletTest \f -> f distr tests
 runWalletTest :: WalletTest -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
 runWalletTest (WalletTest thing) = thing
 
-data Test = WalletTest' WalletTest | NoWalletTest (TestPlanM (Contract () Unit) Unit)
+data Test
+  = WalletTest' WalletTest
+  | NoWalletTest (TestPlanM (Contract () Unit) Unit)
+  | Group String Test
 
 -- TODO Use a record
-runTest :: Test -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> (TestPlanM (Contract () Unit) Unit -> r) -> r
-runTest (WalletTest' wt) f _ = runWalletTest wt f
-runTest (NoWalletTest t) _ f = f t
+runTest :: Test -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> (TestPlanM (Contract () Unit) Unit -> r) -> (String -> Test -> r) -> r
+runTest (WalletTest' wt) f _ _ = runWalletTest wt f
+runTest (NoWalletTest t) _ f _ = f t
+runTest (Group s t) _ _ f = f s t
 
-newtype WithWallets a = WithWallets (Writer (Array Test) a)
+-- DSL for specifying Plutip Contract tests
+newtype PlutipTest a = PlutipTest (Writer (Array Test) a)
 
-derive newtype instance Functor WithWallets
-derive newtype instance Apply WithWallets
-derive newtype instance Applicative WithWallets
-derive newtype instance Bind WithWallets
-derive newtype instance Monad WithWallets
+derive newtype instance Functor PlutipTest
+derive newtype instance Apply PlutipTest
+derive newtype instance Applicative PlutipTest
+derive newtype instance Bind PlutipTest
+derive newtype instance Monad PlutipTest
 
-withWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> WithWallets Unit
-withWallets distr tests = WithWallets do
+withWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> PlutipTest Unit
+withWallets distr tests = PlutipTest do
   tell [ WalletTest' $ mkWalletTest distr tests ]
 
-noWallet :: TestPlanM (Contract () Unit) Unit -> WithWallets Unit
+noWallet :: TestPlanM (Contract () Unit) Unit -> PlutipTest Unit
 noWallet tests = withWallets unit (mapTest const tests)
 
+-- Plutip.group
+
+-- _group :: String -> PlutipTest Unit -> PlutipTest Unit
+
 -- interpret
-interpret :: forall r. WithWallets Unit -> (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
-interpret (WithWallets ww) f = do
+interpret :: forall r. PlutipTest Unit -> (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
+interpret (PlutipTest ww) f = do
   let asdf = execWriter ww
   runWalletTest (go asdf) f
   where
     go :: Array Test -> WalletTest
     go xs = case Array.uncons xs of
+      -- TODO Just inline runTest...
       Just { head, tail } -> runWalletTest (go tail) \distrTail testsTail -> runTest head
         (\distrHead testsHead -> mkWalletTest (distrHead /\ distrTail) do
           mapTest (_ <<< fst) testsHead
           mapTest (_ <<< snd) testsTail)
-        \testsHead -> mkWalletTest distrTail do
+        (\testsHead -> mkWalletTest distrTail do
           mapTest const testsHead
-          testsTail
+          testsTail)
+        \groupName testsHead' -> runWalletTest (go [ testsHead' ]) \distrHead testsHead -> mkWalletTest (distrHead /\ distrTail) do
+          group groupName $ mapTest (_ <<< fst) testsHead
+          mapTest (_ <<< snd) testsTail
       Nothing -> mkWalletTest unit (pure unit)
 
 -- | Run `Contract`s in tests in a single Plutip instance.
 testPlutipContracts'
   :: PlutipConfig
-  -> WithWallets Unit
+  -> PlutipTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts' plutipCfg ww = 
   interpret ww \distr tests -> do
