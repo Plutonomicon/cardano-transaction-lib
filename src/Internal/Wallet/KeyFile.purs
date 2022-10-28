@@ -16,11 +16,12 @@ import Prelude
 import Aeson (encodeAeson)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Cardano.TextEnvelope
-  ( TextEnvelopeType
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeType
       ( PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       )
-  , textEnvelopeBytes
+  , decodeTextEnvelope
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftM)
@@ -32,7 +33,7 @@ import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -45,17 +46,23 @@ keyFromFile :: FilePath -> TextEnvelopeType -> Aff ByteArray
 keyFromFile filePath ty = do
   fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
   let errorMsg = error "Error while decoding key"
-  liftMaybe errorMsg $ textEnvelopeBytes fileContents ty
+  liftMaybe errorMsg do
+    TextEnvelope envelope <- decodeTextEnvelope fileContents
+    -- Check TextEnvelope type match to desirable
+    unless (envelope.type_ == ty) Nothing
+    pure envelope.bytes
 
-privatePaymentKeyFromString :: String -> Maybe PrivatePaymentKey
-privatePaymentKeyFromString jsonString = do
-  bytes <- textEnvelopeBytes jsonString PaymentSigningKeyShelleyed25519
-  PrivatePaymentKey <$> privateKeyFromBytes (wrap bytes)
+privatePaymentKeyFromString :: TextEnvelope -> Maybe PrivatePaymentKey
+privatePaymentKeyFromString (TextEnvelope envelope) = do
+  -- Check TextEnvelope type match to desirable
+  unless (envelope.type_ == PaymentSigningKeyShelleyed25519) Nothing
+  PrivatePaymentKey <$> privateKeyFromBytes (wrap envelope.bytes)
 
-privateStakeKeyFromString :: String -> Maybe PrivateStakeKey
-privateStakeKeyFromString jsonString = do
-  bytes <- textEnvelopeBytes jsonString StakeSigningKeyShelleyed25519
-  PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
+privateStakeKeyFromString :: TextEnvelope -> Maybe PrivateStakeKey
+privateStakeKeyFromString (TextEnvelope envelope) = do
+  -- Check TextEnvelope type match to desirable
+  unless (envelope.type_ == StakeSigningKeyShelleyed25519) Nothing
+  PrivateStakeKey <$> privateKeyFromBytes (wrap envelope.bytes)
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
 privatePaymentKeyFromFile filePath = do

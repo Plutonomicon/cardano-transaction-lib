@@ -21,7 +21,8 @@ import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( plutusScriptV1FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
@@ -111,6 +112,6 @@ foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
 alwaysSucceedsScript =
-  liftMaybe (error "Error decoding alwaysSucceeds")
-    $ Validator
-    <$> plutusScriptV1FromEnvelope alwaysSucceeds
+  liftMaybe (error "Error decoding alwaysSucceeds") do
+    envelope <- decodeTextEnvelope alwaysSucceeds
+    Validator <$> plutusScriptV1FromEnvelope envelope

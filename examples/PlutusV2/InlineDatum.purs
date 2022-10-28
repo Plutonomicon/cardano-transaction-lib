@@ -25,7 +25,8 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( plutusScriptV2FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( OutputDatum(OutputDatum)
@@ -161,6 +162,6 @@ foreign import checkDatumIsInline :: String
 
 checkDatumIsInlineScript :: Contract () Validator
 checkDatumIsInlineScript =
-  liftMaybe (error "Error decoding checkDatumIsInline")
-    $ Validator
-    <$> plutusScriptV2FromEnvelope checkDatumIsInline
+  liftMaybe (error "Error decoding checkDatumIsInline") do
+    envelope <- decodeTextEnvelope checkDatumIsInline
+    Validator <$> plutusScriptV2FromEnvelope envelope

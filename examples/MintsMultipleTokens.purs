@@ -19,7 +19,8 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.TextEnvelope
-  ( plutusScriptV1FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
@@ -80,18 +81,18 @@ foreign import redeemerInt3 :: String
 
 mintingPolicyRdmrInt1 :: Contract () MintingPolicy
 mintingPolicyRdmrInt1 =
-  liftMaybe (error "Error decoding redeemerInt1")
-    $ PlutusMintingPolicy
-    <$> plutusScriptV1FromEnvelope redeemerInt1
+  liftMaybe (error "Error decoding redeemerInt1") do
+    envelope <- decodeTextEnvelope redeemerInt3
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 mintingPolicyRdmrInt2 :: Contract () MintingPolicy
 mintingPolicyRdmrInt2 =
-  liftMaybe (error "Error decoding redeemerInt2")
-    $ PlutusMintingPolicy
-    <$> plutusScriptV1FromEnvelope redeemerInt2
+  liftMaybe (error "Error decoding redeemerInt2") do
+    envelope <- decodeTextEnvelope redeemerInt3
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 mintingPolicyRdmrInt3 :: Contract () MintingPolicy
 mintingPolicyRdmrInt3 =
-  liftMaybe (error "Error decoding redeemerInt3")
-    $ PlutusMintingPolicy
-    <$> plutusScriptV1FromEnvelope redeemerInt3
+  liftMaybe (error "Error decoding redeemerInt3") do
+    envelope <- decodeTextEnvelope redeemerInt3
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope

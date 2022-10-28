@@ -19,7 +19,8 @@ import Contract.Monad
   )
 import Contract.Scripts (Validator(Validator), validatorHash)
 import Contract.TextEnvelope
-  ( plutusScriptV2FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( awaitTxConfirmed
@@ -53,6 +54,6 @@ foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScriptV2 :: Contract () Validator
 alwaysSucceedsScriptV2 =
-  liftMaybe (error "Error decoding alwaysSucceeds")
-    $ Validator
-    <$> plutusScriptV2FromEnvelope alwaysSucceeds
+  liftMaybe (error "Error decoding alwaysSucceeds") do
+    envelope <- decodeTextEnvelope alwaysSucceeds
+    Validator <$> plutusScriptV2FromEnvelope envelope

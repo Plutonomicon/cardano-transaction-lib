@@ -11,7 +11,8 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.TextEnvelope
-  ( plutusScriptV1FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
@@ -55,6 +56,6 @@ foreign import alwaysMints :: String
 
 alwaysMintsPolicy :: Contract () MintingPolicy
 alwaysMintsPolicy =
-  liftMaybe (error "Error decoding alwaysMintsPolicy")
-    $ PlutusMintingPolicy
-    <$> plutusScriptV1FromEnvelope alwaysMints
+  liftMaybe (error "Error decoding alwaysMintsPolicy") do
+    envelope <- decodeTextEnvelope alwaysMints
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope

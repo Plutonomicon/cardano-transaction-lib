@@ -13,7 +13,8 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (MintingPolicy)
 import Contract.TextEnvelope
-  ( plutusScriptV2FromEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction (TransactionInput)
 import Control.Monad.Error.Class (liftMaybe)
@@ -39,6 +40,7 @@ foreign import oneShotMinting :: String
 
 oneShotMintingPolicyV2 :: TransactionInput -> Contract () MintingPolicy
 oneShotMintingPolicyV2 txInput = do
-  script <- liftMaybe (error "Error decoding oneShotMinting") $
-    plutusScriptV2FromEnvelope oneShotMinting
+  script <- liftMaybe (error "Error decoding oneShotMinting") do
+    envelope <- decodeTextEnvelope oneShotMinting
+    plutusScriptV2FromEnvelope envelope
   mkOneShotMintingPolicy script txInput
