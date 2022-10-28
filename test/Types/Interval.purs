@@ -244,8 +244,8 @@ withMsg :: String -> Result -> Result
 withMsg _ Success = Success
 withMsg msg (Failed original) = Failed $ "(" <> msg <> ") : " <> original
 
--- All this test can be generalized to use : 
--- forall (a::Type) . Arbitrary a => Ord a => Ring a 
+-- All this test can be generalized to use :
+-- forall (a::Type) . Arbitrary a => Ord a => Ring a
 
 testUpperRay :: Effect Unit
 testUpperRay = quickCheck test

@@ -550,12 +550,12 @@ from s = UpperRay s
 to :: forall (a :: Type). Ord a => a -> Interval a
 to s = LowerRay s
 
--- | An `Interval` that covers every slot, represented 
+-- | An `Interval` that covers every slot, represented
 -- | as [-infinity,infinity]
 always :: forall (a :: Type). Ord a => Interval a
 always = AlwaysInterval
 
--- | An `Interval` that is empty, represented as 
+-- | An `Interval` that is empty, represented as
 -- | [infinity,-infinity]
 never :: forall (a :: Type). Ord a => Interval a
 never = EmptyInterval
@@ -1350,7 +1350,7 @@ instance DecodeAeson ToOnChainPosixTimeRangeError where
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain
 -- | POSIXTimeRange as follows:
 -- | 1) `POSIXTimeRange` -> `SlotRange`
--- | 2) `SlotRange` -> `TransactionValidity` 
+-- | 2) `SlotRange` -> `TransactionValidity`
 -- | 3) `TransactionValidity` -> `OnchainPOSIXTimeRange`
 -- | `OnchainPOSIXTimeRange` is intended to equal the validity range found in
 -- | the on-chain `ScriptContext`
