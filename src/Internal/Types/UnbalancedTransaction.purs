@@ -1,6 +1,5 @@
 module Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
-  , ScriptOutput(ScriptOutput)
   , ScriptDatum(ScriptDatum, ScriptDatumHash)
   , UnbalancedTx(UnbalancedTx)
   , _transaction
@@ -21,11 +20,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , convertPubKey
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Helpers (encodeMap, encodeTagged')
 import Ctl.Internal.Serialization (publicKeyHash)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
@@ -59,21 +56,6 @@ instance EncodeAeson ScriptDatum where
     ScriptDatumHash r -> encodeAeson' $ encodeTagged' "ScriptDatumHash" r
 
 instance Show ScriptDatum where
-  show = genericShow
-
--- Plutus uses this type in recent revs but wonder if we even need it.
-newtype ScriptOutput = ScriptOutput
-  { validatorHash :: ValidatorHash
-  , value :: Value
-  , datum :: ScriptDatum
-  }
-
-derive instance Newtype ScriptOutput _
-derive instance Generic ScriptOutput _
-derive newtype instance Eq ScriptOutput
-derive newtype instance EncodeAeson ScriptOutput
-
-instance Show ScriptOutput where
   show = genericShow
 
 payPubKeyVkey :: PaymentPubKey -> Vkey
