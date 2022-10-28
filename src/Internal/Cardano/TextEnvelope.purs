@@ -18,11 +18,9 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , parseJsonStringToAeson
   )
-import Control.Monad.Except (throwError)
 import Ctl.Internal.Deserialization.FromBytes (FromBytesError, fromBytes')
 import Ctl.Internal.Error (E)
 import Ctl.Internal.Serialization.PlutusScript (plutusScriptBytes)
