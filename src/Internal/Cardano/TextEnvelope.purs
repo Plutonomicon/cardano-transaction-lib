@@ -16,7 +16,6 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
-  , Aeson
   , decodeAeson
   , parseJsonStringToAeson
   )
