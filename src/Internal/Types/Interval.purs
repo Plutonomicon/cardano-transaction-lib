@@ -298,6 +298,12 @@ instance DecodeAeson a => DecodeAeson (PlutusInterval a) where
     HaskInterval i <- decodeAeson a
     pure $ PlutusInterval { from: i.ivFrom, to: i.ivTo }
 
+-- | A new abstraction for `Interval` on top of the old one
+-- |(PlutusInterval), it restricts the creation of intervals
+-- |to the only ones that can be used in practice:
+-- | [a,b+1) , [-infinity,b+1), [a,infinity], [-infinity,infinity],
+-- | empty.
+-- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041
 data Interval :: Type -> Type
 data Interval a
   = FiniteInterval a a
@@ -531,7 +537,7 @@ addOne x = x `add` one
 substractOne :: forall (a :: Type). Ring a => a -> a
 substractOne x = x `add` (negate one)
 
--- | `mkFiniteInterval` a b construct the interval [a,b+1)
+-- | `mkFiniteInterval a b` construct the interval [a,b+1)
 mkFiniteInterval :: forall (a :: Type). Ord a => a -> a -> Interval a
 mkFiniteInterval x y = if x <= y then FiniteInterval x y else EmptyInterval
 
