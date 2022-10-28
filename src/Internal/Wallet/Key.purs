@@ -2,6 +2,7 @@ module Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
+  , privateKeysToAddress
   , privateKeysToKeyWallet
   , keyWalletPrivatePaymentKey
   , keyWalletPrivateStakeKey
@@ -80,6 +81,26 @@ keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey
 keyWalletPrivateStakeKey :: KeyWallet -> Maybe PrivateStakeKey
 keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
 
+privateKeysToAddress
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Aff Address
+privateKeysToAddress payKey mbStakeKey network = do
+  let pubPayKey = publicKeyFromPrivateKey (unwrap payKey)
+  case mbStakeKey of
+    Just stakeKey -> do
+      pubStakeKey <- pure $ publicKeyFromPrivateKey (unwrap stakeKey)
+      pure $ baseAddressToAddress $
+        baseAddress
+          { network
+          , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
+          , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
+          }
+
+    Nothing -> pure $ pubPayKey # publicKeyHash
+      >>> keyHashCredential
+      >>> { network, paymentCred: _ }
+      >>> enterpriseAddress
+      >>> enterpriseAddressToAddress
+
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
 privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
@@ -92,23 +113,7 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   }
   where
   address :: NetworkId -> Aff Address
-  address network = do
-    let pubPayKey = publicKeyFromPrivateKey (unwrap payKey)
-    case mbStakeKey of
-      Just stakeKey -> do
-        pubStakeKey <- pure $ publicKeyFromPrivateKey (unwrap stakeKey)
-        pure $ baseAddressToAddress $
-          baseAddress
-            { network
-            , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
-            , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
-            }
-
-      Nothing -> pure $ pubPayKey # publicKeyHash
-        >>> keyHashCredential
-        >>> { network, paymentCred: _ }
-        >>> enterpriseAddress
-        >>> enterpriseAddressToAddress
+  address = privateKeysToAddress payKey mbStakeKey
 
   selectCollateral
     :: CoinsPerUtxoUnit
