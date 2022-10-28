@@ -12,7 +12,7 @@ import Ctl.Internal.Plutip.Server
   , testPlutipContracts'
   , withWallets
   , noWallet
-  , WithWallets
+  , PlutipTest
   , withPlutipContractEnv
   ) as X
 import Ctl.Internal.Plutip.Types
