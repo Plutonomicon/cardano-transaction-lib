@@ -53,11 +53,9 @@ suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval" do
     group "EraSumaries related" do
-      test "Inverse posixTimeToSlot >>> slotToPosixTime " $
-        testPosixTimeToSlot
-      test "Inverse slotToPosixTime >>> posixTimeToSlot " $
-        testSlotToPosixTime
-      test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
+      test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
+      test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
+      test "PosixTimeToSlot errors" testPosixTimeToSlotError
     group "Properties" do
       test "Inverse plutusIntervalToInterval <<< intervalToPlutusInterval" $
         liftToTest testIntervalConvertion
