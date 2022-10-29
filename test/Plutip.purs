@@ -140,7 +140,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -177,7 +177,7 @@ main = launchAff_ do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  group "Plutip" do
+  only $ group "Plutip" do
     Logging.suite
 
     test "startPlutipCluster / stopPlutipCluster" do
@@ -600,6 +600,33 @@ suite = do
           , mkDatumHash
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
+
+    only $ test "runPlutipContract: MintZeroToken" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          tn1 <- mkTokenName "Token name"
+          mp1 /\ cs1 <- mkCurrencySymbol alwaysMintsPolicy
+          mp2 /\ cs2 <- mkCurrencySymbol alwaysMintsPolicyV2
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = mconcat
+              [ Constraints.mustMintCurrency (mintingPolicyHash mp1) tn1 zero
+              , Constraints.mustMintCurrency (mintingPolicyHash mp2) tn1 one
+              ]
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups =
+              Lookups.mintingPolicy mp1 <> Lookups.mintingPolicy mp2
+          result <- Lookups.mkUnbalancedTx lookups constraints
+          result `shouldSatisfy` isLeft
 
     test "runPlutipContract: MintsMultipleTokens" do
       let
