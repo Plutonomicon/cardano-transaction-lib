@@ -18,7 +18,6 @@ import Ctl.Internal.Serialization.Types
   , Mint
   , NativeScript
   , PlutusData
-  , PlutusScript
   , PublicKey
   , Transaction
   , TransactionHash
@@ -60,9 +59,6 @@ instance FromBytes TransactionWitnessSet where
 
 instance FromBytes NativeScript where
   fromBytes' = _fromBytesNativeScript eh
-
-instance FromBytes PlutusScript where
-  fromBytes' = _fromBytesPlutusScript eh
 
 instance FromBytes Mint where
   fromBytes' = _fromBytesMint eh
@@ -139,9 +135,6 @@ foreign import _fromBytesTransactionWitnessSet
 
 foreign import _fromBytesNativeScript
   :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r NativeScript
-
-foreign import _fromBytesPlutusScript
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PlutusScript
 
 foreign import _fromBytesMint
   :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Mint
