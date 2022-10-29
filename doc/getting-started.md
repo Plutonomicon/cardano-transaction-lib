@@ -265,8 +265,9 @@ And on the purescript side, the script can be loaded like so:
 foreign import myscript :: String
 
 parseValidator :: Contract () Validator
-parseValidator = liftMaybe (error "Error decoding myscript")
-    $ Validator <$> Contract.TextEnvelope.plutusScriptV1FromEnvelope myscript
+parseValidator = liftMaybe (error "Error decoding myscript") do
+    envelope <- decodeTextEnvelope myscript
+    Validator <$> Contract.TextEnvelope.plutusScriptV1FromEnvelope envelope
 myContract cfg = runContract_ cfg $ do
   validator <- parseValidator
   ...
