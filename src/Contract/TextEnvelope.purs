@@ -1,5 +1,5 @@
 module Contract.TextEnvelope
-  ( module TextEnvelope
+  ( module X
   ) where
 
 import Ctl.Internal.Cardano.TextEnvelope
@@ -12,4 +12,4 @@ import Ctl.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   , plutusScriptV2FromEnvelope
-  ) as TextEnvelope
+  ) as X
