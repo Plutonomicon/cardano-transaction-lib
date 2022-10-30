@@ -5,10 +5,12 @@ module Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , spawnAndWaitForOutput
   , killOnExit
+  , killOnExitAndRemDir
   ) where
 
 import Prelude
 
+import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
 import Data.Foldable (fold)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -18,13 +20,7 @@ import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Node.ChildProcess
-  ( ChildProcess
-  , SpawnOptions
-  , kill
-  , spawn
-  , stdout
-  )
+import Node.ChildProcess (ChildProcess, SpawnOptions, kill, spawn, stdout)
 import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
 import Node.Process as Process
@@ -86,5 +82,22 @@ killOnExit child = do
     Ref.write false aliveRef
   Process.onExit \_ -> do
     alive <- Ref.read aliveRef
+    when alive do
+      kill SIGINT child
+
+foreign import _rmdirSync :: FilePath -> Effect Unit
+
+-- | Kill child process when current process exits. Assumes that given process
+-- | is still running.
+killOnExitAndRemDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
+killOnExitAndRemDir child dir emptyDir = do
+  aliveRef <- Ref.new true
+  ChildProcess.onExit child \_ -> do
+    Ref.write false aliveRef
+    _rmdirSync dir
+  Process.onExit \_ -> do
+    alive <- Ref.read aliveRef
+    when (dir /= emptyDir) do
+      _rmdirSync dir
     when alive do
       kill SIGINT child
