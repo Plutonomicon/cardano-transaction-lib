@@ -87,8 +87,6 @@ killOnExit child = do
 
 foreign import _rmdirSync :: FilePath -> Effect Unit
 
--- | Kill child process when current process exits. Assumes that given process
--- | is still running.
 killOnExitAndRemDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
 killOnExitAndRemDir child dir emptyDir = do
   aliveRef <- Ref.new true
@@ -97,6 +95,8 @@ killOnExitAndRemDir child dir emptyDir = do
     _rmdirSync dir
   Process.onExit \_ -> do
     alive <- Ref.read aliveRef
+    -- remove dir here in case (when exiting with ctrl+c)
+    -- it's not removed on exit of the child process
     when (dir /= emptyDir) do
       _rmdirSync dir
     when alive do
