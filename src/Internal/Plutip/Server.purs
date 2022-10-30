@@ -95,7 +95,6 @@ import Node.ChildProcess
   , kill
   , spawn
   )
-import Node.Path (FilePath)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -368,8 +367,6 @@ startPlutipServer cfg = do
     $ const
     $ stopPlutipCluster cfg
   pure p
-
-foreign import _rmdirSync :: FilePath -> Effect Unit
 
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
