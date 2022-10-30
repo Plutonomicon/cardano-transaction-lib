@@ -7,7 +7,6 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
-import Test.Ctl.BalanceTx.Time as BalanceTx.Time
 import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
@@ -69,5 +68,4 @@ testPlan = do
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
-  BalanceTx.Time.suite
   E2E.Route.suite
