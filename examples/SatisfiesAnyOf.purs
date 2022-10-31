@@ -11,6 +11,7 @@ module Ctl.Examples.SatisfiesAnyOf
 import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Hashing (datumHash) as Hashing
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, runContract)
 import Contract.PlutusData
@@ -22,7 +23,6 @@ import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Internal.Hashing (datumHash) as Hashing
 import Data.BigInt as BigInt
 import Effect.Exception (error)
 
