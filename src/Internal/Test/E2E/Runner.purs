@@ -2,11 +2,11 @@
 module Ctl.Internal.Test.E2E.Runner
   ( runE2ECommand
   , runE2ETests
-  , fetchNami
   ) where
 
 import Prelude
 
+import Affjax (URL)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
@@ -121,26 +121,6 @@ runE2ECommand = case _ of
   UnpackSettings opts -> do
     rt <- readSettingsRuntime opts
     unpackSettings rt.settingsArchive rt.chromeUserDataDir
-
-fetchNami :: String -> Aff Unit
-fetchNami str = do
-  e2eDataDir <- liftedM (error "need data dir")
-    $ liftEffect
-    $ lookupEnv "E2E_DATA_DIR"
-
-  namiUrl <- liftedM (error "need data dir") $ liftEffect $ lookupEnv
-    "NAMI_CRX_URL"
-
-  for_ (concat <<< cons e2eDataDir <<< pure <$> [ "./exts", "./user-data" ])
-    ensureDir
-
-  liftEffect $ log $ "Downloading " <> namiUrl <> " ..."
-
-  res <- spawnAndCollectOutput "echo"
-    [ "\"" <> e2eDataDir <> " " <> namiUrl <> "\"" ]
-    defaultSpawnOptions
-    defaultErrorReader
-  liftEffect $ log res
 
 ensureDir :: FilePath -> Aff Unit
 ensureDir dir = do
@@ -276,7 +256,7 @@ readBrowserRuntime mbTests testOptions = do
   tmpDir <- createTmpDir testOptions.tmpDir browser
   -- TODO: amir: refactor settings and user dir to smth like:
   -- chromeUserDataDir <|> findChromeProfile <|> createChromeProfile
-  chromeUserDataDir <- maybe findChromeProfile pure
+  chromeUserDataDir <- maybe (findChromeProfile e2eDataDir) pure
     testOptions.chromeUserDataDir
   ensureChromeUserDataDir chromeUserDataDir
   settingsArchive <- maybe (liftEffect findSettingsArchive) pure
@@ -285,6 +265,8 @@ readBrowserRuntime mbTests testOptions = do
 
   -- TODO: find better way of passing e2eDataDir
   wallets <- readExtensions (testOptions { e2eDataDir = Just e2eDataDir })
+
+  _ <- liftEffect $ throw "aoeu"
 
   let
     runtime =
@@ -441,8 +423,9 @@ readTestTimeout Nothing = do
       Just timeout -> pure timeout
 
 readSettingsRuntime :: SettingsOptions -> Aff SettingsRuntime
-readSettingsRuntime { chromeUserDataDir, settingsArchive } = do
-  d <- maybe findChromeProfile pure chromeUserDataDir
+readSettingsRuntime { chromeUserDataDir, settingsArchive, e2eDataDir } = do
+  dataDir <- maybe findE2EDataDir pure e2eDataDir
+  d <- maybe (findChromeProfile dataDir) pure chromeUserDataDir
   a <- maybe (liftEffect findSettingsArchive) pure settingsArchive
   pure { settingsArchive: a, chromeUserDataDir: d }
 
@@ -469,11 +452,29 @@ findSettingsArchive =
         "Unable to find settings archive (specify E2E_SETTINGS_ARCHIVE or --settings-archive)"
     ) $ lookupEnv "E2E_SETTINGS_ARCHIVE"
 
-findChromeProfile :: Aff ChromeUserDataDir
-findChromeProfile = do
-  chromeUserDataDir <- liftedM (error "Unable to get E2E_CHROME_USER_DATA")
-    $ liftEffect
-    $ lookupEnv "E2E_CHROME_USER_DATA"
+findChromeProfile :: E2EDataDir -> Aff ChromeUserDataDir
+findChromeProfile e2eDataDir = do
+  mbChromeProfile <- liftEffect $ lookupEnv "E2E_CHROME_USER_DATA"
+  chromeUserDataDir <- case mbChromeProfile of
+    Just chromeProfile -> pure chromeProfile
+    Nothing -> do
+      dataUrl <-
+        liftedM
+          ( error
+              "Please specify E2E_CHROME_USER_DATA or E2E_CHROME_USER_DATA_URL"
+          ) $ liftEffect $ lookupEnv "E2E_CHROME_USER_DATA_URL"
+      let dataDir = e2eDataDir
+      dataZipPath <- downloadToDataDir dataDir dataUrl
+      void $ spawnAndCollectOutput "unzip"
+        [ "-o"
+        , dataZipPath
+        , "-d"
+        , dataDir
+        ]
+        defaultSpawnOptions
+        defaultErrorReader
+
+      pure $ dataDir <> "/chrome-user-data"
   doesExist <- exists chromeUserDataDir
   unless doesExist do
     ensureChromeUserDataDir chromeUserDataDir
@@ -568,20 +569,12 @@ readExtensionParams extensionName testOptions = do
         ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
 
     -- TODO: amir: remove this partial behaviour
-    let e2eDataDir = unsafePartial $ fromJust $ testOptions.e2eDataDir
+    let
+      e2eDataDir = unsafePartial $ fromJust $ testOptions.e2eDataDir
+      crxFilePrefix = e2eDataDir <> "/extensions/"
 
-    ensureDir $ e2eDataDir <> "/extensions"
-
-    let crxFilePrefix = e2eDataDir <> "/extensions/"
-
-    void $ spawnAndCollectOutput "wget" [ "-N", "-P", crxFilePrefix, crxUrl ]
-      defaultSpawnOptions
-      defaultErrorReader
-
-    liftEffect $ log $ "Downloaded extension to " <> crxFilePrefix <> basename
-      crxUrl
-
-    pure $ Just (crxFilePrefix <> basename crxUrl)
+    crxFilePath <- downloadToDataDir crxFilePrefix crxUrl
+    pure $ Just crxFilePath
 
   mkExtIdError str =
     "Unable to parse extension ID. must be a string consisting of 32 characters\
@@ -736,6 +729,16 @@ spawnAndCollectOutput
   -> Aff String
 spawnAndCollectOutput cmd args opts errorReader = makeAff
   (spawnAndCollectOutput_ cmd args opts errorReader)
+
+downloadToDataDir :: FilePath -> URL -> Aff FilePath
+downloadToDataDir dir url = do
+  ensureDir dir
+  liftEffect $ log $ "Downloading " <> url <> " to " <> dir
+  output <- spawnAndCollectOutput "wget" [ "-N", "-P", dir, url ]
+    defaultSpawnOptions
+    defaultErrorReader
+  liftEffect $ log $ output
+  pure $ dir <> "/" <> basename url
 
 defaultErrorReader :: Exit -> Maybe String
 defaultErrorReader =
