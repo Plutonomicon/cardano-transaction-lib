@@ -30,7 +30,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (fold, for)
+import Data.Traversable (for)
 import Effect (Effect)
 import Effect.Aff (Aff, delay, try)
 import Effect.Class (liftEffect)

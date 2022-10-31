@@ -2,7 +2,7 @@ module Test.Ctl.E2E (main) where
 
 import Prelude
 
-import Contract.Test.E2E (parseCliArgs, runE2ECommand)
+import Contract.Test.E2E (fetchNami, parseCliArgs, runE2ECommand)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 
