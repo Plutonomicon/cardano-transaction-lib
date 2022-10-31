@@ -402,7 +402,7 @@
 
             if [ $packagesLibRev != $flakeLibRev ]
             then
-              echo "CTL Version mismatch $packagesLibRev $flakeLibRev"
+              echo "CTL revision in scaffold flake.nix ($flakeLibRev) doesn't match revision referenced in spago-packages.nix ($packagesLibRev). Please update flake.nix or packages.dhall and run spago2nix."
               exit 1
             fi
             touch $out
