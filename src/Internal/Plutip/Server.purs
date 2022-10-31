@@ -15,45 +15,13 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad
-  ( Contract
-  , ContractEnv(ContractEnv)
-  , liftContractM
-  , runContractInEnv
-  )
+import Contract.Monad (Contract, ContractEnv(ContractEnv), liftContractM, runContractInEnv)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
-import Ctl.Internal.Plutip.Spawn
-  ( NewOutputAction(Success, NoOp)
-  , killOnExit
-  , killOnExitAndRemDir
-  , spawnAndWaitForOutput
-  )
-import Ctl.Internal.Plutip.Types
-  ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxODistribution
-  , InitialUTxOs
-  , PlutipConfig
-  , PostgresConfig
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
-  , StopClusterRequest(StopClusterRequest)
-  , StopClusterResponse
-  )
+import Ctl.Internal.Plutip.Spawn (NewOutputAction(Success, NoOp), killOnExit, killOnExitAndRemDir, spawnAndWaitForOutput)
+import Ctl.Internal.Plutip.Types (ClusterStartupRequest(ClusterStartupRequest), InitialUTxODistribution, InitialUTxOs, PlutipConfig, PostgresConfig, PrivateKeyResponse(PrivateKeyResponse), StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure), StopClusterRequest(StopClusterRequest), StopClusterResponse, ClusterStartupParameters)
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Plutip.UtxoDistribution
-  ( class UtxoDistribution
-  , decodeWallets
-  , encodeDistribution
-  , keyWallets
-  , transferFundsFromEnterpriseToBase
-  )
-import Ctl.Internal.QueryM
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  , Logger
-  , mkLogger
-  , stopQueryRuntime
-  )
+import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution, decodeWallets, encodeDistribution, keyWallets, transferFundsFromEnterpriseToBase)
+import Ctl.Internal.QueryM (ClientError(ClientDecodeJsonError, ClientHttpError), Logger, mkLogger, stopQueryRuntime)
 import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
@@ -79,22 +47,11 @@ import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, throwError, try)
 import Effect.Aff.Class (liftAff)
-import Effect.Aff.Retry
-  ( RetryPolicy
-  , constantDelay
-  , limitRetriesByCumulativeDelay
-  , recovering
-  )
+import Effect.Aff.Retry (RetryPolicy, constantDelay, limitRetriesByCumulativeDelay, recovering)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Node.ChildProcess
-  ( ChildProcess
-  , defaultExecSyncOptions
-  , defaultSpawnOptions
-  , execSync
-  , kill
-  , spawn
-  )
+import Node.ChildProcess (ChildProcess, defaultExecSyncOptions, defaultSpawnOptions, execSync, kill, spawn)
+import Node.Path (dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -356,13 +313,9 @@ stopChildProcess = liftEffect <<< kill SIGINT
 
 startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
-  -- tmpDir <- liftEffect tmpdir
-  -- let clusterReg = unsafeRegex "test-cluster[0-9]{6}" noFlags
-  --     clusterDir = tmpDir <> "/" <> clusterReg
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions
   liftEffect $ killOnExit p
-  -- liftEffect $ killOnExitAndRemDir p tmpDir
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -374,13 +327,14 @@ startPlutipServer cfg = do
 
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
-startPostgresServer pgConfig _ = do
+startPostgresServer pgConfig params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workingDir = tmpDir <> "/" <> randomStr
     databaseDir = workingDir <> "/postgres/data"
     postgresSocket = workingDir <> "/postgres"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
   pgChildProcess <- liftEffect $ spawn "postgres"
     [ "-D"
@@ -393,7 +347,7 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     defaultSpawnOptions
-  liftEffect $ killOnExitAndRemDir pgChildProcess tmpDir
+  liftEffect $ killOnExitAndRemDir pgChildProcess workingDir testClusterDir
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
