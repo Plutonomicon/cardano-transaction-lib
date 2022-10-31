@@ -41,6 +41,7 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
@@ -50,7 +51,6 @@ import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Test.Ctl.Fixtures (ed25519KeyHashFixture1)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual)
 

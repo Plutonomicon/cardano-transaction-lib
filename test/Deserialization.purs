@@ -31,6 +31,7 @@ import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
 import Ctl.Internal.Serialization.WitnessSet as SW
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
@@ -78,7 +79,6 @@ import Test.Ctl.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
