@@ -3,7 +3,6 @@ module Test.Ctl.BalanceTx.Time (suite) where
 import Contract.Prelude
 
 import Contract.Config (testnetConfig)
-import Contract.Log (logInfo')
 import Contract.Monad (Contract, runContract)
 import Contract.ScriptLookups
   ( ScriptLookups
@@ -88,15 +87,14 @@ emptyLookup = mempty
 now :: POSIXTime
 now = mkPosixTime "1666918454000"
 
-unsafeSubstractOne :: BigNum -> BigNum
-unsafeSubstractOne value = unsafePartial $ fromJust
+unsafeSubtractOne :: BigNum -> BigNum
+unsafeSubtractOne value = unsafePartial $ fromJust
   $ BigNum.fromInt
   <$> (flip (-) 1 <$> BigNum.toInt value)
 
 getTimeFromUnbalanced
   :: UnattachedUnbalancedTx -> Contract () (Interval POSIXTime)
-getTimeFromUnbalanced utx =
-  validityToPosixTime (unwrap body)
+getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
   where
   body = (_transaction <<< _body) `view` (unwrap utx).unbalancedTx
 
@@ -132,24 +130,18 @@ validityToPosixTime { validityStartInterval, ttl: timeToLive } =
         case timeToLive of
           Just end ->
             let
-              end' = substractOne end
+              end' = subtractOne end
               slotInterval = mkFiniteInterval start end'
             in
-              do
-                logInfo' $ show (unwrap end)
-                logInfo' $ show $ BigNum.toInt (unwrap end)
-                logInfo' $ show ((-) 1 <$> BigNum.toInt (unwrap end))
-                logInfo' $ show end
-                logInfo' $ show end'
-                toPosixTimeRange slotInterval
+              toPosixTimeRange slotInterval
           Nothing ->
             from <$> toPosixTime start
     Nothing ->
       case timeToLive of
         Nothing -> pure always
-        Just end -> to <$> toPosixTime (substractOne end)
+        Just end -> to <$> toPosixTime (subtractOne end)
   where
-  substractOne = wrap <<< unsafeSubstractOne <<< unwrap
+  subtractOne = wrap <<< unsafeSubtractOne <<< unwrap
 
 mkPosixTime :: String -> POSIXTime
 mkPosixTime = wrap <<< unsafePartial fromJust <<< BigInt.fromString
@@ -172,7 +164,7 @@ testEmptyInterval = do
     constraint = mustValidateIn never
   mutx <- mkUnbalancedTx emptyLookup constraint
   case mutx of
-    Left e -> logInfo' $ show e
+    Left _ -> pure unit
     Right utx -> fail $ "Empty interval must fail : " <> show utx
 
 testEmptyMultipleIntervals :: Contract () Unit
@@ -185,7 +177,7 @@ testEmptyMultipleIntervals = do
     constraint = foldMap mustValidateIn intervals
   mutx <- mkUnbalancedTx emptyLookup constraint
   case mutx of
-    Left e -> logInfo' $ show e
+    Left _ -> pure unit
     Right utx -> fail $ "Empty interval must fail : " <> show utx
 
 mkTestMultipleInterval
