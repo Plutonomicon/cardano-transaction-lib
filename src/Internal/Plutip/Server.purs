@@ -356,9 +356,13 @@ stopChildProcess = liftEffect <<< kill SIGINT
 
 startPlutipServer :: PlutipConfig -> Aff ChildProcess
 startPlutipServer cfg = do
+  -- tmpDir <- liftEffect tmpdir
+  -- let clusterReg = unsafeRegex "test-cluster[0-9]{6}" noFlags
+  --     clusterDir = tmpDir <> "/" <> clusterReg
   p <- liftEffect $ spawn "plutip-server" [ "-p", UInt.toString cfg.port ]
     defaultSpawnOptions
   liftEffect $ killOnExit p
+  -- liftEffect $ killOnExitAndRemDir p tmpDir
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
   void
@@ -389,7 +393,7 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     defaultSpawnOptions
-  liftEffect $ killOnExitAndRemDir pgChildProcess workingDir tmpDir
+  liftEffect $ killOnExitAndRemDir pgChildProcess tmpDir
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
