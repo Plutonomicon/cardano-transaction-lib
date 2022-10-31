@@ -18,6 +18,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 import Node.ChildProcess (ChildProcess, SpawnOptions, kill, spawn, stdout)
@@ -85,19 +86,16 @@ killOnExit child = do
     when alive do
       kill SIGINT child
 
-foreign import _rmdirSync :: FilePath -> Effect Unit
+-- foreign import _rmdirSync :: FilePath -> Effect Unit
+foreign import _removeDirs :: FilePath -> Effect Unit
 
-killOnExitAndRemDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
-killOnExitAndRemDir child dir emptyDir = do
+killOnExitAndRemDir :: ChildProcess -> FilePath -> Effect Unit
+killOnExitAndRemDir child dir = do
   aliveRef <- Ref.new true
   ChildProcess.onExit child \_ -> do
     Ref.write false aliveRef
-    _rmdirSync dir
+    _removeDirs dir
   Process.onExit \_ -> do
     alive <- Ref.read aliveRef
-    -- remove dir here in case (when exiting with ctrl+c)
-    -- it's not removed on exit of the child process
-    when (dir /= emptyDir) do
-      _rmdirSync dir
     when alive do
       kill SIGINT child
