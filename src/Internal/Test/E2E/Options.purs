@@ -25,6 +25,7 @@ import Ctl.Internal.Test.E2E.Types
   ( Browser
   , ChromeUserDataDir
   , CrxFilePath
+  , E2EDataDir
   , E2ETest
   , ExtensionId
   , SettingsArchive
@@ -90,7 +91,7 @@ type CommonOptions_ (r :: Row Type) =
   , chromeUserDataDir :: Maybe ChromeUserDataDir
   , tmpDir :: Maybe TmpDir
   , settingsArchive :: Maybe SettingsArchive
-  , e2eDataDir :: Maybe FilePath
+  , e2eDataDir :: Maybe E2EDataDir
   )
 
 -- | CLI options for the `browser` command.
@@ -108,6 +109,7 @@ type ExtensionOptions =
 type SettingsOptions =
   { chromeUserDataDir :: Maybe FilePath
   , settingsArchive :: Maybe FilePath
+  , e2eDataDir :: Maybe E2EDataDir
   }
 
 -- | A CLI command that can be interpreted by the E2E test suite.
@@ -165,7 +167,7 @@ browserOptionsParser = ado
         Just a -> show a
     , value Nothing
     ]
-  { chromeUserDataDir, settingsArchive } <- settingsOptionsParser
+  { chromeUserDataDir, settingsArchive, e2eDataDir } <- settingsOptionsParser
   tmpDir <- option (Just <$> str) $ fold
     [ long "tmp-dir"
     , help "Temporary data directory"
@@ -270,12 +272,6 @@ browserOptionsParser = ado
     , help "Lode wallet extension (.crx) file"
     , value Nothing
     ]
-  e2eDataDir <- option (Just <$> str) $ fold
-    [ long "e2e-data-dir"
-    , metavar "DIR"
-    , help "E2E data directory"
-    , value Nothing
-    ]
   let
     wallets = Map.fromFoldable $ catMaybes
       [ mkConfig NamiExt namiExtId namiPassword namiCrx
@@ -338,6 +334,15 @@ testUrlsOptionParser =
     "Specification of a test. Consists of a wallet name and a URL, separated \
     \by `:`. Can be specified multiple times. Default: empty"
 
+e2eDataDirOptionParser :: Parser (Maybe E2EDataDir)
+e2eDataDirOptionParser =
+  option (Just <$> str) $ fold
+    [ long "e2e-data-dir"
+    , metavar "DIR"
+    , help "E2E data directory"
+    , value Nothing
+    ]
+
 chromeUserDataOptionParser :: Parser (Maybe String)
 chromeUserDataOptionParser = option (Just <$> str) $ fold
   [ long "chrome-user-data"
@@ -350,6 +355,7 @@ chromeUserDataOptionParser = option (Just <$> str) $ fold
 settingsOptionsParser :: Parser SettingsOptions
 settingsOptionsParser = ado
   chromeUserDataDir <- chromeUserDataOptionParser
+  e2eDataDir <- e2eDataDirOptionParser
   settingsArchive <- option (Just <$> str) $ fold
     [ long "settings-archive"
     , help "Settings archive (.tar.gz) that will be used to store the settings"
@@ -357,7 +363,7 @@ settingsOptionsParser = ado
     , showDefaultWith show
     , metavar "DIR"
     ]
-  in { chromeUserDataDir, settingsArchive }
+  in { chromeUserDataDir, settingsArchive, e2eDataDir }
 
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info testOptionsParser fullDesc
