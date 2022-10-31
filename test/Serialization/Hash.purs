@@ -13,6 +13,7 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashToBech32Unsafe
   , scriptHashToBytes
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Eq ((==))
@@ -21,7 +22,6 @@ import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (wrap)
 import Data.Unit (Unit)
 import Effect.Aff (Aff)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (assertTrue, errMaybe)
 
 pkhBech32 :: Bech32String

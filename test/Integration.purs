@@ -8,6 +8,7 @@ import Ctl.Internal.QueryM (runQueryM)
 import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -17,14 +18,12 @@ import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.BalanceTx.Collateral as Collateral
 import Test.Ctl.Logging as Logging
 import Test.Ctl.PrivateKey as PrivateKey
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Types.Interval as Types.Interval
-import Test.Ctl.Utils as Utils
 
 -- Run with `spago test --main Test.Ctl.Integration`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret testPlan
+  interpret testPlan
 
 -- Requires external services listed in README.md
 testPlan :: TestPlanM (Aff Unit) Unit
@@ -34,7 +33,7 @@ testPlan = do
   -- We disabled them during transition from `testnet` to `preprod` networks.
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
   skip $ flip mapTest Types.Interval.suite \f -> runQueryM
-    testnetTraceQueryConfig
+    testnetTraceQueryConfig { suppressLogs = true }
     do
       eraSummaries <- getEraSummaries
       sysStart <- getSystemStart

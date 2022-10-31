@@ -4,6 +4,7 @@ import Prelude
 
 import Control.Monad.Reader (runReaderT)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts
   ( isTxOutRefUsed
@@ -27,7 +28,6 @@ import Test.Ctl.Fixtures
   , mkTxInput
   , txFixture1
   )
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldReturn)
 
 buildSampleTransaction
