@@ -135,4 +135,4 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
   signData :: NetworkId -> RawBytes -> Aff DataSignature
   signData networkId payload = do
     addr <- address networkId
-    pure $ Cip30SignData.signData (unwrap payKey) addr payload
+    liftEffect $ Cip30SignData.signData (unwrap payKey) addr payload

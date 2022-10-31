@@ -60,7 +60,7 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
     privateKeysToAddress (unwrap privateKey) (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
-  let { key, signature } = signData privatePaymentKey address payload
+  { key, signature } <- liftEffect $ signData privatePaymentKey address payload
 
   coseSign1 <- liftEffect $ fromBytesCoseSign1 signature
   coseKey <- liftEffect $ fromBytesCoseKey key
