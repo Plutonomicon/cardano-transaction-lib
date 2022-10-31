@@ -10,12 +10,13 @@ module Ctl.Internal.Plutip.Server
   , testPlutipContracts'
   , withWallets
   , noWallet
-  , PlutipTest
+  , group
+  , PlutipTestM
   ) where
 
 import Prelude
 
-import Control.Monad.Writer (Writer, execWriter, tell)
+import Control.Monad.State (State, execState, execStateT, modify_)
 import Aeson
   ( decodeAeson
   , encodeAeson
@@ -33,6 +34,8 @@ import Contract.Monad
   , liftContractM
   , runContractInEnv
   )
+import Control.Monad.Writer (runWriterT, tell, censor)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
@@ -105,9 +108,9 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Mote (bracket) as Mote
-import Mote (group)
-import Mote.Monad (mapTest)
+import Mote (bracket, group) as Mote
+import Mote.Monad (mapTest, MoteT(MoteT))
+import Mote.Description
 import Node.ChildProcess (defaultSpawnOptions)
 import Type.Prelude (Proxy(Proxy))
 
@@ -123,15 +126,16 @@ runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
   \env wallets ->
     runContractInEnv env (cont wallets)
 
-cleanup :: Ref (Array (Aff Unit)) -> Aff Unit
-cleanup cleanupRef = do
-  afters <- liftEffect $ Ref.read cleanupRef
-  sequence_ (try <$> afters)
+runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
+runCleanup cleanupRef = do
+  cleanups <- liftEffect $ Ref.read cleanupRef
+  sequence_ (try <$> cleanups)
 
-runWithLogs :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
-runWithLogs printLogs action = do
-  res <- try $ action
-  when (isLeft res) printLogs
+-- Similar to `catchError` but preserves the error
+whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
+whenError whenErrorAction action = do
+  res <- try action
+  when (isLeft res) whenErrorAction
   liftEither res
 
 -- | Provide a `ContractEnv` connected to Plutip.
@@ -147,83 +151,93 @@ withPlutipContractEnv plutipCfg distr cont = do
   cleanupRef <- liftEffect $ Ref.new mempty
   Aff.bracket
     (startPlutipContractEnv plutipCfg distr cleanupRef)
-    (const $ cleanup cleanupRef)
+    (const $ runCleanup cleanupRef)
     \{ env, wallets, printLogs } -> do
-      runWithLogs printLogs (cont env wallets)
+      whenError printLogs (cont env wallets)
 
-newtype WalletTest = WalletTest (forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r)
+type PlutipTestHandler distr wallets r = UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r
 
-mkWalletTest :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> WalletTest
-mkWalletTest distr tests = WalletTest \f -> f distr tests
+-- Existentally capture a plutip test contract and the utxo distribution it depends on
+-- Equivelent to the GADT
+-- data PlutipTest where
+--   PlutipTest :: UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> PlutipTest
+newtype PlutipTest = PlutipTest (forall r. (forall distr wallets. PlutipTestHandler distr wallets r) -> r)
 
-runWalletTest :: WalletTest -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
-runWalletTest (WalletTest thing) = thing
+mkPlutipTest :: forall distr wallets. PlutipTestHandler distr wallets PlutipTest
+mkPlutipTest distr tests = PlutipTest \f -> f distr tests
 
-data Test
-  = WalletTest' WalletTest
-  | NoWalletTest (TestPlanM (Contract () Unit) Unit)
-  | Group String Test
+runPlutipTest :: PlutipTest -> forall r. (forall distr wallets. PlutipTestHandler distr wallets r) -> r
+runPlutipTest (PlutipTest pt) = pt
 
--- TODO Use a record
-runTest :: Test -> forall r. (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> (TestPlanM (Contract () Unit) Unit -> r) -> (String -> Test -> r) -> r
-runTest (WalletTest' wt) f _ _ = runWalletTest wt f
-runTest (NoWalletTest t) _ f _ = f t
-runTest (Group s t) _ _ f = f s t
+-- | DSL for specifying Plutip Contract tests
+newtype PlutipTestM a = PlutipTestM (State PlutipTest a)
 
--- DSL for specifying Plutip Contract tests
-newtype PlutipTest a = PlutipTest (Writer (Array Test) a)
+derive newtype instance Functor PlutipTestM
+derive newtype instance Apply PlutipTestM
+derive newtype instance Applicative PlutipTestM
+derive newtype instance Bind PlutipTestM
+derive newtype instance Monad PlutipTestM
 
-derive newtype instance Functor PlutipTest
-derive newtype instance Apply PlutipTest
-derive newtype instance Applicative PlutipTest
-derive newtype instance Bind PlutipTest
-derive newtype instance Monad PlutipTest
+withWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> PlutipTestM Unit
+withWallets distr tests = PlutipTestM do
+  modify_ \wt -> runPlutipTest wt \distr' tests' -> mkPlutipTest (distr' /\ distr) do
+      mapTest (_ <<< fst) tests'
+      mapTest (_ <<< snd) tests
 
-withWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> PlutipTest Unit
-withWallets distr tests = PlutipTest do
-  tell [ WalletTest' $ mkWalletTest distr tests ]
+noWallet :: TestPlanM (Contract () Unit) Unit -> PlutipTestM Unit
+noWallet = withWallets unit <<< mapTest const
 
-noWallet :: TestPlanM (Contract () Unit) Unit -> PlutipTest Unit
-noWallet tests = withWallets unit (mapTest const tests)
+group :: String -> PlutipTestM Unit -> PlutipTestM Unit
+group name pt = interpret pt
+  \distr tests -> withWallets distr $ Mote.group name tests
 
--- Plutip.group
+interpret :: forall r
+  . PlutipTestM Unit
+ -> (forall distr wallets. PlutipTestHandler distr wallets r)
+ -> r
+interpret (PlutipTestM tests) f = 
+  runPlutipTest (execState tests (mkPlutipTest unit (pure unit))) f
 
--- _group :: String -> PlutipTest Unit -> PlutipTest Unit
+newtype PlutipTest' = PlutipTest' (forall r. (forall distr wallets. UtxoDistribution distr wallets => TestPlanM (distr /\ (wallets -> Contract () Unit)) Unit -> r) -> r)
 
--- interpret
-interpret :: forall r. PlutipTest Unit -> (forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r) -> r
-interpret (PlutipTest ww) f = do
-  let asdf = execWriter ww
-  runWalletTest (go asdf) f
-  where
-    go :: Array Test -> WalletTest
-    go xs = case Array.uncons xs of
-      -- TODO Just inline runTest...
-      Just { head, tail } -> runWalletTest (go tail) \distrTail testsTail -> runTest head
-        (\distrHead testsHead -> mkWalletTest (distrHead /\ distrTail) do
-          mapTest (_ <<< fst) testsHead
-          mapTest (_ <<< snd) testsTail)
-        (\testsHead -> mkWalletTest distrTail do
-          mapTest const testsHead
-          testsTail)
-        \groupName testsHead' -> runWalletTest (go [ testsHead' ]) \distrHead testsHead -> mkWalletTest (distrHead /\ distrTail) do
-          group groupName $ mapTest (_ <<< fst) testsHead
-          mapTest (_ <<< snd) testsTail
-      Nothing -> mkWalletTest unit (pure unit)
+hmm
+  :: PlutipTest'
+  -> Aff PlutipTest
+hmm (PlutipTest' runTests) = 
+  runTests \(MoteT mote) -> do
+    _ /\ tests <- runWriterT mote
+
+    let
+      go = traverse_ case _ of
+        Test rm { bracket, label, value: distr /\ test } -> do
+          modify_ \wt -> runPlutipTest wt \distr' tests' -> mkPlutipTest (distr' /\ distr) do
+            mapTest (_ <<< fst) tests'
+            MoteT (tell [Test rm { bracket, label, value: test <<< snd }])
+        Group rm { bracket, label, value } -> do
+          let thing = flip execState (mkPlutipTest unit (pure unit)) $ go value
+          modify_ \wt -> runPlutipTest wt \distr' tests' ->
+            runPlutipTest thing \distr tests -> mkPlutipTest (distr' /\ distr) do
+            mapTest (_ <<< fst) tests'
+            over MoteT 
+              (censor (pure <<< Group rm <<< { bracket, label, value: _ }))
+              (mapTest (_ <<< snd) tests)
+    pure $ flip execState (mkPlutipTest unit (pure unit)) $ go tests
+  -- where
+    -- i'd need go into PlutipTest again but with a custom m (Entry Aff)
+    -- go :: Entry Aff PlutipTest -> State PlutipTest
 
 -- | Run `Contract`s in tests in a single Plutip instance.
 testPlutipContracts'
   :: PlutipConfig
-  -> PlutipTest Unit
+  -> PlutipTestM Unit
   -> TestPlanM (Aff Unit) Unit
-testPlutipContracts' plutipCfg ww = 
-  interpret ww \distr tests -> do
-    let groupedTests = group "HIDDEN_GROUP" tests
+testPlutipContracts' plutipCfg pt = 
+  interpret (group "HIDDEN_GROUP" pt) \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
-      (cleanup cleanupRef)
-      $ flip mapTest groupedTests \test { env, wallets, printLogs } -> do
-          runWithLogs printLogs (runContractInEnv env (test wallets))
+      (runCleanup cleanupRef)
+      $ flip mapTest tests \test { env, wallets, printLogs } -> do
+          whenError printLogs (runContractInEnv env (test wallets))
   where
   bracket
     :: forall a b
@@ -252,12 +266,12 @@ testPlutipContracts
   -> TestPlanM (wallets -> Contract () Unit) Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg distr tests = do
-  let groupedTests = group "HIDDEN_GROUP" tests
+  let groupedTests = Mote.group "HIDDEN_GROUP" tests
   cleanupRef <- liftEffect $ Ref.new mempty
   bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
-    (cleanup cleanupRef)
+    (runCleanup cleanupRef)
     $ flip mapTest groupedTests \test { env, wallets, printLogs } -> do
-        runWithLogs printLogs (runContractInEnv env (test wallets))
+        whenError printLogs (runContractInEnv env (test wallets))
   where
   bracket
     :: forall a b

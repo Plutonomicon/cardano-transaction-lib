@@ -41,9 +41,10 @@ import Contract.Test.Plutip
   , testPlutipContracts'
   , withWallets
   , noWallet
-  , PlutipTest
+  , PlutipTestM
   , withStakeKey
   )
+import Contract.Test.Plutip (group) as Plutip
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -184,15 +185,63 @@ main = launchAff_ do
       UtxoDistribution.suite
       NetworkId.suite
 
-testAffInterface :: PlutipTest Unit
+suite :: TestPlanM (Aff Unit) Unit
+suite = do
+  group "Plutip" do
+    Logging.suite
+
+    test "startPlutipCluster / stopPlutipCluster" do
+      bracket (startPlutipServer config)
+        (stopChildProcessWithPort config.port) $ const do
+        checkPlutipServer config
+        _startRes <- startPlutipCluster config [ [] ]
+        stopRes <- stopPlutipCluster config
+        stopRes `shouldSatisfy` case _ of
+          StopClusterSuccess -> true
+          _ -> false
+    
+    -- TODO Don't run separately, there's a bug with array distributions
+    --      Even this isn't enough
+    testPlutipContracts' config do
+      testUtxoDistributionArray
+
+    testPlutipContracts' config do
+      testAffInterface
+      testAwaitTxConfirmedWithTimeout
+      testDatums
+      testCurrentTime
+      testApplyArgs
+      testContract
+      testPkh2Pkh
+      testNativeScript
+      testAlwaysMints
+      testNativeScriptMints
+      testMintsMultipleTokens
+      testSignMultiple
+      testAlwaysSucceeds
+      testSendsToken
+      testInlineDatum
+      testIncludeDatum
+      testAlwaysSucceedsV2
+      testAlwaysFails
+      testReferenceScripts
+      testReferenceInputs
+      testOneShotMinting
+      testOneShotMintingPlutusV2
+      testContractTestUtils
+      testBalanceTxConstraints
+      testAdditionalUtxosTxChaining
+      testCip30Mock
+
+testAffInterface :: PlutipTestM Unit
 testAffInterface =
   noWallet $ mapTest wrapContract AffInterface.suite
 
-testAwaitTxConfirmedWithTimeout :: PlutipTest Unit
+testAwaitTxConfirmedWithTimeout :: PlutipTestM Unit
 testAwaitTxConfirmedWithTimeout =
   noWallet $ test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" AwaitTxConfirmedWithTimeout.contract
 
-testDatums :: PlutipTest Unit
+testDatums :: PlutipTestM Unit
 testDatums =
   noWallet do
     test "runPlutipContract: Datums" do
@@ -218,7 +267,7 @@ testDatums =
             "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
         ]
 
-testCurrentTime :: PlutipTest Unit
+testCurrentTime :: PlutipTestM Unit
 testCurrentTime =
   noWallet do
     test "runPlutipContract: currentTime" do
@@ -226,7 +275,7 @@ testCurrentTime =
       void $ getEraSummaries >>= unwrap >>> traverse
         (getSlotLength >>> show >>> logInfo')
 
-testApplyArgs :: PlutipTest Unit
+testApplyArgs :: PlutipTestM Unit
 testApplyArgs =
   noWallet do
     group "applyArgs" do
@@ -247,7 +296,7 @@ testApplyArgs =
         result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
         result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
-testContract :: PlutipTest Unit
+testContract :: PlutipTestM Unit
 testContract = do
   let
     distribution :: InitialUTxOs /\ InitialUTxOs
@@ -273,13 +322,13 @@ testContract = do
     withKeyWallet bob do
       pure unit -- sign, balance, submit, etc.
 
-withCheckedWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> PlutipTest Unit
+withCheckedWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> PlutipTestM Unit
 withCheckedWallets distr tests = withWallets distr do
   flip mapTest tests \test wallets -> do
     checkUtxoDistribution distr wallets
     test wallets
 
-testPkh2Pkh :: PlutipTest Unit
+testPkh2Pkh :: PlutipTestM Unit
 testPkh2Pkh = do
   let
     aliceUtxos :: InitialUTxOs
@@ -346,7 +395,7 @@ testPkh2Pkh = do
         in unit
 
 -- TODO Move to UtxoDistribution suite
-testUtxoDistributionArray :: PlutipTest Unit
+testUtxoDistributionArray :: PlutipTestM Unit
 testUtxoDistributionArray = do
   let
     distribution :: Array InitialUTxOs
@@ -387,7 +436,7 @@ testUtxoDistributionArray = do
         )
         wallets
 
-testNativeScript :: PlutipTest Unit
+testNativeScript :: PlutipTestM Unit
 testNativeScript = do
   let
     distribution
@@ -555,7 +604,7 @@ testNativeScript = do
         txSigned <- foldM signWithWallet tx [ dan ]
         submit txSigned >>= awaitTxConfirmed
 
-testAlwaysMints :: PlutipTest Unit
+testAlwaysMints :: PlutipTestM Unit
 testAlwaysMints = do
   let
     distribution :: InitialUTxOs
@@ -584,7 +633,7 @@ testAlwaysMints = do
       bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
       submitAndLog bsTx
 
-testNativeScriptMints :: PlutipTest Unit
+testNativeScriptMints :: PlutipTestM Unit
 testNativeScriptMints = do
   let
     distribution :: InitialUTxOs
@@ -596,7 +645,7 @@ testNativeScriptMints = do
   withWallets distribution $ test "runPlutipContract: NativeScriptMints"
     \alice -> withKeyWallet alice NativeScriptMints.contract
 
-testMintsMultipleTokens :: PlutipTest Unit
+testMintsMultipleTokens :: PlutipTestM Unit
 testMintsMultipleTokens = do
   let
     distribution :: InitialUTxOs
@@ -636,7 +685,7 @@ testMintsMultipleTokens = do
       bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
       submitAndLog bsTx
 
-testSignMultiple :: PlutipTest Unit
+testSignMultiple :: PlutipTestM Unit
 testSignMultiple = do
   let
     distribution :: InitialUTxOs
@@ -652,7 +701,7 @@ testSignMultiple = do
     test "runPlutipContract: SignMultiple with stake key" \alice -> do
       withKeyWallet alice signMultipleContract
 
-testAlwaysSucceeds :: PlutipTest Unit
+testAlwaysSucceeds :: PlutipTestM Unit
 testAlwaysSucceeds = do
   let
     distribution :: InitialUTxOs
@@ -670,7 +719,7 @@ testAlwaysSucceeds = do
       logInfo' "Try to spend locked values"
       AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-testSendsToken :: PlutipTest Unit
+testSendsToken :: PlutipTestM Unit
 testSendsToken = do
   let
     distribution :: InitialUTxOs
@@ -682,7 +731,7 @@ testSendsToken = do
   withWallets distribution $ test "runPlutipContract: SendsToken" \alice -> do
     withKeyWallet alice SendsToken.contract
 
-testInlineDatum :: PlutipTest Unit
+testInlineDatum :: PlutipTestM Unit
 testInlineDatum = do
   let
     distribution :: InitialUTxOs
@@ -737,7 +786,7 @@ testInlineDatum = do
         txId
       eResult `shouldSatisfy` isLeft
 
-testIncludeDatum :: PlutipTest Unit
+testIncludeDatum :: PlutipTestM Unit
 testIncludeDatum = do
   let
     distribution :: InitialUTxOs
@@ -755,7 +804,7 @@ testIncludeDatum = do
       logInfo' "Try to spend locked values"
       IncludeDatum.spendFromIncludeDatum vhash validator txId
 
-testAlwaysSucceedsV2 :: PlutipTest Unit
+testAlwaysSucceedsV2 :: PlutipTestM Unit
 testAlwaysSucceedsV2 = do
   let
     distribution :: InitialUTxOs
@@ -774,7 +823,7 @@ testAlwaysSucceedsV2 = do
       logInfo' "Try to spend locked values"
       AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-testAlwaysFails :: PlutipTest Unit
+testAlwaysFails :: PlutipTestM Unit
 testAlwaysFails = do
   let
     distribution :: InitialUTxOs /\ InitialUTxOs
@@ -851,384 +900,338 @@ testAlwaysFails = do
       logInfo' "Try to spend locked values"
       AlwaysFails.spendFromAlwaysFails vhash validator txId
 
-suite :: TestPlanM (Aff Unit) Unit
-suite = do
-  group "Plutip" do
-    Logging.suite
+testReferenceScripts :: PlutipTestM Unit
+testReferenceScripts = do
+  let
+    distribution :: InitialUTxOs
+    distribution =
+      [ BigInt.fromInt 5_000_000
+      , BigInt.fromInt 2_000_000_000
+      ]
 
-    test "startPlutipCluster / stopPlutipCluster" do
-      bracket (startPlutipServer config)
-        (stopChildProcessWithPort config.port) $ const do
-        checkPlutipServer config
-        _startRes <- startPlutipCluster config [ [] ]
-        stopRes <- stopPlutipCluster config
-        stopRes `shouldSatisfy` case _ of
-          StopClusterSuccess -> true
-          _ -> false
-    
-    -- TODO Don't run separately, there's a bug with array distributions
-    --      Even this isn't enough
-    testPlutipContracts' config do
-      testUtxoDistributionArray
+  withWallets distribution $ test "runPlutipContract: ReferenceScripts" \alice -> do
+    withKeyWallet alice ReferenceScripts.contract
 
-    testPlutipContracts' config do
-      testAffInterface
-      testAwaitTxConfirmedWithTimeout
-      testDatums
-      testCurrentTime
-      testApplyArgs
-      testContract
-      testPkh2Pkh
-      testNativeScript
-      testAlwaysMints
-      testNativeScriptMints
-      testMintsMultipleTokens
-      testSignMultiple
-      testAlwaysSucceeds
-      testSendsToken
-      testInlineDatum
-      testIncludeDatum
-      testAlwaysSucceedsV2
-      testAlwaysFails
+testReferenceInputs :: PlutipTestM Unit
+testReferenceInputs = do
+  let
+    distribution :: InitialUTxOs
+    distribution =
+      [ BigInt.fromInt 5_000_000
+      , BigInt.fromInt 2_000_000_000
+      ]
 
+  withWallets distribution $ test "runPlutipContract: ReferenceInputs" \alice -> do
+    withKeyWallet alice ReferenceInputs.contract
 
-    test "runPlutipContract: ReferenceScripts" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice ->
-        withKeyWallet alice ReferenceScripts.contract
+testOneShotMinting :: PlutipTestM Unit
+testOneShotMinting = do
+  let
+    distribution :: InitialUTxOs
+    distribution =
+      [ BigInt.fromInt 5_000_000
+      , BigInt.fromInt 2_000_000_000
+      ]
+  withWallets distribution $ test "runPlutipContract: OneShotMinting" \alice -> do
+    withKeyWallet alice OneShotMinting.contract
 
-    test "runPlutipContract: ReferenceInputs" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice ->
-        withKeyWallet alice ReferenceInputs.contract
+testOneShotMintingPlutusV2 :: PlutipTestM Unit
+testOneShotMintingPlutusV2 = do
+  let
+    distribution :: InitialUTxOs
+    distribution =
+      [ BigInt.fromInt 5_000_000
+      , BigInt.fromInt 2_000_000_000
+      ]
+  withWallets distribution $ test "runPlutipContract: OneShotMinting PlutusV2" \alice -> do
+    withKeyWallet alice OneShotMintingV2.contract
 
-    test "runPlutipContract: OneShotMinting" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice ->
-        withKeyWallet alice OneShotMinting.contract
+testContractTestUtils :: PlutipTestM Unit
+testContractTestUtils = do
+  let
+    initialUtxos :: InitialUTxOs
+    initialUtxos =
+      [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
 
-    test "runPlutipContract: OneShotMinting PlutusV2" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice ->
-        withKeyWallet alice OneShotMintingV2.contract
+    distribution :: InitialUTxOs /\ InitialUTxOs
+    distribution = initialUtxos /\ initialUtxos
 
-    test "runPlutipContract: Examples.ContractTestUtils" do
-      let
-        initialUtxos :: InitialUTxOs
-        initialUtxos =
-          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+  withWallets distribution $ test "runPlutipContract: Examples.ContractTestUtils" \(alice /\ bob) -> do
+    receiverPkh <- liftedM "Unable to get Bob's PKH" $
+      withKeyWallet bob ownPaymentPubKeyHash
+    receiverSkh <- withKeyWallet bob ownStakePubKeyHash
 
-        distribution :: InitialUTxOs /\ InitialUTxOs
-        distribution = initialUtxos /\ initialUtxos
+    mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
-      runPlutipContract config distribution \(alice /\ bob) -> do
-        receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          withKeyWallet bob ownPaymentPubKeyHash
-        receiverSkh <- withKeyWallet bob ownStakePubKeyHash
+    tn <- mkTokenName "TheToken"
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+    withKeyWallet alice $ ContractTestUtils.contract $
+      ContractTestUtils.ContractParams
+        { receiverPkh
+        , receiverSkh
+        , adaToSend: BigInt.fromInt 5_000_000
+        , mintingPolicy
+        , tokensToMint: cs /\ tn /\ one /\ unit
+        , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
+        , txMetadata: cip25MetadataFixture1
+        }
 
-        tn <- mkTokenName "TheToken"
+testBalanceTxConstraints :: PlutipTestM Unit
+testBalanceTxConstraints = do
+  let
+    initialUtxos :: InitialUTxOs
+    initialUtxos =
+      [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
 
-        withKeyWallet alice $ ContractTestUtils.contract $
-          ContractTestUtils.ContractParams
-            { receiverPkh
-            , receiverSkh
-            , adaToSend: BigInt.fromInt 5_000_000
-            , mintingPolicy
-            , tokensToMint: cs /\ tn /\ one /\ unit
-            , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-            , txMetadata: cip25MetadataFixture1
-            }
+    distribution :: InitialUTxOs /\ InitialUTxOs
+    distribution = initialUtxos /\ initialUtxos
 
-    test "runPlutipContract: Examples.BalanceTxConstraints" do
-      let
-        initialUtxos :: InitialUTxOs
-        initialUtxos =
-          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+  withWallets distribution $ test "runPlutipContract: Examples.BalanceTxConstraints" \(alice /\ bob) -> do
+    withKeyWallet alice $ BalanceTxConstraintsExample.contract $
+      BalanceTxConstraintsExample.ContractParams
+        { aliceKeyWallet: alice, bobKeyWallet: bob }
 
-        distribution :: InitialUTxOs /\ InitialUTxOs
-        distribution = initialUtxos /\ initialUtxos
+testAdditionalUtxosTxChaining :: PlutipTestM Unit
+testAdditionalUtxosTxChaining = do
+  let
+    distribution :: InitialUTxOs
+    distribution = [ BigInt.fromInt 2_500_000 ]
 
-      runPlutipContract config distribution \(alice /\ bob) ->
-        withKeyWallet alice $ BalanceTxConstraintsExample.contract $
-          BalanceTxConstraintsExample.ContractParams
-            { aliceKeyWallet: alice, bobKeyWallet: bob }
+    largeDistribution :: InitialUTxOs
+    largeDistribution = [ BigInt.fromInt 150_000_000 ]
 
-  group "Evaluation with additional UTxOs and tx chaining" do
-    test "runPlutipContract: Examples.TxChaining" $
-      let
-        distribution :: InitialUTxOs
-        distribution = [ BigInt.fromInt 2_500_000 ]
-      in
-        runPlutipContract config distribution \alice ->
-          withKeyWallet alice TxChaining.contract
+  Plutip.group "Evaluation with additional UTxOs and tx chaining" do
+    withWallets distribution $ test "runPlutipContract: Examples.TxChaining" \alice -> do
+      withKeyWallet alice TxChaining.contract
 
-    test "Evaluation with additional UTxOs with native scripts" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 150_000_000 ]
+    withWallets largeDistribution $ test "Evaluation with additional UTxOs with native scripts" \alice -> do
+      withKeyWallet alice do
+        pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
 
-      runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
-          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+        let
+          constraints0 :: TxConstraints Unit Unit
+          constraints0 =
+            Constraints.mustPayToPubKeyWithScriptRef
+              pkh
+              (NativeScriptRef nativeScriptFixture1)
+              (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+              <>
+                Constraints.mustPayToPubKeyWithScriptRef
+                  pkh
+                  (NativeScriptRef nativeScriptFixture2)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+              <>
+                Constraints.mustPayToPubKeyWithScriptRef
+                  pkh
+                  (NativeScriptRef nativeScriptFixture3)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+              <>
+                Constraints.mustPayToPubKeyWithScriptRef
+                  pkh
+                  (NativeScriptRef nativeScriptFixture4)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+              <>
+                Constraints.mustPayToPubKeyWithScriptRef
+                  pkh
+                  (NativeScriptRef nativeScriptFixture5)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+              <>
+                Constraints.mustPayToPubKeyWithScriptRef
+                  pkh
+                  (NativeScriptRef nativeScriptFixture6)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+              <>
+                Constraints.mustPayToPubKeyWithScriptRef
+                  pkh
+                  (NativeScriptRef nativeScriptFixture7)
+                  (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+
+          lookups0 :: Lookups.ScriptLookups PlutusData
+          lookups0 = mempty
+
+        unbalancedTx0 <-
+          liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+
+        withBalancedTx unbalancedTx0 \balancedTx0 -> do
+          balancedSignedTx0 <- signTransaction balancedTx0
+
+          additionalUtxos <- createAdditionalUtxos balancedSignedTx0
+
+          logInfo' $ "Additional utxos: " <> show additionalUtxos
+          length additionalUtxos `shouldNotEqual` 0
 
           let
-            constraints0 :: TxConstraints Unit Unit
-            constraints0 =
-              Constraints.mustPayToPubKeyWithScriptRef
-                pkh
-                (NativeScriptRef nativeScriptFixture1)
-                (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                <>
-                  Constraints.mustPayToPubKeyWithScriptRef
-                    pkh
-                    (NativeScriptRef nativeScriptFixture2)
-                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                <>
-                  Constraints.mustPayToPubKeyWithScriptRef
-                    pkh
-                    (NativeScriptRef nativeScriptFixture3)
-                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                <>
-                  Constraints.mustPayToPubKeyWithScriptRef
-                    pkh
-                    (NativeScriptRef nativeScriptFixture4)
-                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                <>
-                  Constraints.mustPayToPubKeyWithScriptRef
-                    pkh
-                    (NativeScriptRef nativeScriptFixture5)
-                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                <>
-                  Constraints.mustPayToPubKeyWithScriptRef
-                    pkh
-                    (NativeScriptRef nativeScriptFixture6)
-                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
-                <>
-                  Constraints.mustPayToPubKeyWithScriptRef
-                    pkh
-                    (NativeScriptRef nativeScriptFixture7)
-                    (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
+            constraints1 :: TxConstraints Unit Unit
+            constraints1 =
+              Constraints.mustPayToPubKey pkh
+                (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
 
-            lookups0 :: Lookups.ScriptLookups PlutusData
-            lookups0 = mempty
+            lookups1 :: Lookups.ScriptLookups PlutusData
+            lookups1 = Lookups.unspentOutputs additionalUtxos
 
-          unbalancedTx0 <-
-            liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+            balanceTxConstraints
+              :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+            balanceTxConstraints =
+              BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-          withBalancedTx unbalancedTx0 \balancedTx0 -> do
-            balancedSignedTx0 <- signTransaction balancedTx0
-
-            additionalUtxos <- createAdditionalUtxos balancedSignedTx0
-
-            logInfo' $ "Additional utxos: " <> show additionalUtxos
-            length additionalUtxos `shouldNotEqual` 0
-
-            let
-              constraints1 :: TxConstraints Unit Unit
-              constraints1 =
-                Constraints.mustPayToPubKey pkh
-                  (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
-
-              lookups1 :: Lookups.ScriptLookups PlutusData
-              lookups1 = Lookups.unspentOutputs additionalUtxos
-
+          unbalancedTx1 <-
+            liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+          balancedTx1 <-
+            liftedE $ balanceTxWithConstraints unbalancedTx1
               balanceTxConstraints
-                :: BalanceTxConstraints.BalanceTxConstraintsBuilder
-              balanceTxConstraints =
-                BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
+          balancedSignedTx1 <- signTransaction balancedTx1
 
-            unbalancedTx1 <-
-              liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-            balancedTx1 <-
-              liftedE $ balanceTxWithConstraints unbalancedTx1
-                balanceTxConstraints
-            balancedSignedTx1 <- signTransaction balancedTx1
+          txId0 <- submit balancedSignedTx0
+          txId1 <- submit balancedSignedTx1
 
-            txId0 <- submit balancedSignedTx0
-            txId1 <- submit balancedSignedTx1
+          awaitTxConfirmed txId0
+          awaitTxConfirmed txId1
 
-            awaitTxConfirmed txId0
-            awaitTxConfirmed txId1
-
-    test "Evaluation with additional UTxOs" do
+    withWallets largeDistribution $ test "Evaluation with additional UTxOs" \alice ->
       -- We create two transactions. First, we create outputs with Ada, non-Ada
       -- assets, script reference with Plutus script v1 and v2, inline datum,
       -- and datum with its witness. Then, we take those outputs as additional
       -- utxos for the next transaction. After both transactions are balanced
       -- and signed, we submit them.
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 150_000_000 ]
+      withKeyWallet alice do
+        pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
 
-      runPlutipContract config distribution \alice -> do
-        withKeyWallet alice do
-          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+        wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
+        logInfo' $ "wUtxos0 " <> show wUtxos0
 
-          wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
-          logInfo' $ "wUtxos0 " <> show wUtxos0
+        mp <- alwaysMintsPolicyV2
+        cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+        tn <- liftContractM "Cannot make token name"
+          $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
 
-          mp <- alwaysMintsPolicyV2
-          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
-          tn <- liftContractM "Cannot make token name"
-            $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
+        validatorV1 <- AlwaysSucceeds.alwaysSucceedsScript
+        validatorV2 <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
 
-          validatorV1 <- AlwaysSucceeds.alwaysSucceedsScript
-          validatorV2 <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+        let
+          value :: Value.Value
+          value =
+            (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
 
-          let
-            value :: Value.Value
-            value =
-              (Value.lovelaceValueOf $ BigInt.fromInt 60_000_000)
+          value' :: Value.Value
+          value' =
+            value
+              <> (Value.singleton cs tn $ BigInt.fromInt 50)
 
-            value' :: Value.Value
-            value' =
+          scriptRefV1 :: ScriptRef
+          scriptRefV1 = PlutusScriptRef (unwrap validatorV1)
+
+          scriptRefV2 :: ScriptRef
+          scriptRefV2 = PlutusScriptRef (unwrap validatorV2)
+
+          datum :: Datum
+          datum = Datum plutusData
+
+          datum' :: Datum
+          datum' = Datum plutusData'
+
+          plutusData :: PlutusData
+          plutusData = Integer $ BigInt.fromInt 31415927
+
+          plutusData' :: PlutusData
+          plutusData' =
+            List
+              [ Integer $ BigInt.fromInt 31415927
+              , Integer $ BigInt.fromInt 7295143
+              ]
+
+          constraints0 :: TxConstraints Unit Unit
+          constraints0 =
+            Constraints.mustPayToPubKeyWithDatumAndScriptRef
+              pkh
+              datum'
+              Constraints.DatumWitness
+              scriptRefV1
               value
-                <> (Value.singleton cs tn $ BigInt.fromInt 50)
+              <>
+                Constraints.mustPayToPubKeyWithDatumAndScriptRef
+                  pkh
+                  datum
+                  Constraints.DatumInline
+                  scriptRefV2
+                  value'
+              <> Constraints.mustMintCurrency
+                (mintingPolicyHash mp)
+                tn
+                (BigInt.fromInt 50)
 
-            scriptRefV1 :: ScriptRef
-            scriptRefV1 = PlutusScriptRef (unwrap validatorV1)
+        datumLookup <- liftContractM "Unable to create datum lookup" $
+          Lookups.datum datum'
 
-            scriptRefV2 :: ScriptRef
-            scriptRefV2 = PlutusScriptRef (unwrap validatorV2)
+        let
+          lookups0 :: Lookups.ScriptLookups PlutusData
+          lookups0 = Lookups.mintingPolicy mp <> datumLookup
 
-            datum :: Datum
-            datum = Datum plutusData
+        unbalancedTx0 <-
+          liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
 
-            datum' :: Datum
-            datum' = Datum plutusData'
+        withBalancedTx unbalancedTx0 \balancedTx0 -> do
+          balancedSignedTx0 <- signTransaction balancedTx0
 
-            plutusData :: PlutusData
-            plutusData = Integer $ BigInt.fromInt 31415927
+          additionalUtxos <- createAdditionalUtxos balancedSignedTx0
 
-            plutusData' :: PlutusData
-            plutusData' =
-              List
-                [ Integer $ BigInt.fromInt 31415927
-                , Integer $ BigInt.fromInt 7295143
-                ]
-
-            constraints0 :: TxConstraints Unit Unit
-            constraints0 =
-              Constraints.mustPayToPubKeyWithDatumAndScriptRef
-                pkh
-                datum'
-                Constraints.DatumWitness
-                scriptRefV1
-                value
-                <>
-                  Constraints.mustPayToPubKeyWithDatumAndScriptRef
-                    pkh
-                    datum
-                    Constraints.DatumInline
-                    scriptRefV2
-                    value'
-                <> Constraints.mustMintCurrency
-                  (mintingPolicyHash mp)
-                  tn
-                  (BigInt.fromInt 50)
-
-          datumLookup <- liftContractM "Unable to create datum lookup" $
-            Lookups.datum datum'
+          logInfo' $ "Additional utxos: " <> show additionalUtxos
+          length additionalUtxos `shouldNotEqual` 0
 
           let
-            lookups0 :: Lookups.ScriptLookups PlutusData
-            lookups0 = Lookups.mintingPolicy mp <> datumLookup
+            constraints1 :: TxConstraints Unit Unit
+            constraints1 =
+              Constraints.mustPayToPubKey pkh $
+                Value.lovelaceValueOf (BigInt.fromInt 60_000_000)
+                  <> Value.singleton cs tn (BigInt.fromInt 50)
 
-          unbalancedTx0 <-
-            liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+            lookups1 :: Lookups.ScriptLookups PlutusData
+            lookups1 = Lookups.unspentOutputs additionalUtxos
 
-          withBalancedTx unbalancedTx0 \balancedTx0 -> do
-            balancedSignedTx0 <- signTransaction balancedTx0
+            balanceTxConstraints
+              :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+            balanceTxConstraints =
+              BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-            additionalUtxos <- createAdditionalUtxos balancedSignedTx0
-
-            logInfo' $ "Additional utxos: " <> show additionalUtxos
-            length additionalUtxos `shouldNotEqual` 0
-
-            let
-              constraints1 :: TxConstraints Unit Unit
-              constraints1 =
-                Constraints.mustPayToPubKey pkh $
-                  Value.lovelaceValueOf (BigInt.fromInt 60_000_000)
-                    <> Value.singleton cs tn (BigInt.fromInt 50)
-
-              lookups1 :: Lookups.ScriptLookups PlutusData
-              lookups1 = Lookups.unspentOutputs additionalUtxos
-
+          unbalancedTx1 <-
+            liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+          balancedTx1 <-
+            liftedE $ balanceTxWithConstraints unbalancedTx1
               balanceTxConstraints
-                :: BalanceTxConstraints.BalanceTxConstraintsBuilder
-              balanceTxConstraints =
-                BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
+          balancedSignedTx1 <- signTransaction balancedTx1
 
-            unbalancedTx1 <-
-              liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-            balancedTx1 <-
-              liftedE $ balanceTxWithConstraints unbalancedTx1
-                balanceTxConstraints
-            balancedSignedTx1 <- signTransaction balancedTx1
+          txId0 <- submit balancedSignedTx0
+          txId1 <- submit balancedSignedTx1
 
-            txId0 <- submit balancedSignedTx0
-            txId1 <- submit balancedSignedTx1
+          awaitTxConfirmed txId0
+          awaitTxConfirmed txId1
 
-            awaitTxConfirmed txId0
-            awaitTxConfirmed txId1
+testCip30Mock :: PlutipTestM Unit
+testCip30Mock = do
+  let
+    distribution :: InitialUTxOs
+    distribution =
+      [ BigInt.fromInt 1_000_000_000
+      , BigInt.fromInt 2_000_000_000
+      ]
 
-  group "CIP-30 mock + Plutip" do
-    test "CIP-30 mock: wallet cleanup" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
-        try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
-        try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
-        try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+  Plutip.group "CIP-30 mock + Plutip" do
+    withWallets distribution $ test "Wallet cleanup" \alice -> do
+      try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
+      try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
+      try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
 
-        withCip30Mock alice MockNami do
-          liftEffect isNamiAvailable >>= shouldEqual true
-        try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
+      withCip30Mock alice MockNami do
+        liftEffect isNamiAvailable >>= shouldEqual true
+      try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
 
-        withCip30Mock alice MockGero do
-          liftEffect isGeroAvailable >>= shouldEqual true
-        try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
-        withCip30Mock alice MockFlint do
-          liftEffect isFlintAvailable >>= shouldEqual true
-        try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+      withCip30Mock alice MockGero do
+        liftEffect isGeroAvailable >>= shouldEqual true
+      try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
+      withCip30Mock alice MockFlint do
+        liftEffect isFlintAvailable >>= shouldEqual true
+      try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
 
-    test "CIP-30 mock: collateral selection" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
+    withWallets distribution $ test "Collateral selection" \alice -> do
         withCip30Mock alice MockNami do
           getWalletCollateral >>= liftEffect <<< case _ of
             Nothing -> throw "Unable to get collateral"
@@ -1243,26 +1246,12 @@ suite = do
               -- not a bug, but unexpected
               throw "More than one UTxO in collateral"
 
-    test "CIP-30 mock: get own UTxOs" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
+    withWallets distribution $ test "Get own UTxOs" \alice -> do
         utxos <- withCip30Mock alice MockNami do
           getWalletUtxos
         utxos `shouldSatisfy` isJust
 
-    test "CIP-30 mock: get own address" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
+    withWallets distribution $ test "Get own address" \alice -> do
         mockAddress <- withCip30Mock alice MockNami do
           mbAddr <- getWalletAddress
           mbAddr `shouldSatisfy` isJust
@@ -1271,27 +1260,13 @@ suite = do
           getWalletAddress
         mockAddress `shouldEqual` kwAddress
 
-    test "CIP-30 mock: Pkh2Pkh" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
+    withWallets distribution $ test "Pkh2Pkh" \alice -> do
         withCip30Mock alice MockNami do
           pkh <- liftedM "Failed to get PKH" ownPaymentPubKeyHash
           stakePkh <- ownStakePubKeyHash
           pkh2PkhContract pkh stakePkh
 
-    test "CIP-30 mock: getWalletBalance" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
+    withWallets distribution $ test "GetWalletBalance" \alice -> do
         withKeyWallet alice do
           getWalletBalance >>= flip shouldSatisfy
             ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
@@ -1303,18 +1278,20 @@ suite = do
                 BigInt.fromInt 3_000_000
             )
 
+    let
+      distribution' :: InitialUTxOs
+      distribution' =
+        [ BigInt.fromInt 2_000_000
+        , BigInt.fromInt 2_000_000
+        ]
+
     -- TODO
-    skip $ test "CIP-30 mock: failing getWalletBalance - investigate" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 2_000_000
-          , BigInt.fromInt 2_000_000
-          ]
-      runPlutipContract config distribution \alice -> do
-        withCip30Mock alice MockNami do
-          getWalletBalance >>= flip shouldSatisfy
-            (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
+    withWallets distribution' $ skip $ test "Failing getWalletBalance - investigate" \alice -> do
+      withCip30Mock alice MockNami do
+        getWalletBalance >>= flip shouldSatisfy
+          (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
+
+
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
