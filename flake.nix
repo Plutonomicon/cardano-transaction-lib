@@ -348,29 +348,43 @@
             touch $out
           '';
           template-dhall-diff = pkgs.runCommand "template-dhall-diff-check"
-            (
-              let
-                ctlPackages = import ./spago-packages.nix { inherit pkgs; };
-                ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
-                conflictOp = acc: depattr: with builtins;
-                  if elem depattr (attrNames ctlScaffoldPackages.inputs) &&
-                  ctlPackages.inputs.${depattr}.version == ctlScaffoldPackages.inputs.${depattr}.version
-                  then acc else [ depattr ] ++ acc;
-                conflicts = builtins.foldl' conflictOp [ ] (builtins.attrNames ctlPackages.inputs);
-              in
-              {
-                inherit conflicts;
-                nativeBuildInputs = [ ];
-              }
+            (with builtins;
+            let
+              ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
+              ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+              ctlPs = attrValues ctlPkgsExp.inputs;
+              ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
+                (attrValues ctlScaffoldPkgsExp.inputs);
+              intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;
+              scaffoldDisjoint = pkgs.lib.lists.subtractLists intersection ctlScaffoldPs;
+              ctlDisjoint = pkgs.lib.lists.subtractLists intersection ctlPs;
+            in
+            {
+              inherit ctlDisjoint scaffoldDisjoint;
+              nativeBuildInputs = [ ];
+            }
             ) ''
-            if [ -z "$conflicts" ]
+
+            if [ -z "$ctlDisjoint" ] && [ -z "$scaffoldDisjoint" ];
             then
-              echo "\$conflicts is empty"
+              touch $out
             else
-              echo "Conflcting dependencies: $conflicts"
+              if [ -n "$ctlDisjoint" ];
+              then
+                echo "The following packages are in the main projects dependencies but not in the scaffold:"
+                for p in $ctlDisjoint; do
+                  echo "  $p"
+                done
+              fi
+              if [ -n "$scaffoldDisjoint" ];
+              then
+                echo "The following packages are in the scaffold projects dependencies but not in the main:"
+                for p in $scaffoldDisjoint; do
+                  echo "  $p"
+                done
+              fi
               exit 1
             fi
-            touch $out
           '';
           template-version = pkgs.runCommand "template-consistent-version-check"
             (
