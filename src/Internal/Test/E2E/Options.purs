@@ -90,6 +90,7 @@ type CommonOptions_ (r :: Row Type) =
   , chromeUserDataDir :: Maybe ChromeUserDataDir
   , tmpDir :: Maybe TmpDir
   , settingsArchive :: Maybe SettingsArchive
+  , e2eDataDir :: Maybe FilePath
   )
 
 -- | CLI options for the `browser` command.
@@ -269,6 +270,12 @@ browserOptionsParser = ado
     , help "Lode wallet extension (.crx) file"
     , value Nothing
     ]
+  e2eDataDir <- option (Just <$> str) $ fold
+    [ long "e2e-data-dir"
+    , metavar "DIR"
+    , help "E2E data directory"
+    , value Nothing
+    ]
   let
     wallets = Map.fromFoldable $ catMaybes
       [ mkConfig NamiExt namiExtId namiPassword namiCrx
@@ -278,7 +285,7 @@ browserOptionsParser = ado
       , mkConfig EternlExt eternlExtId eternlPassword eternlCrx
       ]
   in
-    { browser, wallets, chromeUserDataDir, tmpDir, settingsArchive }
+    { browser, wallets, chromeUserDataDir, tmpDir, settingsArchive, e2eDataDir }
   where
   mkConfig
     :: WalletExt
