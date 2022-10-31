@@ -11,8 +11,8 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 
 function opt_chain(maybe, obj) {
   const isNothing = x => x === null || x === undefined;
-  var result = obj;
-  for (var i = 2; i < arguments.length; i++) {
+  let result = obj;
+  for (let i = 2; i < arguments.length; i++) {
     if (isNothing(result)) {
       return maybe.nothing;
     } else {
