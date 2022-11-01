@@ -299,6 +299,14 @@
         // (psProjectFor (nixpkgsFor system)).packages
       );
 
+      nixosModules = {
+        ctl-server = {
+          imports = [ ./server/nix/nixos-module.nix ];
+          nixpkgs.overlays = [ self.overlays.ctl-server ];
+        };
+        default = self.ctl-server;
+      };
+
       apps = perSystem (system:
         let
           pkgs = nixpkgsFor system;
