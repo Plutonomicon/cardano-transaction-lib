@@ -9,7 +9,7 @@
 
     # for the purescript project
     ogmios = {
-      url = "github:mlabs-haskell/ogmios/9c04524d45de2c417ddda9e7ab0d587a54954c57";
+      url = "github:klntsky/ogmios/1c8cc39320903440e0e0ff525627b7cb9dc1096a";
       inputs = {
         haskell-nix.follows = "haskell-nix";
         nixpkgs.follows = "nixpkgs";

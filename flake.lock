@@ -1863,17 +1863,17 @@
         "wai-routes": "wai-routes"
       },
       "locked": {
-        "lastModified": 1660637986,
-        "narHash": "sha256-0I+yfuva9pg6pPHeWNO73oPRxCjh8I4ER0Egxf8XKdk=",
-        "owner": "mlabs-haskell",
+        "lastModified": 1667228522,
+        "narHash": "sha256-GNApXUpZKZipf/jJuSXjmi0t0nrkMPnOoXOUijSYDQ4=",
+        "owner": "klntsky",
         "repo": "ogmios",
-        "rev": "9c04524d45de2c417ddda9e7ab0d587a54954c57",
+        "rev": "1c8cc39320903440e0e0ff525627b7cb9dc1096a",
         "type": "github"
       },
       "original": {
-        "owner": "mlabs-haskell",
+        "owner": "klntsky",
         "repo": "ogmios",
-        "rev": "9c04524d45de2c417ddda9e7ab0d587a54954c57",
+        "rev": "1c8cc39320903440e0e0ff525627b7cb9dc1096a",
         "type": "github"
       }
     },
