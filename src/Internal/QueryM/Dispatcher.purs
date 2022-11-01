@@ -4,16 +4,18 @@ import Prelude
 
 import Aeson (Aeson, JsonDecodeError, stringifyAeson)
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
+import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Ctl.Internal.Types.MultiMap (MultiMap)
 import Data.Either (Either(Left, Right))
 import Data.Map (Map)
-import Data.Map as Map
+import Data.Map (empty, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Exception (Error, error, message)
 import Effect.Ref (Ref)
-import Effect.Ref as Ref
+import Effect.Ref (new, read) as Ref
 
 data DispatchError
   = JsError Error
@@ -66,4 +68,14 @@ mkWebsocketDispatch dispatcher aeson = do
 
 type ShouldResend = Boolean
 
-type Pending = Ref (Map ListenerId RequestBody)
+type GenericPendingRequests (requestData :: Type) =
+  Ref (Map ListenerId requestData)
+
+newPendingRequests
+  :: forall (requestData :: Type). Effect (GenericPendingRequests requestData)
+newPendingRequests = Ref.new Map.empty
+
+type PendingRequests = GenericPendingRequests RequestBody
+
+type PendingSubmitTxRequests = GenericPendingRequests (RequestBody /\ TxHash)
+
