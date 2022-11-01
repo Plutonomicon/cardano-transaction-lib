@@ -20,7 +20,6 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
   ( TextEnvelopeType(PlutusScriptV1)
   , textEnvelopeBytes
@@ -36,9 +35,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
-import Ctl.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Map as Map
@@ -58,7 +54,6 @@ example cfg = launchAff_ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysFails vhash validator txId
-  publishTestFeedback true
 
 payToAlwaysFails :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysFails vhash = do
@@ -102,7 +97,7 @@ spendFromAlwaysFails vhash validator txId = do
       logInfo' "Successfully spent locked values."
 
       balance <- fold <$> getWalletBalance
-      let collateralLoss = Value.lovelaceValueOf (-minRequiredCollateral)
+      let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-5_000_000)
       balance `shouldEqual` (balanceBefore <> collateralLoss)
 
     _ ->

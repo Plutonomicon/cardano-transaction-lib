@@ -25,6 +25,7 @@ module Ctl.Internal.QueryM
   , QueryRuntime
   , RequestBody
   , WebSocket(WebSocket)
+  , Hooks
   , allowError
   , applyArgs
   , evaluateTxOgmios
@@ -36,6 +37,7 @@ module Ctl.Internal.QueryM
   , getUnusedAddresses
   , getChangeAddress
   , getRewardAddresses
+  , getProtocolParameters
   , getProtocolParametersAff
   , getWalletAddresses
   , getWallet
@@ -54,6 +56,7 @@ module Ctl.Internal.QueryM
   , mkQueryRuntime
   , mkRequest
   , mkRequestAff
+  , mkWalletBySpec
   , module ServerConfig
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes
@@ -227,6 +230,7 @@ import Effect.Aff
   ( Aff
   , Canceler(Canceler)
   , ParAff
+  , attempt
   , delay
   , finally
   , launchAff_
@@ -236,7 +240,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, message, throw)
+import Effect.Exception (Error, error, message, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
@@ -246,6 +250,13 @@ import Untagged.Union (asOneOf)
 -- Since WebSockets do not define a mechanism for linking request/response
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
+
+type Hooks =
+  { beforeSign :: Maybe (Effect Unit)
+  , beforeInit :: Maybe (Effect Unit)
+  , onSuccess :: Maybe (Effect Unit)
+  , onError :: Maybe (Error -> Effect Unit)
+  }
 
 -- | `QueryConfig` contains a complete specification on how to initialize a
 -- | `QueryM` environment.
@@ -264,6 +275,7 @@ type QueryConfig =
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
+  , hooks :: Hooks
   }
 
 -- | Reusable part of `QueryRuntime` that can be shared between many `QueryM`
@@ -361,14 +373,24 @@ withQueryRuntime
   -> (QueryRuntime -> Aff a)
   -> Aff a
 withQueryRuntime config action = do
-  runtime <- mkQueryRuntime config
-  supervise (newtorkIdCheck config runtime *> action runtime) `flip finally` do
-    liftEffect $ stopQueryRuntime runtime
+  eiRes <- attempt do
+    runtime <- mkQueryRuntime config
+    supervise (networkIdCheck config runtime *> action runtime)
+      `flip finally` liftEffect do
+        stopQueryRuntime runtime
+  case eiRes of
+    Right res -> do
+      liftEffect $ for_ config.hooks.onSuccess (void <<< try)
+      pure res
+    Left err -> do
+      for_ config.hooks.onError \f -> do
+        void $ liftEffect $ try $ f err
+      liftEffect $ throwError err
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `QueryConfig`.
-newtorkIdCheck :: QueryConfig -> QueryRuntime -> Aff Unit
-newtorkIdCheck config runtime = do
+networkIdCheck :: QueryConfig -> QueryRuntime -> Aff Unit
+networkIdCheck config runtime = do
   mbNetworkId <- runQueryMInRuntime config runtime getNetworkId
   for_ mbNetworkId \networkId ->
     unless (networkToInt config.networkId == networkId) do
@@ -415,6 +437,7 @@ mkQueryRuntime
   :: QueryConfig
   -> Aff QueryRuntime
 mkQueryRuntime config = do
+  for_ config.hooks.beforeInit (void <<< liftEffect <<< try)
   usedTxOuts <- newUsedTxOuts
   QueryRuntimeModel (ogmiosWs /\ datumCacheWs /\ pparams) wallet <- sequential $
     QueryRuntimeModel
@@ -474,6 +497,12 @@ runQueryMInRuntime
   -> Aff a
 runQueryMInRuntime config runtime = do
   flip runReaderT { config, runtime, extraConfig: {} } <<< unwrap
+
+-- | Returns the `ProtocolParameters` from the `QueryM` environment.
+-- | Note that this is not necessarily the current value from the ledger.
+getProtocolParameters :: QueryM Ogmios.ProtocolParameters
+getProtocolParameters =
+  asks $ _.runtime >>> _.pparams
 
 getProtocolParametersAff
   :: OgmiosWebSocket

@@ -12,6 +12,7 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
 import Data.Either (Either(Right))
 import Data.Maybe (fromJust)
@@ -20,7 +21,6 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck (quickCheck, (===))
 import Test.Spec.Assertions (shouldEqual)
 
