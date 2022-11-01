@@ -24,6 +24,7 @@ import Contract.Address
 import Contract.AuxiliaryData (setTxMetadata)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
+import Contract.Metadata (Cip25Metadata)
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.ScriptLookups as Lookups
@@ -37,6 +38,8 @@ import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
+  , TransactionUnspentOutput
+  , _output
   , awaitTxConfirmed
   , balanceTx
   , getTxFinalFee
@@ -51,11 +54,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
-import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  , _output
-  )
 import Data.BigInt (BigInt)
 import Data.Lens (view)
 import Data.Map (empty) as Map
