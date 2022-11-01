@@ -336,6 +336,12 @@
               make check-format
               touch $out
             '';
+          examples-imports-check = pkgs.runCommand "examples-imports-check" { }
+            ''
+              cd ${self}
+              make check-examples-imports
+              touch $out 
+            '';
         });
 
       check = perSystem (system:
