@@ -140,7 +140,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, skip, test)
+import Mote (group, skip, test, only)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -539,7 +539,7 @@ suite = do
             txSigned <- foldM signWithWallet tx [ dan ]
             submit txSigned >>= awaitTxConfirmed
 
-    test "runPlutipContract: AlwaysMints" do
+    only $ test "runPlutipContract: AlwaysMints" do
       let
         distribution :: InitialUTxOs
         distribution =

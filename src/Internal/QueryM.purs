@@ -1,6 +1,7 @@
 -- | CTL query layer monad
 module Ctl.Internal.QueryM
-  ( ClientError
+  ( module ExportDispatcher
+  , ClientError
       ( ClientHttpError
       , ClientHttpResponseError
       , ClientDecodeJsonError
@@ -10,18 +11,17 @@ module Ctl.Internal.QueryM
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DefaultQueryEnv
-  , module X
   , ListenerSet
   , Logger
   , OgmiosListeners
   , OgmiosWebSocket
-  , PendingRequests
   , QueryConfig
   , QueryM
   , ParQueryM
   , QueryMExtended(QueryMExtended)
   , QueryEnv
   , QueryRuntime
+  , SubmitTxListenerSet
   , WebSocket(WebSocket)
   , Hooks
   , allowError
@@ -39,10 +39,9 @@ module Ctl.Internal.QueryM
   , postAeson
   , mkDatumCacheWebSocketAff
   , mkDatumCacheRequest
-  , mkLogger
-  , queryDispatch
-  , defaultMessageListener
   , mkListenerSet
+  , mkLogger
+  , defaultMessageListener
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
@@ -121,7 +120,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
   , GetTxByHashR
   )
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
-import Ctl.Internal.QueryM.Dispatcher as X
+import Ctl.Internal.QueryM.Dispatcher as ExportDispatcher
 import Ctl.Internal.QueryM.JsonWsp
   ( parseJsonWspResponse
   , parseJsonWspResponseId
@@ -490,11 +489,10 @@ submitTxOgmios txHash tx = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  let inp = RequestInputToStoreInPendingRequests (txHash /\ tx)
-  liftAff $ mkRequestAff' listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+  liftAff $ mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
     Ogmios.submitTxCall
     _.submit
-    inp
+    (txHash /\ tx)
 
 evaluateTxOgmios
   :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
@@ -502,11 +500,10 @@ evaluateTxOgmios cbor additionalUtxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  let inp = RequestInputToStoreInPendingRequests (cbor /\ additionalUtxos)
-  liftAff $ mkRequestAff' listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+  liftAff $ mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
     Ogmios.evaluateTxCall
     _.evaluate
-    inp
+    (cbor /\ additionalUtxos)
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -751,7 +748,7 @@ mkServiceWebSocket
   :: String
   -> Logger
   -> ServerConfig
-  -> Aff (JsWebSocket /\ Dispatcher /\ Pending)
+  -> Aff (JsWebSocket /\ Dispatcher /\ PendingRequests)
 mkServiceWebSocket serviceName logger serverConfig =
   makeAff $ mkServiceWebSocket' serviceName logger serverConfig
 
@@ -759,7 +756,9 @@ mkServiceWebSocket'
   :: String
   -> Logger
   -> ServerConfig
-  -> (Either Error (JsWebSocket /\ Dispatcher /\ Pending) -> Effect Unit)
+  -> ( Either Error (JsWebSocket /\ Dispatcher /\ PendingRequests)
+       -> Effect Unit
+     )
   -> Effect Canceler
 mkServiceWebSocket' serviceName logger serverCfg continue = do
   dispatcher <- Ref.new Map.empty
@@ -769,7 +768,7 @@ mkServiceWebSocket' serviceName logger serverCfg continue = do
       mkWebsocketDispatch dispatcher
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest :: forall (inp :: Type). RequestBody -> Effect Unit
+    sendRequest :: RequestBody -> Effect Unit
     sendRequest = _wsSend ws (logger Debug)
 
     resendPendingRequests = do
@@ -816,17 +815,49 @@ mkOgmiosWebSocket
   -> Effect Canceler
 mkOgmiosWebSocket datumCacheWs logger serverCfg continue = do
   dispatcher <- Ref.new Map.empty
-  pending <- Ref.new Map.empty
+  pendingRequests <- newPendingRequests
+  pendingSubmitTxRequests <- newPendingRequests
   let
     (messageDispatch :: WebsocketDispatch) =
       mkWebsocketDispatch dispatcher
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest :: forall (inp :: Type). RequestBody -> Effect Unit
+    ogmiosWs :: OgmiosWebSocket
+    ogmiosWs = WebSocket ws
+      { utxo:
+          mkListenerSet dispatcher pendingRequests
+      , utxosAt:
+          mkListenerSet dispatcher pendingRequests
+      , chainTip:
+          mkListenerSet dispatcher pendingRequests
+      , evaluate:
+          mkListenerSet dispatcher pendingRequests
+      , getProtocolParameters:
+          mkListenerSet dispatcher pendingRequests
+      , eraSummaries:
+          mkListenerSet dispatcher pendingRequests
+      , currentEpoch:
+          mkListenerSet dispatcher pendingRequests
+      , systemStart:
+          mkListenerSet dispatcher pendingRequests
+      , acquireMempool:
+          mkListenerSet dispatcher pendingRequests
+      , mempoolHasTx:
+          mkListenerSet dispatcher pendingRequests
+      , submit:
+          mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
+      }
+
+    sendRequest :: RequestBody -> Effect Unit
     sendRequest = _wsSend ws (logger Debug)
 
+    resendPendingRequests :: Effect Unit
     resendPendingRequests = do
-      Ref.read pending >>= traverse_ sendRequest
+      Ref.read pendingRequests >>= traverse_ sendRequest
+      resendPendingSubmitRequests ogmiosWs datumCacheWs logger sendRequest
+        dispatcher
+        pendingSubmitTxRequests
+
     -- We want to fail if the first connection attempt is not successful.
     -- Otherwise, we start reconnecting indefinitely.
     onFirstConnectionError errMessage = do
@@ -854,65 +885,44 @@ mkOgmiosWebSocket datumCacheWs logger serverCfg continue = do
         logger Debug $
           "Ogmios WebSocket error (" <> err <>
             "). Reconnecting..."
-      continue $ Right $ WebSocket ws
-        { utxo:
-            mkListenerSet' dispatcher pending
-        , utxosAt:
-            mkListenerSet' dispatcher pending
-        , chainTip:
-            mkListenerSet' dispatcher pending
-        , evaluate:
-            mkListenerSet' dispatcher pending
-        , getProtocolParameters:
-            mkListenerSet' dispatcher pending
-        , submit:
-            mkListenerSet' dispatcher pending
-        , eraSummaries:
-            mkListenerSet' dispatcher pending
-        , currentEpoch:
-            mkListenerSet' dispatcher pending
-        , systemStart:
-            mkListenerSet' dispatcher pending
-        , acquireMempool:
-            mkListenerSet' dispatcher pending
-        , mempoolHasTx:
-            mkListenerSet' dispatcher pending
-        }
+      continue (Right ogmiosWs)
   pure $ Canceler $ \err -> liftEffect do
     _wsFinalize ws
     _wsClose ws
     continue $ Left $ err
 
--- | For all pending `SubmitTx` requests checks if a transaction was added
--- | to the mempool or included in the block before retrying the request.
+-- | For each pending `SubmitTx` request, checks whether the transaction has
+-- | been added to the mempool or has been included in a block before retrying 
+-- | the request.
 resendPendingSubmitRequests
   :: OgmiosWebSocket
   -> DatumCacheWebSocket
   -> Logger
-  -> (forall (inp :: Type). RequestBody /\ inp -> Effect Unit)
-  -> DispatchIdMap Ogmios.SubmitTxR
-  -> PendingRequests (TxHash /\ CborBytes)
+  -> (RequestBody -> Effect Unit)
+  -> Dispatcher
+  -> PendingSubmitTxRequests
   -> Effect Unit
-resendPendingSubmitRequests ogmiosWs datumCacheWs logger sendRequest dim pr = do
-  submitPendingRequests <- Ref.read pr
-  unless (Map.isEmpty submitPendingRequests) do
+resendPendingSubmitRequests ogmiosWs odcWs logger sendRequest dispatcher pr = do
+  submitTxPendingRequests <- Ref.read pr
+  unless (Map.isEmpty submitTxPendingRequests) do
     -- Acquiring a mempool snapshot should never fail and,
     -- after ws reconnection, should be instantaneous.
     withMempoolSnapshot ogmiosWs logger case _ of
       Nothing ->
-        liftEffect $ traverse_ sendRequest submitPendingRequests
+        liftEffect $ traverse_ (sendRequest <<< fst) submitTxPendingRequests
       Just ms -> do
         -- A delay of 5 sec for transactions to be processed by the node
         -- and added to the mempool:
         delay (wrap 5000.0)
-        let (pr' :: Array _) = Map.toUnfoldable submitPendingRequests
-        for_ pr' \(listenerId /\ requestBody /\ requestInput) ->
-          case requestInput of
-            Nothing ->
-              liftEffect $ sendRequest (requestBody /\ unit)
-            Just (txHash /\ _) -> do
-              handlePendingSubmitRequest ms listenerId requestBody txHash
+        let (pr' :: Array _) = Map.toUnfoldable submitTxPendingRequests
+        for_ pr' \(listenerId /\ requestBody /\ txHash) ->
+          handlePendingSubmitRequest ms listenerId requestBody txHash
   where
+  log :: String -> Boolean -> TxHash -> Aff Unit
+  log label value txHash =
+    liftEffect $ logger Debug $
+      label <> ": " <> show value <> " TxHash: " <> show txHash
+
   handlePendingSubmitRequest
     :: Ogmios.MempoolSnapshotAcquired
     -> ListenerId
@@ -927,23 +937,20 @@ resendPendingSubmitRequests ogmiosWs datumCacheWs logger sendRequest dim pr = do
       if txInMempool then pure false
       else do
         -- Check if the transaction was included in the block:
-        txConfirmed <- checkTxByHashAff datumCacheWs logger txHash
+        txConfirmed <- checkTxByHashAff odcWs logger txHash
         log "Tx confirmed" txConfirmed txHash
         unless txConfirmed $ liftEffect do
-          sendRequest (requestBody /\ unit)
+          sendRequest requestBody
         pure (not txConfirmed)
     -- Manually dispatch `SubmitTx` response if resending is not required:
     unless retrySubmitTx $ liftEffect do
       Ref.modify_ (Map.delete listenerId) pr
-      dispatchMap <- Ref.read dim
-      Ref.modify_ (MultiMap.delete listenerId) dim
-      MultiMap.lookup listenerId dispatchMap #
-        maybe (pure unit) (_ $ Right $ Ogmios.SubmitTxSuccess txHash)
-
-  log :: String -> Boolean -> TxHash -> Aff Unit
-  log label value txHash =
-    liftEffect $ logger Debug $
-      label <> ": " <> show value <> " TxHash: " <> show txHash
+      dispatchMap <- Ref.read dispatcher
+      Ref.modify_ (Map.delete listenerId) dispatcher
+      case Map.lookup listenerId dispatchMap of
+        Nothing -> pure unit
+        Just handler ->
+          handler (encodeAeson { "SubmitSuccess": { "txId": txHash } })
 
 mkDatumCacheWebSocketAff
   :: Logger
@@ -953,9 +960,9 @@ mkDatumCacheWebSocketAff logger serverConfig = do
   ws /\ dispatcher /\ pending <- mkServiceWebSocket "ogmios-datum-cache" logger
     serverConfig
   pure $ WebSocket ws
-    { getDatumByHash: mkListenerSet' dispatcher pending
-    , getDatumsByHashes: mkListenerSet' dispatcher pending
-    , getTxByHash: mkListenerSet' dispatcher pending
+    { getDatumByHash: mkListenerSet dispatcher pending
+    , getDatumsByHashes: mkListenerSet dispatcher pending
+    , getTxByHash: mkListenerSet dispatcher pending
     }
 
 mkOgmiosWebSocketAff
@@ -971,27 +978,15 @@ underlyingWebSocket (WebSocket ws _) = ws
 listeners :: forall (listeners :: Type). WebSocket listeners -> listeners
 listeners (WebSocket _ ls) = ls
 
-type PendingRequests (request :: Type) =
-  Ref (Map ListenerId (RequestBody /\ Maybe request))
-
-data RequestInput (request :: Type)
-  = RequestInput request
-  | RequestInputToStoreInPendingRequests request
-
-getRequestInput :: forall (request :: Type). RequestInput request -> request
-getRequestInput (RequestInput inp) = inp
-getRequestInput (RequestInputToStoreInPendingRequests inp) = inp
-
-getRequestInputToStore
-  :: forall (request :: Type). RequestInput request -> Maybe request
-getRequestInputToStore (RequestInput _) = Nothing
-getRequestInputToStore (RequestInputToStoreInPendingRequests inp) = Just inp
+--------------------------------------------------------------------------------
+-- ListenerSet
+--------------------------------------------------------------------------------
 
 type OgmiosListeners =
   { utxo :: ListenerSet TransactionInput Ogmios.UtxoQR
   , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
   , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
-  , submit :: ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
+  , submit :: SubmitTxListenerSet
   , evaluate ::
       ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
   , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
@@ -1016,57 +1011,69 @@ type ListenerSet (request :: Type) (response :: Type) =
       -> Effect Unit
   , removeMessageListener :: ListenerId -> Effect Unit
   -- ^ Removes ID from dispatch map and pending requests queue.
-  , addRequest :: ListenerId -> RequestBody /\ Maybe request -> Effect Unit
+  , addRequest :: ListenerId -> RequestBody /\ request -> Effect Unit
   -- ^ Saves request body until the request is fulfilled. The body is used
   --  to replay requests in case of a WebSocket failure.
   }
+
+type SubmitTxListenerSet = ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
+
+mkAddMessageListener
+  :: forall (response :: Type)
+   . DecodeAeson response
+  => Dispatcher
+  -> ( ListenerId
+       -> (Either DispatchError response -> Effect Unit)
+       -> Effect Unit
+     )
+mkAddMessageListener dispatcher =
+  \reflection handler ->
+    flip Ref.modify_ dispatcher $
+      Map.insert reflection \aeson ->
+        case parseJsonWspResponse aeson of
+          Left err -> handler $ Left $ JsonError err
+          Right { result: Just result } -> handler $ Right result
+          Right { result: Nothing } -> handler $ Left $ FaultError aeson
+
+mkRemoveMessageListener
+  :: forall (requestData :: Type)
+   . Dispatcher
+  -> GenericPendingRequests requestData
+  -> (ListenerId -> Effect Unit)
+mkRemoveMessageListener dispatcher pendingRequests =
+  \reflection -> do
+    Ref.modify_ (Map.delete reflection) dispatcher
+    Ref.modify_ (Map.delete reflection) pendingRequests
 
 -- we manipluate closures to make the DispatchIdMap updateable using these
 -- methods, this can be picked up by a query or cancellation function
 mkListenerSet
   :: forall (request :: Type) (response :: Type)
-   . DispatchIdMap response
-  -> PendingRequests request
-  -> ListenerSet request response
-mkListenerSet dim pr =
-  { addMessageListener:
-      \id func -> do
-        Ref.modify_ (MultiMap.insert id func) dim
-  , removeMessageListener:
-      \id -> do
-        Ref.modify_ (MultiMap.delete id) dim
-        Ref.modify_ (Map.delete id) pr
-  , addRequest:
-      \id req ->
-        Ref.modify_ (Map.insert id req) pr
-  }
-
--- we manipluate closures to make the DispatchIdMap updateable using these
--- methods, this can be picked up by a query or cancellation function
-mkListenerSet'
-  :: forall (request :: Type) (response :: Type)
    . DecodeAeson response
   => Dispatcher
-  -> Pending
+  -> PendingRequests
   -> ListenerSet request response
-mkListenerSet' dispatcher pendingRequests =
+mkListenerSet dispatcher pendingRequests =
   { addMessageListener:
-      \reflection handler -> do
-        Ref.modify_
-          ( Map.insert reflection \aeson ->
-              case parseJsonWspResponse aeson of
-                Left err -> handler $ Left $ JsonError err
-                Right { result: Just result } -> handler $ Right result
-                Right { result: Nothing } -> handler $ Left $ FaultError aeson
-          )
-          dispatcher
+      mkAddMessageListener dispatcher
   , removeMessageListener:
-      \reflection -> do
-        Ref.modify_ (Map.delete reflection) dispatcher
-        Ref.modify_ (Map.delete reflection) pendingRequests
+      mkRemoveMessageListener dispatcher pendingRequests
   , addRequest:
       \reflection (requestBody /\ _) ->
         Ref.modify_ (Map.insert reflection requestBody) pendingRequests
+  }
+
+mkSubmitTxListenerSet
+  :: Dispatcher -> PendingSubmitTxRequests -> SubmitTxListenerSet
+mkSubmitTxListenerSet dispatcher pendingRequests =
+  { addMessageListener:
+      mkAddMessageListener dispatcher
+  , removeMessageListener:
+      mkRemoveMessageListener dispatcher pendingRequests
+  , addRequest:
+      \reflection (requestBody /\ txHash /\ _) ->
+        Ref.modify_ (Map.insert reflection (requestBody /\ txHash))
+          pendingRequests
   }
 
 -- | Builds an Ogmios request action using `QueryM`
@@ -1160,22 +1167,9 @@ mkRequestAff
   -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequestAff listeners' webSocket logger jsonWspCall getLs =
-  mkRequestAff' listeners' webSocket logger jsonWspCall getLs
-    <<< RequestInput
-
-mkRequestAff'
-  :: forall (request :: Type) (response :: Type) (listeners :: Type)
-   . listeners
-  -> JsWebSocket
-  -> Logger
-  -> JsonWsp.JsonWspCall request response
-  -> (listeners -> ListenerSet request response)
-  -> RequestInput request
-  -> Aff response
-mkRequestAff' listeners' webSocket logger jsonWspCall getLs inp = do
+mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
   { body, id } <-
-    liftEffect $ JsonWsp.buildRequest jsonWspCall (getRequestInput inp)
+    liftEffect $ JsonWsp.buildRequest jsonWspCall input
   let
     respLs :: ListenerSet request response
     respLs = getLs listeners'
@@ -1192,7 +1186,7 @@ mkRequestAff' listeners' webSocket logger jsonWspCall getLs inp = do
               Left (ListenerCancelled _) -> pure unit
               _ -> cont (lmap dispatchErrorToError result)
         )
-      respLs.addRequest id (sBody /\ getRequestInputToStore inp)
+      respLs.addRequest id (sBody /\ input)
       _wsSend webSocket (logger Debug) sBody
       -- Uncomment this code fragment to test `SubmitTx` request resend logic:
       -- when (isJust $ getRequestInputToStore inp) $
@@ -1201,126 +1195,6 @@ mkRequestAff' listeners' webSocket logger jsonWspCall getLs inp = do
         liftEffect $ respLs.removeMessageListener id
         liftEffect $ throwError $ err
   makeAff affFunc
-
--- an immutable queue of response type handlers
-ogmiosMessageDispatch
-  :: { utxoDispatchMap :: DispatchIdMap Ogmios.UtxoQR
-     , utxosAtDispatchMap :: DispatchIdMap Ogmios.UtxoQR
-     , chainTipDispatchMap :: DispatchIdMap Ogmios.ChainTipQR
-     , evaluateTxDispatchMap :: DispatchIdMap Ogmios.TxEvaluationR
-     , getProtocolParametersDispatchMap ::
-         DispatchIdMap Ogmios.ProtocolParameters
-     , submitDispatchMap :: DispatchIdMap Ogmios.SubmitTxR
-     , eraSummariesDispatchMap :: DispatchIdMap Ogmios.EraSummaries
-     , currentEpochDispatchMap :: DispatchIdMap Ogmios.CurrentEpoch
-     , systemStartDispatchMap :: DispatchIdMap Ogmios.SystemStart
-     , acquireMempoolDispatchMap :: DispatchIdMap Ogmios.MempoolSnapshotAcquired
-     , mempoolHasTxDispatchMap :: DispatchIdMap Boolean
-     }
-  -> Array WebsocketDispatch
-ogmiosMessageDispatch
-  { utxoDispatchMap
-  , utxosAtDispatchMap
-  , chainTipDispatchMap
-  , evaluateTxDispatchMap
-  , getProtocolParametersDispatchMap
-  , submitDispatchMap
-  , eraSummariesDispatchMap
-  , currentEpochDispatchMap
-  , systemStartDispatchMap
-  , acquireMempoolDispatchMap
-  , mempoolHasTxDispatchMap
-  } =
-  [ queryDispatch utxoDispatchMap
-  , queryDispatch utxosAtDispatchMap
-  , queryDispatch chainTipDispatchMap
-  , queryDispatch evaluateTxDispatchMap
-  , queryDispatch getProtocolParametersDispatchMap
-  , queryDispatch submitDispatchMap
-  , queryDispatch eraSummariesDispatchMap
-  , queryDispatch currentEpochDispatchMap
-  , queryDispatch systemStartDispatchMap
-  , queryDispatch acquireMempoolDispatchMap
-  , queryDispatch mempoolHasTxDispatchMap
-  ]
-
-datumCacheMessageDispatch
-  :: { getDatumByHashDispatchMap :: DispatchIdMap GetDatumByHashR
-     , getDatumsByHashesDispatchMap :: DispatchIdMap GetDatumsByHashesR
-     , getTxByHashDispatchMap :: DispatchIdMap GetTxByHashR
-     }
-  -> Array WebsocketDispatch
-datumCacheMessageDispatch
-  { getDatumByHashDispatchMap
-  , getDatumsByHashesDispatchMap
-  , getTxByHashDispatchMap
-  } =
-  [ queryDispatch getDatumByHashDispatchMap
-  , queryDispatch getDatumsByHashesDispatchMap
-  , queryDispatch getTxByHashDispatchMap
-  ]
-
--- each query type will have a corresponding ref that lives in ReaderT config or similar
--- for utxoQueryDispatch, the `a` parameter will be `UtxoQR` or similar
--- the add and remove listener functions will know to grab the correct mutable dispatch, if one exists.
-createMutableDispatch
-  :: forall (response :: Type). Effect (DispatchIdMap response)
-createMutableDispatch = Ref.new MultiMap.empty
-
-createPendingRequests
-  :: forall (request :: Type). Effect (PendingRequests request)
-createPendingRequests = Ref.new Map.empty
-
--- we parse out the utxo query result, then check if we're expecting a result
--- with the provided id, if we are then we dispatch to the effect that is
--- waiting on this result
-queryDispatch
-  :: forall (response :: Type)
-   . DecodeAeson response
-  => Show response
-  => DispatchIdMap response
-  -> Aeson
-  -> Effect (Either DispatchError (Effect Unit))
-queryDispatch ref aeson = do
-  -- Parse response id
-  case parseJsonWspResponseId aeson of
-    Left parseError ->
-      pure $ Left $ JsonError parseError
-    Right reflection -> do
-      -- Get callback action
-      withAction reflection case _ of
-        Nothing -> Left (ListenerCancelled reflection)
-        Just action -> do
-          -- Parse response
-          Right $ action $
-            case JsonWsp.parseJsonWspResponse aeson of
-              Left parseError -> Left $ JsonError parseError
-              Right { result: Just result } -> Right result
-              -- If result is empty, then fault must be present
-              Right { result: Nothing, fault: Just fault } ->
-                Left $ FaultError fault
-              -- Otherwise, our implementation is broken.
-              Right { result: Nothing, fault: Nothing } ->
-                Left $ JsError $ error impossibleErrorMsg
-  where
-  impossibleErrorMsg =
-    "Impossible happened: response does not contain neither "
-      <> "`fault` nor `result`, please report as bug. Response: "
-      <> show aeson
-
-  withAction
-    :: ListenerId
-    -> ( Maybe (Either DispatchError response -> Effect Unit)
-         -> Either DispatchError (Effect Unit)
-       )
-    -> Effect (Either DispatchError (Effect Unit))
-  withAction reflection cb = do
-    idMap <- Ref.read ref
-    let
-      mbAction =
-        MultiMap.lookup reflection idMap
-          :: Maybe (Either DispatchError response -> Effect Unit)
-    pure $ cb mbAction
 
 -- an empty error we can compare to, useful for ensuring we've not received any other kind of error
 defaultErr :: JsonDecodeError
