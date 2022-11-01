@@ -18,7 +18,6 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 import Node.ChildProcess (ChildProcess, SpawnOptions, kill, spawn, stdout)
