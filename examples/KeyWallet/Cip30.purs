@@ -8,6 +8,7 @@ import Contract.Prelude
 
 import Contract.Log (logInfo')
 import Contract.Monad (Contract)
+import Contract.Prim.ByteArray (RawBytes)
 import Contract.Wallet
   ( getChangeAddress
   , getNetworkId
@@ -17,7 +18,6 @@ import Contract.Wallet
   )
 import Control.Monad.Error.Class (liftMaybe, try)
 import Ctl.Examples.KeyWallet.Internal.Cip30Contract (runKeyWalletContract_)
-import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (head)
 import Effect.Exception (error)
 
