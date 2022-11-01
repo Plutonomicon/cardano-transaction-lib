@@ -16,6 +16,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Helpers (fromRightEff)
 import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Transaction
   ( attachDatum
   , attachPlutusScript
@@ -42,7 +43,6 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

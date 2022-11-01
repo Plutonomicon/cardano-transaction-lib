@@ -13,6 +13,7 @@ import Ctl.Internal.Hashing
   , sha3_256HashHex
   ) as Hashing
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromAscii
@@ -29,7 +30,6 @@ import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (plutusDataFixture7)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

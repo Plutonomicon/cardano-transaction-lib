@@ -61,7 +61,7 @@ import Ctl.Internal.TxOutput
   , transactionOutputToOgmiosTxOut
   )
 import Ctl.Internal.Types.Datum (Datum)
-import Ctl.Internal.Types.Natural (toBigInt) as Natural
+import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Natural
 import Ctl.Internal.Types.ScriptLookups
   ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   )
@@ -69,16 +69,15 @@ import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
 import Data.Array (catMaybes)
-import Data.Array (findIndex, fromFoldable, uncons) as Array
+import Data.Array (fromFoldable) as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Index (ix) as Lens
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Map (empty, fromFoldable, lookup, toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe, fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -233,21 +232,11 @@ setRdmrsExecutionUnits
   :: Array (Redeemer /\ Maybe TransactionInput)
   -> Ogmios.TxEvaluationResult
   -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs (Ogmios.TxEvaluationResult xxs) =
-  case Array.uncons (Map.toUnfoldable xxs) of
-    Nothing -> rs
-    Just { head: ptr /\ exUnits, tail: xs } ->
-      let
-        xsWrapped = Ogmios.TxEvaluationResult (Map.fromFoldable xs)
-        ixMaybe = flip Array.findIndex rs $ \(Redeemer rdmr /\ _) ->
-          rdmr.tag == ptr.redeemerTag
-            && rdmr.index == Natural.toBigInt ptr.redeemerIndex
-      in
-        ixMaybe # maybe (setRdmrsExecutionUnits rs xsWrapped) \ix ->
-          flip setRdmrsExecutionUnits xsWrapped $
-            rs # Lens.ix ix %~ \(Redeemer rec /\ txOutRef) ->
-              let
-                mem = Natural.toBigInt exUnits.memory
-                steps = Natural.toBigInt exUnits.steps
-              in
-                Redeemer rec { exUnits = { mem, steps } } /\ txOutRef
+setRdmrsExecutionUnits rs (Ogmios.TxEvaluationResult evalR) =
+  rs <#> \r@(Redeemer rec@{ tag: redeemerTag, index } /\ oref) ->
+    Map.lookup { redeemerTag, redeemerIndex: Natural.fromBigInt' index } evalR
+      # maybe r \{ memory, steps } ->
+          Redeemer rec
+            { exUnits =
+                { mem: Natural.toBigInt memory, steps: Natural.toBigInt steps }
+            } /\ oref

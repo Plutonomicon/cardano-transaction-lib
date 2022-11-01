@@ -1,5 +1,4 @@
 -- | CborBytes. A wrapper over `ByteArray` to indicate that the bytes are cbor.
-
 module Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
   , cborBytesToByteArray

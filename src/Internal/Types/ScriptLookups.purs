@@ -97,9 +97,13 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
+import Ctl.Internal.QueryM
+  ( QueryM
+  , QueryMExtended
+  , getDatumByHash
+  , getProtocolParameters
+  )
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
@@ -336,8 +340,8 @@ unspentOutputs
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
--- | should not fail.
+-- | Same as `unspentOutputs` but in `Maybe` context for convenience. 
+-- | This should not fail.
 unspentOutputsM
   :: forall (a :: Type)
    . Map TransactionInput Plutus.TransactionOutputWithRefScript
