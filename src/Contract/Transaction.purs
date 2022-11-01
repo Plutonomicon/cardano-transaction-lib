@@ -27,7 +27,6 @@ module Contract.Transaction
   , module ScriptLookups
   , module ScriptRef
   , module Transaction
-  , module TransactionMetadata
   , module UnbalancedTx
   , reindexSpentScriptRedeemers
   , signTransaction
@@ -155,6 +154,8 @@ import Ctl.Internal.Plutus.Types.Transaction
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , _output
   , lookupTxHash
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
@@ -232,11 +233,6 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  ) as TransactionMetadata
 import Ctl.Internal.Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
   , _transaction
