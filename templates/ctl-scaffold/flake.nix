@@ -12,6 +12,7 @@
       repo = "cardano-transaction-lib";
       rev = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc";
     };
+    # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
   };
 
@@ -24,6 +25,9 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
+
+      # generate `pkgs` with CTL's overlays applied. This gives you access to
+      # various additional packages, using the same versions of CTL
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
