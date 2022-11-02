@@ -31,11 +31,12 @@ import Node.ChildProcess
   )
 import Node.ChildProcess as ChildProcess
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
+import Data.Foldable (fold)
 
 -- | Carry along an `AVar` which resolves when the process closes.
 -- | Necessary due to `child_process` having no way to query if a process has
 -- | closed, so we must listen immediately after spawning.
-data ManagedProcess = ManagedProcess ChildProcess (AVar ChildProcess.Exit)
+data ManagedProcess = ManagedProcess String ChildProcess (AVar ChildProcess.Exit)
 
 -- | Provides a way to react on update of a program output.
 -- | Do nothing, indicate startup success, or thrown an exception to the Aff
@@ -64,7 +65,7 @@ spawn'
 spawn' cmd args opts mbFilter cont = do
   child <- ChildProcess.spawn cmd args opts
   closedAVar <- AVar.empty
-  let mp = ManagedProcess child closedAVar
+  let mp = ManagedProcess (cmd <> fold ((" " <> _) <$> args)) child closedAVar
   interface <- RL.createInterface (stdout child) mempty
   outputRef <- Ref.new ""
   ChildProcess.onClose child \code -> do
@@ -99,13 +100,13 @@ spawn' cmd args opts mbFilter cont = do
 foreign import clearLineHandler :: RL.Interface -> Effect Unit
 
 stop :: ManagedProcess -> Aff Unit
-stop (ManagedProcess child closedAVar) = do
+stop (ManagedProcess _ child closedAVar) = do
   isAlive <- AVar.isEmpty <$> AVar.status closedAVar
   when isAlive $ liftEffect $ kill SIGINT child
 
 -- | Waits until the process has cleanly stopped.
 waitForStop :: ManagedProcess -> Aff Unit
-waitForStop (ManagedProcess _ closedAVar) = do
+waitForStop (ManagedProcess cmd _ closedAVar) = do
   AVar.read closedAVar >>= case _ of
     ChildProcess.Normally 0 -> pure unit
-    _ -> throwError $ error "Process did not exit cleanly"
+    _ -> throwError $ error $ "Process " <> cmd <> " did not exit cleanly"
