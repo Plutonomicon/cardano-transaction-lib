@@ -15,14 +15,13 @@ fi
 
 # Check newline on end of a file
 
-no_newline=$(find . -not -path './.git/*' -not -path './.spago/*' -not -path './output/*' -not -path '*.json' -not -path '*dist-newstyle*' -type f -exec sh -c 'file -b "{}" | grep -q text' \; -exec sh -c '[ "$(tail -c 1 "{}" | od -An -a | tr -d "[:space:]")" != "nl" ]' \; -print)
-echo $no_newline
+no_newline=$(find . -not -path './.git/*' -not -path './.spago/*' -not -path './output/*' -not -path '*.json' -not -path '*.skey' -not -path '*node_modules*' -not -path '*.node*' -not -path '*generated-docs*' -not -path '*dist*' -not -path '*test-data*' -not -path '*spago2nix*' -type f -exec sh -c 'file -b "{}" | grep -q text' \; -exec sh -c '[ "$(tail -c 1 "{}" | od -An -a | tr -d "[:space:]")" != "nl" ]' \; -print)
 
 if [ -z "$no_newline" ]
 then
-    echo "No newline on end of a file absence"
+    echo "Has newlines on the end of each file"
 else
-    echo "Has newline on end of a file absence in files: "
+    echo "No newline on the end in files: "
     echo $no_newline
     exit 1
 fi
