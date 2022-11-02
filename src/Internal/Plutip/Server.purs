@@ -158,7 +158,7 @@ type PlutipTestHandler distr wallets r =
 
 -- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
 newtype PlutipTest = PlutipTest
-  (forall r. (forall distr wallets. PlutipTestHandler distr wallets r) -> r)
+  (forall (r :: Type). (forall (distr :: Type) (wallets :: Type). PlutipTestHandler distr wallets r) -> r)
 
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
 withWallets
@@ -173,6 +173,7 @@ withWallets distr tests = PlutipTest \h -> h distr tests
 noWallet :: Contract () Unit -> PlutipTest
 noWallet = withWallets unit <<< const
 
+type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
 type PlutipTestPlanHandler distr wallets r =
   UtxoDistribution distr wallets
   => distr
@@ -181,7 +182,7 @@ type PlutipTestPlanHandler distr wallets r =
 
 -- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
 newtype PlutipTestPlan = PlutipTestPlan
-  (forall r. (forall distr wallets. PlutipTestPlanHandler distr wallets r) -> r)
+  (forall (r :: Type). (forall (distr :: Type) (wallets :: Type). PlutipTestPlanHandler distr wallets r) -> r)
 
 -- | Lifts the utxo distributions of each test out of Mote, into a combined distribution
 -- | Adapts the tests to pick their distribution out of the combined distribution
@@ -203,7 +204,7 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
           tests
 
   addTests
-    :: forall distr wallets
+    :: forall (distr :: Type) (wallets :: Type)
      . PlutipTestPlanHandler distr wallets (State PlutipTestPlan Unit)
   addTests distr tests = do
     modify_ \(PlutipTestPlan runPlutipTestPlan) -> runPlutipTestPlan
@@ -230,7 +231,7 @@ testPlutipContracts plutipCfg tp = do
           whenError printLogs (runContractInEnv env (test wallets))
   where
   bracket
-    :: forall a b
+    :: forall (a :: Type) (b :: Type)
      . Aff a
     -> Aff Unit
     -> TestPlanM (a -> Aff b) Unit
