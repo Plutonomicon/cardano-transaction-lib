@@ -33,7 +33,7 @@ Optional services:
 
 CTL's `overlays.runtime` (contained in [runtime.nix](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/nix/runtime.nix)) provides some mechanisms for conveniently launching all runtime services using [Arion](https://docs.hercules-ci.com/arion) (itself a wrapper around `docker-compose`). To use this, you must have a setup based on Nix flakes (recommended as well for [using CTL as a dependency for Purescript projects](./ctl-as-dependency.md)).
 
-Here is our ctl-scaffold [flake](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/templates/ctl-scaffold/flake.nix) that uses the `runtime` overlay to launch all of the required services.
+The project template [flake](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/templates/ctl-scaffold/flake.nix) uses the `runtime` overlay to launch all of the required services.
 
 For launching services for developing CTL itself, see our documentation on [development](./development.md#launching-services-for-development).
 

@@ -39,7 +39,6 @@ rec {
       password = "ctl";
       db = "ctl-${network.name}";
     };
-    # These values will generate the `config.toml` required by ogmios-datum-cache
     datumCache = {
       port = 9999;
       controlApiToken = "";
