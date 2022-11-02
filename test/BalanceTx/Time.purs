@@ -87,10 +87,10 @@ emptyLookup = mempty
 now :: POSIXTime
 now = mkPosixTime "1666918454000"
 
-unsafeSubtractOne :: BigNum -> BigNum
-unsafeSubtractOne value = unsafePartial $ fromJust
+unsafeSubtractOne :: forall (a :: Type). Partial => Newtype a BigNum => a -> a
+unsafeSubtractOne value = wrap <<< fromJust
   $ BigNum.fromInt
-  <$> (flip (-) 1 <$> BigNum.toInt value)
+  <$> (flip (-) 1 <$> BigNum.toInt (unwrap value))
 
 getTimeFromUnbalanced
   :: UnattachedUnbalancedTx -> Contract () (Interval POSIXTime)
@@ -130,7 +130,13 @@ validityToPosixTime { validityStartInterval, ttl: timeToLive } =
         case timeToLive of
           Just end ->
             let
-              end' = subtractOne end
+              -- we control the test input and all 
+              -- inputs are set above 1000 so, it's safe 
+              -- to discard the partial here. 
+              -- This partiality is the reason we don't have 
+              -- validityToPosixTime as part of the api or the internal 
+              -- functions, it's only use is for test.
+              end' = unsafePartial unsafeSubtractOne end
               slotInterval = mkFiniteInterval start end'
             in
               toPosixTimeRange slotInterval
@@ -139,9 +145,8 @@ validityToPosixTime { validityStartInterval, ttl: timeToLive } =
     Nothing ->
       case timeToLive of
         Nothing -> pure always
-        Just end -> to <$> toPosixTime (subtractOne end)
-  where
-  subtractOne = wrap <<< unsafeSubtractOne <<< unwrap
+        -- read above about the `unsafePartial`
+        Just end -> to <$> toPosixTime (unsafePartial unsafeSubtractOne end)
 
 mkPosixTime :: String -> POSIXTime
 mkPosixTime = wrap <<< unsafePartial fromJust <<< BigInt.fromString
