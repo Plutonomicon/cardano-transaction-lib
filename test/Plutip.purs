@@ -6,9 +6,9 @@ import Prelude
 
 import Contract.Test.Plutip (testPlutipContracts)
 import Ctl.Internal.Plutip.Server
-  ( startPlutipCluster
+  ( checkPlutipServer
+  , startPlutipCluster
   , startPlutipServer
-  , checkPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
   )
@@ -21,11 +21,11 @@ import Data.Maybe (Maybe(Just))
 import Data.Newtype (wrap)
 import Effect (Effect)
 import Effect.Aff (Aff, bracket, launchAff_)
-import Mote (test, group)
+import Mote (group, test)
 import Test.Ctl.Plutip.Common (config)
+import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
-import Test.Ctl.Plutip.Contract as Contract
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
@@ -35,10 +35,10 @@ main = launchAff_ do
   Utils.interpretWithConfig
     defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
     $ group "Plutip" do
-      Logging.suite
-      UtxoDistribution.suite
-      testStartPlutipCluster
-      testPlutipContracts config Contract.suite
+        Logging.suite
+        UtxoDistribution.suite
+        testStartPlutipCluster
+        testPlutipContracts config Contract.suite
 
 testStartPlutipCluster :: TestPlanM (Aff Unit) Unit
 testStartPlutipCluster = group "Server" do

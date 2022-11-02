@@ -33,7 +33,13 @@ import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
-import Contract.Test.Plutip (InitialUTxOs, withStakeKey, withWallets, noWallet, PlutipTest)
+import Contract.Test.Plutip
+  ( InitialUTxOs
+  , PlutipTest
+  , noWallet
+  , withStakeKey
+  , withWallets
+  )
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -150,7 +156,7 @@ suite = do
   group "Contract" do
     flip mapTest AffInterface.suite
       (noWallet <<< wrapContract)
-    
+
     NetworkId.suite
 
     test "Collateral" do
@@ -1118,7 +1124,8 @@ suite = do
       test "returns the correct fully applied Plutus script" do
         withWallets unit \_ -> do
           bytes <-
-            liftContractM "Could not create ByteArray" (byteArrayFromAscii "test")
+            liftContractM "Could not create ByteArray"
+              (byteArrayFromAscii "test")
           let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
           result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)
@@ -1163,7 +1170,8 @@ suite = do
                     { output: TransactionOutputWithRefScript { output } }
                 ] -> do
                 let amount = (unwrap output).amount
-                unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+                unless
+                  (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
                   $ throw "Wrong UTxO selected as collateral"
               Just _ -> do
                 -- not a bug, but unexpected
