@@ -50,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- Bumped cardano-serialization-lib dependencies to version 11.1.1-alpha.1 ([#1163](Update CSL to 11.1.1-alpha.1 #1163))
+- Bumped cardano-serialization-lib dependencies to version 11.1.1-alpha.1 ([#1163](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1163))
 - `Contract.Transaction.calculateMinFee` and `Contract.Transaction.calculateMinFeeM` now accept additional UTxOs.
 - Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
