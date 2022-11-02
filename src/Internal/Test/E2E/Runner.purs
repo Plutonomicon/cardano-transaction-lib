@@ -266,9 +266,6 @@ readBrowserRuntime mbTests testOptions = do
   settingsArchive <- findSettingsArchive e2eDataDir settingsOptions
   unpackSettings settingsArchive chromeUserDataDir
 
-  liftEffect $ log $ "chromeUserDataDir: " <> chromeUserDataDir
-  liftEffect $ log $ "settings archive" <> settingsArchive
-
   wallets <- readExtensions e2eDataDir testOptions.wallets
 
   let
@@ -773,7 +770,9 @@ downloadToDataDir dir url = do
   liftEffect $ log $ "Downloading " <> url <> " to " <> dir
   -- TODO: amir: figure out why 'wget' freezes
   -- output <- spawnAndCollectOutput "wget" [ "-c", "-N", "-P", dir, url ]
-  output <- spawnAndCollectOutput "curl" [ "-O", "--output-dir", dir, url ]
+  -- TODO: amir: right now curl downloads on every run, find fix based on
+  -- whether file modified on server
+  output <- spawnAndCollectOutput "curl" [ "-LO", "--output-dir", dir, url ]
     defaultSpawnOptions
     defaultErrorReader
   liftEffect $ log $ output
@@ -786,6 +785,9 @@ extractZipToDataDir dir archive = do
   void $ spawnAndCollectOutput "unzip" [ "-o", archive, "-d", dir ]
     defaultSpawnOptions
     defaultErrorReader
+  -- TODO: amir: this works based on the assumption that the unzipped contents
+  -- contains a single folder that shares the same name as the archive
+  -- basename.
   pure $ dir <> "/" <> basenameWithoutExt archive ".zip"
 
 defaultErrorReader :: Exit -> Maybe String
