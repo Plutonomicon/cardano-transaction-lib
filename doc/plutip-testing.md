@@ -6,6 +6,8 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
+  - [runPlutipContract](#runPlutipContract)
+  - [testPlutipContracts](#testPlutipContracts)
   - [Testing with Nix](#testing-with-nix)
 - [Limitations](#limitations)
 
@@ -28,7 +30,11 @@ The services are NOT run by `docker-compose` as is the case with `launchCtlRunti
 
 ## Testing contracts
 
-The main entry point to the testing interface is `Contract.Test.Plutip.runPlutipContract` function:
+There are two entry points to the testing interface: `Contract.Test.Plutip.runPlutipContract` and `Contract.Test.Plutip.testPlutipContracts`. They work similarly, the difference being that `runPlutipContract` accepts a single `Contract` and runs in `Aff`, whereas `testPlutipContracts` transforms a `MoteT` test tree of `PlutipTest` into `Aff`. [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining tests, and combined with `testPlutipContracts` you can use a single plutip instance to run multiple indepedent tests.
+
+### runPlutipContract
+
+`Contract.Test.Plutip.runPlutipContract`'s function type is as follows:
 
 ```purescript
 runPlutipContract
@@ -83,6 +89,57 @@ runPlutipContract config distribution \wallets -> do
 In most cases at least two UTxOs per wallet are needed (one of which will be used as collateral, so it should exceed `5_000_000` Lovelace).
 
 Note that during execution WebSocket connection errors may occur. However, payloads are re-sent after these errors, so you can ignore them. [These errors will be suppressed in the future.](https://github.com/Plutonomicon/cardano-transaction-lib/issues/670).
+
+### testPlutipContracts
+
+`Contract.Test.Plutip.testPlutipContracts` type is as follows:
+
+```purescript
+testPlutipContracts
+  :: PlutipConfig
+  -> MoteT Aff PlutipTest Aff Unit
+  -> MoteT Aff (Aff Unit) Aff Unit
+```
+
+The final `MoteT` type requires the bracket, test and test building type to all be in `Aff`. The brackets cannot be ignored in the `MoteT` test runner, as it is what allows a single plutip instance to persist over multiple tests.
+
+To create tests of type `PlutipTest`, you must either use `Contract.Test.Plutip.withWallets` or `Contract.Test.Plutip.noWallet`, the latter being a helper alias of the first:
+
+```purescript
+withWallets
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> (wallets -> Contract () Unit)
+  -> PlutipTest
+
+noWallet :: Contract () Unit -> PlutipTest
+noWallet test = withWallets unit (const test)
+```
+
+The type is very similar to that of `runPlutipContract`, and distributions are handled in the same way. The following is an example of running multiple tests under the same plutip instance:
+
+```purescript
+suite :: MoteT Aff (Aff Unit) Aff
+suite = testPlutipContracts config do
+  test "Test 1" do
+    let
+      distribution :: Array BigInt /\ Array BigInt
+      distribution = ...
+    withWallets distribution \(alice /\ bob) -> do
+      ...
+
+  test "Test 2" do
+    let
+      distribution :: Array BigInt
+      distribution = ...
+    withWallets distribution \alice -> do
+      ...
+
+  test "Test 3" do
+    noWallet do
+      ...
+```
 
 ### Testing with Nix
 
