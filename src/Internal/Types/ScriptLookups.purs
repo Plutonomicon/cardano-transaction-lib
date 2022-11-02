@@ -341,7 +341,7 @@ unspentOutputs
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- | Same as `unspentOutputs` but in `Maybe` context for convenience. 
+-- | Same as `unspentOutputs` but in `Maybe` context for convenience.
 -- | This should not fail.
 unspentOutputsM
   :: forall (a :: Type)
