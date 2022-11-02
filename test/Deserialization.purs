@@ -3,8 +3,7 @@ module Test.Ctl.Deserialization (suite) where
 import Prelude
 
 import Contract.Address (ByteArray)
-import Control.Monad.Error.Class (class MonadThrow)
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
 import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelope(TextEnvelope)
@@ -49,8 +48,7 @@ import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error)
-import Effect.Exception (error)
+import Effect.Exception (Error, error)
 import Mote (group, test)
 import Test.Ctl.Fixtures
   ( nativeScriptFixture1
