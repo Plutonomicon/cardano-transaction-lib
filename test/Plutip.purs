@@ -157,7 +157,7 @@ main = launchAff_ do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  only $ Staking.suite
+  Staking.suite
   group "Plutip" do
     Logging.suite
 

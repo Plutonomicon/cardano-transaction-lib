@@ -218,6 +218,8 @@ derive instance Generic StakeValidatorHash _
 derive instance Newtype StakeValidatorHash _
 derive newtype instance Eq StakeValidatorHash
 derive newtype instance Ord StakeValidatorHash
+derive newtype instance ToData StakeValidatorHash
+derive newtype instance FromData StakeValidatorHash
 
 instance DecodeAeson StakeValidatorHash where
   decodeAeson = decodeAesonHelper "getStakeValidatorHash" StakeValidatorHash

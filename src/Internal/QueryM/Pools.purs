@@ -2,8 +2,9 @@ module Ctl.Internal.QueryM.Pools
   ( getPoolIds
   , getPoolParameters
   , parseIpv6String
-  , getDelegationsAndRewards
+  , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
+  , getDelegationsAndRewards
   , DelegationsAndRewards
   ) where
 
@@ -26,6 +27,9 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(PubKeyCredential, ScriptCredential)
+  )
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
@@ -49,13 +53,11 @@ import Data.Either (Either(Right, Left), note)
 import Data.Foldable (fold)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.String (Pattern(Pattern), Replacement(Replacement))
 import Data.String as String
 import Data.String.Utils as StringUtils
 import Data.Traversable (for, traverse)
-import Effect.Class (liftEffect)
-import Effect.Console as Console
 import Effect.Exception (error)
 import Foreign.Object (Object)
 
@@ -76,8 +78,6 @@ decodeUnitInterval aeson = do
         , denominator
         }
     _ -> Left $ TypeMismatch "UnitInterval"
-
--- [{"port":0,"ipv4":"192.0.2.1","ipv6":null},{"hostname":"foo.example.com","port":null},{"port":2,"ipv4":"192.0.2.1","ipv6":"2001:db8::1"},{"hostname":"foo.example.com","port":7},{"hostname":"foo.example.com","port":null},{"port":7,"ipv4":"192.0.2.1","ipv6":null}]
 
 decodeIpv4 :: Aeson -> Either JsonDecodeError Ipv4
 decodeIpv4 aeson = do
@@ -186,6 +186,12 @@ type DelegationsAndRewards =
   , delegate :: Maybe PoolPubKeyHash
   }
 
+getDelegationsAndRewards :: Credential -> QueryM (Maybe DelegationsAndRewards)
+getDelegationsAndRewards (PubKeyCredential pubKey) =
+  getPubKeyHashDelegationsAndRewards $ wrap pubKey
+getDelegationsAndRewards (ScriptCredential script) =
+  getValidatorHashDelegationsAndRewards $ wrap $ unwrap script
+
 getValidatorHashDelegationsAndRewards
   :: StakeValidatorHash -> QueryM (Maybe DelegationsAndRewards)
 getValidatorHashDelegationsAndRewards skh = do
@@ -193,7 +199,6 @@ getValidatorHashDelegationsAndRewards skh = do
     _.delegationsAndRewards
     [ stringRep
     ]
-  liftEffect $ Console.log $ show aeson
   let
     result = do
       obj <- decodeAeson aeson
@@ -215,10 +220,9 @@ getValidatorHashDelegationsAndRewards skh = do
       skh
 
 -- TODO: batched variant
--- TODO: rename to getPubKeyHashDelegationsAndRewards
-getDelegationsAndRewards
+getPubKeyHashDelegationsAndRewards
   :: StakePubKeyHash -> QueryM (Maybe DelegationsAndRewards)
-getDelegationsAndRewards pkh = do
+getPubKeyHashDelegationsAndRewards pkh = do
   aeson <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
     _.delegationsAndRewards
     [ stringRep ]
