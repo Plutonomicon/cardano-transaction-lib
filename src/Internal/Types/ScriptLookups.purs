@@ -26,7 +26,7 @@ module Ctl.Internal.Types.ScriptLookups
       , ValidatorHashNotFound
       , WrongRefScriptHash
       , ExpectedPlutusScriptGotNativeScript
-      , HasZeroMinting
+      , CannotMintZero
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
@@ -830,7 +830,7 @@ data MkUnbalancedTxError
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
   | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
-  | HasZeroMinting
+  | CannotMintZero CurrencySymbol TokenName
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -1090,7 +1090,7 @@ processConstraint mpsMap osMap = do
           _valueSpentBalancesInputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
         else if i == zero then do
-          throwError HasZeroMinting
+          throwError $ CannotMintZero cs tn
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v

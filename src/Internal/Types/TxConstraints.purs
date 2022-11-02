@@ -416,14 +416,12 @@ mustPayToNativeScript nsHash vl =
   singleton (MustPayToNativeScript nsHash vl)
 
 -- | Mint the given `Value`
--- | Attempt of minting zero currency will throw, to prevent node error, see
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
+-- | The amount to mint must not be zero.
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
 -- | Mint the given `Value` by accessing non-Ada assets.
--- | Attempt of minting zero currency will throw, to prevent node error, see
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
+-- | The amount to mint must not be zero.
 mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . Redeemer
@@ -441,8 +439,7 @@ mustMintValueWithRedeemer redeemer =
       mustMintCurrencyWithRedeemer mintingPolicyHash redeemer tn amount
 
 -- | Create the given amount of the currency.
--- | Attempt of minting zero currency will throw, to prevent node error, see
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
+-- | The amount to mint must not be zero.
 mustMintCurrency
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -462,8 +459,7 @@ mustMintCurrencyUsingNativeScript ns tk i = singleton
   (MustMintValueUsingNativeScript ns tk i)
 
 -- | Create the given amount of the currency using a reference minting policy.
--- | Attempt of minting zero currency will throw, to prevent node error, see
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
+-- | The amount to mint must not be zero.
 mustMintCurrencyUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -475,8 +471,7 @@ mustMintCurrencyUsingScriptRef mph =
   mustMintCurrencyWithRedeemerUsingScriptRef mph unitRedeemer
 
 -- | Create the given amount of the currency.
--- | Attempt of minting zero currency will throw, to prevent node error, see
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
+-- | The amount to mint must not be zero.
 mustMintCurrencyWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
@@ -488,8 +483,7 @@ mustMintCurrencyWithRedeemer mph red tn amount =
   singleton (MustMintValue mph red tn amount Nothing)
 
 -- | Create the given amount of the currency using a reference minting policy.
--- | Attempt of minting zero currency will throw, to prevent node error, see
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
+-- | The amount to mint must not be zero.
 mustMintCurrencyWithRedeemerUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
