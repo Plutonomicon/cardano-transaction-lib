@@ -29,6 +29,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustSpendScriptOutput
       , MustValidateIn
       , MustWithdrawStakePubKey
+      , MustWithdrawStakePlutusScript
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -72,6 +73,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustWithdrawStakePubKey
+  , mustWithdrawStakePlutusScript
   , mustValidateIn
   , mustNotBeValid
   , pubKeyPayments
@@ -172,6 +174,7 @@ data TxConstraint
       PoolPubKeyHash
   -- | MustDelegateStakeNativeScript NativeScriptStakeValidator PoolPubKeyHash
   | MustWithdrawStakePubKey StakePubKeyHash
+  | MustWithdrawStakePlutusScript PlutusScriptStakeValidator Redeemer
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
 
@@ -600,6 +603,11 @@ mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
 mustWithdrawStakePubKey
   :: forall i o. StakePubKeyHash -> TxConstraints i o
 mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
+
+mustWithdrawStakePlutusScript
+  :: forall i o. PlutusScriptStakeValidator -> Redeemer -> TxConstraints i o
+mustWithdrawStakePlutusScript validator redeemer =
+  singleton $ MustWithdrawStakePlutusScript validator redeemer
 
 -- | Attempts to solve, in order, a sequence of constraints until the first
 -- | successful try.

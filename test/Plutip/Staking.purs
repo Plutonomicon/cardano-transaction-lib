@@ -13,7 +13,7 @@ import Contract.Address
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
-import Contract.PlutusData (unitRedeemer)
+import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
@@ -26,16 +26,20 @@ import Contract.Transaction
   , signTransaction
   )
 import Contract.TxConstraints
-  ( mustDelegateStakePlutusScript
+  ( DatumPresence(DatumInline, DatumWitness)
+  , mustDelegateStakePlutusScript
   , mustDelegateStakePubKey
   , mustDeregisterStakePlutusScript
   , mustDeregisterStakePubKey
+  , mustPayToScript
   , mustRegisterPool
   , mustRegisterStakePubKey
   , mustRegisterStakeScript
   , mustRetirePool
+  , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
   )
+import Contract.Value (lovelaceValueOf)
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
@@ -45,6 +49,7 @@ import Ctl.Internal.QueryM.Pools
   ( getDelegationsAndRewards
   , getPoolIds
   , getPoolParameters
+  , getValidatorHashDelegationsAndRewards
   )
 import Ctl.Internal.Serialization.Address (keyHashCredential, rewardAddress)
 import Ctl.Internal.Types.BigNum as BigNum
@@ -61,7 +66,7 @@ import Data.UInt as UInt
 import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
-import Mote (group, test)
+import Mote (group, only, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Utils (submitAndLog)
@@ -247,8 +252,12 @@ suite = do
 
         currentEpoch <- getCurrentEpoch
         let
+          -- NOTE: this is a source of flaky-ness
+          -- (there's no guarantee that the tx will pass before the specified epoch).
+          -- You will get something like this error if it's not the case:
+          -- Error: `submit` call failed. Error from Ogmios: [{"wrongRetirementEpoch":{"currentEpoch":114,"firstUnreachableEpoch":1000114,"requestedEpoch":95}}]
           retirementEpoch :: Epoch
-          retirementEpoch = wrap (unwrap currentEpoch + UInt.fromInt 3)
+          retirementEpoch = wrap (unwrap currentEpoch + UInt.fromInt 25)
 
         -- Retire pool
         do
@@ -284,7 +293,7 @@ suite = do
             logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
           pools `shouldSatisfy` (not <<< Array.elem poolOperator)
 
-    test "Stake scripts: register, delegate" do
+    only $ test "Stake scripts: register, delegate" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
@@ -298,6 +307,21 @@ suite = do
             <*> liftedM "Failed to get Stake PKH" ownStakePubKeyHash
           validator <- alwaysSucceedsScript <#> unwrap >>> wrap
           let validatorHash = plutusScriptStakeValidatorHash validator
+
+          -- Lock funds on the stake script
+          do
+            let
+              constraints =
+                mustPayToScript (wrap $ unwrap validatorHash) unitDatum
+                  DatumWitness
+                  $ lovelaceValueOf
+                  $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
           -- Register stake script
           do
@@ -319,7 +343,7 @@ suite = do
             for_ pools \poolId -> do
               logInfo' "Pool parameters"
               logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
-            liftM (error "unable to get any pools") (head pools)
+            liftM (error "unable to get any pools") (pools Array.!! 2)
 
           -- Delegate
           do
@@ -333,6 +357,49 @@ suite = do
                   Lookups.ownStakePubKeyHash aliceStakePkh
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+
+          -- Wait until rewards
+          let
+            -- No need for limit on number of retries, because we have a
+            -- timeout for tests.
+            waitUntilRewards = do
+              mbDelegationsAndRewards <- wrapContract
+                $ getValidatorHashDelegationsAndRewards validatorHash
+              (mbDelegationsAndRewards <#> _.delegate) `shouldEqual` Just
+                (Just poolId)
+              case mbDelegationsAndRewards of
+                Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
+                  pure dels
+                _ -> do
+                  liftAff $ delay $ wrap 5000.0
+                  waitUntilRewards
+
+          { rewards: rewardsBefore } <- waitUntilRewards
+
+          -- Withdraw
+          do
+            let
+              constraints =
+                mustWithdrawStakePlutusScript validator unitRedeemer
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups =
+                Lookups.ownPaymentPubKeyHash alicePkh <>
+                  Lookups.ownStakePubKeyHash aliceStakePkh
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+
+          -- Check rewards.
+          -- Not going to deregister here, because the rewards are added too
+          -- soon, and we can't deregister the stake key if there are rewards
+          -- left.
+          -- This will not happen in real life scenarios, because epoch are
+          -- (usually) significantly longer.
+          do
+            { rewards: rewardsAfter } <-
+              liftedM "Unable to get rewards" $ wrapContract
+                $ getDelegationsAndRewards aliceStakePkh
+            rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
 
     test "PubKey: delegation to existing pool & withdrawals" do
       let

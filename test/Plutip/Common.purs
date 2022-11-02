@@ -47,11 +47,11 @@ config =
       , password: "ctxlib"
       , dbname: "ctxlib"
       }
-  , suppressLogs: true
+  , suppressLogs: false
   , customLogger: Nothing
   , clusterConfig:
-      { slotLength: Seconds 0.1
-      , epochSize: UInt.fromInt 30
+      { slotLength: Seconds 0.05
+      , epochSize: UInt.fromInt 10
       }
   }
 

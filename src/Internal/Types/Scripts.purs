@@ -10,6 +10,8 @@ module Ctl.Internal.Types.Scripts
   , Language(PlutusV1, PlutusV2)
   , plutusV1Script
   , plutusV2Script
+  , stakeValidatorHashToBech32
+  , stakeValidatorHashRewardAddress
   ) where
 
 import Prelude
@@ -31,12 +33,19 @@ import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Serialization.Address
+  ( NetworkId
+  , RewardAddress
+  , rewardAddress
+  , scriptHashCredential
+  )
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBech32Unsafe)
 import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 
@@ -219,3 +228,13 @@ instance EncodeAeson StakeValidatorHash where
 
 instance Show StakeValidatorHash where
   show = genericShow
+
+stakeValidatorHashToBech32 :: StakeValidatorHash -> Bech32String
+stakeValidatorHashToBech32 = unwrap >>> scriptHashToBech32Unsafe "script"
+
+stakeValidatorHashRewardAddress
+  :: NetworkId -> StakeValidatorHash -> RewardAddress
+stakeValidatorHashRewardAddress network stakeValidatorHash = rewardAddress
+  { network
+  , paymentCred: scriptHashCredential (unwrap stakeValidatorHash)
+  }

@@ -3,6 +3,7 @@ module Ctl.Internal.QueryM.Pools
   , getPoolParameters
   , parseIpv6String
   , getDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
   , DelegationsAndRewards
   ) where
 
@@ -29,7 +30,10 @@ import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashToBech32
+  , ed25519KeyHashToBech32Unsafe
   , ed25519KeyHashToBytes
+  , scriptHashToBech32Unsafe
+  , scriptHashToBytes
   )
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray
@@ -38,6 +42,7 @@ import Ctl.Internal.Types.ByteArray
   , hexToByteArray
   )
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
+import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), note)
@@ -49,6 +54,8 @@ import Data.String (Pattern(Pattern), Replacement(Replacement))
 import Data.String as String
 import Data.String.Utils as StringUtils
 import Data.Traversable (for, traverse)
+import Effect.Class (liftEffect)
+import Effect.Console as Console
 import Effect.Exception (error)
 import Foreign.Object (Object)
 
@@ -179,22 +186,18 @@ type DelegationsAndRewards =
   , delegate :: Maybe PoolPubKeyHash
   }
 
--- TODO: batched variant
-getDelegationsAndRewards
-  :: StakePubKeyHash -> QueryM (Maybe DelegationsAndRewards)
-getDelegationsAndRewards pkh = do
+getValidatorHashDelegationsAndRewards
+  :: StakeValidatorHash -> QueryM (Maybe DelegationsAndRewards)
+getValidatorHashDelegationsAndRewards skh = do
   aeson <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
     _.delegationsAndRewards
-    [ pkh ]
+    [ stringRep
+    ]
+  liftEffect $ Console.log $ show aeson
   let
     result = do
       obj <- decodeAeson aeson
-      let
-        pkhStr =
-          byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $
-            unwrap
-              pkh
-      decodeAeson =<< obj .: pkhStr
+      decodeAeson =<< obj .: byteHex
   case result of
     Left _ -> pure Nothing
     Right obj -> Just <$> do
@@ -202,3 +205,41 @@ getDelegationsAndRewards pkh = do
         rewards <- map Coin <$> obj .:? "rewards"
         delegate <- obj .:? "delegate"
         pure { rewards, delegate }
+  where
+  stringRep :: String
+  stringRep = scriptHashToBech32Unsafe "script" $ unwrap skh
+
+  byteHex :: String
+  byteHex =
+    byteArrayToHex <<< unwrap <<< scriptHashToBytes <<< unwrap $
+      skh
+
+-- TODO: batched variant
+-- TODO: rename to getPubKeyHashDelegationsAndRewards
+getDelegationsAndRewards
+  :: StakePubKeyHash -> QueryM (Maybe DelegationsAndRewards)
+getDelegationsAndRewards pkh = do
+  aeson <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
+    _.delegationsAndRewards
+    [ stringRep ]
+  let
+    result = do
+      obj <- decodeAeson aeson
+      decodeAeson =<< obj .: byteHex
+  case result of
+    Left _ -> pure Nothing
+    Right obj -> Just <$> do
+      liftEither $ lmap (error <<< show) do
+        rewards <- map Coin <$> obj .:? "rewards"
+        delegate <- obj .:? "delegate"
+        pure { rewards, delegate }
+  where
+  stringRep :: String
+  stringRep =
+    ed25519KeyHashToBech32Unsafe "stake_vkh" $ unwrap $ unwrap pkh
+
+  byteHex :: String
+  byteHex =
+    byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $
+      unwrap
+        pkh

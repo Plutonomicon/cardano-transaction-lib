@@ -11,7 +11,8 @@ module Ctl.Internal.Types.ScriptLookups
       , CannotMakeValue
       , CannotQueryDatum
       , CannotSatisfyAny
-      , CannotWithdrawRewards
+      , CannotWithdrawRewardsPlutusScript
+      , CannotWithdrawRewardsPubKey
       , DatumNotFound
       , DatumWrongHash
       , MintingPolicyHashNotCurrencySymbol
@@ -108,7 +109,10 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.Pools (getDelegationsAndRewards)
+import Ctl.Internal.QueryM.Pools
+  ( getDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  )
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
@@ -155,8 +159,10 @@ import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend))
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
+  , PlutusScriptStakeValidator
   , Validator
   , ValidatorHash
+  , stakeValidatorHashRewardAddress
   )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -191,6 +197,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustSpendScriptOutput
       , MustValidateIn
       , MustWithdrawStakePubKey
+      , MustWithdrawStakePlutusScript
       )
   , TxConstraints(TxConstraints)
   , utxoWithScriptRef
@@ -832,7 +839,8 @@ data MkUnbalancedTxError
   | CannotHashValidator Validator
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | CannotQueryDatum DataHash
-  | CannotWithdrawRewards StakePubKeyHash
+  | CannotWithdrawRewardsPubKey StakePubKeyHash
+  | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
   | DatumNotFound DataHash
   | DatumWrongHash DataHash Datum
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
@@ -1075,6 +1083,8 @@ processConstraint mpsMap osMap = do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
+        else if i == zero then do
+          throwError (CannotMakeValue cs tn i)
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
@@ -1193,7 +1203,7 @@ processConstraint mpsMap osMap = do
     MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
       lift $ addCertificate $
         StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
-          (unwrap poolKeyHash)
+          poolKeyHash
     MustDelegateStakePlutusScript stakeValidator redeemerData poolKeyHash ->
       runExceptT do
         let
@@ -1201,7 +1211,7 @@ processConstraint mpsMap osMap = do
             ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
                 stakeValidator
             )
-            (unwrap poolKeyHash)
+            poolKeyHash
           redeemer = T.Redeemer
             { tag: Cert
             , index: zero -- hardcoded and tweaked after balancing.
@@ -1215,11 +1225,31 @@ processConstraint mpsMap osMap = do
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ getDelegationsAndRewards spkh
-      ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewards spkh)
+      ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
       let rewardAddress = ed25519RewardAddress networkId (unwrap spkh)
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
         Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+    MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
+      let hash = plutusScriptStakeValidatorHash stakeValidator
+      networkId <- lift getNetworkId
+      mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
+      let rewardAddress = stakeValidatorHashRewardAddress networkId hash
+      ({ rewards }) <- ExceptT $ pure $ note
+        (CannotWithdrawRewardsPlutusScript stakeValidator)
+        mbRewards
+      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+      let
+        redeemer = T.Redeemer
+          { tag: Cert
+          , index: zero -- hardcoded and tweaked after balancing.
+          , "data": unwrap redeemerData
+          , exUnits: zero
+          }
+      ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
+      ExceptT $ attachToCps attachRedeemer redeemer
+      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
