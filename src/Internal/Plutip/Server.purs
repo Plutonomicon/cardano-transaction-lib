@@ -167,7 +167,7 @@ newtype PlutipTest = PlutipTest
 
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
 withWallets
-  :: forall distr wallets
+  :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
   => distr
   -> (wallets -> Contract () Unit)

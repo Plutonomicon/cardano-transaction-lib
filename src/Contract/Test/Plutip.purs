@@ -1,8 +1,11 @@
 -- | This module contains everything needed for `Contract` testing in Plutip
 -- | environment.
 module Contract.Test.Plutip
-  ( module X
+  ( testPlutipContracts
+  , module X
   ) where
+
+import Prelude
 
 import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
@@ -10,10 +13,10 @@ import Ctl.Internal.Plutip.Server
   ( PlutipTest
   , noWallet
   , runPlutipContract
-  , testPlutipContracts
   , withPlutipContractEnv
   , withWallets
   ) as X
+import Ctl.Internal.Plutip.Server (testPlutipContracts, PlutipTest) as Server
 import Ctl.Internal.Plutip.Types
   ( InitialUTxODistribution
   , InitialUTxOs
@@ -25,3 +28,13 @@ import Ctl.Internal.Plutip.UtxoDistribution
   ( class UtxoDistribution
   , withStakeKey
   ) as X
+import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Mote (MoteT)
+import Effect.Aff (Aff)
+
+-- | Run `Contract`s in tests in a single Plutip instance.
+testPlutipContracts
+  :: PlutipConfig
+  -> MoteT Aff Server.PlutipTest Aff Unit
+  -> MoteT Aff (Aff Unit) Aff Unit
+testPlutipContracts = Server.testPlutipContracts
