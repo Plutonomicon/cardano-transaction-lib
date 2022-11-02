@@ -39,11 +39,7 @@
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.follows = "ogmios/haskell-nix";
     nixpkgs.follows = "ogmios/nixpkgs";
-
-    CHaP = {
-      url = "github:input-output-hk/cardano-haskell-packages/b074321c4c8cbf2c3789436ab11eaa43e1c441a7";
-      flake = false;
-    };
+    CHaP.follows = "ogmios/CHaP";
 
   };
 
