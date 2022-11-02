@@ -52,6 +52,22 @@ rec {
         filter = builtins.toJSON { const = true; };
       };
     };
+    kup = {
+      # Path to the folder continaing the kupo binary
+      path = "INSERT PATH HERE";
+      # Do we actually need to sync the entire history?
+      since = "origin";
+      # This matches any Cardano address, "*/*" matches shelley addresses only, maybe we want the latter
+      match = "*";
+      # For now this is just a string passed directly as a flag but it would probably be better to
+      # use some kind of option type or enum. Don't know how to do that in nix tho
+      # FIXME: Don't want to actually use the in memory database if we're syncing from origin.
+      #        Set this to "workdir <dir>" to avoid that.
+      dbConfig = "in-memory";
+      #Do we want to pin to a concrete version or just "latest"?
+      tag = "v2.1.0";
+      # TODO: Do we want to support connection through ogmios?
+    };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
     # corresponds directly to YAML that would be written in a `docker-compose` file,
     # e.g. volumes
@@ -128,6 +144,23 @@ rec {
               "${nodeSocketPath}"
               "--topology"
               "/config/topology.json"
+            ];
+          };
+        };
+        kupo = {
+          service = {
+            image = "cardanosolutions/kupo:${kup.tag}";
+            volumes = [
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
+              "${nodeIpcVol}:/ipc"
+            ];
+            command = [
+              "--node-config" "/config/cardano-node/config.json"
+              "--node-socket" "/ipc/node.socket"
+              "--since" "origin"
+              "--defer-db-indexes"
+              "--match" "${"*"}"
+              "--in-memory"
             ];
           };
         };
