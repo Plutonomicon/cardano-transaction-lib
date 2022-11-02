@@ -158,7 +158,12 @@ type PlutipTestHandler distr wallets r =
 
 -- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
 newtype PlutipTest = PlutipTest
-  (forall (r :: Type). (forall (distr :: Type) (wallets :: Type). PlutipTestHandler distr wallets r) -> r)
+  ( forall (r :: Type)
+     . ( forall (distr :: Type) (wallets :: Type)
+          . PlutipTestHandler distr wallets r
+       )
+    -> r
+  )
 
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
 withWallets
@@ -182,7 +187,12 @@ type PlutipTestPlanHandler distr wallets r =
 
 -- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
 newtype PlutipTestPlan = PlutipTestPlan
-  (forall (r :: Type). (forall (distr :: Type) (wallets :: Type). PlutipTestPlanHandler distr wallets r) -> r)
+  ( forall (r :: Type)
+     . ( forall (distr :: Type) (wallets :: Type)
+          . PlutipTestPlanHandler distr wallets r
+       )
+    -> r
+  )
 
 -- | Lifts the utxo distributions of each test out of Mote, into a combined distribution
 -- | Adapts the tests to pick their distribution out of the combined distribution
