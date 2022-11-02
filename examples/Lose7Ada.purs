@@ -35,9 +35,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
-import Ctl.Internal.BalanceTx.Collateral (minRequiredCollateral)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Map as Map
@@ -100,7 +97,7 @@ spendFromAlwaysFails vhash validator txId = do
       logInfo' "Successfully spent locked values."
 
       balance <- fold <$> getWalletBalance
-      let collateralLoss = Value.lovelaceValueOf (-minRequiredCollateral)
+      let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-5_000_000)
       balance `shouldEqual` (balanceBefore <> collateralLoss)
 
     _ ->
