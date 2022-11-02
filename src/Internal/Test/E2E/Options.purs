@@ -24,7 +24,6 @@ import Control.Alt ((<|>))
 import Ctl.Internal.Test.E2E.Types
   ( Browser
   , ChromeUserDataDir
-  , ChromeUserDataUrl
   , CrxFilePath
   , E2EDataDir
   , E2ETest
@@ -92,7 +91,6 @@ type CommonOptions_ (r :: Row Type) =
   ( browser :: Maybe Browser
   , wallets :: Map WalletExt ExtensionOptions
   , chromeUserDataDir :: Maybe ChromeUserDataDir
-  , chromeUserDataUrl :: Maybe ChromeUserDataUrl
   , tmpDir :: Maybe TmpDir
   , settingsArchive :: Maybe SettingsArchive
   , settingsArchiveUrl :: Maybe SettingsArchiveUrl
@@ -113,7 +111,6 @@ type ExtensionOptions =
 -- | CLI options for `pack` and `unpack` commands.
 type SettingsOptions =
   { chromeUserDataDir :: Maybe FilePath
-  , chromeUserDataUrl :: Maybe ChromeUserDataUrl
   , settingsArchive :: Maybe FilePath
   , settingsArchiveUrl :: Maybe SettingsArchiveUrl
   , e2eDataDir :: Maybe E2EDataDir
@@ -177,7 +174,6 @@ browserOptionsParser = ado
   { chromeUserDataDir
   , settingsArchive
   , e2eDataDir
-  , chromeUserDataUrl
   , settingsArchiveUrl
   } <- settingsOptionsParser
   tmpDir <- option (Just <$> str) $ fold
@@ -208,7 +204,6 @@ browserOptionsParser = ado
     { browser
     , wallets
     , chromeUserDataDir
-    , chromeUserDataUrl
     , tmpDir
     , settingsArchive
     , settingsArchiveUrl
@@ -300,7 +295,7 @@ e2eDataDirOptionParser =
     ]
 
 chromeUserDataOptionParser
-  :: Parser (Maybe ChromeUserDataDir /\ Maybe ChromeUserDataUrl)
+  :: Parser (Maybe ChromeUserDataDir)
 chromeUserDataOptionParser = ado
   dataDir <- option (Just <$> str) $ fold
     [ long "chrome-user-data"
@@ -310,18 +305,11 @@ chromeUserDataOptionParser = ado
     -- $ const "E2E_CHROME_USER_DATA"
     , metavar "DIR"
     ]
-  dataUrl <- option (Just <$> str) $ fold
-    [ long "chrome-user-data-url"
-    , help "Chrome/-ium user data dir URL"
-    , value Nothing
-    , showDefaultWith show
-    , metavar "URL"
-    ]
-  in dataDir /\ dataUrl
+  in dataDir
 
 settingsOptionsParser :: Parser SettingsOptions
 settingsOptionsParser = ado
-  chromeUserDataDir /\ chromeUserDataUrl <- chromeUserDataOptionParser
+  chromeUserDataDir <- chromeUserDataOptionParser
   e2eDataDir <- e2eDataDirOptionParser
   settingsArchive <- option (Just <$> str) $ fold
     [ long "settings-archive"
@@ -341,7 +329,6 @@ settingsOptionsParser = ado
 
   in
     { chromeUserDataDir
-    , chromeUserDataUrl
     , settingsArchive
     , settingsArchiveUrl
     , e2eDataDir

@@ -8,7 +8,6 @@ import Prelude
 
 import Affjax (URL)
 import Control.Alt ((<|>))
-import Control.Apply (lift2)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Helpers (liftedM)
@@ -259,9 +258,7 @@ readBrowserRuntime mbTests testOptions = do
   browser <- maybe findBrowser pure testOptions.browser
   tmpDir <- createTmpDir testOptions.tmpDir browser
 
-  -- TODO: amir: refactor settings and user dir to smth like:
-  -- chromeUserDataDir <|> findChromeProfile <|> createChromeProfile
-  chromeUserDataDir <- findChromeProfile e2eDataDir settingsOptions
+  chromeUserDataDir <- findChromeProfile settingsOptions
   ensureChromeUserDataDir chromeUserDataDir
   settingsArchive <- findSettingsArchive e2eDataDir settingsOptions
   unpackSettings settingsArchive chromeUserDataDir
@@ -432,7 +429,7 @@ readTestTimeout Nothing = do
 readSettingsRuntime :: SettingsOptions -> Aff SettingsRuntime
 readSettingsRuntime testOptions = do
   dataDir <- maybe findE2EDataDir pure testOptions.e2eDataDir
-  d <- findChromeProfile dataDir testOptions
+  d <- findChromeProfile testOptions
   a <- findSettingsArchive dataDir testOptions
   pure { settingsArchive: a, chromeUserDataDir: d }
 
@@ -458,11 +455,11 @@ findSettingsArchive e2eDataDir testOptions = do
   mbSettingsArchiveUrl <- liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE_URL"
 
   let
-    localHandler dir = ifM (lift2 (||) (exists dir) (isDirectory <$> stat dir))
-      (pure dir)
+    localHandler tarball = ifM (exists tarball)
+      (pure tarball)
       ( liftEffect
-          ( throw $ "Directory " <> dir <>
-              " does not exist or is not a directory."
+          ( throw $ "File" <> tarball <>
+              " does not exist."
           )
       )
 
@@ -486,37 +483,26 @@ findSettingsArchive e2eDataDir testOptions = do
     $ uncurry (flip ($))
 
 findChromeProfile
-  :: E2EDataDir -> SettingsOptions -> Aff ChromeUserDataDir
-findChromeProfile e2eDataDir testOptions = do
-  mbChromeProfile <- liftEffect $ lookupEnv "E2E_CHROME_USER_DATA"
-  mbChromeProfileUrl <- liftEffect $ lookupEnv "E2E_CHROME_USER_DATA_URL"
-
-  let
-    localHandler tarball = ifM (exists tarball)
-      (pure tarball)
-      ( liftEffect
-          ( throw $ "File " <> tarball <>
-              " does not exist"
-          )
+  :: SettingsOptions -> Aff ChromeUserDataDir
+findChromeProfile testOptions = do
+  chromeDataDir <-
+    maybe
+      ( liftedM
+          ( error
+              "Please specify any of --chrome-user-data or E2E_CHROME_USER_DATA"
+          ) $ liftEffect $ lookupEnv "E2E_CHROME_USER_DATA"
       )
-    remoteHandler = downloadToDataDir e2eDataDir >=> extractZipToDataDir
-      e2eDataDir
+      pure $ testOptions.chromeUserDataDir
 
-    -- priority: cli > env > cli url > env url
-    -- Create array of relevant options together with handler strategy
-    priorityArray :: Array (Maybe (String /\ (String -> Aff ChromeUserDataDir)))
-    priorityArray =
-      map ((_ /\ localHandler) <$> _)
-        [ testOptions.chromeUserDataDir, mbChromeProfile ]
-        <> map ((_ /\ remoteHandler) <$> _)
-          [ testOptions.chromeUserDataUrl, mbChromeProfileUrl ]
-
-  liftedM
-    ( error
-        "Please specify any one of --chrome-user-data,--chrome-user-data-url, E2E_CHROME_USER_DATA, E2E_CHROME_USER_DATA_URL."
-    )
-    $ for (oneOf priorityArray) -- oneOf returns the first Just
-    $ uncurry (flip ($))
+  doesExist <- exists chromeDataDir
+  unless doesExist $
+    ensureChromeUserDataDir chromeDataDir
+  isDir <- isDirectory <$> stat chromeDataDir
+  unless isDir
+    $ liftEffect
+    $ throw
+    $ "Chrome user data directory " <> chromeDataDir <> " is not a directory."
+  pure chromeDataDir
 
 findE2EDataDir :: Aff E2EDataDir
 findE2EDataDir = do
@@ -777,18 +763,6 @@ downloadToDataDir dir url = do
     defaultErrorReader
   liftEffect $ log $ output
   pure $ dir <> "/" <> basename url
-
-extractZipToDataDir :: FilePath -> FilePath -> Aff FilePath
-extractZipToDataDir dir archive = do
-  ensureDir dir
-  liftEffect $ log $ "Extracting " <> archive <> " to " <> dir
-  void $ spawnAndCollectOutput "unzip" [ "-o", archive, "-d", dir ]
-    defaultSpawnOptions
-    defaultErrorReader
-  -- TODO: amir: this works based on the assumption that the unzipped contents
-  -- contains a single folder that shares the same name as the archive
-  -- basename.
-  pure $ dir <> "/" <> basenameWithoutExt archive ".zip"
 
 defaultErrorReader :: Exit -> Maybe String
 defaultErrorReader =
