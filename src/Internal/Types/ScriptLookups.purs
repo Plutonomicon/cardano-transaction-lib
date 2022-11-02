@@ -103,6 +103,9 @@ import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
   , fromPlutusValue
   )
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(ScriptCredential, PubKeyCredential)
+  )
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -110,20 +113,22 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
 import Ctl.Internal.QueryM (QueryM, QueryMExtended, getDatumByHash)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.Pools
-  ( getDelegationsAndRewards
+  ( getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
 import Ctl.Internal.QueryM.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
-  , nativeScriptHashEnterpriseAddress
   , validatorHash
   , validatorHashEnterpriseAddress
   )
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
+  , StakeCredential
+  , baseAddress
+  , baseAddressToAddress
   , keyHashCredential
   , scriptHashCredential
   )
@@ -155,7 +160,7 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Mint, Spend))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Reward, Mint, Spend))
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -1128,14 +1133,21 @@ processConstraint mpsMap osMap = do
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToScript vlh dat datp scriptRef plutusValue -> do
+    MustPayToScript vlh mbCredential dat datp scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
         datum' <- outputDatum dat datp
         let
           txOut = TransactionOutput
-            { address: validatorHashEnterpriseAddress networkId vlh
+            { address:
+                case mbCredential of
+                  Nothing -> validatorHashEnterpriseAddress networkId vlh
+                  Just cred -> baseAddressToAddress $ baseAddress
+                    { network: networkId
+                    , paymentCred: scriptHashCredential (unwrap vlh)
+                    , delegationCred: credentialToStakeCredential cred
+                    }
             , amount
             -- TODO: save correct and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
@@ -1146,13 +1158,21 @@ processConstraint mpsMap osMap = do
         -- constraint already.
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToNativeScript nsh plutusValue -> do
+    MustPayToNativeScript nsh mbCredential plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
         let
           txOut = TransactionOutput
-            { address: nativeScriptHashEnterpriseAddress networkId nsh
+            { address: case mbCredential of
+                Nothing -> validatorHashEnterpriseAddress networkId
+                  (wrap $ unwrap nsh)
+                Just cred -> baseAddressToAddress $ baseAddress
+                  { network: networkId
+                  , paymentCred: scriptHashCredential (unwrap nsh)
+                  , delegationCred: credentialToStakeCredential cred
+                  }
+
             , amount
             , datum: NoOutputDatum
             , scriptRef: Nothing
@@ -1224,7 +1244,7 @@ processConstraint mpsMap osMap = do
         lift $ addCertificate cert
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ getDelegationsAndRewards spkh
+      mbRewards <- lift $ lift $ getPubKeyHashDelegationsAndRewards spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
       let rewardAddress = ed25519RewardAddress networkId (unwrap spkh)
@@ -1242,7 +1262,7 @@ processConstraint mpsMap osMap = do
         Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
       let
         redeemer = T.Redeemer
-          { tag: Cert
+          { tag: Reward
           , index: zero -- hardcoded and tweaked after balancing.
           , "data": unwrap redeemerData
           , exUnits: zero
@@ -1288,6 +1308,11 @@ processConstraint mpsMap osMap = do
     DatumInline -> pure $ OutputDatum dat
     DatumWitness -> OutputDatumHash <$> liftMaybe (CannotHashDatum dat)
       (Hashing.datumHash dat)
+
+credentialToStakeCredential :: Credential -> StakeCredential
+credentialToStakeCredential cred = case cred of
+  PubKeyCredential pubKeyHash -> keyHashCredential (unwrap pubKeyHash)
+  ScriptCredential scriptHash -> scriptHashCredential (unwrap scriptHash)
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.

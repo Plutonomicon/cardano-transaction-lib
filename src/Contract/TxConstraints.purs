@@ -25,6 +25,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustMintValueWithRedeemer
   , mustNotBeValid
   , mustPayToNativeScript
+  , mustPayToNativeScriptAddress
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayToPubKeyAddressWithDatum
@@ -34,6 +35,8 @@ import Ctl.Internal.Types.TxConstraints
   , mustPayToPubKeyWithDatumAndScriptRef
   , mustPayToPubKeyWithScriptRef
   , mustPayToScript
+  , mustPayToScriptAddress
+  , mustPayToScriptAddressWithScriptRef
   , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal

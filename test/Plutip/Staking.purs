@@ -10,13 +10,26 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
+import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM, wrapContract)
+import Contract.Monad (Contract, liftedE, liftedM)
 import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
+import Contract.Scripts
+  ( PlutusScriptStakeValidator
+  , StakeValidatorHash
+  , ValidatorHash
+  , validatorHash
+  )
+import Contract.Staking
+  ( getPoolIds
+  , getPoolParameters
+  , getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  )
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
 import Contract.Time (getCurrentEpoch)
 import Contract.Transaction
@@ -26,12 +39,12 @@ import Contract.Transaction
   , signTransaction
   )
 import Contract.TxConstraints
-  ( DatumPresence(DatumInline, DatumWitness)
+  ( DatumPresence(DatumWitness)
   , mustDelegateStakePlutusScript
   , mustDelegateStakePubKey
   , mustDeregisterStakePlutusScript
   , mustDeregisterStakePubKey
-  , mustPayToScript
+  , mustPayToScriptAddress
   , mustRegisterPool
   , mustRegisterStakePubKey
   , mustRegisterStakeScript
@@ -45,12 +58,6 @@ import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.QueryM.Pools
-  ( getDelegationsAndRewards
-  , getPoolIds
-  , getPoolParameters
-  , getValidatorHashDelegationsAndRewards
-  )
 import Ctl.Internal.Serialization.Address (keyHashCredential, rewardAddress)
 import Ctl.Internal.Types.BigNum as BigNum
 import Data.Array (head)
@@ -66,7 +73,7 @@ import Data.UInt as UInt
 import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
-import Mote (group, only, test)
+import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Utils (submitAndLog)
@@ -242,12 +249,12 @@ suite = do
 
         -- List pools: the pool must appear in the list
         do
-          pools <- wrapContract getPoolIds
+          pools <- getPoolIds
           logInfo' "Pool IDs:"
           logInfo' $ show pools
           for_ pools \poolId -> do
             logInfo' "Pool parameters"
-            logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+            logInfo' <<< show =<< getPoolParameters poolId
           pools `shouldSatisfy` Array.elem poolOperator
 
         currentEpoch <- getCurrentEpoch
@@ -257,7 +264,7 @@ suite = do
           -- You will get something like this error if it's not the case:
           -- Error: `submit` call failed. Error from Ogmios: [{"wrongRetirementEpoch":{"currentEpoch":114,"firstUnreachableEpoch":1000114,"requestedEpoch":95}}]
           retirementEpoch :: Epoch
-          retirementEpoch = wrap (unwrap currentEpoch + UInt.fromInt 25)
+          retirementEpoch = wrap (unwrap currentEpoch + UInt.fromInt 5)
 
         -- Retire pool
         do
@@ -285,15 +292,15 @@ suite = do
 
         -- List pools: the pool must not appear in the list
         do
-          pools <- wrapContract getPoolIds
+          pools <- getPoolIds
           logInfo' "Pool IDs:"
           logInfo' $ show pools
           for_ pools \poolId -> do
             logInfo' "Pool parameters"
-            logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+            logInfo' <<< show =<< getPoolParameters poolId
           pools `shouldSatisfy` (not <<< Array.elem poolOperator)
 
-    only $ test "Stake scripts: register, delegate" do
+    test "Stake scripts: register, delegate" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
@@ -305,14 +312,22 @@ suite = do
           alicePkh /\ aliceStakePkh <- Tuple
             <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
             <*> liftedM "Failed to get Stake PKH" ownStakePubKeyHash
-          validator <- alwaysSucceedsScript <#> unwrap >>> wrap
-          let validatorHash = plutusScriptStakeValidatorHash validator
+          (validator :: PlutusScriptStakeValidator) <- alwaysSucceedsScript <#>
+            unwrap >>> wrap
+          let
+            (validatorHash :: ValidatorHash) = validatorHash $ wrap $ unwrap
+              validator
+          let
+            (stakeValidatorHash :: StakeValidatorHash) = wrap $ unwrap
+              validatorHash
 
           -- Lock funds on the stake script
           do
             let
               constraints =
-                mustPayToScript (wrap $ unwrap validatorHash) unitDatum
+                mustPayToScriptAddress (wrap $ unwrap validatorHash)
+                  (ScriptCredential validatorHash)
+                  unitDatum
                   DatumWitness
                   $ lovelaceValueOf
                   $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
@@ -327,7 +342,7 @@ suite = do
           do
             let
               constraints =
-                mustRegisterStakeScript validatorHash
+                mustRegisterStakeScript stakeValidatorHash
 
               lookups :: Lookups.ScriptLookups Void
               lookups = mempty
@@ -337,12 +352,12 @@ suite = do
 
           -- List pools
           poolId <- do
-            pools <- wrapContract getPoolIds
+            pools <- getPoolIds
             logInfo' "Pool IDs:"
             logInfo' $ show pools
             for_ pools \poolId -> do
               logInfo' "Pool parameters"
-              logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+              logInfo' <<< show =<< getPoolParameters poolId
             liftM (error "unable to get any pools") (pools Array.!! 2)
 
           -- Delegate
@@ -363,8 +378,8 @@ suite = do
             -- No need for limit on number of retries, because we have a
             -- timeout for tests.
             waitUntilRewards = do
-              mbDelegationsAndRewards <- wrapContract
-                $ getValidatorHashDelegationsAndRewards validatorHash
+              mbDelegationsAndRewards <-
+                getValidatorHashDelegationsAndRewards stakeValidatorHash
               (mbDelegationsAndRewards <#> _.delegate) `shouldEqual` Just
                 (Just poolId)
               case mbDelegationsAndRewards of
@@ -396,9 +411,8 @@ suite = do
           -- This will not happen in real life scenarios, because epoch are
           -- (usually) significantly longer.
           do
-            { rewards: rewardsAfter } <-
-              liftedM "Unable to get rewards" $ wrapContract
-                $ getDelegationsAndRewards aliceStakePkh
+            { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
+              getValidatorHashDelegationsAndRewards stakeValidatorHash
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
 
     test "PubKey: delegation to existing pool & withdrawals" do
@@ -427,12 +441,12 @@ suite = do
 
           -- List pools
           poolId <- do
-            pools <- wrapContract getPoolIds
+            pools <- getPoolIds
             logInfo' "Pool IDs:"
             logInfo' $ show pools
             for_ pools \poolId -> do
               logInfo' "Pool parameters"
-              logInfo' <<< show =<< wrapContract (getPoolParameters poolId)
+              logInfo' <<< show =<< getPoolParameters poolId
             liftM (error "unable to get any pools") (head pools)
 
           -- Delegate
@@ -453,8 +467,8 @@ suite = do
             -- No need for limit on number of retries, because we have a
             -- timeout for tests.
             waitUntilRewards = do
-              mbDelegationsAndRewards <- wrapContract
-                $ getDelegationsAndRewards aliceStakePkh
+              mbDelegationsAndRewards <-
+                getPubKeyHashDelegationsAndRewards aliceStakePkh
               (mbDelegationsAndRewards <#> _.delegate) `shouldEqual` Just
                 (Just poolId)
               case mbDelegationsAndRewards of
@@ -487,6 +501,6 @@ suite = do
           -- (usually) significantly longer.
           do
             { rewards: rewardsAfter } <-
-              liftedM "Unable to get rewards" $ wrapContract
-                $ getDelegationsAndRewards aliceStakePkh
+              liftedM "Unable to get rewards"
+                $ getPubKeyHashDelegationsAndRewards aliceStakePkh
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore

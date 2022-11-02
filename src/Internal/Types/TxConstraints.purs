@@ -44,7 +44,10 @@ module Ctl.Internal.Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
+  , mustPayToScriptAddress
+  , mustPayToScriptAddressWithScriptRef
   , mustPayToNativeScript
+  , mustPayToNativeScriptAddress
   , mustPayToScriptWithScriptRef
   , mustPayToPubKey
   , mustPayToPubKeyAddress
@@ -94,6 +97,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , PoolRegistrationParams
   )
 import Ctl.Internal.NativeScripts (NativeScriptHash)
+import Ctl.Internal.Plutus.Types.Credential (Credential)
 import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , currencyMPSHash
@@ -160,8 +164,10 @@ data TxConstraint
       (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
       Value
-  | MustPayToNativeScript NativeScriptHash Value
-  | MustPayToScript ValidatorHash Datum DatumPresence (Maybe ScriptRef) Value
+  | MustPayToNativeScript NativeScriptHash (Maybe Credential) Value
+  | MustPayToScript ValidatorHash (Maybe Credential) Datum DatumPresence
+      (Maybe ScriptRef)
+      Value
   | MustHashDatum DataHash Datum
   | MustRegisterStakePubKey StakePubKeyHash
   | MustDeregisterStakePubKey StakePubKeyHash
@@ -427,7 +433,19 @@ mustPayToScript
   -> Value
   -> TxConstraints i o
 mustPayToScript vh dt dtp vl =
-  singleton (MustPayToScript vh dt dtp Nothing vl)
+  singleton (MustPayToScript vh Nothing dt dtp Nothing vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
+
+mustPayToScriptAddress
+  :: forall (i :: Type) (o :: Type)
+   . ValidatorHash
+  -> Credential
+  -> Datum
+  -> DatumPresence
+  -> Value
+  -> TxConstraints i o
+mustPayToScriptAddress vh credential dt dtp vl =
+  singleton (MustPayToScript vh (Just credential) dt dtp Nothing vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 -- | Lock the value, datum and reference script with a script.
@@ -442,7 +460,23 @@ mustPayToScriptWithScriptRef
   -> Value
   -> TxConstraints i o
 mustPayToScriptWithScriptRef vh dt dtp scriptRef vl =
-  singleton (MustPayToScript vh dt dtp (Just scriptRef) vl)
+  singleton (MustPayToScript vh Nothing dt dtp (Just scriptRef) vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
+
+-- | Lock the value, datum and reference script with a script.
+-- | Note that the provided reference script does *not* necessarily need to
+-- | control the spending of the output, i.e. both scripts can be different.
+mustPayToScriptAddressWithScriptRef
+  :: forall (i :: Type) (o :: Type)
+   . ValidatorHash
+  -> Credential
+  -> Datum
+  -> DatumPresence
+  -> ScriptRef
+  -> Value
+  -> TxConstraints i o
+mustPayToScriptAddressWithScriptRef vh credential dt dtp scriptRef vl =
+  singleton (MustPayToScript vh (Just credential) dt dtp (Just scriptRef) vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToNativeScript
@@ -451,7 +485,16 @@ mustPayToNativeScript
   -> Value
   -> TxConstraints i o
 mustPayToNativeScript nsHash vl =
-  singleton (MustPayToNativeScript nsHash vl)
+  singleton (MustPayToNativeScript nsHash Nothing vl)
+
+mustPayToNativeScriptAddress
+  :: forall (i :: Type) (o :: Type)
+   . NativeScriptHash
+  -> Credential
+  -> Value
+  -> TxConstraints i o
+mustPayToNativeScriptAddress nsHash credential vl =
+  singleton (MustPayToNativeScript nsHash (Just credential) vl)
 
 -- | Mint the given `Value`
 mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
