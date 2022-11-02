@@ -6,7 +6,6 @@ module Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsArchiveUrl
   , ChromeUserDataDir
-  , ChromeUserDataUrl
   , CrxFilePath
   , ExtensionId
   , mkExtensionId
@@ -55,9 +54,6 @@ type SettingsArchiveUrl = String
 
 -- | Chrome user data directory
 type ChromeUserDataDir = FilePath
-
--- | Chrome user data url
-type ChromeUserDataUrl = String
 
 -- | Path to a `.crx` chrome extension file.
 type CrxFilePath = FilePath
