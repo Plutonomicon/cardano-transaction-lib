@@ -660,7 +660,7 @@ convertCert = case _ of
   T.StakeDeregistration stakeCredential ->
     newStakeDeregistrationCertificate stakeCredential
   T.StakeDelegation stakeCredential keyHash ->
-    newStakeDelegationCertificate stakeCredential keyHash
+    newStakeDelegationCertificate stakeCredential (unwrap keyHash)
   T.PoolRegistration
     { operator
     , vrfKeyhash

@@ -566,7 +566,7 @@ txFixture4 =
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
-            , StakeDelegation stake1 ed25519KeyHash1
+            , StakeDelegation stake1 (wrap ed25519KeyHash1)
             , PoolRegistration
                 { operator: wrap ed25519KeyHash1
                 , vrfKeyhash: unsafePartial $ fromJust $ fromBytes

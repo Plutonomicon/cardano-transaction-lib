@@ -50,6 +50,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
+  , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
   , pubKeyPayments
   , requiredDatums

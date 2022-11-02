@@ -16,7 +16,7 @@
       };
     };
 
-    plutip.url = "github:mlabs-haskell/plutip/650e796dffc1ac502311260a56f6f67f2cf80dcf";
+    plutip.url = "github:mlabs-haskell/plutip/dc5c9440fe2a66d533f383bd6f6477ad764da1f9";
     plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
     plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
     plutip.inputs.iohk-nix.follows = "bot-plutus-interface/iohk-nix";

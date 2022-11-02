@@ -1049,7 +1049,7 @@ type OgmiosListeners =
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) Aeson
-  , delegationsAndRewards :: ListenerSet (Array StakePubKeyHash) Aeson
+  , delegationsAndRewards :: ListenerSet (Array String) Aeson
   }
 
 type DatumCacheListeners =

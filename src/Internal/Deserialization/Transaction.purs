@@ -341,7 +341,7 @@ convertCertificate = _convertCert certConvHelper
   certConvHelper =
     { stakeDeregistration: pure <<< T.StakeDeregistration
     , stakeRegistration: pure <<< T.StakeRegistration
-    , stakeDelegation: \sc -> pure <<< T.StakeDelegation sc
+    , stakeDelegation: \sc -> pure <<< T.StakeDelegation sc <<< wrap
     , poolRegistration: convertPoolRegistration
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do

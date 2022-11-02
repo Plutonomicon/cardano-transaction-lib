@@ -645,7 +645,7 @@ instance Show PoolPubKeyHash where
 data Certificate
   = StakeRegistration StakeCredential
   | StakeDeregistration StakeCredential
-  | StakeDelegation StakeCredential Ed25519KeyHash
+  | StakeDelegation StakeCredential PoolPubKeyHash
   | PoolRegistration PoolRegistrationParams
   | PoolRetirement
       { poolKeyHash :: PoolPubKeyHash
