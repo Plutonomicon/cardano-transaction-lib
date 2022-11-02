@@ -48,7 +48,11 @@
       #
       # You can refer to the final configuration value by passing a function
       # that takes a single arugment. Alternatively, you can pass an attrset
-      # directly
+      # directly.
+      #
+      # Here we demonstrate how to add `extraServices` and `extraDockerCompose`.
+      # For the other attributes, which have default values,
+      # consult `defaultConfig` in `nix/runtime.nix`.
       runtimeConfig = { };
       # runtimeConfig = final: with final; {
       #   # You can add new services to the runtime. These should correspond to
