@@ -4,6 +4,13 @@ import Prelude
 
 import Contract.Address (ByteArray)
 import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
+import Ctl.Internal.Cardano.TextEnvelope
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeType(Other)
+  , decodeTextEnvelope
+  )
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
@@ -43,6 +50,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error)
+import Effect.Exception (error)
 import Mote (group, test)
 import Test.Ctl.Fixtures
   ( nativeScriptFixture1
@@ -232,6 +240,11 @@ suite = do
       test "fixture #3" $ witnessSetRoundTrip witnessSetFixture3
       -- TODO: enable when nativeScripts are implemented
       test "fixture #4" $ witnessSetRoundTrip witnessSetFixture4
+    group "TextEnvelope decoding" do
+      test "Decoding TestEnvelope with some other type" do
+        TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
+          decodeTextEnvelope otherTypeTextEnvelope
+        envelope.type_ `shouldEqual` (Other "SomeOtherType")
 
 createUnspentOutput
   :: T.TransactionInput
