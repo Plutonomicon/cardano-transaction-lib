@@ -612,8 +612,8 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
           tn1 <- mkTokenName "Token name"
-          mp1 /\ cs1 <- mkCurrencySymbol alwaysMintsPolicy
-          mp2 /\ cs2 <- mkCurrencySymbol alwaysMintsPolicyV2
+          mp1 /\ _ <- mkCurrencySymbol alwaysMintsPolicy
+          mp2 /\ _ <- mkCurrencySymbol alwaysMintsPolicyV2
 
           let
             constraints :: Constraints.TxConstraints Void Void
