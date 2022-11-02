@@ -2,10 +2,10 @@
 module Ctl.Internal.Wallet.KeyFile
   ( keyFromFile
   , privatePaymentKeyFromFile
-  , privatePaymentKeyFromString
+  , privatePaymentKeyFromTextEnvelope
   , privatePaymentKeyToFile
   , privateStakeKeyFromFile
-  , privateStakeKeyFromString
+  , privateStakeKeyFromTextEnvelope
   , privateStakeKeyToFile
   , formatStakeKey
   , formatPaymentKey
@@ -52,14 +52,14 @@ keyFromFile filePath ty = do
     unless (envelope.type_ == ty) Nothing
     pure envelope.bytes
 
-privatePaymentKeyFromString :: TextEnvelope -> Maybe PrivatePaymentKey
-privatePaymentKeyFromString (TextEnvelope envelope) = do
+privatePaymentKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivatePaymentKey
+privatePaymentKeyFromTextEnvelope (TextEnvelope envelope) = do
   -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == PaymentSigningKeyShelleyed25519) Nothing
   PrivatePaymentKey <$> privateKeyFromBytes (wrap envelope.bytes)
 
-privateStakeKeyFromString :: TextEnvelope -> Maybe PrivateStakeKey
-privateStakeKeyFromString (TextEnvelope envelope) = do
+privateStakeKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivateStakeKey
+privateStakeKeyFromTextEnvelope (TextEnvelope envelope) = do
   -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == StakeSigningKeyShelleyed25519) Nothing
   PrivateStakeKey <$> privateKeyFromBytes (wrap envelope.bytes)
