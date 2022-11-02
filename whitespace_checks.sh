@@ -2,7 +2,7 @@
 
 # Check trailing whitespaces
 
-trailing_whitespaces=$(grep -I '[[:blank:]]$' -Rl . | grep -v -E '.*(spago|dist-newstyle).*')
+trailing_whitespaces=$(grep -I '[[:blank:]]$' -Rl . | grep -v -E '.*(spago|.git|dist-newstyle).*')
 
 if [ -z "$trailing_whitespaces" ]
 then
