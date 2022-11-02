@@ -7,12 +7,12 @@ module Contract.Test.Plutip
 import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Plutip.Server
-  ( runPlutipContract
-  , testPlutipContracts
-  , withWallets
+  ( PlutipTest
   , noWallet
-  , PlutipTest
+  , runPlutipContract
+  , testPlutipContracts
   , withPlutipContractEnv
+  , withWallets
   ) as X
 import Ctl.Internal.Plutip.Types
   ( InitialUTxODistribution

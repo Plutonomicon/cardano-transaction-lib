@@ -33,8 +33,8 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
 import Control.Alternative (guard)
-import Control.Monad.State.Trans (StateT(StateT), runStateT)
 import Control.Monad.Reader (asks)
+import Control.Monad.State.Trans (StateT(StateT), runStateT)
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
@@ -122,7 +122,7 @@ decodeWallets'Array
   -> Array PrivateKeyResponse
   -> Maybe (Array KeyWallet /\ Array PrivateKeyResponse)
 decodeWallets'Array d pks = flip runStateT pks do
-    traverse (StateT <<< decodeWallets') d
+  traverse (StateT <<< decodeWallets') d
 
 keyWalletsArray
   :: forall (distr :: Type)

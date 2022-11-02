@@ -14,7 +14,6 @@ module Ctl.Internal.Plutip.Server
 
 import Prelude
 
-import Control.Monad.State (State, execState, modify_)
 import Aeson
   ( decodeAeson
   , encodeAeson
@@ -32,9 +31,10 @@ import Contract.Monad
   , liftContractM
   , runContractInEnv
   )
-import Control.Monad.Writer (execWriterT, tell, censor)
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Error.Class (liftEither)
+import Control.Monad.State (State, execState, modify_)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
@@ -107,8 +107,8 @@ import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Mote (bracket, group) as Mote
-import Mote.Monad (mapTest, MoteT(MoteT))
 import Mote.Description (Description(Group, Test))
+import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Type.Prelude (Proxy(Proxy))
 
@@ -153,23 +153,35 @@ withPlutipContractEnv plutipCfg distr cont = do
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
 
-type PlutipTestHandler distr wallets r = UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
+type PlutipTestHandler distr wallets r =
+  UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
 
 -- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTest = PlutipTest (forall r. (forall distr wallets. PlutipTestHandler distr wallets r) -> r)
+newtype PlutipTest = PlutipTest
+  (forall r. (forall distr wallets. PlutipTestHandler distr wallets r) -> r)
 
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
-withWallets :: forall distr wallets. UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> PlutipTest
+withWallets
+  :: forall distr wallets
+   . UtxoDistribution distr wallets
+  => distr
+  -> (wallets -> Contract () Unit)
+  -> PlutipTest
 withWallets distr tests = PlutipTest \h -> h distr tests
 
 -- | Lift a `Contract` into `PlutipTest`
 noWallet :: Contract () Unit -> PlutipTest
 noWallet = withWallets unit <<< const
 
-type PlutipTestPlanHandler distr wallets r = UtxoDistribution distr wallets => distr -> TestPlanM (wallets -> Contract () Unit) Unit -> r
+type PlutipTestPlanHandler distr wallets r =
+  UtxoDistribution distr wallets
+  => distr
+  -> TestPlanM (wallets -> Contract () Unit) Unit
+  -> r
 
 -- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTestPlan = PlutipTestPlan (forall r. (forall distr wallets. PlutipTestPlanHandler distr wallets r) -> r)
+newtype PlutipTestPlan = PlutipTestPlan
+  (forall r. (forall distr wallets. PlutipTestPlanHandler distr wallets r) -> r)
 
 -- | Lifts the utxo distributions of each test out of Mote, into a combined distribution
 -- | Adapts the tests to pick their distribution out of the combined distribution
@@ -181,17 +193,23 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
   go = flip execState emptyPlutipTestPlan <<< traverse_ case _ of
     Test rm { bracket, label, value: PlutipTest runPlutipTest } ->
       runPlutipTest \distr test -> do
-        addTests distr $ MoteT (tell [Test rm { bracket, label, value: test }])
+        addTests distr $ MoteT
+          (tell [ Test rm { bracket, label, value: test } ])
     Group rm { bracket, label, value } -> do
       let PlutipTestPlan runGroupPlan = go value
       runGroupPlan \distr tests ->
-        addTests distr $ over MoteT (censor (pure <<< Group rm <<< { bracket, label, value: _ })) tests
+        addTests distr $ over MoteT
+          (censor (pure <<< Group rm <<< { bracket, label, value: _ }))
+          tests
 
-  addTests :: forall distr wallets. PlutipTestPlanHandler distr wallets (State PlutipTestPlan Unit)
+  addTests
+    :: forall distr wallets
+     . PlutipTestPlanHandler distr wallets (State PlutipTestPlan Unit)
   addTests distr tests = do
-    modify_ \(PlutipTestPlan runPlutipTestPlan) -> runPlutipTestPlan \distr' tests' -> PlutipTestPlan \h -> h (distr' /\ distr) do
-      mapTest (_ <<< fst) tests'
-      mapTest (_ <<< snd) tests
+    modify_ \(PlutipTestPlan runPlutipTestPlan) -> runPlutipTestPlan
+      \distr' tests' -> PlutipTestPlan \h -> h (distr' /\ distr) do
+        mapTest (_ <<< fst) tests'
+        mapTest (_ <<< snd) tests
 
   emptyPlutipTestPlan :: PlutipTestPlan
   emptyPlutipTestPlan = PlutipTestPlan \h -> h unit (pure unit)
@@ -202,7 +220,8 @@ testPlutipContracts
   -> TestPlanM PlutipTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
-  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution (Mote.group "HIDDEN_GROUP" tp)
+  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution
+    (Mote.group "HIDDEN_GROUP" tp)
   runPlutipTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
