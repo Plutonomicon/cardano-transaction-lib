@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "0d5e2ae617b171ee2b6f61e2d7e99e39fa70eeb1";
+        version = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "0d5e2ae617b171ee2b6f61e2d7e99e39fa70eeb1";
-          sha256 = "123lc2hf6s8asy8ngqlvx9q2xvndrw0asd4cfppq5daf8srr30fl";
+          rev = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc";
+          sha256 = "1n0vxr3pb8sc8kpi7bib09cqi732iiv9cwy00zfyjsnqkdkrddxd";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -528,6 +528,18 @@ let
           url = "https://github.com/purescript/purescript-gen.git";
           rev = "85c369f56545a3de834b7e7475a56bc9193bb4b4";
           sha256 = "1h396rqn1fc2c155i58vnaksqjrpajly128ah6wq1w426vwr1vrf";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "heterogeneous" = pkgs.stdenv.mkDerivation {
+        name = "heterogeneous";
+        version = "v0.5.1";
+        src = pkgs.fetchgit {
+          url = "https://github.com/natefaubion/purescript-heterogeneous.git";
+          rev = "550445cf7932e158395423fc087cdc05bab41c40";
+          sha256 = "08bpgm9p8ib1jzrmssqpa1bqqzfmba43lsih1xvr3pf1jfizayxg";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
