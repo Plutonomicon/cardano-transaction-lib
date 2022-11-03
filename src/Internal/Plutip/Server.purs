@@ -392,6 +392,7 @@ startPostgresServer pgConfig params = do
     ]
     defaultSpawnOptions
   liftEffect $ cleanupTmpDir pgChildProcess workingDir testClusterDir
+  liftEffect $ killOnExit pgChildProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
