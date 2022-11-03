@@ -5,10 +5,12 @@ module Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , spawnAndWaitForOutput
   , killOnExit
+  , cleanupTmpDir
   ) where
 
 import Prelude
 
+import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
 import Data.Foldable (fold)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -18,13 +20,7 @@ import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Node.ChildProcess
-  ( ChildProcess
-  , SpawnOptions
-  , kill
-  , spawn
-  , stdout
-  )
+import Node.ChildProcess (ChildProcess, SpawnOptions, kill, spawn, stdout)
 import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
 import Node.Process as Process
@@ -88,3 +84,17 @@ killOnExit child = do
     alive <- Ref.read aliveRef
     when alive do
       kill SIGINT child
+
+foreign import _rmdirSync :: FilePath -> Effect Unit
+
+cleanupTmpDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
+cleanupTmpDir child workingDir testClusterDir = do
+  ChildProcess.onExit child \_ -> do
+    _rmdirSync workingDir
+  -- TODO
+  -- cleanup directories in case of ctrl+c exit,
+  -- code below doesn't work as intended.
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1176
+  Process.onExit \_ -> do
+    _rmdirSync testClusterDir
+    _rmdirSync workingDir
