@@ -2,7 +2,7 @@
 
 # Check trailing whitespaces
 
-trailing_whitespaces=$(grep -I '[[:blank:]]$' -Rl . | grep -v -E '.*(spago|.git|dist-newstyle).*')
+trailing_whitespaces=$(grep -I '[[:blank:]]$' -Rl . | grep -v -E '.*(spago|.git|dist-newstyle|node_modules|.node|generated-docs|dist|test-data|.spago2nix).*')
 
 if [ -z "$trailing_whitespaces" ]
 then
