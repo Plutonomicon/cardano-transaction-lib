@@ -5,7 +5,7 @@ module Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , spawnAndWaitForOutput
   , killOnExit
-  , killOnExitAndRemDir
+  , cleanupTmpDir
   ) where
 
 import Prelude
@@ -87,10 +87,13 @@ killOnExit child = do
 
 foreign import _rmdirSync :: FilePath -> Effect Unit
 
-killOnExitAndRemDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
-killOnExitAndRemDir child workingDir testClusterDir = do
+cleanupTmpDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
+cleanupTmpDir child workingDir testClusterDir = do
   ChildProcess.onExit child \_ -> do
     _rmdirSync workingDir
+  -- TODO
+  -- cleanup directories in case of ctrl+c exit,
+  -- code below doesn't work as intended.
   Process.onExit \_ -> do
     _rmdirSync testClusterDir
     _rmdirSync workingDir

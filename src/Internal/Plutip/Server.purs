@@ -24,8 +24,8 @@ import Contract.Monad
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
+  , cleanupTmpDir
   , killOnExit
-  , killOnExitAndRemDir
   , spawnAndWaitForOutput
   )
 import Ctl.Internal.Plutip.Types
@@ -391,7 +391,7 @@ startPostgresServer pgConfig params = do
     , postgresSocket
     ]
     defaultSpawnOptions
-  liftEffect $ killOnExitAndRemDir pgChildProcess workingDir testClusterDir
+  liftEffect $ cleanupTmpDir pgChildProcess workingDir testClusterDir
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const
     $ liftEffect
