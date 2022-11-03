@@ -65,7 +65,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String (Pattern(Pattern), trim)
+import Data.String (Pattern(Pattern), toLower, toUpper, trim)
 import Data.String as String
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Traversable (for, for_)
@@ -263,8 +263,6 @@ readBrowserRuntime mbTests testOptions = do
   unpackSettings settingsArchive chromeUserDataDir
 
   wallets <- readExtensions testOptions.wallets
-
-  void $ liftEffect $ throw "aoeuaoeuaoeu"
 
   let
     runtime =
@@ -555,8 +553,10 @@ readExtensionParams extensionName wallets = do
           crxFileUrl <-
             maybe
               ( liftedM
-                  ( error
-                      "Please specify any of --<ext>-crx-url or <ext>_CRX_URL"
+                  ( error $ "Please specify any of --" <> toLower extensionName
+                      <> "-crx-url or "
+                      <> toUpper extensionName
+                      <> "_CRX_URL"
                   ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
               )
               pure $ crxUrl
