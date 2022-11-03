@@ -3,21 +3,18 @@ module Ctl.Internal.QueryM.MinFee (calculateMinFee) where
 import Prelude
 
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Certificate(StakeRegistration)
-  , Transaction
+  ( Transaction
   , UtxoMap
   , _body
-  , _certs
   , _collateral
   , _inputs
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
+import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.QueryM (QueryM, getProtocolParameters, getWalletAddresses)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -30,11 +27,11 @@ import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable)
 import Data.Array as Array
-import Data.Foldable (fold, sum)
+import Data.Foldable (fold)
 import Data.Lens.Getter ((^.))
 import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (difference, fromFoldable, intersection, union) as Set
 import Data.Traversable (for)
@@ -46,19 +43,7 @@ calculateMinFee :: Transaction -> UtxoMap -> QueryM Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
   pparams <- getProtocolParameters
-  let stakeCertsFee = getStakeCertsFee tx pparams
   calculateMinFeeCsl pparams selfSigners tx
-    <#> unwrap >>> add (unwrap stakeCertsFee) >>> wrap
-
-getStakeCertsFee :: Transaction -> ProtocolParameters -> Coin
-getStakeCertsFee tx pparams = Coin $
-  (tx ^. _body <<< _certs) # fold
-    >>> map
-      ( case _ of
-          StakeRegistration _ -> unwrap (unwrap pparams).stakeAddressDeposit
-          _ -> zero
-      )
-    >>> sum
 
 getSelfSigners :: Transaction -> UtxoMap -> QueryM (Set Ed25519KeyHash)
 getSelfSigners tx additionalUtxos = do
