@@ -307,12 +307,14 @@ let additions =
           , "foldable-traversable"
           , "foreign"
           , "foreign-object"
+          , "heterogeneous"
           , "http-methods"
           , "identity"
           , "integers"
           , "js-date"
           , "lattice"
           , "lists"
+          , "math"
           , "maybe"
           , "medea"
           , "media-types"
@@ -327,9 +329,9 @@ let additions =
           , "node-process"
           , "node-streams"
           , "nonempty"
-          , "optparse"
           , "now"
           , "numbers"
+          , "optparse"
           , "ordered-collections"
           , "orders"
           , "parallel"
@@ -345,6 +347,7 @@ let additions =
           , "rationals"
           , "record"
           , "refs"
+          , "safe-coerce"
           , "spec"
           , "spec-quickcheck"
           , "strings"
@@ -363,7 +366,8 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "0d5e2ae617b171ee2b6f61e2d7e99e39fa70eeb1"
+        , version = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc"
         }
       }
-in upstream // additions
+
+in  upstream // additions

@@ -53,6 +53,7 @@ config =
       { slotLength: Seconds 0.2
       , epochSize: UInt.fromInt 80
       }
+  , hooks: mempty
   }
 
 privateStakeKey :: PrivateStakeKey

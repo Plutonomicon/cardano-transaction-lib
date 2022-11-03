@@ -65,7 +65,6 @@ plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript
 
 scriptRefHash :: ScriptRef -> ScriptHash
-scriptRefHash (PlutusScriptRef plutusScript) =
-  plutusScriptHash plutusScript
+scriptRefHash (PlutusScriptRef plutusScript) = plutusScriptHash plutusScript
 scriptRefHash (NativeScriptRef nativeScript) =
   nativeScriptHash $ convertNativeScript nativeScript
