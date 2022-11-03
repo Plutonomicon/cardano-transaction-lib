@@ -74,6 +74,7 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , encodeAeson
+  , getFieldOptional
   , parseJsonStringToAeson
   , stringifyAeson
   )
@@ -127,6 +128,7 @@ import Ctl.Internal.QueryM.JsonWsp
   )
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
 import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash)
+import Ctl.Internal.QueryM.Ogmios (aesonObject)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -748,25 +750,27 @@ mkServiceWebSocket
   :: String
   -> Logger
   -> ServerConfig
+  -> (ServerConfig -> Url)
   -> Aff (JsWebSocket /\ Dispatcher /\ PendingRequests)
-mkServiceWebSocket serviceName logger serverConfig =
-  makeAff $ mkServiceWebSocket' serviceName logger serverConfig
+mkServiceWebSocket serviceName logger serverConfig mkWebSocketUrl =
+  makeAff $ mkServiceWebSocket' serviceName logger serverConfig mkWebSocketUrl
 
 mkServiceWebSocket'
   :: String
   -> Logger
   -> ServerConfig
+  -> (ServerConfig -> Url)
   -> ( Either Error (JsWebSocket /\ Dispatcher /\ PendingRequests)
        -> Effect Unit
      )
   -> Effect Canceler
-mkServiceWebSocket' serviceName logger serverCfg continue = do
+mkServiceWebSocket' serviceName logger serverCfg mkWebSocketUrl continue = do
   dispatcher <- Ref.new Map.empty
   pending <- Ref.new Map.empty
   let
     (messageDispatch :: WebsocketDispatch) =
       mkWebsocketDispatch dispatcher
-  ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
+  ws <- _mkWebSocket (logger Debug) $ mkWebSocketUrl serverCfg
   let
     sendRequest :: RequestBody -> Effect Unit
     sendRequest = _wsSend ws (logger Debug)
@@ -947,10 +951,13 @@ resendPendingSubmitRequests ogmiosWs odcWs logger sendRequest dispatcher pr = do
       Ref.modify_ (Map.delete listenerId) pr
       dispatchMap <- Ref.read dispatcher
       Ref.modify_ (Map.delete listenerId) dispatcher
-      case Map.lookup listenerId dispatchMap of
-        Nothing -> pure unit
-        Just handler ->
-          handler (encodeAeson { "SubmitSuccess": { "txId": txHash } })
+      Map.lookup listenerId dispatchMap #
+        maybe (pure unit) (_ $ submitSuccessPartialResp)
+    where
+    submitSuccessPartialResp :: Aeson
+    submitSuccessPartialResp =
+      encodeAeson
+        { "result": { "SubmitSuccess": { "txId": txHash } } }
 
 mkDatumCacheWebSocketAff
   :: Logger
@@ -959,6 +966,7 @@ mkDatumCacheWebSocketAff
 mkDatumCacheWebSocketAff logger serverConfig = do
   ws /\ dispatcher /\ pending <- mkServiceWebSocket "ogmios-datum-cache" logger
     serverConfig
+    mkOgmiosDatumCacheWsUrl
   pure $ WebSocket ws
     { getDatumByHash: mkListenerSet dispatcher pending
     , getDatumsByHashes: mkListenerSet dispatcher pending
@@ -1029,11 +1037,11 @@ mkAddMessageListener
 mkAddMessageListener dispatcher =
   \reflection handler ->
     flip Ref.modify_ dispatcher $
-      Map.insert reflection \aeson ->
-        case parseJsonWspResponse aeson of
-          Left err -> handler $ Left $ JsonError err
-          Right { result: Just result } -> handler $ Right result
-          Right { result: Nothing } -> handler $ Left $ FaultError aeson
+      Map.insert reflection \aeson -> handler $
+        case (aesonObject (flip getFieldOptional "result") aeson) of
+          Left err -> Left (JsonError err)
+          Right (Just result) -> Right result
+          Right Nothing -> Left (FaultError aeson)
 
 mkRemoveMessageListener
   :: forall (requestData :: Type)
@@ -1189,7 +1197,8 @@ mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
       respLs.addRequest id (sBody /\ input)
       _wsSend webSocket (logger Debug) sBody
       -- Uncomment this code fragment to test `SubmitTx` request resend logic:
-      -- when (isJust $ getRequestInputToStore inp) $
+      -- let method = aesonObject (flip getFieldOptional "methodname") body 
+      -- when (method == Right (Just "SubmitTx")) do
       --   _wsReconnect webSocket
       pure $ Canceler $ \err -> do
         liftEffect $ respLs.removeMessageListener id
