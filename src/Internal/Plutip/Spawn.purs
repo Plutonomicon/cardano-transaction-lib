@@ -87,17 +87,10 @@ killOnExit child = do
 
 foreign import _rmdirSync :: FilePath -> Effect Unit
 
--- foreign import _removeDirs :: FilePath -> Effect Unit
-
 killOnExitAndRemDir :: ChildProcess -> FilePath -> FilePath -> Effect Unit
 killOnExitAndRemDir child workingDir testClusterDir = do
-  aliveRef <- Ref.new true
   ChildProcess.onExit child \_ -> do
-    Ref.write false aliveRef
     _rmdirSync workingDir
   Process.onExit \_ -> do
-    alive <- Ref.read aliveRef
     _rmdirSync testClusterDir
     _rmdirSync workingDir
-    when alive do
-      kill SIGINT child
