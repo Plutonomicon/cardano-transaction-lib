@@ -1,6 +1,6 @@
 -- | This module demonstrates how to enable transaction chaining when submitting
--- | multiple transactions in the correct order; and how subsequent transactions 
--- | can use utxos created in the previous ones without waiting for them to 
+-- | multiple transactions in the correct order; and how subsequent transactions
+-- | can use utxos created in the previous ones without waiting for them to
 -- | leave the mempool and be included in the block.
 module Ctl.Examples.TxChaining
   ( main
