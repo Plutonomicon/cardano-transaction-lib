@@ -7,11 +7,13 @@ module Ctl.Internal.Plutip.Spawn
   , spawn
   , stop
   , waitForStop
+  , cleanupTmpDir
   ) where
 
 import Prelude
 
 import Control.Monad.Error.Class (throwError)
+import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
 import Data.Foldable (fold)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -31,6 +33,7 @@ import Node.ChildProcess
   , stdout
   )
 import Node.ChildProcess as ChildProcess
+import Node.Process as Process
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 
 -- | Carry along an `AVar` which resolves when the process closes.
@@ -111,3 +114,17 @@ waitForStop (ManagedProcess cmd _ closedAVar) = do
   AVar.read closedAVar >>= case _ of
     ChildProcess.Normally 0 -> pure unit
     _ -> throwError $ error $ "Process " <> cmd <> " did not exit cleanly"
+
+foreign import _rmdirSync :: FilePath -> Effect Unit
+
+cleanupTmpDir :: ManagedProcess -> FilePath -> FilePath -> Effect Unit
+cleanupTmpDir (ManagedProcess _ child _) workingDir testClusterDir = do
+  ChildProcess.onExit child \_ -> do
+    _rmdirSync workingDir
+  -- TODO
+  -- cleanup directories in case of ctrl+c exit,
+  -- code below doesn't work as intended.
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1176
+  Process.onExit \_ -> do
+    _rmdirSync testClusterDir
+    _rmdirSync workingDir

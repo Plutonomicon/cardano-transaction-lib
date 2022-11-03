@@ -14,12 +14,7 @@ module Ctl.Internal.Plutip.Server
 
 import Prelude
 
-import Aeson
-  ( decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -39,6 +34,7 @@ import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
+  , cleanupTmpDir
   , spawn
   , stop
   , waitForStop
@@ -110,6 +106,7 @@ import Mote (bracket, group) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
+import Node.Path (dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -275,7 +272,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
   startPlutipServer'
   ourKey /\ response <- startPlutipCluster'
-  startPostgres'
+  startPostgres' response
   startOgmios' response
   startOgmiosDatumCache' response
   startMCtlServer'
@@ -321,11 +318,15 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
 
-  startPostgres' :: Aff Unit
-  startPostgres' =
+  startPostgres' :: ClusterStartupParameters -> Aff Unit
+  startPostgres' response =
     bracket (startPostgresServer plutipCfg.postgresConfig)
-      (stopChildProcessWithPort plutipCfg.postgresConfig.port)
-      (const $ configurePostgresServer plutipCfg.postgresConfig)
+      (stopChildProcessWithPort plutipCfg.postgresConfig.port <<< fst)
+      \(process /\ workingDir) -> do
+        let
+          testClusterDir = (dirname <<< dirname) response.nodeConfigPath
+        liftEffect $ cleanupTmpDir process workingDir testClusterDir
+        configurePostgresServer plutipCfg.postgresConfig
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
@@ -536,7 +537,7 @@ checkPlutipServer cfg = do
     $ stopPlutipCluster cfg
 
 startPostgresServer
-  :: PostgresConfig -> Aff ManagedProcess
+  :: PostgresConfig -> Aff (ManagedProcess /\ String)
 startPostgresServer pgConfig = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
@@ -545,7 +546,7 @@ startPostgresServer pgConfig = do
     databaseDir = workingDir <> "/postgres/data"
     postgresSocket = workingDir <> "/postgres"
   waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
-  spawn "postgres"
+  pgChildProcess <- spawn "postgres"
     [ "-D"
     , databaseDir
     , "-p"
@@ -557,6 +558,7 @@ startPostgresServer pgConfig = do
     ]
     defaultSpawnOptions
     Nothing
+  pure (pgChildProcess /\ workingDir)
 
 configurePostgresServer
   :: PostgresConfig -> Aff Unit

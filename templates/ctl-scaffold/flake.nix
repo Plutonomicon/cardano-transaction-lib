@@ -12,6 +12,7 @@
       repo = "cardano-transaction-lib";
       rev = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc";
     };
+    # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
   };
 
@@ -24,14 +25,65 @@
         "aarch64-darwin"
       ];
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
+
+      # generate `pkgs` with CTL's overlays applied. This gives you access to
+      # various additional packages. The versions are the same as those that CTL uses.
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
           ctl.overlays.purescript
+          # This one is optional. If you set `ctl-server.enable = true;`
+          # in the runtime config as in our nix/runtime.nix, you must enable this
+          # overlay. `ctl-server` itself is **only** required when using
+          # CTL's `applyArgs` function
           ctl.overlays.ctl-server
           ctl.overlays.runtime
         ];
       };
+
+
+      # The configuration for the CTL runtime, which will be passed to the
+      # expression that builds the JSON file used by Arion. This value can be
+      # shared between `buildCtlRuntime` and `launchCtlRuntime`, as shown below
+      #
+      # You can refer to the final configuration value by passing a function
+      # that takes a single arugment. Alternatively, you can pass an attrset
+      # directly.
+      #
+      # Here we demonstrate how to add `extraServices` and `extraDockerCompose`.
+      # For the other attributes, which have default values,
+      # consult `defaultConfig` in `nix/runtime.nix`.
+      runtimeConfig = { };
+      # runtimeConfig = final: with final; {
+      #   # You can add new services to the runtime. These should correspond to
+      #   # Arion's `service` definition. The default is the empty attribute set
+      #   extraServices = {
+      #     # an image from dockerhub
+      #     foo = {
+      #       service = {
+      #         image = "bar:foo";
+      #         command = [
+      #           "baz"
+      #           "--quux"
+      #         ];
+      #       };
+
+      #       # Or a Nix-based image
+      #       foo2 = {
+      #         service = {
+      #           useHostStore = true;
+      #           command = [
+      #             "${(nixpkgsFor system).baz}/bin/baz"
+      #             "--quux"
+      #           ];
+      #         };
+      #       };
+      #     };
+      #   };
+      #   # This corresponds to `docker-compose.raw` from Arion. You can add new
+      #   # volumes, etc... using this
+      #   extraDockerCompose = { volumes = { someVol = { }; }; };
+
       psProjectFor = pkgs:
         pkgs.purescriptProject rec {
           inherit pkgs;
@@ -55,6 +107,14 @@
         };
     in
     {
+      # `buildCtlRuntime` will generate a Nix expression that, when built with
+      # `pkgs.arion.build`, outputs a JSON file compatible with Arion. This can
+      # be run directly with Arion or passed to another derivation. Or you can
+      # use `buildCtlRuntime` with `runArion` (from the `hercules-ci-effects`)
+      # library
+      #
+      # Use `nix build .#<PACKAGE>` to build. To run with Arion (i.e. in your
+      # shell): `arion --prebuilt-file ./result up`
       packages = perSystem (system:
         let
           pkgs = nixpkgsFor system;
@@ -65,16 +125,20 @@
             main = "Scaffold.Main";
             entrypoint = "index.js";
           };
-          ctl-scaffold-runtime = pkgs.buildCtlRuntime { };
+          ctl-scaffold-runtime = pkgs.buildCtlRuntime runtimeConfig;
         });
 
+      # `launchCtlRuntime` will generate a Nix expression from the provided
+      # config, build it into a JSON file, and then run it with Arion
+      #
+      # Use `nix run .#<APP>` to run the services (e.g. `nix run .#ctl-runtime`)
       apps = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
         {
           default = self.apps.${system}.ctl-scaffold-runtime;
-          ctl-scaffold-runtime = pkgs.launchCtlRuntime { };
+          ctl-scaffold-runtime = pkgs.launchCtlRuntime runtimeConfig;
           docs = (psProjectFor pkgs).launchSearchablePursDocs { };
         });
 
