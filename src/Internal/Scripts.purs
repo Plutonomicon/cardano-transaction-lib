@@ -1,13 +1,14 @@
 module Ctl.Internal.Scripts
   ( mintingPolicyHash
-  , scriptCurrencySymbol
+  , nativeScriptHashEnterpriseAddress
+  , nativeScriptStakeValidatorHash
   , plutusScriptStakeValidatorHash
+  , scriptCurrencySymbol
   , typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHash
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
-  , nativeScriptHashEnterpriseAddress
   ) where
 
 import Prelude
@@ -25,8 +26,9 @@ import Ctl.Internal.Serialization.Address
   , scriptHashCredential
   )
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
+  ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
+  , NativeScriptStakeValidator
   , PlutusScriptStakeValidator
   , StakeValidatorHash
   , Validator
@@ -86,10 +88,15 @@ nativeScriptHashEnterpriseAddress :: NetworkId -> NativeScriptHash -> Address
 nativeScriptHashEnterpriseAddress network nsHash =
   validatorHashEnterpriseAddress network (wrap $ unwrap nsHash)
 
--- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
+-- | Calculates a hash of a PlutusScript stake validator
 plutusScriptStakeValidatorHash
   :: PlutusScriptStakeValidator -> StakeValidatorHash
 plutusScriptStakeValidatorHash = unwrap >>> plutusScriptHash >>> wrap
+
+-- | Calculates a hash of a NativeScript stake validator
+nativeScriptStakeValidatorHash
+  :: NativeScriptStakeValidator -> StakeValidatorHash
+nativeScriptStakeValidatorHash = unwrap >>> nativeScriptHash >>> unwrap >>> wrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
