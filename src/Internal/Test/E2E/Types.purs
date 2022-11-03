@@ -23,7 +23,6 @@ module Ctl.Internal.Test.E2E.Types
 
 import Prelude
 
-import Affjax (URL)
 import Control.Alt ((<|>))
 import Data.Either (hush)
 import Data.Generic.Rep (class Generic)
