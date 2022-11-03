@@ -50,6 +50,7 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM (applyArgs) as QueryM
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
+  , nativeScriptStakeValidatorHash
   , plutusScriptStakeValidatorHash
   , validatorHash
   ) as ExportScripts

@@ -6,8 +6,10 @@ module Ctl.Internal.Types.TxConstraints
   , TxConstraint
       ( MustBeSignedBy
       , MustDelegateStakePlutusScript
+      , MustDelegateStakeNativeScript
       , MustDelegateStakePubKey
       , MustDeregisterStakePlutusScript
+      , MustDeregisterStakeNativeScript
       , MustDeregisterStakePubKey
       , MustHashDatum
       , MustIncludeDatum
@@ -30,27 +32,31 @@ module Ctl.Internal.Types.TxConstraints
       , MustSpendScriptOutput
       , MustValidateIn
       , MustWithdrawStakePlutusScript
+      , MustWithdrawStakeNativeScript
       , MustWithdrawStakePubKey
       )
   , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
   , mustBeSignedBy
+  , mustDelegateStakeNativeScript
+  , mustDelegateStakePlutusScript
+  , mustDelegateStakePubKey
+  , mustDeregisterStakeNativeScript
+  , mustDeregisterStakePlutusScript
+  , mustDeregisterStakePubKey
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
+  , mustMintCurrencyUsingNativeScript
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
-  , mustMintCurrencyUsingNativeScript
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToScript
-  , mustPayToScriptAddress
-  , mustPayToScriptAddressWithScriptRef
+  , mustNotBeValid
   , mustPayToNativeScript
   , mustPayToNativeScriptAddress
-  , mustPayToScriptWithScriptRef
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayToPubKeyAddressWithDatum
@@ -59,17 +65,17 @@ module Ctl.Internal.Types.TxConstraints
   , mustPayToPubKeyWithDatum
   , mustPayToPubKeyWithDatumAndScriptRef
   , mustPayToPubKeyWithScriptRef
+  , mustPayToScript
+  , mustPayToScriptAddress
+  , mustPayToScriptAddressWithScriptRef
+  , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
+  , mustRegisterPool
   , mustRegisterStakePubKey
   , mustRegisterStakeScript
-  , mustRegisterPool
   , mustRetirePool
-  , mustDeregisterStakePubKey
-  , mustDelegateStakePubKey
-  , mustDeregisterStakePlutusScript
-  , mustDelegateStakePlutusScript
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -77,10 +83,10 @@ module Ctl.Internal.Types.TxConstraints
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
-  , mustWithdrawStakePubKey
-  , mustWithdrawStakePlutusScript
   , mustValidateIn
-  , mustNotBeValid
+  , mustWithdrawStakeNativeScript
+  , mustWithdrawStakePlutusScript
+  , mustWithdrawStakePubKey
   , pubKeyPayments
   , requiredDatums
   , requiredMonetaryPolicies
@@ -120,6 +126,7 @@ import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicyHash
+  , NativeScriptStakeValidator
   , PlutusScriptStakeValidator
   , StakeValidatorHash
   , ValidatorHash
@@ -176,14 +183,16 @@ data TxConstraint
   | MustDeregisterStakePubKey StakePubKeyHash
   | MustRegisterStakeScript StakeValidatorHash
   | MustDeregisterStakePlutusScript PlutusScriptStakeValidator Redeemer
+  | MustDeregisterStakeNativeScript NativeScriptStakeValidator
   | MustRegisterPool PoolRegistrationParams
   | MustRetirePool PoolPubKeyHash Epoch
   | MustDelegateStakePubKey StakePubKeyHash PoolPubKeyHash
   | MustDelegateStakePlutusScript PlutusScriptStakeValidator Redeemer
       PoolPubKeyHash
-  -- | MustDelegateStakeNativeScript NativeScriptStakeValidator PoolPubKeyHash
+  | MustDelegateStakeNativeScript NativeScriptStakeValidator PoolPubKeyHash
   | MustWithdrawStakePubKey StakePubKeyHash
   | MustWithdrawStakePlutusScript PlutusScriptStakeValidator Redeemer
+  | MustWithdrawStakeNativeScript NativeScriptStakeValidator
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
 
@@ -632,6 +641,10 @@ mustDeregisterStakePlutusScript
 mustDeregisterStakePlutusScript sv = singleton <<<
   MustDeregisterStakePlutusScript sv
 
+mustDeregisterStakeNativeScript
+  :: forall i o. NativeScriptStakeValidator -> TxConstraints i o
+mustDeregisterStakeNativeScript = singleton <<< MustDeregisterStakeNativeScript
+
 mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
 
@@ -650,10 +663,15 @@ mustDelegateStakePlutusScript
   -> PoolPubKeyHash
   -> TxConstraints i o
 mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
-  MustDelegateStakePlutusScript
-    sv
-    redeemer
-    ppkh
+  MustDelegateStakePlutusScript sv redeemer ppkh
+
+mustDelegateStakeNativeScript
+  :: forall i o
+   . NativeScriptStakeValidator
+  -> PoolPubKeyHash
+  -> TxConstraints i o
+mustDelegateStakeNativeScript sv ppkh =
+  singleton $ MustDelegateStakeNativeScript sv ppkh
 
 mustWithdrawStakePubKey
   :: forall i o. StakePubKeyHash -> TxConstraints i o
@@ -663,6 +681,11 @@ mustWithdrawStakePlutusScript
   :: forall i o. PlutusScriptStakeValidator -> Redeemer -> TxConstraints i o
 mustWithdrawStakePlutusScript validator redeemer =
   singleton $ MustWithdrawStakePlutusScript validator redeemer
+
+mustWithdrawStakeNativeScript
+  :: forall i o. NativeScriptStakeValidator -> TxConstraints i o
+mustWithdrawStakeNativeScript =
+  singleton <<< MustWithdrawStakeNativeScript
 
 -- | Attempts to solve, in order, a sequence of constraints until the first
 -- | successful try.

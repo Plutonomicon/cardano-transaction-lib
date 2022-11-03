@@ -12,6 +12,7 @@ module Ctl.Internal.Types.ScriptLookups
       , CannotQueryDatum
       , CannotSatisfyAny
       , CannotWithdrawRewardsPlutusScript
+      , CannotWithdrawRewardsNativeScript
       , CannotWithdrawRewardsPubKey
       , DatumNotFound
       , DatumWrongHash
@@ -127,6 +128,7 @@ import Ctl.Internal.QueryM.Pools
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
+  , nativeScriptStakeValidatorHash
   , validatorHash
   , validatorHashEnterpriseAddress
   )
@@ -169,8 +171,9 @@ import Ctl.Internal.Types.PubKeyHash
   )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Reward, Mint, Spend))
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
+  ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
+  , NativeScriptStakeValidator
   , PlutusScriptStakeValidator
   , Validator
   , ValidatorHash
@@ -187,8 +190,10 @@ import Ctl.Internal.Types.TxConstraints
       ( MustBeSignedBy
       , MustDelegateStakePubKey
       , MustDelegateStakePlutusScript
+      , MustDelegateStakeNativeScript
       , MustDeregisterStakePubKey
       , MustDeregisterStakePlutusScript
+      , MustDeregisterStakeNativeScript
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
@@ -210,6 +215,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustValidateIn
       , MustWithdrawStakePubKey
       , MustWithdrawStakePlutusScript
+      , MustWithdrawStakeNativeScript
       , MustMintValueUsingNativeScript
       )
   , TxConstraints(TxConstraints)
@@ -855,6 +861,7 @@ data MkUnbalancedTxError
   | CannotQueryDatum DataHash
   | CannotWithdrawRewardsPubKey StakePubKeyHash
   | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
+  | CannotWithdrawRewardsNativeScript NativeScriptStakeValidator
   | DatumNotFound DataHash
   | DatumWrongHash DataHash Datum
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
@@ -1237,7 +1244,6 @@ processConstraint mpsMap osMap = do
                   , paymentCred: scriptHashCredential (unwrap nsh)
                   , delegationCred: credentialToStakeCredential cred
                   }
-
             , amount
             , datum: NoOutputDatum
             , scriptRef: Nothing
@@ -1281,6 +1287,13 @@ processConstraint mpsMap osMap = do
       ExceptT $ attachToCps attachRedeemer redeemer
       _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
       lift $ addCertificate cert
+    MustDeregisterStakeNativeScript stakeValidator -> do
+      addCertificate $ StakeDeregistration
+        $ scriptHashCredential
+        $ unwrap
+        $ nativeScriptStakeValidatorHash
+            stakeValidator
+      attachToCps attachNativeScript (unwrap stakeValidator)
     MustRegisterPool poolParams -> runExceptT do
       lift $ addCertificate $ PoolRegistration poolParams
     MustRetirePool poolKeyHash epoch -> runExceptT do
@@ -1307,6 +1320,13 @@ processConstraint mpsMap osMap = do
         ExceptT $ attachToCps attachRedeemer redeemer
         _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
         lift $ addCertificate cert
+    MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
+      addCertificate $ StakeDelegation
+        ( scriptHashCredential $ unwrap $ nativeScriptStakeValidatorHash
+            stakeValidator
+        )
+        poolKeyHash
+      attachToCps attachNativeScript (unwrap stakeValidator)
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ getPubKeyHashDelegationsAndRewards spkh
@@ -1335,6 +1355,17 @@ processConstraint mpsMap osMap = do
       ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
       ExceptT $ attachToCps attachRedeemer redeemer
       _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
+    MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
+      let hash = nativeScriptStakeValidatorHash stakeValidator
+      networkId <- lift getNetworkId
+      mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
+      let rewardAddress = stakeValidatorHashRewardAddress networkId hash
+      ({ rewards }) <- ExceptT $ pure $ note
+        (CannotWithdrawRewardsNativeScript stakeValidator)
+        mbRewards
+      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+      ExceptT $ attachToCps attachNativeScript (unwrap stakeValidator)
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
