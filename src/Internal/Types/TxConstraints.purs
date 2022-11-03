@@ -4,14 +4,15 @@ module Ctl.Internal.Types.TxConstraints
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
-      ( MustIncludeDatum
-      , MustBeSignedBy
+      ( MustBeSignedBy
       , MustDelegateStakePlutusScript
       , MustDelegateStakePubKey
-      , MustDeregisterStakePubKey
       , MustDeregisterStakePlutusScript
+      , MustDeregisterStakePubKey
       , MustHashDatum
+      , MustIncludeDatum
       , MustMintValue
+      , MustMintValueUsingNativeScript
       , MustNotBeValid
       , MustPayToNativeScript
       , MustPayToPubKeyAddress
@@ -28,8 +29,8 @@ module Ctl.Internal.Types.TxConstraints
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
       , MustValidateIn
-      , MustWithdrawStakePubKey
       , MustWithdrawStakePlutusScript
+      , MustWithdrawStakePubKey
       )
   , TxConstraints(TxConstraints)
   , addTxIn
@@ -41,6 +42,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
+  , mustMintCurrencyUsingNativeScript
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustPayToScript
@@ -160,6 +162,7 @@ data TxConstraint
   | MustReferenceOutput TransactionInput
   | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
       (Maybe InputWithScriptRef)
+  | MustMintValueUsingNativeScript NativeScript TokenName BigInt
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
@@ -526,6 +529,15 @@ mustMintCurrency
   -> TxConstraints i o
 mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph unitRedeemer
+
+mustMintCurrencyUsingNativeScript
+  :: forall (i :: Type) (o :: Type)
+   . NativeScript
+  -> TokenName
+  -> BigInt
+  -> TxConstraints i o
+mustMintCurrencyUsingNativeScript ns tk i = singleton
+  (MustMintValueUsingNativeScript ns tk i)
 
 -- | Create the given amount of the currency using a reference minting policy.
 mustMintCurrencyUsingScriptRef

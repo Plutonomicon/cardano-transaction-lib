@@ -13,7 +13,7 @@ module Ctl.Internal.Scripts
 import Prelude
 
 import Ctl.Internal.Hashing (plutusScriptHash)
-import Ctl.Internal.NativeScripts (NativeScriptHash)
+import Ctl.Internal.NativeScripts (NativeScriptHash, nativeScriptHash)
 import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -25,7 +25,7 @@ import Ctl.Internal.Serialization.Address
   , scriptHashCredential
   )
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash
   , PlutusScriptStakeValidator
   , StakeValidatorHash
@@ -56,7 +56,9 @@ typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> MintingPolicyHash
-mintingPolicyHash = wrap <<< plutusScriptHash <<< unwrap
+mintingPolicyHash = case _ of
+  PlutusMintingPolicy script -> wrap $ plutusScriptHash script
+  NativeMintingPolicy nscript -> wrap $ unwrap $ nativeScriptHash nscript
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
 validatorHash :: Validator -> ValidatorHash

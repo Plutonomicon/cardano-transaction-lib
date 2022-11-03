@@ -31,6 +31,7 @@ import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
 import Ctl.Internal.Serialization.WitnessSet as SW
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
@@ -78,7 +79,6 @@ import Test.Ctl.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
@@ -244,9 +244,14 @@ createUnspentOutput input output = do
 
 testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
-  let
-    serialized = NSS.convertNativeScript input
-    bytes = Serialization.toBytes (asOneOf serialized)
+  serialized <- pure $ NSS.convertNativeScript input
+  {-            ^^^^ This is necessary here as convertNativeScript can throw
+                a maximum call stack size runtime error (see excessive nesting
+                test above). It needs to be lifted into the Effect monad for
+                purescript to handle it correctly.
+  -}
+
+  let bytes = Serialization.toBytes (asOneOf serialized)
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input

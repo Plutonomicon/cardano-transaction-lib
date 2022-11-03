@@ -7,9 +7,9 @@ import Prelude
 import Contract.Prim.ByteArray (hexToByteArray)
 import Ctl.Internal.Cardano.Types.Transaction (Ipv6(Ipv6))
 import Ctl.Internal.QueryM.Pools (parseIpv6String)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Effect.Aff (Aff)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

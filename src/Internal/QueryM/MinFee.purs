@@ -2,7 +2,6 @@ module Ctl.Internal.QueryM.MinFee (calculateMinFee) where
 
 import Prelude
 
-import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeRegistration)
   , Transaction
@@ -17,7 +16,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Helpers (liftM, liftedM)
-import Ctl.Internal.QueryM (QueryM, getWalletAddresses)
+import Ctl.Internal.QueryM (QueryM, getProtocolParameters, getWalletAddresses)
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
@@ -31,48 +30,50 @@ import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Foldable (fold, sum)
 import Data.Lens.Getter ((^.))
-import Data.Map (empty, fromFoldable, lookup) as Map
+import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
-import Data.Set (fromFoldable, intersection, union) as Set
+import Data.Set (difference, fromFoldable, intersection, union) as Set
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
 
 -- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
-calculateMinFee :: Transaction -> QueryM Coin
-calculateMinFee tx = do
-  selfSigners <- getSelfSigners tx
-  pparams <- asks $ _.runtime >>> _.pparams
-  stakeCertsFee <- getStakeCertsFee tx pparams
+calculateMinFee :: Transaction -> UtxoMap -> QueryM Coin
+calculateMinFee tx additionalUtxos = do
+  selfSigners <- getSelfSigners tx additionalUtxos
+  pparams <- getProtocolParameters
+  let stakeCertsFee = getStakeCertsFee tx pparams
   calculateMinFeeCsl pparams selfSigners tx
     <#> unwrap >>> add (unwrap stakeCertsFee) >>> wrap
 
-getStakeCertsFee :: Transaction -> ProtocolParameters -> QueryM Coin
-getStakeCertsFee tx pparams = do
-  let
-    fee :: BigInt.BigInt
-    fee =
-      (tx ^. _body <<< _certs) # fold
-        >>> map
-          ( \(cert :: _) -> case cert of
-              StakeRegistration _ -> unwrap (unwrap pparams).stakeAddressDeposit
-              _ -> zero
-          )
-        >>> sum
-  pure $ Coin fee
+getStakeCertsFee :: Transaction -> ProtocolParameters -> Coin
+getStakeCertsFee tx pparams = Coin $
+  (tx ^. _body <<< _certs) # fold
+    >>> map
+      ( case _ of
+          StakeRegistration _ -> unwrap (unwrap pparams).stakeAddressDeposit
+          _ -> zero
+      )
+    >>> sum
 
-getSelfSigners :: Transaction -> QueryM (Set Ed25519KeyHash)
-getSelfSigners tx = do
+getSelfSigners :: Transaction -> UtxoMap -> QueryM (Set Ed25519KeyHash)
+getSelfSigners tx additionalUtxos = do
 
-  -- Get all tx input addresses
+  -- Get all tx inputs and remove the additional ones.
   let
     txInputs :: Set TransactionInput
-    txInputs = tx ^. _body <<< _inputs
+    txInputs =
+      Set.difference
+        (tx ^. _body <<< _inputs)
+        (Map.keys additionalUtxos)
+
+    additionalUtxosAddrs :: Set Address
+    additionalUtxosAddrs = Set.fromFoldable $
+      (_.address <<< unwrap) <$> Map.values additionalUtxos
 
   (inUtxosAddrs :: Set Address) <- setFor txInputs $ \txInput ->
     liftedM (error $ "Couldn't get tx output for " <> show txInput) $
@@ -99,7 +100,7 @@ getSelfSigners tx = do
   -- Combine to get all self tx input addresses
   let
     txOwnAddrs = ownAddrs `Set.intersection`
-      (inUtxosAddrs `Set.union` inCollatAddrs)
+      (additionalUtxosAddrs `Set.union` inUtxosAddrs `Set.union` inCollatAddrs)
 
   -- Extract payment pub key hashes from addresses
   paymentPkhs <- setFor txOwnAddrs $

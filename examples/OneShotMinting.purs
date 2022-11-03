@@ -1,5 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
--- | used to build scripts with the provided arguments applied. It creates a 
+-- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | used to build scripts with the provided arguments applied. It creates a
 -- | transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.OneShotMinting
   ( contract
@@ -25,8 +25,11 @@ import Contract.Monad
 import Contract.PlutusData (PlutusData, toData)
 import Contract.Prim.ByteArray (ByteArray)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy, PlutusScript, applyArgs)
-import Contract.Test.E2E (publishTestFeedback)
+import Contract.Scripts
+  ( MintingPolicy(PlutusMintingPolicy)
+  , PlutusScript
+  , applyArgs
+  )
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
@@ -57,7 +60,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 mkAssertions
   :: Address
@@ -128,10 +130,10 @@ mkOneShotMintingPolicy
   -> Contract () MintingPolicy
 mkOneShotMintingPolicy json ty mkPlutusScript oref = do
   unappliedMintingPolicy <-
-    map (wrap <<< mkPlutusScript) (textEnvelopeBytes json ty)
+    map mkPlutusScript (textEnvelopeBytes json ty)
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
 
-  liftedE $ applyArgs unappliedMintingPolicy mintingPolicyArgs
-
+  liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
+    mintingPolicyArgs

@@ -35,6 +35,7 @@ import Aeson
   , (.:)
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
+import Ctl.Internal.QueryM (Hooks)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
@@ -70,6 +71,7 @@ type PlutipConfig =
       { slotLength :: Seconds
       , epochSize :: UInt
       }
+  , hooks :: Hooks
   }
 
 type PostgresConfig =

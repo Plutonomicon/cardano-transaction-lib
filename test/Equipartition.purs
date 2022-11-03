@@ -3,6 +3,7 @@ module Test.Ctl.Equipartition (suite) where
 import Prelude
 
 import Ctl.Internal.Equipartition (class Equipartition, equipartition)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (length, singleton, sort) as NEArray
@@ -14,7 +15,6 @@ import Data.Ord.Max (Max(Max))
 import Data.Ord.Min (Min(Min))
 import Effect.Aff (Aff)
 import Mote (group, test)
-import Test.Ctl.TestM (TestPlanM)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)
 import Test.Spec.QuickCheck (quickCheck)
@@ -103,4 +103,3 @@ derive instance Newtype IntGeqOne _
 
 instance Arbitrary IntGeqOne where
   arbitrary = IntGeqOne <$> suchThat arbitrary (_ >= one)
-

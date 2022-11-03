@@ -793,7 +793,8 @@ convertTxOutput
       transactionOutputSetPlutusData txo
         =<< fromJustEff "convertTxOutput"
           (convertPlutusData $ unwrap datumValue)
-  for_ scriptRef $ convertScriptRef >>> transactionOutputSetScriptRef txo
+  for_ scriptRef $
+    convertScriptRef >>> transactionOutputSetScriptRef txo
   pure txo
 
 convertScriptRef :: T.ScriptRef -> ScriptRef
