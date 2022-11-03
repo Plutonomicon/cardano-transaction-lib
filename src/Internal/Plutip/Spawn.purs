@@ -94,6 +94,7 @@ cleanupTmpDir child workingDir testClusterDir = do
   -- TODO
   -- cleanup directories in case of ctrl+c exit,
   -- code below doesn't work as intended.
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1176
   Process.onExit \_ -> do
     _rmdirSync testClusterDir
     _rmdirSync workingDir
