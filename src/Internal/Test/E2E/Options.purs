@@ -216,7 +216,7 @@ browserOptionsParser = ado
     -> Maybe CrxFilePath
     -> Maybe URL
     -> Maybe (WalletExt /\ ExtensionOptions)
-  mkConfig _ Nothing Nothing Nothing _ = Nothing
+  mkConfig _ Nothing Nothing Nothing Nothing = Nothing
   mkConfig ext extensionId password crxFile crxUrl =
     Just $ ext /\
       { crxFile
