@@ -2,7 +2,7 @@
 
 # Check trailing whitespaces
 
-trailing_whitespaces=$(grep -I '[[:blank:]]$' -Rl $(find . -type f | grep -v -E '.*(tmp|spago|.git|dist-newstyle|node_modules|.node|generated-docs|dist|test-data|.spago2nix).*'))
+trailing_whitespaces=$(grep -I '[[:blank:]]$' -Rl $(find . -not -path '.' -not -path './tmp*' -not -path './.git*' -not -path './.spago*' -not -path './output*' -not -path '*.json' -not -path '*.skey' -not -path '*node_modules*' -not -path '*.node*' -not -path '*generated-docs*' -not -path '*dist*' -not -path '*test-data*' -not -path '*spago2nix*' -type d))
 
 if [ -z "$trailing_whitespaces" ]
 then
