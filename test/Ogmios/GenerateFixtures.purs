@@ -28,13 +28,10 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Ctl.Internal.Types.MultiMap as MultiMap
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
 import Data.Traversable (for_, traverse_)
-import Data.Tuple (fst) as Tuple
-import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)

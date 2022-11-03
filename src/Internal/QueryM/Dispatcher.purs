@@ -1,4 +1,16 @@
-module Ctl.Internal.QueryM.Dispatcher where
+module Ctl.Internal.QueryM.Dispatcher
+  ( DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
+  , Dispatcher
+  , GenericPendingRequests
+  , PendingRequests
+  , PendingSubmitTxRequests
+  , RequestBody
+  , WebsocketDispatch
+  , dispatchErrorToError
+  , mkWebsocketDispatch
+  , newDispatcher
+  , newPendingRequests
+  ) where
 
 import Prelude
 
@@ -6,7 +18,6 @@ import Aeson (Aeson, JsonDecodeError, stringifyAeson)
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Types.MultiMap (MultiMap)
 import Data.Either (Either(Left, Right))
 import Data.Map (Map)
 import Data.Map (empty, lookup) as Map
@@ -44,12 +55,12 @@ dispatchErrorToError (ListenerCancelled listenerId) =
 type WebsocketDispatch =
   Aeson -> Effect (Either DispatchError (Effect Unit))
 
-type DispatchIdMap response = Ref
-  (MultiMap ListenerId (Either DispatchError response -> Effect Unit))
-
 type RequestBody = String
 
 type Dispatcher = Ref (Map ListenerId (Aeson -> Effect Unit))
+
+newDispatcher :: Effect Dispatcher
+newDispatcher = Ref.new Map.empty
 
 mkWebsocketDispatch :: Dispatcher -> WebsocketDispatch
 mkWebsocketDispatch dispatcher aeson = do
