@@ -92,7 +92,7 @@ suite = do
       }
 
   group "Staking" do
-    group "Register / Deregister stake key" do
+    group "Stake keys: register & deregister" do
       test "PubKey" do
         let
           distribution = withStakeKey privateStakeKey
@@ -300,7 +300,7 @@ suite = do
             logInfo' <<< show =<< getPoolParameters poolId
           pools `shouldSatisfy` (not <<< Array.elem poolOperator)
 
-    test "Stake scripts: register, delegate" do
+    test "Stake scripts: delegate to existing pool & withdraw rewards" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
@@ -415,7 +415,7 @@ suite = do
               getValidatorHashDelegationsAndRewards stakeValidatorHash
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
 
-    test "PubKey: delegation to existing pool & withdrawals" do
+    test "PubKey: delegate to existing pool & withdraw rewards" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
