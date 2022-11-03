@@ -140,7 +140,7 @@ import Effect.Aff (Aff, bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -177,7 +177,7 @@ main = launchAff_ do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  only $ group "Plutip" do
+  group "Plutip" do
     Logging.suite
 
     test "startPlutipCluster / stopPlutipCluster" do
@@ -601,7 +601,7 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
-    only $ test "runPlutipContract: MintZeroToken" do
+    test "runPlutipContract: MintZeroToken" do
       let
         distribution :: InitialUTxOs
         distribution =
