@@ -89,5 +89,5 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 You can find help, more information and ongoing discusion about the project here:
 
-- [Plutonomicon Discord](https://discord.gg/SQUxC6Vm)
+- [Plutonomicon Discord](https://discord.gg/JhbexnV9Pc)
 - #ctl channel at MLabs' Slack
