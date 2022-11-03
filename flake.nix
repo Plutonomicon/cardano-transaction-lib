@@ -336,6 +336,77 @@
               make check-format
               touch $out
             '';
+          template-deps-json = pkgs.runCommand "template-deps-check"
+            {
+              ctlPackageJson = builtins.readFile ./package.json;
+              ctlScaffoldPackageJson = builtins.readFile ./templates/ctl-scaffold/package.json;
+              nativeBuildInputs = [ pkgs.jq ];
+            } ''
+            cd ${self}
+            diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+            diff <(jq -S .devDependencies <<< $ctlPackageJson) <(jq -S .devDependencies <<< $ctlScaffoldPackageJson)
+            touch $out
+          '';
+          template-dhall-diff = pkgs.runCommand "template-dhall-diff-check"
+            (with builtins;
+            let
+              ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
+              ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+              ctlPs = attrValues ctlPkgsExp.inputs;
+              ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
+                (attrValues ctlScaffoldPkgsExp.inputs);
+              intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;
+              scaffoldDisjoint = pkgs.lib.lists.subtractLists intersection ctlScaffoldPs;
+              ctlDisjoint = pkgs.lib.lists.subtractLists intersection ctlPs;
+            in
+            {
+              inherit ctlDisjoint scaffoldDisjoint;
+              nativeBuildInputs = [ ];
+            }
+            ) ''
+
+            if [ -z "$ctlDisjoint" ] && [ -z "$scaffoldDisjoint" ];
+            then
+              touch $out
+            else
+              if [ -n "$ctlDisjoint" ];
+              then
+                echo "The following packages are in the main projects dependencies but not in the scaffold:"
+                for p in $ctlDisjoint; do
+                  echo "  $p"
+                done
+              fi
+              if [ -n "$scaffoldDisjoint" ];
+              then
+                echo "The following packages are in the scaffold projects dependencies but not in the main:"
+                for p in $scaffoldDisjoint; do
+                  echo "  $p"
+                done
+              fi
+              exit 1
+            fi
+          '';
+          template-version = pkgs.runCommand "template-consistent-version-check"
+            (
+              let
+                ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+                ctlScaffoldFlake = import ./templates/ctl-scaffold/flake.nix;
+                versionCheck = ctlScaffoldPackages.inputs."cardano-transaction-lib".version == ctlScaffoldFlake.inputs.ctl.rev;
+              in
+              {
+                packagesLibRev = ctlScaffoldPackages.inputs."cardano-transaction-lib".version;
+                flakeLibRev = ctlScaffoldFlake.inputs.ctl.rev;
+                nativeBuildInputs = [ ];
+              }
+            ) ''
+
+            if [ $packagesLibRev != $flakeLibRev ]
+            then
+              echo "CTL revision in scaffold flake.nix ($flakeLibRev) doesn't match revision referenced in spago-packages.nix ($packagesLibRev). Please update flake.nix or packages.dhall and run spago2nix."
+              exit 1
+            fi
+            touch $out
+          '';
           examples-imports-check = pkgs.runCommand "examples-imports-check" { }
             ''
               cd ${self}
@@ -343,6 +414,8 @@
               touch $out 
             '';
         });
+
+      templatePath = builtins.toString self + self.templates.ctl-scaffold.path;
 
       check = perSystem (system:
         (nixpkgsFor system).runCommand "combined-check"
