@@ -20,12 +20,12 @@ module Ctl.Internal.Test.E2E.Options
 
 import Prelude
 
+import Affjax (URL)
 import Control.Alt ((<|>))
 import Ctl.Internal.Test.E2E.Types
   ( Browser
   , ChromeUserDataDir
   , CrxFilePath
-  , E2EDataDir
   , E2ETest
   , ExtensionId
   , SettingsArchive
@@ -94,7 +94,6 @@ type CommonOptions_ (r :: Row Type) =
   , tmpDir :: Maybe TmpDir
   , settingsArchive :: Maybe SettingsArchive
   , settingsArchiveUrl :: Maybe SettingsArchiveUrl
-  , e2eDataDir :: Maybe E2EDataDir
   )
 
 -- | CLI options for the `browser` command.
@@ -106,6 +105,7 @@ type ExtensionOptions =
   { crxFile :: Maybe CrxFilePath
   , password :: Maybe WalletPassword
   , extensionId :: Maybe ExtensionId
+  , crxUrl :: Maybe URL
   }
 
 -- | CLI options for `pack` and `unpack` commands.
@@ -113,7 +113,6 @@ type SettingsOptions =
   { chromeUserDataDir :: Maybe FilePath
   , settingsArchive :: Maybe FilePath
   , settingsArchiveUrl :: Maybe SettingsArchiveUrl
-  , e2eDataDir :: Maybe E2EDataDir
   }
 
 -- | A CLI command that can be interpreted by the E2E test suite.
@@ -173,7 +172,6 @@ browserOptionsParser = ado
     ]
   { chromeUserDataDir
   , settingsArchive
-  , e2eDataDir
   , settingsArchiveUrl
   } <- settingsOptionsParser
   tmpDir <- option (Just <$> str) $ fold
@@ -194,11 +192,13 @@ browserOptionsParser = ado
 
   let
     wallets = Map.fromFoldable $ catMaybes
-      [ mkConfig NamiExt nami.extensionId nami.password nami.crxFile
-      , mkConfig GeroExt gero.extensionId gero.password gero.crxFile
+      [ mkConfig NamiExt nami.extensionId nami.password nami.crxFile nami.crxUrl
+      , mkConfig GeroExt gero.extensionId gero.password gero.crxFile gero.crxUrl
       , mkConfig FlintExt flint.extensionId flint.password flint.crxFile
-      , mkConfig LodeExt lode.extensionId lode.password lode.crxFile
+          flint.crxUrl
+      , mkConfig LodeExt lode.extensionId lode.password lode.crxFile lode.crxUrl
       , mkConfig EternlExt eternl.extensionId eternl.password eternl.crxFile
+          eternl.crxUrl
       ]
   in
     { browser
@@ -207,7 +207,6 @@ browserOptionsParser = ado
     , tmpDir
     , settingsArchive
     , settingsArchiveUrl
-    , e2eDataDir
     }
   where
   mkConfig
@@ -215,13 +214,15 @@ browserOptionsParser = ado
     -> Maybe ExtensionId
     -> Maybe WalletPassword
     -> Maybe CrxFilePath
+    -> Maybe URL
     -> Maybe (WalletExt /\ ExtensionOptions)
-  mkConfig _ Nothing Nothing Nothing = Nothing
-  mkConfig ext extensionId password crxFile =
+  mkConfig _ Nothing Nothing Nothing _ = Nothing
+  mkConfig ext extensionId password crxFile crxUrl =
     Just $ ext /\
       { crxFile
       , password: password
       , extensionId
+      , crxUrl
       }
 
 parseWallet :: String -> Parser ExtensionOptions
@@ -244,7 +245,13 @@ parseWallet wallet = ado
     , help $ wallet <> " wallet extension (.crx) file"
     , value Nothing
     ]
-  in { crxFile: crx, password: password, extensionId: extid }
+  crxUrl <- option (Just <$> str) $ fold
+    [ long $ formattedWallet <> "-crx-url"
+    , metavar "URL"
+    , help $ wallet <> " wallet extension (.crx) url"
+    , value Nothing
+    ]
+  in { crxFile: crx, password: password, extensionId: extid, crxUrl: crxUrl }
   where
   formattedWallet = toLower wallet
 
@@ -285,15 +292,6 @@ testUrlsOptionParser =
     "Specification of a test. Consists of a wallet name and a URL, separated \
     \by `:`. Can be specified multiple times. Default: empty"
 
-e2eDataDirOptionParser :: Parser (Maybe E2EDataDir)
-e2eDataDirOptionParser =
-  option (Just <$> str) $ fold
-    [ long "e2e-data-dir"
-    , metavar "DIR"
-    , help "E2E data directory"
-    , value Nothing
-    ]
-
 chromeUserDataOptionParser
   :: Parser (Maybe ChromeUserDataDir)
 chromeUserDataOptionParser = ado
@@ -310,7 +308,6 @@ chromeUserDataOptionParser = ado
 settingsOptionsParser :: Parser SettingsOptions
 settingsOptionsParser = ado
   chromeUserDataDir <- chromeUserDataOptionParser
-  e2eDataDir <- e2eDataDirOptionParser
   settingsArchive <- option (Just <$> str) $ fold
     [ long "settings-archive"
     , help "Settings archive (.tar.gz) that will be used to store the settings"
@@ -331,7 +328,6 @@ settingsOptionsParser = ado
     { chromeUserDataDir
     , settingsArchive
     , settingsArchiveUrl
-    , e2eDataDir
     }
 
 parseOptions :: Effect TestOptions
