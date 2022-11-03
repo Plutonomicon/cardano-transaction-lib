@@ -16,7 +16,7 @@ import Ctl.Internal.Plutip.Server
   , withPlutipContractEnv
   , withWallets
   ) as X
-import Ctl.Internal.Plutip.Server (testPlutipContracts, PlutipTest) as Server
+import Ctl.Internal.Plutip.Server (PlutipTest, testPlutipContracts) as Server
 import Ctl.Internal.Plutip.Types
   ( InitialUTxODistribution
   , InitialUTxOs
@@ -24,13 +24,13 @@ import Ctl.Internal.Plutip.Types
   , PostgresConfig
   , UtxoAmount
   ) as X
+import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution
   ( class UtxoDistribution
   , withStakeKey
   ) as X
-import Ctl.Internal.Plutip.Types (PlutipConfig)
-import Mote (MoteT)
 import Effect.Aff (Aff)
+import Mote (MoteT)
 
 -- | Run `Contract`s in tests in a single Plutip instance.
 testPlutipContracts
