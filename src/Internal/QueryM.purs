@@ -126,7 +126,7 @@ import Ctl.Internal.QueryM.DatumCacheWsp
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, PoolIdsR, TxHash, TxHash)
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, PoolIdsR, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
