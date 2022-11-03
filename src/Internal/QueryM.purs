@@ -52,6 +52,7 @@ module Ctl.Internal.QueryM
   , mkQueryRuntime
   , mkRequest
   , mkRequestAff
+  , mkWalletBySpec
   , module ServerConfig
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes

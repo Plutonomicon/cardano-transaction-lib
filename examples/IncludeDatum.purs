@@ -25,6 +25,7 @@ import Contract.TextEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
+  , _input
   , awaitTxConfirmed
   , lookupTxHash
   )
@@ -34,7 +35,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)

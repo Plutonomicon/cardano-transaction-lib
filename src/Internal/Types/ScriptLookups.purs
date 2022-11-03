@@ -26,6 +26,7 @@ module Ctl.Internal.Types.ScriptLookups
       , ValidatorHashNotFound
       , WrongRefScriptHash
       , ExpectedPlutusScriptGotNativeScript
+      , CannotMintZero
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
@@ -340,8 +341,8 @@ unspentOutputs
   -> ScriptLookups a
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- | Same as `unspentOutputs` but in `Maybe` context for convenience. This
--- | should not fail.
+-- | Same as `unspentOutputs` but in `Maybe` context for convenience. 
+-- | This should not fail.
 unspentOutputsM
   :: forall (a :: Type)
    . Map TransactionInput Plutus.TransactionOutputWithRefScript
@@ -829,6 +830,7 @@ data MkUnbalancedTxError
   | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotSatisfyAny
   | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
+  | CannotMintZero CurrencySymbol TokenName
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -1080,11 +1082,15 @@ processConstraint mpsMap osMap = do
       -- be provided as an input. So we add the value burnt to
       -- 'valueSpentBalancesInputs'. If i is positive then new tokens are
       -- created which must be added to 'valueSpentBalancesOutputs'.
+      -- If i is zero we raise error, because of
+      -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
       mintVal <-
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
+        else if i == zero then do
+          throwError $ CannotMintZero cs tn
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
