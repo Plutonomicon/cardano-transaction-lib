@@ -2,7 +2,6 @@
 module Ctl.Internal.Test.E2E.Types
   ( Browser
   , TmpDir
-  , E2EDataDir
   , SettingsArchive
   , SettingsArchiveUrl
   , ChromeUserDataDir
@@ -24,6 +23,7 @@ module Ctl.Internal.Test.E2E.Types
 
 import Prelude
 
+import Affjax (URL)
 import Control.Alt ((<|>))
 import Data.Either (hush)
 import Data.Generic.Rep (class Generic)
@@ -42,9 +42,6 @@ type Browser = FilePath
 
 -- | Temporary directory prefix
 type TmpDir = FilePath
-
--- | E2E Data directory perfix
-type E2EDataDir = FilePath
 
 -- | `.tar.gz` archive containing the runtime settings for all the extensions
 -- | used in E2E.

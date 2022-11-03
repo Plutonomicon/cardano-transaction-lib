@@ -6,7 +6,9 @@ module Ctl.Internal.Test.E2E.Runner
 
 import Prelude
 
-import Affjax (URL)
+import Affjax (defaultRequest, request) as Affjax
+import Affjax (printError)
+import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
@@ -26,8 +28,6 @@ import Ctl.Internal.Test.E2E.Options
 import Ctl.Internal.Test.E2E.Types
   ( Browser
   , ChromeUserDataDir
-  , CrxFilePath
-  , E2EDataDir
   , E2ETest
   , E2ETestRuntime
   , ExtensionParams
@@ -36,7 +36,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsRuntime
   , TmpDir
-  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , WalletExt(NamiExt, LodeExt, GeroExt, FlintExt, EternlExt)
   , mkE2ETest
   , mkExtensionId
   , unExtensionId
@@ -56,8 +56,9 @@ import Ctl.Internal.Test.E2E.Wallets
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
-import Data.Either (Either(Left, Right))
-import Data.Foldable (fold, oneOf)
+import Data.Either (Either(Right, Left))
+import Data.Foldable (fold)
+import Data.HTTP.Method (Method(GET))
 import Data.Int as Int
 import Data.List (intercalate)
 import Data.Map as Map
@@ -68,8 +69,7 @@ import Data.String (Pattern(Pattern), trim)
 import Data.String as String
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Traversable (for, for_)
-import Data.Tuple (Tuple(Tuple), uncurry)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple (Tuple(Tuple))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
@@ -77,6 +77,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Mote (group, test)
+import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
   ( Exit(Normally, BySignal)
   , SpawnOptions
@@ -89,9 +90,9 @@ import Node.ChildProcess
   )
 import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
-import Node.FS.Aff (exists, stat)
+import Node.FS.Aff (exists, stat, writeFile)
 import Node.FS.Stats (isDirectory)
-import Node.Path (FilePath, basename, basenameWithoutExt, concat, relative)
+import Node.Path (FilePath, concat, dirname, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Record.Builder (build, delete)
@@ -231,15 +232,14 @@ readTestRuntime testOptions = do
   readBrowserRuntime Nothing browserOptions
 
 readExtensions
-  :: E2EDataDir
-  -> Map.Map WalletExt ExtensionOptions
+  :: Map.Map WalletExt ExtensionOptions
   -> Aff (Map.Map WalletExt ExtensionParams)
-readExtensions e2eDataDir wallets = do
-  nami <- readExtensionParams "NAMI" e2eDataDir wallets
-  flint <- readExtensionParams "FLINT" e2eDataDir wallets
-  gero <- readExtensionParams "GERO" e2eDataDir wallets
-  lode <- readExtensionParams "LODE" e2eDataDir wallets
-  eternl <- readExtensionParams "ETERNL" e2eDataDir wallets
+readExtensions wallets = do
+  nami <- readExtensionParams "NAMI" wallets
+  flint <- readExtensionParams "FLINT" wallets
+  gero <- readExtensionParams "GERO" wallets
+  lode <- readExtensionParams "LODE" wallets
+  eternl <- readExtensionParams "ETERNL" wallets
 
   pure $ Map.fromFoldable $ catMaybes
     [ Tuple NamiExt <$> nami
@@ -254,16 +254,17 @@ readExtensions e2eDataDir wallets = do
 readBrowserRuntime
   :: Maybe (Array E2ETest) -> BrowserOptions -> Aff E2ETestRuntime
 readBrowserRuntime mbTests testOptions = do
-  e2eDataDir <- maybe findE2EDataDir pure testOptions.e2eDataDir
   browser <- maybe findBrowser pure testOptions.browser
   tmpDir <- createTmpDir testOptions.tmpDir browser
 
   chromeUserDataDir <- findChromeProfile settingsOptions
   ensureChromeUserDataDir chromeUserDataDir
-  settingsArchive <- findSettingsArchive e2eDataDir settingsOptions
+  settingsArchive <- findSettingsArchive settingsOptions
   unpackSettings settingsArchive chromeUserDataDir
 
-  wallets <- readExtensions e2eDataDir testOptions.wallets
+  wallets <- readExtensions testOptions.wallets
+
+  void $ liftEffect $ throw "aoeuaoeuaoeu"
 
   let
     runtime =
@@ -428,9 +429,8 @@ readTestTimeout Nothing = do
 
 readSettingsRuntime :: SettingsOptions -> Aff SettingsRuntime
 readSettingsRuntime testOptions = do
-  dataDir <- maybe findE2EDataDir pure testOptions.e2eDataDir
   d <- findChromeProfile testOptions
-  a <- findSettingsArchive dataDir testOptions
+  a <- findSettingsArchive testOptions
   pure { settingsArchive: a, chromeUserDataDir: d }
 
 extractExtension :: TmpDir -> ExtensionParams -> Aff Unit
@@ -449,38 +449,33 @@ extractExtension tmpDir extension = do
     Normally code -> Just $ "(code: " <> show code <> ")"
     BySignal signal -> Just $ show signal
 
-findSettingsArchive :: E2EDataDir -> SettingsOptions -> Aff SettingsArchive
-findSettingsArchive e2eDataDir testOptions = do
-  mbSettingsArchive <- liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE"
-  mbSettingsArchiveUrl <- liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE_URL"
-
-  let
-    localHandler tarball = ifM (exists tarball)
-      (pure tarball)
-      ( liftEffect
-          ( throw $ "File" <> tarball <>
-              " does not exist."
-          )
+findSettingsArchive :: SettingsOptions -> Aff SettingsArchive
+findSettingsArchive testOptions = do
+  settingsArchive <-
+    maybe
+      ( liftedM
+          ( error
+              "Please specify any of --settings-archive or E2E_SETTINGS_ARCHIVE"
+          ) $ liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE"
       )
+      pure $ testOptions.chromeUserDataDir
 
-    remoteHandler :: FilePath -> Aff FilePath
-    remoteHandler = downloadToDataDir e2eDataDir
+  doesExist <- exists settingsArchive
 
-    -- priority: cli > env > cli url > env url
-    -- Create array of relevant options together with handler strategy
-    priorityArray :: Array (Maybe (String /\ (String -> Aff ChromeUserDataDir)))
-    priorityArray =
-      map ((_ /\ localHandler) <$> _)
-        [ testOptions.settingsArchive, mbSettingsArchive ]
-        <> map ((_ /\ remoteHandler) <$> _)
-          [ testOptions.settingsArchiveUrl, mbSettingsArchiveUrl ]
-
-  liftedM
-    ( error
-        "Please specify any one of --settings-archive, --settings-archive-url, E2E_SETTINGS_ARCHIVE, E2E_SETTINGS_ARCHIVE_URL."
-    )
-    $ for (oneOf priorityArray) -- oneOf returns the first Just
-    $ uncurry (flip ($))
+  unless doesExist $ do
+    liftEffect $ log $ settingsArchive <> " does not exist."
+    settingsArchiveUrl <-
+      maybe
+        ( liftedM
+            ( error
+                "Please specify any of --settings-archive-url or E2E_SETTINGS_ARCHIVE_URL"
+            ) $ liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE_URL"
+        )
+        pure $ testOptions.settingsArchiveUrl
+    liftEffect $ log $ "Downloading settings archive from " <>
+      settingsArchiveUrl
+    downloadTo settingsArchiveUrl settingsArchive
+  pure settingsArchive
 
 findChromeProfile
   :: SettingsOptions -> Aff ChromeUserDataDir
@@ -504,19 +499,6 @@ findChromeProfile testOptions = do
     $ "Chrome user data directory " <> chromeDataDir <> " is not a directory."
   pure chromeDataDir
 
-findE2EDataDir :: Aff E2EDataDir
-findE2EDataDir = do
-  e2eDataDir <- liftedM (error "Unable to get E2E_DATA_DIR")
-    $ liftEffect
-    $ lookupEnv "E2E_DATA_DIR"
-  doesExist <- exists e2eDataDir
-  unless doesExist do
-    ensureDir e2eDataDir
-  isDir <- isDirectory <$> stat e2eDataDir
-  unless isDir do
-    liftEffect $ throw $ e2eDataDir <> " is not a directory (E2E_DATA_DIR)"
-  pure e2eDataDir
-
 findBrowser :: Aff Browser
 findBrowser =
   liftEffect (lookupEnv "E2E_BROWSER") >>=
@@ -531,11 +513,11 @@ findBrowser =
 
 readExtensionParams
   :: String
-  -> E2EDataDir
   -> Map.Map WalletExt ExtensionOptions
   -> Aff (Maybe ExtensionParams)
-readExtensionParams extensionName e2eDataDir wallets = do
+readExtensionParams extensionName wallets = do
   crxFile <- liftEffect $ lookupEnv $ extensionName <> "_CRX"
+  crxUrl <- liftEffect $ lookupEnv (extensionName <> "_CRX_URL")
   password <- liftEffect $ lookupEnv (extensionName <> "_PASSWORD")
   mbExtensionIdStr <- liftEffect $ lookupEnv (extensionName <> "_EXTID")
   extensionId <- for mbExtensionIdStr \str ->
@@ -545,7 +527,7 @@ readExtensionParams extensionName e2eDataDir wallets = do
     mbCliOptions = Map.lookup NamiExt wallets
 
     envOptions :: ExtensionOptions
-    envOptions = { crxFile, password, extensionId }
+    envOptions = { crxFile, password, extensionId, crxUrl }
 
     mergedOptions :: ExtensionOptions
     mergedOptions = case mbCliOptions of
@@ -559,19 +541,28 @@ readExtensionParams extensionName e2eDataDir wallets = do
     { crxFile: a.crxFile <|> b.crxFile
     , password: a.password <|> b.password
     , extensionId: a.extensionId <|> b.extensionId
+    , crxUrl: a.crxUrl <|> b.crxUrl
     }
 
   toExtensionParams :: ExtensionOptions -> Aff (Maybe ExtensionParams)
-  toExtensionParams { crxFile, password, extensionId } =
+  toExtensionParams { crxFile, password, extensionId, crxUrl } =
     case crxFile, password, extensionId of
       Nothing, Nothing, Nothing -> pure Nothing
-      Nothing, mpwd, mextId ->
-        fetchCrxUrl >>=
-          ( { crxFile: _, password: mpwd, extensionId: mextId } >>>
-              toExtensionParams
-          )
-      Just crx, Just pwd, Just extId -> pure $ Just
-        { crx, password: pwd, extensionId: extId }
+      Just crx, Just pwd, Just extId -> do
+        doesExist <- exists crx
+        unless doesExist $ do
+          liftEffect $ log $ crx <> " does not exist."
+          crxFileUrl <-
+            maybe
+              ( liftedM
+                  ( error
+                      "Please specify any of --<ext>-crx-url or <ext>_CRX_URL"
+                  ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
+              )
+              pure $ crxUrl
+          liftEffect $ log $ "Downloading from " <> crxFileUrl
+          downloadTo crxFileUrl crx
+        pure $ Just { crx, password: pwd, extensionId: extId }
       _, _, _ -> liftEffect $ throw $ "Please ensure that either none or all of"
         <> extensionName
         <> "_CRX, "
@@ -579,22 +570,6 @@ readExtensionParams extensionName e2eDataDir wallets = do
         <> "_PASSWORD and "
         <> extensionName
         <> "_EXTID are provided"
-
-  fetchCrxUrl :: Aff (Maybe CrxFilePath)
-  fetchCrxUrl = do
-    crxUrl <-
-      liftedM
-        ( error $ "Please specify extension path "
-            <> extensionName
-            <> "_CRX, or extension url "
-            <> extensionName
-            <> "_CRX_URL"
-        ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
-
-    let crxFilePrefix = e2eDataDir <> "/extensions/"
-
-    crxFilePath <- downloadToDataDir crxFilePrefix crxUrl
-    pure $ Just crxFilePath
 
   mkExtIdError str =
     "Unable to parse extension ID. must be a string consisting of 32 characters\
@@ -750,19 +725,24 @@ spawnAndCollectOutput
 spawnAndCollectOutput cmd args opts errorReader = makeAff
   (spawnAndCollectOutput_ cmd args opts errorReader)
 
-downloadToDataDir :: FilePath -> URL -> Aff FilePath
-downloadToDataDir dir url = do
-  ensureDir dir
-  liftEffect $ log $ "Downloading " <> url <> " to " <> dir
-  -- TODO: amir: figure out why 'wget' freezes
-  -- output <- spawnAndCollectOutput "wget" [ "-c", "-N", "-P", dir, url ]
-  -- TODO: amir: right now curl downloads on every run, find fix based on
-  -- whether file modified on server
-  output <- spawnAndCollectOutput "curl" [ "-LO", "--output-dir", dir, url ]
-    defaultSpawnOptions
-    defaultErrorReader
-  liftEffect $ log $ output
-  pure $ dir <> "/" <> basename url
+downloadTo :: String -> FilePath -> Aff Unit
+downloadTo url filePath = do
+  ensureDir $ dirname filePath
+  eRes <- Affjax.request Affjax.defaultRequest
+    { method = Left GET
+    , url = url
+    , responseFormat = Affjax.ResponseFormat.arrayBuffer
+    , headers = []
+    }
+
+  case eRes of
+    Left err -> do
+      liftEffect $ log $ "Error: " <> printError err
+      pure unit
+    Right res -> do
+      buf <- liftEffect $ fromArrayBuffer res.body
+      writeFile filePath buf
+      pure unit
 
 defaultErrorReader :: Exit -> Maybe String
 defaultErrorReader =
