@@ -84,12 +84,6 @@ module Ctl.Internal.Serialization.Types
   , Withdrawals
   ) where
 
-import Prelude
-
-import Aeson (class EncodeAeson, encodeAeson')
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import Data.Function (on)
-
 foreign import data AssetName :: Type
 foreign import data Assets :: Type
 foreign import data AuxiliaryData :: Type

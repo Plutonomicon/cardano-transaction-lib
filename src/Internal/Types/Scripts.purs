@@ -33,12 +33,6 @@ import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Address
-  ( NetworkId
-  , RewardAddress
-  , rewardAddress
-  , scriptHashCredential
-  ) as Serialization
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBech32Unsafe)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.Aliases (Bech32String)
