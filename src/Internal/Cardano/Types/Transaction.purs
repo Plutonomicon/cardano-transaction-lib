@@ -115,7 +115,6 @@ import Ctl.Internal.Helpers
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
-  , RewardAddress
   , Slot(Slot)
   , StakeCredential
   )
@@ -141,6 +140,7 @@ import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
+import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)

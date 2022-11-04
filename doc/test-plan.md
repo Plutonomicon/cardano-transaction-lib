@@ -68,6 +68,38 @@ In addition, several redeemer combinations in a **single transaction** must be c
 - [ ] Two or more `Spend` redeemers
 - [ ] (At least) One each of a `Spend` and `Mint` redeemer
 
+#### Stake operations
+
+New constraints for operations with stake will be added in `v3`.
+
+##### Stake pools
+
+- [x] mustRegisterPool
+- [x] mustRetirePool
+
+##### Stake credential registration
+
+- [x] mustRegisterStakePubKey
+- [x] mustRegisterStakeScript
+
+##### Delegation
+
+- [x] mustDelegateStakeNativeScript
+- [x] mustDelegateStakePlutusScript
+- [x] mustDelegateStakePubKey
+
+##### Rewards withdrawal
+
+- [x] mustWithdrawStakeNativeScript
+- [x] mustWithdrawStakePlutusScript
+- [x] mustWithdrawStakePubKey
+
+##### Stake credential deregistration
+
+- [x] mustDeregisterStakeNativeScript
+- [x] mustDeregisterStakePlutusScript
+- [x] mustDeregisterStakePubKey
+
 #### Exceptions
 
 CTL does **not** currently support staking validators (see [#785](https://github.com/Plutonomicon/cardano-transaction-lib/issues/785)) so other `RedeemerTag`s are currently exempt from the above requirements. CTL also only makes guarantees for the **present era**, currently Babbage.

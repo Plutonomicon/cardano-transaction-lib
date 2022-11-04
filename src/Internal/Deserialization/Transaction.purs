@@ -188,6 +188,7 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int (Int) as Csl
 import Ctl.Internal.Types.Int as Int
+import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress)) as T
 import Ctl.Internal.Types.TokenName (TokenName, tokenNameFromAssetName)
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata
@@ -256,9 +257,9 @@ convertTxBody txBody = do
       maybeFfiHelper
       txBody
 
-  withdrawals :: Maybe (M.Map Csl.RewardAddress Coin) <-
+  withdrawals :: Maybe (M.Map T.RewardAddress Coin) <-
     -- array -> map
-    (map <<< map) M.fromFoldable
+    (map <<< map) (M.fromFoldable <<< map (lmap T.RewardAddress))
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
         (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
@@ -378,7 +379,7 @@ convertPoolRegistration params = do
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
     , margin: _unpackUnitInterval $ poolParamsMargin params
-    , rewardAccount: poolParamsRewardAccount params
+    , rewardAccount: T.RewardAddress $ poolParamsRewardAccount params
     , poolOwners: wrap <<< wrap <$> poolParamsPoolOwners containerHelper params
     , relays
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>

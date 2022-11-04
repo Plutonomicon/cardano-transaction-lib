@@ -11,7 +11,6 @@ module Ctl.Internal.Types.Scripts
   , plutusV1Script
   , plutusV2Script
   , stakeValidatorHashToBech32
-  , stakeValidatorHashRewardAddress
   ) where
 
 import Prelude
@@ -39,7 +38,7 @@ import Ctl.Internal.Serialization.Address
   , RewardAddress
   , rewardAddress
   , scriptHashCredential
-  )
+  ) as Serialization
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBech32Unsafe)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.Aliases (Bech32String)
@@ -238,10 +237,3 @@ instance Show StakeValidatorHash where
 
 stakeValidatorHashToBech32 :: StakeValidatorHash -> Bech32String
 stakeValidatorHashToBech32 = unwrap >>> scriptHashToBech32Unsafe "script"
-
-stakeValidatorHashRewardAddress
-  :: NetworkId -> StakeValidatorHash -> RewardAddress
-stakeValidatorHashRewardAddress network stakeValidatorHash = rewardAddress
-  { network
-  , paymentCred: scriptHashCredential (unwrap stakeValidatorHash)
-  }

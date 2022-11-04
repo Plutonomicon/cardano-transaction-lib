@@ -164,12 +164,15 @@ import Ctl.Internal.Types.OutputDatum
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , StakePubKeyHash
-  , ed25519RewardAddress
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Reward, Mint, Spend))
+import Ctl.Internal.Types.RewardAddress
+  ( stakePubKeyHashRewardAddress
+  , stakeValidatorHashRewardAddress
+  ) as RewardAddress
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
@@ -177,7 +180,6 @@ import Ctl.Internal.Types.Scripts
   , PlutusScriptStakeValidator
   , Validator
   , ValidatorHash
-  , stakeValidatorHashRewardAddress
   )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -1332,14 +1334,18 @@ processConstraint mpsMap osMap = do
       mbRewards <- lift $ lift $ getPubKeyHashDelegationsAndRewards spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
-      let rewardAddress = ed25519RewardAddress networkId (unwrap spkh)
+      let
+        rewardAddress =
+          RewardAddress.stakePubKeyHashRewardAddress networkId spkh
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
         Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = plutusScriptStakeValidatorHash stakeValidator
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
-      let rewardAddress = stakeValidatorHashRewardAddress networkId hash
+      let
+        rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
+          hash
       ({ rewards }) <- ExceptT $ pure $ note
         (CannotWithdrawRewardsPlutusScript stakeValidator)
         mbRewards
@@ -1359,7 +1365,9 @@ processConstraint mpsMap osMap = do
       let hash = nativeScriptStakeValidatorHash stakeValidator
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
-      let rewardAddress = stakeValidatorHashRewardAddress networkId hash
+      let
+        rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
+          hash
       ({ rewards }) <- ExceptT $ pure $ note
         (CannotWithdrawRewardsNativeScript stakeValidator)
         mbRewards
