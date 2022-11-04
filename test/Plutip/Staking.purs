@@ -73,7 +73,6 @@ import Data.BigInt as BigInt
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
-import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -88,15 +87,6 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  let
-    clusterConfig = config.clusterConfig
-      { slotLength = Seconds 0.1
-      , epochSize = UInt.fromInt 10
-      }
-    config' = config
-      { clusterConfig = clusterConfig
-      }
-
   group "Staking" do
     group "Stake keys: register & deregister" do
       test "PubKey" do
@@ -105,7 +95,7 @@ suite = do
             [ BigInt.fromInt 1_000_000_000
             , BigInt.fromInt 2_000_000_000
             ]
-        runPlutipContract config' distribution $ flip withKeyWallet do
+        runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash <*>
               liftedM "Failed to get Stake PKH" ownStakePubKeyHash
@@ -142,7 +132,7 @@ suite = do
             [ BigInt.fromInt 1_000_000_000
             , BigInt.fromInt 2_000_000_000
             ]
-        runPlutipContract config' distribution $ flip withKeyWallet do
+        runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash <*>
               liftedM "Failed to get Stake PKH" ownStakePubKeyHash
@@ -183,7 +173,7 @@ suite = do
             [ BigInt.fromInt 1_000_000_000
             , BigInt.fromInt 2_000_000_000
             ]
-        runPlutipContract config' distribution $ flip withKeyWallet do
+        runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash <*>
               liftedM "Failed to get Stake PKH" ownStakePubKeyHash
@@ -226,7 +216,7 @@ suite = do
           [ BigInt.fromInt 1_000_000_000
           , BigInt.fromInt 2_000_000_000
           ]
-      runPlutipContract config' distribution \alice -> withKeyWallet alice do
+      runPlutipContract config distribution \alice -> withKeyWallet alice do
         alicePkh /\ aliceStakePkh <- Tuple
           <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
           <*> liftedM "Failed to get Stake PKH" ownStakePubKeyHash
@@ -352,7 +342,7 @@ suite = do
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
           , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
           ]
-      runPlutipContract config' distribution \alice ->
+      runPlutipContract config distribution \alice ->
         withKeyWallet alice do
           pure unit
           alicePkh /\ aliceStakePkh <- Tuple
@@ -468,7 +458,7 @@ suite = do
               [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
               , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
               ]
-      runPlutipContract config' distribution \(alice /\ bob) -> do
+      runPlutipContract config distribution \(alice /\ bob) -> do
         bobPkh /\ bobStakePkh <- withKeyWallet bob do
           Tuple
             <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
@@ -585,7 +575,7 @@ suite = do
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
           , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
           ]
-      runPlutipContract config' distribution \alice ->
+      runPlutipContract config distribution \alice ->
         withKeyWallet alice do
           alicePkh /\ aliceStakePkh <- Tuple
             <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
