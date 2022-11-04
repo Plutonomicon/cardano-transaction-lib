@@ -1,8 +1,8 @@
 -- | This module demonstrates how various assertions from `Contract.Test.Utils`
--- | can be used to test `Contract`s. It creates a transaction with metadata 
--- | that performs three actions: (1) sends some amount of Ada to the receiver's 
--- | address, (2) mints the specified non-Ada value (3) then sends it to the 
--- | owner's address with a datum attached. 
+-- | can be used to test `Contract`s. It creates a transaction with metadata
+-- | that performs three actions: (1) sends some amount of Ada to the receiver's
+-- | address, (2) mints the specified non-Ada value (3) then sends it to the
+-- | owner's address with a datum attached.
 module Ctl.Examples.ContractTestUtils
   ( ContractParams(ContractParams)
   , contract
@@ -24,6 +24,7 @@ import Contract.Address
 import Contract.AuxiliaryData (setTxMetadata)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
+import Contract.Metadata (Cip25Metadata)
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.ScriptLookups as Lookups
@@ -37,6 +38,8 @@ import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
+  , TransactionUnspentOutput
+  , _output
   , awaitTxConfirmed
   , balanceTx
   , getTxFinalFee
@@ -51,11 +54,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
-import Ctl.Internal.Metadata.Cip25.V2 (Cip25Metadata)
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  , _output
-  )
 import Data.BigInt (BigInt)
 import Data.Lens (view)
 import Data.Map (empty) as Map

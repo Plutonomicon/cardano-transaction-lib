@@ -28,13 +28,14 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
-import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Data.BigInt as BigInt
+import Data.Map (Map)
+import Data.Set (Set)
+import Data.UInt (UInt)
 import Effect.Ref as Ref
 
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs
+  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
 getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache

@@ -4,18 +4,27 @@ rec {
     inherit (inputs) cardano-configurations;
     # { name = "preprod"; magic = 1; }
     # { name = "mainnet"; magic = null; }
+    # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
+    # for info on how to switch networks.
     network = {
-      # See `doc/development.md` for info on how to switch networks.
       name = "preview";
       magic = 2; # use `null` for mainnet
     };
+    # *All* of these values are optional, and shown with their default
+    # values. If you need even more customization, you can use `overideAttrs`
+    # to change the values after calling `buildCtlRuntime` (e.g. a secrets
+    # volume for the `postgres` service)
     node = {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
       # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "1.35.3";
+      tag = "1.35.4-rc2";
     };
     ogmios = { port = 1337; };
+    # If you don't need to use `applyArgs` (i.e. you're not using parameterized
+    # scripts), you can disable CTL's server entirely in the runtime using
+    # `{ ctlServer.enable = false; }`. Currently we default to enabling it
+    # by default for backwards compatibility
     ctlServer = {
       enable = true;
       port = 8081;
