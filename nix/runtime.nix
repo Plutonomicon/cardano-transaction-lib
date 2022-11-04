@@ -149,12 +149,17 @@ rec {
               "kupo_db"
             ];
             command = [
-              "--node-config" "/config/cardano-node/config.json"
-              "--node-socket" "${nodeSocketPath}"
-              "--since" "${kup.since}"
+              "--node-config"
+              "/config/cardano-node/config.json"
+              "--node-socket"
+              "${nodeSocketPath}"
+              "--since"
+              "${kup.since}"
               "--defer-db-indexes"
-              "--match" "${"${kup.match}"}"
-              "--workdir" "kupo_db"
+              "--match"
+              "${"${kup.match}"}"
+              "--workdir"
+              "kupo_db"
             ];
           };
         };
