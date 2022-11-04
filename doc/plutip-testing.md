@@ -74,7 +74,7 @@ An example `Contract` with two actors using `Array`:
 ```purescript
 let
   distribution :: Array (Array BigInt)
-  distribution = 
+  distribution =
     [ [ BigInt.fromInt 1_000_000_000, BigInt.fromInt 2_000_000_000]
     , [ BigInt.fromInt 2_000_000_000 ]
     ]

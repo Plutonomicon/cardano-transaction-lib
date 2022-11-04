@@ -37,6 +37,7 @@ check-format: check-explicit-exports check-examples-imports
 	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
+	./whitespace_checks.sh
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
