@@ -11,6 +11,7 @@ module Contract.Scripts
   , module NativeScript
   , module TypedValidator
   , module TypesScripts
+  , module X
   ) where
 
 import Prelude
@@ -40,6 +41,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
+import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
 import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
@@ -59,6 +61,7 @@ import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
+  , NativeScriptStakeValidator(NativeScriptStakeValidator)
   , PlutusScript(PlutusScript)
   , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
   , StakeValidatorHash(StakeValidatorHash)

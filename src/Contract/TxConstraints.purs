@@ -11,8 +11,10 @@ import Ctl.Internal.Types.TxConstraints
   , addTxIn
   , isSatisfiable
   , mustBeSignedBy
+  , mustDelegateStakeNativeScript
   , mustDelegateStakePlutusScript
   , mustDelegateStakePubKey
+  , mustDeregisterStakeNativeScript
   , mustDeregisterStakePlutusScript
   , mustDeregisterStakePubKey
   , mustHashDatum
@@ -54,6 +56,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
+  , mustWithdrawStakeNativeScript
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
   , pubKeyPayments

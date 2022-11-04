@@ -155,6 +155,7 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Ctl.Internal.Types.PlutusData as PlutusData
+import Ctl.Internal.Types.RewardAddress (RewardAddress, unRewardAddress) as T
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
@@ -638,11 +639,12 @@ convertExUnitPrices { memPrice, stepPrice } =
   join $ newExUnitPrices <$> mkUnitInterval memPrice <*> mkUnitInterval
     stepPrice
 
-convertWithdrawals :: Map.Map RewardAddress Value.Coin -> Effect Withdrawals
+convertWithdrawals :: Map.Map T.RewardAddress Value.Coin -> Effect Withdrawals
 convertWithdrawals mp =
   newWithdrawals containerHelper =<< do
     for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
-      Tuple k <$> fromJustEff "convertWithdrawals: Failed to convert BigNum"
+      Tuple (T.unRewardAddress k) <$> fromJustEff
+        "convertWithdrawals: Failed to convert BigNum"
         (BigNum.fromBigInt v)
 
 convertCerts :: Array T.Certificate -> Effect Certificates
@@ -679,7 +681,7 @@ convertCert = case _ of
       pledge
       cost
       margin'
-      rewardAccount
+      (T.unRewardAddress rewardAccount)
       poolOwners'
       relays'
       (maybeToUor poolMetadata')

@@ -152,7 +152,6 @@ import Ctl.Internal.Metadata.Cip25.V2
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId(MainnetId, TestnetId)
-  , RewardAddress
   , Slot(Slot)
   , StakeCredential
   , baseAddress
@@ -182,6 +181,7 @@ import Ctl.Internal.Types.RawBytes
   , rawBytesFromIntArrayUnsafe
   )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
+import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress))
 import Ctl.Internal.Types.Scripts
   ( MintingPolicyHash(MintingPolicyHash)
   , PlutusScript
@@ -284,7 +284,8 @@ bigNumOne :: BigNum
 bigNumOne = unsafePartial $ fromJust $ BigNum.fromBigInt $ BigInt.fromInt 1
 
 rewardAddress1 :: RewardAddress
-rewardAddress1 = rewardAddress { network: TestnetId, paymentCred: stake1 }
+rewardAddress1 = RewardAddress $ rewardAddress
+  { network: TestnetId, paymentCred: stake1 }
 
 proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
 proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
@@ -579,7 +580,7 @@ txFixture4 =
                 , pledge: bigNumOne
                 , cost: bigNumOne
                 , margin: { numerator: bigNumOne, denominator: bigNumOne }
-                , rewardAccount: rewardAddress
+                , rewardAccount: RewardAddress $ rewardAddress
                     { network: MainnetId, paymentCred: stake1 }
                 , poolOwners: [ wrap $ wrap ed25519KeyHash1 ]
                 , relays:

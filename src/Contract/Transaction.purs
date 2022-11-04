@@ -192,6 +192,13 @@ import Ctl.Internal.Types.OutputDatum
   , outputDatumDataHash
   , outputDatumDatum
   ) as OutputDatum
+import Ctl.Internal.Types.RewardAddress
+  ( RewardAddress
+  , rewardAddressFromBech32
+  , rewardAddressFromBytes
+  , rewardAddressToBech32
+  , rewardAddressToBytes
+  ) as X
 import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
