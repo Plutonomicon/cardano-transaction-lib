@@ -194,6 +194,7 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -349,7 +350,7 @@ convertCertificate = _convertCert certConvHelper
           { genesisHash: T.GenesisHash $ toBytes $ asOneOf genesisHash
           , genesisDelegateHash: T.GenesisDelegateHash
               (toBytes $ asOneOf genesisDelegateHash)
-          , vrfKeyhash: vrfKeyhash
+          , vrfKeyhash: VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
         pure $ T.MoveInstantaneousRewardsCert $
@@ -373,7 +374,7 @@ convertPoolRegistration params = do
   relays <- traverse convertRelay $ poolParamsRelays containerHelper params
   pure $ T.PoolRegistration
     { operator: PoolPubKeyHash $ poolParamsOperator params
-    , vrfKeyhash: poolParamsVrfKeyhash params
+    , vrfKeyhash: VRFKeyHash $ poolParamsVrfKeyhash params
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
     , margin: _unpackUnitInterval $ poolParamsMargin params

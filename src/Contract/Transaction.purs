@@ -28,6 +28,7 @@ module Contract.Transaction
   , module ScriptRef
   , module Transaction
   , module UnbalancedTx
+  , module X
   , reindexSpentScriptRedeemers
   , signTransaction
   , submit
@@ -245,6 +246,11 @@ import Ctl.Internal.Types.UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
+import Ctl.Internal.Types.VRFKeyHash
+  ( VRFKeyHash
+  , vrfKeyHashFromBytes
+  , vrfKeyHashToBytes
+  ) as X
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)

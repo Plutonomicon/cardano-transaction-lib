@@ -78,7 +78,10 @@ import Prelude
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromBigInt, fromInt) as BigNum
-import Contract.Transaction (PoolPubKeyHash(PoolPubKeyHash))
+import Contract.Transaction
+  ( PoolPubKeyHash(PoolPubKeyHash)
+  , vrfKeyHashFromBytes
+  )
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -139,7 +142,6 @@ import Ctl.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
 import Ctl.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
 import Ctl.Internal.Metadata.Cip25.V2
@@ -169,6 +171,7 @@ import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
+  , hexToByteArray
   , hexToByteArrayUnsafe
   )
 import Ctl.Internal.Types.Int as Int
@@ -569,9 +572,10 @@ txFixture4 =
             , StakeDelegation stake1 (wrap ed25519KeyHash1)
             , PoolRegistration
                 { operator: wrap ed25519KeyHash1
-                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
-                    $ byteArrayFromIntArrayUnsafe
-                    $ Array.replicate 32 0
+                , vrfKeyhash: unsafePartial $ fromJust $
+                    hexToByteArray
+                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+                      >>= vrfKeyHashFromBytes
                 , pledge: bigNumOne
                 , cost: bigNumOne
                 , margin: { numerator: bigNumOne, denominator: bigNumOne }
@@ -610,9 +614,10 @@ txFixture4 =
                 , genesisDelegateHash: GenesisDelegateHash $
                     hexToByteArrayUnsafe
                       "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , vrfKeyhash: unsafePartial $ fromJust $ fromBytes
-                    $ byteArrayFromIntArrayUnsafe
-                    $ Array.replicate 32 0
+                , vrfKeyhash: unsafePartial $ fromJust $
+                    hexToByteArray
+                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+                      >>= vrfKeyHashFromBytes
                 }
             , MoveInstantaneousRewardsCert $ ToOtherPot
                 { pot: one

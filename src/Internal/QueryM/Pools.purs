@@ -47,6 +47,7 @@ import Ctl.Internal.Types.ByteArray
   )
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Right, Left), note)
@@ -159,7 +160,8 @@ getPoolParameters poolPubKeyHash = do
       vrfKeyhashHex <- objParams .: "vrf"
       vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
         vrfKeyhashHex
-      vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ fromBytes vrfKeyhashBytes
+      vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
+        vrfKeyhashBytes
       pledge <- objParams .: "pledge"
       cost <- objParams .: "cost"
       margin <- decodeUnitInterval =<< objParams .: "margin"
