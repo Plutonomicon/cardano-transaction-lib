@@ -51,7 +51,6 @@ import Control.Plus (class Plus, empty)
 import Ctl.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
-  , DispatchIdMap
   , Host
   , ListenerSet
   , Logger
@@ -75,7 +74,8 @@ import Ctl.Internal.QueryM
   , mkWsUrl
   ) as QueryM
 import Ctl.Internal.QueryM
-  ( QueryConfig
+  ( Hooks
+  , QueryConfig
   , QueryEnv
   , QueryM
   , QueryMExtended
@@ -250,6 +250,7 @@ type ConfigParams (r :: Row Type) =
   , suppressLogs :: Boolean
   -- | Additional config options to extend the `ContractEnv`
   , extraConfig :: { | r }
+  , hooks :: Hooks
   }
 
 -- | Interprets a contract into an `Aff` context.
@@ -300,6 +301,7 @@ mkContractEnv
     , walletSpec
     , customLogger
     , suppressLogs
+    , hooks
     } = do
   let
     config =
@@ -311,6 +313,7 @@ mkContractEnv
       , walletSpec
       , customLogger
       , suppressLogs
+      , hooks
       }
   runtime <- mkQueryRuntime
     config
@@ -351,6 +354,7 @@ withContractEnv
     , walletSpec
     , customLogger
     , suppressLogs
+    , hooks
     }
   action = do
   { addLogEntry, printLogs } <-
@@ -368,6 +372,7 @@ withContractEnv
           if suppressLogs then Just $ map liftEffect <<< addLogEntry
           else customLogger
       , suppressLogs
+      , hooks
       }
 
   withQueryRuntime config \runtime -> do

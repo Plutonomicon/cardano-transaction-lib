@@ -11,6 +11,7 @@ module Ctl.Examples.SatisfiesAnyOf
 import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Hashing (datumHash) as Hashing
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, runContract)
 import Contract.PlutusData
@@ -19,11 +20,9 @@ import Contract.PlutusData
   , unitDatum
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Internal.Hashing (datumHash) as Hashing
 import Data.BigInt as BigInt
 import Effect.Exception (error)
 
@@ -35,7 +34,6 @@ example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.SatisfiesAnyOf"
     testMustSatisfyAnyOf
-  publishTestFeedback true
 
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42

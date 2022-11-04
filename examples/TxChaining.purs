@@ -1,6 +1,6 @@
 -- | This module demonstrates how to enable transaction chaining when submitting
--- | multiple transactions in the correct order; and how subsequent transactions 
--- | can use utxos created in the previous ones without waiting for them to 
+-- | multiple transactions in the correct order; and how subsequent transactions
+-- | can use utxos created in the previous ones without waiting for them to
 -- | leave the mempool and be included in the block.
 module Ctl.Examples.TxChaining
   ( main
@@ -20,7 +20,6 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, liftedM, runContract)
 import Contract.PlutusData (PlutusData)
 import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( awaitTxConfirmed
   , balanceTxWithConstraints
@@ -40,7 +39,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 contract :: Contract () Unit
 contract = do

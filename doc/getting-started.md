@@ -5,19 +5,18 @@ This guide will help you get started writing contracts with CTL. Please also see
 **Table of Contents**
 
 - [Prerequisites](#prerequisites)
-  - [Setting up a new project](#setting-up-a-new-project)
-  - [Other prerequisites](#other-prerequisites)
+  * [Setting up a new project](#setting-up-a-new-project)
+  * [Other prerequisites](#other-prerequisites)
 - [Importing CTL modules](#importing-ctl-modules)
-  - [The `Contract` interface](#the-contract-interface)
-  - [Our `Prelude`](#our-prelude)
-- [Executing contracts and the `ContractEnv`](#executing-contracts-and-the-contractenv)
-  - [Making the `ContractEnv`](#making-the-contractenv)
+  * [The `Contract` interface](#the--contract--interface)
+  * [Our `Prelude`](#our--prelude-)
+- [Executing contracts and the `ContractEnv`](#executing-contracts-and-the--contractenv-)
+  * [Making the `ContractEnv`](#making-the--contractenv-)
 - [Building and submitting transactions](#building-and-submitting-transactions)
-  - [Awaiting tx confirmation](#awaiting-tx-confirmation)
-  - [Using compiled scripts](#using-compiled-scripts)
+  * [Using compiled scripts](#using-compiled-scripts)
 - [Testing](#testing)
-  - [With a light wallet](#with-a-light-wallet)
-  - [Without a light wallet](#without-a-light-wallet)
+  * [Without a light wallet](#without-a-light-wallet)
+  * [With a light wallet](#with-a-light-wallet)
 
 ## Prerequisites
 
@@ -173,7 +172,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   contract = do
     let
       constraints :: TxConstraints Unit Unit
-      constraints = 
+      constraints =
         TxConstraints.mustPayToScript vhash unitDatum
           (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
@@ -184,7 +183,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
       balanceTxConstraints =
         BalanceTxConstraints.mustBalanceTxWithAddress address
           <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
-        
+
     -- `liftedE` will throw a runtime exception on `Left`s
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     ...
@@ -197,7 +196,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     -- `liftedE` will throw a runtime exception on `Left`s
     balancedTx <-
       liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
-    balancedSignedTx <- signTransaction balancedTx 
+    balancedSignedTx <- signTransaction balancedTx
     ...
   ```
 
@@ -266,9 +265,9 @@ And on the purescript side, the script can be loaded like so:
 foreign import myscript :: String
 
 parseValidator :: Contract () Validator
-parseValidator = wrap <<< wrap
-  <$> Contract.TextEnvelope.textEnvelopeBytes myscript PlutusScriptV1
-
+parseValidator = liftMaybe (error "Error decoding myscript") do
+    envelope <- decodeTextEnvelope myscript
+    Validator <$> Contract.TextEnvelope.plutusScriptV1FromEnvelope envelope
 myContract cfg = runContract_ cfg $ do
   validator <- parseValidator
   ...

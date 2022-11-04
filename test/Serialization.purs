@@ -2,7 +2,6 @@ module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import Contract.Numeric.BigNum (fromString) as BN
 import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey
   , Transaction
@@ -18,6 +17,8 @@ import Ctl.Internal.Serialization (convertTxOutput, toBytes)
 import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (fromString) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
@@ -45,7 +46,6 @@ import Test.Ctl.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.Ctl.TestM (TestPlanM)
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)

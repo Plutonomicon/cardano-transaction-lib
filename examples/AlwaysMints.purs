@@ -10,20 +10,21 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Data.BigInt as BigInt
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -50,11 +51,11 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
-  publishTestFeedback true
 
 foreign import alwaysMints :: String
 
 alwaysMintsPolicy :: Contract () MintingPolicy
-alwaysMintsPolicy = PlutusMintingPolicy <<< plutusV1Script <$> textEnvelopeBytes
-  alwaysMints
-  PlutusScriptV1
+alwaysMintsPolicy =
+  liftMaybe (error "Error decoding alwaysMintsPolicy") do
+    envelope <- decodeTextEnvelope alwaysMints
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
