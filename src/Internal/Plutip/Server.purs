@@ -147,9 +147,10 @@ withPlutipContractEnv plutipCfg distr cont = do
   Aff.bracket
     (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
     (const $ runCleanup cleanupRef)
-    $ liftEither >=> \{ env, wallets, printLogs } ->
-        whenError printLogs (cont env wallets)
+    $ liftEither >=> \{ env, wallets, printLogs, clearLogs } ->
+        whenError printLogs (cont env wallets) <* clearLogs
 
+type PlutipTestHandler :: Type -> Type -> Type -> Type
 type PlutipTestHandler distr wallets r =
   UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
 
@@ -234,8 +235,9 @@ testPlutipContracts plutipCfg tp = do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
       (runCleanup cleanupRef)
-      $ flip mapTest tests \test { env, wallets, printLogs } -> do
+      $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
           whenError printLogs (runContractInEnv env (test wallets))
+          clearLogs
   where
   bracket
     :: forall (a :: Type) (b :: Type)
@@ -267,6 +269,7 @@ startPlutipContractEnv
        { env :: ContractEnv ()
        , wallets :: wallets
        , printLogs :: Aff Unit
+       , clearLogs :: Aff Unit
        }
 startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
@@ -276,12 +279,13 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startOgmios' response
   startOgmiosDatumCache' response
   startMCtlServer'
-  env /\ printLogs <- mkContractEnv'
+  { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure
     { env
     , wallets
     , printLogs
+    , clearLogs
     }
   where
   bracket
@@ -366,18 +370,27 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
 
-  mkContractEnv' :: Aff (ContractEnv () /\ Aff Unit)
+  mkContractEnv'
+    :: Aff
+         { env :: ContractEnv ()
+         , printLogs :: Aff Unit
+         , clearLogs :: Aff Unit
+         }
   mkContractEnv' | plutipCfg.suppressLogs = do
     -- if logs should be suppressed, setup the machinery and continue with
     -- the bracket
-    { addLogEntry, suppressedLogger, printLogs } <-
+    { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
       liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
     let
       configLogger = Just $ map liftEffect <<< addLogEntry
 
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
       (liftEffect <<< stopContractEnv)
-      (\a -> pure (a /\ liftEffect printLogs))
+      \env -> pure
+        { env
+        , printLogs: liftEffect printLogs
+        , clearLogs: liftEffect clearLogs
+        }
   mkContractEnv' =
     -- otherwise, proceed with the env setup and provide a normal logger
     bracket
@@ -386,7 +399,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
           plutipCfg.customLogger
       )
       (liftEffect <<< stopContractEnv)
-      (\a -> pure (a /\ pure unit))
+      \env -> pure
+        { env
+        , printLogs: pure unit
+        , clearLogs: pure unit
+        }
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
   stopContractEnv :: ContractEnv () -> Effect Unit
