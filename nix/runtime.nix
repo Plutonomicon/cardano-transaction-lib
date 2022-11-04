@@ -160,6 +160,8 @@ rec {
               "--defer-db-indexes"
               "--match"
               "${"${kup.match}"}"
+              "--host"
+              "0.0.0.0"
               "--workdir"
               "kupo-db"
             ];
