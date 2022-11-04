@@ -293,11 +293,11 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "lastModified": 1661149943,
-        "narHash": "sha256-x6M9zMacJDvBsmgjxRNVT+rPymgmQjOEs3e5TXdX5wk=",
+        "lastModified": 1667387423,
+        "narHash": "sha256-oOycxAu9kARfyUvkdjeq80Em7b+vP9XsBii8836f9yQ=",
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "303f3a3035c52eb753b533d53ef439c6b4cde9c9",
+        "rev": "c0d11b5ff0c0200da00a50c17c38d9fd752ba532",
         "type": "github"
       },
       "original": {
