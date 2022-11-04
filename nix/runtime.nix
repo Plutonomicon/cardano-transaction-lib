@@ -143,6 +143,7 @@ rec {
         kupo = {
           service = {
             image = "cardanosolutions/kupo:${kup.tag}";
+            ports = [ (bindPort kup.port) ];
             volumes = [
               "${config.cardano-configurations}/network/${config.network.name}:/config"
               "${nodeIpcVol}:/ipc"
