@@ -48,6 +48,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.createAdditionalUtxos` to build an expected utxo set from transaction outputs, useful for transaction chaining ([#1046](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1046))
 - `DecodeAeson` instance for `NativeScript` data type ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069)).
 - `Contract.Wallet` exports `mkWalletBySpec` ([#1157](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1157))
+- New constraints for stake operations ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060)):
+  - Pool registration (`mustRegisterPool`)
+  - Pool retirement (`mustRetirePool`)
+  - Stake credential registration (`mustRegisterStakePubKey`, `mustRegisterStakeScript`)
+  - Stake delegation (`mustDelegateStakeNativeScript`, `mustDelegateStakePlutusScript`, `mustDelegateStakePubKey`)
+  - Staking rewards withdrawal (`mustWithdrawStakePubKey`, `mustWithdrawStakePlutusScript`, `mustWithdrawStakeNativeScript`)
+  - Stake credential deregistration (`mustDeregisterStakePubKey`, `mustDeregisterStakePlutusScript`, `mustDeregisterStakeNativeScript`)
+- New query layer functions to retrieve staking-related info from Ogmios ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060)):
+  - `Contract.Staking.getPoolIds`
+  - `Contract.Staking.getPoolParameters`
+  - `Contract.Staking.getPubKeyHashDelegationsAndRewards`
+  - `Contract.Staking.getValidatorHashDelegationsAndRewards`
 
 ### Changed
 

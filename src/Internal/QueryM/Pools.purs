@@ -4,7 +4,6 @@ module Ctl.Internal.QueryM.Pools
   , parseIpv6String
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
-  , getDelegationsAndRewards
   , DelegationsAndRewards
   ) where
 
@@ -27,9 +26,6 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Plutus.Types.Credential
-  ( Credential(PubKeyCredential, ScriptCredential)
-  )
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
@@ -54,7 +50,7 @@ import Data.Either (Either(Right, Left), note)
 import Data.Foldable (fold)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.String (Pattern(Pattern), Replacement(Replacement))
 import Data.String as String
 import Data.String.Utils as StringUtils
@@ -187,12 +183,6 @@ type DelegationsAndRewards =
   { rewards :: Maybe Coin
   , delegate :: Maybe PoolPubKeyHash
   }
-
-getDelegationsAndRewards :: Credential -> QueryM (Maybe DelegationsAndRewards)
-getDelegationsAndRewards (PubKeyCredential pubKey) =
-  getPubKeyHashDelegationsAndRewards $ wrap pubKey
-getDelegationsAndRewards (ScriptCredential script) =
-  getValidatorHashDelegationsAndRewards $ wrap $ unwrap script
 
 getValidatorHashDelegationsAndRewards
   :: StakeValidatorHash -> QueryM (Maybe DelegationsAndRewards)

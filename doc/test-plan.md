@@ -82,21 +82,21 @@ New constraints for operations with stake will be added in `v3`.
 
 ##### Delegation
 
-- [x] mustDelegateStakeNativeScript
-- [x] mustDelegateStakePlutusScript
 - [x] mustDelegateStakePubKey
+- [x] mustDelegateStakePlutusScript
+- [x] mustDelegateStakeNativeScript
 
 ##### Rewards withdrawal
 
-- [x] mustWithdrawStakeNativeScript
-- [x] mustWithdrawStakePlutusScript
 - [x] mustWithdrawStakePubKey
+- [x] mustWithdrawStakePlutusScript
+- [x] mustWithdrawStakeNativeScript
 
 ##### Stake credential deregistration
 
-- [x] mustDeregisterStakeNativeScript
-- [x] mustDeregisterStakePlutusScript
 - [x] mustDeregisterStakePubKey
+- [x] mustDeregisterStakePlutusScript
+- [x] mustDeregisterStakeNativeScript
 
 #### Exceptions
 
