@@ -845,7 +845,7 @@ mkServiceWebSocket lens url continue = do
 --------------------------------------------------------------------------------
 
 -- | For each pending `SubmitTx` request, checks whether the transaction has
--- | been added to the mempool or has been included in a block before retrying 
+-- | been added to the mempool or has been included in a block before retrying
 -- | the request.
 resendPendingSubmitRequests
   :: OgmiosWebSocket
@@ -1209,7 +1209,7 @@ mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
       respLs.addRequest id (sBody /\ input)
       _wsSend webSocket (logger Debug) sBody
       -- Uncomment this code fragment to test `SubmitTx` request resend logic:
-      -- let method = aesonObject (flip getFieldOptional "methodname") body 
+      -- let method = aesonObject (flip getFieldOptional "methodname") body
       -- when (method == Right (Just "SubmitTx")) do
       --   _wsReconnect webSocket
       pure $ Canceler $ \err -> do

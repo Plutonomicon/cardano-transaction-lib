@@ -20,7 +20,9 @@ examples_imports_check() {
     echo "The following examples import internal CTL modules:"
     printf "$examples_with_internal_imports"
     exit 1
+  else
+    echo "All examples use public interface modules only"
   fi
 }
-examples_imports_check
 
+examples_imports_check
