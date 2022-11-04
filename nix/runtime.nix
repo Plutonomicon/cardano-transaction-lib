@@ -146,7 +146,7 @@ rec {
             volumes = [
               "${config.cardano-configurations}/network/${config.network.name}:/config"
               "${nodeIpcVol}:/ipc"
-              "kupo_db"
+              "${kupoDbVol}:/kupo-db"
             ];
             command = [
               "--node-config"
