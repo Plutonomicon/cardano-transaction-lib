@@ -115,6 +115,7 @@ rec {
         );
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
+      kupoDbVol = "kupo-db";
       nodeSocketPath = "/ipc/node.socket";
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
@@ -259,6 +260,7 @@ rec {
           volumes = {
             "${nodeDbVol}" = { };
             "${nodeIpcVol}" = { };
+            "${kupoDbVol}" = { };
           };
         }
         config.extraDockerCompose;
