@@ -56,7 +56,7 @@ import Ctl.Internal.Test.E2E.Wallets
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
-import Data.Either (Either(Right, Left), either)
+import Data.Either (Either(Right, Left))
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
 import Data.Int as Int
