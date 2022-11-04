@@ -21,6 +21,6 @@ examples_imports_check() {
     printf "$examples_with_internal_imports"
     exit 1
   fi
-} 
+}
 examples_imports_check
 
