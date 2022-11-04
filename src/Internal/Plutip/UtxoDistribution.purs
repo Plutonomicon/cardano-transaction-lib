@@ -121,8 +121,7 @@ decodeWallets'Array
   => Array distr
   -> Array PrivateKeyResponse
   -> Maybe (Array KeyWallet /\ Array PrivateKeyResponse)
-decodeWallets'Array d pks = flip runStateT pks do
-  traverse (StateT <<< decodeWallets') d
+decodeWallets'Array = runStateT <<< traverse (StateT <<< decodeWallets')
 
 keyWalletsArray
   :: forall (distr :: Type)
@@ -139,7 +138,7 @@ instance
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
   decodeWallets d p = decodeWalletsDefault d p
-  decodeWallets' (distr /\ rest) pks = flip runStateT pks do
+  decodeWallets' (distr /\ rest) = runStateT do
     headWallets <- StateT $ decodeWallets' distr
     restWallets <- StateT $ decodeWallets' rest
     pure (headWallets /\ restWallets)
