@@ -18,7 +18,7 @@ rec {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
       # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "1.35.3";
+      tag = "1.35.4-rc2";
     };
     ogmios = { port = 1337; };
     # If you don't need to use `applyArgs` (i.e. you're not using parameterized

@@ -146,8 +146,8 @@ derive instance Generic TxConstraint _
 instance Show TxConstraint where
   show x = genericShow x
 
--- | `InputWithScriptRef` specifies whether the underlying utxo with the 
--- | reference script should be included in the transaction as a reference 
+-- | `InputWithScriptRef` specifies whether the underlying utxo with the
+-- | reference script should be included in the transaction as a reference
 -- | input.
 data InputWithScriptRef
   -- | `RefInput` asserts the utxo containing the reference script should be
@@ -392,8 +392,8 @@ mustPayToScript vh dt dtp vl =
   singleton (MustPayToScript vh dt dtp Nothing vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
--- | Lock the value, datum and reference script with a script. 
--- | Note that the provided reference script does *not* necessarily need to 
+-- | Lock the value, datum and reference script with a script.
+-- | Note that the provided reference script does *not* necessarily need to
 -- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptWithScriptRef
   :: forall (i :: Type) (o :: Type)
@@ -517,7 +517,7 @@ mustSpendScriptOutput
 mustSpendScriptOutput txOutRef red =
   singleton (MustSpendScriptOutput txOutRef red Nothing)
 
--- | Spend the given unspent transaction script output, using a reference script 
+-- | Spend the given unspent transaction script output, using a reference script
 -- | to satisfy the script witnessing requirement.
 mustSpendScriptOutputUsingScriptRef
   :: forall (i :: Type) (o :: Type)
