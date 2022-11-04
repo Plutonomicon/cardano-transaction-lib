@@ -172,7 +172,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
   contract = do
     let
       constraints :: TxConstraints Unit Unit
-      constraints = 
+      constraints =
         TxConstraints.mustPayToScript vhash unitDatum
           (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
@@ -183,7 +183,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
       balanceTxConstraints =
         BalanceTxConstraints.mustBalanceTxWithAddress address
           <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
-        
+
     -- `liftedE` will throw a runtime exception on `Left`s
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     ...
@@ -196,7 +196,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     -- `liftedE` will throw a runtime exception on `Left`s
     balancedTx <-
       liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
-    balancedSignedTx <- signTransaction balancedTx 
+    balancedSignedTx <- signTransaction balancedTx
     ...
   ```
 

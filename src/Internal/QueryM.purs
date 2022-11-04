@@ -33,6 +33,7 @@ module Ctl.Internal.QueryM
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   , getLogger
+  , getProtocolParameters
   , getProtocolParametersAff
   , getWalletAddresses
   , liftQueryM
@@ -49,6 +50,7 @@ module Ctl.Internal.QueryM
   , mkQueryRuntime
   , mkRequest
   , mkRequestAff
+  , mkWalletBySpec
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes
   , ownStakePubKeyHash
@@ -472,6 +474,12 @@ runQueryMInRuntime
   -> Aff a
 runQueryMInRuntime config runtime = do
   flip runReaderT { config, runtime, extraConfig: {} } <<< unwrap
+
+-- | Returns the `ProtocolParameters` from the `QueryM` environment.
+-- | Note that this is not necessarily the current value from the ledger.
+getProtocolParameters :: QueryM Ogmios.ProtocolParameters
+getProtocolParameters =
+  asks $ _.runtime >>> _.pparams
 
 getProtocolParametersAff
   :: OgmiosWebSocket
