@@ -3,7 +3,6 @@ module Contract.Staking
   , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
-  , getDelegationsAndRewards
   ) where
 
 import Prelude
@@ -13,7 +12,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( PoolPubKeyHash
   , PoolRegistrationParams
   )
-import Ctl.Internal.Plutus.Types.Credential (Credential)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools as QueryM
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
@@ -42,9 +40,3 @@ getValidatorHashDelegationsAndRewards
   -> Contract r (Maybe DelegationsAndRewards)
 getValidatorHashDelegationsAndRewards =
   wrapContract <<< QueryM.getValidatorHashDelegationsAndRewards
-
-getDelegationsAndRewards
-  :: forall (r :: Row Type)
-   . Credential
-  -> Contract r (Maybe DelegationsAndRewards)
-getDelegationsAndRewards = wrapContract <<< QueryM.getDelegationsAndRewards
