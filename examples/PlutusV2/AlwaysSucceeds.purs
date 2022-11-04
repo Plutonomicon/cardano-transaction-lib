@@ -17,19 +17,20 @@ import Contract.Monad
   , launchAff_
   , runContract
   )
-import Contract.Scripts (Validator, validatorHash)
+import Contract.Scripts (Validator(Validator), validatorHash)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( awaitTxConfirmed
-  , plutusV2Script
   )
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.AlwaysSucceeds
   ( payToAlwaysSucceeds
   , spendFromAlwaysSucceeds
   )
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -52,6 +53,7 @@ example cfg = launchAff_ do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScriptV2 :: Contract () Validator
-alwaysSucceedsScriptV2 = wrap <<< plutusV2Script <$> textEnvelopeBytes
-  alwaysSucceeds
-  PlutusScriptV2
+alwaysSucceedsScriptV2 =
+  liftMaybe (error "Error decoding alwaysSucceeds") do
+    envelope <- decodeTextEnvelope alwaysSucceeds
+    Validator <$> plutusScriptV2FromEnvelope envelope
