@@ -53,6 +53,7 @@ rec {
       };
     };
     kup = {
+      port = 1442;
       # Do we actually need to sync the entire history?
       since = "origin";
       # This matches any Cardano address, "*/*" matches shelley addresses only, maybe we want the latter
@@ -159,6 +160,8 @@ rec {
               "--defer-db-indexes"
               "--match"
               "${"${kup.match}"}"
+              "--host"
+              "0.0.0.0"
               "--workdir"
               "kupo-db"
             ];
