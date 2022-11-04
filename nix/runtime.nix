@@ -160,7 +160,7 @@ rec {
               "--match"
               "${"${kup.match}"}"
               "--workdir"
-              "kupo_db"
+              "kupo-db"
             ];
           };
         };
