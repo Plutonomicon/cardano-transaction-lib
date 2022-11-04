@@ -133,7 +133,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, bracket, launchAff_)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, skip, test)
@@ -167,15 +167,18 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 450_000.0, exit = true }
+    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
     $ do
         suite
         UtxoDistribution.suite
         NetworkId.suite
+  Utils.interpretWithConfig
+    defaultConfig { timeout = Just $ Milliseconds 450_000.0, exit = true }
+    $ do
+        Staking.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  Staking.suite
   group "Plutip" do
     Logging.suite
 
