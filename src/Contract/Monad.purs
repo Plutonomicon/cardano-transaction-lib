@@ -51,7 +51,6 @@ import Control.Plus (class Plus, empty)
 import Ctl.Internal.QueryM
   ( DatumCacheListeners
   , DatumCacheWebSocket
-  , DispatchIdMap
   , Host
   , ListenerSet
   , Logger

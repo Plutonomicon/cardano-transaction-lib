@@ -13,6 +13,7 @@ trailing_whitespaces=$(grep -I '[[:blank:]]$' -R \
         -not -path '*.skey' \
         -not -path '*node_modules*' \
         -not -path '*.node*' \
+        -not -path '*.psci_modules*' \
         -not -path '*generated-docs*' \
         -not -path '*dist*' \
         -not -path '*test-data*' \
@@ -21,9 +22,9 @@ trailing_whitespaces=$(grep -I '[[:blank:]]$' -R \
 
 if [ -z "$trailing_whitespaces" ]
 then
-    echo "No trailing spaces"
+    echo "All source files have no trailing spaces"
 else
-    echo "Has trailing spaces in files: "
+    echo "Some source files have trailing spaces:"
     echo $trailing_whitespaces
     exit 1
 fi
@@ -39,6 +40,7 @@ no_newline=$(find . \
 -not -path '*.skey' \
 -not -path '*node_modules*' \
 -not -path '*.node*' \
+-not -path '*.psci_modules*' \
 -not -path '*generated-docs*' \
 -not -path '*dist*' \
 -not -path '*test-data*' \
@@ -50,9 +52,9 @@ no_newline=$(find . \
 
 if [ -z "$no_newline" ]
 then
-    echo "Has newlines on the end of each file"
+    echo "All source files have newlines at the end"
 else
-    echo "No newline on the end in files: "
+    echo "Not all source files have newlines at the end:"
     echo $no_newline
     exit 1
 fi
