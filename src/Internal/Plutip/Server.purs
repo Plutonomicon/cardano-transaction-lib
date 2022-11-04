@@ -102,7 +102,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Mote (bracket, group) as Mote
+import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
@@ -224,13 +224,16 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
   emptyPlutipTestPlan = PlutipTestPlan \h -> h unit (pure unit)
 
 -- | Run `Contract`s in tests in a single Plutip instance.
+-- | NOTE: This uses `MoteT`s bracketting, and thus has the same caveats.
+-- |       Namely, brackets are run for each of the following groups and tests.
+-- |       If you wish to only set up Plutip once, ensure all tests are wrapped
+-- |       in a single group.
 testPlutipContracts
   :: PlutipConfig
   -> TestPlanM PlutipTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
-  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution
-    (Mote.group "HIDDEN_GROUP" tp)
+  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution tp
   runPlutipTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)

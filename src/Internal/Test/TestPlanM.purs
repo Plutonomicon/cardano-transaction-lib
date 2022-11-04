@@ -47,14 +47,9 @@ planToSpec =
   foldPlan
     (\x -> it x.label $ runBracket x.value x.bracket)
     pending
-    (\x -> special x.label $ runBracketSpec (planToSpec x.value) x.bracket)
+    (\x -> describe x.label $ runBracketSpec (planToSpec x.value) x.bracket)
     sequence_
   where
-  special :: String -> AffSpec Unit -> AffSpec Unit
-  special = case _ of
-    "HIDDEN_GROUP" -> identity
-    label -> describe label
-
   runBracketSpec :: AffSpec Unit -> Maybe (Bracket Aff) -> AffSpec Unit
   runBracketSpec action = maybe action
     $ unBracket \before after -> do
