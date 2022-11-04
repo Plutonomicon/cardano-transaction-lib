@@ -41,6 +41,14 @@
       flake = false;
     };
 
+    kupo-nixos = {
+      type = "github";
+      owner = "mlabs-haskell";
+      repo = "kupo-nixos";
+      ref = "main";
+      flake = true;
+    };
+
     # for the haskell server
     iohk-nix.url = "github:input-output-hk/iohk-nix";
     haskell-nix.follows = "plutip/haskell-nix";
@@ -297,6 +305,7 @@
       packages = perSystem (system:
         self.hsFlake.${system}.packages
         // (psProjectFor (nixpkgsFor system)).packages
+        // inputs.kupo-nixos.outputs.defaultPackage.${system}
       );
 
       apps = perSystem (system:
