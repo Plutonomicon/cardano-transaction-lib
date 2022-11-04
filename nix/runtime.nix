@@ -60,7 +60,6 @@ rec {
       match = "*";
       #Do we want to pin to a concrete version or just "latest"?
       tag = "v2.1.0";
-      # TODO: Do we want to support connection through ogmios?
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
     # corresponds directly to YAML that would be written in a `docker-compose` file,
