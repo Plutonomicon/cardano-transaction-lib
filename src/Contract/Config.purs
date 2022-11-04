@@ -9,6 +9,9 @@ module Contract.Config
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
+  , mainnetFlintConfig
+  , mainnetEternlConfig
+  , mainnetLodeConfig
   , module Contract.Address
   , module Contract.Monad
   , module Data.Log.Level
@@ -18,6 +21,8 @@ module Contract.Config
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
   ) where
+
+import Prelude
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Contract.Monad (ConfigParams)
@@ -60,6 +65,7 @@ testnetConfig =
   , logLevel: Trace
   , customLogger: Nothing
   , suppressLogs: false
+  , hooks: mempty
   }
 
 testnetNamiConfig :: ConfigParams ()
@@ -85,3 +91,12 @@ mainnetNamiConfig = mainnetConfig { walletSpec = Just ConnectToNami }
 
 mainnetGeroConfig :: ConfigParams ()
 mainnetGeroConfig = mainnetConfig { walletSpec = Just ConnectToGero }
+
+mainnetFlintConfig :: ConfigParams ()
+mainnetFlintConfig = mainnetConfig { walletSpec = Just ConnectToFlint }
+
+mainnetEternlConfig :: ConfigParams ()
+mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
+
+mainnetLodeConfig :: ConfigParams ()
+mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }

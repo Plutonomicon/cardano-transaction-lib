@@ -1,5 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be 
--- | used to build scripts with the provided arguments applied. It creates a 
+-- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | used to build scripts with the provided arguments applied. It creates a
 -- | transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.OneShotMinting
   ( contract
@@ -23,29 +23,27 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
-import Contract.Prim.ByteArray (ByteArray)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
   , PlutusScript
   , applyArgs
   )
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , plutusV1Script
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
@@ -54,6 +52,7 @@ import Ctl.Examples.Helpers
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -61,7 +60,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 mkAssertions
   :: Address
@@ -121,22 +119,20 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
-oneShotMintingPolicy =
-  mkOneShotMintingPolicy oneShotMinting PlutusScriptV1 plutusV1Script
+oneShotMintingPolicy txInput = do
+  script <- liftMaybe (error "Error decoding oneShotMinting") do
+    envelope <- decodeTextEnvelope oneShotMinting
+    plutusScriptV1FromEnvelope envelope
+  mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
-  :: String
-  -> TextEnvelopeType
-  -> (ByteArray -> PlutusScript)
+  :: PlutusScript
   -> TransactionInput
   -> Contract () MintingPolicy
-mkOneShotMintingPolicy json ty mkPlutusScript oref = do
-  unappliedMintingPolicy <-
-    map mkPlutusScript (textEnvelopeBytes json ty)
+mkOneShotMintingPolicy unappliedMintingPolicy oref = do
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
 
   liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
     mintingPolicyArgs
-

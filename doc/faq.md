@@ -17,6 +17,12 @@ This is probably because npm is used directly. This is something users have repo
 
 You can prevent `npm` from ever installing to local `node_modules` by enabling the `packageLockOnly` flag in the `shell` argument to `purescriptProject`. When enabled, `npm i` will always act as if the `--package-lock-only` flag has been passed. This is not enabled by default, but we recommend enabling it.
 
+## Common Contract execution problems
+
+### Q: What are the common reasons behind InsufficientTxInputs error?
+
+Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 tAda to create another UTxO for the collateral.
+
 ## Time-related
 
 ### Q: Time-related functions behave strangely, what's the reason?

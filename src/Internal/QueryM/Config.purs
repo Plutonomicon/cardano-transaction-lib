@@ -3,6 +3,8 @@ module Ctl.Internal.QueryM.Config
   , testnetQueryConfig
   ) where
 
+import Prelude
+
 import Ctl.Internal.QueryM (QueryConfig)
 import Ctl.Internal.QueryM.ServerConfig
   ( defaultDatumCacheWsConfig
@@ -23,6 +25,7 @@ testnetTraceQueryConfig =
   , walletSpec: Nothing
   , customLogger: Nothing
   , suppressLogs: false
+  , hooks: mempty
   }
 
 testnetQueryConfig :: QueryConfig

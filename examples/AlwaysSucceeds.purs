@@ -2,7 +2,8 @@
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that pays two Ada to the `AlwaysSucceeds` script address
 module Ctl.Examples.AlwaysSucceeds
-  ( alwaysSucceedsScript
+  ( alwaysSucceeds
+  , alwaysSucceedsScript
   , contract
   , example
   , main
@@ -18,30 +19,28 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
+  , _input
   , awaitTxConfirmed
   , lookupTxHash
-  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
--- TODO Re-export into Contract or drop the usage
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1042
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
 import Data.Map as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -61,7 +60,6 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
@@ -111,6 +109,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
 foreign import alwaysSucceeds :: String
 
 alwaysSucceedsScript :: Contract () Validator
-alwaysSucceedsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  alwaysSucceeds
-  PlutusScriptV1
+alwaysSucceedsScript =
+  liftMaybe (error "Error decoding alwaysSucceeds") do
+    envelope <- decodeTextEnvelope alwaysSucceeds
+    Validator <$> plutusScriptV1FromEnvelope envelope

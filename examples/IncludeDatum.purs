@@ -18,28 +18,28 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
+  , _input
   , awaitTxConfirmed
   , lookupTxHash
-  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (_input)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
 import Data.Map as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -55,7 +55,6 @@ example cfg = launchAff_ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromIncludeDatum vhash validator txId
-  publishTestFeedback true
 
 datum :: Datum
 datum = Datum $ Integer $ BigInt.fromInt 42
@@ -106,6 +105,7 @@ foreign import includeDatum :: String
 
 -- | checks if the datum equals 42
 only42Script :: Contract () Validator
-only42Script = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  includeDatum
-  PlutusScriptV1
+only42Script =
+  liftMaybe (error "Error decoding includeDatum") do
+    envelope <- decodeTextEnvelope includeDatum
+    Validator <$> plutusScriptV1FromEnvelope envelope

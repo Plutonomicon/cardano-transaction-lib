@@ -23,11 +23,10 @@ import Contract.PlutusData
   , Redeemer(Redeemer)
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( OutputDatum(OutputDatum)
@@ -35,15 +34,16 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , plutusV2Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 import Data.Map as Map
+import Effect.Exception (error)
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -60,7 +60,6 @@ example cfg = launchAff_ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromCheckDatumIsInline vhash validator txId
-  publishTestFeedback true
 
 plutusData :: PlutusData
 plutusData = Integer $ BigInt.fromInt 31415927
@@ -162,6 +161,7 @@ readFromCheckDatumIsInline vhash txId = do
 foreign import checkDatumIsInline :: String
 
 checkDatumIsInlineScript :: Contract () Validator
-checkDatumIsInlineScript = wrap <<< plutusV2Script <$> textEnvelopeBytes
-  checkDatumIsInline
-  PlutusScriptV2
+checkDatumIsInlineScript =
+  liftMaybe (error "Error decoding checkDatumIsInline") do
+    envelope <- decodeTextEnvelope checkDatumIsInline
+    Validator <$> plutusScriptV2FromEnvelope envelope

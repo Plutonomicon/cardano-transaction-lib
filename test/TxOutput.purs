@@ -6,6 +6,7 @@ import Aeson (decodeJsonString, printJsonDecodeError)
 import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Ctl.Internal.QueryM.Ogmios as O
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Ctl.Internal.TxOutput (ogmiosTxOutToTransactionOutput)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -24,13 +25,11 @@ import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat)
-import Test.Ctl.TestM (TestPlanM)
-import Test.Ctl.Utils as Utils
 
 -- Run with `spago test --main Test.Ctl.TxOutput`
 main :: Effect Unit
 main = launchAff_ do
-  Utils.interpret suite
+  interpret suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
