@@ -130,11 +130,7 @@ import Ctl.Internal.Serialization.Keys
   , bytesFromPublicKey
   )
 import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Serialization.Types
-  ( Ed25519Signature
-  , PublicKey
-  , VRFKeyHash
-  ) as Serialization
+import Ctl.Internal.Serialization.Types (Ed25519Signature, PublicKey) as Serialization
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -148,6 +144,7 @@ import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
@@ -607,7 +604,7 @@ instance EncodeAeson MoveInstantaneousReward where
 
 type PoolRegistrationParams =
   { operator :: PoolPubKeyHash -- cwitness (cert)
-  , vrfKeyhash :: Serialization.VRFKeyHash
+  , vrfKeyhash :: VRFKeyHash
   -- needed to prove that the pool won the lottery
   , pledge :: BigNum
   , cost :: BigNum -- >= pparams.minPoolCost
@@ -654,7 +651,7 @@ data Certificate
   | GenesisKeyDelegation
       { genesisHash :: GenesisHash
       , genesisDelegateHash :: GenesisDelegateHash
-      , vrfKeyhash :: Serialization.VRFKeyHash
+      , vrfKeyhash :: VRFKeyHash
       }
   | MoveInstantaneousRewardsCert MoveInstantaneousReward
 

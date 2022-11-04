@@ -20,10 +20,7 @@ module Ctl.Internal.Serialization
 import Prelude
 
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef
-      ( NativeScriptRef
-      , PlutusScriptRef
-      )
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
@@ -161,6 +158,7 @@ import Ctl.Internal.Types.PlutusData as PlutusData
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash), unVRFKeyHash) as T
 import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)
@@ -677,7 +675,9 @@ convertCert = case _ of
       (unwrap <<< unwrap <$> poolOwners)
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
-    newPoolRegistrationCertificate (unwrap operator) vrfKeyhash pledge cost
+    newPoolRegistrationCertificate (unwrap operator) (T.unVRFKeyHash vrfKeyhash)
+      pledge
+      cost
       margin'
       rewardAccount
       poolOwners'
@@ -689,13 +689,12 @@ convertCert = case _ of
   T.GenesisKeyDelegation
     { genesisHash: T.GenesisHash genesisHash
     , genesisDelegateHash: T.GenesisDelegateHash genesisDelegateHash
-    , vrfKeyhash
+    , vrfKeyhash: T.VRFKeyHash vrfKeyhash
     } -> do
     join $ newGenesisKeyDelegationCertificate
       <$> newGenesisHash genesisHash
       <*> newGenesisDelegateHash genesisDelegateHash
-      <*>
-        pure vrfKeyhash
+      <*> pure vrfKeyhash
   T.MoveInstantaneousRewardsCert mir -> do
     newMoveInstantaneousRewardsCertificate =<<
       convertMoveInstantaneousReward mir

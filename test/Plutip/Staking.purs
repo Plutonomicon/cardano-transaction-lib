@@ -39,6 +39,7 @@ import Contract.Transaction
   , PoolPubKeyHash(PoolPubKeyHash)
   , balanceTx
   , signTransaction
+  , vrfKeyHashFromBytes
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -60,7 +61,6 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Serialization.Address (keyHashCredential, rewardAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum as BigNum
@@ -213,17 +213,16 @@ suite = do
 
         -- Register pool
         do
+          vrfKeyHash <- liftM (error "Unable to decode VRFKeyHash") do
+            hexToByteArray
+              "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+              >>= vrfKeyHashFromBytes
           let
             rewardAccount =
               rewardAddress
                 { network: networkId
                 , paymentCred: keyHashCredential $ unwrap $ unwrap aliceStakePkh
                 }
-            vrfKeyHash = unsafePartial $ fromJust $ fromBytes
-              $ unsafePartial
-              $ fromJust
-              $ hexToByteArray
-                  "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
             poolParams =
               { operator: poolOperator
               , vrfKeyhash: vrfKeyHash -- needed to prove that the pool won the lottery
