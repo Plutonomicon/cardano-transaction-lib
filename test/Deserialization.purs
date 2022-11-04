@@ -247,7 +247,7 @@ testNativeScript input = do
   serialized <- pure $ NSS.convertNativeScript input
   {-            ^^^^ This is necessary here as convertNativeScript can throw
                 a maximum call stack size runtime error (see excessive nesting
-                test above). It needs to be lifted into the Effect monad for 
+                test above). It needs to be lifted into the Effect monad for
                 purescript to handle it correctly.
   -}
 

@@ -1,4 +1,4 @@
--- | This module provides an extensible interface for making various 
+-- | This module provides an extensible interface for making various
 -- | assertions about `Contract`s.
 module Contract.Test.Utils
   ( class ContractAssertions
@@ -105,21 +105,21 @@ import Type.Proxy (Proxy(Proxy))
 -- `ContractTestM` and `ContractAssertionM` monads with related functions
 --------------------------------------------------------------------------------
 
--- | Monad allowing for accumulation of assertion failures. Should be used in 
+-- | Monad allowing for accumulation of assertion failures. Should be used in
 -- | conjunction with `ContractAssertionM`.
 type ContractTestM (r :: Row Type) (a :: Type) =
   WriterT (Array ContractAssertionFailure) (Contract r) a
 
--- | Represents computations which may fail with `ContractAssertionFailure`, 
--- | with the capability of storing some intermediate result, usually the result 
+-- | Represents computations which may fail with `ContractAssertionFailure`,
+-- | with the capability of storing some intermediate result, usually the result
 -- | of the contract under test.
--- | 
--- | Particularly useful for assertions that can control when the contract is 
--- | run (`ContractWrapAssertion`s). So in case of a failure after the contract 
--- | has already been executed, we can return the result of the contract, thus 
+-- |
+-- | Particularly useful for assertions that can control when the contract is
+-- | run (`ContractWrapAssertion`s). So in case of a failure after the contract
+-- | has already been executed, we can return the result of the contract, thus
 -- | preventing the failure of subsequent assertions.
 type ContractAssertionM (r :: Row Type) (w :: Type) (a :: Type) =
-  -- ExceptT ContractAssertionFailure 
+  -- ExceptT ContractAssertionFailure
   --   (Writer (Maybe (Last w)) (ContractTestM r)) a
   ExceptT ContractAssertionFailure
     ( WriterT (Maybe (Last w))
@@ -251,21 +251,21 @@ instance Show a => Show (ExpectedActual a) where
 type ContractBasicAssertion (r :: Row Type) (a :: Type) (b :: Type) =
   a -> ContractTestM r b
 
--- | An assertion that can control when the contract is run. The assertion 
--- | inhabiting this type should not call the contract more than once, as other 
+-- | An assertion that can control when the contract is run. The assertion
+-- | inhabiting this type should not call the contract more than once, as other
 -- | assertions need to be able to make this assumption to succesfully compose.
 type ContractWrapAssertion (r :: Row Type) (a :: Type) =
   ContractTestM r a -> ContractTestM r a
 
--- | Class to unify different methods of making assertions about a contract 
--- | under a single interface. Note that the typechecker may need some help when 
--- | using this class; try providing type annotations for your assertions using 
+-- | Class to unify different methods of making assertions about a contract
+-- | under a single interface. Note that the typechecker may need some help when
+-- | using this class; try providing type annotations for your assertions using
 -- | the type aliases for the instances of this class.
 class ContractAssertions (f :: Type) (r :: Row Type) (a :: Type) where
-  -- | Wrap a contract in an assertion. The wrapped contract itself becomes a 
+  -- | Wrap a contract in an assertion. The wrapped contract itself becomes a
   -- | contract which can be wrapped, allowing for composition of assertions.
   -- |
-  -- | No guarantees are made about the order in which assertions are made. 
+  -- | No guarantees are made about the order in which assertions are made.
   -- | Assertions with side effects should not be used.
   wrapAndAssert :: ContractTestM r a -> f -> ContractTestM r a
 
@@ -407,7 +407,7 @@ assertLovelaceDeltaAtAddress addr getExpected comp contract =
         assertContract unexpectedLovelaceDelta (comp actual expected)
         pure result
 
--- | Requires that the computed amount of lovelace was gained at the address 
+-- | Requires that the computed amount of lovelace was gained at the address
 -- | by calling the contract.
 assertGainAtAddress
   :: forall (r :: Row Type) (a :: Type)
@@ -417,7 +417,7 @@ assertGainAtAddress
 assertGainAtAddress addr getMinGain =
   assertLovelaceDeltaAtAddress addr getMinGain eq
 
--- | Requires that the passed amount of lovelace was gained at the address 
+-- | Requires that the passed amount of lovelace was gained at the address
 -- | by calling the contract.
 assertGainAtAddress'
   :: forall (r :: Row Type) (a :: Type)
@@ -427,7 +427,7 @@ assertGainAtAddress'
 assertGainAtAddress' addr minGain =
   assertGainAtAddress addr (const $ pure minGain)
 
--- | Requires that the computed amount of lovelace was lost at the address 
+-- | Requires that the computed amount of lovelace was lost at the address
 -- | by calling the contract.
 assertLossAtAddress
   :: forall (r :: Row Type) (a :: Type)
@@ -437,7 +437,7 @@ assertLossAtAddress
 assertLossAtAddress addr getMinLoss =
   assertLovelaceDeltaAtAddress addr (map negate <<< getMinLoss) eq
 
--- | Requires that the passed amount of lovelace was lost at the address 
+-- | Requires that the passed amount of lovelace was lost at the address
 -- | by calling the contract.
 assertLossAtAddress'
   :: forall (r :: Row Type) (a :: Type)
@@ -470,7 +470,7 @@ assertTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
         assertContract unexpectedTokenDelta (comp actual expected)
         pure result
 
--- | Requires that the computed number of tokens was gained at the address 
+-- | Requires that the computed number of tokens was gained at the address
 -- | by calling the contract.
 assertTokenGainAtAddress
   :: forall (r :: Row Type) (a :: Type)
@@ -481,7 +481,7 @@ assertTokenGainAtAddress
 assertTokenGainAtAddress addr token getMinGain =
   assertTokenDeltaAtAddress addr token getMinGain eq
 
--- | Requires that the passed number of tokens was gained at the address 
+-- | Requires that the passed number of tokens was gained at the address
 -- | by calling the contract.
 assertTokenGainAtAddress'
   :: forall (r :: Row Type) (a :: Type)
@@ -491,7 +491,7 @@ assertTokenGainAtAddress'
 assertTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
   assertTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
 
--- | Requires that the computed number of tokens was lost at the address 
+-- | Requires that the computed number of tokens was lost at the address
 -- | by calling the contract.
 assertTokenLossAtAddress
   :: forall (r :: Row Type) (a :: Type)
@@ -502,7 +502,7 @@ assertTokenLossAtAddress
 assertTokenLossAtAddress addr token getMinLoss =
   assertTokenDeltaAtAddress addr token (map negate <<< getMinLoss) eq
 
--- | Requires that the passed number of tokens was lost at the address 
+-- | Requires that the passed number of tokens was lost at the address
 -- | by calling the contract.
 assertTokenLossAtAddress'
   :: forall (r :: Row Type) (a :: Type)
@@ -523,7 +523,7 @@ assertOutputHasDatumImpl expectedDatum txOutput = do
     expectedDatum
     actualDatum
 
--- | Requires that the transaction output contains the specified datum or 
+-- | Requires that the transaction output contains the specified datum or
 -- | datum hash.
 assertOutputHasDatum
   :: forall (r :: Row Type)
@@ -533,7 +533,7 @@ assertOutputHasDatum
 assertOutputHasDatum expectedDatum =
   runContractAssertionM' <<< assertOutputHasDatumImpl expectedDatum
 
--- | Checks whether the transaction output contains the specified datum or 
+-- | Checks whether the transaction output contains the specified datum or
 -- | datum hash.
 checkOutputHasDatum
   :: forall (r :: Row Type)
@@ -555,7 +555,7 @@ assertOutputHasRefScriptImpl expectedRefScript txOutput = do
     (Just expectedRefScript)
     actualRefScript
 
--- | Requires that the transaction output contains the specified reference 
+-- | Requires that the transaction output contains the specified reference
 -- | script.
 assertOutputHasRefScript
   :: forall (r :: Row Type)
@@ -565,7 +565,7 @@ assertOutputHasRefScript
 assertOutputHasRefScript expectedRefScript =
   runContractAssertionM' <<< assertOutputHasRefScriptImpl expectedRefScript
 
--- | Checks whether the transaction output contains the specified reference 
+-- | Checks whether the transaction output contains the specified reference
 -- | script.
 checkOutputHasRefScript
   :: forall (r :: Row Type)
