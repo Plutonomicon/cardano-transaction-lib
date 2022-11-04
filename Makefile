@@ -31,19 +31,24 @@ check-explicit-exports:
 check-examples-imports:
 	bash ./scripts/examples-imports-check.sh
 
-check-format: check-explicit-exports check-examples-imports
+check-whitespace:
+	bash ./scripts/whitespace-check.sh
+
+check-format: check-explicit-exports check-examples-imports check-whitespace
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
 	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
-	./whitespace_checks.sh
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
 	nixpkgs-fmt ${nix-sources}
 	fourmolu -m inplace -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	prettier -w ${js-sources}
+	make check-explicit-exports
+	make check-examples-imports
+	make check-whitespace
 
 run-datum-cache-postgres-console:
 	@nix shell nixpkgs#postgresql -c psql postgresql://ctxlib:ctxlib@localhost:5432
@@ -57,6 +62,7 @@ clean:
 	@ rm -r .psc-ide-port || true
 	@ rm -rf .psci_modules || true
 	@ rm -rf .spago || true
+	@ rm -rf generated-docs || true
 	@ rm -rf .spago2nix || true
 	@ rm -rf node_modules || true
 	@ rm -rf output || true
