@@ -30,7 +30,8 @@ A new project can be initialized as follows:
 $ mkdir new-project && cd new-project
 $ nix flake init -t github:Plutonomicon/cardano-transaction-lib
 $ git init
-$ git commit -a -m 'Initial commit'
+$ git add *
+$ git commit -m 'Initial commit'
 ```
 
 **Note**: Nix flakes are just source trees with a `flake.nix` file in them, so initializing a `git` repo as illustrated above is necessary to have a working project. Source files not tracked by a VCS are invisible to Nix when using flakes, so do not skip that (or a similar) step!
@@ -304,7 +305,7 @@ We provide `KeyWallet` to enable testing outside of the browser, or in-browser w
 $ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
 ```
 
-The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See `examples/Pkh2PkhKeyWallet.purs`.
+The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See [`examples/KeyWallet/Internal/Pkh2PkhContract.purs`](../examples/KeyWallet/Internal/Pkh2PkhContract.purs#L49).
 
 From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). We are currently working on integration with the plutip. These will be included in an upcoming release of CTL.
 
