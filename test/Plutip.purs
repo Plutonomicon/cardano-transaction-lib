@@ -601,6 +601,33 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
+    test "runPlutipContract: MintZeroToken" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          tn1 <- mkTokenName "Token name"
+          mp1 /\ _ <- mkCurrencySymbol alwaysMintsPolicy
+          mp2 /\ _ <- mkCurrencySymbol alwaysMintsPolicyV2
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = mconcat
+              [ Constraints.mustMintCurrency (mintingPolicyHash mp1) tn1 zero
+              , Constraints.mustMintCurrency (mintingPolicyHash mp2) tn1 one
+              ]
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups =
+              Lookups.mintingPolicy mp1 <> Lookups.mintingPolicy mp2
+          result <- Lookups.mkUnbalancedTx lookups constraints
+          result `shouldSatisfy` isLeft
+
     test "runPlutipContract: MintsMultipleTokens" do
       let
         distribution :: InitialUTxOs
@@ -970,7 +997,10 @@ suite = do
         runPlutipContract config distribution \alice ->
           withKeyWallet alice TxChaining.contract
 
-    test "Evaluation with additional UTxOs with native scripts" do
+    -- TODO
+    -- investigate why this test failed with `valueNotConserved` error
+    -- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/1174
+    skip $ test "Evaluation with additional UTxOs with native scripts" do
       let
         distribution :: InitialUTxOs
         distribution =

@@ -411,7 +411,7 @@
             ''
               cd ${self}
               make check-examples-imports
-              touch $out 
+              touch $out
             '';
         });
 
