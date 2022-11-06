@@ -36,8 +36,8 @@ import Contract.Scripts
   , validatorHash
   )
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
   )
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
@@ -46,7 +46,6 @@ import Contract.Transaction
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , mkTxUnspentOut
-  , plutusV2Script
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -57,6 +56,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value (lovelaceValueOf) as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkTokenName
@@ -65,6 +65,7 @@ import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (Map)
 import Data.Map (empty, toUnfoldable) as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -198,5 +199,6 @@ alwaysMintsPolicyV2 = PlutusMintingPolicy <$> alwaysMintsPolicyScriptV2
 
 alwaysMintsPolicyScriptV2 :: Contract () PlutusScript
 alwaysMintsPolicyScriptV2 =
-  plutusV2Script <$> textEnvelopeBytes alwaysMintsV2 PlutusScriptV2
-
+  liftMaybe (error "Error decoding alwaysMintsV2") do
+    envelope <- decodeTextEnvelope alwaysMintsV2
+    plutusScriptV2FromEnvelope envelope
