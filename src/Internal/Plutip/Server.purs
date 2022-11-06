@@ -121,18 +121,6 @@ runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
   \env wallets ->
     runContractInEnv env (cont wallets)
 
-runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
-runCleanup cleanupRef = do
-  cleanups <- liftEffect $ Ref.read cleanupRef
-  sequence_ (try <$> cleanups)
-
--- Similar to `catchError` but preserves the error
-whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
-whenError whenErrorAction action = do
-  res <- try action
-  when (isLeft res) whenErrorAction
-  liftEither res
-
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | can be used to run multiple `Contract`s using `runContractInEnv`.
 withPlutipContractEnv
@@ -147,12 +135,59 @@ withPlutipContractEnv plutipCfg distr cont = do
   Aff.bracket
     (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
     (const $ runCleanup cleanupRef)
-    $ liftEither >=> \{ env, wallets, printLogs, clearLogs } ->
-        whenError printLogs (cont env wallets) <* clearLogs
+    $ liftEither >=> \{ env, wallets, printLogs } ->
+        whenError printLogs (cont env wallets)
 
-type PlutipTestHandler :: Type -> Type -> Type -> Type
-type PlutipTestHandler distr wallets r =
-  UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
+-- | Run `Contract`s in tests in a single Plutip instance.
+-- | NOTE: This uses `MoteT`s bracketting, and thus has the same caveats.
+-- |       Namely, brackets are run for each of the following groups and tests.
+-- |       If you wish to only set up Plutip once, ensure all tests are wrapped
+-- |       in a single group.
+testPlutipContracts
+  :: PlutipConfig
+  -> TestPlanM PlutipTest Unit
+  -> TestPlanM (Aff Unit) Unit
+testPlutipContracts plutipCfg tp = do
+  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution tp
+  runPlutipTestPlan \distr tests -> do
+    cleanupRef <- liftEffect $ Ref.new mempty
+    bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
+      (runCleanup cleanupRef)
+      $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
+          whenError printLogs (runContractInEnv env (test wallets))
+          clearLogs
+  where
+  -- `MoteT`'s bracket doesn't support supplying the constructed resource into
+  -- the main action, so we use a `Ref` to store and read the result.
+  bracket
+    :: forall (a :: Type) (b :: Type)
+     . Aff a
+    -> Aff Unit
+    -> TestPlanM (a -> Aff b) Unit
+    -> TestPlanM (Aff b) Unit
+  bracket before' after' act = do
+    resultRef <- liftEffect $ Ref.new (Left $ error "Plutip not initialized")
+    let
+      before = do
+        res <- try $ before'
+        liftEffect $ Ref.write res resultRef
+        pure res
+      after = const $ after'
+    Mote.bracket { before, after } $ flip mapTest act \t -> do
+      result <- liftEffect $ Ref.read resultRef >>= liftEither
+      t result
+
+runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
+runCleanup cleanupRef = do
+  cleanups <- liftEffect $ Ref.read cleanupRef
+  sequence_ (try <$> cleanups)
+
+-- Similar to `catchError` but preserves the error
+whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
+whenError whenErrorAction action = do
+  res <- try action
+  when (isLeft res) whenErrorAction
+  liftEither res
 
 -- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
 newtype PlutipTest = PlutipTest
@@ -162,6 +197,10 @@ newtype PlutipTest = PlutipTest
        )
     -> r
   )
+
+type PlutipTestHandler :: Type -> Type -> Type -> Type
+type PlutipTestHandler distr wallets r =
+  UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
 
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
 withWallets
@@ -176,13 +215,6 @@ withWallets distr tests = PlutipTest \h -> h distr tests
 noWallet :: Contract () Unit -> PlutipTest
 noWallet = withWallets unit <<< const
 
-type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
-type PlutipTestPlanHandler distr wallets r =
-  UtxoDistribution distr wallets
-  => distr
-  -> TestPlanM (wallets -> Contract () Unit) Unit
-  -> r
-
 -- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
 newtype PlutipTestPlan = PlutipTestPlan
   ( forall (r :: Type)
@@ -192,8 +224,16 @@ newtype PlutipTestPlan = PlutipTestPlan
     -> r
   )
 
--- | Lifts the utxo distributions of each test out of Mote, into a combined distribution
--- | Adapts the tests to pick their distribution out of the combined distribution
+type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
+type PlutipTestPlanHandler distr wallets r =
+  UtxoDistribution distr wallets
+  => distr
+  -> TestPlanM (wallets -> Contract () Unit) Unit
+  -> r
+
+-- | Lifts the utxo distributions of each test out of Mote, into a combined
+-- | distribution. Adapts the tests to pick their distribution out of the
+-- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
 execDistribution :: TestPlanM PlutipTest Unit -> Aff PlutipTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
@@ -223,45 +263,13 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
   emptyPlutipTestPlan :: PlutipTestPlan
   emptyPlutipTestPlan = PlutipTestPlan \h -> h unit (pure unit)
 
--- | Run `Contract`s in tests in a single Plutip instance.
--- | NOTE: This uses `MoteT`s bracketting, and thus has the same caveats.
--- |       Namely, brackets are run for each of the following groups and tests.
--- |       If you wish to only set up Plutip once, ensure all tests are wrapped
--- |       in a single group.
-testPlutipContracts
-  :: PlutipConfig
-  -> TestPlanM PlutipTest Unit
-  -> TestPlanM (Aff Unit) Unit
-testPlutipContracts plutipCfg tp = do
-  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution tp
-  runPlutipTestPlan \distr tests -> do
-    cleanupRef <- liftEffect $ Ref.new mempty
-    bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
-      (runCleanup cleanupRef)
-      $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
-          whenError printLogs (runContractInEnv env (test wallets))
-          clearLogs
-  where
-  bracket
-    :: forall (a :: Type) (b :: Type)
-     . Aff a
-    -> Aff Unit
-    -> TestPlanM (a -> Aff b) Unit
-    -> TestPlanM (Aff b) Unit
-  bracket before' after' act = do
-    resultRef <- liftEffect $ Ref.new (Left $ error "Plutip not initialized")
-    let
-      before = do
-        res <- try $ before'
-        liftEffect $ Ref.write res resultRef
-        pure res
-      after = const $ after'
-    Mote.bracket { before, after } $ flip mapTest act \t -> do
-      result <- liftEffect $ Ref.read resultRef >>= liftEither
-      t result
-
 -- | Provide a `ContractEnv` connected to Plutip.
--- | can be used to run multiple `Contract`s using `runContractInEnv`.
+-- | Can be used to run multiple `Contract`s using `runContractInEnv`.
+-- | Resources which are allocated in the `Aff` computation must be de-allocated
+-- | via the `Ref (Array (Aff Unit))` parameter, even if the computation did not
+-- | succesfully complete.
+-- Startup is implemented sequentially, rather than with nested `Aff.bracket`,
+-- to allow non-`Aff` computations to occur between setup and cleanup.
 startPlutipContractEnv
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
@@ -291,6 +299,8 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     , clearLogs
     }
   where
+  -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
+  -- later.
   bracket
     :: forall (a :: Type) (b :: Type)
      . Aff a
