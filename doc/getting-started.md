@@ -307,8 +307,12 @@ $ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --ver
 
 The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See [`examples/KeyWallet/Internal/Pkh2PkhContract.purs`](../examples/KeyWallet/Internal/Pkh2PkhContract.purs#L49).
 
-From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip). We are currently working on integration with the plutip. These will be included in an upcoming release of CTL.
+From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip).
 
 ### With a light wallet
 
-For full testing with browser-based light wallets, tools such as [`puppeteer`](https://github.com/puppeteer/puppeteer) or its [Purescript bindings](https://pursuit.purescript.org/packages/purescript-toppokki) might be useful.
+For full testing with browser-based light wallets see [E2E Testing in the Browser](./e2e-testing.md).
+
+### Plutip integration
+
+Plutip is a tool for testing contracts on a local testnet. See [CTL integration with Plutip](./plutip-testing.md).
