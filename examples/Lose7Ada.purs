@@ -19,25 +19,27 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , plutusV1Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
+import Data.Functor ((<$>))
 import Data.Map as Map
+import Effect.Exception (error)
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -113,6 +115,7 @@ spendFromAlwaysFails vhash validator txId = do
 foreign import alwaysFails :: String
 
 alwaysFailsScript :: Contract () Validator
-alwaysFailsScript = wrap <<< plutusV1Script <$> textEnvelopeBytes
-  alwaysFails
-  PlutusScriptV1
+alwaysFailsScript =
+  liftMaybe (error "Error decoding alwaysFails") do
+    envelope <- decodeTextEnvelope alwaysFails
+    Validator <$> plutusScriptV1FromEnvelope envelope

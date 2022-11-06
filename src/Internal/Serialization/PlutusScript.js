@@ -10,3 +10,5 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 exports.newPlutusV1Script = bytes => lib.PlutusScript.new(bytes);
 
 exports.newPlutusV2Script = bytes => lib.PlutusScript.new_v2(bytes);
+
+exports.plutusScriptBytes = script => script.bytes();
