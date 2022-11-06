@@ -79,9 +79,10 @@ spawn' cmd args opts mbFilter cont = do
     cont $ Left $ error $
       "Process " <> cmd <> " exited. Output:\n" <> output
 
-  -- Ideally we close the interface instead of detaching the listener
-  -- but it seems to issue a close on the output stream of the process too
-  -- which breaks some processes
+  -- Ideally we call `RL.close interface` instead of detaching the listener
+  -- via `clearLineHandler interface`, but it causes issues with the output
+  -- stream of some processes, namely `plutip-server`. `plutip-server`
+  -- eventually freezes if we close the interface.
   case mbFilter of
     Nothing -> cont (pure mp)
     Just filter -> do
