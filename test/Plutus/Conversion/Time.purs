@@ -52,12 +52,15 @@ suite = do
       -- We separate it by cases instead of use the general `arbitrary`
       -- instance for `Interval` since we are writing by hand the
       -- `ToData` instance for every case.
-      test "FiniteInterval" $
-        mkToDataTest genFiniteInterval
-      test "LowerRay" $
-        mkToDataTest genLowerRay
-      test "UpperRay" $
-        mkToDataTest genUpperRay
+      test "FiniteInterval"
+        $ mkToDataTest
+        $ genFiniteInterval genNoNegative
+      test "LowerRay"
+        $ mkToDataTest
+        $ genLowerRay genNoNegative
+      test "UpperRay"
+        $ mkToDataTest
+        $ genUpperRay genNoNegative
       test "Always" $
         ( toData (always :: Interval BigInt) `shouldEqual`
             (toData <<< intervalToPlutusInterval) (always :: Interval BigInt)
@@ -67,7 +70,25 @@ suite = do
             (toData <<< intervalToPlutusInterval) (never :: Interval BigInt)
         )
     group "FromData" do
-      test "all intervals" $ testFromData
+      test "FiniteInterval"
+        $ mkFromDataTest
+        $ genFiniteInterval genNoNegative
+      test "LowerRay"
+        $ mkFromDataTest
+        $ genLowerRay genNoNegative
+      test "UpperRay"
+        $ mkFromDataTest
+        $ genUpperRay genNoNegative
+      test "Always" $
+        ( pure (always :: Interval BigInt) `shouldEqual`
+            (fromData <<< toData <<< intervalToPlutusInterval)
+              (always :: Interval BigInt)
+        )
+      test "EmptyInterval" $
+        ( pure (never :: Interval BigInt) `shouldEqual`
+            (fromData <<< toData <<< intervalToPlutusInterval)
+              (never :: Interval BigInt)
+        )
 
 mkToDataTest :: Gen (Interval Int) -> Aff Unit
 mkToDataTest generator = liftEffect $ quickCheck test
@@ -79,11 +100,11 @@ mkToDataTest generator = liftEffect $ quickCheck test
     pure
       (toData interval' === (toData <<< intervalToPlutusInterval) interval')
 
-testFromData :: Aff Unit
-testFromData = liftEffect $ quickCheck test
+mkFromDataTest :: Gen (Interval Int) -> Aff Unit
+mkFromDataTest generator = liftEffect $ quickCheck test
   where
   test = do
-    (interval :: Interval Int) <- arbitrary
+    (interval :: Interval Int) <- generator
     let interval' = BigInt.fromInt <$> interval
     pure
       ( pure interval' ===
@@ -134,17 +155,6 @@ instance
 instance Show a => Show (PlutusInterval a) where
   show = genericShow
 
--- instance (Ord a, Ord a, Ring a) => JoinSemilattice (PlutusInterval a) where
---   join i1 i2 = intervalToPlutusInterval $
---     hull (plutusIntervalToInterval i1) (plutusIntervalToInterval i2)
--- instance (Ord a, Ring a) => BoundedJoinSemilattice (PlutusInterval a) where
---   bottom = mkPlutusInterval (LowerBound PosInf true) (UpperBound NegInf true)
--- instance (Ord a, Ring a) => MeetSemilattice (PlutusInterval a) where
---   meet i1 i2 = intervalToPlutusInterval $
---     intersection (plutusIntervalToInterval i1) (plutusIntervalToInterval i2)
--- instance (Ord a, Ring a) => BoundedMeetSemilattice (PlutusInterval a) where
---   top = intervalToPlutusInterval always
-
 instance ToData a => ToData (PlutusInterval a) where
   toData = genericToData
 
@@ -160,15 +170,17 @@ instance FromData a => FromData (PlutusInterval a) where
 --    HaskInterval i <- decodeAeson a
 --    pure $ PlutusInterval { from: i.ivFrom, to: i.ivTo }
 
--- mkPlutusInterval
---   :: forall (a :: Type). LowerBound a -> UpperBound a -> PlutusInterval a
--- mkPlutusInterval lower upper = PlutusInterval { from: lower, to: upper }
-
 subtractOne :: forall (a :: Type). Ring a => a -> a
 subtractOne x = x `add` (negate one)
 
 addOne :: forall (a :: Type). Semiring a => a -> a
 addOne x = x `add` one
+
+absoluteValue :: Int -> Int
+absoluteValue x = if x < 0 then -x else x
+
+genNoNegative :: Gen Int
+genNoNegative = absoluteValue <$> arbitrary
 
 intervalToPlutusInterval
   :: forall (a :: Type)

@@ -269,69 +269,34 @@ instance Ord a => MeetSemilattice (Interval a) where
   meet = intersection
 
 instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
-  -- An original interval was of the form
-  -- Interval {from : LowerBound a Boolean , to: UpperBound a Boolean}
-  -- This is transformed to something like
-  -- Interval {from : LowerBound (Maybe a) Boolean
-  --            , to: UpperBound (Maybe a) Boolean}
-  -- but `toData (Just a) == Constr (BigInt.fromInt 0) [toData a]`
-  -- while we need it to be `Constr (BigInt.fromInt 1) [toData a]`
   toData (FiniteInterval start end) =
     ( Constr (BigInt.fromInt 0)
-        [ ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 1) [ toData start ])
-              , toData true
-              ]
-          )
-        , ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 1) [ toData (end `add` one) ])
-              , toData false
-              ]
-          )
+        [ toData $ lowerBound start
+        , toData $ strictUpperBound (end `add` one)
         ]
     )
   toData (LowerRay end) =
     ( Constr (BigInt.fromInt 0)
-        [ ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 0) []), toData true ]
-          )
-        , ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 1) [ toData (end `add` one) ])
-              , toData false
-              ]
-          )
+        [ toData (LowerBound NegInf true :: LowerBound a)
+        , toData $ strictUpperBound (end `add` one)
         ]
     )
   toData (UpperRay start) =
     ( Constr (BigInt.fromInt 0)
-        [ ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 1) [ toData start ])
-              , toData true
-              ]
-          )
-        , ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 2) []), toData true ]
-          )
+        [ toData $ lowerBound start
+        , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData AlwaysInterval =
     ( Constr (BigInt.fromInt 0)
-        [ ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 0) []), toData true ]
-          )
-        , ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 2) []), toData true ]
-          )
+        [ toData (LowerBound NegInf true :: LowerBound a)
+        , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData EmptyInterval =
     ( Constr (BigInt.fromInt 0)
-        [ ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 2) []), toData true ]
-          )
-        , ( Constr (BigInt.fromInt 0)
-              [ (Constr (BigInt.fromInt 0) []), toData true ]
-          )
+        [ toData (LowerBound PosInf true :: LowerBound a)
+        , toData (UpperBound NegInf true :: UpperBound a)
         ]
     )
 
@@ -345,38 +310,45 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
   bottom = EmptyInterval
 
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
-  fromData
-    ( Constr _
-        [ (Constr _ [ startData, startBoolData ])
-        , (Constr _ [ endData, endBoolData ])
-        ]
-    ) = do
-    mStart <- fromData startData
-    mEnd <- fromData endData
-    startBool <- fromData startBoolData
-    endBool <- fromData endBoolData
-    case mStart of
-      Just start ->
-        let
-          start' = if startBool then start else start `add` one
-        in
-          case mEnd of
-            Just end ->
-              if end <= one && endBool then
-                pure $ mkFiniteInterval start' (end - one)
-              else
-                Nothing
-            Nothing ->
-              pure $ from start'
-      Nothing ->
-        case mEnd of
-          Just end ->
-            if end <= one && endBool then
-              pure $ to (end - one)
-            else
-              Nothing
-          Nothing ->
-            pure $ always
+  fromData (Constr index [ lower, upper ]) =
+    if index /= zero then
+      Nothing
+    else
+      do
+        (LowerBound start startBool) <- fromData lower
+        (UpperBound end endBool) <- fromData upper
+        case start of
+          Finite startValue ->
+            let
+              start' = if startBool then startValue else startValue `add` one
+            in
+              case end of
+                Finite endValue ->
+                  if endBool then
+                    pure $ mkFiniteInterval start' endValue
+                  else if endValue <= one then
+                    Nothing
+                  else
+                    pure $ mkFiniteInterval start' (endValue - one)
+                NegInf ->
+                  pure $ never
+                PosInf ->
+                  pure $ from start'
+          NegInf ->
+            case end of
+              Finite endValue ->
+                if endBool then
+                  pure $ to endValue
+                else if endValue <= one then
+                  Nothing
+                else
+                  pure $ to (endValue - one)
+              NegInf ->
+                pure $ never
+              PosInf ->
+                pure $ always
+          PosInf ->
+            pure $ never
   fromData _ = Nothing
 
 -- instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval a) where
@@ -384,31 +356,33 @@ instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
 
 instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
   arbitrary = frequency $ wrap $
-    (0.25 /\ genFiniteInterval)
-      :| (0.25 /\ genUpperRay)
-        : (0.25 /\ genLowerRay)
+    (0.25 /\ genFiniteInterval arbitrary)
+      :| (0.25 /\ genUpperRay arbitrary)
+        : (0.25 /\ genLowerRay arbitrary)
         : (0.1 /\ genSingletonInterval)
         : (0.075 /\ pure always)
         : (0.075 /\ pure never)
         : Nil
 
+-- | those accept a generator since we want to use them
+-- | for Positive Integers in tests
 genFiniteInterval
-  :: forall (a :: Type). Ord a => Arbitrary a => Gen (Interval a)
-genFiniteInterval = do
-  in1 <- arbitrary
-  in2 <- arbitrary
+  :: forall (a :: Type). Ord a => Gen a -> Gen (Interval a)
+genFiniteInterval generator = do
+  in1 <- generator
+  in2 <- generator
   let
     start = min in1 in2
     end = max in1 in2
   pure $ mkFiniteInterval start end
 
 genUpperRay
-  :: forall (a :: Type). Ord a => Arbitrary a => Gen (Interval a)
-genUpperRay = from <$> arbitrary
+  :: forall (a :: Type). Ord a => Gen a -> Gen (Interval a)
+genUpperRay generator = from <$> generator
 
 genLowerRay
-  :: forall (a :: Type). Ord a => Arbitrary a => Gen (Interval a)
-genLowerRay = to <$> arbitrary
+  :: forall (a :: Type). Ord a => Gen a -> Gen (Interval a)
+genLowerRay generator = to <$> generator
 
 genSingletonInterval
   :: forall (a :: Type). Ord a => Arbitrary a => Semiring a => Gen (Interval a)
