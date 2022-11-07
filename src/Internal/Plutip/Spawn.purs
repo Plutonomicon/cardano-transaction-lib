@@ -83,7 +83,7 @@ spawn' cmd args opts mbFilter cont = do
   -- via `clearLineHandler interface`, but it causes issues with the output
   -- stream of some processes, namely `plutip-server`. `plutip-server`
   -- eventually freezes if we close the interface.
-  let mp = ManagedProcess fullCmd  child closedAVar
+  let mp = ManagedProcess fullCmd child closedAVar
   case mbFilter of
     Nothing -> cont (pure mp)
     Just filter -> do
