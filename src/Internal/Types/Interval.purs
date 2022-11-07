@@ -3,7 +3,6 @@ module Ctl.Internal.Types.Interval
   , Closure
   , Extended(NegInf, Finite, PosInf)
   , Interval(EmptyInterval, LowerRay, UpperRay, AlwaysInterval, FiniteInterval)
-  , PlutusInterval(PlutusInterval)
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -41,8 +40,6 @@ module Ctl.Internal.Types.Interval
   , intersection
   , isEmpty
   , isEmpty'
-  , intervalToPlutusInterval
-  , plutusIntervalToInterval
   , lowerBound
   , maxSlot
   , mkFiniteInterval
@@ -61,6 +58,9 @@ module Ctl.Internal.Types.Interval
   , to
   , toOnchainPosixTimeRange
   , upperBound
+  , genFiniteInterval
+  , genLowerRay
+  , genUpperRay
   ) where
 
 import Prelude
@@ -91,7 +91,6 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , type (:+)
   , type (:=)
   , type (@@)
-  , I
   , PNil
   )
 import Ctl.Internal.QueryM.Ogmios
@@ -112,6 +111,7 @@ import Ctl.Internal.Types.BigNum
   , toBigIntUnsafe
   , zero
   ) as BigNum
+import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
@@ -238,66 +238,6 @@ derive instance Functor UpperBound
 instance Show a => Show (UpperBound a) where
   show = genericShow
 
--- | An interval of `a`s in the same sense as in plutus.
--- |
--- | The interval may be either closed or open at either end, meaning
--- | that the endpoints may or may not be included in the interval.
--- |
--- | The interval can also be unbounded on either side.
-newtype PlutusInterval :: Type -> Type
-newtype PlutusInterval a = PlutusInterval
-  { from :: LowerBound a, to :: UpperBound a }
-
-derive instance Generic (PlutusInterval a) _
-derive newtype instance Eq a => Eq (PlutusInterval a)
-derive instance Functor PlutusInterval
-derive instance Newtype (PlutusInterval a) _
-
-instance
-  HasPlutusSchema (PlutusInterval a)
-    ( "PlutusInterval"
-        :=
-          ( "from" := I (LowerBound a)
-              :+ "to"
-              := I (UpperBound a)
-              :+ PNil
-          )
-        @@ Z
-        :+ PNil
-    )
-
-instance Show a => Show (PlutusInterval a) where
-  show = genericShow
-
-instance (Ord a, Ord a, Ring a) => JoinSemilattice (PlutusInterval a) where
-  join i1 i2 = intervalToPlutusInterval $
-    hull (plutusIntervalToInterval i1) (plutusIntervalToInterval i2)
-
-instance (Ord a, Ring a) => BoundedJoinSemilattice (PlutusInterval a) where
-  bottom = mkPlutusInterval (LowerBound PosInf true) (UpperBound NegInf true)
-
-instance (Ord a, Ring a) => MeetSemilattice (PlutusInterval a) where
-  meet i1 i2 = intervalToPlutusInterval $
-    intersection (plutusIntervalToInterval i1) (plutusIntervalToInterval i2)
-
-instance (Ord a, Ring a) => BoundedMeetSemilattice (PlutusInterval a) where
-  top = intervalToPlutusInterval always
-
-instance ToData a => ToData (PlutusInterval a) where
-  toData = genericToData
-
-instance FromData a => FromData (PlutusInterval a) where
-  fromData i = genericFromData i
-
-instance EncodeAeson a => EncodeAeson (PlutusInterval a) where
-  encodeAeson' (PlutusInterval i) = encodeAeson' $ HaskInterval
-    { ivFrom: i.from, ivTo: i.to }
-
-instance DecodeAeson a => DecodeAeson (PlutusInterval a) where
-  decodeAeson a = do
-    HaskInterval i <- decodeAeson a
-    pure $ PlutusInterval { from: i.ivFrom, to: i.ivTo }
-
 -- | A new abstraction for `Interval` on top of the old one
 -- |(PlutusInterval), it restricts the creation of intervals
 -- |to the only ones that can be used in practice:
@@ -316,115 +256,6 @@ derive instance Generic (Interval a) _
 derive instance Eq a => Eq (Interval a)
 derive instance Functor Interval
 
-intervalToPlutusInterval
-  :: forall (a :: Type)
-   . Semiring a
-  => Ord a
-  => Interval a
-  -> PlutusInterval a
-intervalToPlutusInterval (FiniteInterval start end) = PlutusInterval
-  { from: LowerBound (Finite start) true
-  , to: UpperBound (Finite $ addOne end) false
-  }
-intervalToPlutusInterval (LowerRay end) = PlutusInterval
-  { from: LowerBound NegInf true
-  , to: UpperBound (Finite $ addOne end) false
-  }
-intervalToPlutusInterval (UpperRay start) = PlutusInterval
-  { from: LowerBound (Finite $ start) true
-  , to: UpperBound PosInf true
-  }
-intervalToPlutusInterval AlwaysInterval = PlutusInterval
-  { from: LowerBound NegInf true
-  , to: UpperBound PosInf true
-  }
-intervalToPlutusInterval EmptyInterval = PlutusInterval
-  { from: LowerBound PosInf true
-  , to: UpperBound NegInf true
-  }
-
-plutusIntervalToInterval
-  :: forall (a :: Type)
-   . Ring a
-  => Ord a
-  => PlutusInterval a
-  -> Interval a
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound (Finite start) true
-      , to: UpperBound (Finite end) false
-      }
-  ) =
-  mkFiniteInterval start (substractOne end)
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound NegInf _
-      , to: UpperBound (Finite end) false
-      }
-  ) =
-  LowerRay $ substractOne end
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound (Finite start) true
-      , to: UpperBound PosInf _
-      }
-  ) =
-  UpperRay start
-plutusIntervalToInterval
-  (PlutusInterval { from: LowerBound NegInf _, to: UpperBound PosInf _ }) =
-  AlwaysInterval
-plutusIntervalToInterval
-  (PlutusInterval { from: LowerBound PosInf _, to: UpperBound NegInf _ }) =
-  EmptyInterval
--- All of the remain cases are to avoid using a `Maybe` or throwing exception.
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound (Finite start) true
-      , to: UpperBound (Finite end) true
-      }
-  ) =
-  mkFiniteInterval start end
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound (Finite start) false
-      , to: UpperBound (Finite end) true
-      }
-  ) =
-  mkFiniteInterval (addOne start) end
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound (Finite start) false
-      , to: UpperBound (Finite end) false
-      }
-  ) =
-  mkFiniteInterval (addOne start) (substractOne end)
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound NegInf _
-      , to: UpperBound (Finite end) true
-      }
-  ) =
-  LowerRay end
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound (Finite start) false
-      , to: UpperBound PosInf _
-      }
-  ) =
-  UpperRay $ addOne start
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound _ _
-      , to: UpperBound NegInf _
-      }
-  ) = EmptyInterval
-plutusIntervalToInterval
-  ( PlutusInterval
-      { from: LowerBound PosInf _
-      , to: UpperBound _ _
-      }
-  ) = EmptyInterval
-
 instance (Show a, Ord a, Semiring a) => Show (Interval a) where
   show (FiniteInterval start end) = "(FiniteInterval " <> show start <> " "
     <> show end
@@ -438,7 +269,71 @@ instance Ord a => MeetSemilattice (Interval a) where
   meet = intersection
 
 instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
-  toData = toData <<< intervalToPlutusInterval
+  -- An original interval was of the form
+  -- Interval {from : LowerBound a Boolean , to: UpperBound a Boolean}
+  -- This is transformed to something like
+  -- Interval {from : LowerBound (Maybe a) Boolean
+  --            , to: UpperBound (Maybe a) Boolean}
+  -- but `toData (Just a) == Constr (BigInt.fromInt 0) [toData a]`
+  -- while we need it to be `Constr (BigInt.fromInt 1) [toData a]`
+  toData (FiniteInterval start end) =
+    ( Constr (BigInt.fromInt 0)
+        [ ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 1) [ toData start ])
+              , toData true
+              ]
+          )
+        , ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 1) [ toData (end `add` one) ])
+              , toData false
+              ]
+          )
+        ]
+    )
+  toData (LowerRay end) =
+    ( Constr (BigInt.fromInt 0)
+        [ ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 0) []), toData true ]
+          )
+        , ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 1) [ toData (end `add` one) ])
+              , toData false
+              ]
+          )
+        ]
+    )
+  toData (UpperRay start) =
+    ( Constr (BigInt.fromInt 0)
+        [ ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 1) [ toData start ])
+              , toData true
+              ]
+          )
+        , ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 2) []), toData true ]
+          )
+        ]
+    )
+  toData AlwaysInterval =
+    ( Constr (BigInt.fromInt 0)
+        [ ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 0) []), toData true ]
+          )
+        , ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 2) []), toData true ]
+          )
+        ]
+    )
+  toData EmptyInterval =
+    ( Constr (BigInt.fromInt 0)
+        [ ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 2) []), toData true ]
+          )
+        , ( Constr (BigInt.fromInt 0)
+              [ (Constr (BigInt.fromInt 0) []), toData true ]
+          )
+        ]
+    )
 
 instance Ord a => JoinSemilattice (Interval a) where
   join = hull
@@ -450,10 +345,42 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
   bottom = EmptyInterval
 
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
-  fromData x = plutusIntervalToInterval <$> fromData x
+  fromData
+    ( Constr _
+        [ (Constr _ [ startData, startBoolData ])
+        , (Constr _ [ endData, endBoolData ])
+        ]
+    ) = do
+    mStart <- fromData startData
+    mEnd <- fromData endData
+    startBool <- fromData startBoolData
+    endBool <- fromData endBoolData
+    case mStart of
+      Just start ->
+        let
+          start' = if startBool then start else start `add` one
+        in
+          case mEnd of
+            Just end ->
+              if end <= one && endBool then
+                pure $ mkFiniteInterval start' (end - one)
+              else
+                Nothing
+            Nothing ->
+              pure $ from start'
+      Nothing ->
+        case mEnd of
+          Just end ->
+            if end <= one && endBool then
+              pure $ to (end - one)
+            else
+              Nothing
+          Nothing ->
+            pure $ always
+  fromData _ = Nothing
 
-instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval a) where
-  encodeAeson' = encodeAeson' <<< intervalToPlutusInterval
+-- instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval a) where
+--   encodeAeson' = encodeAeson' <<< intervalToPlutusInterval
 
 instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
   arbitrary = frequency $ wrap $
@@ -514,11 +441,6 @@ type POSIXTimeRange = Interval POSIXTime
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
-
-mkPlutusInterval
-  :: forall (a :: Type). LowerBound a -> UpperBound a -> PlutusInterval a
-mkPlutusInterval lower upper = PlutusInterval { from: lower, to: upper }
-
 strictUpperBound :: forall (a :: Type). a -> UpperBound a
 strictUpperBound a = UpperBound (Finite a) false
 
@@ -530,12 +452,6 @@ lowerBound a = LowerBound (Finite a) true
 
 upperBound :: forall (a :: Type). a -> UpperBound a
 upperBound a = UpperBound (Finite a) true
-
-addOne :: forall (a :: Type). Semiring a => a -> a
-addOne x = x `add` one
-
-substractOne :: forall (a :: Type). Ring a => a -> a
-substractOne x = x `add` (negate one)
 
 -- | `mkFiniteInterval a b` construct the interval [a,b+1)
 mkFiniteInterval :: forall (a :: Type). Ord a => a -> a -> Interval a
@@ -1208,7 +1124,6 @@ type TransactionValiditySlot =
 -- | `Nothing` for `validityStartInterval` represents `Slot zero`.
 -- | `Nothing` for `timeToLive` represents `maxSlot`.
 -- | The only finite interval we can represent is of the form [a,b)
--- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
 -- https://github.com/input-output-hk/cardano-ledger/blob/94b1ae3d6b66f4232f34060d89c2f12628998ef2/eras/shelley-ma/impl/src/Cardano/Ledger/ShelleyMA/Timelocks.hs#L100-L106
 slotRangeToTransactionValidity
   :: SlotRange

@@ -81,76 +81,6 @@ suite = do
   where
   run = runContract testnetConfig { suppressLogs = true }
 
-emptyLookup :: ScriptLookups Void
-emptyLookup = mempty
-
-now :: POSIXTime
-now = mkPosixTime "1666918454000"
-
-unsafeSubtractOne :: forall (a :: Type). Partial => Newtype a BigNum => a -> a
-unsafeSubtractOne value = wrap <<< fromJust
-  $ BigNum.fromInt
-  <$> (flip (-) 1 <$> BigNum.toInt (unwrap value))
-
-getTimeFromUnbalanced
-  :: UnattachedUnbalancedTx -> Contract () (Interval POSIXTime)
-getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
-  where
-  body = (_transaction <<< _body) `view` (unwrap utx).unbalancedTx
-
-toPosixTime :: Slot -> Contract () POSIXTime
-toPosixTime time = do
-  eraSummaries <- getEraSummaries
-  systemStart <- getSystemStart
-  eitherTime <- liftEffect $ slotToPosixTime eraSummaries systemStart time
-  case eitherTime of
-    Left e -> (throwError <<< error <<< show) e
-    Right value -> pure value
-
-toPosixTimeRange :: Interval Slot -> Contract () (Interval POSIXTime)
-toPosixTimeRange range = do
-  eraSummaries <- getEraSummaries
-  systemStart <- getSystemStart
-  eitherRange <- liftEffect $
-    slotRangeToPosixTimeRange eraSummaries systemStart range
-  case eitherRange of
-    Left e -> (throwError <<< error <<< show) e
-    Right value -> pure value
-
-validityToPosixTime
-  :: forall (r :: Row Type)
-   . { validityStartInterval :: Maybe Slot, ttl :: Maybe Slot | r }
-  -> Contract () (Interval POSIXTime)
-validityToPosixTime { validityStartInterval, ttl: timeToLive } =
-  case validityStartInterval of
-    Just start ->
-      if start == maxSlot then
-        pure never
-      else
-        case timeToLive of
-          Just end ->
-            let
-              -- we control the test input and all 
-              -- inputs are set above 1000 so, it's safe 
-              -- to discard the partial here. 
-              -- This partiality is the reason we don't have 
-              -- validityToPosixTime as part of the api or the internal 
-              -- functions, it's only use is for test.
-              end' = unsafePartial unsafeSubtractOne end
-              slotInterval = mkFiniteInterval start end'
-            in
-              toPosixTimeRange slotInterval
-          Nothing ->
-            from <$> toPosixTime start
-    Nothing ->
-      case timeToLive of
-        Nothing -> pure always
-        -- read above about the `unsafePartial`
-        Just end -> to <$> toPosixTime (unsafePartial unsafeSubtractOne end)
-
-mkPosixTime :: String -> POSIXTime
-mkPosixTime = wrap <<< unsafePartial fromJust <<< BigInt.fromString
-
 mkTestFromSingleInterval :: Interval POSIXTime -> Contract () Unit
 mkTestFromSingleInterval interval = do
   let
@@ -197,3 +127,82 @@ mkTestMultipleInterval intervals expected = do
       do
         returnedInterval <- getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` expected
+
+--------------------------------------------------------------------------------
+-- Fixtures
+--------------------------------------------------------------------------------
+
+emptyLookup :: ScriptLookups Void
+emptyLookup = mempty
+
+now :: POSIXTime
+now = mkPosixTime "1666918454000"
+
+unsafeSubtractOne :: forall (a :: Type). Partial => Newtype a BigNum => a -> a
+unsafeSubtractOne value = wrap <<< fromJust
+  $ BigNum.fromInt
+  <$> (flip (-) 1 <$> BigNum.toInt (unwrap value))
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+getTimeFromUnbalanced
+  :: UnattachedUnbalancedTx -> Contract () (Interval POSIXTime)
+getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
+  where
+  body = (_transaction <<< _body) `view` (unwrap utx).unbalancedTx
+
+toPosixTime :: Slot -> Contract () POSIXTime
+toPosixTime time = do
+  eraSummaries <- getEraSummaries
+  systemStart <- getSystemStart
+  eitherTime <- liftEffect $ slotToPosixTime eraSummaries systemStart time
+  case eitherTime of
+    Left e -> (throwError <<< error <<< show) e
+    Right value -> pure value
+
+toPosixTimeRange :: Interval Slot -> Contract () (Interval POSIXTime)
+toPosixTimeRange range = do
+  eraSummaries <- getEraSummaries
+  systemStart <- getSystemStart
+  eitherRange <- liftEffect $
+    slotRangeToPosixTimeRange eraSummaries systemStart range
+  case eitherRange of
+    Left e -> (throwError <<< error <<< show) e
+    Right value -> pure value
+
+validityToPosixTime
+  :: forall (r :: Row Type)
+   . { validityStartInterval :: Maybe Slot, ttl :: Maybe Slot | r }
+  -> Contract () (Interval POSIXTime)
+validityToPosixTime { validityStartInterval, ttl: timeToLive } =
+  case validityStartInterval of
+    Just start ->
+      if start == maxSlot then
+        pure never
+      else
+        case timeToLive of
+          Just end ->
+            let
+              -- we control the test input and all
+              -- inputs are set above 1000 so, it's safe
+              -- to discard the partial here.
+              -- This partiality is the reason we don't have
+              -- validityToPosixTime as part of the api or the internal
+              -- functions, it's only use is for test.
+              end' = unsafePartial unsafeSubtractOne end
+              slotInterval = mkFiniteInterval start end'
+            in
+              toPosixTimeRange slotInterval
+          Nothing ->
+            from <$> toPosixTime start
+    Nothing ->
+      case timeToLive of
+        Nothing -> pure always
+        -- read above about the `unsafePartial`
+        Just end -> to <$> toPosixTime (unsafePartial unsafeSubtractOne end)
+
+mkPosixTime :: String -> POSIXTime
+mkPosixTime = wrap <<< unsafePartial fromJust <<< BigInt.fromString
+

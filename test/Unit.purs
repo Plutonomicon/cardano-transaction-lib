@@ -24,6 +24,7 @@ import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.Ctl.OgmiosDatumCache as OgmiosDatumCache
 import Test.Ctl.Parser as Parser
+import Test.Ctl.Plutus.Conversion.Time as Plutus.Conversion.Time
 import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Address as Serialization.Address
@@ -52,6 +53,7 @@ testPlan = do
   Parser.suite
   Plutus.Conversion.Address.suite
   Plutus.Conversion.Value.suite
+  Plutus.Conversion.Time.suite
   Plutus.Time.suite
   Serialization.suite
   Serialization.Address.suite

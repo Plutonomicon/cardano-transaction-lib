@@ -22,12 +22,10 @@ import Ctl.Internal.Types.Interval
   , from
   , hull
   , intersection
-  , intervalToPlutusInterval
   , isEmpty
   , member
   , mkFiniteInterval
   , never
-  , plutusIntervalToInterval
   , posixTimeToSlot
   , slotToPosixTime
   , to
@@ -37,7 +35,6 @@ import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
-import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Exception (error)
 import Mote (group, test)
@@ -45,7 +42,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
-import Test.QuickCheck (Result(Success, Failed), quickCheck, (<?>), (===))
+import Test.QuickCheck (Result(Success, Failed), quickCheck, (<?>))
 import Test.QuickCheck.Combinators ((&=&))
 import Test.Spec.Assertions (shouldEqual)
 
@@ -57,8 +54,6 @@ suite = do
       test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
       test "PosixTimeToSlot errors" testPosixTimeToSlotError
     group "Properties" do
-      test "Inverse plutusIntervalToInterval <<< intervalToPlutusInterval" $
-        liftToTest testIntervalConvertion
       test "UpperRay" $ liftToTest testUpperRay
       test "LowerRay" $ liftToTest testLowerRay
       test "Always" $ liftToTest testAlways
@@ -171,9 +166,6 @@ testPosixTimeToSlot eraSummaries sysStart = do
         either (throwError <<< error <<< show) (shouldEqual $ transf posixTime)
           ePosixTime
 
-mkPosixTime :: String -> POSIXTime
-mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
-
 testSlotToPosixTime :: EraSummaries -> SystemStart -> Effect Unit
 testSlotToPosixTime eraSummaries sysStart = do
   -- See *Testing far into the future note during hardforks:* for details on
@@ -223,26 +215,6 @@ testPosixTimeToSlotError eraSummaries sysStart = do
       Right _ ->
         throwError $ error $ "Test should have failed giving: " <> show
           expectedErr
-
-testIntervalConvertion :: Effect Unit
-testIntervalConvertion = quickCheck test
-  where
-  test :: (Int /\ Int) -> Result
-  test (in1 /\ in2) =
-    let
-      start' = min in1 in2
-      end' = max in1 in2
-      inter = mkFiniteInterval start' end'
-    in
-      inter ===
-        (plutusIntervalToInterval <<< intervalToPlutusInterval) inter
-
-liftToTest :: Effect Unit -> (EraSummaries -> SystemStart -> Effect Unit)
-liftToTest = pure <<< pure
-
-withMsg :: String -> Result -> Result
-withMsg _ Success = Success
-withMsg msg (Failed original) = Failed $ "(" <> msg <> ") : " <> original
 
 -- All this test can be generalized to use :
 -- forall (a::Type) . Arbitrary a => Ord a => Ring a
@@ -410,3 +382,17 @@ testIntersection = quickCheck test
             <> show inter1
         )
         $ inHull &=& symmetric &=& idempotent &=& neverTest
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+liftToTest :: Effect Unit -> (EraSummaries -> SystemStart -> Effect Unit)
+liftToTest = pure <<< pure
+
+withMsg :: String -> Result -> Result
+withMsg _ Success = Success
+withMsg msg (Failed original) = Failed $ "(" <> msg <> ") : " <> original
+
+mkPosixTime :: String -> POSIXTime
+mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
