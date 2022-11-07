@@ -156,6 +156,7 @@ instance Arbitrary ArbitraryUtxoDistr where
         ]
 
 -- TODO Add UDArray
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1187
 data ArbitraryUtxoDistr
   = UDUnit
   | UDInitialUtxos InitialUTxOs
