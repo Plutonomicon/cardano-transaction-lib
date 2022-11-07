@@ -15,7 +15,7 @@ import Prelude
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
-import Data.Foldable (fold)
+import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -68,8 +68,8 @@ spawn'
   -> Effect Canceler
 spawn' cmd args opts mbFilter cont = do
   child <- ChildProcess.spawn cmd args opts
+  let fullCmd = cmd <> foldMap (" " <> _) args
   closedAVar <- AVar.empty
-  let mp = ManagedProcess (cmd <> fold ((" " <> _) <$> args)) child closedAVar
   interface <- RL.createInterface (stdout child) mempty
   outputRef <- Ref.new ""
   ChildProcess.onClose child \code -> do
@@ -77,12 +77,13 @@ spawn' cmd args opts mbFilter cont = do
     void $ AVar.tryPut code closedAVar
     output <- Ref.read outputRef
     cont $ Left $ error $
-      "Process " <> cmd <> " exited. Output:\n" <> output
+      "Process " <> fullCmd <> " exited. Output:\n" <> output
 
   -- Ideally we call `RL.close interface` instead of detaching the listener
   -- via `clearLineHandler interface`, but it causes issues with the output
   -- stream of some processes, namely `plutip-server`. `plutip-server`
   -- eventually freezes if we close the interface.
+  let mp = ManagedProcess fullCmd  child closedAVar
   case mbFilter of
     Nothing -> cont (pure mp)
     Just filter -> do
