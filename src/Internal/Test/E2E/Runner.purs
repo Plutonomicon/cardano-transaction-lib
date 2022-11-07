@@ -12,7 +12,7 @@ import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
-  ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
+  ( BrowserEvent(ConfirmAccess, Sign, Success, Failure, PassClusterSetup)
   )
 import Ctl.Internal.Test.E2E.Feedback.Node (subscribeToBrowserEvents)
 import Ctl.Internal.Test.E2E.Options
@@ -182,6 +182,7 @@ testPlan opts rt@{ wallets } tests =
                   Sign -> launchAff_ someWallet.sign
                   Success -> pure unit
                   Failure err -> throw err
+                  PassClusterSetup _ -> pure unit
 
 -- | Implements `browser` command.
 runBrowser
