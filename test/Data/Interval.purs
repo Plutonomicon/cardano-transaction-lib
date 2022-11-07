@@ -1,4 +1,5 @@
-module Test.Ctl.Plutus.Conversion.Time (suite) where
+-- | Tests for `ToData`/`FromData` for Interval
+module Test.Ctl.Data.Interval (suite) where
 
 import Prelude
 
