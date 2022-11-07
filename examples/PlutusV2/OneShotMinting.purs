@@ -12,12 +12,17 @@ import Contract.Prelude
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (MintingPolicy)
-import Contract.TextEnvelope (TextEnvelopeType(PlutusScriptV2))
-import Contract.Transaction (TransactionInput, plutusV2Script)
+import Contract.TextEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptV2FromEnvelope
+  )
+import Contract.Transaction (TransactionInput)
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.OneShotMinting
   ( mkContractWithAssertions
   , mkOneShotMintingPolicy
   )
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -34,5 +39,8 @@ contract =
 foreign import oneShotMinting :: String
 
 oneShotMintingPolicyV2 :: TransactionInput -> Contract () MintingPolicy
-oneShotMintingPolicyV2 =
-  mkOneShotMintingPolicy oneShotMinting PlutusScriptV2 plutusV2Script
+oneShotMintingPolicyV2 txInput = do
+  script <- liftMaybe (error "Error decoding oneShotMinting") do
+    envelope <- decodeTextEnvelope oneShotMinting
+    plutusScriptV2FromEnvelope envelope
+  mkOneShotMintingPolicy script txInput
