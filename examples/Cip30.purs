@@ -12,8 +12,10 @@ import Contract.Prelude
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
+import Contract.Prim.ByteArray (rawBytesFromAscii)
 import Contract.Wallet
-  ( apiVersion
+  ( WalletExtension
+  , apiVersion
   , getChangeAddress
   , getNetworkId
   , getRewardAddresses
@@ -27,8 +29,6 @@ import Contract.Wallet
   , walletToWalletExtension
   )
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Internal.Types.RawBytes (rawBytesFromAscii)
-import Ctl.Internal.Wallet (WalletExtension)
 import Data.Array (head)
 import Effect.Exception (error)
 

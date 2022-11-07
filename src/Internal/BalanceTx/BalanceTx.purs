@@ -97,7 +97,7 @@ import Ctl.Internal.Cardano.Types.Value
   , valueToCoin'
   )
 import Ctl.Internal.QueryM (QueryM)
-import Ctl.Internal.QueryM (getChangeAddress, getWalletAddresses) as QueryM
+import Ctl.Internal.QueryM (getWalletAddresses) as QueryM
 import Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
   , getWalletCollateral
@@ -138,13 +138,11 @@ balanceTxWithConstraints
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder =
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
-
     ownAddrs <-
       maybe (liftQueryM QueryM.getWalletAddresses) pure
         =<< asksConstraints Constraints._ownAddresses
 
-    changeAddr <- liftMaybe CouldNotGetWalletAddress
-      =<< liftQueryM QueryM.getChangeAddress
+    changeAddr <- liftMaybe CouldNotGetWalletAddress $ Array.head ownAddrs
 
     utxos <- liftEitherQueryM $ traverse utxosAt ownAddrs <#>
       traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
