@@ -20,13 +20,14 @@ module Contract.Config
   , module Ctl.Internal.QueryM.ServerConfig
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
+  , module X
   ) where
-
-import Prelude
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Contract.Monad (ConfigParams)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
+import Ctl.Internal.QueryM (emptyHooks)
+import Ctl.Internal.QueryM (emptyHooks) as X
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
@@ -65,7 +66,7 @@ testnetConfig =
   , logLevel: Trace
   , customLogger: Nothing
   , suppressLogs: false
-  , hooks: mempty
+  , hooks: emptyHooks
   }
 
 testnetNamiConfig :: ConfigParams ()

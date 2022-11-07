@@ -9,6 +9,7 @@ module Ctl.Internal.QueryM
       , ClientEncodingError
       , ClientOtherError
       )
+  , ClusterSetup
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DefaultQueryEnv
@@ -65,6 +66,7 @@ module Ctl.Internal.QueryM
   , withMWallet
   , withQueryRuntime
   , callCip30Wallet
+  , emptyHooks
   ) where
 
 import Prelude
@@ -203,6 +205,7 @@ import Ctl.Internal.Wallet
   , mkLodeWalletAff
   , mkNamiWalletAff
   )
+import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
@@ -260,11 +263,34 @@ import Untagged.Union (asOneOf)
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
+-- | Cluster setup contains everything that is needed to run a `Contract` on
+-- | a local cluster: paramters to connect to the services and private keys
+-- | that are pre-funded with Ada on that cluster
+type ClusterSetup =
+  { ctlServerConfig :: Maybe ServerConfig
+  , ogmiosConfig :: Maybe ServerConfig
+  , datumCacheConfig :: Maybe ServerConfig
+  , keys ::
+      { payment :: PrivatePaymentKey
+      , stake :: Maybe PrivateStakeKey
+      }
+  }
+
 type Hooks =
-  { beforeSign :: Maybe (Effect Unit)
+  { getClusterSetup :: Maybe (Aff ClusterSetup)
+  , beforeSign :: Maybe (Effect Unit)
   , beforeInit :: Maybe (Effect Unit)
   , onSuccess :: Maybe (Effect Unit)
   , onError :: Maybe (Error -> Effect Unit)
+  }
+
+emptyHooks :: Hooks
+emptyHooks =
+  { getClusterSetup: Nothing
+  , beforeSign: Nothing
+  , beforeInit: Nothing
+  , onSuccess: Nothing
+  , onError: Nothing
   }
 
 -- | `QueryConfig` contains a complete specification on how to initialize a

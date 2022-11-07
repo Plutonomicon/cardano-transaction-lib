@@ -7,6 +7,7 @@ module Ctl.Internal.Test.E2E.Feedback
       , Sign
       , Success
       , Failure
+      , PassClusterSetup
       )
   ) where
 
@@ -17,10 +18,12 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
+  , encodeAeson
   , encodeAeson'
   , (.:)
   )
 import Control.Alt ((<|>))
+import Ctl.Internal.QueryM (ClusterSetup)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
@@ -31,6 +34,7 @@ data BrowserEvent
   | Sign
   | Success
   | Failure String
+  | PassClusterSetup ClusterSetup
 
 derive instance Generic BrowserEvent _
 
@@ -42,6 +46,8 @@ instance EncodeAeson BrowserEvent where
   encodeAeson' Sign = encodeAeson' "Sign"
   encodeAeson' Success = encodeAeson' "Success"
   encodeAeson' (Failure str) = encodeAeson' { tag: "Failure", error: str }
+  encodeAeson' (PassClusterSetup setup) =
+    encodeAeson' { tag: "PassClusterSetup", contents: encodeAeson setup }
 
 instance DecodeAeson BrowserEvent where
   decodeAeson aeson =
