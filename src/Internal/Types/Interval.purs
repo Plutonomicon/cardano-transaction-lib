@@ -239,11 +239,14 @@ instance Show a => Show (UpperBound a) where
   show = genericShow
 
 -- | A new abstraction for `Interval` on top of the old one
--- |(PlutusInterval), it restricts the creation of intervals
+-- |(wrap), it restricts the creation of intervals
 -- |to the only ones that can be used in practice:
 -- | [a,b+1) , [-infinity,b+1), [a,infinity], [-infinity,infinity],
 -- | empty.
 -- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041
+-- In some functions we ask for a `Ord` and `Semiring` or `Ring` constraint
+-- Those two constraints are require to be compatible
+-- by example we expect that  `(x < x + 1)== true`
 data Interval :: Type -> Type
 data Interval a
   = FiniteInterval a a
@@ -351,8 +354,13 @@ instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
             pure $ never
   fromData _ = Nothing
 
--- instance (EncodeAeson a, Ord a, Ring a) => EncodeAeson (Interval a) where
---   encodeAeson' = encodeAeson' <<< intervalToPlutusInterval
+instance (EncodeAeson a, Ord a, Semiring a) => EncodeAeson (Interval a) where
+  encodeAeson' = encodeAeson' <<< intervalToHaskInterval
+
+instance (DecodeAeson a, Ord a, Ring a) => DecodeAeson (Interval a) where
+  decodeAeson a = do
+    haskInterval <- decodeAeson a
+    pure $ haskIntervalToInterval haskInterval
 
 instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
   arbitrary = frequency $ wrap $
@@ -1240,6 +1248,111 @@ instance DecodeAeson ToOnChainPosixTimeRangeError where
         arg <- extractArg o
         pure $ SlotToPosixTimeError' arg
       _ -> throwError $ TypeMismatch "Unknown error message"
+
+intervalToHaskInterval
+  :: forall (a :: Type). Ord a => Semiring a => Interval a -> HaskInterval a
+intervalToHaskInterval (FiniteInterval start end) = wrap
+  { ivFrom: lowerBound start
+  , ivTo: strictUpperBound (end `add` one)
+  }
+intervalToHaskInterval (StartAt end) = wrap
+  { ivFrom: LowerBound NegInf true
+  , ivTo: strictUpperBound (end `add` one)
+  }
+intervalToHaskInterval (EndAt start) = wrap
+  { ivFrom: lowerBound start
+  , ivTo: UpperBound PosInf true
+  }
+intervalToHaskInterval AlwaysInterval = wrap
+  { ivFrom: LowerBound NegInf true
+  , ivTo: UpperBound PosInf true
+  }
+intervalToHaskInterval EmptyInterval = wrap
+  { ivFrom: LowerBound PosInf true
+  , ivTo: UpperBound NegInf true
+  }
+
+haskIntervalToInterval
+  :: forall (a :: Type)
+   . Ring a
+  => Ord a
+  => HaskInterval a
+  -> Interval a
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound (Finite start) true
+      , ivTo: UpperBound (Finite end) false
+      }
+  ) =
+  mkFiniteInterval start (end - one)
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound NegInf _
+      , ivTo: UpperBound (Finite end) false
+      }
+  ) =
+  StartAt $ (end - one)
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound (Finite start) true
+      , ivTo: UpperBound PosInf _
+      }
+  ) =
+  EndAt start
+haskIntervalToInterval
+  (HaskInterval { ivFrom: LowerBound NegInf _, ivTo: UpperBound PosInf _ }) =
+  AlwaysInterval
+haskIntervalToInterval
+  (HaskInterval { ivFrom: LowerBound PosInf _, ivTo: UpperBound NegInf _ }) =
+  EmptyInterval
+-- All of the remain cases are to avoid using a `Maybe` or throwing exception.
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound (Finite start) true
+      , ivTo: UpperBound (Finite end) true
+      }
+  ) =
+  mkFiniteInterval start end
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound (Finite start) false
+      , ivTo: UpperBound (Finite end) true
+      }
+  ) =
+  mkFiniteInterval (start + one) end
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound (Finite start) false
+      , ivTo: UpperBound (Finite end) false
+      }
+  ) =
+  mkFiniteInterval (start + one) (end - one)
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound NegInf _
+      , ivTo: UpperBound (Finite end) true
+      }
+  ) =
+  StartAt end
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound (Finite start) false
+      , ivTo: UpperBound PosInf _
+      }
+  ) =
+  EndAt $ (start + one)
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound _ _
+      , ivTo: UpperBound NegInf _
+      }
+  ) = EmptyInterval
+haskIntervalToInterval
+  ( HaskInterval
+      { ivFrom: LowerBound PosInf _
+      , ivTo: UpperBound _ _
+      }
+  ) = EmptyInterval
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L206-L226
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain
