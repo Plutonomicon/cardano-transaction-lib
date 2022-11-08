@@ -2,7 +2,7 @@ module Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
-  , Interval(EmptyInterval, LowerRay, UpperRay, AlwaysInterval, FiniteInterval)
+  , Interval(EmptyInterval, StartAt, EndAt, AlwaysInterval, FiniteInterval)
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -247,8 +247,8 @@ instance Show a => Show (UpperBound a) where
 data Interval :: Type -> Type
 data Interval a
   = FiniteInterval a a
-  | LowerRay a
-  | UpperRay a
+  | StartAt a
+  | EndAt a
   | AlwaysInterval
   | EmptyInterval
 
@@ -260,8 +260,8 @@ instance (Show a, Ord a, Semiring a) => Show (Interval a) where
   show (FiniteInterval start end) = "(FiniteInterval " <> show start <> " "
     <> show end
     <> ")"
-  show (LowerRay end) = "(LowerRay " <> show end <> ")"
-  show (UpperRay start) = "(UpperRay " <> show start <> ")"
+  show (StartAt end) = "(StartAt " <> show end <> ")"
+  show (EndAt start) = "(EndAt " <> show start <> ")"
   show AlwaysInterval = "(AlwaysInterval)"
   show EmptyInterval = "(EmptyInterval)"
 
@@ -275,13 +275,13 @@ instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
         , toData $ strictUpperBound (end `add` one)
         ]
     )
-  toData (LowerRay end) =
+  toData (StartAt end) =
     ( Constr (BigInt.fromInt 0)
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData $ strictUpperBound (end `add` one)
         ]
     )
-  toData (UpperRay start) =
+  toData (EndAt start) =
     ( Constr (BigInt.fromInt 0)
         [ toData $ lowerBound start
         , toData (UpperBound PosInf true :: UpperBound a)
@@ -439,12 +439,12 @@ singleton s = mkFiniteInterval s s
 -- | `from a` is an `Interval` that includes all values that are
 -- | greater than or equal to `a`, represented as [a,infinity].
 from :: forall (a :: Type). Ord a => a -> Interval a
-from s = UpperRay s
+from s = EndAt s
 
 -- | `to a` is an `Interval` that includes all values that are
 -- | smaller than or equal to `a`, represented as [-infinity,a+1).
 to :: forall (a :: Type). Ord a => a -> Interval a
-to s = LowerRay s
+to s = StartAt s
 
 -- | An `Interval` that covers every slot, represented
 -- | as [-infinity,infinity]
@@ -459,8 +459,8 @@ never = EmptyInterval
 -- | Check whether a value is in an interval.
 member :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 member a (FiniteInterval start end) = start <= a && a <= end
-member a (LowerRay end) = a <= end
-member a (UpperRay start) = start <= a
+member a (StartAt end) = a <= end
+member a (EndAt start) = start <= a
 member _ AlwaysInterval = true
 member _ EmptyInterval = false
 
@@ -491,16 +491,16 @@ intersection
   :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 intersection (FiniteInterval start end) (FiniteInterval start' end') =
   mkFiniteInterval (max start start') (min end end')
-intersection (FiniteInterval start end) (LowerRay end') =
+intersection (FiniteInterval start end) (StartAt end') =
   mkFiniteInterval start (min end end')
-intersection (FiniteInterval start end) (UpperRay start') =
+intersection (FiniteInterval start end) (EndAt start') =
   mkFiniteInterval (max start start') end
-intersection (LowerRay end) (LowerRay end') =
-  LowerRay (min end end')
-intersection (LowerRay end) (UpperRay start') =
+intersection (StartAt end) (StartAt end') =
+  StartAt (min end end')
+intersection (StartAt end) (EndAt start') =
   mkFiniteInterval start' end
-intersection (UpperRay start) (UpperRay start') =
-  UpperRay (max start start')
+intersection (EndAt start) (EndAt start') =
+  EndAt (max start start')
 intersection AlwaysInterval i = i
 intersection EmptyInterval _ = EmptyInterval
 intersection i1 i2 = intersection i2 i1
@@ -510,15 +510,15 @@ intersection i1 i2 = intersection i2 i1
 hull :: forall (a :: Type). Ord a => Interval a -> Interval a -> Interval a
 hull (FiniteInterval start end) (FiniteInterval start' end') =
   mkFiniteInterval (min start start') (max end end')
-hull (FiniteInterval _ end) (LowerRay end') =
-  LowerRay (max end end')
-hull (FiniteInterval start _) (UpperRay start') =
-  UpperRay (min start start')
-hull (LowerRay end) (LowerRay end') =
-  LowerRay (max end end')
-hull (LowerRay _) (UpperRay _) = AlwaysInterval
-hull (UpperRay start) (UpperRay start') =
-  UpperRay (min start start')
+hull (FiniteInterval _ end) (StartAt end') =
+  StartAt (max end end')
+hull (FiniteInterval start _) (EndAt start') =
+  EndAt (min start start')
+hull (StartAt end) (StartAt end') =
+  StartAt (max end end')
+hull (StartAt _) (EndAt _) = AlwaysInterval
+hull (EndAt start) (EndAt start') =
+  EndAt (min start start')
 hull _ AlwaysInterval = AlwaysInterval
 hull i EmptyInterval = i
 hull i1 i2 = hull i2 i1
@@ -531,14 +531,14 @@ contains (FiniteInterval start end) (FiniteInterval start' end') =
   start <= start' && end' <= end
 contains (FiniteInterval _ _) EmptyInterval = true
 contains (FiniteInterval _ _) _ = false
-contains (LowerRay end) (FiniteInterval _' end') = end' <= end
-contains (LowerRay end) (LowerRay end') = end' <= end
-contains (LowerRay _) EmptyInterval = true
-contains (LowerRay _) _ = false
-contains (UpperRay start) (FiniteInterval start' _) = start <= start'
-contains (UpperRay start) (UpperRay start') = start <= start'
-contains (UpperRay _) EmptyInterval = true
-contains (UpperRay _) _ = false
+contains (StartAt end) (FiniteInterval _' end') = end' <= end
+contains (StartAt end) (StartAt end') = end' <= end
+contains (StartAt _) EmptyInterval = true
+contains (StartAt _) _ = false
+contains (EndAt start) (FiniteInterval start' _) = start <= start'
+contains (EndAt start) (EndAt start') = start <= start'
+contains (EndAt _) EmptyInterval = true
+contains (EndAt _) _ = false
 contains AlwaysInterval _ = true
 contains EmptyInterval EmptyInterval = true
 contains EmptyInterval _ = false
@@ -560,14 +560,14 @@ isEmpty' = isEmpty
 -- | Check if a value is earlier than the beginning of an `Interval`.
 before :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 before h (FiniteInterval start _) = h < start
-before h (UpperRay start) = h < start
+before h (EndAt start) = h < start
 before _ EmptyInterval = true
 before _ _ = false
 
 -- | Check if a value is later than the end of a `Interval`.
 after :: forall (a :: Type). Ord a => a -> Interval a -> Boolean
 after h (FiniteInterval _ end) = end < h
-after h (LowerRay end) = end < h
+after h (StartAt end) = end < h
 after _ EmptyInterval = true
 after _ _ = false
 
@@ -1059,8 +1059,8 @@ sequenceInterval
   => Interval (m a)
   -> m (Interval a)
 sequenceInterval (FiniteInterval start end) = (FiniteInterval <$> start) <*> end
-sequenceInterval (LowerRay end) = LowerRay <$> end
-sequenceInterval (UpperRay start) = UpperRay <$> start
+sequenceInterval (StartAt end) = StartAt <$> end
+sequenceInterval (EndAt start) = EndAt <$> start
 sequenceInterval EmptyInterval = pure EmptyInterval
 sequenceInterval AlwaysInterval = pure AlwaysInterval
 
@@ -1106,11 +1106,11 @@ slotRangeToTransactionValidity (FiniteInterval start end) =
   { validityStartInterval: pure start
   , timeToLive: wrap <$> BigNum.add BigNum.one (unwrap end)
   }
-slotRangeToTransactionValidity (LowerRay end) =
+slotRangeToTransactionValidity (StartAt end) =
   { validityStartInterval: Nothing
   , timeToLive: wrap <$> BigNum.add BigNum.one (unwrap end)
   }
-slotRangeToTransactionValidity (UpperRay start) =
+slotRangeToTransactionValidity (EndAt start) =
   { validityStartInterval: pure start, timeToLive: Nothing }
 slotRangeToTransactionValidity AlwaysInterval =
   { validityStartInterval: Nothing, timeToLive: Nothing }

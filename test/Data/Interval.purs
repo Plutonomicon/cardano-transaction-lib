@@ -25,7 +25,7 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.TypeLevel.Nat (Z)
 import Ctl.Internal.Types.Interval
   ( Extended(NegInf, Finite, PosInf)
-  , Interval(EmptyInterval, LowerRay, UpperRay, AlwaysInterval, FiniteInterval)
+  , Interval(EmptyInterval, StartAt, EndAt, AlwaysInterval, FiniteInterval)
   , LowerBound(LowerBound)
   , UpperBound(UpperBound)
   , genFiniteInterval
@@ -56,10 +56,10 @@ suite = do
       test "FiniteInterval"
         $ mkToDataTest
         $ genFiniteInterval genNoNegative
-      test "LowerRay"
+      test "StartAt"
         $ mkToDataTest
         $ genLowerRay genNoNegative
-      test "UpperRay"
+      test "EndAt"
         $ mkToDataTest
         $ genUpperRay genNoNegative
       test "Always" $
@@ -74,10 +74,10 @@ suite = do
       test "FiniteInterval"
         $ mkFromDataTest
         $ genFiniteInterval genNoNegative
-      test "LowerRay"
+      test "StartAt"
         $ mkFromDataTest
         $ genLowerRay genNoNegative
-      test "UpperRay"
+      test "EndAt"
         $ mkFromDataTest
         $ genUpperRay genNoNegative
       test "Always" $
@@ -193,11 +193,11 @@ intervalToPlutusInterval (FiniteInterval start end) = PlutusInterval
   { from: LowerBound (Finite start) true
   , to: UpperBound (Finite $ addOne end) false
   }
-intervalToPlutusInterval (LowerRay end) = PlutusInterval
+intervalToPlutusInterval (StartAt end) = PlutusInterval
   { from: LowerBound NegInf true
   , to: UpperBound (Finite $ addOne end) false
   }
-intervalToPlutusInterval (UpperRay start) = PlutusInterval
+intervalToPlutusInterval (EndAt start) = PlutusInterval
   { from: LowerBound (Finite $ start) true
   , to: UpperBound PosInf true
   }
@@ -229,14 +229,14 @@ plutusIntervalToInterval
       , to: UpperBound (Finite end) false
       }
   ) =
-  LowerRay $ subtractOne end
+  StartAt $ subtractOne end
 plutusIntervalToInterval
   ( PlutusInterval
       { from: LowerBound (Finite start) true
       , to: UpperBound PosInf _
       }
   ) =
-  UpperRay start
+  EndAt start
 plutusIntervalToInterval
   (PlutusInterval { from: LowerBound NegInf _, to: UpperBound PosInf _ }) =
   AlwaysInterval
@@ -271,14 +271,14 @@ plutusIntervalToInterval
       , to: UpperBound (Finite end) true
       }
   ) =
-  LowerRay end
+  StartAt end
 plutusIntervalToInterval
   ( PlutusInterval
       { from: LowerBound (Finite start) false
       , to: UpperBound PosInf _
       }
   ) =
-  UpperRay $ addOne start
+  EndAt $ addOne start
 plutusIntervalToInterval
   ( PlutusInterval
       { from: LowerBound _ _
