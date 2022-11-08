@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "aff-promise"
   , "aff-retry"
   , "affjax"
+  , "argonaut"
   , "arraybuffer-types"
   , "arrays"
   , "bifunctors"

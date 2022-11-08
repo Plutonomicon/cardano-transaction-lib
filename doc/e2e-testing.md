@@ -259,3 +259,39 @@ http://localhost:4008/?nami-mock:Contract:58200b07c066ba037344acee5431e6df41f603
 The `nami:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
 
 In order to use the keys, their corresponding address must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral), so it's best to make two transactions.
+
+### Using CIP-30 mock with Plutip
+
+It's possible to run headless browser tests on top of a temporary plutip cluster. In this case, key generation and pre-funding will be handled by `plutip-server`, as well as deployment of all the query layer services.
+
+To do that, it's enough to define a config name that:
+
+- uses a `ConfigParams` value with `networkId` set to `MainnetId`.
+- Specifies a wallet mock (e.g. `MockNami`)
+
+E.g.:
+
+```purescript
+wallets :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+wallets = Map.fromFoldable
+  [ "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
+  , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
+  , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
+  , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
+  ]
+```
+
+Then a test entry *without* specifying any private key can be used:
+
+```bash
+export E2E_TESTS="
+plutip:http://localhost:4008/?plutip-nami-mock:SomeContract
+"
+```
+
+Full example can be found [in the template](../templates/ctl-scaffold/test/E2E.purs).
+
+There are a few important caveats/limitations:
+
+- We only allow base addresses (with a stake pubkey hash present) to be used. If there's a need to use enterprise addresses, the users should move some ada to their own enterprise address, e.g. with `mustPayToPubKey`
+- The amount of tAda is fixed to `1000000000000` and divided into 5 UTxOs equally

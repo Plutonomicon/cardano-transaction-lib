@@ -31,19 +31,13 @@ import Contract.Scripts
   )
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
-import Contract.Transaction
-  ( TransactionInput
-  , awaitTxConfirmed
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.Transaction (TransactionInput, awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (liftMaybe, try)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
   , mkCurrencySymbol
@@ -52,6 +46,7 @@ import Ctl.Examples.Helpers
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
+import Effect.Aff (delay)
 import Effect.Exception (error)
 
 main :: Effect Unit

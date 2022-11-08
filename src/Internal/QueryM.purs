@@ -268,8 +268,8 @@ import Untagged.Union (asOneOf)
 -- | that are pre-funded with Ada on that cluster
 type ClusterSetup =
   { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: Maybe ServerConfig
-  , datumCacheConfig :: Maybe ServerConfig
+  , ogmiosConfig :: ServerConfig
+  , datumCacheConfig :: ServerConfig
   , keys ::
       { payment :: PrivatePaymentKey
       , stake :: Maybe PrivateStakeKey
@@ -277,8 +277,7 @@ type ClusterSetup =
   }
 
 type Hooks =
-  { getClusterSetup :: Maybe (Aff ClusterSetup)
-  , beforeSign :: Maybe (Effect Unit)
+  { beforeSign :: Maybe (Effect Unit)
   , beforeInit :: Maybe (Effect Unit)
   , onSuccess :: Maybe (Effect Unit)
   , onError :: Maybe (Error -> Effect Unit)
@@ -286,8 +285,7 @@ type Hooks =
 
 emptyHooks :: Hooks
 emptyHooks =
-  { getClusterSetup: Nothing
-  , beforeSign: Nothing
+  { beforeSign: Nothing
   , beforeInit: Nothing
   , onSuccess: Nothing
   , onError: Nothing
@@ -694,7 +692,7 @@ instance Show ClientError where
       <> err
       <> ")"
   show (ClientOtherError err) =
-    "(ClientEncodingError "
+    "(ClientOtherError "
       <> err
       <> ")"
 
