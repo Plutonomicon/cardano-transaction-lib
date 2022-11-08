@@ -129,8 +129,8 @@ getBrowserEvents page = do
       })()
       """
 
--- | Injects cluster setup value into the page JS context, where it can be
--- | retrieved using `getClusterSetup`.
+-- | Injects cluster setup value into the JS context of the page, where it can
+-- | be retrieved using `getClusterSetup`.
 setClusterSetup :: Toppokki.Page -> ClusterSetup -> Aff Unit
 setClusterSetup page clusterSetup = do
   let

@@ -189,6 +189,8 @@ plutipConfig =
   , hooks: emptyHooks
   }
 
+-- | Plutip does not generate private stake keys for us, so we make one and
+-- | fund it manually to get a usable base address.
 privateStakeKey :: PrivateStakeKey
 privateStakeKey = wrap $ unsafePartial $ fromJust
   $ privateKeyFromBytes =<< hexToRawBytes
@@ -205,11 +207,7 @@ testPlan opts@{ tests } rt@{ wallets } =
       { url, wallet: NoWallet } -> do
         withBrowser opts.noHeadless rt Nothing \browser -> do
           withE2ETest (wrap url) browser \{ page } -> do
-            subscribeToBrowserEvents (Just $ wrap 1000.0) page
-              case _ of
-                Success -> pure unit
-                Failure err -> throw err
-                _ -> pure unit
+            subscribeToTestStatusUpdates page
       { url, wallet: PlutipCluster } -> do
         let
           distr = withStakeKey privateStakeKey
@@ -219,7 +217,8 @@ testPlan opts@{ tests } rt@{ wallets } =
             , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
             , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
             ]
-        -- todo: don't connect to services in ContractEnv, just start them
+        -- TODO: don't connect to services in ContractEnv, just start them
+        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
         liftAff $ withPlutipContractEnv plutipConfig distr
           \env wallet -> do
             let
@@ -235,11 +234,7 @@ testPlan opts@{ tests } rt@{ wallets } =
             withBrowser opts.noHeadless rt Nothing \browser -> do
               withE2ETest (wrap url) browser \{ page } -> do
                 setClusterSetup page clusterSetup
-                subscribeToBrowserEvents (Just $ Seconds 10.0) page
-                  case _ of
-                    Success -> pure unit
-                    Failure err -> throw err
-                    _ -> pure unit
+                subscribeToTestStatusUpdates page
       { url, wallet: WalletExtension wallet } -> do
         { password, extensionId } <- liftEffect
           $ liftMaybe
@@ -275,6 +270,14 @@ testPlan opts@{ tests } rt@{ wallets } =
                 Sign -> launchAff_ someWallet.sign
                 Success -> pure unit
                 Failure err -> throw err
+  where
+  subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
+  subscribeToTestStatusUpdates page =
+    subscribeToBrowserEvents (Just $ Seconds 10.0) page
+      case _ of
+        Success -> pure unit
+        Failure err -> throw err
+        _ -> pure unit
 
 -- | Implements `browser` command.
 runBrowser

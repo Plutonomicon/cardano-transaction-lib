@@ -187,8 +187,8 @@ route configs tests = do
   noConfigParametersError configName =
     "Unable to look up the config parameters: " <> configName
       <> "Common reasons are:\n"
-      <>
-        "- The page that is used to serve the test contracts is not up to date\n"
+      <> "- The page that is used to serve the test contracts is not up to "
+      <> "date\n"
       <> "- The name of the test suite configuration is wrong ("
       <> configName
       <> ")"

@@ -144,7 +144,10 @@ mkE2ETest str =
     <|> (tryWalletPrefix "plutip" <#> mkTestEntry PlutipCluster)
     <|> (pure $ mkTestEntry NoWallet str)
   where
+  tryWalletPrefix :: String -> Maybe String
   tryWalletPrefix prefix = stripPrefix (Pattern $ prefix <> ":") str
+
+  mkTestEntry :: E2EWallet -> String -> E2ETest
   mkTestEntry wallet url = { wallet, url, specString: str }
 
 -- | Represents a connection to a running E2E test.
