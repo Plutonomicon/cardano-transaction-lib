@@ -7,15 +7,27 @@ in
 
   options.services.ctl-server = {
     enable = lib.mkEnableOption "ctl-server";
+
+    user = lib.mkOption {
+      description = "User to run ctl-server service as.";
+      type = lib.types.str;
+      default = "ctl-server";
+    };
+
+    group = lib.mkOption {
+      description = "Group to run ctl-server service as.";
+      type = lib.types.str;
+      default = "ctl-server";
+    };
   };
 
   config = lib.mkIf cfg.enable {
-    users.users.ctl-server = {
+    users.users.${cfg.user} = {
       isSystemUser = true;
-      group = "ctl-server";
+      group = cfg.group;
     };
 
-    users.groups.ctl-server = { };
+    users.groups.${cfg.group} = { };
 
     systemd.services.ctl-server = {
       enable = true;
@@ -27,8 +39,8 @@ in
       ]);
 
       serviceConfig = {
-        User = "ctl-server";
-        Group = "ctl-server";
+        User = cfg.user;
+        Group = cfg.group;
         # Security
         UMask = "0077";
         AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
