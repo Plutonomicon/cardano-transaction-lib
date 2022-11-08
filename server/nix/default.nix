@@ -60,7 +60,7 @@ pkgs.haskell-nix.cabalProject {
 
   extraSources = [
     {
-      src = inputs.cardano-base;
+      src = inputs.ogmios.inputs.cardano-base;
       subdirs = [
         "base-deriving-via"
         "binary"
