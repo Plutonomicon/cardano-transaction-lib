@@ -2,26 +2,19 @@
   description = "cardano-transaction-lib";
 
   inputs = {
+    iohk-nix.follows = "ogmios/iohk-nix";
+    haskell-nix.follows = "ogmios/haskell-nix";
+    nixpkgs.follows = "ogmios/nixpkgs";
+    CHaP.follows = "ogmios/CHaP";
+
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
     # for the purescript project
-    ogmios.url = "github:mlabs-haskell/ogmios/0321a0085d11f0f61d4434df51f132f34e5f797d";
-
-    plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
-    plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
-    plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
-    plutip.inputs.iohk-nix.follows = "bot-plutus-interface/iohk-nix";
-    plutip.inputs.nixpkgs.follows = "bot-plutus-interface/haskell-nix/nixpkgs";
-
-    bot-plutus-interface = {
-      url = "github:mlabs-haskell/bot-plutus-interface?rev=7235aa6fba12b0cf368d9976e1e1b21ba642c038";
-      inputs.cardano-wallet.follows = "cardano-wallet";
-    };
-
-    cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
+    ogmios.url = "github:mlabs-haskell/ogmios/8ab720f896ab9dea2955fe364d242267d3206c5d";
+    plutip.url = "github:mlabs-haskell/plutip/08204cc223138d53932004db31fb0292e8f7dfe3";
 
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
     # Repository with network parameters
@@ -34,13 +27,6 @@
       url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
       flake = false;
     };
-
-    # for the haskell server
-    iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.follows = "ogmios/haskell-nix";
-    nixpkgs.follows = "ogmios/nixpkgs";
-    CHaP.follows = "ogmios/CHaP";
-
   };
 
   outputs =
