@@ -512,6 +512,7 @@
         self.checks.${system}
         // self.packages.${system}
         // self.devShells.${system}
+        // { vm = "self.nixosConfigurations.test.config.system.build.vm"; }
       );
     };
 }
