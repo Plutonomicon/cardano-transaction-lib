@@ -36,7 +36,13 @@
     ogmios-datum-cache-nixos.url = "github:mlabs-haskell/ogmios-datum-cache/marton/nixos-module";
 
     # for nixos module
-    cardano-node.url = "github:input-output-hk/cardano-node/1.35.3";
+    # TODO: cleanup after cardano-node inputs are fixed
+    cardano-node = {
+      url = "github:input-output-hk/cardano-node/1.35.3";
+      inputs.cardano-node-workbench.follows = "blank";
+      inputs.node-measured.follows = "blank";
+    };
+    blank.url = "github:divnix/blank";
 
     # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
     iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
