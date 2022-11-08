@@ -16,6 +16,8 @@
       };
     };
 
+    cardano-base.url = "github:input-output-hk/cardano-base";
+
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
     plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
     plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
@@ -37,12 +39,16 @@
 
     # for nixos module
     # TODO: cleanup after cardano-node inputs are fixed
-    cardano-node = {
-      url = "github:input-output-hk/cardano-node/1.35.3";
-      inputs.cardano-node-workbench.follows = "blank";
-      inputs.node-measured.follows = "blank";
+    empty-flake.url = "github:input-output-hk/empty-flake?rev=2040a05b67bf9a669ce17eca56beb14b4206a99a";
+    cardano-node-workbench = {
+      url = "github:input-output-hk/cardano-node/ed9932c52aaa535b71f72a5b4cc0cecb3344a5a3";
+      inputs.membench.follows = "empty-flake";
     };
-    blank.url = "github:divnix/blank";
+    cardano-node = {
+      url = "github:input-output-hk/cardano-node/1.35.4";
+      inputs.cardano-node-workbench.follows = "cardano-node-workbench";
+      inputs.node-measured.follows = "cardano-node-workbench";
+    };
 
     # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
     iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
