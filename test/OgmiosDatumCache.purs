@@ -18,30 +18,50 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Mote (group, skip, test)
+import Node.Path (FilePath)
 import Test.Ctl.Utils (errEither, errMaybe, readAeson)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Datum Cache tests" $ do
+  let samplesPath = "plutus-data-samples.json"
+      ogmiosResponsePath = "get-datums-by-hashes-samples.json"
+  -- plutus-data-samples
   skip $ test
     "Plutus data samples should satisfy the Aeson roundtrip test (FIXME: \
     \https://github.com/mlabs-haskell/purescript-aeson/issues/7)"
-    plutusDataToFromAesonTest
-  test "Plutus data samples should have a compatible hash" plutusDataHashingTest
+    (plutusDataToFromAesonTest samplesPath)
+
+  test "Plutus data samples should have a compatible hash" (plutusDataHashingTest samplesPath)
+
+  -- ogmios responses
+  skip $ test
+    "Ogmios response samples should satisfy the Aeson roundtrip test (FIXME: \
+    \https://github.com/mlabs-haskell/purescript-aeson/issues/7)"
+    (plutusDataToFromAesonTest ogmiosResponsePath)
+
+  test "Ogmios response samples should have a compatible hash" (plutusDataHashingTest ogmiosResponsePath)
+
+
+-- mkDataToFromAesonTest :: FilePath -> String ->
 
 readPlutusDataSamples
   :: forall (m :: Type -> Type)
    . MonadEffect m
-  => m (Array { hash :: ByteArray, plutusData :: PlutusData })
-readPlutusDataSamples = do
-  errEither <<< decodeAeson =<< readAeson
-    "./fixtures/test/ogmios-datum-cache/plutus-data-samples.json"
+  => FilePath
+  -> m (Array { hash :: ByteArray, plutusData :: PlutusData })
+readPlutusDataSamples path = do
+  errEither <<< decodeAeson =<< readAeson ("./fixtures/test/ogmios-datum-cache/" <> path)
 
 plutusDataToFromAesonTest
-  :: forall (m :: Type -> Type). MonadEffect m => MonadThrow Error m => m Unit
-plutusDataToFromAesonTest = do
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => MonadThrow Error m
+  => FilePath
+  -> m Unit
+plutusDataToFromAesonTest path = do
   pdsAes <- readAeson
-    "./fixtures/test/ogmios-datum-cache/plutus-data-samples.json"
+    $ "./fixtures/test/ogmios-datum-cache/" <> path
   aess <- errEither <<< caseAesonArray (Left "Expected a Json array") Right $
     pdsAes
   for_ aess \aes -> do
@@ -51,9 +71,13 @@ plutusDataToFromAesonTest = do
     aes `shouldEqual` aes'
 
 plutusDataHashingTest
-  :: forall (m :: Type -> Type). MonadEffect m => MonadThrow Error m => m Unit
-plutusDataHashingTest = do
-  plutusDataSamples <- readPlutusDataSamples
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => MonadThrow Error m
+  => FilePath
+  -> m Unit
+plutusDataHashingTest path = do
+  plutusDataSamples <- readPlutusDataSamples path
   let elems = plutusDataSamples
   for_ elems \{ hash, plutusData } -> do
     hash' <- errMaybe "Couldn't hash the datum" <<< datumHash $ Datum plutusData

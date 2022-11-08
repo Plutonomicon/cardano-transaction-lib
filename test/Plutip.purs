@@ -6,64 +6,28 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  , StakePubKeyHash
-  , getWalletAddress
-  , getWalletCollateral
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
-  )
-import Contract.BalanceTxConstraints
-  ( BalanceTxConstraintsBuilder
-  , mustUseAdditionalUtxos
-  ) as BalanceTxConstraints
+import Effect.Console (log)
+
+import Contract.Address (PaymentPubKeyHash(PaymentPubKeyHash), PubKeyHash(PubKeyHash), StakePubKeyHash, getWalletAddress, getWalletCollateral, ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder, mustUseAdditionalUtxos) as BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (nativeScriptHash)
-import Contract.Log (logInfo')
+import Contract.Log (logInfo', logError')
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
-import Contract.PlutusData
-  ( Datum(Datum)
-  , PlutusData(Bytes, Integer, List)
-  , Redeemer(Redeemer)
-  , getDatumByHash
-  , getDatumsByHashes
-  , getDatumsByHashesWithErrors
-  )
+import Contract.PlutusData (Datum(Datum), PlutusData(Bytes, Integer, List), Redeemer(Redeemer), getDatumByHash, getDatumsByHashes, getDatumsByHashesWithErrors)
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
+import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash, ValidatorHash)
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
-import Contract.Transaction
-  ( BalancedSignedTransaction
-  , DataHash
-  , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
-  , ScriptRef(PlutusScriptRef, NativeScriptRef)
-  , awaitTxConfirmed
-  , balanceTx
-  , balanceTxWithConstraints
-  , createAdditionalUtxos
-  , getTxByHash
-  , signTransaction
-  , submit
-  , withBalancedTx
-  , withBalancedTxs
-  )
+import Contract.Transaction (BalancedSignedTransaction, DataHash, NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll), ScriptRef(PlutusScriptRef, NativeScriptRef), TransactionHash, awaitTxConfirmed, balanceTx, balanceTxWithConstraints, createAdditionalUtxos, getTxByHash, signTransaction, submit, withBalancedTx, withBalancedTxs)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
-import Contract.Wallet
-  ( getWalletUtxos
-  , isFlintAvailable
-  , isGeroAvailable
-  , isNamiAvailable
-  , withKeyWallet
-  )
+import Contract.Wallet (getWalletUtxos, isFlintAvailable, isGeroAvailable, isNamiAvailable, withKeyWallet)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
@@ -72,18 +36,10 @@ import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  , mustPayToPubKeyStakeAddress
-  )
+import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName, mustPayToPubKeyStakeAddress, buildBalanceSignAndSubmitTx)
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
-import Ctl.Examples.MintsMultipleTokens
-  ( mintingPolicyRdmrInt1
-  , mintingPolicyRdmrInt2
-  , mintingPolicyRdmrInt3
-  )
+import Ctl.Examples.MintsMultipleTokens (mintingPolicyRdmrInt1, mintingPolicyRdmrInt2, mintingPolicyRdmrInt3)
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
@@ -94,36 +50,20 @@ import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
-import Ctl.Internal.Plutip.Server
-  ( startPlutipCluster
-  , startPlutipServer
-  , stopChildProcessWithPort
-  , stopPlutipCluster
-  )
-import Ctl.Internal.Plutip.Types
-  ( InitialUTxOsWithStakeKey
-  , StopClusterResponse(StopClusterSuccess)
-  )
+import Ctl.Internal.Hashing (datumHash)
+import Ctl.Internal.Plutip.Server (startPlutipCluster, startPlutipServer, stopChildProcessWithPort, stopPlutipCluster)
+import Ctl.Internal.Plutip.Types (InitialUTxOsWithStakeKey, StopClusterResponse(StopClusterSuccess))
 import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution)
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
-import Ctl.Internal.Plutus.Types.Transaction
-  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  )
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  , _input
-  , lookupTxHash
-  )
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript(TransactionOutputWithRefScript))
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput), _input, lookupTxHash)
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.TestPlanM as Utils
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
-import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
-  , withCip30Mock
-  )
+import Ctl.Internal.Wallet.Cip30Mock (WalletMock(MockNami, MockGero, MockFlint), withCip30Mock)
 import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (replicate, (!!))
 import Data.BigInt as BigInt
@@ -133,7 +73,7 @@ import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse, traverse_)
+import Data.Traversable (traverse, traverse_, sequence)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, bracket, launchAff_)
@@ -144,19 +84,7 @@ import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
-import Test.Ctl.Fixtures
-  ( cip25MetadataFixture1
-  , fullyAppliedScriptFixture
-  , nativeScriptFixture1
-  , nativeScriptFixture2
-  , nativeScriptFixture3
-  , nativeScriptFixture4
-  , nativeScriptFixture5
-  , nativeScriptFixture6
-  , nativeScriptFixture7
-  , partiallyAppliedScriptFixture
-  , unappliedScriptFixture
-  )
+import Test.Ctl.Fixtures (cip25MetadataFixture1, fullyAppliedScriptFixture, nativeScriptFixture1, nativeScriptFixture2, nativeScriptFixture3, nativeScriptFixture4, nativeScriptFixture5, nativeScriptFixture6, nativeScriptFixture7, partiallyAppliedScriptFixture, unappliedScriptFixture)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.NetworkId as NetworkId
@@ -191,6 +119,59 @@ suite = do
 
     flip mapTest AffInterface.suite
       (runPlutipContract config unit <<< const <<< wrapContract)
+
+    test "runPlutipContract: GetDatumsByHashes" do
+        let
+          config' = config {suppressLogs = false}
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+
+          datum1 :: Datum
+          datum1 = Datum $ Integer $ BigInt.fromInt 1
+
+          datum2 :: Datum
+          datum2 = Datum $ Integer $ BigInt.fromInt 2
+
+          datums :: Array Datum
+          datums = [datum2,datum1]
+
+          hashes :: Maybe (Array DataHash)
+          hashes = sequence <<< map datumHash $ datums
+
+          payToTest :: ValidatorHash -> Contract () TransactionHash
+          payToTest vhash = do
+            let constraints =
+                  Constraints.mustPayToScript
+                    vhash
+                    datum1
+                    Constraints.DatumWitness
+                    (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+                  <> Constraints.mustPayToScript
+                      vhash
+                      datum2
+                      Constraints.DatumWitness
+                      (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+                lookups :: Lookups.ScriptLookups PlutusData
+                lookups = mempty
+            buildBalanceSignAndSubmitTx lookups constraints
+
+        case hashes of
+          Nothing ->  runPlutipContract config' distribution $ \_ -> logError' "Couldn't get hashes for datums [1,2]"
+
+          Just dhashes -> runPlutipContract config' distribution $ \alice -> do
+            withKeyWallet alice do
+              validator <- AlwaysSucceeds.alwaysSucceedsScript
+              let vhash = validatorHash validator
+              logInfo' "Running GetDatums submittx"
+              txId <- payToTest vhash
+              awaitTxConfirmed txId
+              logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
+
+            logInfo' <<< show =<< getDatumsByHashes dhashes
+            logInfo' <<< show =<< getDatumsByHashesWithErrors dhashes
 
     test "runPlutipContract" do
       let
@@ -600,6 +581,8 @@ suite = do
           , mkDatumHash
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
+
+
 
     test "runPlutipContract: MintZeroToken" do
       let
