@@ -18,22 +18,20 @@ import Ctl.Internal.JsWebSocket
   )
 import Ctl.Internal.QueryM
   ( WebSocket(WebSocket)
+  , WebsocketDispatch
   , defaultMessageListener
   , defaultOgmiosWsConfig
   , mkListenerSet
   , mkRequestAff
-  , queryDispatch
+  , mkWebsocketDispatch
   )
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
-import Ctl.Internal.Types.MultiMap as MultiMap
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
 import Data.Traversable (for_, traverse_)
-import Data.Tuple (fst) as Tuple
-import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
 import Effect.Class (liftEffect)
@@ -57,24 +55,25 @@ mkWebSocket
   -> (Either Error (WebSocket (ListenerSet a b)) -> Effect Unit)
   -> Effect (Error -> Effect Unit)
 mkWebSocket lvl serverCfg cb = do
-  dispatchMap <- Ref.new MultiMap.empty
+  dispatcher <- Ref.new Map.empty
   pendingRequests <- Ref.new Map.empty
   let
-    md = [ queryDispatch dispatchMap ]
+    (messageDispatch :: WebsocketDispatch) =
+      mkWebsocketDispatch dispatcher
   ws <- _mkWebSocket (logger Debug) $ mkWsUrl serverCfg
   let
-    sendRequest :: forall (req :: Type). String /\ req -> Effect Unit
-    sendRequest = _wsSend ws (logString lvl Debug) <<< Tuple.fst
+    sendRequest :: String -> Effect Unit
+    sendRequest = _wsSend ws (logString lvl Debug)
     onError = do
       logString lvl Debug "WS error occured, resending requests"
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     void $ _onWsError ws \_ -> onError
     _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ _ -> pure unit)
-      md
+      [ messageDispatch ]
     void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
-      (mkListenerSet dispatchMap pendingRequests)
+      (mkListenerSet dispatcher pendingRequests)
   pure $ \err -> cb $ Left $ err
   where
   logger :: LogLevel -> String -> Effect Unit
