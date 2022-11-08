@@ -9,14 +9,12 @@
 
     # for the purescript project
     ogmios = {
-      url = "github:mlabs-haskell/ogmios/dbc1a03dca6a876a25d54a8716504837909c6e8c";
+      url = "github:mlabs-haskell/ogmios/9c04524d45de2c417ddda9e7ab0d587a54954c57";
       inputs = {
         haskell-nix.follows = "haskell-nix";
         nixpkgs.follows = "nixpkgs";
       };
     };
-
-    cardano-base.url = "github:input-output-hk/cardano-base";
 
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
     plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
@@ -34,21 +32,17 @@
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
 
     # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
-    ogmios-nixos.url = "github:mlabs-haskell/ogmios/marton/nixos-module";
+    ogmios-nixos.url = "github:mlabs-haskell/ogmios";
     ogmios-datum-cache-nixos.url = "github:mlabs-haskell/ogmios-datum-cache/marton/nixos-module";
 
     # for nixos module
     # TODO: cleanup after cardano-node inputs are fixed
-    empty-flake.url = "github:input-output-hk/empty-flake?rev=2040a05b67bf9a669ce17eca56beb14b4206a99a";
-    cardano-node-workbench = {
-      url = "github:input-output-hk/cardano-node/ed9932c52aaa535b71f72a5b4cc0cecb3344a5a3";
-      inputs.membench.follows = "empty-flake";
-    };
     cardano-node = {
-      url = "github:input-output-hk/cardano-node/1.35.4";
-      inputs.cardano-node-workbench.follows = "cardano-node-workbench";
-      inputs.node-measured.follows = "cardano-node-workbench";
+      url = "github:input-output-hk/cardano-node/1.35.3";
+      inputs.cardano-node-workbench.follows = "blank";
+      inputs.node-measured.follows = "blank";
     };
+    blank.url = "github:divnix/blank";
 
     # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
     iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
