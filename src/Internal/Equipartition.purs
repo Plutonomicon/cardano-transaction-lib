@@ -17,8 +17,8 @@ import Partial.Unsafe (unsafePartial)
 class Equipartition a where
   equipartition :: a -> Int -> NonEmptyArray a
 
--- | Computes the equipartition of a `BigInt` into `numParts` smaller `BigInt`s 
--- | whose values differ by no more than 1. The resultant array is sorted in 
+-- | Computes the equipartition of a `BigInt` into `numParts` smaller `BigInt`s
+-- | whose values differ by no more than 1. The resultant array is sorted in
 -- | ascending order.
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/numeric/src/Cardano/Numeric/Util.hs#L127
