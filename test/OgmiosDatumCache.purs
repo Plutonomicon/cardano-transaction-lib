@@ -24,15 +24,17 @@ import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Datum Cache tests" $ do
-  let samplesPath = "plutus-data-samples.json"
-      ogmiosResponsePath = "get-datums-by-hashes-samples.json"
+  let
+    samplesPath = "plutus-data-samples.json"
+    ogmiosResponsePath = "get-datums-by-hashes-samples.json"
   -- plutus-data-samples
   skip $ test
     "Plutus data samples should satisfy the Aeson roundtrip test (FIXME: \
     \https://github.com/mlabs-haskell/purescript-aeson/issues/7)"
     (plutusDataToFromAesonTest samplesPath)
 
-  test "Plutus data samples should have a compatible hash" (plutusDataHashingTest samplesPath)
+  test "Plutus data samples should have a compatible hash"
+    (plutusDataHashingTest samplesPath)
 
   -- ogmios responses
   skip $ test
@@ -40,8 +42,8 @@ suite = group "Ogmios Datum Cache tests" $ do
     \https://github.com/mlabs-haskell/purescript-aeson/issues/7)"
     (plutusDataToFromAesonTest ogmiosResponsePath)
 
-  test "Ogmios response samples should have a compatible hash" (plutusDataHashingTest ogmiosResponsePath)
-
+  test "Ogmios response samples should have a compatible hash"
+    (plutusDataHashingTest ogmiosResponsePath)
 
 -- mkDataToFromAesonTest :: FilePath -> String ->
 
@@ -51,7 +53,8 @@ readPlutusDataSamples
   => FilePath
   -> m (Array { hash :: ByteArray, plutusData :: PlutusData })
 readPlutusDataSamples path = do
-  errEither <<< decodeAeson =<< readAeson ("./fixtures/test/ogmios-datum-cache/" <> path)
+  errEither <<< decodeAeson =<< readAeson
+    ("./fixtures/test/ogmios-datum-cache/" <> path)
 
 plutusDataToFromAesonTest
   :: forall (m :: Type -> Type)
