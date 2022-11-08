@@ -18,7 +18,7 @@ import Contract.BalanceTxConstraints
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
 import Contract.Chain (currentTime)
-import Contract.Hashing (nativeScriptHash)
+import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
@@ -29,10 +29,15 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (mconcat)
+import Contract.Prelude (liftM, mconcat, sequence)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
+import Contract.Scripts
+  ( ValidatorHash
+  , applyArgs
+  , mintingPolicyHash
+  , validatorHash
+  )
 import Contract.Test.Plutip
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
@@ -46,6 +51,7 @@ import Contract.Transaction
   ( DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
+  , TransactionHash
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
@@ -127,7 +133,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
@@ -700,6 +706,58 @@ suite = do
           , mkDatumHash
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
+
+    test "GetDatumsByHashes" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+
+        datum1 :: Datum
+        datum1 = Datum $ Integer $ BigInt.fromInt 1
+
+        datum2 :: Datum
+        datum2 = Datum $ Integer $ BigInt.fromInt 2
+
+        datums :: Array Datum
+        datums = [ datum2, datum1 ]
+
+        hashes :: Maybe (Array DataHash)
+        hashes = sequence <<< map datumHash $ datums
+
+        payToTest :: ValidatorHash -> Contract () TransactionHash
+        payToTest vhash = do
+          let
+            constraints =
+              Constraints.mustPayToScript
+                vhash
+                datum1
+                Constraints.DatumWitness
+                (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+                <> Constraints.mustPayToScript
+                  vhash
+                  datum2
+                  Constraints.DatumWitness
+                  (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+
+            lookups :: Lookups.ScriptLookups PlutusData
+            lookups = mempty
+          buildBalanceSignAndSubmitTx lookups constraints
+
+      withWallets distribution \alice -> do
+        dhashes <- liftM (error "Couldn't get hashes for datums [1,2]") hashes
+        withKeyWallet alice do
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
+          let vhash = validatorHash validator
+          logInfo' "Running GetDatums submittx"
+          txId <- payToTest vhash
+          awaitTxConfirmed txId
+          logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
+
+          logInfo' <<< show =<< getDatumsByHashes dhashes
+          logInfo' <<< show =<< getDatumsByHashesWithErrors dhashes
 
     test "MintZeroToken" do
       let
