@@ -31,7 +31,7 @@ Optional services:
 
 ### Using NixOS module
 
-`ctl-server` and its dependencies can be configured and started via NixOS modules. See [../nix/text-nixos-configuration.nix](../nix/text-nixos-configuration.nix) for example usage and [../nix/ctl-server-nixos-module.nix](../nix/ctl-server-nixos-module.nix) for module options.
+`ctl-server` and its dependencies can be configured and started via NixOS modules. See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and [../nix/ctl-server-nixos-module.nix](../nix/ctl-server-nixos-module.nix) for module options.
 
 ### Using CTL's `runtime` overlay
 
