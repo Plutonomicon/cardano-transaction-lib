@@ -9,12 +9,7 @@ module Ctl.Internal.Plutip.Server
 
 import Prelude
 
-import Aeson
-  ( decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
@@ -29,6 +24,7 @@ import Contract.Monad
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
+  , cleanupTmpDir
   , killOnExit
   , spawnAndWaitForOutput
   )
@@ -99,6 +95,7 @@ import Node.ChildProcess
   , kill
   , spawn
   )
+import Node.Path (dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -374,13 +371,14 @@ startPlutipServer cfg = do
 
 startPostgresServer
   :: PostgresConfig -> ClusterStartupParameters -> Aff ChildProcess
-startPostgresServer pgConfig _ = do
+startPostgresServer pgConfig params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workingDir = tmpDir <> "/" <> randomStr
     databaseDir = workingDir <> "/postgres/data"
     postgresSocket = workingDir <> "/postgres"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
   pgChildProcess <- liftEffect $ spawn "postgres"
     [ "-D"
@@ -393,6 +391,7 @@ startPostgresServer pgConfig _ = do
     , postgresSocket
     ]
     defaultSpawnOptions
+  liftEffect $ cleanupTmpDir pgChildProcess workingDir testClusterDir
   liftEffect $ killOnExit pgChildProcess
   void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
     $ const

@@ -58,7 +58,7 @@ type ContractResult =
   , nonSpendableOref :: TransactionInput
   }
 
--- | Checks that the resultant change outputs of the transaction are partitioned 
+-- | Checks that the resultant change outputs of the transaction are partitioned
 -- | correctly, i.e. their token quantities do not exceed the specified upper
 -- | limit of 4 tokens per change output.
 assertChangeOutputsPartitionedCorrectly
@@ -85,7 +85,7 @@ assertChangeOutputsPartitionedCorrectly
 
         tokenQuantities == map fromInt [ 3, 4, 4 ]
 
--- | Checks that the utxo with the specified output reference 
+-- | Checks that the utxo with the specified output reference
 -- | (`nonSpendableOref`) is not consumed during transaction balancing.
 assertSelectedUtxoIsNotSpent
   :: ContractBasicAssertion () ContractResult Unit
