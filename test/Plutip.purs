@@ -667,7 +667,6 @@ suite = do
           logInfo' <<< show =<< getDatumsByHashes dhashes
           logInfo' <<< show =<< getDatumsByHashesWithErrors dhashes
 
-
     test "runPlutipContract: MintZeroToken" do
       let
         distribution :: InitialUTxOs
