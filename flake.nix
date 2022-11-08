@@ -476,9 +476,11 @@
 
       nixosModules.ctl-server = { pkgs, lib, ... }: {
         imports = [ ./nix/ctl-server-nixos-module.nix ];
-        nixpkgs.overlays = [(_: _: {
-          ctl-server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
-        })];
+        nixpkgs.overlays = [
+          (_: _: {
+            ctl-server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
+          })
+        ];
       };
 
       nixosConfigurations.test = nixpkgs.lib.nixosSystem {
