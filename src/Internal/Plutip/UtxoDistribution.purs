@@ -34,6 +34,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
+import Ctl.Examples.Helpers as Helpers
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
@@ -177,11 +178,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
-    ourAddr <- liftedM "Could not get our address"
+    ourAddr <- Helpers.liftedHead "Could not get our address"
       $ withKeyWallet ourWallet getWalletAddress
     ourUtxos <- liftedM "Could not find our utxos"
       $ utxosAt ourAddr
-    ourPkh <- liftedM "Could not get our payment pkh"
+    ourPkh <- Helpers.liftedHead "Could not get our payment pkh"
       $ withKeyWallet ourWallet ownPaymentPubKeyHash
     let
       lookups :: Lookups.ScriptLookups Void
@@ -226,10 +227,10 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -> KeyWallet
     -> Contract r (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
-    ownStakePubKeyHash >>= case _ of
+    ownStakePubKeyHash >>= \mpks -> case Helpers.maybeArrayToHead mpks of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
-        payPkh <- liftedM "Could not get payment pubkeyhash"
+        payPkh <- Helpers.liftedHead "Could not get payment pubkeyhash"
           ownPaymentPubKeyHash
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $

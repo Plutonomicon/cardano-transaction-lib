@@ -616,15 +616,15 @@ ownPubKeyHashes = do
 ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
 ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
 
--- TODO: change to array of StakePubKeyHash
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
+ownStakePubKeyHash :: QueryM (Maybe (Array StakePubKeyHash))
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
+  mbAddresses <- getWalletAddresses
   pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <<< wrap <$> stakeCredentialToKeyHash
-      (baseAddressDelegationCred baseAddress)
+    addresses <- mbAddresses
+    baseAddresses <- traverse baseAddressFromAddress addresses
+    edKeyHashes <- traverse stakeCredentialToKeyHash
+      (baseAddressDelegationCred <$> baseAddresses)
+    pure $ (wrap <<< wrap) <$> edKeyHashes
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
