@@ -152,7 +152,9 @@ import Ctl.Internal.QueryM.Dispatcher
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
+  , DelegationsAndRewardsR
   , PoolIdsR
+  , PoolParametersR
   , TxHash
   , aesonObject
   )
@@ -1028,8 +1030,8 @@ type OgmiosListeners =
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR
-  , poolParameters :: ListenerSet (Array PoolPubKeyHash) Aeson
-  , delegationsAndRewards :: ListenerSet (Array String) Aeson
+  , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
+  , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
   }
 
 type DatumCacheListeners =

@@ -8,6 +8,7 @@ module Ctl.Internal.QueryM.Ogmios
   , CostModelV2
   , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
   , CurrentEpoch(CurrentEpoch)
+  , DelegationsAndRewardsR(DelegationsAndRewardsR)
   , Epoch(Epoch)
   , EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
@@ -21,6 +22,8 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosTxOut
   , OgmiosTxOutRef
   , PParamRational(PParamRational)
+  , PoolParameters
+  , PoolParametersR(PoolParametersR)
   , ProtocolParameters(ProtocolParameters)
   , RedeemerPointer
   , RelativeTime(RelativeTime)
@@ -70,6 +73,7 @@ module Ctl.Internal.QueryM.Ogmios
   , queryDelegationsAndRewards
   , submitTxCall
   , slotLengthFactor
+  , parseIpv6String
   ) where
 
 import Prelude
@@ -92,8 +96,11 @@ import Aeson
   , isString
   , stringifyAeson
   , toString
+  , (.:)
+  , (.:?)
   )
 import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
@@ -112,9 +119,16 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
   , Nonce
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
   , PoolPubKeyHash
+  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
   , SubCoin
+  , URL(URL)
+  , UnitInterval
   )
 import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value
@@ -131,33 +145,43 @@ import Ctl.Internal.Cardano.Types.Value
   , mkValue
   , valueToCoin
   )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
-import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayToHex
+  , hexToByteArray
+  )
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
+import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
+import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Array (catMaybes, index, reverse, singleton)
-import Data.Array (head) as Array
+import Data.Array (head, length, replicate) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, note)
-import Data.Foldable (foldl)
+import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
 import Data.List (List)
@@ -167,15 +191,25 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), indexOf, split, splitAt, uncons)
+import Data.String
+  ( Pattern(Pattern)
+  , Replacement(Replacement)
+  , indexOf
+  , split
+  , splitAt
+  , uncons
+  )
+import Data.String (replaceAll) as String
 import Data.String.Common (split) as String
+import Data.String.Utils as StringUtils
 import Data.Traversable (for, sequence, traverse)
-import Data.Tuple (snd, uncurry)
+import Data.Tuple (Tuple(Tuple), snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (singleton, toUnfoldable) as ForeignObject
+import Foreign.Object as Object
 import Heterogeneous.Folding (class HFoldl, hfoldl)
 import Partial.Unsafe (unsafePartial)
 import Untagged.TypeCheck (class HasRuntimeType)
@@ -227,13 +261,13 @@ queryPoolIdsCall = mkOgmiosCallType
   , args: const { query: "poolIds" }
   }
 
-queryPoolParameters :: JsonWspCall (Array PoolPubKeyHash) Aeson
+queryPoolParameters :: JsonWspCall (Array PoolPubKeyHash) PoolParametersR
 queryPoolParameters = mkOgmiosCallType
   { methodname: "Query"
   , args: \params -> { query: { poolParameters: params } }
   }
 
-queryDelegationsAndRewards :: JsonWspCall (Array String) Aeson
+queryDelegationsAndRewards :: JsonWspCall (Array String) DelegationsAndRewardsR
 queryDelegationsAndRewards = mkOgmiosCallType
   { methodname: "Query"
   , args: \skhs ->
@@ -589,6 +623,156 @@ derive newtype instance EncodeAeson SafeZone
 
 instance Show SafeZone where
   show (SafeZone sz) = showWithParens "SafeZone" sz
+
+---------------- DELEGATIONS & REWARDS QUERY RESPONSE & PARSING
+
+newtype DelegationsAndRewardsR = DelegationsAndRewardsR
+  ( Map String
+      { rewards :: Maybe Coin
+      , delegate :: Maybe PoolPubKeyHash
+      }
+  )
+
+derive instance Generic DelegationsAndRewardsR _
+derive instance Newtype DelegationsAndRewardsR _
+
+instance DecodeAeson DelegationsAndRewardsR where
+  decodeAeson aeson = do
+    obj :: Object (Object Aeson) <- decodeAeson aeson
+    kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
+      rewards <- map Coin <$> objParams .:? "rewards"
+      delegate <- objParams .:? "delegate"
+      pure $ k /\ { rewards, delegate }
+    pure $ DelegationsAndRewardsR $ Map.fromFoldable kvs
+
+---------------- POOL PARAMETERS QUERY RESPONSE & PARSING
+
+type PoolParameters =
+  { vrfKeyhash :: VRFKeyHash
+  -- needed to prove that the pool won the lottery
+  , pledge :: BigNum
+  , cost :: BigNum -- >= pparams.minPoolCost
+  , margin :: UnitInterval -- proportion that goes to the reward account
+  , rewardAccount :: RewardAddress
+  , poolOwners :: Array PaymentPubKeyHash
+  -- payment key hashes that contribute to pledge amount
+  , relays :: Array Relay
+  , poolMetadata :: Maybe PoolMetadata
+  }
+
+newtype PoolParametersR = PoolParametersR (Map String PoolParameters)
+
+derive instance Newtype PoolParametersR _
+derive instance Generic PoolParametersR _
+
+instance Show PoolParametersR where
+  show = genericShow
+
+instance DecodeAeson PoolParametersR where
+  decodeAeson aeson = do
+    obj :: Object (Object Aeson) <- decodeAeson aeson
+    kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
+      vrfKeyhashHex <- objParams .: "vrf"
+      vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
+        vrfKeyhashHex
+      vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
+        vrfKeyhashBytes
+      pledge <- objParams .: "pledge"
+      cost <- objParams .: "cost"
+      margin <- decodeUnitInterval =<< objParams .: "margin"
+      rewardAccount <- objParams .: "rewardAccount"
+      poolOwners <- objParams .: "owners"
+      relayArr <- objParams .: "relays"
+      relays <- for relayArr decodeRelay
+      poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
+      pure $ k /\
+        { vrfKeyhash
+        , pledge
+        , cost
+        , margin
+        , rewardAccount
+        , poolOwners
+        , relays
+        , poolMetadata
+        }
+    pure $ PoolParametersR $ Map.fromFoldable kvs
+
+decodeUnitInterval :: Aeson -> Either JsonDecodeError UnitInterval
+decodeUnitInterval aeson = do
+  str <- decodeAeson aeson
+  case String.split (Pattern "/") str of
+    [ num, den ] -> do
+      numerator <- note (TypeMismatch "BigNum") $ BigNum.fromString num
+      denominator <- note (TypeMismatch "BigNum") $ BigNum.fromString den
+      pure
+        { numerator
+        , denominator
+        }
+    _ -> Left $ TypeMismatch "UnitInterval"
+
+decodeIpv4 :: Aeson -> Either JsonDecodeError Ipv4
+decodeIpv4 aeson = do
+  str <- decodeAeson aeson
+  case String.split (Pattern ".") str of
+    bs@[ _, _, _, _ ] -> do
+      ints <- for bs $
+        note (TypeMismatch "Ipv4") <<< Int.fromString
+      Ipv4 <$> note (TypeMismatch "Ipv4") (byteArrayFromIntArray ints)
+    _ -> Left $ TypeMismatch "Ipv4"
+
+decodeIpv6 :: Aeson -> Either JsonDecodeError Ipv6
+decodeIpv6 aeson = do
+  decodeAeson aeson >>= parseIpv6String >>> note (TypeMismatch "Ipv6")
+
+parseIpv6String :: String -> Maybe Ipv6
+parseIpv6String str = do
+  let
+    parts = String.split (Pattern ":") str
+    partsFixed =
+      if Array.length parts < 8 then
+        -- Normalize double colon
+        -- see https://ipcisco.com/lesson/ipv6-address/
+        do
+          part <- parts
+          if part == "" then
+            Array.replicate (8 - Array.length parts + 1) ""
+          else
+            pure part
+      else
+        parts
+  guard (Array.length partsFixed == 8)
+  let
+    padded = String.replaceAll (Pattern " ") (Replacement "0") $ fold $
+      partsFixed
+        <#> StringUtils.padStart 4
+  Ipv6 <$> hexToByteArray padded
+
+decodeRelay :: Aeson -> Either JsonDecodeError Relay
+decodeRelay aeson = do
+  obj <- decodeAeson aeson
+  let
+    decodeSingleHostAddr = do
+      port <- obj .:? "port"
+      ipv4 <- obj .:? "ipv4" >>= traverse decodeIpv4
+      ipv6 <- obj .:? "ipv6" >>= traverse decodeIpv6
+      pure $ SingleHostAddr { port, ipv4, ipv6 }
+    decodeSingleHostName = do
+      port <- obj .: "port"
+      dnsName <- obj .: "hostname"
+      pure $ SingleHostName { port, dnsName }
+    decodeMultiHostName = do
+      dnsName <- obj .: "hostname"
+      pure $ MultiHostName { dnsName }
+  decodeSingleHostName <|> decodeSingleHostAddr <|> decodeMultiHostName
+
+decodePoolMetadata :: Aeson -> Either JsonDecodeError PoolMetadata
+decodePoolMetadata aeson = do
+  obj <- decodeAeson aeson
+  hash <- obj .: "hash" >>= note (TypeMismatch "PoolMetadataHash")
+    <<< map PoolMetadataHash
+    <<< hexToByteArray
+  url <- obj .: "url" <#> URL
+  pure $ PoolMetadata { hash, url }
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 

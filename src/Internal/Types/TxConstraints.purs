@@ -633,37 +633,53 @@ mustHashDatum
   :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
-mustRegisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
+mustRegisterStakePubKey
+  :: forall (i :: Type) (o :: Type). StakePubKeyHash -> TxConstraints i o
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 
-mustDeregisterStakePubKey :: forall i o. StakePubKeyHash -> TxConstraints i o
+mustDeregisterStakePubKey
+  :: forall (i :: Type) (o :: Type). StakePubKeyHash -> TxConstraints i o
 mustDeregisterStakePubKey = singleton <<< MustDeregisterStakePubKey
 
-mustRegisterStakeScript :: forall i o. StakeValidatorHash -> TxConstraints i o
+mustRegisterStakeScript
+  :: forall (i :: Type) (o :: Type). StakeValidatorHash -> TxConstraints i o
 mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
 
 mustDeregisterStakePlutusScript
-  :: forall i o. PlutusScriptStakeValidator -> Redeemer -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . PlutusScriptStakeValidator
+  -> Redeemer
+  -> TxConstraints i o
 mustDeregisterStakePlutusScript sv = singleton <<<
   MustDeregisterStakePlutusScript sv
 
 mustDeregisterStakeNativeScript
-  :: forall i o. NativeScriptStakeValidator -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . NativeScriptStakeValidator
+  -> TxConstraints i o
 mustDeregisterStakeNativeScript = singleton <<< MustDeregisterStakeNativeScript
 
-mustRegisterPool :: forall i o. PoolRegistrationParams -> TxConstraints i o
+mustRegisterPool
+  :: forall (i :: Type) (o :: Type). PoolRegistrationParams -> TxConstraints i o
 mustRegisterPool = singleton <<< MustRegisterPool
 
-mustRetirePool :: forall i o. PoolPubKeyHash -> Epoch -> TxConstraints i o
+mustRetirePool
+  :: forall (i :: Type) (o :: Type)
+   . PoolPubKeyHash
+  -> Epoch
+  -> TxConstraints i o
 mustRetirePool poolPubKeyHash = singleton <<< MustRetirePool poolPubKeyHash
 
 mustDelegateStakePubKey
-  :: forall i o. StakePubKeyHash -> PoolPubKeyHash -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . StakePubKeyHash
+  -> PoolPubKeyHash
+  -> TxConstraints i o
 mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
   ppkh
 
 mustDelegateStakePlutusScript
-  :: forall i o
+  :: forall (i :: Type) (o :: Type)
    . PlutusScriptStakeValidator
   -> Redeemer
   -> PoolPubKeyHash
@@ -672,7 +688,7 @@ mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
   MustDelegateStakePlutusScript sv redeemer ppkh
 
 mustDelegateStakeNativeScript
-  :: forall i o
+  :: forall (i :: Type) (o :: Type)
    . NativeScriptStakeValidator
   -> PoolPubKeyHash
   -> TxConstraints i o
@@ -680,16 +696,21 @@ mustDelegateStakeNativeScript sv ppkh =
   singleton $ MustDelegateStakeNativeScript sv ppkh
 
 mustWithdrawStakePubKey
-  :: forall i o. StakePubKeyHash -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type). StakePubKeyHash -> TxConstraints i o
 mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
 
 mustWithdrawStakePlutusScript
-  :: forall i o. PlutusScriptStakeValidator -> Redeemer -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . PlutusScriptStakeValidator
+  -> Redeemer
+  -> TxConstraints i o
 mustWithdrawStakePlutusScript validator redeemer =
   singleton $ MustWithdrawStakePlutusScript validator redeemer
 
 mustWithdrawStakeNativeScript
-  :: forall i o. NativeScriptStakeValidator -> TxConstraints i o
+  :: forall (i :: Type) (o :: Type)
+   . NativeScriptStakeValidator
+  -> TxConstraints i o
 mustWithdrawStakeNativeScript =
   singleton <<< MustWithdrawStakeNativeScript
 
