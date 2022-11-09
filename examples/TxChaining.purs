@@ -31,7 +31,6 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Ctl.Examples.Helpers as Helpers
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -43,7 +42,7 @@ example cfg = launchAff_ do
 
 contract :: Contract () Unit
 contract = do
-  pkh <- Helpers.liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
+  pkh <- liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
   let
     constraints :: TxConstraints Unit Unit
     constraints =

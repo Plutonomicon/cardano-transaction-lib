@@ -50,8 +50,6 @@ import Contract.Value (lovelaceValueOf) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
-  , liftedHead
-  , maybeArrayToHead
   , mkTokenName
   ) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -93,8 +91,8 @@ contract = do
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
-  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+  pkh <- liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- maybeArrayHead <$> ownStakePubKeyHash
   let
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
@@ -123,7 +121,7 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   let scriptAddress = scriptHashAddress vhash
-  ownAddress <- Helpers.liftedHead "Failed to get own address" getWalletAddress
+  ownAddress <- liftedHead "Failed to get own address" getWalletAddress
   (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt' ownAddress
   scriptAddressUtxos <- utxosAt' scriptAddress
 

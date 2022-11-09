@@ -23,8 +23,6 @@ import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
-  , liftedHead
-  , maybeArrayToHead
   , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
@@ -39,7 +37,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
-  pkh <- Helpers.liftedHead "Couldn't get own pkh" ownPaymentPubKeyHash
+  pkh <- liftedHead "Couldn't get own pkh" ownPaymentPubKeyHash
 
   mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
   tn <- Helpers.mkTokenName "NSToken"
@@ -63,8 +61,8 @@ contract = do
 
 toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract () Unit
 toSelfContract cs tn amount = do
-  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+  pkh <- liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- maybeArrayHead <$> ownStakePubKeyHash
 
   let
     constraints :: Constraints.TxConstraints Void Void

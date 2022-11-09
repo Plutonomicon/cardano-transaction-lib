@@ -53,11 +53,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
-import Ctl.Examples.Helpers
-  ( liftedHead
-  , maybeArrayToHead
-  , mustPayToPubKeyStakeAddress
-  ) as Helpers
+import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.BigInt (BigInt)
 import Data.Lens (view)
 import Data.Map (empty) as Map
@@ -88,7 +84,7 @@ mkAssertions
        )
 mkAssertions params@(ContractParams p) = do
   senderAddress <-
-    Helpers.liftedHead "Failed to get sender address" getWalletAddress
+    liftedHead "Failed to get sender address" getWalletAddress
   receiverAddress <-
     liftedM "Failed to get receiver address" (getReceiverAddress params)
   dhash <- liftContractM "Failed to hash datum" $ datumHash $ p.datumToAttach
@@ -122,8 +118,8 @@ mkAssertions params@(ContractParams p) = do
 contract :: ContractParams -> Contract () Unit
 contract params@(ContractParams p) = do
   logInfo' "Running Examples.ContractTestUtils"
-  ownPkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
-  ownSkh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+  ownPkh <- liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  ownSkh <- maybeArrayHead <$> ownStakePubKeyHash
   let
     mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
       ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
@@ -164,7 +160,7 @@ contract params@(ContractParams p) = do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully!"
 
-    senderAddress <- Helpers.liftedHead
+    senderAddress <- liftedHead
       "Failed to get sender address"
       getWalletAddress
     utxos <- fromMaybe Map.empty <$> utxosAt senderAddress

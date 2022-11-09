@@ -31,7 +31,7 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (mconcat)
+import Contract.Prelude (liftedHead, maybeArrayHead, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
@@ -268,9 +268,9 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         checkUtxoDistribution distribution alice
-        pkh <- Helpers.liftedHead "Failed to get PKH" $ withKeyWallet alice
+        pkh <- liftedHead "Failed to get PKH" $ withKeyWallet alice
           ownPaymentPubKeyHash
-        stakePkh <- Helpers.maybeArrayToHead <$> withKeyWallet alice
+        stakePkh <- maybeArrayHead <$> withKeyWallet alice
           ownStakePubKeyHash
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
@@ -284,9 +284,9 @@ suite = do
 
       runPlutipContract config distribution \alice -> do
         checkUtxoDistribution distribution alice
-        pkh <- Helpers.liftedHead "Failed to get PKH" $ withKeyWallet alice
+        pkh <- liftedHead "Failed to get PKH" $ withKeyWallet alice
           ownPaymentPubKeyHash
-        stakePkh <- Helpers.maybeArrayToHead <$> withKeyWallet alice
+        stakePkh <- maybeArrayHead <$> withKeyWallet alice
           ownStakePubKeyHash
         stakePkh `shouldSatisfy` isJust
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
@@ -309,15 +309,15 @@ suite = do
         checkUtxoDistribution distribution wallets
         sequential ado
           parallel $ withKeyWallet alice do
-            pkh <- Helpers.liftedHead "Failed to get PKH" $ withKeyWallet bob
+            pkh <- liftedHead "Failed to get PKH" $ withKeyWallet bob
               ownPaymentPubKeyHash
-            stakePkh <- Helpers.maybeArrayToHead <$> withKeyWallet bob
+            stakePkh <- maybeArrayHead <$> withKeyWallet bob
               ownStakePubKeyHash
             pkh2PkhContract pkh stakePkh
           parallel $ withKeyWallet bob do
-            pkh <- Helpers.liftedHead "Failed to get PKH" $ withKeyWallet alice
+            pkh <- liftedHead "Failed to get PKH" $ withKeyWallet alice
               ownPaymentPubKeyHash
-            stakePkh <- Helpers.maybeArrayToHead <$> withKeyWallet alice
+            stakePkh <- maybeArrayHead <$> withKeyWallet alice
               ownStakePubKeyHash
             pkh2PkhContract pkh stakePkh
           in unit
@@ -340,16 +340,16 @@ suite = do
           checkUtxoDistribution distribution wallets
           sequential ado
             parallel $ withKeyWallet alice do
-              pkh <- Helpers.liftedHead "Failed to get PKH" $ withKeyWallet bob
+              pkh <- liftedHead "Failed to get PKH" $ withKeyWallet bob
                 ownPaymentPubKeyHash
-              stakePkh <- Helpers.maybeArrayToHead <$> withKeyWallet bob
+              stakePkh <- maybeArrayHead <$> withKeyWallet bob
                 ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
             parallel $ withKeyWallet bob do
-              pkh <- Helpers.liftedHead "Failed to get PKH" $ withKeyWallet
+              pkh <- liftedHead "Failed to get PKH" $ withKeyWallet
                 alice
                 ownPaymentPubKeyHash
-              stakePkh <- Helpers.maybeArrayToHead <$> withKeyWallet alice
+              stakePkh <- maybeArrayHead <$> withKeyWallet alice
                 ownStakePubKeyHash
               pkh2PkhContract pkh stakePkh
             in unit
@@ -384,16 +384,16 @@ suite = do
       runPlutipContract config distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
           alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
-            (coerce <<< Helpers.maybeArrayToHead) <$> withKeyWallet alice
+            (coerce <<< maybeArrayHead) <$> withKeyWallet alice
               ownPaymentPubKeyHash
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
-            (coerce <<< Helpers.maybeArrayToHead) <$> withKeyWallet bob
+            (coerce <<< maybeArrayHead) <$> withKeyWallet bob
               ownPaymentPubKeyHash
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
-            (coerce <<< Helpers.maybeArrayToHead) <$> withKeyWallet charlie
+            (coerce <<< maybeArrayHead) <$> withKeyWallet charlie
               ownPaymentPubKeyHash
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            (coerce <<< Helpers.maybeArrayToHead) <$> withKeyWallet dan
+            (coerce <<< maybeArrayHead) <$> withKeyWallet dan
               ownPaymentPubKeyHash
           let
             nativeScript = ScriptAll
@@ -484,16 +484,16 @@ suite = do
       runPlutipContract config distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
           alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
-            (coerce <<< Helpers.maybeArrayToHead) <$> withKeyWallet alice
+            (coerce <<< maybeArrayHead) <$> withKeyWallet alice
               ownPaymentPubKeyHash
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
-            coerce <<< Helpers.maybeArrayToHead <$> withKeyWallet bob
+            coerce <<< maybeArrayHead <$> withKeyWallet bob
               ownPaymentPubKeyHash
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
-            coerce <<< Helpers.maybeArrayToHead <$> withKeyWallet charlie
+            coerce <<< maybeArrayHead <$> withKeyWallet charlie
               ownPaymentPubKeyHash
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            coerce <<< Helpers.maybeArrayToHead <$> withKeyWallet dan
+            coerce <<< maybeArrayHead <$> withKeyWallet dan
               ownPaymentPubKeyHash
           let
             nativeScript = ScriptNOfK 2
@@ -877,8 +877,8 @@ suite = do
           [] /\ [ BigInt.fromInt 2_100_000_000 ]
       runPlutipContract config distribution \(alice /\ seed) -> do
         alicePkh /\ aliceStakePkh <- withKeyWallet alice do
-          pkh <- Helpers.liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
-          stakePkh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+          pkh <- liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
+          stakePkh <- maybeArrayHead <$> ownStakePubKeyHash
           pure $ pkh /\ stakePkh
 
         mp <- alwaysMintsPolicy
@@ -969,9 +969,9 @@ suite = do
         distribution = initialUtxos /\ initialUtxos
 
       runPlutipContract config distribution \(alice /\ bob) -> do
-        receiverPkh <- Helpers.liftedHead "Unable to get Bob's PKH" $
+        receiverPkh <- liftedHead "Unable to get Bob's PKH" $
           withKeyWallet bob ownPaymentPubKeyHash
-        receiverSkh <- Helpers.maybeArrayToHead <$> withKeyWallet bob
+        receiverSkh <- maybeArrayHead <$> withKeyWallet bob
           ownStakePubKeyHash
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
@@ -1023,7 +1023,7 @@ suite = do
 
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          pkh <- Helpers.liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
+          pkh <- liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
 
           let
             constraints0 :: TxConstraints Unit Unit
@@ -1117,7 +1117,7 @@ suite = do
 
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          pkh <- Helpers.liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
+          pkh <- liftedHead "Failed to get PKH" $ ownPaymentPubKeyHash
 
           wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
           logInfo' $ "wUtxos0 " <> show wUtxos0
@@ -1331,8 +1331,8 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withCip30Mock alice MockNami do
-          pkh <- Helpers.liftedHead "Failed to get PKH" ownPaymentPubKeyHash
-          stakePkh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+          pkh <- liftedHead "Failed to get PKH" ownPaymentPubKeyHash
+          stakePkh <- maybeArrayHead <$> ownStakePubKeyHash
           pkh2PkhContract pkh stakePkh
 
     test "CIP-30 mock: getWalletBalance" do
@@ -1369,8 +1369,8 @@ suite = do
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
-  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
-  stakePkh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+  pkh <- liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  stakePkh <- maybeArrayHead <$> ownStakePubKeyHash
   let
     constraints :: Constraints.TxConstraints Void Void
     constraints = mustPayToPubKeyStakeAddress pkh stakePkh

@@ -13,7 +13,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, liftedHead) as Helpers
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -22,8 +22,8 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
-  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- Helpers.liftedHead "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- liftedHead "Failed to get own SKH" ownStakePubKeyHash
 
   let
     constraints :: Constraints.TxConstraints Void Void

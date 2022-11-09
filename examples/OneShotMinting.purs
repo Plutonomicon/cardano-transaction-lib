@@ -40,7 +40,6 @@ import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
-  , liftedHead
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
@@ -82,7 +81,7 @@ mkContractWithAssertions
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
 
-  ownAddress <- Helpers.liftedHead "Failed to get own address" getWalletAddress
+  ownAddress <- liftedHead "Failed to get own address" getWalletAddress
   utxos <- liftedM "Failed to get utxo set" $ utxosAt ownAddress
   oref <-
     liftContractM "Utxo set is empty"

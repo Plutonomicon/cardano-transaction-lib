@@ -19,8 +19,6 @@ import Contract.Value as Value
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
-  , liftedHead
-  , maybeArrayToHead
   , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
@@ -57,8 +55,8 @@ mintToken = do
 
 sendToken :: Contract () TransactionHash
 sendToken = do
-  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
+  pkh <- liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- maybeArrayHead <$> ownStakePubKeyHash
   _ /\ value <- tokenValue
   let
     constraints :: Constraints.TxConstraints Void Void
