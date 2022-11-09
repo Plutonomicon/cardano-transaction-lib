@@ -174,6 +174,10 @@
               # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
+            ctl-staking-test = project.runPlutipTest {
+              name = "ctl-staking-test";
+              testMain = "Test.Ctl.Plutip.Staking";
+            };
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Ctl.Unit";
