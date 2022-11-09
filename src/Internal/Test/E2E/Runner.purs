@@ -17,12 +17,7 @@ import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
 import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
-  ( BrowserEvent
-      ( ConfirmAccess
-      , Sign
-      , Success
-      , Failure
-      )
+  ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
   )
 import Ctl.Internal.Test.E2E.Feedback.Node
   ( setClusterSetup
@@ -30,10 +25,12 @@ import Ctl.Internal.Test.E2E.Feedback.Node
   )
 import Ctl.Internal.Test.E2E.Options
   ( BrowserOptions
+  , ClusterPortsOptions
   , E2ECommand(UnpackSettings, PackSettings, RunBrowser, RunE2ETests)
   , ExtensionOptions
   , SettingsOptions
   , TestOptions
+  , defaultPorts
   )
 import Ctl.Internal.Test.E2E.Types
   ( Browser
@@ -81,11 +78,12 @@ import Data.Int as Int
 import Data.List (intercalate)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern), trim)
 import Data.String as String
+import Data.String.Utils as String
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
@@ -115,7 +113,7 @@ import Node.Path (FilePath, concat, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
 import Partial.Unsafe (unsafePartial)
-import Record.Builder (build, delete)
+import Record.Builder (build, delete, merge)
 import Test.Spec.Runner as SpecRunner
 import Toppokki as Toppokki
 import Type.Proxy (Proxy(Proxy))
@@ -128,8 +126,9 @@ runE2ECommand = case _ of
     tests <- liftEffect $ readTests testOptions.tests
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
+    portOptions <- liftEffect $ readPorts testOptions
     let
-      testOptions' = testOptions
+      testOptions' = build (merge portOptions) $ testOptions
         { noHeadless = noHeadless, testTimeout = testTimeout, tests = tests }
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
@@ -154,32 +153,34 @@ runE2ETests opts rt = do
     )
     (testPlan opts rt)
 
-plutipConfig :: PlutipConfig
-plutipConfig =
+buildPlutipConfig :: TestOptions -> PlutipConfig
+buildPlutipConfig options =
   { host: "127.0.0.1"
-  , port: UInt.fromInt 8082
+  , port: fromMaybe (UInt.fromInt defaultPorts.plutip) options.plutipPort
   , logLevel: Trace
   , ogmiosConfig:
-      { port: UInt.fromInt 1338
+      { port: fromMaybe (UInt.fromInt defaultPorts.ogmios) options.ogmiosPort
       , host: "127.0.0.1"
       , secure: false
       , path: Nothing
       }
   , ogmiosDatumCacheConfig:
-      { port: UInt.fromInt 10000
+      { port: fromMaybe (UInt.fromInt defaultPorts.ogmiosDatumCache)
+          options.ogmiosDatumCachePort
       , host: "127.0.0.1"
       , secure: false
       , path: Nothing
       }
   , ctlServerConfig: Just
-      { port: UInt.fromInt 8489
+      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
+          options.ctlServerPort
       , host: "127.0.0.1"
       , secure: false
       , path: Nothing
       }
   , postgresConfig:
       { host: "127.0.0.1"
-      , port: UInt.fromInt 5433
+      , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
       , user: "ctxlib"
       , password: "ctxlib"
       , dbname: "ctxlib"
@@ -219,7 +220,7 @@ testPlan opts@{ tests } rt@{ wallets } =
             ]
         -- TODO: don't connect to services in ContractEnv, just start them
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
-        liftAff $ withPlutipContractEnv plutipConfig distr
+        liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
           \env wallet -> do
             let
               (clusterSetup :: ClusterSetup) =
@@ -302,15 +303,51 @@ runBrowser tmpDir chromeUserDataDir browser extensions = do
 readTestRuntime :: TestOptions -> Aff E2ETestRuntime
 readTestRuntime testOptions = do
   let
-    browserOptions =
+    removeUnneeded =
       build
         ( delete (Proxy :: Proxy "noHeadless")
             <<< delete (Proxy :: Proxy "tests")
-            <<<
-              delete (Proxy :: Proxy "testTimeout")
+            <<< delete (Proxy :: Proxy "testTimeout")
+            <<< delete (Proxy :: Proxy "plutipPort")
+            <<< delete (Proxy :: Proxy "ogmiosPort")
+            <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
+            <<< delete (Proxy :: Proxy "ctlServerPort")
+            <<< delete (Proxy :: Proxy "postgresPort")
         )
-        testOptions
-  readBrowserRuntime Nothing browserOptions
+  readBrowserRuntime Nothing $ removeUnneeded testOptions
+
+readPorts :: TestOptions -> Effect ClusterPortsOptions
+readPorts testOptions = do
+  plutipPort <-
+    readPortNumber "PLUTIP" testOptions.plutipPort
+  ogmiosPort <-
+    readPortNumber "OGMIOS" testOptions.ogmiosPort
+  ogmiosDatumCachePort <-
+    readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
+  ctlServerPort <-
+    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
+  postgresPort <-
+    readPortNumber "POSTGRES" testOptions.postgresPort
+  pure
+    { plutipPort
+    , ogmiosPort
+    , ogmiosDatumCachePort
+    , ctlServerPort
+    , postgresPort
+    }
+  where
+  readPortNumber varName Nothing = do
+    str <- lookupEnv $ varName <> "_PORT"
+    case UInt.fromString <$> str of
+      Nothing -> pure Nothing
+      Just Nothing -> throw $ varName <> "_PORT: must be a port number"
+      Just (Just res)
+        | res <= UInt.fromInt 65535 -> pure $ Just res
+        | otherwise -> do
+            throw $ varName
+              <> "_PORT: port number must be in range 0-65535, got: "
+              <> show (UInt.toInt res)
+  readPortNumber _ res@(Just _) = pure res
 
 -- | Read E2E test suite parameters from environment variables and CLI
 -- | options. CLI options have higher priority.
@@ -427,7 +464,9 @@ readTests :: Array E2ETest -> Effect (Array E2ETest)
 readTests optUrls = do
   testSpecs <- lookupEnv "E2E_TESTS" <#> fold
     >>> String.split (Pattern "\n")
-    >>> Array.filter (String.trim >>> eq "" >>> not)
+    >>> Array.filter \string ->
+      not (eq "" $ String.trim string) &&
+        not (String.startsWith "#") string
   tests <- for testSpecs \testSpec -> do
     liftMaybe (mkError testSpec) $ mkE2ETest testSpec
   pure $ nub $ optUrls <> tests
