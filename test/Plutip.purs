@@ -38,15 +38,13 @@ import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , DataHash
+  ( DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
   , createAdditionalUtxos
-  , getTxByHash
   , signTransaction
   , submit
   , withBalancedTx
@@ -76,6 +74,7 @@ import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
+  , submitAndLog
   )
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
@@ -84,6 +83,7 @@ import Ctl.Examples.MintsMultipleTokens
   , mintingPolicyRdmrInt2
   , mintingPolicyRdmrInt3
   )
+import Ctl.Examples.MultipleRedeemers as MultipleRedeemers
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
@@ -92,6 +92,7 @@ import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import Ctl.Examples.SatisfiesAnyOf (testMustSatisfyAnyOf)
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutip.Server
@@ -131,7 +132,7 @@ import Data.Either (isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -627,6 +628,36 @@ suite = do
               Lookups.mintingPolicy mp1 <> Lookups.mintingPolicy mp2
           result <- Lookups.mkUnbalancedTx lookups constraints
           result `shouldSatisfy` isLeft
+
+    test "runPlutusContract: MustSatisfyAnyOf" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice testMustSatisfyAnyOf
+
+    test "runPlutipContract: MultipleScriptRedeemers" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice MultipleRedeemers.contract
+
+    test "runPlutipContract: MultipleScriptAndMintRedeemers" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice MultipleRedeemers.contractWithMintRedeemers
 
     test "runPlutipContract: MintsMultipleTokens" do
       let
@@ -1397,19 +1428,6 @@ pkh2PkhContract pkh stakePkh = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
   submitAndLog bsTx
-
-submitAndLog
-  :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
-submitAndLog bsTx = do
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  awaitTxConfirmed txId
-  mbTransaction <- getTxByHash txId
-  logInfo' $ "Tx: " <> show mbTransaction
-  liftEffect $ when (isNothing mbTransaction) do
-    void $ throw "Unable to get Tx contents"
-    when (mbTransaction /= Just (unwrap bsTx)) do
-      throw "Tx contents do not match"
 
 getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
 getLockedInputs = do
