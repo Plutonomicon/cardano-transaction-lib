@@ -82,6 +82,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Removed
 - `balanceAndSignTxE`, `balanceAndSignTx`, `balanceAndSignTxs`, `balanceTxWithAddress`, `balanceTxsWithAddress`, `withBalancedAndSignedTx` and `withBalancedAndSignedTxs` from `Contract.Transaction` ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
 - `ScriptOutput` is removed and therefore not exported by `Contract.Address` anymore. also, `Contract.Transaction` doesn't export `scriptOutputToTransactionOutput` anymore ([#652](https://github.com/Plutonomicon/cardano-transaction-lib/issues/652)).
+- `Contract.TxConstraints.TxConstraint` type from public API. The users should rely on domain functions instead ([#1135](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1135))
 
 ### Fixed
 
