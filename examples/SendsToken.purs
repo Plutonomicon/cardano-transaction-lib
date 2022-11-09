@@ -9,7 +9,7 @@ import Contract.Prelude
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedM, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
 import Contract.Transaction (TransactionHash, awaitTxConfirmed)

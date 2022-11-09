@@ -124,7 +124,6 @@ import Ctl.Internal.Types.TypedValidator (TypedValidator)
 import Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   ) as ExportUnbalancedTransaction
-import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Effect.Exception (error)
