@@ -53,7 +53,11 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
-import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
+import Ctl.Examples.Helpers
+  ( liftedHead
+  , maybeArrayToHead
+  , mustPayToPubKeyStakeAddress
+  ) as Helpers
 import Data.BigInt (BigInt)
 import Data.Lens (view)
 import Data.Map (empty) as Map
@@ -84,7 +88,7 @@ mkAssertions
        )
 mkAssertions params@(ContractParams p) = do
   senderAddress <-
-    liftedM "Failed to get sender address" getWalletAddress
+    Helpers.liftedHead "Failed to get sender address" getWalletAddress
   receiverAddress <-
     liftedM "Failed to get receiver address" (getReceiverAddress params)
   dhash <- liftContractM "Failed to hash datum" $ datumHash $ p.datumToAttach
@@ -118,8 +122,8 @@ mkAssertions params@(ContractParams p) = do
 contract :: ContractParams -> Contract () Unit
 contract params@(ContractParams p) = do
   logInfo' "Running Examples.ContractTestUtils"
-  ownPkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  ownSkh <- ownStakePubKeyHash
+  ownPkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  ownSkh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
   let
     mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
       ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
@@ -160,7 +164,9 @@ contract params@(ContractParams p) = do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully!"
 
-    senderAddress <- liftedM "Failed to get sender address" getWalletAddress
+    senderAddress <- Helpers.liftedHead
+      "Failed to get sender address"
+      getWalletAddress
     utxos <- fromMaybe Map.empty <$> utxosAt senderAddress
 
     txOutputUnderTest <-
@@ -188,3 +194,4 @@ getReceiverAddress (ContractParams { receiverPkh, receiverSkh }) =
         payPubKeyHashBaseAddress networkId receiverPkh skh
       Nothing ->
         payPubKeyHashEnterpriseAddress networkId receiverPkh
+

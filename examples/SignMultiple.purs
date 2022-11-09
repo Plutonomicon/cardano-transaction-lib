@@ -12,7 +12,6 @@ import Contract.Monad
   ( Contract
   , launchAff_
   , liftedE
-  , liftedM
   , runContract
   , throwContractError
   )
@@ -28,6 +27,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
+import Ctl.Examples.Helpers as Helpers
 import Data.BigInt as BigInt
 import Data.Map (Map)
 import Data.Set (Set)
@@ -46,8 +46,8 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- Helpers.liftedHead "Failed to get own SKH" ownStakePubKeyHash
 
   let
     constraints :: Constraints.TxConstraints Void Void

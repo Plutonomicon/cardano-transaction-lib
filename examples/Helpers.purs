@@ -4,13 +4,15 @@ module Ctl.Examples.Helpers
   , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
+  , liftedHead
+  , maybeArrayToHead
   ) where
 
 import Contract.Prelude
 
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE)
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData (class IsData)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
@@ -25,6 +27,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
+import Data.Array (head)
 import Data.BigInt (BigInt)
 
 buildBalanceSignAndSubmitTx'
@@ -80,4 +83,14 @@ mustPayToPubKeyStakeAddress pkh Nothing =
   Constraints.mustPayToPubKey pkh
 mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
+
+maybeArrayToHead :: forall (a :: Type). Maybe (Array a) -> Maybe a
+maybeArrayToHead = join <<< liftA1 head
+
+liftedHead
+  :: forall (a :: Type) (r :: Row Type)
+   . String
+  -> Contract r (Maybe (Array a))
+  -> Contract r a
+liftedHead errorMsg contr = liftedM errorMsg (maybeArrayToHead <$> contr)
 

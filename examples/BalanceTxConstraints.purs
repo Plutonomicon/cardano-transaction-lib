@@ -40,7 +40,7 @@ import Contract.Value (singleton, valueOf) as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Bind (bindFlipped)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers (liftedHead, mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (sort) as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.Map (keys, member) as Map
@@ -109,16 +109,16 @@ assertions =
 contract :: ContractParams -> Contract () Unit
 contract (ContractParams p) = do
   logInfo' "Examples.BalanceTxConstraints"
-
+  -- We are using `KeyWallet` for this example
   alicePubKeyHash <-
-    liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+    Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
 
   bobPubKeyHash <-
-    liftedM "Failed to get Bob's PKH"
+    Helpers.liftedHead "Failed to get Bob's PKH"
       (withKeyWallet p.bobKeyWallet ownPaymentPubKeyHash)
 
   bobAddress <-
-    liftedM "Failed to get Bob's address"
+    Helpers.liftedHead "Failed to get Bob's address"
       (withKeyWallet p.bobKeyWallet getWalletAddressWithNetworkTag)
 
   nonSpendableOref <-

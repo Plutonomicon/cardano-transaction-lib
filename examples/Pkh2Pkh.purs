@@ -8,12 +8,12 @@ import Contract.Prelude
 import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedM, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, liftedHead) as Helpers
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -22,8 +22,8 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- Helpers.liftedHead "Failed to get own SKH" ownStakePubKeyHash
 
   let
     constraints :: Constraints.TxConstraints Void Void

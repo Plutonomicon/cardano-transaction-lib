@@ -11,7 +11,7 @@ import Contract.Address
   )
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedM, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( MintingPolicy(NativeMintingPolicy)
@@ -23,6 +23,8 @@ import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
+  , liftedHead
+  , maybeArrayToHead
   , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
@@ -37,7 +39,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
-  pkh <- liftedM "Couldn't get own pkh" ownPaymentPubKeyHash
+  pkh <- Helpers.liftedHead "Couldn't get own pkh" ownPaymentPubKeyHash
 
   mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
   tn <- Helpers.mkTokenName "NSToken"
@@ -61,8 +63,8 @@ contract = do
 
 toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract () Unit
 toSelfContract cs tn amount = do
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- ownStakePubKeyHash
+  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
 
   let
     constraints :: Constraints.TxConstraints Void Void

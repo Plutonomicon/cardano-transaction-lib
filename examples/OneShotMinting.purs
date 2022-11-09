@@ -31,14 +31,8 @@ import Contract.Scripts
   )
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
-import Contract.Transaction
-  ( TransactionInput
-  , awaitTxConfirmed
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.Transaction (TransactionInput, awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
@@ -46,6 +40,7 @@ import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx'
+  , liftedHead
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
@@ -87,7 +82,7 @@ mkContractWithAssertions
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
 
-  ownAddress <- liftedM "Failed to get own address" getWalletAddress
+  ownAddress <- Helpers.liftedHead "Failed to get own address" getWalletAddress
   utxos <- liftedM "Failed to get utxo set" $ utxosAt ownAddress
   oref <-
     liftContractM "Utxo set is empty"

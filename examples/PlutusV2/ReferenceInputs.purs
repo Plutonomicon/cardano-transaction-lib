@@ -18,13 +18,7 @@ import Contract.Address
   )
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractM
-  , liftedM
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
@@ -35,10 +29,7 @@ import Contract.Scripts
   , mintingPolicyHash
   , validatorHash
   )
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV2FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
@@ -59,6 +50,8 @@ import Contract.Value (lovelaceValueOf) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
+  , liftedHead
+  , maybeArrayToHead
   , mkTokenName
   ) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -100,8 +93,8 @@ contract = do
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- ownStakePubKeyHash
+  pkh <- Helpers.liftedHead "Failed to get own PKH" ownPaymentPubKeyHash
+  skh <- Helpers.maybeArrayToHead <$> ownStakePubKeyHash
   let
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
@@ -130,7 +123,7 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   let scriptAddress = scriptHashAddress vhash
-  ownAddress <- liftedM "Failed to get own address" getWalletAddress
+  ownAddress <- Helpers.liftedHead "Failed to get own address" getWalletAddress
   (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt' ownAddress
   scriptAddressUtxos <- utxosAt' scriptAddress
 
