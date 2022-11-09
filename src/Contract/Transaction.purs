@@ -109,6 +109,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
+  , URL(URL)
   , UnitInterval
   , Update
   , Vkey(Vkey)

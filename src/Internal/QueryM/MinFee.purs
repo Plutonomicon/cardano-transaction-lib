@@ -25,12 +25,11 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.Array (fromFoldable)
+import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
-import Data.Foldable (fold)
 import Data.Lens.Getter ((^.))
 import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
+import Data.Maybe (fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (difference, fromFoldable, intersection, union) as Set
@@ -93,11 +92,10 @@ getSelfSigners tx additionalUtxos = do
       <<< (addressPaymentCred >=> stakeCredentialToKeyHash)
 
   -- Extract stake pub key hashes from addresses
-  stakePkhs <- Set.fromFoldable <<< fold <$>
-    for (Array.fromFoldable txOwnAddrs) \txOwnAddr ->
-      case stakeCredentialToKeyHash =<< addressStakeCred txOwnAddr of
-        Nothing -> pure []
-        Just res -> pure [ res ]
+  let
+    stakePkhs = Set.fromFoldable $
+      (stakeCredentialToKeyHash <=< addressStakeCred) `mapMaybe`
+        Array.fromFoldable txOwnAddrs
 
   pure $ paymentPkhs <> stakePkhs
   where

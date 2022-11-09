@@ -125,7 +125,7 @@ import Data.Foldable (fold, foldMap, foldl, foldr, sum)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
-import Data.Map (empty, filterKeys, lookup, toUnfoldable, union, unionWith) as Map
+import Data.Map (empty, filterKeys, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -316,7 +316,7 @@ getStakingBalance tx depositLovelacesPerCert =
         >>> map
           case _ of
             StakeRegistration _ -> unwrap depositLovelacesPerCert
-            StakeDeregistration _ -> zero - unwrap depositLovelacesPerCert
+            StakeDeregistration _ -> negate $ unwrap depositLovelacesPerCert
             _ -> zero
         >>> sum
     stakeWithdrawals =
