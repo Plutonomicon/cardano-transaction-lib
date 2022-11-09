@@ -75,11 +75,7 @@ contract = do
   txHash <- buildBalanceSignAndSubmitTx
     (Lookups.mintingPolicy mintingPolicy <> lookups)
     constraints
-  awaitTxConfirmed txHash
-
-  --- Return
-
-  pure unit
+  void $ awaitTxConfirmed txHash
 
 contractWithMintRedeemers = do
   tokenName <- mkTokenName "Token"
@@ -107,11 +103,7 @@ contractWithMintRedeemers = do
         unlockingLookups
     )
     (unlockingConstraints <> mintingConstraints)
-  awaitTxConfirmed txHash
-
-  --- Return
-
-  pure unit
+  void $ awaitTxConfirmed txHash
 
 spendLockedByIntOutputParams
   :: forall x

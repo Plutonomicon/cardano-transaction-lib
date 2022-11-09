@@ -231,6 +231,4 @@ mintAlwaysMintsV2ToTheScript tokenName validator sum = do
     lookups = Lookups.mintingPolicy mp
 
   txHash <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-  awaitTxConfirmed txHash
-
-  pure unit
+  void $ awaitTxConfirmed txHash
