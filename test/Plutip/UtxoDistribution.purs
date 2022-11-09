@@ -36,6 +36,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
+import Ctl.Examples.Helpers as Helpers
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
@@ -177,7 +178,8 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
   assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
     ( payPubKeyHashEnterpriseAddress
         <$> getNetworkId
-        <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
+        <*> Helpers.liftedHead "Could not get payment pubkeyhash"
+          ownPaymentPubKeyHash
     )
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
@@ -193,7 +195,7 @@ assertCorrectDistribution
   -> Contract r Unit
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
-    addr <- liftedM "Could not get wallet address" getWalletAddress
+    addr <- Helpers.liftedHead "Could not get wallet address" getWalletAddress
     utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts
