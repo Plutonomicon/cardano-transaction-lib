@@ -55,7 +55,6 @@ testIsAuthomorhism valueToConstraint constraintToValue = do
     value2 = Value.singleton cs token2 one
     constraint = valueToConstraint value1 <> valueToConstraint value2
   (constraintToValue constraint) `shouldEqual` (value1 <> value2)
-  pure unit
 
 -- Helpers
 

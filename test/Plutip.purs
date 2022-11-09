@@ -609,9 +609,7 @@ suite = do
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
           txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
-          awaitTxConfirmed txHash'
-
-          pure unit
+          void $ awaitTxConfirmed txHash'
 
     test "runPlutipContract: mustProduceAtLeast fail" do
       let
@@ -656,8 +654,6 @@ suite = do
           result <- balanceTx ubTx
           result `shouldSatisfy` isLeft
 
-          pure unit
-
     test "runPlutipContract: mustSpendAtLeast success" do
       let
         distribution :: InitialUTxOs
@@ -698,9 +694,7 @@ suite = do
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
           txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
-          awaitTxConfirmed txHash'
-
-          pure unit
+          void $ awaitTxConfirmed txHash'
 
     test "runPlutipContract: mustSpendAtLeast fail" do
       let
@@ -744,8 +738,6 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
           result <- balanceTx ubTx
           result `shouldSatisfy` isLeft
-
-          pure unit
 
     test "runPlutipContract: NativeScriptMints" do
       let
