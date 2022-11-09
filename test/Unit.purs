@@ -18,6 +18,7 @@ import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
 import Test.Ctl.Internal.Plutus.Time as Plutus.Time
 import Test.Ctl.Metadata.Cip25 as Cip25
+import Test.Ctl.MustSpendTotal as MustSpendTotal
 import Test.Ctl.NativeScript as NativeScript
 import Test.Ctl.Ogmios.Address as Ogmios.Address
 import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
@@ -69,3 +70,4 @@ testPlan = do
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
   E2E.Route.suite
+  MustSpendTotal.suite

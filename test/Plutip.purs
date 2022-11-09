@@ -71,7 +71,8 @@ import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
+  ( buildBalanceSignAndSubmitTx
+  , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   , submitAndLog
@@ -567,6 +568,184 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
+
+    test "runPlutipContract: mustProduceAtLeast success" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending same amount
+
+          pkhMaybe <- ownPaymentPubKeyHash
+          pkh <- liftContractM "Cannot get ownPaymentPubKeyHash" pkhMaybe
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustProduceAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          awaitTxConfirmed txHash'
+
+          pure unit
+
+    test "runPlutipContract: mustProduceAtLeast fail" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending more than minted amount
+
+          pkhMaybe <- ownPaymentPubKeyHash
+          pkh <- liftContractM "Cannot get ownPaymentPubKeyHash" pkhMaybe
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustProduceAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 101
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
+          result <- balanceTx ubTx
+          result `shouldSatisfy` isLeft
+
+          pure unit
+
+    test "runPlutipContract: mustSpendAtLeast success" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending same amount
+
+          pkhMaybe <- ownPaymentPubKeyHash
+          pkh <- liftContractM "Cannot get ownPaymentPubKeyHash" pkhMaybe
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustSpendAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          awaitTxConfirmed txHash'
+
+          pure unit
+
+    test "runPlutipContract: mustSpendAtLeast fail" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      runPlutipContract config distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending more than minted amount
+
+          pkhMaybe <- ownPaymentPubKeyHash
+          pkh <- liftContractM "Cannot get ownPaymentPubKeyHash" pkhMaybe
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustSpendAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 101
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
+          result <- balanceTx ubTx
+          result `shouldSatisfy` isLeft
+
+          pure unit
 
     test "runPlutipContract: NativeScriptMints" do
       let
