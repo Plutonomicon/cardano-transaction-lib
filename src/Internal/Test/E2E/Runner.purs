@@ -81,9 +81,9 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String (Pattern(Pattern), trim)
-import Data.String as String
-import Data.String.Utils as String
+import Data.String (Pattern(Pattern))
+import Data.String (contains, null, split, toUpper, trim) as String
+import Data.String.Utils (startsWith) as String
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
@@ -724,7 +724,7 @@ execAndCollectOutput_ shellCmd cont = do
   child <- exec shellCmd defaultExecOptions (const $ pure unit)
   ref <- Ref.new ""
   ChildProcess.onExit child case _ of
-    Normally 0 -> Ref.read ref >>= trim >>> Right >>> cont
+    Normally 0 -> Ref.read ref >>= String.trim >>> Right >>> cont
     exitStatus -> do
       output <- Ref.read ref
       cont $ Left
@@ -755,7 +755,7 @@ spawnAndCollectOutput_ cmd args opts errorReader cont = do
   ref <- Ref.new ""
   ChildProcess.onExit child $ errorReader >>> case _ of
     Nothing -> do
-      cont <<< Right <<< trim =<< Ref.read ref
+      cont <<< Right <<< String.trim =<< Ref.read ref
     Just errorStr -> do
       output <- Ref.read ref
       cont $ Left $ error $
