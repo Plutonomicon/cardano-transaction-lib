@@ -156,7 +156,6 @@ import Test.Ctl.Fixtures
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.NetworkId as NetworkId
-import Test.Ctl.Plutip.Staking as Staking
 import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
@@ -172,10 +171,6 @@ main = launchAff_ do
         suite
         UtxoDistribution.suite
         NetworkId.suite
-  Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ Milliseconds 450_000.0, exit = true }
-    $ do
-        Staking.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

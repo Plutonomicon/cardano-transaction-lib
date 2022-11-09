@@ -1,5 +1,6 @@
 module Test.Ctl.Plutip.Staking
-  ( suite
+  ( main
+  , suite
   ) where
 
 import Prelude
@@ -66,7 +67,7 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head)
 import Data.Array as Array
 import Data.BigInt as BigInt
@@ -76,7 +77,8 @@ import Data.Newtype (unwrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import Effect.Aff (Aff, Milliseconds(Milliseconds), delay)
+import Effect (Effect)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), delay, launchAff_)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 import Mote (group, test)
@@ -84,6 +86,13 @@ import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Utils (submitAndLog)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Runner (defaultConfig)
+
+main :: Effect Unit
+main = launchAff_ do
+  interpretWithConfig
+    defaultConfig { timeout = Just $ Milliseconds 450_000.0, exit = true }
+    suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

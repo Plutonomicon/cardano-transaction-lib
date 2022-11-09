@@ -10,7 +10,6 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
-import Control.Monad.Reader (asks)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
@@ -101,7 +100,7 @@ import Ctl.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Ctl.Internal.QueryM (QueryM)
+import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
 import Ctl.Internal.QueryM (getWalletAddresses) as QueryM
 import Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
@@ -127,7 +126,7 @@ import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
 import Data.Map (empty, filterKeys, lookup, toUnfoldable, union, unionWith) as Map
-import Data.Maybe (Maybe(Nothing, Just), isJust, maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -142,7 +141,7 @@ balanceTxWithConstraints
   -> BalanceTxConstraintsBuilder
   -> QueryM (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder = do
-  pparams <- asks $ _.runtime >>> _.pparams
+  pparams <- getProtocolParameters
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
@@ -315,14 +314,13 @@ getStakingBalance tx depositLovelacesPerCert =
     stakeDeposits =
       (tx ^. _body <<< _certs) # fold
         >>> map
-          ( case _ of
-              StakeRegistration _ -> unwrap depositLovelacesPerCert
-              StakeDeregistration _ -> zero - unwrap depositLovelacesPerCert
-              _ -> zero
-          )
+          case _ of
+            StakeRegistration _ -> unwrap depositLovelacesPerCert
+            StakeDeregistration _ -> zero - unwrap depositLovelacesPerCert
+            _ -> zero
         >>> sum
     stakeWithdrawals =
-      unwrap $ fold $ foldl (Map.unionWith append) Map.empty $ tx ^. _body <<<
+      unwrap $ fold $ fromMaybe Map.empty $ tx ^. _body <<<
         _withdrawals
     fee = stakeDeposits - stakeWithdrawals
   in
