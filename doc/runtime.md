@@ -29,6 +29,10 @@ Optional services:
   - We hope to deprecate this in the future, but we use it at the moment to apply arguments to Plutus scripts, which is hard to implement on front-end.
   - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
 
+### Using NixOS module
+
+`ctl-server` and its dependencies can be configured and started via NixOS modules. See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and [../nix/ctl-server-nixos-module.nix](../nix/ctl-server-nixos-module.nix) for module options.
+
 ### Using CTL's `runtime` overlay
 
 CTL's `overlays.runtime` (contained in [runtime.nix](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/nix/runtime.nix)) provides some mechanisms for conveniently launching all runtime services using [Arion](https://docs.hercules-ci.com/arion) (itself a wrapper around `docker-compose`). To use this, you must have a setup based on Nix flakes (recommended as well for [using CTL as a dependency for Purescript projects](./ctl-as-dependency.md)).
