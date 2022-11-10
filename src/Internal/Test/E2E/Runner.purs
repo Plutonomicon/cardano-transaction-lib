@@ -453,7 +453,7 @@ findSettingsArchive testOptions = do
     maybe
       ( liftedM
           ( error
-              "Please specify any of --settings-archive or E2E_SETTINGS_ARCHIVE"
+              "Please specify --settings-archive option or ensure E2E_SETTINGS_ARCHIVE is set"
           ) $ liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE"
       )
       pure $ testOptions.chromeUserDataDir
@@ -466,7 +466,7 @@ findSettingsArchive testOptions = do
       maybe
         ( liftedM
             ( error
-                "Please specify any of --settings-archive-url or E2E_SETTINGS_ARCHIVE_URL"
+                "Please specify --settings-archive-url option or ensure E2E_SETTINGS_ARCHIVE_URL is set"
             ) $ liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE_URL"
         )
         pure $ testOptions.settingsArchiveUrl
@@ -553,10 +553,10 @@ readExtensionParams extensionName wallets = do
           crxFileUrl <-
             maybe
               ( liftedM
-                  ( error $ "Please specify any of --" <> toLower extensionName
-                      <> "-crx-url or "
+                  ( error $ "Please specify  --" <> toLower extensionName
+                      <> "-crx-url or ensure"
                       <> toUpper extensionName
-                      <> "_CRX_URL"
+                      <> "_CRX_URL is set"
                   ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
               )
               pure $ crxUrl
