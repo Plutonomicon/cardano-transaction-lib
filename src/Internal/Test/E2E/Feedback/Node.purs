@@ -20,7 +20,7 @@ import Data.Foldable (and)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
+import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Data.Traversable (for, traverse_)
 import Effect (Effect)
 import Effect.Aff
@@ -95,8 +95,7 @@ subscribeToBrowserEvents timeout page cont = do
     processFiber <- Ref.new Nothing
     launchAff_ do
       liftEffect <<< flip Ref.write timeoutFiber <<< Just =<< forkAff do
-        delay $ Milliseconds $ 1000.0 * unwrap
-          (fromMaybe (Seconds infinity) timeout)
+        delay $ convertDuration $ fromMaybe (Seconds infinity) timeout
         liftEffect $ f $ Left $ error "Timeout reached"
       liftEffect <<< flip Ref.write processFiber <<< Just =<< forkAff do
         try (process (Just firstTimeConnectionAttempts)) >>= liftEffect <<< f
