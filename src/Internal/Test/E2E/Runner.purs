@@ -461,7 +461,6 @@ findSettingsArchive testOptions = do
   doesExist <- exists settingsArchive
 
   unless doesExist $ do
-    liftEffect $ log $ settingsArchive <> " does not exist."
     settingsArchiveUrl <-
       maybe
         ( liftedM
@@ -470,8 +469,9 @@ findSettingsArchive testOptions = do
             ) $ liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE_URL"
         )
         pure $ testOptions.settingsArchiveUrl
-    liftEffect $ log $ "Downloading settings archive from " <>
-      settingsArchiveUrl
+    liftEffect $ log $ "Downloading " <> settingsArchiveUrl <> " to "
+      <> settingsArchive
+      <> "..."
     downloadTo settingsArchiveUrl settingsArchive
   pure settingsArchive
 
@@ -549,7 +549,6 @@ readExtensionParams extensionName wallets = do
       Just crx, Just pwd, Just extId -> do
         doesExist <- exists crx
         unless doesExist $ do
-          liftEffect $ log $ crx <> " does not exist."
           crxFileUrl <-
             maybe
               ( liftedM
@@ -560,7 +559,8 @@ readExtensionParams extensionName wallets = do
                   ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
               )
               pure $ crxUrl
-          liftEffect $ log $ "Downloading from " <> crxFileUrl
+          liftEffect $ log $ "Downloading " <> crxFileUrl <> " to " <> crx <>
+            "..."
           downloadTo crxFileUrl crx
         pure $ Just { crx, password: pwd, extensionId: extId }
       _, _, _ -> liftEffect $ throw $ "Please ensure that either none or all of"
@@ -738,11 +738,9 @@ downloadTo url filePath = do
   case eRes of
     Left err -> do
       liftEffect $ log $ "HTTP Request error: " <> printError err
-      pure unit
     Right res -> do
       buf <- liftEffect $ fromArrayBuffer res.body
       writeFile filePath buf
-      pure unit
 
 defaultErrorReader :: Exit -> Maybe String
 defaultErrorReader =

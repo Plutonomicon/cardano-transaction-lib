@@ -65,6 +65,7 @@ import Options.Applicative
   , metavar
   , option
   , progDesc
+  , showDefault
   , showDefaultWith
   , str
   , subparser
@@ -248,7 +249,8 @@ parseWallet wallet = ado
   crxUrl <- option (Just <$> str) $ fold
     [ long $ formattedWallet <> "-crx-url"
     , metavar "URL"
-    , help $ wallet <> " wallet extension (.crx) url"
+    , help $ wallet <>
+        " wallet extension (.crx) url to download from if the file is not present"
     , value Nothing
     ]
   in { crxFile: crx, password: password, extensionId: extid, crxUrl: crxUrl }
@@ -299,8 +301,7 @@ chromeUserDataOptionParser = ado
     [ long "chrome-user-data"
     , help "Chrome/-ium user data dir"
     , value Nothing
-    , showDefaultWith show
-    -- $ const "E2E_CHROME_USER_DATA"
+    , showDefaultWith $ const "E2E_CHROME_USER_DATA"
     , metavar "DIR"
     ]
   in dataDir
@@ -312,7 +313,7 @@ settingsOptionsParser = ado
     [ long "settings-archive"
     , help "Settings archive (.tar.gz) that will be used to store the settings"
     , value Nothing
-    , showDefaultWith show
+    , showDefault
     , metavar "DIR"
     ]
   settingsArchiveUrl <- option (Just <$> str) $ fold
@@ -320,7 +321,7 @@ settingsOptionsParser = ado
     , help
         "Settings archive (.tar.gz) url that will be used to store the settings"
     , value Nothing
-    , showDefaultWith show
+    , showDefault
     , metavar "URL"
     ]
 
