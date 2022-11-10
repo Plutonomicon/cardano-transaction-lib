@@ -1865,13 +1865,13 @@
       "locked": {
         "lastModified": 1667228522,
         "narHash": "sha256-GNApXUpZKZipf/jJuSXjmi0t0nrkMPnOoXOUijSYDQ4=",
-        "owner": "klntsky",
+        "owner": "mlabs-haskell",
         "repo": "ogmios",
         "rev": "1c8cc39320903440e0e0ff525627b7cb9dc1096a",
         "type": "github"
       },
       "original": {
-        "owner": "klntsky",
+        "owner": "mlabs-haskell",
         "repo": "ogmios",
         "rev": "1c8cc39320903440e0e0ff525627b7cb9dc1096a",
         "type": "github"
