@@ -30,6 +30,16 @@
     cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
+
+    # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
+    ogmios-nixos.url = "github:mlabs-haskell/ogmios";
+    ogmios-datum-cache-nixos.url = "github:mlabs-haskell/ogmios-datum-cache/marton/nixos-module";
+
+    cardano-node.follows = "ogmios-nixos/cardano-node";
+    # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
+    iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
+    cardano-node.inputs.iohkNix.follows = "iohk-nix-environments";
+
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -312,6 +322,11 @@
           inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = pkgs.launchCtlRuntime { };
           default = self.apps.${system}.ctl-runtime;
+          vm = {
+            type = "app";
+            program =
+              "${self.nixosConfigurations.test.config.system.build.vm}/bin/run-nixos-vm";
+          };
         });
 
       # TODO
@@ -463,10 +478,39 @@
         };
       };
 
+      nixosModules.ctl-server = { pkgs, lib, ... }: {
+        imports = [ ./nix/ctl-server-nixos-module.nix ];
+        nixpkgs.overlays = [
+          (_: _: {
+            ctl-server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
+          })
+        ];
+      };
+
+      nixosConfigurations.test = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          inputs.cardano-node.nixosModules.cardano-node
+          inputs.ogmios-nixos.nixosModules.ogmios
+          {
+            services.ogmios.package =
+              inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
+          }
+          inputs.ogmios-datum-cache-nixos.nixosModules.ogmios-datum-cache
+          {
+            services.ogmios-datum-cache.package =
+              inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache";
+          }
+          self.nixosModules.ctl-server
+          ./nix/test-nixos-configuration.nix
+        ];
+      };
+
       hydraJobs = perSystem (system:
         self.checks.${system}
         // self.packages.${system}
         // self.devShells.${system}
+        // { vm = "self.nixosConfigurations.test.config.system.build.vm"; }
       );
     };
 }
