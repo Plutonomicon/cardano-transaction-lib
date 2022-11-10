@@ -22,6 +22,7 @@ result-*
 output.js
 .DS_Store
 .idea/
-test-data
+test-data/chrome-user-data
+test-data/preview
 tmp
 node_modules
