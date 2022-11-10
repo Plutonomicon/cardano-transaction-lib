@@ -93,7 +93,7 @@ submitAndLog bsTx = do
   logInfo' $ "Tx ID: " <> show txId
   awaitTxConfirmed txId
   mbTransaction <- getTxByHash txId
-  logInfo' $ "Tx: " <> show mbTransaction
+  logInfo' $ "Retrieved tx: " <> show mbTransaction
   liftEffect $ when (isNothing mbTransaction) do
     void $ throw "Unable to get Tx contents"
     when (mbTransaction /= Just (unwrap bsTx)) do
