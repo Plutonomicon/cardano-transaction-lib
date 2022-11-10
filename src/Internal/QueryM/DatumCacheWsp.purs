@@ -11,7 +11,7 @@ module Ctl.Internal.QueryM.DatumCacheWsp
   , faultToString
   , getDatumByHashCall
   , getDatumsByHashesCall
-  , getTxByHash
+  , getTxByHashCall
   , JsonWspRequest
   , JsonWspResponse
   ) where
@@ -184,8 +184,8 @@ getDatumsByHashesCall = mkDatumCacheCallType
 
 type TxHash = ByteArray
 
-getTxByHash :: JsonWspCall TxHash GetTxByHashR
-getTxByHash = mkDatumCacheCallType
+getTxByHashCall :: JsonWspCall TxHash GetTxByHashR
+getTxByHashCall = mkDatumCacheCallType
   GetTxByHash
   ({ hash: _ } <<< byteArrayToHex)
 
