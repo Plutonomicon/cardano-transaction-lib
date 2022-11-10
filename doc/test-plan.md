@@ -37,11 +37,11 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] `mustIncludeDatum`
 - [x] `mustPayToPubKeyWithDatum`
 - [x] `mustPayToPubKeyAddressWithDatum`
-- [ ] `mustProduceAtLeastTotal`. Also implies
-  - [ ] `mustProduceAtLeast`
+- [x] `mustProduceAtLeastTotal`. Also implies
+  - [x] `mustProduceAtLeast`
 - [x] `mustSatisfyAnyOf`
-- [ ] `mustSpendAtLeastTotal`. Also implies
-  - [ ] `mustSpendAtLeast`
+- [x] `mustSpendAtLeastTotal`. Also implies
+  - [x] `mustSpendAtLeast`
 - [ ] `mustValidateIn`
 
 The following constraints were added for `PlutusV2` features as part of our `v2.0.0` release. They do not have direct correspondances in `plutus-apps`:
@@ -63,8 +63,8 @@ That release also included the following constraints for working with native scr
 In addition, several redeemer combinations in a **single transaction** must be covered by tests or examples as well, namely
 
 - [x] Two or more `Mint` redeemers
-- [ ] Two or more `Spend` redeemers
-- [ ] (At least) One each of a `Spend` and `Mint` redeemer
+- [x] Two or more `Spend` redeemers
+- [x] (At least) One each of a `Spend` and `Mint` redeemer
 
 #### Exceptions
 
@@ -184,8 +184,8 @@ Currently, we require parsing tests for the following data structures, organized
   - [x] `SubmitTxR`
 - `ogmios-datum-cache`
   - [x] `GetDatumByHashR`
-  - [ ] `GetDatumsByHashesR`
-  - [ ] `GetTxByHashR`
+  - [x] `GetDatumsByHashesR`
+  - [x] `GetTxByHashR`
 - `cardano-serialization-lib`
   - `Transaction`
     - [x] Serialization
