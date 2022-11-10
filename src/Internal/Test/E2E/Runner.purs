@@ -482,7 +482,7 @@ findChromeProfile testOptions = do
     maybe
       ( liftedM
           ( error
-              "Please specify any of --chrome-user-data or E2E_CHROME_USER_DATA"
+              "Please specify --chrome-user-data or ensure E2E_CHROME_USER_DATA is set"
           ) $ liftEffect $ lookupEnv "E2E_CHROME_USER_DATA"
       )
       pure $ testOptions.chromeUserDataDir
