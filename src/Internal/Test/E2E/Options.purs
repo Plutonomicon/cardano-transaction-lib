@@ -250,7 +250,7 @@ parseWallet wallet = ado
     [ long $ formattedWallet <> "-crx-url"
     , metavar "URL"
     , help $ wallet <>
-        " wallet extension (.crx) url to download from if the file is not present"
+        " wallet extension (.crx) URL to download from if the file is not present"
     , value Nothing
     ]
   in { crxFile: crx, password: password, extensionId: extid, crxUrl: crxUrl }
@@ -319,7 +319,7 @@ settingsOptionsParser = ado
   settingsArchiveUrl <- option (Just <$> str) $ fold
     [ long "settings-archive-url"
     , help
-        "Settings archive (.tar.gz) url that will be used to store the settings"
+        "Settings archive (.tar.gz) URL that will be used to store the settings"
     , value Nothing
     , showDefault
     , metavar "URL"
