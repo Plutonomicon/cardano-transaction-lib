@@ -23,7 +23,6 @@ import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractM
-  , liftedE
   , liftedM
   , runContract
   )
@@ -33,6 +32,7 @@ import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
   , MintingPolicyHash
   , PlutusScript
+  , Validator
   , ValidatorHash
   , mintingPolicyHash
   , validatorHash
@@ -47,10 +47,7 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
-  , balanceTx
   , mkTxUnspentOut
-  , signTransaction
-  , submit
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -60,13 +57,11 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
-import Contract.Value (lovelaceValueOf) as Value
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkTokenName
-  , submitAndLog
   ) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
@@ -210,6 +205,8 @@ alwaysMintsPolicyScriptV2 =
     envelope <- decodeTextEnvelope alwaysMintsV2
     plutusScriptV2FromEnvelope envelope
 
+mintAlwaysMintsV2ToTheScript
+  :: TokenName -> Validator -> Int -> Contract () Unit
 mintAlwaysMintsV2ToTheScript tokenName validator sum = do
   mp <- alwaysMintsPolicyV2
   cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp

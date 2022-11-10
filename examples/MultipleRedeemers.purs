@@ -9,40 +9,31 @@ module Ctl.Examples.MultipleRedeemers
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Monad
-  ( Contract
-  )
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.Monad (Contract, liftContractM)
 import Contract.PlutusData
   ( PlutusData(Integer)
   , Redeemer(Redeemer)
   , toData
-  , unitDatum
   )
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
-  ( PlutusScript
-  , Validator(Validator)
+  ( Validator(Validator)
+  , validatorHash
   )
-import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
-  , mustPayToPubKeyStakeAddress
-  , submitAndLog
   )
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt2
   )
-import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs
   ( alwaysMintsPolicyV2
   , mintAlwaysMintsV2ToTheScript
@@ -53,6 +44,7 @@ import Data.Map as Map
 import Data.Traversable (sequence)
 import Effect.Exception (error)
 
+contract :: Contract () Unit
 contract = do
   tokenName <- mkTokenName "Token"
   validator1 <- redeemerIs1Validator
@@ -77,6 +69,7 @@ contract = do
     constraints
   void $ awaitTxConfirmed txHash
 
+contractWithMintRedeemers :: Contract () Unit
 contractWithMintRedeemers = do
   tokenName <- mkTokenName "Token"
   validator1 <- redeemerIs1Validator
