@@ -170,6 +170,7 @@ namiConfirmAccess extId re =
 namiSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 namiSign extId wpassword re = do
   inWalletPage (Pattern $ unExtensionId extId) re signTimeout \page -> do
+    void $ Toppokki.pageWaitForSelector (wrap ".chakra-button") {} page
     clickButton "Sign" page
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
