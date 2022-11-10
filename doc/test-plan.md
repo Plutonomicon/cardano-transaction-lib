@@ -98,10 +98,6 @@ New constraints for operations with stake will be added in `v3`.
 - [x] mustDeregisterStakePlutusScript
 - [x] mustDeregisterStakeNativeScript
 
-#### Exceptions
-
-CTL does **not** currently support staking validators (see [#785](https://github.com/Plutonomicon/cardano-transaction-lib/issues/785)) so other `RedeemerTag`s are currently exempt from the above requirements. CTL also only makes guarantees for the **present era**, currently Babbage.
-
 ### Other functionality
 
 In addition to the constraints/lookups listed above, there are several other critical pieces of functionality that CTL must guarantee. This functionality is subject to the same criteria as our constraints/lookups.
