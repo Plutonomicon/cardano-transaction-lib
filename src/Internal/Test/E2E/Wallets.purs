@@ -163,9 +163,15 @@ eternlSign extId password re = do
   pattern = wrap $ unExtensionId extId <> "/www/index.html#/signtx"
 
 namiConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
-namiConfirmAccess extId re =
-  inWalletPage (Pattern $ unExtensionId extId) re confirmAccessTimeout
+namiConfirmAccess extId re = do
+  wasInPage <- isJust <$> inWalletPageOptional extId pattern re
+    confirmAccessTimeout
     (clickButton "Access")
+  when wasInPage do
+    waitForWalletPageClose pattern 10.0 re.browser
+  where
+  pattern :: Pattern
+  pattern = wrap $ unExtensionId extId
 
 namiSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 namiSign extId wpassword re = do
