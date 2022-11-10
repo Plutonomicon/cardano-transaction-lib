@@ -2,19 +2,17 @@
   description = "cardano-transaction-lib";
 
   inputs = {
+    iohk-nix.follows = "ogmios/iohk-nix";
+    haskell-nix.follows = "ogmios/haskell-nix";
+    nixpkgs.follows = "ogmios/nixpkgs";
+    CHaP.follows = "ogmios/CHaP";
+
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    # for the purescript project
-    ogmios = {
-      url = "github:mlabs-haskell/ogmios/1c8cc39320903440e0e0ff525627b7cb9dc1096a";
-      inputs = {
-        haskell-nix.follows = "haskell-nix";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
+    ogmios.url = "github:mlabs-haskell/ogmios/3b229c1795efa30243485730b78ea053992fdc7a";
 
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
     plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
@@ -47,14 +45,9 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix/d56c436a66ec2a8a93b309c83693cef1507dca7a";
+      url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
       flake = false;
     };
-
-    # for the haskell server
-    iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.follows = "plutip/haskell-nix";
-    nixpkgs.follows = "plutip/nixpkgs";
   };
 
   outputs =
@@ -63,6 +56,7 @@
     , haskell-nix
     , iohk-nix
     , cardano-configurations
+    , CHaP
     , ...
     }@inputs:
     let
@@ -205,7 +199,7 @@
         };
 
       hsProjectFor = pkgs: import ./server/nix {
-        inherit inputs pkgs;
+        inherit inputs pkgs CHaP;
         inherit (pkgs) system;
         src = ./server;
       };
