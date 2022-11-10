@@ -15,6 +15,7 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.GetTxByHash (getTxByHash)
 import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
@@ -72,6 +73,8 @@ suite = do
       testOgmiosDatumCacheGetDatumsByHashes
     test "Can process GetDatumsByHashesWithErrors" do
       testOgmiosDatumCacheGetDatumsByHashesWithErrors
+    test "Can process GetTxByHash" do
+      testOgmiosGetTxByHash
 
 testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
 testOgmiosDatumCacheGetDatumByHash = do
@@ -86,6 +89,11 @@ testOgmiosDatumCacheGetDatumsByHashes = do
 testOgmiosDatumCacheGetDatumsByHashesWithErrors :: QueryM Unit
 testOgmiosDatumCacheGetDatumsByHashesWithErrors = do
   void $ getDatumsByHashesWithErrors $ pure $ DataHash $ hexToByteArrayUnsafe
+    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+
+testOgmiosGetTxByHash :: QueryM Unit
+testOgmiosGetTxByHash = do
+  void $ getTxByHash $ hexToByteArrayUnsafe
     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testUtxosAt :: OgmiosAddress -> QueryM Unit
