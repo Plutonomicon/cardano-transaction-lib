@@ -18,7 +18,6 @@ import Data.Array as Array
 import Data.Either (Either(Left), hush, note)
 import Data.Foldable (and)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (unwrap)
 import Data.Number (infinity)
 import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Data.Traversable (for, traverse_)
