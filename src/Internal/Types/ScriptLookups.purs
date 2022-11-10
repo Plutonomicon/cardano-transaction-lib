@@ -60,7 +60,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.Address (enterpriseAddressValidatorHash)
+import Ctl.Internal.Address (addressValidatorHash)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
@@ -1060,7 +1060,7 @@ processConstraint mpsMap osMap = do
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
-              (enterpriseAddressValidatorHash address)
+              (addressValidatorHash address)
             case scriptRefUnspentOut of
               Nothing -> do
                 plutusScript <-

@@ -1,29 +1,25 @@
 module Ctl.Internal.Address
   ( addressToOgmiosAddress
-  , enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
+  , addressValidatorHash
   , ogmiosAddressToAddress
   ) where
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
   , enterpriseAddressFromAddress
   , enterpriseAddressPaymentCred
   , stakeCredentialToScriptHash
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  , StakeValidatorHash(StakeValidatorHash)
-  , ValidatorHash(ValidatorHash)
-  )
+import Ctl.Internal.Types.Scripts (ValidatorHash(ValidatorHash))
 import Data.Maybe (Maybe)
 
 -- | A module for address related helpers
@@ -41,26 +37,25 @@ addressToOgmiosAddress :: Address -> Ogmios.OgmiosAddress
 addressToOgmiosAddress = addressBech32
 
 --------------------------------------------------------------------------------
--- `Address` to `ScriptHash`
+-- `Address` to `ValidatorHash`
 --------------------------------------------------------------------------------
--- | Get the `ScriptHash` with an internal `Address`
+
 enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
 enterpriseAddressScriptHash =
   stakeCredentialToScriptHash
     <=< pure <<< enterpriseAddressPaymentCred
     <=< enterpriseAddressFromAddress
 
--- | Get the `ValidatorHash` with an internal `Address`
-enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
-enterpriseAddressValidatorHash =
-  map ValidatorHash <<< enterpriseAddressScriptHash
+baseAddressScriptHash :: Address -> Maybe ScriptHash
+baseAddressScriptHash =
+  stakeCredentialToScriptHash
+    <=< pure <<< baseAddressDelegationCred
+    <=< baseAddressFromAddress
 
--- | Get the `MintingPolicyHash` with an internal `Address`
-enterpriseAddressMintingPolicyHash :: Address -> Maybe MintingPolicyHash
-enterpriseAddressMintingPolicyHash =
-  map MintingPolicyHash <<< enterpriseAddressScriptHash
+addressScriptHash :: Address -> Maybe ScriptHash
+addressScriptHash addr =
+  baseAddressScriptHash addr <|> enterpriseAddressScriptHash addr
 
--- | Get the `StakeValidatorHash` with an internal `Address`
-enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
-enterpriseAddressStakeValidatorHash =
-  map StakeValidatorHash <<< enterpriseAddressScriptHash
+-- | Get the `ValidatorHash` of an address (base or enterprise).
+addressValidatorHash :: Address -> Maybe ValidatorHash
+addressValidatorHash = map ValidatorHash <<< addressScriptHash

@@ -4,7 +4,6 @@
 module Contract.Scripts
   ( applyArgs
   , applyArgsM
-  , module Address
   , module ExportQueryM
   , module ExportScripts
   , module Hash
@@ -16,20 +15,6 @@ module Contract.Scripts
 
 import Prelude
 
--- See Contract.Address for documentation on the various helpers, some are
--- constructive/deconstructive on the Plutus `Address` type, others are from
--- the CSL API and converted to use Plutus types.
-import Contract.Address
-  ( enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
-  , scriptHashAddress -- Directly uses Plutus `Address`
-  , toValidatorHash -- Directly uses Plutus `Address`
-  , typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
-  , validatorHashBaseAddress
-  , validatorHashEnterpriseAddress
-  ) as Address
 import Contract.Monad (Contract, wrapContract)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
