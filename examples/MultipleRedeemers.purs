@@ -32,7 +32,7 @@ import Ctl.Examples.Helpers
   , mkTokenName
   )
 import Ctl.Examples.MintsMultipleTokens
-  ( mintingPolicyRdmrInt2
+  ( mintingPolicyRdmrInt3
   )
 import Ctl.Examples.PlutusV2.ReferenceInputs
   ( alwaysMintsPolicyV2
@@ -74,7 +74,7 @@ contractWithMintRedeemers = do
   tokenName <- mkTokenName "Token"
   validator1 <- redeemerIs1Validator
   mintingPolicy <- alwaysMintsPolicyV2
-  mp /\ cs <- mkCurrencySymbol mintingPolicyRdmrInt2
+  mp /\ cs <- mkCurrencySymbol mintingPolicyRdmrInt3
 
   -- Lock tokens on script address
 
@@ -88,7 +88,7 @@ contractWithMintRedeemers = do
   let
     mintingConstraints =
       ( Constraints.mustMintValueWithRedeemer
-          (Redeemer $ Integer $ BigInt.fromInt 1)
+          (Redeemer $ Integer $ BigInt.fromInt 3)
           (Value.singleton cs tokenName one)
       )
   txHash <- buildBalanceSignAndSubmitTx
