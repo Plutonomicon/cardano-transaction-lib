@@ -47,7 +47,7 @@ prop_isHomomorphism
   -> Value.Value
   -> Value.Value
   -> Boolean
-prop_isHomomorphism f x y = ((f x) <> (f y)) `customEq` (f (x <> y))
+prop_isHomomorphism f x y = (f x <> f y) `customEq` f (x <> y)
   where
   customEq :: TxConstraints i o -> TxConstraints i o -> Boolean
   customEq = ((==) `on` InspectableTxConstraints)
