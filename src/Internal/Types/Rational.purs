@@ -104,8 +104,7 @@ instance ToData Rational where
   toData r = List [ Integer (numerator r), Integer (denominator r) ]
 
 instance FromData Rational where
-  fromData (List [ Integer n, Integer d ])
-    = reduce n d
+  fromData (List [ Integer n, Integer d ]) = reduce n d
   fromData _ = Nothing
 
 --------------------------------------------------------------------------------
