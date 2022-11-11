@@ -9,6 +9,13 @@ module Ctl.Internal.Wallet.Key
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , decodeAeson
+  , encodeAeson'
+  )
 import Contract.Prelude (class Newtype)
 import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
 import Ctl.Internal.Cardano.Types.Transaction
@@ -19,6 +26,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
+  )
+import Ctl.Internal.Deserialization.Keys
+  ( privateKeyFromBech32
+  , privateKeyToBech32
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
@@ -36,6 +47,7 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Data.Array (fromFoldable)
+import Data.Either (note)
 import Data.Foldable (fold)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -69,12 +81,32 @@ derive instance Newtype PrivatePaymentKey _
 instance Show PrivatePaymentKey where
   show _ = "(PrivatePaymentKey <hidden>)"
 
+instance EncodeAeson PrivatePaymentKey where
+  encodeAeson' (PrivatePaymentKey pk) = encodeAeson' (privateKeyToBech32 pk)
+
+instance DecodeAeson PrivatePaymentKey where
+  decodeAeson aeson =
+    decodeAeson aeson >>=
+      note (TypeMismatch "PrivateKey")
+        <<< map PrivatePaymentKey
+        <<< privateKeyFromBech32
+
 newtype PrivateStakeKey = PrivateStakeKey PrivateKey
 
 derive instance Newtype PrivateStakeKey _
 
 instance Show PrivateStakeKey where
   show _ = "(PrivateStakeKey <hidden>)"
+
+instance EncodeAeson PrivateStakeKey where
+  encodeAeson' (PrivateStakeKey pk) = encodeAeson' (privateKeyToBech32 pk)
+
+instance DecodeAeson PrivateStakeKey where
+  decodeAeson aeson =
+    decodeAeson aeson >>=
+      note (TypeMismatch "PrivateKey")
+        <<< map PrivateStakeKey
+        <<< privateKeyFromBech32
 
 keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
 keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey

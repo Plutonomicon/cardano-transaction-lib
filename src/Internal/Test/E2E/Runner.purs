@@ -9,24 +9,35 @@ import Prelude
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM)
+import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
+import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
+import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
   )
-import Ctl.Internal.Test.E2E.Feedback.Node (subscribeToBrowserEvents)
+import Ctl.Internal.Test.E2E.Feedback.Node
+  ( setClusterSetup
+  , subscribeToBrowserEvents
+  )
 import Ctl.Internal.Test.E2E.Options
   ( BrowserOptions
+  , ClusterPortsOptions
   , E2ECommand(UnpackSettings, PackSettings, RunBrowser, RunE2ETests)
   , ExtensionOptions
   , SettingsOptions
   , TestOptions
+  , defaultPorts
   )
 import Ctl.Internal.Test.E2E.Types
   ( Browser
   , ChromeUserDataDir
   , E2ETest
   , E2ETestRuntime
+  , E2EWallet(NoWallet, PlutipCluster, WalletExtension)
   , ExtensionParams
   , Extensions
   , RunningE2ETest
@@ -34,6 +45,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsRuntime
   , TmpDir
   , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , getE2EWalletExtension
   , mkE2ETest
   , mkExtensionId
   , unExtensionId
@@ -51,23 +63,34 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiSign
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
+import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Ctl.Internal.Wallet.Key
+  ( PrivateStakeKey
+  , keyWalletPrivatePaymentKey
+  , keyWalletPrivateStakeKey
+  )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
+import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (fold)
 import Data.Int as Int
 import Data.List (intercalate)
+import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (wrap)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
+import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.String (Pattern(Pattern), trim)
-import Data.String as String
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.String (Pattern(Pattern))
+import Data.String (contains, null, split, toUpper, trim) as String
+import Data.String.Utils (startsWith) as String
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
+import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
@@ -89,7 +112,8 @@ import Node.FS.Stats (isDirectory)
 import Node.Path (FilePath, concat, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
-import Record.Builder (build, delete)
+import Partial.Unsafe (unsafePartial)
+import Record.Builder (build, delete, merge)
 import Test.Spec.Runner as SpecRunner
 import Toppokki as Toppokki
 import Type.Proxy (Proxy(Proxy))
@@ -102,8 +126,9 @@ runE2ECommand = case _ of
     tests <- liftEffect $ readTests testOptions.tests
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
+    portOptions <- liftEffect $ readPorts testOptions
     let
-      testOptions' = testOptions
+      testOptions' = build (merge portOptions) $ testOptions
         { noHeadless = noHeadless, testTimeout = testTimeout, tests = tests }
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
@@ -126,62 +151,134 @@ runE2ETests opts rt = do
             opts.testTimeout
         }
     )
-    (testPlan opts rt opts.tests)
+    (testPlan opts rt)
+
+buildPlutipConfig :: TestOptions -> PlutipConfig
+buildPlutipConfig options =
+  { host: "127.0.0.1"
+  , port: fromMaybe (UInt.fromInt defaultPorts.plutip) options.plutipPort
+  , logLevel: Trace
+  , ogmiosConfig:
+      { port: fromMaybe (UInt.fromInt defaultPorts.ogmios) options.ogmiosPort
+      , host: "127.0.0.1"
+      , secure: false
+      , path: Nothing
+      }
+  , ogmiosDatumCacheConfig:
+      { port: fromMaybe (UInt.fromInt defaultPorts.ogmiosDatumCache)
+          options.ogmiosDatumCachePort
+      , host: "127.0.0.1"
+      , secure: false
+      , path: Nothing
+      }
+  , ctlServerConfig: Just
+      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
+          options.ctlServerPort
+      , host: "127.0.0.1"
+      , secure: false
+      , path: Nothing
+      }
+  , postgresConfig:
+      { host: "127.0.0.1"
+      , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
+      , user: "ctxlib"
+      , password: "ctxlib"
+      , dbname: "ctxlib"
+      }
+  , suppressLogs: true
+  , customLogger: Just \_ _ -> pure unit
+  , hooks: emptyHooks
+  }
+
+-- | Plutip does not generate private stake keys for us, so we make one and
+-- | fund it manually to get a usable base address.
+privateStakeKey :: PrivateStakeKey
+privateStakeKey = wrap $ unsafePartial $ fromJust
+  $ privateKeyFromBytes =<< hexToRawBytes
+      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
 
 -- | Constructs a test plan given an array of tests.
 testPlan
   :: TestOptions
   -> E2ETestRuntime
-  -> Array E2ETest
   -> TestPlanM (Aff Unit) Unit
-testPlan opts rt@{ wallets } tests =
+testPlan opts@{ tests } rt@{ wallets } =
   group "E2E tests" do
-    for_ tests case _ of
-      { url, wallet: Nothing } -> do
-        test url do
-          withBrowser opts.noHeadless rt Nothing \browser -> do
-            withE2ETest (wrap url) browser \{ page } -> do
-              subscribeToBrowserEvents (Just $ wrap 1000.0) page
-                case _ of
-                  Success -> pure unit
-                  Failure err -> throw err
-                  _ -> pure unit
-      { url, wallet: Just wallet } -> do
-        test (walletName wallet <> ": " <> url) do
-          { password, extensionId } <- liftEffect
-            $ liftMaybe
-                (error $ "Wallet was not provided: " <> walletName wallet)
-            $ Map.lookup wallet wallets
-          withBrowser opts.noHeadless rt (Just extensionId) \browser -> do
-            withE2ETest (wrap url) browser \re@{ page } -> do
-              let
-                confirmAccess =
-                  case wallet of
-                    EternlExt -> eternlConfirmAccess
-                    FlintExt -> flintConfirmAccess
-                    GeroExt -> geroConfirmAccess
-                    LodeExt -> lodeConfirmAccess
-                    NamiExt -> namiConfirmAccess
-                sign =
-                  case wallet of
-                    EternlExt -> eternlSign
-                    FlintExt -> flintSign
-                    GeroExt -> geroSign
-                    LodeExt -> lodeSign
-                    NamiExt -> namiSign
-                someWallet =
-                  { wallet
-                  , name: walletName wallet
-                  , extensionId
-                  , confirmAccess: confirmAccess extensionId re
-                  , sign: sign extensionId password re
-                  }
-              subscribeToBrowserEvents (Just $ wrap 1000.0) page
-                case _ of
-                  ConfirmAccess -> launchAff_ someWallet.confirmAccess
-                  Sign -> launchAff_ someWallet.sign
-                  Success -> pure unit
-                  Failure err -> throw err
+    for_ tests \testEntry@{ specString } -> test specString $ case testEntry of
+      { url, wallet: NoWallet } -> do
+        withBrowser opts.noHeadless rt Nothing \browser -> do
+          withE2ETest (wrap url) browser \{ page } -> do
+            subscribeToTestStatusUpdates page
+      { url, wallet: PlutipCluster } -> do
+        let
+          distr = withStakeKey privateStakeKey
+            [ BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            ]
+        -- TODO: don't connect to services in ContractEnv, just start them
+        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
+        liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
+          \env wallet -> do
+            let
+              (clusterSetup :: ClusterSetup) =
+                { ctlServerConfig: (unwrap env).config.ctlServerConfig
+                , ogmiosConfig: (unwrap env).config.ogmiosConfig
+                , datumCacheConfig: (unwrap env).config.datumCacheConfig
+                , keys:
+                    { payment: keyWalletPrivatePaymentKey wallet
+                    , stake: keyWalletPrivateStakeKey wallet
+                    }
+                }
+            withBrowser opts.noHeadless rt Nothing \browser -> do
+              withE2ETest (wrap url) browser \{ page } -> do
+                setClusterSetup page clusterSetup
+                subscribeToTestStatusUpdates page
+      { url, wallet: WalletExtension wallet } -> do
+        { password, extensionId } <- liftEffect
+          $ liftMaybe
+              (error $ "Wallet was not provided: " <> walletName wallet)
+          $ Map.lookup wallet wallets
+        withBrowser opts.noHeadless rt (Just extensionId) \browser -> do
+          withE2ETest (wrap url) browser \re@{ page } -> do
+            let
+              confirmAccess =
+                case wallet of
+                  EternlExt -> eternlConfirmAccess
+                  FlintExt -> flintConfirmAccess
+                  GeroExt -> geroConfirmAccess
+                  LodeExt -> lodeConfirmAccess
+                  NamiExt -> namiConfirmAccess
+              sign =
+                case wallet of
+                  EternlExt -> eternlSign
+                  FlintExt -> flintSign
+                  GeroExt -> geroSign
+                  LodeExt -> lodeSign
+                  NamiExt -> namiSign
+              someWallet =
+                { wallet
+                , name: walletName wallet
+                , extensionId
+                , confirmAccess: confirmAccess extensionId re
+                , sign: sign extensionId password re
+                }
+            subscribeToBrowserEvents (Just $ Seconds 10.0) page
+              case _ of
+                ConfirmAccess -> launchAff_ someWallet.confirmAccess
+                Sign -> launchAff_ someWallet.sign
+                Success -> pure unit
+                Failure err -> throw err
+  where
+  subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
+  subscribeToTestStatusUpdates page =
+    subscribeToBrowserEvents (Just $ Seconds 10.0) page
+      case _ of
+        Success -> pure unit
+        Failure err -> throw err
+        _ -> pure unit
 
 -- | Implements `browser` command.
 runBrowser
@@ -206,15 +303,51 @@ runBrowser tmpDir chromeUserDataDir browser extensions = do
 readTestRuntime :: TestOptions -> Aff E2ETestRuntime
 readTestRuntime testOptions = do
   let
-    browserOptions =
+    removeUnneeded =
       build
         ( delete (Proxy :: Proxy "noHeadless")
             <<< delete (Proxy :: Proxy "tests")
-            <<<
-              delete (Proxy :: Proxy "testTimeout")
+            <<< delete (Proxy :: Proxy "testTimeout")
+            <<< delete (Proxy :: Proxy "plutipPort")
+            <<< delete (Proxy :: Proxy "ogmiosPort")
+            <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
+            <<< delete (Proxy :: Proxy "ctlServerPort")
+            <<< delete (Proxy :: Proxy "postgresPort")
         )
-        testOptions
-  readBrowserRuntime Nothing browserOptions
+  readBrowserRuntime Nothing $ removeUnneeded testOptions
+
+readPorts :: TestOptions -> Effect ClusterPortsOptions
+readPorts testOptions = do
+  plutipPort <-
+    readPortNumber "PLUTIP" testOptions.plutipPort
+  ogmiosPort <-
+    readPortNumber "OGMIOS" testOptions.ogmiosPort
+  ogmiosDatumCachePort <-
+    readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
+  ctlServerPort <-
+    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
+  postgresPort <-
+    readPortNumber "POSTGRES" testOptions.postgresPort
+  pure
+    { plutipPort
+    , ogmiosPort
+    , ogmiosDatumCachePort
+    , ctlServerPort
+    , postgresPort
+    }
+  where
+  readPortNumber varName Nothing = do
+    str <- lookupEnv $ varName <> "_PORT"
+    case UInt.fromString <$> str of
+      Nothing -> pure Nothing
+      Just Nothing -> throw $ varName <> "_PORT: must be a port number"
+      Just (Just res)
+        | res <= UInt.fromInt 65535 -> pure $ Just res
+        | otherwise -> do
+            throw $ varName
+              <> "_PORT: port number must be in range 0-65535, got: "
+              <> show (UInt.toInt res)
+  readPortNumber _ res@(Just _) = pure res
 
 -- | Read E2E test suite parameters from environment variables and CLI
 -- | options. CLI options have higher priority.
@@ -288,7 +421,7 @@ sanityCheck mbTests { wallets } =
   walletErrors
     | Just tests <- mbTests =
         tests `flip mapMaybe` \test ->
-          test.wallet >>= \wallet ->
+          getE2EWalletExtension test.wallet >>= \wallet ->
             case Map.lookup wallet wallets of
               Just _ -> Nothing
               Nothing ->
@@ -331,7 +464,9 @@ readTests :: Array E2ETest -> Effect (Array E2ETest)
 readTests optUrls = do
   testSpecs <- lookupEnv "E2E_TESTS" <#> fold
     >>> String.split (Pattern "\n")
-    >>> Array.filter (String.trim >>> eq "" >>> not)
+    >>> Array.filter \string ->
+      not (eq "" $ String.trim string) &&
+        not (String.startsWith "#") string
   tests <- for testSpecs \testSpec -> do
     liftMaybe (mkError testSpec) $ mkE2ETest testSpec
   pure $ nub $ optUrls <> tests
@@ -589,7 +724,7 @@ execAndCollectOutput_ shellCmd cont = do
   child <- exec shellCmd defaultExecOptions (const $ pure unit)
   ref <- Ref.new ""
   ChildProcess.onExit child case _ of
-    Normally 0 -> Ref.read ref >>= trim >>> Right >>> cont
+    Normally 0 -> Ref.read ref >>= String.trim >>> Right >>> cont
     exitStatus -> do
       output <- Ref.read ref
       cont $ Left
@@ -620,7 +755,7 @@ spawnAndCollectOutput_ cmd args opts errorReader cont = do
   ref <- Ref.new ""
   ChildProcess.onExit child $ errorReader >>> case _ of
     Nothing -> do
-      cont <<< Right <<< trim =<< Ref.read ref
+      cont <<< Right <<< String.trim =<< Ref.read ref
     Just errorStr -> do
       output <- Ref.read ref
       cont $ Left $ error $
