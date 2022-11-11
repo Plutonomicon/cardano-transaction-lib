@@ -411,7 +411,7 @@ withQueryRuntime config action = do
 -- | `QueryConfig`.
 networkIdCheck :: QueryConfig -> QueryRuntime -> Aff Unit
 networkIdCheck config runtime = do
-  mbNetworkId <- runQueryMInRuntime config runtime getNetworkId
+  mbNetworkId <- runQueryMInRuntime config runtime getWalletNetworkId
   for_ mbNetworkId \networkId ->
     unless (networkToInt config.networkId == networkId) do
       liftEffect $ throw $
@@ -432,8 +432,8 @@ networkIdCheck config runtime = do
     0 -> "Testnet"
     _ -> "Mainnet"
 
-  getNetworkId :: QueryM (Maybe Int)
-  getNetworkId = do
+  getWalletNetworkId :: QueryM (Maybe Int)
+  getWalletNetworkId = do
     join <$> actionBasedOnWallet
       (\w -> map (Just <<< Just) <<< _.getNetworkId w)
       (\_ -> pure Nothing)
@@ -676,13 +676,16 @@ actionBasedOnWallet walletAction keyWalletAction =
 
 signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)
 signData address payload = do
-  networkId <- asks $ _.config >>> _.networkId
+  networkId <- getNetworkId
   actionBasedOnWallet
     (\wallet conn -> wallet.signData conn address payload)
     (\kw -> (unwrap kw).signData networkId payload)
 
 getWallet :: QueryM (Maybe Wallet)
 getWallet = asks (_.runtime >>> _.wallet)
+
+getNetworkId :: QueryM NetworkId
+getNetworkId = asks $ _.config >>> _.networkId
 
 ownPubKeyHashes :: QueryM (Array PubKeyHash)
 ownPubKeyHashes = do
