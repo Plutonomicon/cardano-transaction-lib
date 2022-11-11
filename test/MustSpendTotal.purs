@@ -5,8 +5,6 @@ module Test.Ctl.MustSpendTotal
 
 import Prelude
 
-import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.Scripts (MintingPolicy)
 import Contract.TxConstraints
   ( TxConstraints
   , mustProduceAtLeast
@@ -14,17 +12,15 @@ import Contract.TxConstraints
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
   )
-import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
-import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.AlwaysMints (alwaysMintsPolicyMaybe)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
-import Data.Maybe (Maybe)
+import Data.Function (on)
+import Data.Newtype (class Newtype, unwrap)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
-import Effect.Exception (error)
 import Mote (group, test)
-import Test.Spec.Assertions (shouldEqual)
+import Test.QuickCheck (Result, (===))
+import Test.Spec.QuickCheck (quickCheck)
 
 -- Run with `spago test --main Test.Ctl.MustSpendTotal`
 main :: Effect Unit
@@ -34,33 +30,47 @@ main = launchAff_ do
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "mustXAtLeastTotal works correctly" do
-    test "mustSpendAtLeastTotal works correctly" $ do
-      testIsAuthomorhism mustSpendAtLeast mustSpendAtLeastTotal
-    test "mustProduceAtLeastTotal works correctly" $ do
-      testIsAuthomorhism mustProduceAtLeast mustProduceAtLeastTotal
+    test "mustSpendAtLeastTotal is roundtrip to mustSpendAtLeast" $ do
+      quickCheck $ prop_roundtrip mustSpendAtLeast mustSpendAtLeastTotal
+    test "mustSpendAtLeastTotal is homomorphism" do
+      quickCheck $ prop_isHomomorphism mustSpendAtLeast
+    test "mustProduceAtLeastTotal is roundtrip to mustProduceAtLeast" $ do
+      quickCheck $ prop_roundtrip mustProduceAtLeast mustProduceAtLeastTotal
+    test "mustProduceAtLeastTotal is homomorphism" do
+      quickCheck $ prop_isHomomorphism mustProduceAtLeast
 
-testIsAuthomorhism
+-- Properties
+
+prop_isHomomorphism
+  :: forall i o
+   . (Value.Value -> TxConstraints i o)
+  -> Value.Value
+  -> Value.Value
+  -> Boolean
+prop_isHomomorphism f x y = ((f x) <> (f y)) `customEq` (f (x <> y))
+  where
+  customEq :: TxConstraints i o -> TxConstraints i o -> Boolean
+  customEq = ((==) `on` InspectableTxConstraints)
+
+prop_roundtrip
   :: forall i o
    . (Value.Value -> TxConstraints i o)
   -> (TxConstraints i o -> Value.Value)
-  -> Aff Unit
-testIsAuthomorhism valueToConstraint constraintToValue = do
-  token1 <- mkTokenName "Token 1"
-  token2 <- mkTokenName "Token 2"
-  cs <- mkCurrencySymbol alwaysMintsPolicyMaybe
-  let
-    value1 = Value.singleton cs token1 one
-    value2 = Value.singleton cs token2 one
-    constraint = valueToConstraint value1 <> valueToConstraint value2
-  (constraintToValue constraint) `shouldEqual` (value1 <> value2)
+  -> Value.Value
+  -> Result
+prop_roundtrip f g x = (f >>> g) x === x
 
--- Helpers
+-- Utils
 
-mkTokenName :: String -> Aff TokenName
-mkTokenName str =
-  liftMaybe (error "Cannot decode token name") $
-    (Value.mkTokenName <=< byteArrayFromAscii) str
+-- | TxConstraint may not has Eq, but our tests require it
+-- | This newtype provides less specific Eq which is fine for these tests
+newtype InspectableTxConstraints i o = InspectableTxConstraints
+  (TxConstraints i o)
 
-mkCurrencySymbol :: Maybe MintingPolicy -> Aff CurrencySymbol
-mkCurrencySymbol policy = liftMaybe (error "Cannot decode policy") $
-  (policy >>= Value.scriptCurrencySymbol)
+derive instance Newtype (InspectableTxConstraints i o) _
+
+instance Eq (InspectableTxConstraints i o) where
+  eq x y = (eqOnProjection mustSpendAtLeastTotal)
+    && (eqOnProjection mustProduceAtLeastTotal)
+    where
+    eqOnProjection proj = (((==) `on` (proj <<< unwrap)) x y)

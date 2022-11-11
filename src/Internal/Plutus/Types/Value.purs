@@ -53,20 +53,26 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol
   )
+import Ctl.Internal.QuickCheck (unMaybeGen)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Data.Array (concatMap, filter)
+import Data.Array.NonEmpty (fromNonEmpty)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either(Left))
 import Data.Foldable (all)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
-import Data.Maybe (Maybe(Nothing), fromMaybe)
+import Data.Maybe (Maybe(Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (class Newtype)
+import Data.NonEmpty ((:|))
 import Data.These (These(Both, That, This), these)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (Gen, oneOf)
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 
@@ -81,6 +87,21 @@ instance DecodeAeson Value where
 instance EncodeAeson Value where
   encodeAeson' (Value mph) = encodeAeson' $ encodeAeson
     { "getValue": encodeAeson mph }
+
+arbitrarySingletonValue :: Gen Value
+arbitrarySingletonValue = do
+  currencySymbol <- unMaybeGen $ mkCurrencySymbol <$> arbitrary
+  tokenName <- unMaybeGen $ mkTokenName <$> arbitrary
+  num <- BigInt.fromInt <$> arbitrary
+  pure $ singleton currencySymbol tokenName num
+
+instance Arbitrary Value where
+  arbitrary = oneOf $ fromNonEmpty $ arbitrarySingletonValue :| [ recurse ]
+    where
+    recurse = do
+      single <- arbitrarySingletonValue
+      rest <- arbitrary
+      pure $ single <> rest
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#eq
 instance Eq Value where
