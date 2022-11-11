@@ -322,10 +322,9 @@ stopPlutipCluster cfg = do
       )
     pure $ response # either
       (Left <<< ClientHttpError)
-      ( _.body >>> \body -> lmap (ClientDecodeJsonError body)
-          $ (decodeAeson <=< parseJsonStringToAeson)
-              body
-      )
+      \{ body } -> lmap (ClientDecodeJsonError body)
+        $ (decodeAeson <=< parseJsonStringToAeson)
+            body
   either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess

@@ -167,10 +167,10 @@ main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
     defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
-    $ do
-        suite
-        UtxoDistribution.suite
-        NetworkId.suite
+    do
+      suite
+      UtxoDistribution.suite
+      NetworkId.suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
