@@ -19,18 +19,20 @@ import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Data.BigInt (fromInt) as BigInt
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -78,19 +80,19 @@ foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
 mintingPolicyRdmrInt1 :: Contract () MintingPolicy
-mintingPolicyRdmrInt1 = PlutusMintingPolicy <<< plutusV1Script <$>
-  textEnvelopeBytes
-    redeemerInt1
-    PlutusScriptV1
+mintingPolicyRdmrInt1 =
+  liftMaybe (error "Error decoding redeemerInt1") do
+    envelope <- decodeTextEnvelope redeemerInt3
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 mintingPolicyRdmrInt2 :: Contract () MintingPolicy
-mintingPolicyRdmrInt2 = PlutusMintingPolicy <<< plutusV1Script <$>
-  textEnvelopeBytes
-    redeemerInt2
-    PlutusScriptV1
+mintingPolicyRdmrInt2 =
+  liftMaybe (error "Error decoding redeemerInt2") do
+    envelope <- decodeTextEnvelope redeemerInt3
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 mintingPolicyRdmrInt3 :: Contract () MintingPolicy
-mintingPolicyRdmrInt3 = PlutusMintingPolicy <<< plutusV1Script <$>
-  textEnvelopeBytes
-    redeemerInt3
-    PlutusScriptV1
+mintingPolicyRdmrInt3 =
+  liftMaybe (error "Error decoding redeemerInt3") do
+    envelope <- decodeTextEnvelope redeemerInt3
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope

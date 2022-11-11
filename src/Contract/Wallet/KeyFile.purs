@@ -10,10 +10,10 @@ import Ctl.Internal.Wallet (Wallet) as Wallet
 import Ctl.Internal.Wallet (mkKeyWallet)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
-  , privatePaymentKeyFromString
+  , privatePaymentKeyFromTextEnvelope
   , privatePaymentKeyToFile
   , privateStakeKeyFromFile
-  , privateStakeKeyFromString
+  , privateStakeKeyFromTextEnvelope
   , privateStakeKeyToFile
   )
 import Data.Maybe (Maybe)

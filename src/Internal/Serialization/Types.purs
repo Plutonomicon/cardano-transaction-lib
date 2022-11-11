@@ -44,11 +44,11 @@ module Ctl.Internal.Serialization.Types
   , PlutusScripts
   , PoolMetadata
   , PoolParams
+  , PrivateKey
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
   , ProtocolVersion
   , PublicKey
-  , PrivateKey
   , Redeemer
   , RedeemerTag
   , Redeemers
