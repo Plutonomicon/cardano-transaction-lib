@@ -212,7 +212,7 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
 
 ### Using compiled scripts
 
-You can import your scripts to use with CTL. See [importing-scripts](./importing-scripts.md). 
+You can import your scripts to use with CTL. See [importing-scripts](./importing-scripts.md).
 
 ## Testing
 
