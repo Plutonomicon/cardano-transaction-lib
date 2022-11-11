@@ -463,11 +463,11 @@ let
 
     "free" = pkgs.stdenv.mkDerivation {
         name = "free";
-        version = "v6.1.0";
+        version = "v6.2.0";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript/purescript-free.git";
-          rev = "fea875168b4da6dec7ab819d780d8ecde9f37dbd";
-          sha256 = "038wbpmbv86q8s69fcvqb8fngkqc863axp7khzgnsqw55d1926r4";
+          rev = "c185c0b2144ddfb2bc3ac2b345df32e33221b21d";
+          sha256 = "10zsw49wzlzz78882b3grl19gpca5llpdk3ph608075h0ygk3q3k";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -811,11 +811,11 @@ let
 
     "node-fs" = pkgs.stdenv.mkDerivation {
         name = "node-fs";
-        version = "v6.1.0";
+        version = "v6.2.0";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript-node/purescript-node-fs.git";
-          rev = "09a2b71a3a86f0cd19c46f4b6c40310cc1648909";
-          sha256 = "1w97m2afn7yn757niknkbk7w6nyg4n5dabxr7gzfz368z1nkf45s";
+          rev = "3cb63cc55a02e506fe07d3940a50d6f0eb6ca2f2";
+          sha256 = "1b89sxr6asxvgx59myhfbahiiz1z6sg2qfrm9bqd46h93ai8bhn1";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1027,11 +1027,11 @@ let
 
     "parsing" = pkgs.stdenv.mkDerivation {
         name = "parsing";
-        version = "v7.0.1";
+        version = "v8.2.0";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript-contrib/purescript-parsing.git";
-          rev = "a3e82c26ce2c74b5fa38ff7814d7c35bf9233af5";
-          sha256 = "15yx51khg3niqiryc6qdii6lwdvni77ak7dkbf9w5zw4h1y51p9a";
+          rev = "223f66bb673d48d9f6a820eaa8bb20bdf6fc1462";
+          sha256 = "1wyrx7f5xphydr63m4y03qh5h2qz6lvkfx3sdcmci60pjzyqg9qd";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1471,11 +1471,11 @@ let
 
     "unicode" = pkgs.stdenv.mkDerivation {
         name = "unicode";
-        version = "v5.0.0";
+        version = "v5.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript-contrib/purescript-unicode.git";
-          rev = "8e360802e31d080dec7f3ddf4d3329c56773490f";
-          sha256 = "0sqvgl3il2rl3zxkbzsqb19wib108zvyw73jxiavpfdm6hdmnxvc";
+          rev = "2b66dcdb2ea533c7bc864574e860012c57ace2aa";
+          sha256 = "0xh9wwyrl9nsw3h3wzalc1gaph39drj0i6k648cf9bnbb96nxa4z";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
