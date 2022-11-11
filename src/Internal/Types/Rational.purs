@@ -101,11 +101,11 @@ denominatorAsNat = Nat.fromBigInt' <<< denominator
 --------------------------------------------------------------------------------
 
 instance ToData Rational where
-  toData r = Constr zero [ Integer (numerator r), Integer (denominator r) ]
+  toData r = List [ Integer (numerator r), Integer (denominator r) ]
 
 instance FromData Rational where
-  fromData (Constr c [ Integer n, Integer d ])
-    | c == zero = reduce n d
+  fromData (List [ Integer n, Integer d ])
+    = reduce n d
   fromData _ = Nothing
 
 --------------------------------------------------------------------------------
