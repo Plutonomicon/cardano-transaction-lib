@@ -9,7 +9,9 @@ module Contract.Address
   , addressFromBech32
   , addressToBech32
   , getWalletAddress
+  , getWalletAddresses
   , getWalletAddressWithNetworkTag
+  , getWalletAddressesWithNetworkTag
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
@@ -19,7 +21,9 @@ module Contract.Address
   , module SerializationAddress
   , module TypeAliases
   , ownPaymentPubKeyHash
+  , ownPaymentPubKeysHashes
   , ownPubKeyHash
+  , ownPubKeysHashes
   , ownStakePubKeyHash
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
@@ -37,6 +41,7 @@ module Contract.Address
 import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
+import Contract.Prelude (maybe)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
@@ -121,37 +126,46 @@ import Ctl.Internal.Types.PubKeyHash
   ) as PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Ctl.Internal.Types.TypedValidator (TypedValidator)
-import Ctl.Internal.Types.UnbalancedTransaction
-  ( PaymentPubKey(PaymentPubKey)
-  ) as ExportUnbalancedTransaction
-import Data.Array (head)
+import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey)) as ExportUnbalancedTransaction
+import Data.Array (head, mapMaybe)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Effect.Exception (error)
+import Prim.TypeError (class Warn, Text)
 
--- | Get the `Address` of the browser wallet.
--- TODO: change this to Maybe (Array Address)
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+-- | Get an `Address` of the browser wallet.
 getWalletAddress
-  :: forall (r :: Row Type). Contract r (Maybe Address)
-getWalletAddress = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddresses <#> head
-  for mbAddr $
-    liftedM "getWalletAddress: failed to deserialize Address"
-      <<< pure
-      <<< toPlutusAddress
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `Adress` even in case multiple `Adresses` are available. Use getWalletAdresses instead"
+       )
+  => Contract r (Maybe Address)
+getWalletAddress = head <$> getWalletAddresses
 
--- | Get the `AddressWithNetworkTag` of the browser wallet.
--- TODO: change this to Maybe (Array Address)
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
+-- | Get all the `Addresses` of the browser wallet discarding errors.
+getWalletAddresses
+  :: forall (r :: Row Type). Contract r (Array Address)
+getWalletAddresses = do
+  addresses <- wrapContract $ QueryM.getWalletAddresses
+  pure $ mapMaybe toPlutusAddress addresses
+
+-- | Get an `AddressWithNetworkTag` of the browser wallet.
 getWalletAddressWithNetworkTag
-  :: forall (r :: Row Type). Contract r (Maybe AddressWithNetworkTag)
-getWalletAddressWithNetworkTag = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddresses <#> head
-  for mbAddr $
-    liftedM "getWalletAddressWithNetworkTag: failed to deserialize Address"
-      <<< pure
-      <<< toPlutusAddressWithNetworkTag
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use getWalletAddressesWithNetworkTag instead"
+       )
+  => Contract r (Maybe AddressWithNetworkTag)
+getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
+
+-- | Get all the `AddressWithNetworkTag` of the browser wallet discarding errors.
+getWalletAddressesWithNetworkTag
+  :: forall (r :: Row Type). Contract r (Array AddressWithNetworkTag)
+getWalletAddressesWithNetworkTag =
+  wrapContract QueryM.getWalletAddresses
+    >>= (pure <<< mapMaybe toPlutusAddressWithNetworkTag)
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
@@ -168,23 +182,47 @@ getWalletCollateral = do
       <<< pure
       <<< toPlutusTxUnspentOutput
 
--- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
+-- | Gets a wallet `PaymentPubKeyHash` via `getWalletAddresses`.
 ownPaymentPubKeyHash
-  :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
--- TODO: change this to Maybe (Array PaymentPubKeyHash)
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownPaymentPubKeyHash = wrapContract $ QueryM.ownPaymentPubKeyHashes <#> head
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHashes` are available. Use ownPaymentPubKeysHashes instead"
+       )
+  => Contract r (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
 
--- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
--- TODO: change this to Maybe (Array PubKeyHash)
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownPubKeyHash = wrapContract $ QueryM.ownPubKeyHashes <#> head
+-- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
+ownPaymentPubKeysHashes
+  :: forall (r :: Row Type). Contract r (Array PaymentPubKeyHash)
+ownPaymentPubKeysHashes = wrapContract QueryM.ownPaymentPubKeyHashes
 
--- TODO: change this to Maybe (Array StakePubKeyHash)
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
-ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
+-- | Gets a wallet `PubKeyHash` via `getWalletAddress`.
+ownPubKeyHash
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `PubKeyHash` even in case multiple `PubKeysHashes` are available. Use ownPubKeysHashes instead"
+       )
+  => Contract r (Maybe PubKeyHash)
+ownPubKeyHash = head <$> ownPubKeysHashes
+
+-- | Gets all wallet `PubKeyHash`es via `getWalletAddress`.
+ownPubKeysHashes :: forall (r :: Row Type). Contract r (Array PubKeyHash)
+ownPubKeysHashes = wrapContract QueryM.ownPubKeyHashes
+
+ownStakePubKeyHash
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHashes` are available. Use ownStakePubKeysHashes instead"
+       )
+  => Contract r (Maybe StakePubKeyHash)
+ownStakePubKeyHash = head <$> ownStakePubKeysHashes
+
+ownStakePubKeysHashes
+  :: forall (r :: Row Type). Contract r (Array StakePubKeyHash)
+ownStakePubKeysHashes = wrapContract QueryM.ownStakePubKeyHash
 
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId

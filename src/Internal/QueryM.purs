@@ -209,6 +209,7 @@ import Ctl.Internal.Wallet.Spec
       )
   )
 import Data.Array (head, singleton) as Array
+import Data.Array (mapMaybe)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
 import Data.Foldable (fold, foldl)
@@ -673,15 +674,14 @@ ownPubKeyHashes = do
 ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
--- TODO: change to array of StakePubKeyHash
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
+ownStakePubKeyHash :: QueryM (Array StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> Array.head
-  pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
-    wrap <<< wrap <$> stakeCredentialToKeyHash
-      (baseAddressDelegationCred baseAddress)
+  addresses <- getWalletAddresses
+  let
+    baseAddresses = mapMaybe baseAddressFromAddress addresses
+    stakeCredentials = baseAddressDelegationCred <$> baseAddresses
+    keyHashes = mapMaybe stakeCredentialToKeyHash stakeCredentials
+  pure $ wrap <<< wrap <$> keyHashes
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
