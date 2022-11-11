@@ -461,6 +461,7 @@ findSettingsArchive testOptions = do
   doesExist <- exists settingsArchive
 
   unless doesExist $ do
+    -- Download settings archive from URL if file does not exist
     settingsArchiveUrl <-
       maybe
         ( liftedM
@@ -549,6 +550,7 @@ readExtensionParams extensionName wallets = do
       Just crx, Just pwd, Just extId -> do
         doesExist <- exists crx
         unless doesExist $ do
+          -- Download from specified URL if crx file does not exist
           crxFileUrl <-
             maybe
               ( liftedM
