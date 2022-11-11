@@ -459,10 +459,9 @@ suite = do
     test "Native Stake script: delegate to existing pool & withdraw rewards" do
       let
         distribution =
-          withStakeKey privateStakeKey
-            [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
-            ] /\
+          [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+          ] /\
             withStakeKey privateStakeKey
               [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
               , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000

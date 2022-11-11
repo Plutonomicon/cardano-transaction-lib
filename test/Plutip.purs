@@ -703,6 +703,25 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
+    test
+      "runPlutipContract: AlwaysSucceeds with stake key (mustPayToPubKeyAddress)"
+      do
+        let
+          distribution :: InitialUTxOsWithStakeKey
+          distribution = withStakeKey privateStakeKey
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        runPlutipContract config distribution \alice -> do
+          withKeyWallet alice do
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+            AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
     test "runPlutipContract: currentTime" do
       runPlutipContract config unit \_ -> do
         void $ currentTime

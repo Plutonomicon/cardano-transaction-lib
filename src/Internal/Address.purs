@@ -1,6 +1,7 @@
 module Ctl.Internal.Address
   ( addressToOgmiosAddress
-  , addressValidatorHash
+  , addressPaymentValidatorHash
+  , addressStakeValidatorHash
   , ogmiosAddressToAddress
   ) where
 
@@ -14,12 +15,16 @@ import Ctl.Internal.Serialization.Address
   , addressFromBech32
   , baseAddressDelegationCred
   , baseAddressFromAddress
+  , baseAddressPaymentCred
   , enterpriseAddressFromAddress
   , enterpriseAddressPaymentCred
   , stakeCredentialToScriptHash
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Ctl.Internal.Types.Scripts (ValidatorHash(ValidatorHash))
+import Ctl.Internal.Types.Scripts
+  ( StakeValidatorHash(StakeValidatorHash)
+  , ValidatorHash(ValidatorHash)
+  )
 import Data.Maybe (Maybe)
 
 -- | A module for address related helpers
@@ -40,22 +45,31 @@ addressToOgmiosAddress = addressBech32
 -- `Address` to `ValidatorHash`
 --------------------------------------------------------------------------------
 
-enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
-enterpriseAddressScriptHash =
+-- | Get the `ValidatorHash` of an address (base or enterprise).
+-- | The value is extracted from the payment component.
+addressPaymentValidatorHash :: Address -> Maybe ValidatorHash
+addressPaymentValidatorHash = map ValidatorHash <<< addressPaymentScriptHash
+
+addressPaymentScriptHash :: Address -> Maybe ScriptHash
+addressPaymentScriptHash addr =
+  baseAddressPaymentScriptHash addr <|> enterpriseAddressPaymentScriptHash addr
+
+baseAddressPaymentScriptHash :: Address -> Maybe ScriptHash
+baseAddressPaymentScriptHash =
+  stakeCredentialToScriptHash
+    <=< pure <<< baseAddressPaymentCred
+    <=< baseAddressFromAddress
+
+enterpriseAddressPaymentScriptHash :: Address -> Maybe ScriptHash
+enterpriseAddressPaymentScriptHash =
   stakeCredentialToScriptHash
     <=< pure <<< enterpriseAddressPaymentCred
     <=< enterpriseAddressFromAddress
 
-baseAddressScriptHash :: Address -> Maybe ScriptHash
-baseAddressScriptHash =
-  stakeCredentialToScriptHash
+-- | Get the `StakeValidatorHash` of a base address.
+-- | The value is extracted from the stake component.
+addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
+addressStakeValidatorHash =
+  map StakeValidatorHash <<< stakeCredentialToScriptHash
     <=< pure <<< baseAddressDelegationCred
     <=< baseAddressFromAddress
-
-addressScriptHash :: Address -> Maybe ScriptHash
-addressScriptHash addr =
-  baseAddressScriptHash addr <|> enterpriseAddressScriptHash addr
-
--- | Get the `ValidatorHash` of an address (base or enterprise).
-addressValidatorHash :: Address -> Maybe ValidatorHash
-addressValidatorHash = map ValidatorHash <<< addressScriptHash
