@@ -92,4 +92,4 @@ If you add a dependency to `package.json`, make sure to update the lockfile with
 
 ## Switching development networks
 
-Switching networks is trivial: new `network.name` and `network.magic` must be provided, and `defaultConfig.datumCache.blockFetcher.firstBlock` from `runtime.nix` should be pointed to a correct block/slot. You can use Blocks Browser on [cexplorer.io](https://cexplorer.io) to find the correct values, or just look at `cardano-node` logs (wait for it to fully sync to use a relatively new starting block. It helps to reduce the size of the DB).
+Set new `network.name` and `network.magic` in `runtime.nix`. Point `datumCache.blockFetcher.firstBlock` to a correct block/slot. Also see [Changing network configurations](./runtime.md#changing-network-configurations)
