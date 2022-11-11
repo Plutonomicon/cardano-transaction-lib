@@ -500,13 +500,16 @@
           self.nixosModules.ctl-server
           ./nix/test-nixos-configuration.nix
         ];
+        specialArgs = {
+          inherit (inputs) cardano-configurations;
+        };
       };
 
-      hydraJobs = perSystem (system:
-        self.checks.${system}
-        // self.packages.${system}
-        // self.devShells.${system}
-        // { vm = "self.nixosConfigurations.test.config.system.build.vm"; }
-      );
+      hydraJobs = perSystem
+        (system:
+          self.checks.${system}
+            // self.packages.${system}
+            // self.devShells.${system}
+        ) // { vm = self.nixosConfigurations.test.config.system.build.vm; };
     };
 }
