@@ -704,7 +704,7 @@ suite = do
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
     test
-      "runPlutipContract: AlwaysSucceeds with stake key (mustPayToPubKeyAddress)"
+      "runPlutipContract: AlwaysSucceeds (with stake key to test `mustPayToPubKeyAddress`)"
       do
         let
           distribution :: InitialUTxOsWithStakeKey
@@ -930,6 +930,18 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceScripts.contract
+
+    test
+      "runPlutipContract: ReferenceScripts (with StakeKey, testing `mustPayToScriptAddressWithScriptRef`)"
+      do
+        let
+          distribution :: InitialUTxOsWithStakeKey
+          distribution = withStakeKey privateStakeKey
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        runPlutipContract config distribution \alice ->
+          withKeyWallet alice ReferenceScripts.contract
 
     test "runPlutipContract: ReferenceInputs" do
       let

@@ -50,6 +50,7 @@ The following constraints were added for `PlutusV2` features as part of our `v2.
 - [x] `mustMintCurrencyUsingScriptRef`
 - [x] `mustMintCurrencyWithRedeemerUsingScriptRef`
 - [x] `mustPayToScriptWithScriptRef`
+- [x] `mustPayToScriptAddressWithScriptRef`
 - [x] `mustPayToPubKeyAddressWithDatumAndScriptRef`
 - [x] `mustPayToPubKeyAddressWithScriptRef`
 - [x] `mustPayToPubKeyWithDatumAndScriptRef`
@@ -59,6 +60,7 @@ The following constraints were added for `PlutusV2` features as part of our `v2.
 That release also included the following constraints for working with native scripts, which also have no `plutus-apps` analogue:
 
 - [x] `mustPayToNativeScript`
+- [x] `mustPayToNativeScriptAddress`
 - [x] `mustSpendNativeScriptOutput`
 
 In addition, several redeemer combinations in a **single transaction** must be covered by tests or examples as well, namely
