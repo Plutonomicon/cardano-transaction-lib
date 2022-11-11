@@ -47,9 +47,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.createAdditionalUtxos` to build an expected utxo set from transaction outputs, useful for transaction chaining ([#1046](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1046))
 - `DecodeAeson` instance for `NativeScript` data type ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069)).
 - `Contract.Wallet` exports `mkWalletBySpec` ([#1157](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1157))
+- `ctl-server` NixOS module ([#1194](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1194)). See [nix/test-nixos-configuration.nix](nix/test-nixos-configuration.nix) for example usage and [nix/ctl-server-nixos-module.nix](nix/ctl-server-nixos-module.nix).
 
 ### Changed
 
+- Bumped cardano-serialization-lib dependencies to version 11.1.1-alpha.1 ([#1163](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1163))
 - `Contract.Transaction.calculateMinFee` and `Contract.Transaction.calculateMinFeeM` now accept additional UTxOs.
 - Reorganised the library into new namespaces. Namely: library internals, tests, and examples are now under `Ctl.Internal.*`, `Test.Ctl.*`, and `Ctl.Examples.*` respectively. Documentation and comments have been updated to use these new names, but not entries of previous releases in the changelog. ([#1039](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1039))
 - Switched to `preview` testnet by default ([#1030](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1030))
@@ -63,6 +65,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `MintingPolicy` to an enum consisting of `PlutusScript` or `NativeScript` ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
 - `Contract.Scripts` `applyArgs` is now monomorphic on the script parameter ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069))
 - Adapted Gero wallet extension to `preview` network in E2E test suite ([#1086](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1086))
+- `Contact.TextEnvelope` how provides more type safe interface with simplified error handling ([#988](https://github.com/Plutonomicon/cardano-transaction-lib/issues/988))
+- Forbid minting zero tokens. ([#1156](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156))
 
 ### Removed
 - `balanceAndSignTxE`, `balanceAndSignTx`, `balanceAndSignTxs`, `balanceTxWithAddress`, `balanceTxsWithAddress`, `withBalancedAndSignedTx` and `withBalancedAndSignedTxs` from `Contract.Transaction` ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
@@ -134,7 +138,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `InlineDatum` example, for testing inline datum constraints. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - `DatumPresence` data type, which tags paying constraints that accept datum, to mark whether the datum should be inline or hashed in the transaction output. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - Utility conversion functions `serializeData` and `deserializeData` between `PlutusData` and `CborBytes` to `Contract.PlutusData`. ([#1001](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1001))
-- Added [CIP-30](https://cips.cardano.org/cips/cip30/) methods : `getNetworkId`, `getChangeAddress`, `getRewardAddresses`, `getUnusedAddresses`, `signData`, `isWalletAvailable`, `isEnabled`, `apiVersion`, `name` and `icon` to `Contract.Wallet`. However, `signData` is not yet available with `KeyWallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))
+- Added [CIP-30](https://cips.cardano.org/cips/cip30/) methods: `getNetworkId`, `getChangeAddress`, `getRewardAddresses`, `getUnusedAddresses`, `signData`, `isWalletAvailable`, `isEnabled`, `apiVersion`, `name` and `icon` to `Contract.Wallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))
 
 ### Changed
 

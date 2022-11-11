@@ -1,32 +1,33 @@
 module Ctl.Internal.Cardano.TextEnvelope
-  ( decodeTextEnvelope
-  , printTextEnvelopeDecodeError
-  , textEnvelopeBytes
-  , TextEnvelope(TextEnvelope)
+  ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType
       ( PlutusScriptV1
       , PlutusScriptV2
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
+      , Other
       )
-  , TextEnvelopeDecodeError(JsonDecodeError, CborParseError)
+  , decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
+  , plutusScriptV2FromEnvelope
   ) where
 
 import Prelude
 
 import Aeson
   ( class DecodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , parseJsonStringToAeson
-  , printJsonDecodeError
   )
-import Control.Monad.Except (throwError)
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import Ctl.Internal.Types.Cbor (CborParseError, toByteArray)
-import Data.Bifunctor (lmap)
-import Data.Either (Either, note)
+import Ctl.Internal.Types.Cbor (toByteArray)
+import Ctl.Internal.Types.Scripts
+  ( PlutusScript
+  , plutusV1Script
+  , plutusV2Script
+  )
+import Data.Either (hush)
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
 
 data TextEnvelopeType
@@ -34,6 +35,7 @@ data TextEnvelopeType
   | PlutusScriptV2
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
+  | Other String -- TextEnvelope we can parse from String, but cannot use now
 
 derive instance Eq TextEnvelopeType
 
@@ -43,6 +45,7 @@ instance Show TextEnvelopeType where
     PlutusScriptV2 -> "PlutusScriptV2"
     PaymentSigningKeyShelleyed25519 -> "PaymentSigningKeyShelley_ed25519"
     StakeSigningKeyShelleyed25519 -> "StakeSigningKeyShelley_ed25519"
+    Other other -> other
 
 instance DecodeAeson TextEnvelopeType where
   decodeAeson aeson = do
@@ -53,7 +56,7 @@ instance DecodeAeson TextEnvelopeType where
         PaymentSigningKeyShelleyed25519
       "StakeSigningKeyShelley_ed25519" -> pure
         StakeSigningKeyShelleyed25519
-      _ -> throwError $ TypeMismatch "TextEnvelopeType"
+      other -> pure $ Other other
 
 type TextEnvelopeRaw =
   { "type" :: TextEnvelopeType
@@ -71,32 +74,36 @@ newtype TextEnvelope =
 
 derive instance Newtype TextEnvelope _
 
-data TextEnvelopeDecodeError
-  = JsonDecodeError JsonDecodeError
-  | CborParseError CborParseError
+decodeCborHexToBytes :: String -> Maybe ByteArray
+decodeCborHexToBytes cborHex = do
+  cborBa <- hexToByteArray cborHex
+  hush $ toByteArray $ wrap $ wrap cborBa
 
 decodeTextEnvelope
-  :: Aeson -> Either TextEnvelopeDecodeError TextEnvelope
-decodeTextEnvelope aeson = do
+  :: String -> Maybe TextEnvelope
+decodeTextEnvelope json = do
+  aeson <- hush $ parseJsonStringToAeson json
   { "type": type_, description, cborHex } <-
-    lmap JsonDecodeError $ decodeAeson aeson :: _ TextEnvelopeRaw
-  cborBa <- note (JsonDecodeError $ TypeMismatch "Hex") $ hexToByteArray cborHex
-  -- NOTE PlutusScriptV1 is doubly-encoded cbor, so the resulting `ByteArray`
-  -- is *still* cbor encoded.
-  -- https://github.com/Emurgo/cardano-serialization-lib/issues/268#issuecomment-1042986055
-  ba <- lmap CborParseError $ toByteArray $ wrap $ wrap cborBa
+    hush $ decodeAeson aeson :: _ TextEnvelopeRaw
+  ba <- decodeCborHexToBytes cborHex
   pure $ wrap { type_, description, bytes: ba }
 
-printTextEnvelopeDecodeError :: TextEnvelopeDecodeError -> String
-printTextEnvelopeDecodeError = case _ of
-  JsonDecodeError err -> printJsonDecodeError err
-  CborParseError err -> show err
+plutusScriptFromEnvelope
+  :: TextEnvelopeType
+  -> (ByteArray -> PlutusScript)
+  -> TextEnvelope
+  -> Maybe PlutusScript
+plutusScriptFromEnvelope type_ bytesToScript (TextEnvelope envelope) = do
+  -- Check TextEnvelope type match to desirable
+  unless (envelope.type_ == type_) Nothing
+  pure $ bytesToScript envelope.bytes
 
-textEnvelopeBytes
-  :: String -> TextEnvelopeType -> Either TextEnvelopeDecodeError ByteArray
-textEnvelopeBytes json ty = do
-  aeson <- lmap JsonDecodeError $ parseJsonStringToAeson json
-  TextEnvelope te <- decodeTextEnvelope aeson
-  unless (te.type_ == ty) $ throwError $ JsonDecodeError $ TypeMismatch $
-    show ty
-  pure te.bytes
+plutusScriptV1FromEnvelope
+  :: TextEnvelope -> Maybe PlutusScript
+plutusScriptV1FromEnvelope envelope = do
+  plutusScriptFromEnvelope PlutusScriptV1 plutusV1Script envelope
+
+plutusScriptV2FromEnvelope
+  :: TextEnvelope -> Maybe PlutusScript
+plutusScriptV2FromEnvelope envelope =
+  plutusScriptFromEnvelope PlutusScriptV2 plutusV2Script envelope

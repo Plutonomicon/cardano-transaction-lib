@@ -30,6 +30,16 @@
     cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
+
+    # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
+    ogmios-nixos.url = "github:mlabs-haskell/ogmios";
+    ogmios-datum-cache-nixos.url = "github:mlabs-haskell/ogmios-datum-cache/marton/nixos-module";
+
+    cardano-node.follows = "ogmios-nixos/cardano-node";
+    # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
+    iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
+    cardano-node.inputs.iohkNix.follows = "iohk-nix-environments";
+
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
@@ -140,6 +150,7 @@
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
+                file
               ];
             };
           };
@@ -307,6 +318,11 @@
           inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = pkgs.launchCtlRuntime { };
           default = self.apps.${system}.ctl-runtime;
+          vm = {
+            type = "app";
+            program =
+              "${self.nixosConfigurations.test.config.system.build.vm}/bin/run-nixos-vm";
+          };
         });
 
       # TODO
@@ -329,6 +345,7 @@
                 nodePackages.prettier
                 nodePackages.eslint
                 fd
+                file
               ];
             }
             ''
@@ -336,13 +353,86 @@
               make check-format
               touch $out
             '';
+          template-deps-json = pkgs.runCommand "template-deps-check"
+            {
+              ctlPackageJson = builtins.readFile ./package.json;
+              ctlScaffoldPackageJson = builtins.readFile ./templates/ctl-scaffold/package.json;
+              nativeBuildInputs = [ pkgs.jq ];
+            } ''
+            cd ${self}
+            diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+            diff <(jq -S .devDependencies <<< $ctlPackageJson) <(jq -S .devDependencies <<< $ctlScaffoldPackageJson)
+            touch $out
+          '';
+          template-dhall-diff = pkgs.runCommand "template-dhall-diff-check"
+            (with builtins;
+            let
+              ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
+              ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+              ctlPs = attrValues ctlPkgsExp.inputs;
+              ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
+                (attrValues ctlScaffoldPkgsExp.inputs);
+              intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;
+              scaffoldDisjoint = pkgs.lib.lists.subtractLists intersection ctlScaffoldPs;
+              ctlDisjoint = pkgs.lib.lists.subtractLists intersection ctlPs;
+            in
+            {
+              inherit ctlDisjoint scaffoldDisjoint;
+              nativeBuildInputs = [ ];
+            }
+            ) ''
+
+            if [ -z "$ctlDisjoint" ] && [ -z "$scaffoldDisjoint" ];
+            then
+              touch $out
+            else
+              if [ -n "$ctlDisjoint" ];
+              then
+                echo "The following packages are in the main projects dependencies but not in the scaffold:"
+                for p in $ctlDisjoint; do
+                  echo "  $p"
+                done
+              fi
+              if [ -n "$scaffoldDisjoint" ];
+              then
+                echo "The following packages are in the scaffold projects dependencies but not in the main:"
+                for p in $scaffoldDisjoint; do
+                  echo "  $p"
+                done
+              fi
+              exit 1
+            fi
+          '';
+          template-version = pkgs.runCommand "template-consistent-version-check"
+            (
+              let
+                ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+                ctlScaffoldFlake = import ./templates/ctl-scaffold/flake.nix;
+                versionCheck = ctlScaffoldPackages.inputs."cardano-transaction-lib".version == ctlScaffoldFlake.inputs.ctl.rev;
+              in
+              {
+                packagesLibRev = ctlScaffoldPackages.inputs."cardano-transaction-lib".version;
+                flakeLibRev = ctlScaffoldFlake.inputs.ctl.rev;
+                nativeBuildInputs = [ ];
+              }
+            ) ''
+
+            if [ $packagesLibRev != $flakeLibRev ]
+            then
+              echo "CTL revision in scaffold flake.nix ($flakeLibRev) doesn't match revision referenced in spago-packages.nix ($packagesLibRev). Please update flake.nix or packages.dhall and run spago2nix."
+              exit 1
+            fi
+            touch $out
+          '';
           examples-imports-check = pkgs.runCommand "examples-imports-check" { }
             ''
               cd ${self}
               make check-examples-imports
-              touch $out 
+              touch $out
             '';
         });
+
+      templatePath = builtins.toString self + self.templates.ctl-scaffold.path;
 
       check = perSystem (system:
         (nixpkgsFor system).runCommand "combined-check"
@@ -384,10 +474,39 @@
         };
       };
 
+      nixosModules.ctl-server = { pkgs, lib, ... }: {
+        imports = [ ./nix/ctl-server-nixos-module.nix ];
+        nixpkgs.overlays = [
+          (_: _: {
+            ctl-server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
+          })
+        ];
+      };
+
+      nixosConfigurations.test = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          inputs.cardano-node.nixosModules.cardano-node
+          inputs.ogmios-nixos.nixosModules.ogmios
+          {
+            services.ogmios.package =
+              inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
+          }
+          inputs.ogmios-datum-cache-nixos.nixosModules.ogmios-datum-cache
+          {
+            services.ogmios-datum-cache.package =
+              inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache";
+          }
+          self.nixosModules.ctl-server
+          ./nix/test-nixos-configuration.nix
+        ];
+      };
+
       hydraJobs = perSystem (system:
         self.checks.${system}
         // self.packages.${system}
         // self.devShells.${system}
+        // { vm = "self.nixosConfigurations.test.config.system.build.vm"; }
       );
     };
 }

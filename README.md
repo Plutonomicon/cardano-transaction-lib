@@ -24,8 +24,8 @@
 - [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
 - [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
 - [x] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary)
-  - [ ] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API (**In progress**)
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet
+  - [x] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet (**In progress**)
 - [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server
 
 ### Light wallet support
@@ -89,5 +89,5 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 You can find help, more information and ongoing discusion about the project here:
 
-- [Plutonomicon Discord](https://discord.gg/SQUxC6Vm)
+- [Plutonomicon Discord](https://discord.gg/JhbexnV9Pc)
 - #ctl channel at MLabs' Slack

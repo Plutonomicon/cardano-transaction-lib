@@ -73,7 +73,7 @@ import Data.Maybe (Maybe)
 -- | `TxConstraints`. You will probably want to use this version as it returns
 -- | datums and redeemers that require attaching (and maybe reindexing) in
 -- | a separate call. In particular, this should be called in conjuction with
--- | `balanceAndSignTx`.
+-- | `balanceTx` and  `signTransaction`.
 mkUnbalancedTx
   :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
        (redeemer :: Type)
