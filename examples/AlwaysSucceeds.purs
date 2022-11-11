@@ -90,7 +90,11 @@ spendFromAlwaysSucceeds
   -> TransactionHash
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
+  -- Use own stake credential if available
+  mbStakeKeyHash <- ownStakePubKeyHash
+  let
+    scriptAddress =
+      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->
