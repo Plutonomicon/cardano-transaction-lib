@@ -24,7 +24,7 @@ import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
+import Ctl.Internal.Types.PlutusData (PlutusData(Integer, List))
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left))
