@@ -18,6 +18,8 @@ module Ctl.Internal.Test.E2E.Types
   , mkE2ETest
   , RunningE2ETest
   , SomeWallet
+  , E2EWallet(NoWallet, PlutipCluster, WalletExtension)
+  , getE2EWalletExtension
   ) where
 
 import Prelude
@@ -111,23 +113,42 @@ type SettingsRuntime =
   , settingsArchive :: SettingsArchive
   }
 
+data E2EWallet = NoWallet | PlutipCluster | WalletExtension WalletExt
+
+derive instance Generic E2EWallet _
+derive instance Eq E2EWallet
+derive instance Ord E2EWallet
+
+instance Show E2EWallet where
+  show = genericShow
+
+getE2EWalletExtension :: E2EWallet -> Maybe WalletExt
+getE2EWalletExtension (WalletExtension ext) = Just ext
+getE2EWalletExtension _ = Nothing
+
 -- | A particular test instance.
 type E2ETest =
   { url :: String
-  , wallet :: Maybe WalletExt
+  , wallet :: E2EWallet
+  , specString :: String
   }
 
 -- | Construct an `E2ETest` from a spec (`wallet:url`)
 mkE2ETest :: String -> Maybe E2ETest
 mkE2ETest str =
-  (stripPrefix (Pattern "eternl:") str <#> mkTestEntry (Just EternlExt))
-    <|> (stripPrefix (Pattern "flint:") str <#> mkTestEntry (Just FlintExt))
-    <|> (stripPrefix (Pattern "gero:") str <#> mkTestEntry (Just GeroExt))
-    <|> (stripPrefix (Pattern "lode:") str <#> mkTestEntry (Just LodeExt))
-    <|> (stripPrefix (Pattern "nami:") str <#> mkTestEntry (Just NamiExt))
-    <|> (pure $ mkTestEntry Nothing str)
+  (tryWalletPrefix "eternl" <#> mkTestEntry (WalletExtension EternlExt))
+    <|> (tryWalletPrefix "flint" <#> mkTestEntry (WalletExtension FlintExt))
+    <|> (tryWalletPrefix "gero" <#> mkTestEntry (WalletExtension GeroExt))
+    <|> (tryWalletPrefix "lode" <#> mkTestEntry (WalletExtension LodeExt))
+    <|> (tryWalletPrefix "nami" <#> mkTestEntry (WalletExtension NamiExt))
+    <|> (tryWalletPrefix "plutip" <#> mkTestEntry PlutipCluster)
+    <|> (pure $ mkTestEntry NoWallet str)
   where
-  mkTestEntry wallet url = { wallet, url }
+  tryWalletPrefix :: String -> Maybe String
+  tryWalletPrefix prefix = stripPrefix (Pattern $ prefix <> ":") str
+
+  mkTestEntry :: E2EWallet -> String -> E2ETest
+  mkTestEntry wallet url = { wallet, url, specString: str }
 
 -- | Represents a connection to a running E2E test.
 type RunningE2ETest =
