@@ -25,6 +25,7 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] `mustMintValue` (`mintingPolicy`). Also implies
   - `mustMintCurrency`
 - [x] `mustPayToScript` (`validator`)
+- [x] `mustPayToScriptAddress`
 - [x] `mustPayToPubKey`
   - **Note**: This invokes the same code as `mustPayToPubKeyAddress`, but does not include a stake key component
 - [x] `mustPayToPubKeyAddress`
