@@ -15,11 +15,9 @@ module Ctl.Internal.Helpers
   , liftM
   , liftMWith
   , liftedM
-  , liftedHead
   , logString
   , logWithLevel
   , maybeArrayMerge
-  , maybeArrayHead
   , mkErrorRecord
   , notImplemented
   , showWithParens
@@ -34,7 +32,7 @@ import Prelude
 import Aeson (class EncodeAeson, Aeson, encodeAeson)
 import Aeson.Encode (dictionary, encodeTagged)
 import Control.Monad.Error.Class (class MonadError, throwError)
-import Data.Array (head, union)
+import Data.Array (union)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Right), either)
@@ -58,7 +56,7 @@ import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
@@ -109,16 +107,6 @@ liftMWith
   -> m b
 liftMWith err f = liftEither <<< maybe (throwError err) (Right <<< f)
 
-liftedHead
-  :: forall (m :: Type -> Type) (a :: Type)
-   . Monad m
-  => MonadEffect m
-  => String
-  -> m (Maybe (Array a))
-  -> m a
-liftedHead errorMsg contr = (maybeArrayHead <$> contr)
-  >>= maybe (liftEffect $ throw errorMsg) pure
-
 -- | Combine two `Maybe`s taking the `First` `Maybe`
 appendFirstMaybe :: forall (a :: Type). Maybe a -> Maybe a -> Maybe a
 appendFirstMaybe m m' = on (<>) First m m' # \(First m'') -> m''
@@ -144,10 +132,6 @@ maybeArrayMerge x Nothing = x
 maybeArrayMerge (Just x) (Just y) = Just $ union x y
 
 infixr 5 maybeArrayMerge as <<>>
-
--- | The head  function for an array contained in a maybe
-maybeArrayHead :: forall (a :: Type). Maybe (Array a) -> Maybe a
-maybeArrayHead x = x >>= head
 
 -- | Provide an append for Maps where the value has as `Semigroup` instance
 appendMap

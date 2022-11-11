@@ -25,6 +25,7 @@ module Contract.Address
   , ownPubKeyHash
   , ownPubKeysHashes
   , ownStakePubKeyHash
+  , ownStakePubKeysHashes
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyHashRewardAddress

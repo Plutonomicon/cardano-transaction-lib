@@ -5,7 +5,7 @@ module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -14,6 +14,7 @@ import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Data.Array (head)
 import Data.BigInt as BigInt
 
 main :: Effect Unit
@@ -22,8 +23,8 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- liftedM "Failed to get own SKH" $ head <$> ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void

@@ -32,8 +32,6 @@ import Ctl.Internal.Helpers -- Could maybe move this somewhere better:
   , liftEither
   , liftM
   , liftMWith
-  , liftedHead
-  , maybeArrayHead
   , (</>)
   , (<<>>)
   , (<\>)

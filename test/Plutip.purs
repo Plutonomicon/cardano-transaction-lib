@@ -10,10 +10,10 @@ import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
-  , getWalletAddress
+  , getWalletAddresses
   , getWalletCollateral
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   )
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
@@ -126,7 +126,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   , withCip30Mock
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
-import Data.Array (replicate, (!!))
+import Data.Array (head, replicate, (!!))
 import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Data.Foldable (fold, foldM, length)
@@ -268,9 +268,9 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         checkUtxoDistribution distribution alice
-        pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-          ownPaymentPubKeyHash
-        stakePkh <- withKeyWallet alice ownStakePubKeyHash
+        pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+          ownPaymentPubKeysHashes
+        stakePkh <- head <$> withKeyWallet alice ownStakePubKeysHashes
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
     test "runPlutipContract: Pkh2Pkh with stake key" do
@@ -283,9 +283,9 @@ suite = do
 
       runPlutipContract config distribution \alice -> do
         checkUtxoDistribution distribution alice
-        pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-          ownPaymentPubKeyHash
-        stakePkh <- withKeyWallet alice ownStakePubKeyHash
+        pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+          ownPaymentPubKeysHashes
+        stakePkh <- head <$> withKeyWallet alice ownStakePubKeysHashes
         stakePkh `shouldSatisfy` isJust
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
@@ -307,14 +307,14 @@ suite = do
         checkUtxoDistribution distribution wallets
         sequential ado
           parallel $ withKeyWallet alice do
-            pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-              ownPaymentPubKeyHash
-            stakePkh <- withKeyWallet bob ownStakePubKeyHash
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet bob
+              ownPaymentPubKeysHashes
+            stakePkh <- head <$> withKeyWallet bob ownStakePubKeysHashes
             pkh2PkhContract pkh stakePkh
           parallel $ withKeyWallet bob do
-            pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-              ownPaymentPubKeyHash
-            stakePkh <- withKeyWallet alice ownStakePubKeyHash
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+              ownPaymentPubKeysHashes
+            stakePkh <- head <$> withKeyWallet alice ownStakePubKeysHashes
             pkh2PkhContract pkh stakePkh
           in unit
 
@@ -336,14 +336,14 @@ suite = do
           checkUtxoDistribution distribution wallets
           sequential ado
             parallel $ withKeyWallet alice do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet bob
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet bob ownStakePubKeyHash
+              pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet bob
+                ownPaymentPubKeysHashes
+              stakePkh <- head <$> withKeyWallet bob ownStakePubKeysHashes
               pkh2PkhContract pkh stakePkh
             parallel $ withKeyWallet bob do
-              pkh <- liftedM "Failed to get PKH" $ withKeyWallet alice
-                ownPaymentPubKeyHash
-              stakePkh <- withKeyWallet alice ownStakePubKeyHash
+              pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+                ownPaymentPubKeysHashes
+              stakePkh <- head <$> withKeyWallet alice ownStakePubKeysHashes
               pkh2PkhContract pkh stakePkh
             in unit
 
@@ -377,14 +377,14 @@ suite = do
       runPlutipContract config distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
           alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
-            coerce <$> withKeyWallet alice ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet alice ownPaymentPubKeysHashes
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
-            coerce <$> withKeyWallet bob ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet bob ownPaymentPubKeysHashes
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
-            coerce <$> withKeyWallet charlie
-              ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet charlie
+              ownPaymentPubKeysHashes
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            coerce <$> withKeyWallet dan ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet dan ownPaymentPubKeysHashes
           let
             nativeScript = ScriptAll
               [ ScriptPubkey alicePaymentPKH
@@ -474,14 +474,14 @@ suite = do
       runPlutipContract config distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
           alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
-            coerce <$> withKeyWallet alice ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet alice ownPaymentPubKeysHashes
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
-            coerce <$> withKeyWallet bob ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet bob ownPaymentPubKeysHashes
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
-            coerce <$> withKeyWallet charlie
-              ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet charlie
+              ownPaymentPubKeysHashes
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            coerce <$> withKeyWallet dan ownPaymentPubKeyHash
+            (coerce <<< head) <$> withKeyWallet dan ownPaymentPubKeysHashes
           let
             nativeScript = ScriptNOfK 2
               [ ScriptPubkey alicePaymentPKH
@@ -864,8 +864,8 @@ suite = do
           [] /\ [ BigInt.fromInt 2_100_000_000 ]
       runPlutipContract config distribution \(alice /\ seed) -> do
         alicePkh /\ aliceStakePkh <- withKeyWallet alice do
-          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
-          stakePkh <- ownStakePubKeyHash
+          pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
+          stakePkh <- head <$> ownStakePubKeysHashes
           pure $ pkh /\ stakePkh
 
         mp <- alwaysMintsPolicy
@@ -957,8 +957,8 @@ suite = do
 
       runPlutipContract config distribution \(alice /\ bob) -> do
         receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          withKeyWallet bob ownPaymentPubKeyHash
-        receiverSkh <- withKeyWallet bob ownStakePubKeyHash
+          head <$> withKeyWallet bob ownPaymentPubKeysHashes
+        receiverSkh <- head <$> withKeyWallet bob ownStakePubKeysHashes
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
@@ -1009,7 +1009,7 @@ suite = do
 
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+          pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
 
           let
             constraints0 :: TxConstraints Unit Unit
@@ -1103,7 +1103,7 @@ suite = do
 
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice do
-          pkh <- liftedM "Failed to get PKH" $ ownPaymentPubKeyHash
+          pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
 
           wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
           logInfo' $ "wUtxos0 " <> show wUtxos0
@@ -1301,11 +1301,11 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         mockAddress <- withCip30Mock alice MockNami do
-          mbAddr <- getWalletAddress
+          mbAddr <- head <$> getWalletAddresses
           mbAddr `shouldSatisfy` isJust
           pure mbAddr
-        kwAddress <- withKeyWallet alice do
-          getWalletAddress
+        kwAddress <- head <$> withKeyWallet alice do
+          getWalletAddresses
         mockAddress `shouldEqual` kwAddress
 
     test "CIP-30 mock: Pkh2Pkh" do
@@ -1317,8 +1317,8 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withCip30Mock alice MockNami do
-          pkh <- liftedM "Failed to get PKH" ownPaymentPubKeyHash
-          stakePkh <- ownStakePubKeyHash
+          pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
+          stakePkh <- head <$> ownStakePubKeysHashes
           pkh2PkhContract pkh stakePkh
 
     test "CIP-30 mock: getWalletBalance" do
@@ -1366,8 +1366,8 @@ suite = do
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  stakePkh <- ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  stakePkh <- head <$> ownStakePubKeysHashes
   let
     constraints :: Constraints.TxConstraints Void Void
     constraints = mustPayToPubKeyStakeAddress pkh stakePkh
