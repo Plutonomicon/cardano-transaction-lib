@@ -4,6 +4,7 @@ module Test.Scaffold.Main (main) where
 
 import Contract.Prelude
 
+import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
 import Contract.Test.Plutip as Contract.Test.Plutip
 import Contract.Wallet as Contract.Wallet
@@ -55,5 +56,5 @@ config =
       }
   , customLogger: Nothing
   , suppressLogs: true
-  , hooks: mempty
+  , hooks: Contract.Config.emptyHooks
   }

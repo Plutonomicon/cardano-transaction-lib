@@ -6,6 +6,8 @@ module Ctl.Internal.Test.E2E.Options
   , Tests_
   , TestTimeout_
   , CommonOptions_
+  , ClusterPortsOptions_
+  , ClusterPortsOptions
   , SettingsOptions
   , E2ECommand
       ( RunE2ETests
@@ -16,6 +18,7 @@ module Ctl.Internal.Test.E2E.Options
   , parseCliArgs
   , commands
   , parseOptions
+  , defaultPorts
   ) where
 
 import Prelude
@@ -48,6 +51,8 @@ import Data.Maybe (Maybe(Nothing, Just))
 import Data.Show.Generic (genericShow)
 import Data.String (toLower)
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect (Effect)
 import Node.Path (FilePath)
 import Options.Applicative
@@ -79,7 +84,20 @@ import Type.Row (type (+))
 
 -- | CLI options for E2E tests.
 type TestOptions = Record
-  (NoHeadless_ + Tests_ + TestTimeout_ + CommonOptions_ + ())
+  ( NoHeadless_ + Tests_ + TestTimeout_ + ClusterPortsOptions_ + CommonOptions_
+      + ()
+  )
+
+type ClusterPortsOptions_ (r :: Row Type) =
+  ( plutipPort :: Maybe UInt
+  , ogmiosPort :: Maybe UInt
+  , ogmiosDatumCachePort :: Maybe UInt
+  , ctlServerPort :: Maybe UInt
+  , postgresPort :: Maybe UInt
+  | r
+  )
+
+type ClusterPortsOptions = Record (ClusterPortsOptions_ ())
 
 type NoHeadless_ (r :: Row Type) = (noHeadless :: Boolean | r)
 
@@ -272,7 +290,8 @@ testOptionsParser = ado
     , showDefaultWith $ const "E2E_TEST_TIMEOUT"
     , metavar "SECONDS"
     ]
-  in build (merge res) { noHeadless, tests, testTimeout }
+  (clusterPorts :: ClusterPortsOptions) <- clusterPortsOptionsParser
+  in build (merge clusterPorts <<< merge res) { noHeadless, tests, testTimeout }
 
 testParser :: ReadM E2ETest
 testParser = eitherReader \str ->
@@ -280,6 +299,79 @@ testParser = eitherReader \str ->
     ( "Unable to parse test specification from: " <> str
     )
     $ mkE2ETest str
+
+uintParser :: ReadM UInt
+uintParser = eitherReader \str ->
+  note "Unable to parse unsigned integer" $ UInt.fromString str
+
+defaultPorts
+  :: { ctlServer :: Int
+     , ogmios :: Int
+     , ogmiosDatumCache :: Int
+     , plutip :: Int
+     , postgres :: Int
+     }
+defaultPorts =
+  { plutip: 8087
+  , ogmios: 1345
+  , ogmiosDatumCache: 10005
+  , ctlServer: 8088
+  , postgres: 5438
+  }
+
+clusterPortsOptionsParser :: Parser ClusterPortsOptions
+clusterPortsOptionsParser = ado
+  plutipPort <- option (Just <$> uintParser) $ fold
+    [ long "plutip-port"
+    , help "Plutip port for use with local cluster"
+    , value Nothing
+    , showDefaultWith $ const $
+        showPort "PLUTIP" defaultPorts.plutip
+    , metavar "PORT"
+    ]
+  ogmiosPort <- option (Just <$> uintParser) $ fold
+    [ long "ogmios-port"
+    , help "Ogmios port for use with local Plutip cluster"
+    , value Nothing
+    , showDefaultWith $ const $
+        showPort "OGMIOS" defaultPorts.ogmios
+    , metavar "PORT"
+    ]
+  ogmiosDatumCachePort <- option (Just <$> uintParser) $ fold
+    [ long "ogmios-datum-cache-port"
+    , help "Ogmios Datum Cache port for use with local Plutip cluster"
+    , value Nothing
+    , showDefaultWith $ const $
+        showPort "OGMIOS_DATUM_CACHE" defaultPorts.ogmiosDatumCache
+    , metavar "PORT"
+    ]
+  ctlServerPort <- option (Just <$> uintParser) $ fold
+    [ long "ctl-server-port"
+    , help "ctl-server port for use with local Plutip cluster"
+    , value Nothing
+    , showDefaultWith $ const $
+        showPort "CTL_SERVER" defaultPorts.ctlServer
+    , metavar "PORT"
+    ]
+  postgresPort <- option (Just <$> uintParser) $ fold
+    [ long "postgres-port"
+    , help "Postgres port for use with local Plutip cluster"
+    , value Nothing
+    , showDefaultWith $ const $
+        showPort "POSTGRES" defaultPorts.postgres
+    , metavar "PORT"
+    ]
+  in
+    { plutipPort
+    , ogmiosPort
+    , ogmiosDatumCachePort
+    , ctlServerPort
+    , postgresPort
+    }
+  where
+  showPort :: String -> Int -> String
+  showPort service defaultPort =
+    service <> "_PORT or " <> show defaultPort
 
 testUrlsOptionParser :: Parser (Array E2ETest)
 testUrlsOptionParser =
