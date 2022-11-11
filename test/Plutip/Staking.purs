@@ -343,7 +343,7 @@ suite = do
           for_ pools \poolId -> do
             logInfo' "Pool parameters"
             logInfo' <<< show =<< getPoolParameters poolId
-          pools `shouldSatisfy` (not <<< Array.elem poolOperator)
+          pools `shouldSatisfy` Array.notElem poolOperator
 
     test "Plutus Stake script: delegate to existing pool & withdraw rewards" do
       let
@@ -353,7 +353,6 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice do
-          pure unit
           alicePkh /\ aliceStakePkh <- Tuple
             <$> liftedM "Failed to get PKH" ownPaymentPubKeyHash
             <*> liftedM "Failed to get Stake PKH" ownStakePubKeyHash
