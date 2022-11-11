@@ -36,3 +36,13 @@ exports._privateKeyFromBytes = maybe => bytes => {
     return maybe.nothing;
   }
 };
+
+exports.privateKeyToBech32 = privateKey => privateKey.to_bech32();
+
+exports._privateKeyFromBech32 = maybe => bech32 => {
+  try {
+    return maybe.just(lib.PrivateKey.from_bech32(bech32));
+  } catch (_) {
+    return maybe.nothing;
+  }
+};

@@ -21,8 +21,11 @@ import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.QueryM (ClusterSetup)
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
 import Ctl.Internal.Serialization.Types (PrivateKey)
-import Ctl.Internal.Test.E2E.Feedback.Hooks (e2eFeedbackHooks)
+import Ctl.Internal.Test.E2E.Feedback.Browser (getClusterSetupRepeatedly)
+import Ctl.Internal.Test.E2E.Feedback.Hooks (addE2EFeedbackHooks)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToEternl))
@@ -33,15 +36,16 @@ import Data.Either (Either(Left), note)
 import Data.Foldable (fold)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (wrap)
 import Data.String (stripPrefix)
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (delay, launchAff_)
-import Effect.Exception (error)
+import Effect.Aff (Aff, delay, launchAff_)
+import Effect.Class (liftEffect)
+import Effect.Exception (error, throw)
 
 -- | A name of some particular test. Used in the URL
 type E2ETestName = String
@@ -122,17 +126,23 @@ addLinks configMaps testMaps = do
 -- | eternl:AlwaysSucceeds:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209
 -- | nami-mock:MintsMultiple:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
 -- | ```
+-- |
+-- | In case that for the specified `E2EConfigName` a `WalletMock` is provided
+-- | (present in the `Map`), but no private keys are given, this function
+-- | assumes that the test is running on a local cluster, and pre-funded keys
+-- | from the cluster should be used. If there's no local cluster, an error
+-- | will be thrown.
 route
   :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
   -> Map E2ETestName (Contract () Unit)
   -> Effect Unit
 route configs tests = do
   queryString <- fold <<< last <<< split (Pattern "?") <$> _queryString
-  { configName, testName, paymentKey: mbPaymentKey, stakeKey } <-
+  { configName, testName, paymentKey: mbPaymentKey, stakeKey: mbStakeKey } <-
     liftEither $ lmap error $ parseRoute queryString
   config /\ mbMock <-
     liftMaybe
-      (error $ "Unable to look up the config parameters: " <> configName) $
+      (error $ noConfigParametersError configName) $
       Map.lookup configName configs
   test <-
     liftMaybe (error $ "Unable to look up the `Contract` to run: " <> testName)
@@ -141,22 +151,68 @@ route configs tests = do
     delayIfEternl config
     case mbMock of
       Nothing ->
-        runContract config { hooks = e2eFeedbackHooks } test
+        runContract config { hooks = addE2EFeedbackHooks config.hooks } test
       Just mock -> do
-        -- Payment key is required for CIP-30 mocking
-        paymentKey <-
-          liftMaybe (error "Payment key was not provided for CIP-30 mocking!")
-            mbPaymentKey
-        runContract config
-          { walletSpec = Nothing, hooks = e2eFeedbackHooks }
-          $ withCip30Mock (privateKeysToKeyWallet paymentKey stakeKey) mock test
+        { paymentKey, stakeKey } /\ mbClusterSetup <- case mbPaymentKey of
+          Just paymentKey ->
+            pure $ { paymentKey, stakeKey: mbStakeKey } /\ Nothing
+          Nothing -> do
+            clusterSetup@{ keys: { payment, stake } } <-
+              getClusterSetupRepeatedly
+            when (config.networkId /= MainnetId) do
+              liftEffect $ throw wrongNetworkIdOnCluster
+            pure $ { paymentKey: payment, stakeKey: stake } /\ Just clusterSetup
+        let
+          configWithHooks =
+            config
+              -- add hooks that allow communicating between nodejs and the
+              -- browser
+              { walletSpec = Nothing, hooks = addE2EFeedbackHooks config.hooks }
+              -- override service ports from cluster setup if it's present
+              # maybe identity setClusterOptions mbClusterSetup
+        do
+          runContract configWithHooks
+            $ withCip30Mock (privateKeysToKeyWallet paymentKey stakeKey) mock
+                test
   where
-  -- | Eternl does not initialize instantly
+  -- Eternl does not initialize instantly. We have to add a small delay.
+  delayIfEternl :: forall (r :: Row Type). ConfigParams r -> Aff Unit
   delayIfEternl config =
     case config.walletSpec of
       Just ConnectToEternl ->
         delay $ wrap 3000.0
       _ -> pure unit
+
+  noConfigParametersError :: E2EConfigName -> String
+  noConfigParametersError configName =
+    "Unable to look up the config parameters: " <> configName
+      <> "Common reasons are:\n"
+      <> "- The page that is used to serve the test contracts is not up to "
+      <> "date\n"
+      <> "- The name of the test suite configuration is wrong ("
+      <> configName
+      <> ")"
+
+  wrongNetworkIdOnCluster :: String
+  wrongNetworkIdOnCluster =
+    "No payment keys were specified, which implies they should be retrieved "
+      <> "from a local cluster, however, network ID was set to TestnetId, "
+      <> "which is incompatible with Plutip, that always uses MainnetId."
+
+  -- Override config values with parameters from cluster setup
+  setClusterOptions
+    :: forall (r :: Row Type). ClusterSetup -> ConfigParams r -> ConfigParams r
+  setClusterOptions
+    { ctlServerConfig
+    , ogmiosConfig
+    , datumCacheConfig
+    }
+    config =
+    config
+      { ctlServerConfig = ctlServerConfig
+      , ogmiosConfig = ogmiosConfig
+      , datumCacheConfig = datumCacheConfig
+      }
 
 foreign import _queryString :: Effect String
 

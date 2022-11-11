@@ -31,14 +31,8 @@ import Contract.Scripts
   )
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
-import Contract.Transaction
-  ( TransactionInput
-  , awaitTxConfirmed
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.Transaction (TransactionInput, awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)

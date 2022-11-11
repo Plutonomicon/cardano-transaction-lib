@@ -51,6 +51,7 @@ import Ctl.Internal.Plutip.UtxoDistribution
 import Ctl.Internal.QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , Logger
+  , emptyHooks
   , mkLogger
   , stopQueryRuntime
   )
@@ -500,7 +501,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         , walletSpec: Nothing
         , customLogger: customLogger
         , suppressLogs: plutipCfg.suppressLogs
-        , hooks: mempty
+        , hooks: emptyHooks
         }
     , runtime:
         { ogmiosWs

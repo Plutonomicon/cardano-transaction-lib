@@ -279,7 +279,7 @@ signTransaction =
     <<< unwrap
 
 -- | Submits a `BalancedSignedTransaction`, which is the output of
--- | `signTransaction` or `balanceAndSignTx`
+-- | `signTransaction`
 submit
   :: forall (r :: Row Type)
    . BalancedSignedTransaction
