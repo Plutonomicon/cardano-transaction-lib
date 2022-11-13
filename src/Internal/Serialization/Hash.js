@@ -12,7 +12,7 @@ const hashFromImpl = hashClassFrom => maybe => input => {
   try {
     ret = hashClassFrom(input);
   } catch (e) {
-    console.log(e);
+    // Do nothing
   }
   if (ret == null) {
     return maybe.nothing;
@@ -33,7 +33,7 @@ const hashToBech32Impl = maybe => prefix => hash => {
   try {
     ret = hash.to_bech32(prefix);
   } catch (e) {
-    console.log(e);
+    // Do nothing
   }
   if (ret == null) {
     return maybe.nothing;
