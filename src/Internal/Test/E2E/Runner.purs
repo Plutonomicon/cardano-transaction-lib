@@ -96,7 +96,6 @@ import Effect.Aff
   , launchAff
   , launchAff_
   , makeAff
-  , throwError
   , try
   )
 import Effect.Aff.Class (liftAff)
