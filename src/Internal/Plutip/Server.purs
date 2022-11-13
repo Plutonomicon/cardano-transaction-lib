@@ -21,6 +21,7 @@ import Contract.Monad
   , liftContractM
   , runContractInEnv
   )
+import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(Success, NoOp)
@@ -376,9 +377,9 @@ startPostgresServer pgConfig params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
-    workingDir = tmpDir <> "/" <> randomStr
-    databaseDir = workingDir <> "/postgres/data"
-    postgresSocket = workingDir <> "/postgres"
+    workingDir = tmpDir <</>> randomStr
+    databaseDir = workingDir <</>> "postgres/data"
+    postgresSocket = workingDir <</>> "postgres"
     testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect $ void $ execSync ("initdb " <> databaseDir) defaultExecSyncOptions
   pgChildProcess <- liftEffect $ spawn "postgres"
@@ -529,4 +530,4 @@ defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
 
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do
-  "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
+  "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <</>> path

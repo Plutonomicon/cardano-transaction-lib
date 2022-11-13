@@ -12,8 +12,10 @@ module Ctl.Internal.QueryM.ServerConfig
 
 import Prelude
 
+import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.JsWebSocket (Url)
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
+import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 
@@ -57,7 +59,7 @@ mkWsUrl :: ServerConfig -> Url
 mkWsUrl = mkServerUrl "ws"
 
 mkOgmiosDatumCacheWsUrl :: ServerConfig -> Url
-mkOgmiosDatumCacheWsUrl cfg = mkWsUrl cfg <> "/ws"
+mkOgmiosDatumCacheWsUrl cfg = mkWsUrl cfg <</>> "ws"
 
 mkServerUrl :: String -> ServerConfig -> Url
 mkServerUrl protocol cfg =
@@ -66,4 +68,4 @@ mkServerUrl protocol cfg =
     <> cfg.host
     <> ":"
     <> UInt.toString cfg.port
-    <> maybe "" ("/" <> _) cfg.path
+    <> maybe "" ("" <</>> _) cfg.path

@@ -10,7 +10,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (liftedM)
+import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
@@ -289,7 +289,7 @@ runBrowser
   -> Aff Unit
 runBrowser tmpDir chromeUserDataDir browser extensions = do
   let
-    extPath ext = tmpDir <> "/" <> unExtensionId ext.extensionId
+    extPath ext = tmpDir <</>> unExtensionId ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
@@ -456,7 +456,7 @@ ensureChromeUserDataDir chromeUserDataDir = do
     defaultSpawnOptions
     defaultErrorReader
   void $ spawnAndCollectOutput "rm"
-    [ "-f", chromeUserDataDir <> "/" <> "SingletonLock" ]
+    [ "-f", chromeUserDataDir <</>> "SingletonLock" ]
     defaultSpawnOptions
     defaultErrorReader
 
@@ -545,7 +545,7 @@ extractExtension tmpDir extension = do
   void $ spawnAndCollectOutput "unzip"
     [ extension.crx
     , "-d"
-    , tmpDir <> "/" <> unExtensionId extension.extensionId
+    , tmpDir <</>> unExtensionId extension.extensionId
     ]
     defaultSpawnOptions
     errorReader
@@ -695,10 +695,10 @@ createTmpDir mbOptionsTmpDir browser = do
       defaultErrorReader
   createNewSubdir prefix = do
     uniqPart <- execAndCollectOutput "mktemp -du e2e.XXXXXXX"
-    void $ spawnAndCollectOutput "mkdir" [ "-p", prefix <> "/" <> uniqPart ]
+    void $ spawnAndCollectOutput "mkdir" [ "-p", prefix <</>> uniqPart ]
       defaultSpawnOptions
       defaultErrorReader
-    pure $ prefix <> "/" <> uniqPart
+    pure $ prefix <</>> uniqPart
   createNew = do
     realPath <- spawnAndCollectOutput "which" [ browser ]
       defaultSpawnOptions
@@ -713,8 +713,8 @@ createTmpDir mbOptionsTmpDir browser = do
           <> " provide E2E_TMPDIR variable or use --tmp-dir CLI argument"
     else do
       prefix <- execAndCollectOutput "mktemp -d"
-      void $ execAndCollectOutput $ "mkdir -p " <> prefix <> "/" <> uniqPart
-      pure $ prefix <> "/" <> uniqPart
+      void $ execAndCollectOutput $ "mkdir -p " <> prefix <</>> uniqPart
+      pure $ prefix <</>> uniqPart
 
 execAndCollectOutput_
   :: String
