@@ -2,11 +2,13 @@ module Ctl.Internal.Helpers
   ( (</>)
   , (<<>>)
   , (<\>)
+  , (<</>>)
   , appendFirstMaybe
   , appendLastMaybe
   , appendMap
   , appendRightMap
   , bigIntToUInt
+  , concatPaths
   , filterMapM
   , filterMapWithKeyM
   , fromJustEff
@@ -44,13 +46,14 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.Newtype (unwrap)
 import Data.Op (Op(Op))
 import Data.Set (Set)
 import Data.Set (toUnfoldable) as Set
+import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
 import Data.Tuple (snd, uncurry)
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
@@ -246,3 +249,16 @@ encodeTagged' str x = encodeTagged str x (Op encodeAeson)
 
 encodeSet :: forall (a :: Type). EncodeAeson a => Set a -> Aeson
 encodeSet set = encodeAeson (Set.toUnfoldable set :: Array a)
+
+-- | Concat two strings with "/" in the middle, but stripping multiple slashes.
+-- No slash if second string empty.
+concatPaths :: String -> String -> String
+concatPaths a b =
+  if null right then left
+  else left <> "/" <> right
+
+  where
+  left = fromMaybe a (stripSuffix (Pattern "/") a)
+  right = fromMaybe b (stripPrefix (Pattern "/") b)
+
+infixr 5 concatPaths as <</>> -- </> is taken
