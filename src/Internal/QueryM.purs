@@ -700,10 +700,19 @@ ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 ownStakePubKeyHash :: QueryM (Array StakePubKeyHash)
 ownStakePubKeyHash = do
   addresses <- getWalletAddresses
-  let
-    baseAddresses = mapMaybe baseAddressFromAddress addresses
-    stakeCredentials = baseAddressDelegationCred <$> baseAddresses
-    keyHashes = mapMaybe stakeCredentialToKeyHash stakeCredentials
+  baseAddresses <- traverse
+    ( liftM
+        (error "ownStakePubKeyHash: failed to convert to base address")
+        <<< baseAddressFromAddress
+    )
+    addresses
+  keyHashes <- traverse
+    ( liftM
+        (error "ownStakePubKeyHash: failed to convert to get ed25519KeyHash")
+        <<< stakeCredentialToKeyHash
+        <<< baseAddressDelegationCred
+    )
+    baseAddresses
   pure $ wrap <<< wrap <$> keyHashes
 
 withMWalletAff
