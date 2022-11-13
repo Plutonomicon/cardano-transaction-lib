@@ -14,9 +14,7 @@ import Contract.TxConstraints
   )
 import Contract.Value as Value
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
-import Data.Function (on)
 import Data.Lattice (join)
-import Data.Newtype (class Newtype, unwrap)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Mote (group, test)
