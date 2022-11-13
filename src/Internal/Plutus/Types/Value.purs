@@ -53,7 +53,7 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   , adaSymbol
   , mkCurrencySymbol
   )
-import Ctl.Internal.QuickCheck (unMaybeGen)
+import Ctl.Internal.QuickCheck (genPositive, unMaybeGen)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
@@ -91,7 +91,7 @@ arbitrarySingletonValue :: Gen Value
 arbitrarySingletonValue = do
   currencySymbol <- unMaybeGen $ mkCurrencySymbol <$> arbitrary
   tokenName <- unMaybeGen $ mkTokenName <$> arbitrary
-  num <- BigInt.fromInt <$> arbitrary
+  num <- BigInt.fromInt <$> genPositive
   pure $ singleton currencySymbol tokenName num
 
 instance Arbitrary Value where
