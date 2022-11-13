@@ -42,7 +42,7 @@ module Contract.Address
 import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
-import Contract.Prelude (maybe)
+import Contract.Prelude (liftM)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( enterpriseAddressScriptHash
@@ -128,7 +128,7 @@ import Ctl.Internal.Types.PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Ctl.Internal.Types.TypedValidator (TypedValidator)
 import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey)) as ExportUnbalancedTransaction
-import Data.Array (head, mapMaybe)
+import Data.Array (head)
 import Data.Maybe (Maybe)
 import Data.Traversable (for, traverse)
 import Effect.Exception (error)
@@ -139,24 +139,29 @@ getWalletAddress
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `Adress` even in case multiple `Adresses` are available. Use getWalletAdresses instead"
+           "This function returns only one `Adress` even in case multiple `Adresses` are available. Use `getWalletAdresses` instead"
        )
   => Contract r (Maybe Address)
 getWalletAddress = head <$> getWalletAddresses
 
--- | Get all the `Addresses` of the browser wallet discarding errors.
+-- | Get all the `Addresses` of the browser wallet.
 getWalletAddresses
   :: forall (r :: Row Type). Contract r (Array Address)
 getWalletAddresses = do
   addresses <- wrapContract $ QueryM.getWalletAddresses
-  pure $ mapMaybe toPlutusAddress addresses
+  traverse
+    ( liftM
+        (error "getWalletAddresses: failed to deserialize `Address`")
+        <<< toPlutusAddress
+    )
+    addresses
 
 -- | Get an `AddressWithNetworkTag` of the browser wallet.
 getWalletAddressWithNetworkTag
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use getWalletAddressesWithNetworkTag instead"
+           "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use `getWalletAddressesWithNetworkTag` instead"
        )
   => Contract r (Maybe AddressWithNetworkTag)
 getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
@@ -164,9 +169,16 @@ getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
 -- | Get all the `AddressWithNetworkTag` of the browser wallet discarding errors.
 getWalletAddressesWithNetworkTag
   :: forall (r :: Row Type). Contract r (Array AddressWithNetworkTag)
-getWalletAddressesWithNetworkTag =
-  wrapContract QueryM.getWalletAddresses
-    >>= (pure <<< mapMaybe toPlutusAddressWithNetworkTag)
+getWalletAddressesWithNetworkTag = do
+  addresses <- wrapContract QueryM.getWalletAddresses
+  traverse
+    ( liftM
+        ( error
+            "getWalletAddressesWithNetworkTag: failed to deserialize `Address`"
+        )
+        <<< toPlutusAddressWithNetworkTag
+    )
+    addresses
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
@@ -188,7 +200,7 @@ ownPaymentPubKeyHash
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHashes` are available. Use ownPaymentPubKeysHashes instead"
+           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHashes` are available. Use `ownPaymentPubKeysHashes` instead"
        )
   => Contract r (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
@@ -203,7 +215,7 @@ ownPubKeyHash
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `PubKeyHash` even in case multiple `PubKeysHashes` are available. Use ownPubKeysHashes instead"
+           "This function returns only one `PubKeyHash` even in case multiple `PubKeysHashes` are available. Use `ownPubKeysHashes` instead"
        )
   => Contract r (Maybe PubKeyHash)
 ownPubKeyHash = head <$> ownPubKeysHashes
@@ -216,7 +228,7 @@ ownStakePubKeyHash
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHashes` are available. Use ownStakePubKeysHashes instead"
+           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHashes` are available. Use `ownStakePubKeysHashes` instead"
        )
   => Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = head <$> ownStakePubKeysHashes
