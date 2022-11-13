@@ -124,7 +124,7 @@ Then save a script to a file:
 import Cardano.Api (writeFileTextEnvelope, PlutusScriptV1, SerialiseAsCBOR (deserialiseFromCBOR), AsType (AsScript, AsPlutusScriptV1), Script)
 
 main =
-  case deserialiseFromCBOR (AsScript AsPlutusScriptV1) $ toCardanoApiScript alwaysSucceedsCompiled of
+  case deserialiseFromCBOR (AsScript AsPlutusScriptV1) $ scriptToCBOR alwaysSucceedsCompiled of
     Left err -> print err
     Right script ->
       writeFileTextEnvelope @(Script PlutusScriptV1) "always-succeeds.plutus" (Just "My script") script
