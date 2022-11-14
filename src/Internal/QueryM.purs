@@ -57,7 +57,6 @@ module Ctl.Internal.QueryM
   , mkRequestAff
   , mkWalletBySpec
   , ownPaymentPubKeyHashes
-  , ownPubKeyHashes
   , ownStakePubKeyHash
   , runQueryM
   , runQueryMWithSettings

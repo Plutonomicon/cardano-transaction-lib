@@ -21,8 +21,6 @@ module Contract.Address
   , module TypeAliases
   , ownPaymentPubKeyHash
   , ownPaymentPubKeysHashes
-  , ownPubKeyHash
-  , ownPubKeysHashes
   , ownStakePubKeyHash
   , ownStakePubKeysHashes
   , payPubKeyHashBaseAddress
@@ -74,7 +72,6 @@ import Ctl.Internal.QueryM
   ( getNetworkId
   , getWalletAddresses
   , ownPaymentPubKeyHashes
-  , ownPubKeyHashes
   , ownStakePubKeyHash
   ) as QueryM
 import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
@@ -206,20 +203,6 @@ ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
 ownPaymentPubKeysHashes
   :: forall (r :: Row Type). Contract r (Array PaymentPubKeyHash)
 ownPaymentPubKeysHashes = wrapContract QueryM.ownPaymentPubKeyHashes
-
--- | Gets a wallet `PubKeyHash` via `getWalletAddress`.
-ownPubKeyHash
-  :: forall (r :: Row Type)
-   . Warn
-       ( Text
-           "This function returns only one `PubKeyHash` even in case multiple `PubKeysHash`es are available. Use `ownPubKeysHashes` instead"
-       )
-  => Contract r (Maybe PubKeyHash)
-ownPubKeyHash = head <$> ownPubKeysHashes
-
--- | Gets all wallet `PubKeyHash`es via `getWalletAddress`.
-ownPubKeysHashes :: forall (r :: Row Type). Contract r (Array PubKeyHash)
-ownPubKeysHashes = wrapContract QueryM.ownPubKeyHashes
 
 ownStakePubKeyHash
   :: forall (r :: Row Type)
