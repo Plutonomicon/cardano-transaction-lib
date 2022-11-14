@@ -267,8 +267,7 @@ startPlutipCluster cfg keysToGenerate = do
                 $ RequestBody.String
                 $ stringifyAeson
                 $ encodeAeson
-                $ ClusterStartupRequest
-                    { keysToGenerate }
+                $ ClusterStartupRequest { keysToGenerate }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -277,10 +276,8 @@ startPlutipCluster cfg keysToGenerate = do
       )
     pure $ response # either
       (Left <<< ClientHttpError)
-      ( lmap ClientDecodeJsonError
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
+      \{ body } -> lmap (ClientDecodeJsonError body)
+        $ (decodeAeson <=< parseJsonStringToAeson) body
   either (liftEffect <<< throw <<< show) pure res >>=
     case _ of
       ClusterStartupFailure _ -> do
@@ -326,10 +323,9 @@ stopPlutipCluster cfg = do
       )
     pure $ response # either
       (Left <<< ClientHttpError)
-      ( lmap ClientDecodeJsonError
-          <<< (decodeAeson <=< parseJsonStringToAeson)
-          <<< _.body
-      )
+      \{ body } -> lmap (ClientDecodeJsonError body)
+        $ (decodeAeson <=< parseJsonStringToAeson)
+            body
   either (liftEffect <<< throw <<< show) pure res
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ChildProcess
