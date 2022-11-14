@@ -26,12 +26,12 @@ import Control.Monad.Reader (local)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
 import Ctl.Internal.QueryM
   ( getChangeAddress
+  , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   , getWallet
   , signData
   ) as QueryM
-import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet

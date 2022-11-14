@@ -2,19 +2,17 @@
   description = "cardano-transaction-lib";
 
   inputs = {
+    iohk-nix.follows = "ogmios/iohk-nix";
+    haskell-nix.follows = "ogmios/haskell-nix";
+    nixpkgs.follows = "ogmios/nixpkgs";
+    CHaP.follows = "ogmios/CHaP";
+
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    # for the purescript project
-    ogmios = {
-      url = "github:mlabs-haskell/ogmios/9c04524d45de2c417ddda9e7ab0d587a54954c57";
-      inputs = {
-        haskell-nix.follows = "haskell-nix";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
+    ogmios.url = "github:mlabs-haskell/ogmios/3b229c1795efa30243485730b78ea053992fdc7a";
 
     plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
     plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
@@ -47,14 +45,9 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix/d56c436a66ec2a8a93b309c83693cef1507dca7a";
+      url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
       flake = false;
     };
-
-    # for the haskell server
-    iohk-nix.url = "github:input-output-hk/iohk-nix";
-    haskell-nix.follows = "plutip/haskell-nix";
-    nixpkgs.follows = "plutip/nixpkgs";
   };
 
   outputs =
@@ -63,6 +56,7 @@
     , haskell-nix
     , iohk-nix
     , cardano-configurations
+    , CHaP
     , ...
     }@inputs:
     let
@@ -184,6 +178,10 @@
               # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
+            ctl-staking-test = project.runPlutipTest {
+              name = "ctl-staking-test";
+              testMain = "Test.Ctl.Plutip.Staking";
+            };
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Ctl.Unit";
@@ -201,7 +199,7 @@
         };
 
       hsProjectFor = pkgs: import ./server/nix {
-        inherit inputs pkgs;
+        inherit inputs pkgs CHaP;
         inherit (pkgs) system;
         src = ./server;
       };
@@ -221,6 +219,26 @@
         purescript = final: prev: {
           easy-ps = import inputs.easy-purescript-nix { pkgs = final; };
           purescriptProject = import ./nix { pkgs = final; };
+        };
+        spago = final: prev: {
+          easy-ps = prev.easy-ps // {
+            spago = prev.easy-ps.spago.overrideAttrs (_: rec {
+              version = "0.20.7";
+              src =
+                if final.stdenv.isDarwin
+                then
+                  final.fetchurl
+                    {
+                      url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
+                      sha256 = "0s5zgz4kqglsavyh7h70zmn16vayg30alp42w3nx0zwaqkp79xla";
+                    }
+                else
+                  final.fetchurl {
+                    url = "https://github.com/purescript/spago/releases/download/${version}/Linux.tar.gz";
+                    sha256 = "0bh15dr1fg306kifqipnakv3rxab7hjfpcfzabw7vmg0gsfx8xka";
+                  };
+            });
+          };
         };
         # This is separate from the `runtime` overlay below because it is
         # optional (it's only required if using CTL's `applyArgs` effect).

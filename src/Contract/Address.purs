@@ -1,8 +1,7 @@
 -- | A module for Address-related functionality and querying own wallet.
 module Contract.Address
-  ( enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
+  ( addressPaymentValidatorHash
+  , addressStakeValidatorHash
   , getNetworkId
   , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
@@ -45,9 +44,8 @@ import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
 import Contract.Prelude (liftM)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
-  ( enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
+  ( addressPaymentValidatorHash
+  , addressStakeValidatorHash
   ) as Address
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
@@ -73,12 +71,12 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.QueryM
-  ( getWalletAddresses
+  ( getNetworkId
+  , getWalletAddresses
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes
   , ownStakePubKeyHash
   ) as QueryM
-import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
 import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
 import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
@@ -102,7 +100,6 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
-import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
 import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
@@ -285,25 +282,18 @@ addressFromBech32 str = do
     (throwError $ error "addressFromBech32: address has wrong NetworkId")
   pure address
 
--- | Get the `ValidatorHash` with an Plutus `Address`
-enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
-enterpriseAddressValidatorHash =
+-- | Get the `ValidatorHash` component of a Plutus `Address`
+addressPaymentValidatorHash :: Address -> Maybe ValidatorHash
+addressPaymentValidatorHash =
   -- Network id does not matter here (#484)
-  Address.enterpriseAddressValidatorHash
+  Address.addressPaymentValidatorHash
     <<< fromPlutusAddress MainnetId
 
--- | Get the `StakeValidatorHash` with an Plutus `Address`
-enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
-enterpriseAddressStakeValidatorHash =
+-- | Get the `ValidatorHash` component of a Plutus `Address`
+addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
+addressStakeValidatorHash =
   -- Network id does not matter here (#484)
-  Address.enterpriseAddressStakeValidatorHash
-    <<< fromPlutusAddress MainnetId
-
--- | Get the `ScriptHash` with an Plutus `Address`
-enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
-enterpriseAddressScriptHash =
-  -- Network id does not matter here (#484)
-  Address.enterpriseAddressScriptHash
+  Address.addressStakeValidatorHash
     <<< fromPlutusAddress MainnetId
 
 -- | Converts a Plutus `TypedValidator` to a Plutus (`BaseAddress`) `Address`

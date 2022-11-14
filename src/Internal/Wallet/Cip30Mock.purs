@@ -38,6 +38,7 @@ import Ctl.Internal.Wallet.Key
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Foldable (foldMap)
+import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -117,7 +118,7 @@ type Cip30Mock =
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
-  , signData :: String -> Aff DataSignature
+  , signData :: Fn2 String String (Promise DataSignature)
   }
 
 mkCip30Mock
@@ -195,7 +196,7 @@ mkCip30Mock pKey mSKey = do
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
         pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
-    , signData: \msg -> do
+    , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)
         (unwrap keyWallet).signData config.networkId (wrap msgBytes)
