@@ -67,12 +67,12 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.QueryM
-  ( getWalletAddresses
+  ( getNetworkId
+  , getWalletAddresses
   , ownPaymentPubKeyHashes
   , ownPubKeyHashes
   , ownStakePubKeyHash
   ) as QueryM
-import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
 import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
 import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress

@@ -31,7 +31,7 @@ import Ctl.Internal.QueryM
   , getWallet
   , signData
   ) as QueryM
-import Ctl.Internal.QueryM.NetworkId (getNetworkId) as QueryM
+import Ctl.Internal.QueryM (getNetworkId) as QueryM
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet

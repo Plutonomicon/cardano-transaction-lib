@@ -25,6 +25,7 @@ import Ctl.Internal.QueryM
   , getWalletAddresses
   , mkOgmiosRequest
   )
+import Ctl.Internal.QueryM (getNetworkId)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.TxOutput
@@ -213,7 +214,7 @@ getWalletCollateral = do
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
-        networkId <- asks $ _.config >>> _.networkId
+        networkId <- getNetworkId
         addr <- liftAff $ (unwrap kw).address networkId
         utxos <- utxosAt addr <#> fromMaybe Map.empty
           >>= filterLockedUtxos

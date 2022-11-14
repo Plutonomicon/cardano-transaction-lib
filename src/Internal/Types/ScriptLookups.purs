@@ -104,6 +104,7 @@ import Ctl.Internal.QueryM
   , getDatumByHash
   , getProtocolParameters
   )
+import Ctl.Internal.QueryM (getNetworkId) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
@@ -1275,4 +1276,4 @@ getNetworkId
   :: forall (a :: Type)
    . ConstraintsM a NetworkId
 getNetworkId = use (_cpsToTxBody <<< _networkId)
-  >>= maybe (lift $ asks $ _.config >>> _.networkId) pure
+  >>= maybe (lift $ QueryM.getNetworkId) pure
