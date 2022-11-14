@@ -149,7 +149,7 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
 import Ctl.Internal.Types.ByteArray
@@ -162,7 +162,6 @@ import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
@@ -654,7 +653,7 @@ type PoolParameters =
   , cost :: BigNum -- >= pparams.minPoolCost
   , margin :: UnitInterval -- proportion that goes to the reward account
   , rewardAccount :: RewardAddress
-  , poolOwners :: Array PaymentPubKeyHash
+  , poolOwners :: Array Ed25519KeyHash
   -- payment key hashes that contribute to pledge amount
   , relays :: Array Relay
   , poolMetadata :: Maybe PoolMetadata
