@@ -275,13 +275,13 @@ instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
   toData (FiniteInterval start end) =
     ( Constr (BigInt.fromInt 0)
         [ toData $ lowerBound start
-        , toData $ strictUpperBound (end `add` one)
+        , toData $ strictUpperBound (end + one)
         ]
     )
   toData (StartAt end) =
     ( Constr (BigInt.fromInt 0)
         [ toData (LowerBound NegInf true :: LowerBound a)
-        , toData $ strictUpperBound (end `add` one)
+        , toData $ strictUpperBound (end + one)
         ]
     )
   toData (EndAt start) =
@@ -313,45 +313,27 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
   bottom = EmptyInterval
 
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
-  fromData (Constr index [ lower, upper ]) =
-    if index /= zero then
-      Nothing
-    else
-      do
-        (LowerBound start startBool) <- fromData lower
-        (UpperBound end endBool) <- fromData upper
-        case start of
-          Finite startValue ->
-            let
-              start' = if startBool then startValue else startValue `add` one
-            in
-              case end of
-                Finite endValue ->
-                  if endBool then
-                    pure $ mkFiniteInterval start' endValue
-                  else if endValue <= one then
-                    Nothing
-                  else
-                    pure $ mkFiniteInterval start' (endValue - one)
-                NegInf ->
-                  pure $ never
-                PosInf ->
-                  pure $ from start'
-          NegInf ->
-            case end of
-              Finite endValue ->
-                if endBool then
-                  pure $ to endValue
-                else if endValue <= one then
-                  Nothing
-                else
-                  pure $ to (endValue - one)
-              NegInf ->
-                pure $ never
-              PosInf ->
-                pure $ always
-          PosInf ->
-            pure $ never
+  fromData (Constr index [ lower, upper ]) | index == zero = do
+    (LowerBound start startBool) <- fromData lower
+    (UpperBound end endBool) <- fromData upper
+    case
+      add (if startBool then zero else one) <$> start,
+      flip sub (if endBool then zero else one) <$> end
+      of
+      Finite start', Finite end' ->
+        pure $ mkFiniteInterval start' end'
+      Finite _, NegInf ->
+        pure never
+      Finite start', PosInf ->
+        pure $ from start'
+      NegInf, Finite end' ->
+        pure $ to end'
+      NegInf, NegInf ->
+        pure never
+      NegInf, PosInf ->
+        pure always
+      PosInf, _ ->
+        pure never
   fromData _ = Nothing
 
 instance (EncodeAeson a, Ord a, Semiring a) => EncodeAeson (Interval a) where
@@ -1066,7 +1048,7 @@ sequenceInterval
    . Applicative m
   => Interval (m a)
   -> m (Interval a)
-sequenceInterval (FiniteInterval start end) = (FiniteInterval <$> start) <*> end
+sequenceInterval (FiniteInterval start end) = FiniteInterval <$> start <*> end
 sequenceInterval (StartAt end) = StartAt <$> end
 sequenceInterval (EndAt start) = EndAt <$> start
 sequenceInterval EmptyInterval = pure EmptyInterval
@@ -1253,11 +1235,11 @@ intervalToHaskInterval
   :: forall (a :: Type). Ord a => Semiring a => Interval a -> HaskInterval a
 intervalToHaskInterval (FiniteInterval start end) = wrap
   { ivFrom: lowerBound start
-  , ivTo: strictUpperBound (end `add` one)
+  , ivTo: strictUpperBound (end + one)
   }
 intervalToHaskInterval (StartAt end) = wrap
   { ivFrom: LowerBound NegInf true
-  , ivTo: strictUpperBound (end `add` one)
+  , ivTo: strictUpperBound (end + one)
   }
 intervalToHaskInterval (EndAt start) = wrap
   { ivFrom: lowerBound start
@@ -1278,81 +1260,24 @@ haskIntervalToInterval
   => Ord a
   => HaskInterval a
   -> Interval a
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound (Finite start) true
-      , ivTo: UpperBound (Finite end) false
-      }
-  ) =
-  mkFiniteInterval start (end - one)
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound NegInf _
-      , ivTo: UpperBound (Finite end) false
-      }
-  ) =
-  StartAt $ (end - one)
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound (Finite start) true
-      , ivTo: UpperBound PosInf _
-      }
-  ) =
-  EndAt start
-haskIntervalToInterval
-  (HaskInterval { ivFrom: LowerBound NegInf _, ivTo: UpperBound PosInf _ }) =
-  AlwaysInterval
-haskIntervalToInterval
-  (HaskInterval { ivFrom: LowerBound PosInf _, ivTo: UpperBound NegInf _ }) =
-  EmptyInterval
--- All of the remain cases are to avoid using a `Maybe` or throwing exception.
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound (Finite start) true
-      , ivTo: UpperBound (Finite end) true
-      }
-  ) =
-  mkFiniteInterval start end
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound (Finite start) false
-      , ivTo: UpperBound (Finite end) true
-      }
-  ) =
-  mkFiniteInterval (start + one) end
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound (Finite start) false
-      , ivTo: UpperBound (Finite end) false
-      }
-  ) =
-  mkFiniteInterval (start + one) (end - one)
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound NegInf _
-      , ivTo: UpperBound (Finite end) true
-      }
-  ) =
-  StartAt end
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound (Finite start) false
-      , ivTo: UpperBound PosInf _
-      }
-  ) =
-  EndAt $ (start + one)
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound _ _
-      , ivTo: UpperBound NegInf _
-      }
-  ) = EmptyInterval
-haskIntervalToInterval
-  ( HaskInterval
-      { ivFrom: LowerBound PosInf _
-      , ivTo: UpperBound _ _
-      }
-  ) = EmptyInterval
+haskIntervalToInterval (HaskInterval { ivFrom, ivTo }) = case ivFrom, ivTo of
+  LowerBound (Finite start) true, UpperBound (Finite end) false ->
+    mkFiniteInterval start (end - one)
+  LowerBound NegInf _, UpperBound (Finite end) false -> StartAt $ (end - one)
+  LowerBound (Finite start) true, UpperBound PosInf _ -> EndAt start
+  LowerBound NegInf _, UpperBound PosInf _ -> AlwaysInterval
+  LowerBound PosInf _, UpperBound NegInf _ -> EmptyInterval
+  -- All of the remain cases are to avoid using a `Maybe` or throwing exception.
+  LowerBound (Finite start) true, UpperBound (Finite end) true ->
+    mkFiniteInterval start end
+  LowerBound (Finite start) false, UpperBound (Finite end) true ->
+    mkFiniteInterval (start + one) end
+  LowerBound (Finite start) false, UpperBound (Finite end) false ->
+    mkFiniteInterval (start + one) (end - one)
+  LowerBound NegInf _, UpperBound (Finite end) true -> StartAt end
+  LowerBound (Finite start) false, UpperBound PosInf _ -> EndAt $ (start + one)
+  LowerBound _ _, UpperBound NegInf _ -> EmptyInterval
+  LowerBound PosInf _, UpperBound _ _ -> EmptyInterval
 
 -- https://github.com/input-output-hk/cardano-ledger/blob/2acff66e84d63a81de904e1c0de70208ff1819ea/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L206-L226
 -- | Create an `OnchainPOSIXTimeRange` to do a round trip from an off-chain

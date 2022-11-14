@@ -813,17 +813,14 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
 
 resumeTimeConstraints
   :: Array TxConstraint -> Either MkUnbalancedTxError (Array TxConstraint)
-resumeTimeConstraints constraints =
+resumeTimeConstraints constraints = do
   let
     { no: nonTimeConstraints, yes: timeConstraints } = partition
       isTimeConstraint
       constraints
     intervals = mapMaybe constraintToInterval timeConstraints
-  in
-    do
-      newInterval <- foldM mergeIntervals always intervals
-      pure $ cons (MustValidateIn newInterval) nonTimeConstraints
-
+  newInterval <- foldM mergeIntervals always intervals
+  pure $ cons (MustValidateIn newInterval) nonTimeConstraints
   where
   mergeIntervals
     :: POSIXTimeRange

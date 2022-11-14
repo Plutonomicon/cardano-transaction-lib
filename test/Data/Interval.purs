@@ -162,20 +162,11 @@ instance ToData a => ToData (PlutusInterval a) where
 instance FromData a => FromData (PlutusInterval a) where
   fromData i = genericFromData i
 
---instance EncodeAeson a => EncodeAeson (PlutusInterval a) where
---  encodeAeson' (PlutusInterval i) = encodeAeson' $ HaskInterval
---    { ivFrom: i.from, ivTo: i.to }
---
---instance DecodeAeson a => DecodeAeson (PlutusInterval a) where
---  decodeAeson a = do
---    HaskInterval i <- decodeAeson a
---    pure $ PlutusInterval { from: i.ivFrom, to: i.ivTo }
-
 subtractOne :: forall (a :: Type). Ring a => a -> a
 subtractOne x = x `add` (negate one)
 
 addOne :: forall (a :: Type). Semiring a => a -> a
-addOne x = x `add` one
+addOne x = x + one
 
 absoluteValue :: Int -> Int
 absoluteValue x = if x < 0 then -x else x

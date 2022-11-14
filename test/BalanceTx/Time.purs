@@ -141,7 +141,8 @@ now = mkPosixTime "1666918454000"
 unsafeSubtractOne :: forall (a :: Type). Partial => Newtype a BigNum => a -> a
 unsafeSubtractOne value = wrap <<< fromJust
   $ BigNum.fromInt
-  <$> (flip (-) 1 <$> BigNum.toInt (unwrap value))
+  <$> (_ - 1)
+  <$> BigNum.toInt (unwrap value)
 
 --------------------------------------------------------------------------------
 -- Helpers
