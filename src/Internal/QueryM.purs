@@ -230,8 +230,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
-import Data.Array (head, singleton) as Array
-import Data.Array (mapMaybe)
+import Data.Array (singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
 import Data.Foldable (fold, foldl)
