@@ -5,6 +5,7 @@ module Test.Ctl.Plutip.Common
 
 import Prelude
 
+import Contract.Config (emptyHooks)
 import Contract.Wallet (privateKeyFromBytes)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
@@ -48,7 +49,7 @@ config =
       }
   , suppressLogs: true
   , customLogger: Nothing
-  , hooks: mempty
+  , hooks: emptyHooks
   }
 
 privateStakeKey :: PrivateStakeKey

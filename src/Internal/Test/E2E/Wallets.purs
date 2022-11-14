@@ -30,7 +30,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (fold, for)
+import Data.Traversable (for)
 import Effect (Effect)
 import Effect.Aff (Aff, delay, try)
 import Effect.Class (liftEffect)
@@ -163,16 +163,26 @@ eternlSign extId password re = do
   pattern = wrap $ unExtensionId extId <> "/www/index.html#/signtx"
 
 namiConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
-namiConfirmAccess extId re =
-  inWalletPage (Pattern $ unExtensionId extId) re confirmAccessTimeout
+namiConfirmAccess extId re = do
+  wasInPage <- isJust <$> inWalletPageOptional extId pattern re
+    confirmAccessTimeout
     (clickButton "Access")
+  when wasInPage do
+    waitForWalletPageClose pattern 10.0 re.browser
+  where
+  pattern :: Pattern
+  pattern = wrap $ unExtensionId extId
 
 namiSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 namiSign extId wpassword re = do
-  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \nami -> do
-    clickButton "Sign" nami
-    reactSetValue (Selector ":password") wpassword nami
-    clickButton "Confirm" nami
+  inWalletPage (Pattern $ unExtensionId extId) re signTimeout \page -> do
+    void $ Toppokki.pageWaitForSelector (wrap ".chakra-button") {} page
+    clickButton "Sign" page
+    void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
+      {}
+      page
+    typeInto (inputType "password") wpassword page
+    clickButton "Confirm" page
 
 geroConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 geroConfirmAccess extId re = do
@@ -309,24 +319,6 @@ injectJQuery page jQuery = do
       page
   unless alreadyInjected $ void $ Toppokki.unsafeEvaluateStringFunction jQuery
     page
-
--- | Set the value of an item with the browser's native value setter.
--- | This is necessary for react items so that react reacts.
--- | (sometimes 'typeInto' is an alternative).
--- | React is used in Nami.
--- | https://stackoverflow.com/questions/23892547/what-is-the-best-way-to-trigger-onchange-event-in-react-js
-reactSetValue :: Selector -> String -> Toppokki.Page -> Aff Unit
-reactSetValue selector value page = void
-  $ flip Toppokki.unsafeEvaluateStringFunction page
-  $ fold
-      [ "let input = $('" <> unwrap selector <> "').get(0);"
-      , "var nativeInputValueSetter = "
-          <>
-            " Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
-      , "nativeInputValueSetter.call(input, '" <> value <> "');"
-      , "var ev2 = new Event('input', { bubbles: true});"
-      , "input.dispatchEvent(ev2);"
-      ]
 
 foreign import _typeInto
   :: Selector -> String -> Toppokki.Page -> Effect (Promise Unit)

@@ -246,20 +246,20 @@ suite = do
                       throw "More than one UTxO in collateral"
             )
             wallets
-    test "runPlutipContract: Array of InitialUTxOs and KeyWallet" do
+    test "Array of InitialUTxOs and KeyWallet" do
       let
         distribution :: Array InitialUTxOs
         distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
       arrayTest distribution
 
-    test "runPlutipContract: Array of InitialUTxOsWithStakeKey and KeyWallet" do
+    test "Array of InitialUTxOsWithStakeKey and KeyWallet" do
       let
         distribution :: Array InitialUTxOsWithStakeKey
         distribution = withStakeKey privateStakeKey <$> replicate 2
           [ BigInt.fromInt 1_000_000_000 ]
       arrayTest distribution
 
-    test "runPlutipContract: Pkh2Pkh" do
+    test "Pkh2Pkh" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -273,7 +273,7 @@ suite = do
         stakePkh <- withKeyWallet alice ownStakePubKeyHash
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
-    test "runPlutipContract: Pkh2Pkh with stake key" do
+    test "Pkh2Pkh with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 2_000_000_000
@@ -289,7 +289,7 @@ suite = do
         stakePkh `shouldSatisfy` isJust
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
-    test "runPlutipContract: parallel Pkh2Pkh" do
+    test "parallel Pkh2Pkh" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -318,7 +318,7 @@ suite = do
             pkh2PkhContract pkh stakePkh
           in unit
 
-    test "runPlutipContract: parallel Pkh2Pkh with stake keys" do
+    test "parallel Pkh2Pkh with stake keys" do
       let
         aliceUtxos =
           [ BigInt.fromInt 1_000_000_000
@@ -347,7 +347,7 @@ suite = do
               pkh2PkhContract pkh stakePkh
             in unit
 
-    test "runPlutipContract: awaitTxConfirmedWithTimeout fails after timeout" do
+    test "awaitTxConfirmedWithTimeout fails after timeout" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 ]
@@ -540,7 +540,7 @@ suite = do
             txSigned <- foldM signWithWallet tx [ dan ]
             submit txSigned >>= awaitTxConfirmed
 
-    test "runPlutipContract: AlwaysMints" do
+    test "AlwaysMints" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -568,7 +568,7 @@ suite = do
           bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
 
-    test "runPlutipContract: NativeScriptMints" do
+    test "NativeScriptMints" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -578,7 +578,7 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice NativeScriptMints.contract
 
-    test "runPlutipContract: Datums" do
+    test "Datums" do
       runPlutipContract config unit \_ -> do
         let
           mkDatumHash :: String -> DataHash
@@ -602,7 +602,7 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
-    test "runPlutipContract: MintZeroToken" do
+    test "MintZeroToken" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -629,7 +629,7 @@ suite = do
           result <- Lookups.mkUnbalancedTx lookups constraints
           result `shouldSatisfy` isLeft
 
-    test "runPlutipContract: MintsMultipleTokens" do
+    test "MintsMultipleTokens" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -668,7 +668,7 @@ suite = do
           bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
 
-    test "runPlutipContract: SignMultiple" do
+    test "SignMultiple" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -679,7 +679,7 @@ suite = do
         checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
 
-    test "runPlutipContract: SignMultiple with stake key" do
+    test "SignMultiple with stake key" do
       let
         aliceUtxos =
           [ BigInt.fromInt 5_000_000
@@ -690,7 +690,7 @@ suite = do
         checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
 
-    test "runPlutipContract: AlwaysSucceeds" do
+    test "AlwaysSucceeds" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -707,13 +707,13 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    test "runPlutipContract: currentTime" do
+    test "currentTime" do
       runPlutipContract config unit \_ -> do
         void $ currentTime
         void $ getEraSummaries >>= unwrap >>> traverse
           (getSlotLength >>> show >>> logInfo')
 
-    test "runPlutipContract: SendsToken" do
+    test "SendsToken" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -723,7 +723,7 @@ suite = do
       runPlutipContract config distribution \alice -> do
         withKeyWallet alice SendsToken.contract
 
-    test "runPlutipContract: InlineDatum" do
+    test "InlineDatum" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -740,7 +740,7 @@ suite = do
           logInfo' "Try to spend locked values"
           InlineDatum.spendFromCheckDatumIsInline vhash validator txId
 
-    test "runPlutipContract: InlineDatum Read" do
+    test "InlineDatum Read" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -757,7 +757,7 @@ suite = do
           logInfo' "Try to read inline datum"
           InlineDatum.readFromCheckDatumIsInline vhash txId
 
-    test "runPlutipContract: InlineDatum Failure" do
+    test "InlineDatum Failure" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -777,7 +777,7 @@ suite = do
             txId
           eResult `shouldSatisfy` isLeft
 
-    test "runPlutipContract: InlineDatum Cannot Spend PlutusV1" do
+    test "InlineDatum Cannot Spend PlutusV1" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -797,7 +797,7 @@ suite = do
             txId
           eResult `shouldSatisfy` isLeft
 
-    test "runPlutipContract: IncludeDatum" do
+    test "IncludeDatum" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -814,7 +814,7 @@ suite = do
           logInfo' "Try to spend locked values"
           IncludeDatum.spendFromIncludeDatum vhash validator txId
 
-    test "runPlutipContract: AlwaysSucceeds PlutusV2" do
+    test "AlwaysSucceeds PlutusV2" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -831,7 +831,7 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    test "runPlutipContract: AlwaysFails Ada Collateral Return" do
+    test "AlwaysFails Ada Collateral Return" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
@@ -857,7 +857,7 @@ suite = do
             collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt $ -5_000_000
           balance `shouldEqual` (balanceBefore <> collateralLoss)
 
-    test "runPlutipContract: AlwaysFails Native Asset Collateral Return" do
+    test "AlwaysFails Native Asset Collateral Return" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
@@ -906,7 +906,7 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysFails.spendFromAlwaysFails vhash validator txId
 
-    test "runPlutipContract: ReferenceScripts" do
+    test "ReferenceScripts" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -916,7 +916,7 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceScripts.contract
 
-    test "runPlutipContract: ReferenceInputs" do
+    test "ReferenceInputs" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -926,7 +926,7 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
 
-    test "runPlutipContract: OneShotMinting" do
+    test "OneShotMinting" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -936,7 +936,7 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice OneShotMinting.contract
 
-    test "runPlutipContract: OneShotMinting PlutusV2" do
+    test "OneShotMinting PlutusV2" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -946,7 +946,7 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice OneShotMintingV2.contract
 
-    test "runPlutipContract: Examples.ContractTestUtils" do
+    test "ContractTestUtils" do
       let
         initialUtxos :: InitialUTxOs
         initialUtxos =
@@ -975,7 +975,7 @@ suite = do
             , txMetadata: cip25MetadataFixture1
             }
 
-    test "runPlutipContract: Examples.BalanceTxConstraints" do
+    test "BalanceTxConstraints" do
       let
         initialUtxos :: InitialUTxOs
         initialUtxos =
@@ -990,7 +990,7 @@ suite = do
             { aliceKeyWallet: alice, bobKeyWallet: bob }
 
   group "Evaluation with additional UTxOs and tx chaining" do
-    test "runPlutipContract: Examples.TxChaining" $
+    test "TxChaining" $
       let
         distribution :: InitialUTxOs
         distribution = [ BigInt.fromInt 2_500_000 ]
