@@ -3,6 +3,7 @@ module Ctl.Internal.Test.E2E.Types
   ( Browser
   , TmpDir
   , SettingsArchive
+  , SettingsArchiveUrl
   , ChromeUserDataDir
   , CrxFilePath
   , ExtensionId
@@ -46,6 +47,8 @@ type TmpDir = FilePath
 -- | `.tar.gz` archive containing the runtime settings for all the extensions
 -- | used in E2E.
 type SettingsArchive = FilePath
+
+type SettingsArchiveUrl = String
 
 -- | Chrome user data directory
 type ChromeUserDataDir = FilePath
