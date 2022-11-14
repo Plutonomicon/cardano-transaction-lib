@@ -220,6 +220,26 @@
           easy-ps = import inputs.easy-purescript-nix { pkgs = final; };
           purescriptProject = import ./nix { pkgs = final; };
         };
+        spago = final: prev: {
+          easy-ps = prev.easy-ps // {
+            spago = prev.easy-ps.spago.overrideAttrs (_: rec {
+              version = "0.20.7";
+              src =
+                if final.stdenv.isDarwin
+                then
+                  final.fetchurl
+                    {
+                      url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
+                      sha256 = "0s5zgz4kqglsavyh7h70zmn16vayg30alp42w3nx0zwaqkp79xla";
+                    }
+                else
+                  final.fetchurl {
+                    url = "https://github.com/purescript/spago/releases/download/${version}/Linux.tar.gz";
+                    sha256 = "0bh15dr1fg306kifqipnakv3rxab7hjfpcfzabw7vmg0gsfx8xka";
+                  };
+            });
+          };
+        };
         # This is separate from the `runtime` overlay below because it is
         # optional (it's only required if using CTL's `applyArgs` effect).
         # Including it by default in the `overlays.runtime` also requires that
