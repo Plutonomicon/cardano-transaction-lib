@@ -1349,7 +1349,7 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> do
         withCip30Mock alice MockNami do
-          Cip30.noSignDataContract
+          Cip30.contract
 
     -- TODO
     skip $ test "CIP-30 mock: failing getWalletBalance - investigate" do
