@@ -21,7 +21,7 @@ import Contract.Numeric.Rational
 import Contract.PlutusData (class FromData, class ToData, PlutusData(..))
 import Data.BigInt (BigInt)
 
-newtype PRational = P R.Rational
+newtype PRational = PRational R.Rational
 
 derive instance Newtype PRational _
 
