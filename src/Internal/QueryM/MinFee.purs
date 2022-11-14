@@ -78,8 +78,7 @@ getSelfSigners tx additionalUtxos = do
     )
 
   -- Get own addressses
-  (ownAddrs :: Set Address) <- Set.fromFoldable <$>
-    (liftedM (error "Could not get own addresses") getWalletAddresses)
+  (ownAddrs :: Set Address) <- Set.fromFoldable <$> getWalletAddresses
 
   -- Combine to get all self tx input addresses
   let

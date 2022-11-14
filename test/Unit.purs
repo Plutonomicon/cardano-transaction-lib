@@ -34,6 +34,7 @@ import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.UsedTxOuts as UsedTxOuts
+import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 
 -- Run with `spago test --main Test.Ctl.Unit`
 main :: Effect Unit
@@ -47,6 +48,7 @@ testPlan = do
   Base64.suite
   ByteArray.suite
   Cip25.suite
+  Cip30SignData.suite
   Data.suite
   Deserialization.suite
   Equipartition.suite
