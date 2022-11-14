@@ -285,7 +285,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     ConfirmAccess -> rethrow someWallet.confirmAccess
                     Sign -> rethrow someWallet.sign
                     Success -> pure unit
-                    Failure err -> throw err
+                    Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
 
   where
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
