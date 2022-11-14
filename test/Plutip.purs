@@ -38,15 +38,13 @@ import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
 import Contract.Test.Plutip (InitialUTxOs, runPlutipContract, withStakeKey)
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , DataHash
+  ( DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
   , createAdditionalUtxos
-  , getTxByHash
   , signTransaction
   , submit
   , withBalancedTx
@@ -120,7 +118,6 @@ import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.TestPlanM as Utils
 import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
@@ -132,15 +129,14 @@ import Data.Either (isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff, bracket, launchAff_)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Effect.Ref as Ref
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
@@ -161,6 +157,7 @@ import Test.Ctl.Fixtures
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.NetworkId as NetworkId
+import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
@@ -170,7 +167,7 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
+    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
     do
       suite
       UtxoDistribution.suite
@@ -707,6 +704,25 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
+    test
+      "AlwaysSucceeds (with stake key to test `mustPayToPubKeyAddress`)"
+      do
+        let
+          distribution :: InitialUTxOsWithStakeKey
+          distribution = withStakeKey privateStakeKey
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        runPlutipContract config distribution \alice -> do
+          withKeyWallet alice do
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+            AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+
     test "currentTime" do
       runPlutipContract config unit \_ -> do
         void $ currentTime
@@ -915,6 +931,18 @@ suite = do
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice ReferenceScripts.contract
+
+    test
+      "runPlutipContract: ReferenceScripts (with StakeKey, testing `mustPayToScriptAddressWithScriptRef`)"
+      do
+        let
+          distribution :: InitialUTxOsWithStakeKey
+          distribution = withStakeKey privateStakeKey
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        runPlutipContract config distribution \alice ->
+          withKeyWallet alice ReferenceScripts.contract
 
     test "ReferenceInputs" do
       let
@@ -1409,21 +1437,3 @@ pkh2PkhContract pkh stakePkh = do
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
   submitAndLog bsTx
-
-submitAndLog
-  :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
-submitAndLog bsTx = do
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  awaitTxConfirmed txId
-  mbTransaction <- getTxByHash txId
-  logInfo' $ "Tx: " <> show mbTransaction
-  liftEffect $ when (isNothing mbTransaction) do
-    void $ throw "Unable to get Tx contents"
-    when (mbTransaction /= Just (unwrap bsTx)) do
-      throw "Tx contents do not match"
-
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
-getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
-  liftEffect $ Ref.read $ unwrap cache
