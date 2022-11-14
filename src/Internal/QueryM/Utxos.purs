@@ -22,10 +22,10 @@ import Ctl.Internal.Helpers as Helpers
 import Ctl.Internal.QueryM
   ( QueryM
   , callCip30Wallet
+  , getNetworkId
   , getWalletAddresses
   , mkOgmiosRequest
   )
-import Ctl.Internal.QueryM (getNetworkId)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.TxOutput
