@@ -9,6 +9,7 @@ module Ctl.Internal.QueryM
       , ClientEncodingError
       , ClientOtherError
       )
+  , ClusterSetup
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DefaultQueryEnv
@@ -71,6 +72,7 @@ module Ctl.Internal.QueryM
   , withQueryRuntime
   , callCip30Wallet
   , getNetworkId
+  , emptyHooks
   ) where
 
 import Prelude
@@ -215,6 +217,7 @@ import Ctl.Internal.Wallet
   , mkWalletAff
   )
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
+import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
@@ -272,11 +275,32 @@ import Untagged.Union (asOneOf)
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
+-- | Cluster setup contains everything that is needed to run a `Contract` on
+-- | a local cluster: paramters to connect to the services and private keys
+-- | that are pre-funded with Ada on that cluster
+type ClusterSetup =
+  { ctlServerConfig :: Maybe ServerConfig
+  , ogmiosConfig :: ServerConfig
+  , datumCacheConfig :: ServerConfig
+  , keys ::
+      { payment :: PrivatePaymentKey
+      , stake :: Maybe PrivateStakeKey
+      }
+  }
+
 type Hooks =
   { beforeSign :: Maybe (Effect Unit)
   , beforeInit :: Maybe (Effect Unit)
   , onSuccess :: Maybe (Effect Unit)
   , onError :: Maybe (Error -> Effect Unit)
+  }
+
+emptyHooks :: Hooks
+emptyHooks =
+  { beforeSign: Nothing
+  , beforeInit: Nothing
+  , onSuccess: Nothing
+  , onError: Nothing
   }
 
 -- | `QueryConfig` contains a complete specification on how to initialize a
@@ -749,7 +773,7 @@ instance Show ClientError where
       <> err
       <> ")"
   show (ClientOtherError err) =
-    "(ClientEncodingError "
+    "(ClientOtherError "
       <> err
       <> ")"
 
