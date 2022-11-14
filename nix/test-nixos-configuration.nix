@@ -1,4 +1,4 @@
-{ config, modulesPath, pkgs, ... }:
+{ config, modulesPath, pkgs, cardano-configurations, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
@@ -27,8 +27,9 @@
 
   services.cardano-node = {
     enable = true;
-    environment = "preprod";
     systemdSocketActivation = true;
+    nodeConfigFile = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
+    topology = "${cardano-configurations}/network/mainnet/cardano-node/topology.json";
   };
 
   services.ogmios = {
