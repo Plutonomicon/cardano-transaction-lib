@@ -145,11 +145,6 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
-      getWalletAddresses :: BalanceTxM (Array Address)
-      getWalletAddresses =
-        liftEitherQueryM $
-          QueryM.getWalletAddresses <#> note CouldNotGetWalletAddresses
-
       depositValuePerCert = (unwrap pparams).stakeAddressDeposit
       certsFee = getStakingBalance (unbalancedTx ^. _transaction')
         depositValuePerCert
