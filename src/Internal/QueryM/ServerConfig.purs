@@ -14,7 +14,7 @@ import Prelude
 
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.JsWebSocket (Url)
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 
@@ -67,4 +67,4 @@ mkServerUrl protocol cfg =
     <> cfg.host
     <> ":"
     <> UInt.toString cfg.port
-    <</>> fromMaybe "" cfg.path
+      <</>> fromMaybe "" cfg.path
