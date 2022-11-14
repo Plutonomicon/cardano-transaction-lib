@@ -18,7 +18,11 @@ import Contract.Numeric.Rational
   , recip
   , reduce
   ) as R
-import Contract.PlutusData (class FromData, class ToData, PlutusData(List,Integer))
+import Contract.PlutusData
+  ( class FromData
+  , class ToData
+  , PlutusData(List, Integer)
+  )
 import Data.BigInt (BigInt)
 
 newtype PRational = PRational R.Rational
