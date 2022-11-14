@@ -57,7 +57,6 @@ import Aeson (class EncodeAeson)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (addressPaymentValidatorHash)
@@ -121,6 +120,7 @@ import Ctl.Internal.QueryM
   , getDatumByHash
   , getProtocolParameters
   )
+import Ctl.Internal.QueryM (getNetworkId) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.Pools
   ( getPubKeyHashDelegationsAndRewards
@@ -1469,4 +1469,4 @@ getNetworkId
   :: forall (a :: Type)
    . ConstraintsM a NetworkId
 getNetworkId = use (_cpsToTxBody <<< _networkId)
-  >>= maybe (lift $ asks $ _.config >>> _.networkId) pure
+  >>= maybe (lift $ QueryM.getNetworkId) pure
