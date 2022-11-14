@@ -153,4 +153,3 @@ foreign import _fromBytesEd25519Signature
    . ErrorFfiHelper r
   -> ByteArray
   -> E r Ed25519Signature
-

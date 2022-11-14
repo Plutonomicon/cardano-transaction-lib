@@ -6,8 +6,9 @@ module Ctl.Examples.PlutusV2.ReferenceScripts
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Contract.Address (ownStakePubKeyHash, scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
@@ -60,12 +61,25 @@ contract = do
 payWithScriptRefToAlwaysSucceeds
   :: ValidatorHash -> ScriptRef -> Contract () TransactionHash
 payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
+  -- Send to own stake credential. This is used to test
+  -- `mustPayToScriptAddressWithScriptRef`
+  mbStakeKeyHash <- ownStakePubKeyHash
   let
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
-        scriptRef
-        (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+      case mbStakeKeyHash of
+        Nothing ->
+          Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
+            scriptRef
+            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+        Just stakeKeyHash ->
+          Constraints.mustPayToScriptAddressWithScriptRef
+            vhash
+            (PubKeyCredential $ unwrap stakeKeyHash)
+            unitDatum
+            DatumWitness
+            scriptRef
+            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
@@ -74,7 +88,12 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
 
 spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId = do
-  let scriptAddress = scriptHashAddress vhash
+  -- Send to own stake credential. This is used to test
+  -- `mustPayToScriptAddressWithScriptRef`
+  mbStakeKeyHash <- ownStakePubKeyHash
+  let
+    scriptAddress =
+      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
 
   txInput /\ txOutput <-

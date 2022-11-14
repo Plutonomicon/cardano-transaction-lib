@@ -7,7 +7,7 @@ module Ctl.Internal.BalanceTx.Error
       ( CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , CouldNotGetWalletAddresses
+      , CouldNotGetWalletAddress
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
       , ExUnitsEvaluationFailed
@@ -68,7 +68,7 @@ data BalanceTxError
   = CouldNotConvertScriptOutputToTxInput
   | CouldNotGetCollateral
   | CouldNotGetUtxos
-  | CouldNotGetWalletAddresses
+  | CouldNotGetWalletAddress
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
