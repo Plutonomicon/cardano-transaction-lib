@@ -136,16 +136,16 @@ getWalletAddress
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `Adress` even in case multiple `Adresses` are available. Use `getWalletAdresses` instead"
+           "This function returns only one `Adress` even in case multiple `Adress`es are available. Use `getWalletAdresses` instead"
        )
   => Contract r (Maybe Address)
 getWalletAddress = head <$> getWalletAddresses
 
--- | Get all the `Addresses` of the browser wallet.
+-- | Get all the `Address`es of the browser wallet.
 getWalletAddresses
   :: forall (r :: Row Type). Contract r (Array Address)
 getWalletAddresses = do
-  addresses <- wrapContract $ QueryM.getWalletAddresses
+  addresses <- wrapContract QueryM.getWalletAddresses
   traverse
     ( liftM
         (error "getWalletAddresses: failed to deserialize `Address`")
@@ -197,7 +197,7 @@ ownPaymentPubKeyHash
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHashes` are available. Use `ownPaymentPubKeysHashes` instead"
+           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHash`es are available. Use `ownPaymentPubKeysHashes` instead"
        )
   => Contract r (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
@@ -212,7 +212,7 @@ ownPubKeyHash
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `PubKeyHash` even in case multiple `PubKeysHashes` are available. Use `ownPubKeysHashes` instead"
+           "This function returns only one `PubKeyHash` even in case multiple `PubKeysHash`es are available. Use `ownPubKeysHashes` instead"
        )
   => Contract r (Maybe PubKeyHash)
 ownPubKeyHash = head <$> ownPubKeysHashes
@@ -225,7 +225,7 @@ ownStakePubKeyHash
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHashes` are available. Use `ownStakePubKeysHashes` instead"
+           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHash`es are available. Use `ownStakePubKeysHashes` instead"
        )
   => Contract r (Maybe StakePubKeyHash)
 ownStakePubKeyHash = head <$> ownStakePubKeysHashes
