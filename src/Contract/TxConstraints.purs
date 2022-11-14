@@ -7,28 +7,16 @@ import Ctl.Internal.Types.TxConstraints
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
-  , TxConstraint
-      ( MustIncludeDatum
-      , MustValidateIn
-      , MustBeSignedBy
-      , MustSpendAtLeast
-      , MustProduceAtLeast
-      , MustSpendPubKeyOutput
-      , MustSpendScriptOutput
-      , MustSpendNativeScriptOutput
-      , MustReferenceOutput
-      , MustMintValue
-      , MustPayToPubKeyAddress
-      , MustPayToScript
-      , MustHashDatum
-      , MustSatisfyAnyOf
-      , MustNotBeValid
-      )
   , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
-  , modifiesUtxoSet
   , mustBeSignedBy
+  , mustDelegateStakeNativeScript
+  , mustDelegateStakePlutusScript
+  , mustDelegateStakePubKey
+  , mustDeregisterStakeNativeScript
+  , mustDeregisterStakePlutusScript
+  , mustDeregisterStakePubKey
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
@@ -40,6 +28,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustMintValueWithRedeemer
   , mustNotBeValid
   , mustPayToNativeScript
+  , mustPayToNativeScriptAddress
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayToPubKeyAddressWithDatum
@@ -49,10 +38,16 @@ import Ctl.Internal.Types.TxConstraints
   , mustPayToPubKeyWithDatumAndScriptRef
   , mustPayToPubKeyWithScriptRef
   , mustPayToScript
+  , mustPayToScriptAddress
+  , mustPayToScriptAddressWithScriptRef
   , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
+  , mustRegisterPool
+  , mustRegisterStakePubKey
+  , mustRegisterStakeScript
+  , mustRetirePool
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
@@ -61,6 +56,9 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
+  , mustWithdrawStakeNativeScript
+  , mustWithdrawStakePlutusScript
+  , mustWithdrawStakePubKey
   , pubKeyPayments
   , requiredDatums
   , requiredMonetaryPolicies

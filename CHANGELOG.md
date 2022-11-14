@@ -48,6 +48,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `DecodeAeson` instance for `NativeScript` data type ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069)).
 - `Contract.Wallet` exports `mkWalletBySpec` ([#1157](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1157))
 - `ctl-server` NixOS module ([#1194](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1194)). See [nix/test-nixos-configuration.nix](nix/test-nixos-configuration.nix) for example usage and [nix/ctl-server-nixos-module.nix](nix/ctl-server-nixos-module.nix).
+- Ability to run E2E tests on private Plutip testnets using CIP-30 wallet mock - see [the docs](./doc/e2e-testing.md#using-cip-30-mock-with-plutip)  ([#1166](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1166))
+- New constraints for stake operations ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060)):
+  - Pool registration (`mustRegisterPool`)
+  - Pool retirement (`mustRetirePool`)
+  - Stake credential registration (`mustRegisterStakePubKey`, `mustRegisterStakeScript`)
+  - Stake delegation (`mustDelegateStakeNativeScript`, `mustDelegateStakePlutusScript`, `mustDelegateStakePubKey`)
+  - Staking rewards withdrawal (`mustWithdrawStakePubKey`, `mustWithdrawStakePlutusScript`, `mustWithdrawStakeNativeScript`)
+  - Stake credential deregistration (`mustDeregisterStakePubKey`, `mustDeregisterStakePlutusScript`, `mustDeregisterStakeNativeScript`)
+- New query layer functions to retrieve staking-related info from Ogmios ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060)):
+  - `Contract.Staking.getPoolIds`
+  - `Contract.Staking.getPoolParameters`
+  - `Contract.Staking.getPubKeyHashDelegationsAndRewards`
+  - `Contract.Staking.getValidatorHashDelegationsAndRewards`
 
 ### Changed
 
@@ -68,10 +81,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contact.TextEnvelope` how provides more type safe interface with simplified error handling ([#988](https://github.com/Plutonomicon/cardano-transaction-lib/issues/988))
 - Forbid minting zero tokens. ([#1156](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156))
 - Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Maybe (Array Adress))`.  ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
+- `pubKeyHashAddress` and `scriptHashAddress` now both accept an optional `Credential` that corresponds to the staking component of the address ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 
 ### Removed
 - `balanceAndSignTxE`, `balanceAndSignTx`, `balanceAndSignTxs`, `balanceTxWithAddress`, `balanceTxsWithAddress`, `withBalancedAndSignedTx` and `withBalancedAndSignedTxs` from `Contract.Transaction` ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
 - `ScriptOutput` is removed and therefore not exported by `Contract.Address` anymore. also, `Contract.Transaction` doesn't export `scriptOutputToTransactionOutput` anymore ([#652](https://github.com/Plutonomicon/cardano-transaction-lib/issues/652)).
+- `Contract.TxConstraints.TxConstraint` type from public API. The users should rely on domain functions instead ([#1135](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1135))
+- `Contract.Address.enterpriseAddressScriptHash`, `enterpriseAddressValidatorHash` - use `Contract.Address.addressPaymentValidatorHash` that works for base addresses as well, or `addressStakeValidatorHash` to get the stake component validator hash ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
+- `Contract.Address.enterpriseAddressMintingPolicyHash` and `enterpriseAddressStakeValidatorHash` - these functions didn't make much sense (too specific, a very rare use case). ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
+- `ScriptHash` type from the `Contract` interface (use `ValidatorHash`) ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
+- `Contract.Address` re-exports from `Contract.Scripts` ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 
 ### Fixed
 

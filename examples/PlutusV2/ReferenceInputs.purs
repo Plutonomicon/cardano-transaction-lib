@@ -124,7 +124,7 @@ spendFromAlwaysSucceeds
   -> TokenName
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
-  let scriptAddress = scriptHashAddress vhash
+  let scriptAddress = scriptHashAddress vhash Nothing
   ownAddress <- liftedM "Failed to get own address" $ head <$>
     getWalletAddresses
   (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt' ownAddress

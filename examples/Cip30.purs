@@ -4,7 +4,6 @@ module Ctl.Examples.Cip30
   ( main
   , example
   , contract
-  , noSignDataContract
   ) where
 
 import Contract.Prelude
@@ -61,33 +60,12 @@ nonConfigFunctions extensionWallet = do
     result <- f extensionWallet
     log $ msg <> ":" <> (show result)
 
--- a version without the `signData` call, which is not implemented for KeyWallet
-noSignDataContract :: Contract () Unit
-noSignDataContract = do
+contract :: Contract () Unit
+contract = do
   logInfo' "Running Examples.Cip30"
   logInfo' "Funtions that depend on `Contract`"
   _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
-  rewardAddresses <- performAndLog "getRewardAddresses" getRewardAddresses
-  _ <- liftMaybe (error "can't get reward address") $ head rewardAddresses
-  mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
-  _ <- liftMaybe (error "can't get change address") mChangeAddress
-  void $ liftMaybe (error "can't get reward address") $ head rewardAddresses
-  where
-  performAndLog
-    :: forall (a :: Type)
-     . Show a
-    => String
-    -> Contract () a
-    -> Contract () a
-  performAndLog logMsg cont = do
-    result <- cont
-    logInfo' $ logMsg <> ": " <> show result
-    pure result
-
-contract :: Contract () Unit
-contract = do
-  noSignDataContract
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
     (pure mDataBytes)

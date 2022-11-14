@@ -41,7 +41,6 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes
   ( CborBytes
   , cborBytesToHex
-  , hexToCborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes
@@ -204,8 +203,8 @@ signData conn address dat = do
     (rawBytesToHex dat)
     conn
   pure $ do
-    key <- hexToCborBytes signedData.key
-    signature <- hexToCborBytes signedData.signature
+    let key = signedData.key
+    let signature = rawBytesAsCborBytes signedData.signature
     pure { key: key, signature: signature }
   where
   fromBase :: Maybe CborBytes
@@ -289,4 +288,4 @@ foreign import _signData
   :: String -- Address
   -> String -- Hex-encoded data
   -> Cip30Connection
-  -> Effect (Promise { key :: String, signature :: String })
+  -> Effect (Promise { key :: CborBytes, signature :: RawBytes })

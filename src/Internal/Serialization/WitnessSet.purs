@@ -102,7 +102,7 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
   for_ tws.vkeys
     (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
   for_ tws.nativeScripts $
-    (transactionWitnessSetSetNativeScripts ws) <<< convertNativeScripts
+    transactionWitnessSetSetNativeScripts ws <<< convertNativeScripts
   for_ tws.bootstraps
     (traverse convertBootstrap >=> _wsSetBootstraps containerHelper ws)
   for_ tws.plutusScripts \ps -> do

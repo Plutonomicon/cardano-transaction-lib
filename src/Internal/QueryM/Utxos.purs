@@ -22,6 +22,7 @@ import Ctl.Internal.Helpers as Helpers
 import Ctl.Internal.QueryM
   ( QueryM
   , callCip30Wallet
+  , getNetworkId
   , getWalletAddresses
   , mkOgmiosRequest
   )
@@ -213,7 +214,7 @@ getWalletCollateral = do
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
-        networkId <- asks $ _.config >>> _.networkId
+        networkId <- getNetworkId
         addr <- liftAff $ (unwrap kw).address networkId
         utxos <- utxosAt addr <#> fromMaybe Map.empty
           >>= filterLockedUtxos
