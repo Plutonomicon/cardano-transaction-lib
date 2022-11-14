@@ -104,6 +104,7 @@ suite = do
         "fixtures/test/parsing/PrivateKey/stake_round_trip.skey"
       liftEffect $ unlink
         "fixtures/test/parsing/PrivateKey/stake_round_trip.skey"
-      let pkh = publicKeyHash $ publicKeyFromPrivateKey (unwrap key)
-      let pkh2 = publicKeyHash $ publicKeyFromPrivateKey (unwrap key2)
+      let
+        pkh = publicKeyHash $ publicKeyFromPrivateKey (unwrap key)
+        pkh2 = publicKeyHash $ publicKeyFromPrivateKey (unwrap key2)
       pkh `shouldEqual` pkh2

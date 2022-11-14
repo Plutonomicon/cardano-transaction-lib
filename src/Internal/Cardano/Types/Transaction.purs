@@ -30,6 +30,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , Nonce(IdentityNonce, HashNonce)
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
+  , PoolPubKeyHash(PoolPubKeyHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -44,6 +45,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , SubCoin
   , Transaction(Transaction)
   , TransactionOutput(TransactionOutput)
+  , PoolRegistrationParams
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , URL(URL)
@@ -113,22 +115,21 @@ import Ctl.Internal.Helpers
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
-  , RewardAddress
   , Slot(Slot)
   , StakeCredential
   )
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Serialization.Hash
+  ( Ed25519KeyHash
+  , ed25519KeyHashFromBech32
+  , ed25519KeyHashToBech32
+  )
 import Ctl.Internal.Serialization.Keys
   ( bech32FromEd25519Signature
   , bech32FromPublicKey
   , bytesFromPublicKey
   )
 import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Serialization.Types
-  ( Ed25519Signature
-  , PublicKey
-  , VRFKeyHash
-  ) as Serialization
+import Ctl.Internal.Serialization.Types (Ed25519Signature, PublicKey) as Serialization
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -136,14 +137,17 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
+import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left))
+import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -551,12 +555,10 @@ newtype PoolMetadata = PoolMetadata
 
 derive instance Eq PoolMetadata
 derive instance Generic PoolMetadata _
+derive newtype instance EncodeAeson PoolMetadata
 
 instance Show PoolMetadata where
   show = genericShow
-
-instance EncodeAeson PoolMetadata where
-  encodeAeson' (PoolMetadata r) = encodeAeson' r
 
 newtype GenesisDelegateHash = GenesisDelegateHash ByteArray
 
@@ -600,29 +602,56 @@ instance EncodeAeson MoveInstantaneousReward where
     ToOtherPot r -> encodeAeson' $ encodeTagged' "ToOtherPot" r
     ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
 
+type PoolRegistrationParams =
+  { operator :: PoolPubKeyHash -- cwitness (cert)
+  , vrfKeyhash :: VRFKeyHash
+  -- needed to prove that the pool won the lottery
+  , pledge :: BigNum
+  , cost :: BigNum -- >= pparams.minPoolCost
+  , margin :: UnitInterval -- proportion that goes to the reward account
+  , rewardAccount :: RewardAddress
+  , poolOwners :: Array PaymentPubKeyHash
+  -- payment key hashes that contribute to pledge amount
+  , relays :: Array Relay
+  , poolMetadata :: Maybe PoolMetadata
+  }
+
+newtype PoolPubKeyHash = PoolPubKeyHash Ed25519KeyHash
+
+derive instance Newtype PoolPubKeyHash _
+derive instance Eq PoolPubKeyHash
+derive instance Generic PoolPubKeyHash _
+
+instance EncodeAeson PoolPubKeyHash where
+  encodeAeson' (PoolPubKeyHash kh) =
+    encodeAeson' (ed25519KeyHashToBech32 "pool" kh)
+
+instance DecodeAeson PoolPubKeyHash where
+  decodeAeson aeson = do
+    str <- decodeAeson aeson
+    PoolPubKeyHash <$> note (TypeMismatch "PoolPubKeyHash")
+      (ed25519KeyHashFromBech32 str)
+
+instance Show PoolPubKeyHash where
+  show (PoolPubKeyHash kh) =
+    "(PoolPubKeyHash (Ed25519KeyHash (unsafePartial $ fromJust $ \
+    \ed25519KeyHashFromBech32 "
+      <> show (ed25519KeyHashToBech32 "pool" kh)
+      <> ")))"
+
 data Certificate
   = StakeRegistration StakeCredential
   | StakeDeregistration StakeCredential
-  | StakeDelegation StakeCredential Ed25519KeyHash
-  | PoolRegistration
-      { operator :: Ed25519KeyHash
-      , vrfKeyhash :: Serialization.VRFKeyHash
-      , pledge :: BigNum
-      , cost :: BigNum
-      , margin :: UnitInterval
-      , rewardAccount :: RewardAddress
-      , poolOwners :: Array Ed25519KeyHash
-      , relays :: Array Relay
-      , poolMetadata :: Maybe PoolMetadata
-      }
+  | StakeDelegation StakeCredential PoolPubKeyHash
+  | PoolRegistration PoolRegistrationParams
   | PoolRetirement
-      { poolKeyhash :: Ed25519KeyHash
+      { poolKeyHash :: PoolPubKeyHash
       , epoch :: Epoch
       }
   | GenesisKeyDelegation
       { genesisHash :: GenesisHash
       , genesisDelegateHash :: GenesisDelegateHash
-      , vrfKeyhash :: Serialization.VRFKeyHash
+      , vrfKeyhash :: VRFKeyHash
       }
   | MoveInstantaneousRewardsCert MoveInstantaneousReward
 

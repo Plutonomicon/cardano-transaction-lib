@@ -23,6 +23,7 @@ module Ctl.Internal.Test.E2E.Options
 
 import Prelude
 
+import Affjax (URL)
 import Control.Alt ((<|>))
 import Ctl.Internal.Test.E2E.Types
   ( Browser
@@ -31,6 +32,7 @@ import Ctl.Internal.Test.E2E.Types
   , E2ETest
   , ExtensionId
   , SettingsArchive
+  , SettingsArchiveUrl
   , TmpDir
   , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
   , WalletPassword
@@ -47,6 +49,7 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Show.Generic (genericShow)
+import Data.String (toLower)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -109,6 +112,7 @@ type CommonOptions_ (r :: Row Type) =
   , chromeUserDataDir :: Maybe ChromeUserDataDir
   , tmpDir :: Maybe TmpDir
   , settingsArchive :: Maybe SettingsArchive
+  , settingsArchiveUrl :: Maybe SettingsArchiveUrl
   )
 
 -- | CLI options for the `browser` command.
@@ -120,12 +124,14 @@ type ExtensionOptions =
   { crxFile :: Maybe CrxFilePath
   , password :: Maybe WalletPassword
   , extensionId :: Maybe ExtensionId
+  , crxUrl :: Maybe URL
   }
 
 -- | CLI options for `pack` and `unpack` commands.
 type SettingsOptions =
   { chromeUserDataDir :: Maybe FilePath
   , settingsArchive :: Maybe FilePath
+  , settingsArchiveUrl :: Maybe SettingsArchiveUrl
   }
 
 -- | A CLI command that can be interpreted by the E2E test suite.
@@ -183,7 +189,10 @@ browserOptionsParser = ado
         Just a -> show a
     , value Nothing
     ]
-  { chromeUserDataDir, settingsArchive } <- settingsOptionsParser
+  { chromeUserDataDir
+  , settingsArchive
+  , settingsArchiveUrl
+  } <- settingsOptionsParser
   tmpDir <- option (Just <$> str) $ fold
     [ long "tmp-dir"
     , help "Temporary data directory"
@@ -193,125 +202,78 @@ browserOptionsParser = ado
         Just a -> show a
     , metavar "DIR"
     ]
-  -- Eternl
-  eternlExtId <- option (Just <$> extensionIdParser) $ fold
-    [ long "eternl-extid"
-    , metavar "EXTID"
-    , help "Eternl extension ID"
-    , value Nothing
-    ]
-  eternlPassword <- option (Just <$> str) $ fold
-    [ long "eternl-password"
-    , metavar "PASSWORD"
-    , help "Eternl wallet password"
-    , value Nothing
-    ]
-  eternlCrx <- option (Just <$> str) $ fold
-    [ long "eternl-crx"
-    , metavar "FILE"
-    , help "Eternl wallet extension (.crx) file"
-    , value Nothing
-    ]
-  -- Nami
-  namiExtId <- option (Just <$> extensionIdParser) $ fold
-    [ long "nami-extid"
-    , metavar "EXTID"
-    , help "Nami extension ID"
-    , value Nothing
-    ]
-  namiPassword <- option (Just <$> str) $ fold
-    [ long "nami-password"
-    , metavar "PASSWORD"
-    , help "Nami wallet password"
-    , value Nothing
-    ]
-  namiCrx <- option (Just <$> str) $ fold
-    [ long "nami-crx"
-    , metavar "FILE"
-    , help "Nami wallet extension (.crx) file"
-    , value Nothing
-    ]
-  -- Gero
-  geroExtId <- option (Just <$> extensionIdParser) $ fold
-    [ long "gero-extid"
-    , metavar "EXTID"
-    , help "Gero extension ID"
-    , value Nothing
-    ]
-  geroPassword <- option (Just <$> str) $ fold
-    [ long "gero-password"
-    , metavar "PASSWORD"
-    , help "Gero wallet password"
-    , value Nothing
-    ]
-  geroCrx <- option (Just <$> str) $ fold
-    [ long "greo-crx"
-    , metavar "FILE"
-    , help "Gero wallet extension (.crx) file"
-    , value Nothing
-    ]
-  -- Flint
-  flintExtId <- option (Just <$> extensionIdParser) $ fold
-    [ long "flint-extid"
-    , metavar "EXTID"
-    , help "Flint extension ID"
-    , value Nothing
-    ]
-  flintPassword <- option (Just <$> str) $ fold
-    [ long "flint-password"
-    , metavar "PASSWORD"
-    , help "Flint wallet password"
-    , value Nothing
-    ]
-  flintCrx <- option (Just <$> str) $ fold
-    [ long "flint-crx"
-    , metavar "FILE"
-    , help "Flint wallet extension (.crx) file"
-    , value Nothing
-    ]
-  -- Lode
-  lodeExtId <- option (Just <$> extensionIdParser) $ fold
-    [ long "lode-extid"
-    , metavar "EXTID"
-    , help "Lode extension ID"
-    , value Nothing
-    ]
-  lodePassword <- option (Just <$> str) $ fold
-    [ long "lode-password"
-    , metavar "PASSWORD"
-    , help "Lode wallet password"
-    , value Nothing
-    ]
-  lodeCrx <- option (Just <$> str) $ fold
-    [ long "lode-crx"
-    , metavar "FILE"
-    , help "Lode wallet extension (.crx) file"
-    , value Nothing
-    ]
+
+  nami <- parseWallet "Nami"
+  eternl <- parseWallet "Eternl"
+  gero <- parseWallet "Gero"
+  flint <- parseWallet "Flint"
+  lode <- parseWallet "Lode"
+
   let
     wallets = Map.fromFoldable $ catMaybes
-      [ mkConfig NamiExt namiExtId namiPassword namiCrx
-      , mkConfig GeroExt geroExtId geroPassword geroCrx
-      , mkConfig FlintExt flintExtId flintPassword flintCrx
-      , mkConfig LodeExt lodeExtId lodePassword lodeCrx
-      , mkConfig EternlExt eternlExtId eternlPassword eternlCrx
+      [ mkConfig NamiExt nami.extensionId nami.password nami.crxFile nami.crxUrl
+      , mkConfig GeroExt gero.extensionId gero.password gero.crxFile gero.crxUrl
+      , mkConfig FlintExt flint.extensionId flint.password flint.crxFile
+          flint.crxUrl
+      , mkConfig LodeExt lode.extensionId lode.password lode.crxFile lode.crxUrl
+      , mkConfig EternlExt eternl.extensionId eternl.password eternl.crxFile
+          eternl.crxUrl
       ]
   in
-    { browser, wallets, chromeUserDataDir, tmpDir, settingsArchive }
+    { browser
+    , wallets
+    , chromeUserDataDir
+    , tmpDir
+    , settingsArchive
+    , settingsArchiveUrl
+    }
   where
   mkConfig
     :: WalletExt
     -> Maybe ExtensionId
     -> Maybe WalletPassword
     -> Maybe CrxFilePath
+    -> Maybe URL
     -> Maybe (WalletExt /\ ExtensionOptions)
-  mkConfig _ Nothing Nothing Nothing = Nothing
-  mkConfig ext extensionId password crxFile =
+  mkConfig _ Nothing Nothing Nothing Nothing = Nothing
+  mkConfig ext extensionId password crxFile crxUrl =
     Just $ ext /\
       { crxFile
       , password: password
       , extensionId
+      , crxUrl
       }
+
+parseWallet :: String -> Parser ExtensionOptions
+parseWallet wallet = ado
+  extid <- option (Just <$> extensionIdParser) $ fold
+    [ long $ formattedWallet <> "-extid"
+    , metavar "EXTID"
+    , help $ wallet <> " extension ID"
+    , value Nothing
+    ]
+  password <- option (Just <$> str) $ fold
+    [ long $ formattedWallet <> "-password"
+    , metavar "PASSWORD"
+    , help $ wallet <> " wallet password"
+    , value Nothing
+    ]
+  crx <- option (Just <$> str) $ fold
+    [ long $ formattedWallet <> "-crx"
+    , metavar "FILE"
+    , help $ wallet <> " wallet extension (.crx) file"
+    , value Nothing
+    ]
+  crxUrl <- option (Just <$> str) $ fold
+    [ long $ formattedWallet <> "-crx-url"
+    , metavar "URL"
+    , help $ wallet <>
+        " wallet extension (.crx) URL to download from if the file is not present"
+    , value Nothing
+    ]
+  in { crxFile: crx, password: password, extensionId: extid, crxUrl: crxUrl }
+  where
+  formattedWallet = toLower wallet
 
 testOptionsParser :: Parser TestOptions
 testOptionsParser = ado
@@ -424,14 +386,17 @@ testUrlsOptionParser =
     "Specification of a test. Consists of a wallet name and a URL, separated \
     \by `:`. Can be specified multiple times. Default: empty"
 
-chromeUserDataOptionParser :: Parser (Maybe String)
-chromeUserDataOptionParser = option (Just <$> str) $ fold
-  [ long "chrome-user-data"
-  , help "Chrome/-ium user data dir"
-  , value Nothing
-  , showDefaultWith $ const "E2E_CHROME_USER_DATA"
-  , metavar "DIR"
-  ]
+chromeUserDataOptionParser
+  :: Parser (Maybe ChromeUserDataDir)
+chromeUserDataOptionParser = ado
+  dataDir <- option (Just <$> str) $ fold
+    [ long "chrome-user-data"
+    , help "Chrome/-ium user data dir"
+    , value Nothing
+    , showDefaultWith $ const "E2E_CHROME_USER_DATA"
+    , metavar "DIR"
+    ]
+  in dataDir
 
 settingsOptionsParser :: Parser SettingsOptions
 settingsOptionsParser = ado
@@ -443,7 +408,20 @@ settingsOptionsParser = ado
     , showDefault
     , metavar "DIR"
     ]
-  in { chromeUserDataDir, settingsArchive }
+  settingsArchiveUrl <- option (Just <$> str) $ fold
+    [ long "settings-archive-url"
+    , help
+        "Settings archive (.tar.gz) URL that will be used to store the settings"
+    , value Nothing
+    , showDefault
+    , metavar "URL"
+    ]
+
+  in
+    { chromeUserDataDir
+    , settingsArchive
+    , settingsArchiveUrl
+    }
 
 parseOptions :: Effect TestOptions
 parseOptions = execParser $ info testOptionsParser fullDesc

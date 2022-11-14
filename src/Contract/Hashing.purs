@@ -2,6 +2,7 @@ module Contract.Hashing
   ( module X
   ) where
 
+import Contract.Scripts (plutusScriptStakeValidatorHash) as X
 import Ctl.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
@@ -14,3 +15,4 @@ import Ctl.Internal.Hashing
   , transactionHash
   ) as X
 import Ctl.Internal.NativeScripts (nativeScriptHash) as X
+import Ctl.Internal.Serialization (publicKeyHash) as X
