@@ -1027,11 +1027,11 @@ let
 
     "parsing" = pkgs.stdenv.mkDerivation {
         name = "parsing";
-        version = "v8.2.0";
+        version = "v7.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript-contrib/purescript-parsing.git";
-          rev = "223f66bb673d48d9f6a820eaa8bb20bdf6fc1462";
-          sha256 = "1wyrx7f5xphydr63m4y03qh5h2qz6lvkfx3sdcmci60pjzyqg9qd";
+          rev = "a3e82c26ce2c74b5fa38ff7814d7c35bf9233af5";
+          sha256 = "15yx51khg3niqiryc6qdii6lwdvni77ak7dkbf9w5zw4h1y51p9a";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
