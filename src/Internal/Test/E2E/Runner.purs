@@ -649,11 +649,11 @@ readExtensionParams
   :: String
   -> Map.Map WalletExt ExtensionOptions
   -> Aff (Maybe ExtensionParams)
-readExtensionParams extensionName wallets = do
-  crxFile <- liftEffect $ lookupEnv $ extensionName <> "_CRX"
-  crxUrl <- liftEffect $ lookupEnv (extensionName <> "_CRX_URL")
-  password <- liftEffect $ lookupEnv (extensionName <> "_PASSWORD")
-  mbExtensionIdStr <- liftEffect $ lookupEnv (extensionName <> "_EXTID")
+readExtensionParams extName wallets = do
+  crxFile <- liftEffect $ lookupEnv $ extName <> "_CRX"
+  crxUrl <- liftEffect $ lookupEnv (extName <> "_CRX_URL")
+  password <- liftEffect $ lookupEnv (extName <> "_PASSWORD")
+  mbExtensionIdStr <- liftEffect $ lookupEnv (extName <> "_EXTID")
   extensionId <- for mbExtensionIdStr \str ->
     liftMaybe (error $ mkExtIdError str) $ mkExtensionId str
   let
@@ -689,11 +689,11 @@ readExtensionParams extensionName wallets = do
           crxFileUrl <-
             maybe
               ( liftedM
-                  ( error $ "Please specify  --" <> String.toLower extensionName
+                  ( error $ "Please specify  --" <> String.toLower extName
                       <> "-crx-url or ensure"
-                      <> String.toUpper extensionName
+                      <> String.toUpper extName
                       <> "_CRX_URL is set"
-                  ) $ liftEffect $ lookupEnv $ extensionName <> "_CRX_URL"
+                  ) $ liftEffect $ lookupEnv $ extName <> "_CRX_URL"
               )
               pure $ crxUrl
           liftEffect $ log $ "Downloading " <> crxFileUrl <> " to " <> crx <>
@@ -701,11 +701,11 @@ readExtensionParams extensionName wallets = do
           downloadTo crxFileUrl crx
         pure $ Just { crx, password: pwd, extensionId: extId }
       _, _, _ -> liftEffect $ throw $ "Please ensure that either none or all of"
-        <> extensionName
+        <> extName
         <> "_CRX, "
-        <> extensionName
+        <> extName
         <> "_PASSWORD and "
-        <> extensionName
+        <> extName
         <> "_EXTID are provided"
 
   mkExtIdError str =
