@@ -13,17 +13,15 @@ module Ctl.Examples.AlwaysSucceeds
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Contract.Address (ownStakePubKeyHash, scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , _input
@@ -52,7 +50,6 @@ contract = do
   let vhash = validatorHash validator
   logInfo' "Attempt to lock value"
   txId <- payToAlwaysSucceeds vhash
-  -- If the wallet is cold, you need a high parameter here.
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully, Try to spend locked values"
   spendFromAlwaysSucceeds vhash validator txId
@@ -63,13 +60,24 @@ example cfg = launchAff_ do
 
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
+  -- Send to own stake credential. This is used to test mustPayToScriptAddress.
+  mbStakeKeyHash <- ownStakePubKeyHash
   let
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayToScript vhash unitDatum
-        Constraints.DatumWitness
-        $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+      case mbStakeKeyHash of
+        Nothing ->
+          Constraints.mustPayToScript vhash unitDatum
+            Constraints.DatumWitness
+            $ Value.lovelaceValueOf
+            $ BigInt.fromInt 2_000_000
+        Just stakeKeyHash ->
+          Constraints.mustPayToScriptAddress vhash
+            (PubKeyCredential $ unwrap stakeKeyHash)
+            unitDatum
+            Constraints.DatumWitness
+            $ Value.lovelaceValueOf
+            $ BigInt.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
@@ -82,7 +90,11 @@ spendFromAlwaysSucceeds
   -> TransactionHash
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
+  -- Use own stake credential if available
+  mbStakeKeyHash <- ownStakePubKeyHash
+  let
+    scriptAddress =
+      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->

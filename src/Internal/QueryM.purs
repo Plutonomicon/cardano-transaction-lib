@@ -105,6 +105,7 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Helpers (logString, logWithLevel, (<</>>))
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
@@ -151,7 +152,14 @@ import Ctl.Internal.QueryM.Dispatcher
   , newPendingRequests
   )
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash, aesonObject)
+import Ctl.Internal.QueryM.Ogmios
+  ( AdditionalUtxoSet
+  , DelegationsAndRewardsR
+  , PoolIdsR
+  , PoolParametersR
+  , TxHash
+  , aesonObject
+  )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -669,7 +677,7 @@ callCip30Wallet wallet act = act wallet wallet.connection
 data ClientError
   = ClientHttpError Affjax.Error
   | ClientHttpResponseError String
-  | ClientDecodeJsonError JsonDecodeError
+  | ClientDecodeJsonError String JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
 
@@ -683,8 +691,8 @@ instance Show ClientError where
     "(ClientHttpResponseError "
       <> show err
       <> ")"
-  show (ClientDecodeJsonError err) =
-    "(ClientDecodeJsonError "
+  show (ClientDecodeJsonError jsonStr err) =
+    "(ClientDecodeJsonError (" <> show jsonStr <> ") "
       <> show err
       <> ")"
   show (ClientEncodingError err) =
@@ -762,7 +770,7 @@ handleAffjaxResponse
   | statusCode < 200 || statusCode > 299 =
       Left (ClientHttpResponseError body)
   | otherwise =
-      body # lmap ClientDecodeJsonError
+      body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
@@ -1003,6 +1011,12 @@ mkOgmiosWebSocketLens logger datumCacheWebSocket = do
             mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
+        , poolIds:
+            mkListenerSet dispatcher pendingRequests
+        , poolParameters:
+            mkListenerSet dispatcher pendingRequests
+        , delegationsAndRewards:
+            mkListenerSet dispatcher pendingRequests
         }
 
       resendPendingRequests :: JsWebSocket -> Effect Unit
@@ -1039,6 +1053,9 @@ type OgmiosListeners =
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
+  , poolIds :: ListenerSet Unit PoolIdsR
+  , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
+  , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
   }
 
 type DatumCacheListeners =

@@ -17,6 +17,7 @@ import Ctl.Internal.Serialization.Types
   , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
+  , VRFKeyHash
   , Value
   )
 import Ctl.Internal.Types.ByteArray (ByteArray)
@@ -41,6 +42,7 @@ foreign import toBytes
          |+| Address
          |+| Value
          |+| Ed25519Signature
+         |+| VRFKeyHash
      -- Add more as needed.
      )
   -> ByteArray
