@@ -88,7 +88,7 @@ spendFromCheckDatumIsInline
   -> TransactionHash
   -> Contract () Unit
 spendFromCheckDatumIsInline vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
+  let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput -> do
@@ -141,7 +141,7 @@ readFromCheckDatumIsInline
   -> TransactionHash
   -> Contract () Unit
 readFromCheckDatumIsInline vhash txId = do
-  let scriptAddress = scriptHashAddress vhash
+  let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just (TransactionOutputWithRefScript { output }) -> do

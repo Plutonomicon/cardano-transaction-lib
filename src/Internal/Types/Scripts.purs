@@ -2,13 +2,15 @@ module Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
   , PlutusScript(PlutusScript)
-  , StakeValidator(StakeValidator)
+  , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
+  , NativeScriptStakeValidator(NativeScriptStakeValidator)
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
   , Language(PlutusV1, PlutusV2)
   , plutusV1Script
   , plutusV2Script
+  , stakeValidatorHashToBech32
   ) where
 
 import Prelude
@@ -31,12 +33,13 @@ import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBech32Unsafe)
 import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 
@@ -138,23 +141,33 @@ instance EncodeAeson Validator where
 instance Show Validator where
   show = genericShow
 
--- | `StakeValidator` is a wrapper around `PlutusScript`s which are used as
--- | validators for withdrawals and stake address certificates.
-newtype StakeValidator = StakeValidator PlutusScript
+-- | `NativeScriptStakeValidator`s are used as validators for withdrawals and
+-- | stake address certificates.
+newtype NativeScriptStakeValidator = NativeScriptStakeValidator NativeScript
 
-derive instance Generic StakeValidator _
-derive instance Newtype StakeValidator _
-derive newtype instance Eq StakeValidator
-derive newtype instance Ord StakeValidator
+derive instance Newtype NativeScriptStakeValidator _
+derive instance Generic NativeScriptStakeValidator _
+derive instance Eq NativeScriptStakeValidator
 
-instance DecodeAeson StakeValidator where
-  decodeAeson = decodeAesonHelper "getStakeValidator" StakeValidator
+instance Show NativeScriptStakeValidator where
+  show = genericShow
 
-instance EncodeAeson StakeValidator where
-  encodeAeson' (StakeValidator script) =
+-- | `PlutusScriptStakeValidator`s are used as validators for withdrawals and
+-- | stake address certificates.
+newtype PlutusScriptStakeValidator = PlutusScriptStakeValidator PlutusScript
+
+derive instance Newtype PlutusScriptStakeValidator _
+derive instance Generic PlutusScriptStakeValidator _
+derive instance Eq PlutusScriptStakeValidator
+
+instance DecodeAeson PlutusScriptStakeValidator where
+  decodeAeson = decodeAesonHelper "getStakeValidator" PlutusScriptStakeValidator
+
+instance EncodeAeson PlutusScriptStakeValidator where
+  encodeAeson' (PlutusScriptStakeValidator script) =
     encodeAeson' { "getStakeValidator": script }
 
-instance Show StakeValidator where
+instance Show PlutusScriptStakeValidator where
   show = genericShow
 
 --------------------------------------------------------------------------------
@@ -203,6 +216,8 @@ derive instance Generic StakeValidatorHash _
 derive instance Newtype StakeValidatorHash _
 derive newtype instance Eq StakeValidatorHash
 derive newtype instance Ord StakeValidatorHash
+derive newtype instance ToData StakeValidatorHash
+derive newtype instance FromData StakeValidatorHash
 
 instance DecodeAeson StakeValidatorHash where
   decodeAeson = decodeAesonHelper "getStakeValidatorHash" StakeValidatorHash
@@ -213,3 +228,6 @@ instance EncodeAeson StakeValidatorHash where
 
 instance Show StakeValidatorHash where
   show = genericShow
+
+stakeValidatorHashToBech32 :: StakeValidatorHash -> Bech32String
+stakeValidatorHashToBech32 = unwrap >>> scriptHashToBech32Unsafe "script"
