@@ -1,5 +1,5 @@
 module Contract.Plutarch.Types
-  ( PRational(P)
+  ( PRational(PRational)
   , reduce
   , numerator
   , denominator
@@ -18,7 +18,7 @@ import Contract.Numeric.Rational
   , recip
   , reduce
   ) as R
-import Contract.PlutusData (class FromData, class ToData, PlutusData(..))
+import Contract.PlutusData (class FromData, class ToData, PlutusData(List,Integer))
 import Data.BigInt (BigInt)
 
 newtype PRational = PRational R.Rational
@@ -42,7 +42,7 @@ derive newtype instance CommutativeRing PRational
 derive newtype instance EuclideanRing PRational
 
 reduce :: forall t. R.RationalComponent t => t -> t -> Maybe PRational
-reduce = map (map (map P)) $ R.reduce
+reduce = map (map (map wrap)) $ R.reduce
 
 infixl 7 reduce as %
 
