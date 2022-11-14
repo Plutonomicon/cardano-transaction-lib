@@ -24,7 +24,7 @@ The browser can be run headless (default) or headful (useful during test develop
 
 Any programs that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `make run-dev`). The test suite accepts a list of URLs.
 
-The test suite requires a set of CRX (chrome extension) files, as well as an archive with user settings.
+The test suite requires a set of CRX (chrome extension) files, as well as an archive with user settings. Extension and wallet settings can optionally be configured to be fetched from a URL.
 
 Each extension should be provided with its extension ID and wallet password.
 
@@ -87,31 +87,42 @@ Although most users will have some version of Chromium or Google Chrome installe
 
 The tests can set up using CLI arguments, environment variables, or both. CLI arguments have higher priority.
 
-| Parameter                         | CLI argument                | Environment variable   |
-|-----------------------------------|-----------------------------|------------------------|
-| Temporary directory               | `--tmp-dir`                 | `E2E_TMPDIR`           |
-| Test specs (`wallet:url` format)  | `--test` (multiple allowed) | `E2E_TESTS`            |
-| Test timeout                      | `--test-timeout`            | `E2E_TEST_TIMEOUT`     |
-| Browser binary path or name       | `--browser`                 | `E2E_BROWSER`          |
-| Don't use headless mode           | `--no-headless`             | `E2E_NO_HEADLESS`      |
-| Path to the user settings archive | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE` |
-| Path to the user data directory   | `--chrome-user-data`        | `E2E_CHROME_USER_DATA` |
-|-----------------------------------|-----------------------------|------------------------|
-| Eternl CRX file                   | `--eternl-crx`              | `ETERNL_CRX`           |
-| Eternl password                   | `--eternl-password`         | `ETERNL_PASSWORD`      |
-| Eternl Extension ID               | `--eternl-extid`            | `ETERNL_EXTID`         |
-| Lode CRX file                     | `--lode-crx`                | `LODE_CRX`             |
-| Lode password                     | `--lode-password`           | `LODE_PASSWORD`        |
-| Lode Extension ID                 | `--lode-extid`              | `LODE_EXTID`           |
-| Nami CRX file                     | `--nami-crx`                | `NAMI_CRX`             |
-| Nami password                     | `--nami-password`           | `NAMI_PASSWORD`        |
-| Nami Extension ID                 | `--nami-extid`              | `NAMI_EXTID`           |
-| Flint CRX file                    | `--flint-crx`               | `FLINT_CRX`            |
-| Flint password                    | `--flint-password`          | `FLINT_PASSWORD`       |
-| Flint Extension ID                | `--flint-extid`             | `FLINT_EXTID`          |
-| Gero CRX file                     | `--gero-crx`                | `GERO_CRX`             |
-| Gero password                     | `--gero-password`           | `GERO_PASSWORD`        |
-| Gero Extension ID                 | `--gero-extid`              | `GERO_EXTID`           |
+| Parameter                         | CLI argument                | Environment variable       |
+|-----------------------------------|-----------------------------|----------------------------|
+| Temporary directory               | `--tmp-dir`                 | `E2E_TMPDIR`               |
+| Test specs (`wallet:url` format)  | `--test` (multiple allowed) | `E2E_TESTS`                |
+| Test timeout                      | `--test-timeout`            | `E2E_TEST_TIMEOUT`         |
+| Browser binary path or name       | `--browser`                 | `E2E_BROWSER`              |
+| Don't use headless mode           | `--no-headless`             | `E2E_NO_HEADLESS`          |
+| Path to the user settings archive | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE`     |
+| URL of settings archive asset     | `--settings-archive-url`    | `E2E_SETTINGS_ARCHIVE_URL` |
+| Path to the user data directory   | `--chrome-user-data`        | `E2E_CHROME_USER_DATA`     |
+|-----------------------------------|-----------------------------|----------------------------|
+| Eternl CRX URL                    | `--eternl-crx-url`          | `ETERNL_CRX_URL`           |
+| Eternl CRX file                   | `--eternl-crx`              | `ETERNL_CRX`               |
+| Eternl password                   | `--eternl-password`         | `ETERNL_PASSWORD`          |
+| Eternl Extension ID               | `--eternl-extid`            | `ETERNL_EXTID`             |
+| Lode CRX URL                      | `--lode-crx-url`            | `LODE_CRX_URL`             |
+| Lode password                     | `--lode-password`           | `LODE_PASSWORD`            |
+| Lode Extension ID                 | `--lode-extid`              | `LODE_EXTID`               |
+| Nami CRX URL                      | `--nami-crx-url`            | `NAMI_CRX_URL`             |
+| Nami CRX file                     | `--nami-crx`                | `NAMI_CRX`                 |
+| Nami password                     | `--nami-password`           | `NAMI_PASSWORD`            |
+| Nami Extension ID                 | `--nami-extid`              | `NAMI_EXTID`               |
+| Flint CRX URL                     | `--flint-crx-url`           | `FLINT_CRX_URL`            |
+| Flint CRX file                    | `--flint-crx`               | `FLINT_CRX`                |
+| Flint password                    | `--flint-password`          | `FLINT_PASSWORD`           |
+| Flint Extension ID                | `--flint-extid`             | `FLINT_EXTID`              |
+| Gero CRX URL                      | `--gero-crx-url`            | `GERO_CRX_URL`             |
+| Gero CRX file                     | `--gero-crx`                | `GERO_CRX`                 |
+| Gero password                     | `--gero-password`           | `GERO_PASSWORD`            |
+| Gero Extension ID                 | `--gero-extid`              | `GERO_EXTID`               |
+|-----------------------------------|-----------------------------|----------------------------|
+| E2E+Plutip: Plutip port number    | `--plutip-port`             | `PLUTIP_PORT`              |
+| E2E+Plutip: Ogmios port number    | `--ogmios-port`             | `OGMIOS_PORT`              |
+| E2E+Plutip: ODC port number       | `--ogmios-datum-cache-port` | `OGMIOS_DATUM_CACHE_PORT`  |
+| E2E+Plutip: CTL server port       | `--ctl-server-port`         | `CTL_SERVER_PORT`          |
+| E2E+Plutip: Postgres port         | `--postgres-port`           | `POSTGRES_PORT`            |
 
 The default configuration can be found in `test/e2e.env`.
 
@@ -259,3 +270,39 @@ http://localhost:4008/?nami-mock:Contract:58200b07c066ba037344acee5431e6df41f603
 The `nami:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
 
 In order to use the keys, their corresponding address must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral), so it's best to make two transactions.
+
+### Using CIP-30 mock with Plutip
+
+It's possible to run headless browser tests on top of a temporary plutip cluster. In this case, key generation and pre-funding will be handled by `plutip-server`, as well as deployment of all the query layer services.
+
+To do that, it's enough to define a config name that:
+
+- uses a `ConfigParams` value with `networkId` set to `MainnetId`.
+- Specifies a wallet mock (e.g. `MockNami`)
+
+E.g.:
+
+```purescript
+wallets :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+wallets = Map.fromFoldable
+  [ "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
+  , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
+  , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
+  , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
+  ]
+```
+
+Then a test entry *without* specifying any private key can be used:
+
+```bash
+export E2E_TESTS="
+plutip:http://localhost:4008/?plutip-nami-mock:SomeContract
+"
+```
+
+Full example can be found [in the template](../templates/ctl-scaffold/test/E2E.purs).
+
+There are a few important caveats/limitations:
+
+- We only allow base addresses (with a stake pubkey hash present) to be used. If there's a need to use enterprise addresses, the users should move some ada to their own enterprise address, e.g. with `mustPayToPubKey`
+- The amount of tAda is fixed to `1000000000000` and divided into 5 UTxOs equally

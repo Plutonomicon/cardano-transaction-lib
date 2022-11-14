@@ -105,13 +105,14 @@ of CTL:
 module ExampleModule where
 
 import Contract.Prelude
-import Contract.Monad (Contract, liftedE, liftedM, logInfo')
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, liftedE)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
 import Contract.PlutusData (PlutusData)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  ( balanceTx
   , TransactionHash
-  , balanceAndSignTx
+  , signTransaction
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
@@ -122,8 +123,7 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ mkUnbalancedTx lookups constraints
-  bsTx <-
-    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+  bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId

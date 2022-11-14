@@ -9,6 +9,7 @@ module Ctl.Internal.QueryM
       , ClientEncodingError
       , ClientOtherError
       )
+  , ClusterSetup
   , DatumCacheListeners
   , DatumCacheWebSocket
   , DefaultQueryEnv
@@ -65,6 +66,7 @@ module Ctl.Internal.QueryM
   , withMWallet
   , withQueryRuntime
   , callCip30Wallet
+  , emptyHooks
   ) where
 
 import Prelude
@@ -103,6 +105,7 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Helpers (logString, logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
@@ -149,7 +152,14 @@ import Ctl.Internal.QueryM.Dispatcher
   , newPendingRequests
   )
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash, aesonObject)
+import Ctl.Internal.QueryM.Ogmios
+  ( AdditionalUtxoSet
+  , DelegationsAndRewardsR
+  , PoolIdsR
+  , PoolParametersR
+  , TxHash
+  , aesonObject
+  )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -203,6 +213,7 @@ import Ctl.Internal.Wallet
   , mkLodeWalletAff
   , mkNamiWalletAff
   )
+import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
@@ -260,11 +271,32 @@ import Untagged.Union (asOneOf)
 -- Or for verifying that the connection is live, those concerns are addressed
 -- here
 
+-- | Cluster setup contains everything that is needed to run a `Contract` on
+-- | a local cluster: paramters to connect to the services and private keys
+-- | that are pre-funded with Ada on that cluster
+type ClusterSetup =
+  { ctlServerConfig :: Maybe ServerConfig
+  , ogmiosConfig :: ServerConfig
+  , datumCacheConfig :: ServerConfig
+  , keys ::
+      { payment :: PrivatePaymentKey
+      , stake :: Maybe PrivateStakeKey
+      }
+  }
+
 type Hooks =
   { beforeSign :: Maybe (Effect Unit)
   , beforeInit :: Maybe (Effect Unit)
   , onSuccess :: Maybe (Effect Unit)
   , onError :: Maybe (Error -> Effect Unit)
+  }
+
+emptyHooks :: Hooks
+emptyHooks =
+  { beforeSign: Nothing
+  , beforeInit: Nothing
+  , onSuccess: Nothing
+  , onError: Nothing
   }
 
 -- | `QueryConfig` contains a complete specification on how to initialize a
@@ -645,7 +677,7 @@ callCip30Wallet wallet act = act wallet wallet.connection
 data ClientError
   = ClientHttpError Affjax.Error
   | ClientHttpResponseError String
-  | ClientDecodeJsonError JsonDecodeError
+  | ClientDecodeJsonError String JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
 
@@ -659,8 +691,8 @@ instance Show ClientError where
     "(ClientHttpResponseError "
       <> show err
       <> ")"
-  show (ClientDecodeJsonError err) =
-    "(ClientDecodeJsonError "
+  show (ClientDecodeJsonError jsonStr err) =
+    "(ClientDecodeJsonError (" <> show jsonStr <> ") "
       <> show err
       <> ")"
   show (ClientEncodingError err) =
@@ -668,7 +700,7 @@ instance Show ClientError where
       <> err
       <> ")"
   show (ClientOtherError err) =
-    "(ClientEncodingError "
+    "(ClientOtherError "
       <> err
       <> ")"
 
@@ -738,7 +770,7 @@ handleAffjaxResponse
   | statusCode < 200 || statusCode > 299 =
       Left (ClientHttpResponseError body)
   | otherwise =
-      body # lmap ClientDecodeJsonError
+      body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
@@ -979,6 +1011,12 @@ mkOgmiosWebSocketLens logger datumCacheWebSocket = do
             mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
+        , poolIds:
+            mkListenerSet dispatcher pendingRequests
+        , poolParameters:
+            mkListenerSet dispatcher pendingRequests
+        , delegationsAndRewards:
+            mkListenerSet dispatcher pendingRequests
         }
 
       resendPendingRequests :: JsWebSocket -> Effect Unit
@@ -1015,6 +1053,9 @@ type OgmiosListeners =
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
+  , poolIds :: ListenerSet Unit PoolIdsR
+  , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
+  , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
   }
 
 type DatumCacheListeners =
