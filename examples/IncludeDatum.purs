@@ -81,7 +81,7 @@ spendFromIncludeDatum
   -> TransactionHash
   -> Contract () Unit
 spendFromIncludeDatum vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
+  let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->
