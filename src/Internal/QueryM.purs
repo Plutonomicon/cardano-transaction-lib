@@ -70,6 +70,7 @@ module Ctl.Internal.QueryM
   , withMWallet
   , withQueryRuntime
   , callCip30Wallet
+  , getNetworkId
   ) where
 
 import Prelude
@@ -645,18 +646,18 @@ getUnusedAddresses = fold <$> do
 
 getChangeAddress :: QueryM (Maybe Address)
 getChangeAddress = do
-  networkId <- asks $ _.config >>> _.networkId
+  networkId <- getNetworkId
   actionBasedOnWallet _.getChangeAddress (\kw -> (unwrap kw).address networkId)
 
 getRewardAddresses :: QueryM (Array Address)
 getRewardAddresses = fold <$> do
-  networkId <- asks $ _.config >>> _.networkId
+  networkId <- getNetworkId
   actionBasedOnWallet _.getRewardAddresses
     (\kw -> Array.singleton <$> (unwrap kw).address networkId)
 
 getWalletAddresses :: QueryM (Array Address)
 getWalletAddresses = fold <$> do
-  networkId <- asks $ _.config >>> _.networkId
+  networkId <- getNetworkId
   actionBasedOnWallet _.getWalletAddresses
     (\kw -> Array.singleton <$> (unwrap kw).address networkId)
 
