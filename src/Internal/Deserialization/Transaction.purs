@@ -103,6 +103,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , URL(URL)
   , Update
   ) as T
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash(PoolPubKeyHash))
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , mkNonAdaAsset
@@ -187,12 +188,14 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int (Int) as Csl
 import Ctl.Internal.Types.Int as Int
+import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress)) as T
 import Ctl.Internal.Types.TokenName (TokenName, tokenNameFromAssetName)
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -254,9 +257,9 @@ convertTxBody txBody = do
       maybeFfiHelper
       txBody
 
-  withdrawals :: Maybe (M.Map Csl.RewardAddress Coin) <-
+  withdrawals :: Maybe (M.Map T.RewardAddress Coin) <-
     -- array -> map
-    (map <<< map) M.fromFoldable
+    (map <<< map) (M.fromFoldable <<< map (lmap T.RewardAddress))
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
         (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
@@ -340,7 +343,7 @@ convertCertificate = _convertCert certConvHelper
   certConvHelper =
     { stakeDeregistration: pure <<< T.StakeDeregistration
     , stakeRegistration: pure <<< T.StakeRegistration
-    , stakeDelegation: \sc -> pure <<< T.StakeDelegation sc
+    , stakeDelegation: \sc -> pure <<< T.StakeDelegation sc <<< wrap
     , poolRegistration: convertPoolRegistration
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
@@ -348,7 +351,7 @@ convertCertificate = _convertCert certConvHelper
           { genesisHash: T.GenesisHash $ toBytes $ asOneOf genesisHash
           , genesisDelegateHash: T.GenesisDelegateHash
               (toBytes $ asOneOf genesisDelegateHash)
-          , vrfKeyhash: vrfKeyhash
+          , vrfKeyhash: VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
         pure $ T.MoveInstantaneousRewardsCert $
@@ -371,13 +374,13 @@ convertPoolRegistration
 convertPoolRegistration params = do
   relays <- traverse convertRelay $ poolParamsRelays containerHelper params
   pure $ T.PoolRegistration
-    { operator: poolParamsOperator params
-    , vrfKeyhash: poolParamsVrfKeyhash params
+    { operator: PoolPubKeyHash $ poolParamsOperator params
+    , vrfKeyhash: VRFKeyHash $ poolParamsVrfKeyhash params
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
     , margin: _unpackUnitInterval $ poolParamsMargin params
-    , rewardAccount: poolParamsRewardAccount params
-    , poolOwners: poolParamsPoolOwners containerHelper params
+    , rewardAccount: T.RewardAddress $ poolParamsRewardAccount params
+    , poolOwners: wrap <<< wrap <$> poolParamsPoolOwners containerHelper params
     , relays
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
         convertPoolMetadata_
@@ -442,9 +445,9 @@ convertPoolRetirement
    . Ed25519KeyHash
   -> Int
   -> Err r T.Certificate
-convertPoolRetirement poolKeyhash epochInt = do
+convertPoolRetirement poolKeyHash epochInt = do
   epoch <- wrap <$> cslIntToUInt "PoolRetirement.epoch" epochInt
-  pure $ T.PoolRetirement { poolKeyhash, epoch }
+  pure $ T.PoolRetirement { poolKeyHash: wrap poolKeyHash, epoch }
 
 convertMint :: Csl.Mint -> T.Mint
 convertMint mint = T.Mint $ mkNonAdaAsset

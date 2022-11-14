@@ -39,7 +39,6 @@ import Ctl.Internal.TypeLevel.Nat (Z)
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash
-  , StakePubKeyHash
   )
 import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Data.Either (Either(Left))
@@ -124,19 +123,19 @@ instance EncodeAeson Address where
 
 -- | The address that should be targeted by a transaction output locked
 -- | by the public key with the given hash.
-pubKeyHashAddress :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Address
-pubKeyHashAddress (PaymentPubKeyHash pkh) skh = wrap
+pubKeyHashAddress :: PaymentPubKeyHash -> Maybe Credential -> Address
+pubKeyHashAddress (PaymentPubKeyHash pkh) mbStakeCredential = wrap
   { addressCredential: PubKeyCredential pkh
   , addressStakingCredential:
-      map (StakingHash <<< PubKeyCredential <<< unwrap) skh
+      map StakingHash mbStakeCredential
   }
 
 -- | The address that should be used by a transaction output locked
 -- | by the given validator script hash.
-scriptHashAddress :: ValidatorHash -> Address
-scriptHashAddress vh = wrap
+scriptHashAddress :: ValidatorHash -> Maybe Credential -> Address
+scriptHashAddress vh mbStakeCredential = wrap
   { addressCredential: ScriptCredential vh
-  , addressStakingCredential: Nothing
+  , addressStakingCredential: map StakingHash mbStakeCredential
   }
 
 -- | The PubKeyHash of the address (if any).
