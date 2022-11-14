@@ -34,9 +34,13 @@ module Ctl.Internal.QueryM
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   , getLogger
+  , getUnusedAddresses
+  , getChangeAddress
+  , getRewardAddresses
   , getProtocolParameters
   , getProtocolParametersAff
   , getWalletAddresses
+  , getWallet
   , liftQueryM
   , listeners
   , postAeson
@@ -59,6 +63,7 @@ module Ctl.Internal.QueryM
   , runQueryMWithSettings
   , runQueryMInRuntime
   , scriptToAeson
+  , signData
   , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
@@ -66,6 +71,7 @@ module Ctl.Internal.QueryM
   , withMWallet
   , withQueryRuntime
   , callCip30Wallet
+  , getNetworkId
   , emptyHooks
   ) where
 
@@ -105,7 +111,8 @@ import Control.Monad.Reader.Trans
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
-import Ctl.Internal.Helpers (logString, logWithLevel)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
+import Ctl.Internal.Helpers (liftM, logString, logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -151,7 +158,14 @@ import Ctl.Internal.QueryM.Dispatcher
   , newPendingRequests
   )
 import Ctl.Internal.QueryM.JsonWsp as JsonWsp
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxHash, aesonObject)
+import Ctl.Internal.QueryM.Ogmios
+  ( AdditionalUtxoSet
+  , DelegationsAndRewardsR
+  , PoolIdsR
+  , PoolParametersR
+  , TxHash
+  , aesonObject
+  )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
@@ -174,7 +188,7 @@ import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Ctl.Internal.Serialization (toBytes) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
-  , NetworkId
+  , NetworkId(TestnetId, MainnetId)
   , addressPaymentCred
   , baseAddressDelegationCred
   , baseAddressFromAddress
@@ -191,20 +205,26 @@ import Ctl.Internal.Types.PubKeyHash
   , PubKeyHash
   , StakePubKeyHash
   )
+import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript(PlutusScript))
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , Wallet(Gero, Flint, Nami, Eternl, Lode, KeyWallet)
-  , mkEternlWalletAff
-  , mkFlintWalletAff
-  , mkGeroWalletAff
+  , KeyWallet
+  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
+  , WalletExtension
+      ( LodeWallet
+      , EternlWallet
+      , FlintWallet
+      , GeroWallet
+      , NamiWallet
+      )
   , mkKeyWallet
-  , mkLodeWalletAff
-  , mkNamiWalletAff
+  , mkWalletAff
   )
+import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
@@ -225,7 +245,7 @@ import Ctl.Internal.Wallet.Spec
 import Data.Array (head, singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
-import Data.Foldable (foldl)
+import Data.Foldable (fold, foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
@@ -253,7 +273,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, try)
+import Effect.Exception (Error, error, throw, try)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Untagged.Union (asOneOf)
@@ -408,8 +428,9 @@ withQueryRuntime
 withQueryRuntime config action = do
   eiRes <- attempt do
     runtime <- mkQueryRuntime config
-    supervise (action runtime) `flip finally` liftEffect do
-      stopQueryRuntime runtime
+    supervise (networkIdCheck config runtime *> action runtime)
+      `flip finally` liftEffect do
+        stopQueryRuntime runtime
   case eiRes of
     Right res -> do
       liftEffect $ for_ config.hooks.onSuccess (void <<< try)
@@ -418,6 +439,37 @@ withQueryRuntime config action = do
       for_ config.hooks.onError \f -> do
         void $ liftEffect $ try $ f err
       liftEffect $ throwError err
+
+-- | Ensure that `NetworkId` from wallet is the same as specified in the
+-- | `QueryConfig`.
+networkIdCheck :: QueryConfig -> QueryRuntime -> Aff Unit
+networkIdCheck config runtime = do
+  mbNetworkId <- runQueryMInRuntime config runtime getWalletNetworkId
+  for_ mbNetworkId \networkId ->
+    unless (networkToInt config.networkId == networkId) do
+      liftEffect $ throw $
+        "The networkId that is specified is not equal to the one from wallet."
+          <> " The wallet is using "
+          <> printNetworkIdName networkId
+          <> " while "
+          <> printNetworkIdName (networkToInt config.networkId)
+          <> " is specified in the config."
+  where
+  networkToInt :: NetworkId -> Int
+  networkToInt = case _ of
+    TestnetId -> 0
+    MainnetId -> 1
+
+  printNetworkIdName :: Int -> String
+  printNetworkIdName = case _ of
+    0 -> "Testnet"
+    _ -> "Mainnet"
+
+  getWalletNetworkId :: QueryM (Maybe Int)
+  getWalletNetworkId = do
+    join <$> actionBasedOnWallet
+      (\w -> map (Just <<< Just) <<< _.getNetworkId w)
+      (\_ -> pure Nothing)
 
 -- | Close the websockets in `QueryRuntime`, effectively making it unusable
 stopQueryRuntime
@@ -471,11 +523,11 @@ mkWalletBySpec = case _ of
       PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
       PrivateStakeKeyValue key -> pure key
     pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
-  ConnectToNami -> mkNamiWalletAff
-  ConnectToGero -> mkGeroWalletAff
-  ConnectToFlint -> mkFlintWalletAff
-  ConnectToEternl -> mkEternlWalletAff
-  ConnectToLode -> mkLodeWalletAff
+  ConnectToNami -> mkWalletAff NamiWallet
+  ConnectToGero -> mkWalletAff GeroWallet
+  ConnectToFlint -> mkWalletAff FlintWallet
+  ConnectToEternl -> mkWalletAff EternlWallet
+  ConnectToLode -> mkWalletAff LodeWallet
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -619,32 +671,69 @@ allowError func = func <<< Right
 -- Wallet
 --------------------------------------------------------------------------------
 
-getWalletAddresses :: QueryM (Maybe (Array Address))
-getWalletAddresses = do
-  networkId <- asks $ _.config >>> _.networkId
+getUnusedAddresses :: QueryM (Array Address)
+getUnusedAddresses = fold <$> do
+  actionBasedOnWallet _.getUnusedAddresses
+    (\_ -> pure [])
+
+getChangeAddress :: QueryM (Maybe Address)
+getChangeAddress = do
+  networkId <- getNetworkId
+  actionBasedOnWallet _.getChangeAddress (\kw -> (unwrap kw).address networkId)
+
+getRewardAddresses :: QueryM (Array Address)
+getRewardAddresses = fold <$> do
+  networkId <- getNetworkId
+  actionBasedOnWallet _.getRewardAddresses
+    (\kw -> Array.singleton <$> (unwrap kw).address networkId)
+
+getWalletAddresses :: QueryM (Array Address)
+getWalletAddresses = fold <$> do
+  networkId <- getNetworkId
+  actionBasedOnWallet _.getWalletAddresses
+    (\kw -> Array.singleton <$> (unwrap kw).address networkId)
+
+actionBasedOnWallet
+  :: forall (a :: Type)
+   . (Cip30Wallet -> Cip30Connection -> Aff (Maybe a))
+  -> (KeyWallet -> Aff a)
+  -> QueryM (Maybe a)
+actionBasedOnWallet walletAction keyWalletAction =
   withMWalletAff case _ of
-    Eternl wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Nami wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Gero wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Flint wallet -> callCip30Wallet wallet _.getWalletAddresses
-    Lode wallet -> callCip30Wallet wallet _.getWalletAddresses
-    KeyWallet kw -> (Just <<< Array.singleton) <$> (unwrap kw).address networkId
+    Eternl wallet -> callCip30Wallet wallet walletAction
+    Nami wallet -> callCip30Wallet wallet walletAction
+    Gero wallet -> callCip30Wallet wallet walletAction
+    Flint wallet -> callCip30Wallet wallet walletAction
+    Lode wallet -> callCip30Wallet wallet walletAction
+    KeyWallet kw -> pure <$> keyWalletAction kw
 
-ownPubKeyHashes :: QueryM (Maybe (Array PubKeyHash))
+signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)
+signData address payload = do
+  networkId <- getNetworkId
+  actionBasedOnWallet
+    (\wallet conn -> wallet.signData conn address payload)
+    (\kw -> (unwrap kw).signData networkId payload)
+
+getWallet :: QueryM (Maybe Wallet)
+getWallet = asks (_.runtime >>> _.wallet)
+
+getNetworkId :: QueryM NetworkId
+getNetworkId = asks $ _.config >>> _.networkId
+
+ownPubKeyHashes :: QueryM (Array PubKeyHash)
 ownPubKeyHashes = do
-  mbAddress <- getWalletAddresses
-  pure $
-    map wrap <$>
-      (mbAddress >>= traverse (addressPaymentCred >=> stakeCredentialToKeyHash))
+  getWalletAddresses >>= traverse \address -> do
+    liftM (error "Failed to convert Address to PubKeyHash") $
+      (addressPaymentCred >=> stakeCredentialToKeyHash >>> map wrap) address
 
-ownPaymentPubKeyHashes :: QueryM (Maybe (Array PaymentPubKeyHash))
-ownPaymentPubKeyHashes = (map <<< map) wrap <$> ownPubKeyHashes
+ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
+ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
 -- TODO: change to array of StakePubKeyHash
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
 ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
 ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> (_ >>= Array.head)
+  mbAddress <- getWalletAddresses <#> Array.head
   pure do
     baseAddress <- mbAddress >>= baseAddressFromAddress
     wrap <<< wrap <$> stakeCredentialToKeyHash
@@ -669,7 +758,7 @@ callCip30Wallet wallet act = act wallet wallet.connection
 data ClientError
   = ClientHttpError Affjax.Error
   | ClientHttpResponseError String
-  | ClientDecodeJsonError JsonDecodeError
+  | ClientDecodeJsonError String JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
 
@@ -683,8 +772,8 @@ instance Show ClientError where
     "(ClientHttpResponseError "
       <> show err
       <> ")"
-  show (ClientDecodeJsonError err) =
-    "(ClientDecodeJsonError "
+  show (ClientDecodeJsonError jsonStr err) =
+    "(ClientDecodeJsonError (" <> show jsonStr <> ") "
       <> show err
       <> ")"
   show (ClientEncodingError err) =
@@ -762,7 +851,7 @@ handleAffjaxResponse
   | statusCode < 200 || statusCode > 299 =
       Left (ClientHttpResponseError body)
   | otherwise =
-      body # lmap ClientDecodeJsonError
+      body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 -- We can't use Affjax's typical `post`, since there will be a mismatch between
@@ -1003,6 +1092,12 @@ mkOgmiosWebSocketLens logger datumCacheWebSocket = do
             mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
+        , poolIds:
+            mkListenerSet dispatcher pendingRequests
+        , poolParameters:
+            mkListenerSet dispatcher pendingRequests
+        , delegationsAndRewards:
+            mkListenerSet dispatcher pendingRequests
         }
 
       resendPendingRequests :: JsWebSocket -> Effect Unit
@@ -1039,6 +1134,9 @@ type OgmiosListeners =
   , systemStart :: ListenerSet Unit Ogmios.SystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
+  , poolIds :: ListenerSet Unit PoolIdsR
+  , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
+  , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
   }
 
 type DatumCacheListeners =

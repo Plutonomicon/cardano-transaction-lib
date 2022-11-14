@@ -1,14 +1,14 @@
 module Ctl.Internal.Scripts
   ( mintingPolicyHash
+  , nativeScriptHashEnterpriseAddress
+  , nativeScriptStakeValidatorHash
+  , plutusScriptStakeValidatorHash
   , scriptCurrencySymbol
-  , scriptHash
-  , stakeValidatorHash
   , typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHash
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
-  , nativeScriptHashEnterpriseAddress
   ) where
 
 import Prelude
@@ -25,19 +25,18 @@ import Ctl.Internal.Serialization.Address
   , scriptAddress
   , scriptHashCredential
   )
-import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
+  ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
-  , PlutusScript
-  , StakeValidator
+  , NativeScriptStakeValidator
+  , PlutusScriptStakeValidator
   , StakeValidatorHash
   , Validator
   , ValidatorHash
   )
 import Ctl.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (unwrap, wrap)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
@@ -65,7 +64,7 @@ mintingPolicyHash = case _ of
 
 -- | Converts a Plutus-style `Validator` to an `ValidatorHash`
 validatorHash :: Validator -> ValidatorHash
-validatorHash = scriptHash
+validatorHash = wrap <<< plutusScriptHash <<< unwrap
 
 -- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
 validatorHashBaseAddress :: NetworkId -> ValidatorHash -> Address
@@ -89,19 +88,15 @@ nativeScriptHashEnterpriseAddress :: NetworkId -> NativeScriptHash -> Address
 nativeScriptHashEnterpriseAddress network nsHash =
   validatorHashEnterpriseAddress network (wrap $ unwrap nsHash)
 
--- | Converts a Plutus-style `StakeValidator` to an `StakeValidatorHash`
-stakeValidatorHash :: StakeValidator -> StakeValidatorHash
-stakeValidatorHash = scriptHash
+-- | Calculates a hash of a PlutusScript stake validator
+plutusScriptStakeValidatorHash
+  :: PlutusScriptStakeValidator -> StakeValidatorHash
+plutusScriptStakeValidatorHash = unwrap >>> plutusScriptHash >>> wrap
 
--- | Converts any newtype wrapper of `PlutusScript` to a newtype wrapper
--- | of `ScriptHash`.
-scriptHash
-  :: forall (m :: Type) (n :: Type)
-   . Newtype m PlutusScript
-  => Newtype n ScriptHash
-  => m
-  -> n
-scriptHash = wrap <<< plutusScriptHash <<< unwrap
+-- | Calculates a hash of a NativeScript stake validator
+nativeScriptStakeValidatorHash
+  :: NativeScriptStakeValidator -> StakeValidatorHash
+nativeScriptStakeValidatorHash = unwrap >>> nativeScriptHash >>> unwrap >>> wrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
