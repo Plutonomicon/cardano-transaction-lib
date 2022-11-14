@@ -19,12 +19,14 @@ import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressPaymentCred
+  , addressStakeCred
   , stakeCredentialToKeyHash
   )
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.Array (fromFoldable)
+import Data.Array (fromFoldable, mapMaybe)
+import Data.Array as Array
 import Data.Lens.Getter ((^.))
 import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
 import Data.Maybe (fromMaybe, maybe)
@@ -76,18 +78,25 @@ getSelfSigners tx additionalUtxos = do
     )
 
   -- Get own addressses
-  (ownAddrs :: Set Address) <- Set.fromFoldable <$>
-    (liftedM (error "Could not get own addresses") getWalletAddresses)
+  (ownAddrs :: Set Address) <- Set.fromFoldable <$> getWalletAddresses
 
   -- Combine to get all self tx input addresses
   let
     txOwnAddrs = ownAddrs `Set.intersection`
       (additionalUtxosAddrs `Set.union` inUtxosAddrs `Set.union` inCollatAddrs)
 
-  -- Convert addresses to key hashes
-  setFor txOwnAddrs $
+  -- Extract payment pub key hashes from addresses
+  paymentPkhs <- setFor txOwnAddrs $
     liftM (error "Could not convert address to key hash")
       <<< (addressPaymentCred >=> stakeCredentialToKeyHash)
+
+  -- Extract stake pub key hashes from addresses
+  let
+    stakePkhs = Set.fromFoldable $
+      (stakeCredentialToKeyHash <=< addressStakeCred) `mapMaybe`
+        Array.fromFoldable txOwnAddrs
+
+  pure $ paymentPkhs <> stakePkhs
   where
   setFor
     :: forall (a :: Type) (b :: Type) (m :: Type -> Type)

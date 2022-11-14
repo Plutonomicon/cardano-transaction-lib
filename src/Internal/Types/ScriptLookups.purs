@@ -11,6 +11,9 @@ module Ctl.Internal.Types.ScriptLookups
       , CannotMakeValue
       , CannotQueryDatum
       , CannotSatisfyAny
+      , CannotWithdrawRewardsPlutusScript
+      , CannotWithdrawRewardsNativeScript
+      , CannotWithdrawRewardsPubKey
       , DatumNotFound
       , DatumWrongHash
       , MintingPolicyHashNotCurrencySymbol
@@ -51,20 +54,28 @@ module Ctl.Internal.Types.ScriptLookups
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
+import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.Address (enterpriseAddressValidatorHash)
+import Ctl.Internal.Address (addressPaymentValidatorHash)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Costmdls
+  ( Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , PoolRegistration
+      , PoolRetirement
+      , StakeDelegation
+      )
+  , Costmdls
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody
   , _body
+  , _certs
   , _inputs
   , _isValid
   , _mint
@@ -73,11 +84,13 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
+  , _withdrawals
   , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
 import Ctl.Internal.Cardano.Types.Value
-  ( CurrencySymbol
+  ( Coin(Coin)
+  , CurrencySymbol
   , Value
   , getNonAdaAsset
   , isZero
@@ -94,6 +107,9 @@ import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
   , fromPlutusValue
   )
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(ScriptCredential, PubKeyCredential)
+  )
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -104,15 +120,28 @@ import Ctl.Internal.QueryM
   , getDatumByHash
   , getProtocolParameters
   )
+import Ctl.Internal.QueryM (getNetworkId) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
+import Ctl.Internal.QueryM.Pools
+  ( getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  )
 import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
-  , nativeScriptHashEnterpriseAddress
+  , nativeScriptStakeValidatorHash
   , validatorHash
   , validatorHashEnterpriseAddress
   )
-import Ctl.Internal.Serialization.Address (Address, NetworkId)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId
+  , StakeCredential
+  , baseAddress
+  , baseAddressToAddress
+  , keyHashCredential
+  , scriptHashCredential
+  )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Transaction
@@ -140,10 +169,16 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Reward, Mint, Spend))
+import Ctl.Internal.Types.RewardAddress
+  ( stakePubKeyHashRewardAddress
+  , stakeValidatorHashRewardAddress
+  ) as RewardAddress
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
+  ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
+  , NativeScriptStakeValidator
+  , PlutusScriptStakeValidator
   , Validator
   , ValidatorHash
   )
@@ -156,6 +191,12 @@ import Ctl.Internal.Types.TxConstraints
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
+      , MustDelegateStakePubKey
+      , MustDelegateStakePlutusScript
+      , MustDelegateStakeNativeScript
+      , MustDeregisterStakePubKey
+      , MustDeregisterStakePlutusScript
+      , MustDeregisterStakeNativeScript
       , MustHashDatum
       , MustIncludeDatum
       , MustMintValue
@@ -165,12 +206,19 @@ import Ctl.Internal.Types.TxConstraints
       , MustPayToScript
       , MustProduceAtLeast
       , MustReferenceOutput
+      , MustRegisterPool
+      , MustRegisterStakePubKey
+      , MustRegisterStakeScript
+      , MustRetirePool
       , MustSatisfyAnyOf
       , MustSpendAtLeast
       , MustSpendNativeScriptOutput
       , MustSpendPubKeyOutput
       , MustSpendScriptOutput
       , MustValidateIn
+      , MustWithdrawStakePubKey
+      , MustWithdrawStakePlutusScript
+      , MustWithdrawStakeNativeScript
       , MustMintValueUsingNativeScript
       )
   , TxConstraints(TxConstraints)
@@ -205,14 +253,14 @@ import Data.Either (Either(Left, Right), either, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
+import Data.Lens (non, (%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, singleton, union)
-import Data.Map (insert, toUnfoldable) as Map
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Set (insert) as Set
@@ -804,30 +852,33 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     _valueSpentBalancesOutputs <>= provideValue value'
 
 data MkUnbalancedTxError
-  = TypeCheckFailed TypeCheckError
-  | ModifyTx ModifyTxError
-  | TxOutRefNotFound TransactionInput
-  | TxOutRefWrongType TransactionInput
-  | DatumNotFound DataHash
-  | MintingPolicyNotFound MintingPolicyHash
-  | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
-  | CannotMakeValue CurrencySymbol TokenName BigInt
-  | ValidatorHashNotFound ValidatorHash
-  | WrongRefScriptHash (Maybe ScriptHash)
-  | OwnPubKeyAndStakeKeyMissing
-  | TypedValidatorMissing
-  | DatumWrongHash DataHash Datum
+  = CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
+  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotFindDatum
-  | CannotQueryDatum DataHash
-  | CannotHashDatum Datum
-  | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | MkTypedTxOutFailed
-  | TypedTxOutHasNoDatumHash
+  | CannotHashDatum Datum
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
-  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
+  | CannotMakeValue CurrencySymbol TokenName BigInt
+  | CannotQueryDatum DataHash
+  | CannotWithdrawRewardsPubKey StakePubKeyHash
+  | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
+  | CannotWithdrawRewardsNativeScript NativeScriptStakeValidator
+  | DatumNotFound DataHash
+  | DatumWrongHash DataHash Datum
+  | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
+  | MintingPolicyNotFound MintingPolicyHash
+  | MkTypedTxOutFailed
+  | ModifyTx ModifyTxError
+  | OwnPubKeyAndStakeKeyMissing
+  | TxOutRefNotFound TransactionInput
+  | TxOutRefWrongType TransactionInput
+  | TypeCheckFailed TypeCheckError
+  | TypedTxOutHasNoDatumHash
+  | TypedValidatorMissing
+  | ValidatorHashNotFound ValidatorHash
+  | WrongRefScriptHash (Maybe ScriptHash)
   | CannotSatisfyAny
   | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
   | CannotMintZero CurrencySymbol TokenName
@@ -966,7 +1017,7 @@ processConstraint mpsMap osMap = do
       es <- lift getEraSummaries
       ss <- lift getSystemStart
       runExceptT do
-        { timeToLive, validityStartInterval } <- ExceptT $ liftEffect $
+        ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
           posixTimeRangeToTransactionValidity es ss posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsToTxBody <<< _Newtype %=
@@ -1009,7 +1060,7 @@ processConstraint mpsMap osMap = do
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
-              (enterpriseAddressValidatorHash address)
+              (addressPaymentValidatorHash address)
             case scriptRefUnspentOut of
               Nothing -> do
                 plutusScript <-
@@ -1043,7 +1094,7 @@ processConstraint mpsMap osMap = do
               redeemer = T.Redeemer
                 { tag: Spend
                 , index: zero -- hardcoded and tweaked after balancing.
-                , data: unwrap red
+                , "data": unwrap red
                 , exUnits: zero
                 }
             _valueSpentBalancesInputs <>= provideValue amount
@@ -1104,7 +1155,7 @@ processConstraint mpsMap osMap = do
         redeemer = T.Redeemer
           { tag: Mint
           , index: zero
-          , data: unwrap red
+          , "data": unwrap red
           , exUnits: zero
           }
       -- Remove mint redeemers from array before reindexing.
@@ -1148,7 +1199,6 @@ processConstraint mpsMap osMap = do
         datum' <- for mDatum \(dat /\ datp) -> do
           when (datp == DatumWitness) $ ExceptT $ addDatum dat
           outputDatum dat datp
-
         let
           address = case skh of
             Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
@@ -1161,14 +1211,21 @@ processConstraint mpsMap osMap = do
             }
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToScript vlh dat datp scriptRef plutusValue -> do
+    MustPayToScript vlh mbCredential dat datp scriptRef plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
         datum' <- outputDatum dat datp
         let
           txOut = TransactionOutput
-            { address: validatorHashEnterpriseAddress networkId vlh
+            { address:
+                case mbCredential of
+                  Nothing -> validatorHashEnterpriseAddress networkId vlh
+                  Just cred -> baseAddressToAddress $ baseAddress
+                    { network: networkId
+                    , paymentCred: scriptHashCredential (unwrap vlh)
+                    , delegationCred: credentialToStakeCredential cred
+                    }
             , amount
             -- TODO: save correct and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
@@ -1179,13 +1236,20 @@ processConstraint mpsMap osMap = do
         -- constraint already.
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToNativeScript nsh plutusValue -> do
+    MustPayToNativeScript nsh mbCredential plutusValue -> do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
         let
           txOut = TransactionOutput
-            { address: nativeScriptHashEnterpriseAddress networkId nsh
+            { address: case mbCredential of
+                Nothing -> validatorHashEnterpriseAddress networkId
+                  (wrap $ unwrap nsh)
+                Just cred -> baseAddressToAddress $ baseAddress
+                  { network: networkId
+                  , paymentCred: scriptHashCredential (unwrap nsh)
+                  , delegationCred: credentialToStakeCredential cred
+                  }
             , amount
             , datum: NoOutputDatum
             , scriptRef: Nothing
@@ -1196,6 +1260,124 @@ processConstraint mpsMap osMap = do
       let mdh = Hashing.datumHash dt
       if mdh == Just dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
+    MustRegisterStakePubKey skh -> runExceptT do
+      lift $ addCertificate
+        $ StakeRegistration
+        $ keyHashCredential
+        $ unwrap
+        $ unwrap skh
+    MustDeregisterStakePubKey pubKey -> runExceptT do
+      lift $ addCertificate
+        $ StakeDeregistration
+        $ keyHashCredential
+        $ unwrap
+        $ unwrap pubKey
+    MustRegisterStakeScript scriptHash -> runExceptT do
+      lift $ addCertificate
+        $ StakeRegistration
+        $ scriptHashCredential
+        $ unwrap scriptHash
+    MustDeregisterStakePlutusScript plutusScript redeemerData -> runExceptT do
+      let
+        cert = StakeDeregistration
+          ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
+              plutusScript
+          )
+        redeemer = T.Redeemer
+          { tag: Cert
+          , index: zero -- hardcoded and tweaked after balancing.
+          , "data": unwrap redeemerData
+          , exUnits: zero
+          }
+      ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
+      ExceptT $ attachToCps attachRedeemer redeemer
+      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
+      lift $ addCertificate cert
+    MustDeregisterStakeNativeScript stakeValidator -> do
+      addCertificate $ StakeDeregistration
+        $ scriptHashCredential
+        $ unwrap
+        $ nativeScriptStakeValidatorHash
+            stakeValidator
+      attachToCps attachNativeScript (unwrap stakeValidator)
+    MustRegisterPool poolParams -> runExceptT do
+      lift $ addCertificate $ PoolRegistration poolParams
+    MustRetirePool poolKeyHash epoch -> runExceptT do
+      lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
+    MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
+      lift $ addCertificate $
+        StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
+          poolKeyHash
+    MustDelegateStakePlutusScript stakeValidator redeemerData poolKeyHash ->
+      runExceptT do
+        let
+          cert = StakeDelegation
+            ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
+                stakeValidator
+            )
+            poolKeyHash
+          redeemer = T.Redeemer
+            { tag: Cert
+            , index: zero -- hardcoded and tweaked after balancing.
+            , "data": unwrap redeemerData
+            , exUnits: zero
+            }
+        ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
+        ExceptT $ attachToCps attachRedeemer redeemer
+        _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
+        lift $ addCertificate cert
+    MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
+      addCertificate $ StakeDelegation
+        ( scriptHashCredential $ unwrap $ nativeScriptStakeValidatorHash
+            stakeValidator
+        )
+        poolKeyHash
+      attachToCps attachNativeScript (unwrap stakeValidator)
+    MustWithdrawStakePubKey spkh -> runExceptT do
+      networkId <- lift getNetworkId
+      mbRewards <- lift $ lift $ getPubKeyHashDelegationsAndRewards spkh
+      ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
+        mbRewards
+      let
+        rewardAddress =
+          RewardAddress.stakePubKeyHashRewardAddress networkId spkh
+      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+    MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
+      let hash = plutusScriptStakeValidatorHash stakeValidator
+      networkId <- lift getNetworkId
+      mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
+      let
+        rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
+          hash
+      ({ rewards }) <- ExceptT $ pure $ note
+        (CannotWithdrawRewardsPlutusScript stakeValidator)
+        mbRewards
+      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+      let
+        redeemer = T.Redeemer
+          { tag: Reward
+          , index: zero -- hardcoded and tweaked after balancing.
+          , "data": unwrap redeemerData
+          , exUnits: zero
+          }
+      ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
+      ExceptT $ attachToCps attachRedeemer redeemer
+      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
+    MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
+      let hash = nativeScriptStakeValidatorHash stakeValidator
+      networkId <- lift getNetworkId
+      mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
+      let
+        rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
+          hash
+      ({ rewards }) <- ExceptT $ pure $ note
+        (CannotWithdrawRewardsNativeScript stakeValidator)
+        mbRewards
+      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+      ExceptT $ attachToCps attachNativeScript (unwrap stakeValidator)
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
@@ -1238,6 +1420,11 @@ processConstraint mpsMap osMap = do
     DatumWitness -> OutputDatumHash <$> liftMaybe (CannotHashDatum dat)
       (Hashing.datumHash dat)
 
+credentialToStakeCredential :: Credential -> StakeCredential
+credentialToStakeCredential cred = case cred of
+  PubKeyCredential pubKeyHash -> keyHashCredential (unwrap pubKeyHash)
+  ScriptCredential scriptHash -> scriptHashCredential (unwrap scriptHash)
+
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
 attachToCps
@@ -1262,6 +1449,13 @@ addDatum dat = runExceptT do
   ExceptT $ attachToCps attachDatum dat
   _datums <>= Array.singleton dat
 
+addCertificate
+  :: forall (a :: Type)
+   . Certificate
+  -> ConstraintsM a Unit
+addCertificate cert =
+  _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
@@ -1275,4 +1469,4 @@ getNetworkId
   :: forall (a :: Type)
    . ConstraintsM a NetworkId
 getNetworkId = use (_cpsToTxBody <<< _networkId)
-  >>= maybe (lift $ asks $ _.config >>> _.networkId) pure
+  >>= maybe (lift $ QueryM.getNetworkId) pure
