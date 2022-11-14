@@ -117,7 +117,7 @@ type Cip30Mock =
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
   , signTx :: String -> Promise String
-  , signData :: String -> Aff DataSignature
+  , signData :: String -> Promise DataSignature
   }
 
 mkCip30Mock
@@ -195,7 +195,7 @@ mkCip30Mock pKey mSKey = do
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
         pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
-    , signData: \msg -> do
+    , signData: \msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)
         (unwrap keyWallet).signData config.networkId (wrap msgBytes)
