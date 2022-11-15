@@ -153,7 +153,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     srcAddrs <-
       asksConstraints Constraints._srcAddresses
-        >>= maybe (liftQueryM QueryM.getWalletAddresses) pure
+        >>= maybe (liftQueryM $ QueryM.getWalletAddresses Nothing) pure
 
     changeAddr <- getChangeAddress
 
@@ -199,7 +199,8 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
   setTransactionCollateral changeAddr transaction = do
     collateral <-
-      liftEitherQueryM $ note CouldNotGetCollateral <$> getWalletCollateral
+      liftEitherQueryM $
+        note CouldNotGetCollateral <$> getWalletCollateral Nothing
     let collaterisedTx = addTxCollateral collateral transaction
     -- Don't mess with Cip30 collateral
     isCip30 <- isJust <$> askCip30Wallet

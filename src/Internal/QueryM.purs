@@ -224,7 +224,7 @@ import Ctl.Internal.Wallet
   , mkKeyWallet
   , mkWalletAff
   )
-import Ctl.Internal.Wallet.Cip30 (DataSignature)
+import Ctl.Internal.Wallet.Cip30 (DataSignature, Paginate)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
@@ -688,10 +688,11 @@ getRewardAddresses = fold <$> do
   actionBasedOnWallet _.getRewardAddresses
     (\kw -> Array.singleton <$> (unwrap kw).address networkId)
 
-getWalletAddresses :: QueryM (Array Address)
-getWalletAddresses = fold <$> do
+getWalletAddresses :: Maybe Paginate -> QueryM (Array Address)
+getWalletAddresses paginate = fold <$> do
   networkId <- getNetworkId
-  actionBasedOnWallet _.getWalletAddresses
+  actionBasedOnWallet
+    (\wallet conn -> wallet.getWalletAddresses conn paginate)
     (\kw -> Array.singleton <$> (unwrap kw).address networkId)
 
 actionBasedOnWallet
@@ -721,18 +722,19 @@ getWallet = asks (_.runtime >>> _.wallet)
 getNetworkId :: QueryM NetworkId
 getNetworkId = asks $ _.config >>> _.networkId
 
-ownPubKeyHashes :: QueryM (Array PubKeyHash)
-ownPubKeyHashes = do
-  getWalletAddresses >>= traverse \address -> do
+ownPubKeyHashes :: Maybe Paginate -> QueryM (Array PubKeyHash)
+ownPubKeyHashes paginate = do
+  (getWalletAddresses paginate) >>= traverse \address -> do
     liftM (error "Failed to convert Address to PubKeyHash") $
       (addressPaymentCred >=> stakeCredentialToKeyHash >>> map wrap) address
 
-ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
-ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
+ownPaymentPubKeyHashes :: Maybe Paginate -> QueryM (Array PaymentPubKeyHash)
+ownPaymentPubKeyHashes paginate = map wrap <$> ownPubKeyHashes paginate
 
-ownStakePubKeysHashes :: QueryM (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = do
-  addresses <- getWalletAddresses
+ownStakePubKeysHashes
+  :: Maybe Paginate -> QueryM (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes paginate = do
+  addresses <- getWalletAddresses paginate
   pure $ addressToMStakePubKeyHash <$> addresses
   where
 

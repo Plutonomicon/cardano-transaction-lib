@@ -29,7 +29,7 @@ import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
 import Data.Lens.Getter ((^.))
 import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
-import Data.Maybe (fromMaybe, maybe)
+import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (difference, fromFoldable, intersection, union) as Set
@@ -68,7 +68,7 @@ getSelfSigners tx additionalUtxos = do
     txCollats :: Set TransactionInput
     txCollats = Set.fromFoldable <<< fromMaybe [] $ tx ^. _body <<< _collateral
 
-  walletCollats <- maybe Map.empty toUtxoMap <$> getWalletCollateral
+  walletCollats <- maybe Map.empty toUtxoMap <$> getWalletCollateral Nothing
 
   (inCollatAddrs :: Set Address) <- setFor txCollats
     ( \txCollat ->
@@ -78,7 +78,7 @@ getSelfSigners tx additionalUtxos = do
     )
 
   -- Get own addressses
-  (ownAddrs :: Set Address) <- Set.fromFoldable <$> getWalletAddresses
+  (ownAddrs :: Set Address) <- Set.fromFoldable <$> getWalletAddresses Nothing
 
   -- Combine to get all self tx input addresses
   let

@@ -21,7 +21,7 @@ import Data.Array (elem, fromFoldable)
 import Data.Lens ((<>~))
 import Data.Lens.Getter ((^.))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for_, traverse)
 import Data.Tuple.Nested ((/\))
@@ -39,19 +39,22 @@ signTransaction tx = do
       for_ config.hooks.beforeSign (void <<< liftEffect <<< try)
   runHook
   withMWallet case _ of
-    Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
-    Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
-    Flint flint -> liftAff $ callCip30Wallet flint \nw -> flip nw.signTx tx
+    Nami nami -> commonSignAction nami
+    Gero gero -> commonSignAction gero
+    Flint flint -> commonSignAction flint
     Eternl eternl -> do
       let
         txInputs :: Array TransactionInput
         txInputs = fromFoldable $ tx ^. _body <<< _inputs
       walletWaitForInputs txInputs
-      liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
-    Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
+      commonSignAction eternl
+    Lode lode -> commonSignAction lode
     KeyWallet kw -> liftAff do
       witnessSet <- (unwrap kw).signTx tx
       pure $ Just (tx # _witnessSet <>~ witnessSet)
+  where
+  commonSignAction cip30 =
+    liftAff $ callCip30Wallet cip30 \nw -> (\x -> nw.signTx x tx true)
 
 -- | Waits till all provided inputs of a given transaction appear in the UTxO
 -- | set provided by the wallet.
@@ -61,7 +64,7 @@ signTransaction tx = do
 -- | keys to use for signing. As a result, we get `MissingVKeyWitnesses`.
 walletWaitForInputs :: Array TransactionInput -> QueryM Unit
 walletWaitForInputs txInputs = do
-  ownAddrs <- getWalletAddresses
+  ownAddrs <- getWalletAddresses Nothing
   ownInputUtxos <- txInputs #
     traverse
       ( \txInput -> do
@@ -76,7 +79,7 @@ walletWaitForInputs txInputs = do
       )
   let
     go attempts = do
-      walletUtxos <- getWalletUtxos <#> fromMaybe Map.empty
+      walletUtxos <- getWalletUtxos Nothing Nothing <#> fromMaybe Map.empty
       unless (ownInputUtxos `Map.isSubmap` walletUtxos) do
         when (attempts == 0) do
           liftEffect $ throw $

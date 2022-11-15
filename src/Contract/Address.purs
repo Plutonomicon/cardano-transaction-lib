@@ -1,15 +1,16 @@
 -- | A module for Address-related functionality and querying own wallet.
 module Contract.Address
-  ( addressPaymentValidatorHash
+  ( addressFromBech32
+  , addressPaymentValidatorHash
   , addressStakeValidatorHash
-  , getNetworkId
+  , addressToBech32
   , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
-  , addressFromBech32
-  , addressToBech32
+  , getNetworkId
   , getWalletAddress
-  , getWalletAddresses
   , getWalletAddressWithNetworkTag
+  , getWalletAddresses
+  , getWalletAddressesPaginated
   , getWalletAddressesWithNetworkTag
   , getWalletCollateral
   , module ByteArray
@@ -40,6 +41,7 @@ import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
 import Contract.Prelude (liftM)
+import Contract.Value (Value)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( addressPaymentValidatorHash
@@ -52,6 +54,7 @@ import Ctl.Internal.Plutus.Conversion
   , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -122,8 +125,9 @@ import Ctl.Internal.Types.PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Ctl.Internal.Types.TypedValidator (TypedValidator)
 import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey)) as ExportUnbalancedTransaction
+import Ctl.Internal.Wallet.Cip30 (Paginate)
 import Data.Array (head)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Nothing))
 import Data.Traversable (for, traverse)
 import Effect.Exception (error)
 import Prim.TypeError (class Warn, Text)
@@ -141,8 +145,13 @@ getWalletAddress = head <$> getWalletAddresses
 -- | Get all the `Address`es of the browser wallet.
 getWalletAddresses
   :: forall (r :: Row Type). Contract r (Array Address)
-getWalletAddresses = do
-  addresses <- wrapContract QueryM.getWalletAddresses
+getWalletAddresses = getWalletAddressesPaginated Nothing
+
+-- | Get all the `Address`es of the browser wallet with pagination.
+getWalletAddressesPaginated
+  :: Maybe Paginate -> forall (r :: Row Type). Contract r (Array Address)
+getWalletAddressesPaginated paginate = do
+  addresses <- wrapContract $ QueryM.getWalletAddresses paginate
   traverse
     ( liftM
         (error "getWalletAddresses: failed to deserialize `Address`")
@@ -164,7 +173,7 @@ getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
 getWalletAddressesWithNetworkTag
   :: forall (r :: Row Type). Contract r (Array AddressWithNetworkTag)
 getWalletAddressesWithNetworkTag = do
-  addresses <- wrapContract QueryM.getWalletAddresses
+  addresses <- wrapContract $ QueryM.getWalletAddresses Nothing
   traverse
     ( liftM
         ( error
@@ -180,9 +189,12 @@ getWalletAddressesWithNetworkTag = do
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
 getWalletCollateral
-  :: forall (r :: Row Type). Contract r (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = do
-  mtxUnspentOutput <- wrapContract QueryM.getWalletCollateral
+  :: forall (r :: Row Type)
+   . Maybe Value
+  -> Contract r (Maybe (Array TransactionUnspentOutput))
+getWalletCollateral amount = do
+  mtxUnspentOutput <- wrapContract $ QueryM.getWalletCollateral $
+    fromPlutusValue <$> amount
   for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
@@ -202,7 +214,7 @@ ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
 -- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
 ownPaymentPubKeysHashes
   :: forall (r :: Row Type). Contract r (Array PaymentPubKeyHash)
-ownPaymentPubKeysHashes = wrapContract QueryM.ownPaymentPubKeyHashes
+ownPaymentPubKeysHashes = wrapContract $ QueryM.ownPaymentPubKeyHashes Nothing
 
 ownStakePubKeyHash
   :: forall (r :: Row Type)
@@ -215,7 +227,7 @@ ownStakePubKeyHash = join <<< head <$> ownStakePubKeysHashes
 
 ownStakePubKeysHashes
   :: forall (r :: Row Type). Contract r (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = wrapContract QueryM.ownStakePubKeysHashes
+ownStakePubKeysHashes = wrapContract $ QueryM.ownStakePubKeysHashes Nothing
 
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId

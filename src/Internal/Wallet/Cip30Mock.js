@@ -1,5 +1,21 @@
 /* eslint-disable no-global-assign */
 
+class PaginateError {
+  constructor(maxSize) {
+    this.maxSize = maxSize;
+  }
+}
+
+exports.raisePaginateError = function (maxSize) {
+  throw new PaginateError(maxSize);
+};
+
+class APIError {}
+
+exports.raiseAPIError = function () {
+  throw new APIError();
+};
+
 exports.injectCip30Mock = walletName => mock => () => {
   const hadWindow = typeof window != "undefined";
 

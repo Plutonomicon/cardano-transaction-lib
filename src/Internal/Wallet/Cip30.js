@@ -2,19 +2,24 @@
 
 exports._getNetworkId = conn => () => conn.getNetworkId();
 
-exports._getUtxos = maybe => conn => () =>
-  conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
+exports._getUtxos = maybe => conn => amount => paginate => () =>
+  conn
+    .getUtxos(amount, paginate)
+    .then(res => (res === null ? maybe.nothing : maybe.just(res)))
+    .catch(_ => maybe.nothing);
 
-exports._getCollateral = maybe => conn => () =>
+exports._getCollateral = maybe => conn => amount => () =>
   conn.experimental
-    .getCollateral()
+    .getCollateral({ amount: amount })
     .then(utxos =>
       utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
-    );
+    )
+    .catch(_ => maybe.nothing);
 
 exports._getBalance = conn => () => conn.getBalance();
 
-exports._getAddresses = conn => conn.getUsedAddresses;
+exports._getAddresses = conn => paginate => () =>
+  conn.getUsedAddresses(paginate).catch(_ => []);
 
 exports._getUnusedAddresses = conn => () => conn.getUnusedAddresses();
 
@@ -22,7 +27,7 @@ exports._getChangeAddress = conn => () => conn.getChangeAddress();
 
 exports._getRewardAddresses = conn => () => conn.getRewardAddresses();
 
-exports._signTx = txHex => conn => () =>
+exports._signTx = txHex => _partialSign => conn => () =>
   conn.signTx(txHex, true).catch(e => {
     throw JSON.stringify(e);
   });

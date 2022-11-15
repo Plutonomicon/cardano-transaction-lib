@@ -2,6 +2,7 @@ module Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
   , DataSignature
+  , Paginate
   , mkCip30WalletAff
   ) where
 
@@ -48,6 +49,7 @@ import Ctl.Internal.Types.RawBytes
   , hexToRawBytes
   , rawBytesToHex
   )
+import Ctl.Internal.Undefinable (toUndefinable)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -62,6 +64,11 @@ type DataSignature =
   , signature :: CborBytes
   }
 
+type Paginate =
+  { page :: Int
+  , limit :: Int
+  }
+
 -- Please update Cip30Mock when you add or remove methods in this handle.
 type Cip30Wallet =
   { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
@@ -70,15 +77,22 @@ type Cip30Wallet =
   -- of the test networks, and 1 is mainnet.
   , getNetworkId :: Cip30Connection -> Aff Int
   -- Returns a list of all UTXOs controlled by the wallet.
-  , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+  , getUtxos ::
+      Cip30Connection
+      -> Maybe Value
+      -> Maybe Paginate
+      -> Aff (Maybe (Array TransactionUnspentOutput))
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral ::
-      Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+      Cip30Connection
+      -> Maybe Value
+      -> Aff (Maybe (Array TransactionUnspentOutput))
   -- Get combination of all available UTxOs
   , getBalance :: Cip30Connection -> Aff (Maybe Value)
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
-  , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+  , getWalletAddresses ::
+      Cip30Connection -> Maybe Paginate -> Aff (Maybe (Array Address))
   -- Sign a transaction with the given wallet
   -- Returns a list of unused addresses controlled by the wallet.
   , getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
@@ -89,7 +103,8 @@ type Cip30Wallet =
   -- Returns the reward addresses owned by the wallet. This can return multiple
   -- addresses e.g. CIP-0018
   , getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-  , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
+  , signTx ::
+      Cip30Connection -> Transaction -> Boolean -> Aff (Maybe Transaction)
   , signData ::
       Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
   }
@@ -103,7 +118,7 @@ mkCip30WalletAff
 mkCip30WalletAff walletName enableWallet = do
   wallet <- toAffE enableWallet
   -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral wallet) do
+  whenM (isNothing <$> getCollateral wallet Nothing) do
     liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
@@ -143,9 +158,11 @@ getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
 getRewardAddresses conn = toAffE (_getRewardAddresses conn) <#>
   traverse hexStringToAddress
 
-getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
-  traverse hexStringToAddress
+getWalletAddresses
+  :: Cip30Connection -> Maybe Paginate -> Aff (Maybe (Array Address))
+getWalletAddresses conn paginate =
+  Promise.toAffE (_getAddresses conn (toUndefinable paginate)) <#>
+    traverse hexStringToAddress
 
 hexStringToAddress :: String -> Maybe Address
 hexStringToAddress =
@@ -154,9 +171,12 @@ hexStringToAddress =
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
-getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
-getCollateral conn = do
-  mbUtxoStrs <- toAffE $ getCip30Collateral conn
+getCollateral
+  :: Cip30Connection
+  -> Maybe Value
+  -> Aff (Maybe (Array TransactionUnspentOutput))
+getCollateral conn amount = do
+  mbUtxoStrs <- toAffE $ getCip30Collateral conn amount
   let
     (mbUtxoBytes :: Maybe (Array RawBytes)) =
       join $ map (traverse hexToRawBytes) mbUtxoStrs
@@ -167,18 +187,28 @@ getCollateral conn = do
         Deserialization.UnspentOuput.convertUnspentOutput
           <$> fromBytesEffect (unwrap bytes)
 
-getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
-getUtxos conn = do
-  mArrayStr <- toAffE $ _getUtxos maybeFfiHelper conn
+getUtxos
+  :: Cip30Connection
+  -> Maybe Value
+  -> Maybe Paginate
+  -> Aff (Maybe (Array TransactionUnspentOutput))
+getUtxos conn amount paginate = do
+  amountPlutus <- liftEffect $ traverse Serialization.convertValue amount
+  let
+    amountHex = byteArrayToHex <$> Serialization.toBytes <$> asOneOf <$>
+      amountPlutus
+  mArrayStr <- toAffE $
+    _getUtxos maybeFfiHelper conn (toUndefinable amountHex)
+      (toUndefinable paginate)
   liftEffect $ for mArrayStr $ traverse \str -> do
     liftMaybe (error "Unable to convert UTxO") $
       hexToRawBytes str >>= unwrap >>> fromBytes >>=
         Deserialization.UnspentOuput.convertUnspentOutput
 
-signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
-signTx conn tx = do
+signTx :: Cip30Connection -> Transaction -> Boolean -> Aff (Maybe Transaction)
+signTx conn tx partialSign = do
   txHex <- txToHex tx
-  fromHexString (_signTx txHex) conn >>= case _ of
+  fromHexString (_signTx txHex partialSign) conn >>= case _ of
     Nothing -> pure Nothing
     Just bytes -> map (combineWitnessSet tx) <$> liftEffect
       ( Deserialization.WitnessSet.convertWitnessSet
@@ -244,22 +274,31 @@ foreign import _getNetworkId
 foreign import _getUtxos
   :: MaybeFfiHelper
   -> Cip30Connection
+  -> String -- Value in hex, can be undefined
+  -> Paginate -- Can be undefined
   -> Effect (Promise (Maybe (Array String)))
 
 foreign import _getCollateral
   :: MaybeFfiHelper
   -> Cip30Connection
+  -> String -- Value in hex, can be undefined
   -> Effect (Promise (Maybe (Array String)))
 
-getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
-getCip30Collateral conn =
-  _getCollateral maybeFfiHelper conn `catchError`
+getCip30Collateral
+  :: Cip30Connection -> Maybe Value -> Effect (Promise (Maybe (Array String)))
+getCip30Collateral conn amount = do
+  amountPlutus <- liftEffect $ traverse Serialization.convertValue amount
+  let
+    amountHex = byteArrayToHex <$> Serialization.toBytes <$> asOneOf <$>
+      amountPlutus
+  _getCollateral maybeFfiHelper conn (toUndefinable amountHex) `catchError`
     \_ -> throwError $ error "Wallet doesn't implement `getCollateral`."
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 
 foreign import _getAddresses
   :: Cip30Connection
+  -> Paginate
   -> Effect
        ( Promise
            ( Array
@@ -281,6 +320,7 @@ foreign import _getRewardAddresses
 
 foreign import _signTx
   :: String -- Hex-encoded cbor of tx
+  -> Boolean -- Partial sign
   -> Cip30Connection
   -> Effect (Promise String)
 

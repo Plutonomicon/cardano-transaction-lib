@@ -12,11 +12,11 @@ contract = do
   log "Address:"
   log <<< show =<< getWalletAddresses
   log "Collateral:"
-  log <<< show =<< getWalletCollateral
+  log <<< show =<< getWalletCollateral Nothing
   log "Balance:"
   log <<< show =<< getWalletBalance
   log "UTxOs:"
-  log <<< show =<< getWalletUtxos
+  log <<< show =<< getWalletUtxos Nothing Nothing
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do

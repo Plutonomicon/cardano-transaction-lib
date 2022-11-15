@@ -25,10 +25,12 @@ import Ctl.Internal.QueryM
   , getWalletAddresses
   )
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
+import Ctl.Internal.Serialization (convertValue)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet))
+import Ctl.Internal.Wallet.Cip30 (Paginate)
 import Data.Array (head)
 import Data.Array as Array
 import Data.Either (hush)
@@ -73,7 +75,7 @@ mkUtxoQuery allUtxosAt =
     KeyWallet _ -> allUtxosAt
 
   cip30UtxosAt :: QueryM (Maybe UtxoMap)
-  cip30UtxosAt = getWalletCollateral >>= maybe
+  cip30UtxosAt = getWalletCollateral Nothing >>= maybe
     (liftEffect $ throw "CIP-30 wallet missing collateral")
     \collateralUtxos ->
       allUtxosAt <#> \utxos' ->
@@ -111,39 +113,41 @@ getWalletBalance = do
     Lode wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
-      addresses <- getWalletAddresses
+      addresses <- getWalletAddresses Nothing
       fold <$> for addresses \address -> do
         utxosAt address <#> map
           -- Combine `Value`s
           (fold <<< map _.amount <<< map unwrap <<< Map.values)
 
-getWalletUtxos :: QueryM (Maybe UtxoMap)
-getWalletUtxos = do
+getWalletUtxos :: Maybe Value -> Maybe Paginate -> QueryM (Maybe UtxoMap)
+getWalletUtxos value paginate = do
   asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
-    Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
-    Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
-    Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
-      toUtxoMap
-    Eternl wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
-      toUtxoMap
-    Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    Nami wallet -> common wallet
+    Gero wallet -> common wallet
+    Flint wallet -> common wallet
+    Eternl wallet -> common wallet
+    Lode wallet -> common wallet
     KeyWallet _ -> do
-      mbAddress <- getWalletAddresses <#> head
+      mbAddress <- getWalletAddresses paginate <#> head
       map join $ for mbAddress utxosAt
   where
+  common wallet = liftAff $
+    wallet.getUtxos wallet.connection value paginate <#> map toUtxoMap
+
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
 
-getWalletCollateral :: QueryM (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = do
+getWalletCollateral
+  :: Maybe Value -> QueryM (Maybe (Array TransactionUnspentOutput))
+getWalletCollateral amount = do
   mbCollateralUTxOs <- asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
     case _ of
-      Nami wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Gero wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Flint wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Nami wallet -> common wallet
+      Gero wallet -> common wallet
+      Flint wallet -> common wallet
+      Lode wallet -> common wallet
+      Eternl wallet -> common wallet
       KeyWallet kw -> do
         networkId <- getNetworkId
         addr <- liftAff $ (unwrap kw).address networkId
@@ -170,3 +174,8 @@ getWalletCollateral = do
   tooManyCollateralUTxOsError =
     "Wallet returned too many UTxOs as collateral. This is likely a bug in \
     \the wallet."
+
+  common wallet = liftAff do
+    -- amountConverted <- liftEffect $ traverse convertValue amount
+    callCip30Wallet wallet
+      (\wallet connection -> wallet.getCollateral wallet.connection amount)

@@ -9,6 +9,7 @@ import Contract.Address
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
   , getWalletAddresses
+  , getWalletAddressesPaginated
   , getWalletCollateral
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
@@ -175,7 +176,7 @@ suite = do
             [ BigInt.fromInt 2_000_000_000 ]
       withWallets distribution \(alice /\ bob) -> do
         withKeyWallet alice do
-          getWalletCollateral >>= liftEffect <<< case _ of
+          getWalletCollateral Nothing >>= liftEffect <<< case _ of
             Nothing -> throw "Unable to get collateral"
             Just
               [ TransactionUnspentOutput
@@ -1317,7 +1318,8 @@ suite = do
             pkh <- liftedM "Failed to get PKH" $ head <$>
               ownPaymentPubKeysHashes
 
-            wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
+            wUtxos0 <- liftedM "Failed to get wallet UTXOs" $
+              getWalletUtxos Nothing Nothing
             logInfo' $ "wUtxos0 " <> show wUtxos0
 
             mp <- alwaysMintsPolicyV2
@@ -1488,7 +1490,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
-            getWalletCollateral >>= liftEffect <<< case _ of
+            getWalletCollateral Nothing >>= liftEffect <<< case _ of
               Nothing -> throw "Unable to get collateral"
               Just
                 [ TransactionUnspentOutput
@@ -1502,7 +1504,37 @@ suite = do
                 -- not a bug, but unexpected
                 throw "More than one UTxO in collateral"
 
-      test "Get own UTxOs" do
+      test "Collateral selection - too big amount" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withCip30Mock alice MockNami do
+            let
+              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+                2_000_000_001
+            result <- getWalletCollateral mValue
+            result `shouldEqual` Nothing
+
+      test "Collateral selection - equal amount" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withCip30Mock alice MockNami do
+            let
+              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+                1_000_000_000
+            result <- getWalletCollateral mValue
+            result `shouldSatisfy` isJust
+
+      test "Get own UTxOs - no arguments" do
         let
           distribution :: InitialUTxOs
           distribution =
@@ -1511,8 +1543,76 @@ suite = do
             ]
         withWallets distribution \alice -> do
           utxos <- withCip30Mock alice MockNami do
-            getWalletUtxos
+            getWalletUtxos Nothing Nothing
           utxos `shouldSatisfy` isJust
+
+      test "Get own UTxOs - amount equal to UTxOs sum amount" do
+        let
+          distribution :: InitialUTxOs
+          -- One of UTxOs is used as collateral and not counted for UTxOs amount
+          distribution =
+            [ BigInt.fromInt 1_000_000
+            , BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 1_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          utxos <- withCip30Mock alice MockNami do
+            let
+              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+                2_000_000_000
+            getWalletUtxos mValue Nothing
+          utxos `shouldSatisfy` isJust
+
+      test "Get own UTxOs - pagination is checked after amount and works" do
+        let
+          distribution :: InitialUTxOs
+          -- One of UTxOs is used as collateral and not counted for UTxOs amount
+          distribution =
+            [ BigInt.fromInt 1_000_000
+            , BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 1_000_000_000
+            ]
+        let
+          isJustOneUtxo (Just utxos) = length utxos == 1
+          isJustOneUtxo Nothing = false
+        withWallets distribution \alice -> do
+          utxos <- withCip30Mock alice MockNami do
+            let pagination = Just $ { limit: 1, page: 1 }
+            let
+              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+                2_000_000_000
+            getWalletUtxos mValue pagination
+          utxos `shouldSatisfy` isJustOneUtxo
+
+      test "Get own UTxOs - too big amount" do
+        let
+          distribution :: InitialUTxOs
+          -- One of UTxOs is used as collateral and not counted for UTxOs amount
+          distribution =
+            [ BigInt.fromInt 1_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          utxos <- withCip30Mock alice MockNami do
+            let
+              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+                2_000_000_001
+            getWalletUtxos mValue Nothing
+          utxos `shouldEqual` Nothing
+
+      test "Get own UTxOs - too big page in pagination" do
+        let
+          distribution :: InitialUTxOs
+          -- One of UTxOs is used as collateral and not counted for UTxOs amount
+          distribution =
+            [ BigInt.fromInt 1_000_000
+            , BigInt.fromInt 1_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          utxos <- withCip30Mock alice MockNami do
+            let pagination = Just $ { limit: 1, page: 2 }
+            getWalletUtxos Nothing pagination
+          utxos `shouldEqual` Nothing
 
       test "Get own address" do
         let
@@ -1529,6 +1629,19 @@ suite = do
           kwAddress <- head <$> withKeyWallet alice do
             getWalletAddresses
           mockAddress `shouldEqual` kwAddress
+
+      test "Get own address - too big page in pagination" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withCip30Mock alice MockNami do
+            let pagination = Just $ { limit: 1, page: 2 }
+            mbAddr <- head <$> getWalletAddressesPaginated pagination
+            mbAddr `shouldEqual` Nothing
 
       test "Pkh2Pkh" do
         let
