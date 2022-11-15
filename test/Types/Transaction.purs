@@ -17,13 +17,11 @@ import Contract.Transaction
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Bifunctor (lmap)
-import Data.Const (Const)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Mote (group)
-import Mote.Monad (MoteT)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
@@ -56,7 +54,7 @@ toFromAesonTest'
   => Show a
   => String
   -> Effect a
-  -> MoteT (Const Void) (Aff Unit) Aff Unit
+  -> TestPlanM (Aff Unit) Unit
 toFromAesonTest' msg a = do
   a' <- liftEffect a
   toFromAesonTest msg a'
