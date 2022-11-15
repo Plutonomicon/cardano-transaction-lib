@@ -6,8 +6,8 @@ import Contract.Prelude
 
 import Contract.Address
   ( PaymentPubKeyHash
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   )
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -27,6 +27,7 @@ import Ctl.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   ) as Helpers
+import Data.Array (head)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 
@@ -37,7 +38,7 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
-  pkh <- liftedM "Couldn't get own pkh" ownPaymentPubKeyHash
+  pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeysHashes
 
   mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
   tn <- Helpers.mkTokenName "NSToken"
@@ -61,8 +62,8 @@ contract = do
 
 toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract () Unit
 toSelfContract cs tn amount = do
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- join <<< head <$> ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void

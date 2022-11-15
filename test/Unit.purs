@@ -32,8 +32,11 @@ import Test.Ctl.Serialization.Hash as Serialization.Hash
 import Test.Ctl.Transaction as Transaction
 import Test.Ctl.TxOutput as TxOutput
 import Test.Ctl.Types.Interval as Types.Interval
+import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
+import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
+import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 
 -- Run with `spago test --main Test.Ctl.Unit`
 main :: Effect Unit
@@ -42,10 +45,12 @@ main = launchAff_ do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
+  Ipv6.suite
   NativeScript.suite
   Base64.suite
   ByteArray.suite
   Cip25.suite
+  Cip30SignData.suite
   Data.suite
   Deserialization.suite
   Equipartition.suite
@@ -66,6 +71,7 @@ testPlan = do
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Types.TokenName.suite
+  Types.Transaction.suite
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture

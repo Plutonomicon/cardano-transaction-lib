@@ -1,27 +1,28 @@
 module Ctl.Internal.Address
   ( addressToOgmiosAddress
-  , enterpriseAddressMintingPolicyHash
-  , enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
+  , addressPaymentValidatorHash
+  , addressStakeValidatorHash
   , ogmiosAddressToAddress
   ) where
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , baseAddressPaymentCred
   , enterpriseAddressFromAddress
   , enterpriseAddressPaymentCred
   , stakeCredentialToScriptHash
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  , StakeValidatorHash(StakeValidatorHash)
+  ( StakeValidatorHash(StakeValidatorHash)
   , ValidatorHash(ValidatorHash)
   )
 import Data.Maybe (Maybe)
@@ -41,26 +42,34 @@ addressToOgmiosAddress :: Address -> Ogmios.OgmiosAddress
 addressToOgmiosAddress = addressBech32
 
 --------------------------------------------------------------------------------
--- `Address` to `ScriptHash`
+-- `Address` to `ValidatorHash`
 --------------------------------------------------------------------------------
--- | Get the `ScriptHash` with an internal `Address`
-enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
-enterpriseAddressScriptHash =
+
+-- | Get the `ValidatorHash` of an address (base or enterprise).
+-- | The value is extracted from the payment component.
+addressPaymentValidatorHash :: Address -> Maybe ValidatorHash
+addressPaymentValidatorHash = map ValidatorHash <<< addressPaymentScriptHash
+
+addressPaymentScriptHash :: Address -> Maybe ScriptHash
+addressPaymentScriptHash addr =
+  baseAddressPaymentScriptHash addr <|> enterpriseAddressPaymentScriptHash addr
+
+baseAddressPaymentScriptHash :: Address -> Maybe ScriptHash
+baseAddressPaymentScriptHash =
+  stakeCredentialToScriptHash
+    <=< pure <<< baseAddressPaymentCred
+    <=< baseAddressFromAddress
+
+enterpriseAddressPaymentScriptHash :: Address -> Maybe ScriptHash
+enterpriseAddressPaymentScriptHash =
   stakeCredentialToScriptHash
     <=< pure <<< enterpriseAddressPaymentCred
     <=< enterpriseAddressFromAddress
 
--- | Get the `ValidatorHash` with an internal `Address`
-enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
-enterpriseAddressValidatorHash =
-  map ValidatorHash <<< enterpriseAddressScriptHash
-
--- | Get the `MintingPolicyHash` with an internal `Address`
-enterpriseAddressMintingPolicyHash :: Address -> Maybe MintingPolicyHash
-enterpriseAddressMintingPolicyHash =
-  map MintingPolicyHash <<< enterpriseAddressScriptHash
-
--- | Get the `StakeValidatorHash` with an internal `Address`
-enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
-enterpriseAddressStakeValidatorHash =
-  map StakeValidatorHash <<< enterpriseAddressScriptHash
+-- | Get the `StakeValidatorHash` of a base address.
+-- | The value is extracted from the stake component.
+addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
+addressStakeValidatorHash =
+  map StakeValidatorHash <<< stakeCredentialToScriptHash
+    <=< pure <<< baseAddressDelegationCred
+    <=< baseAddressFromAddress

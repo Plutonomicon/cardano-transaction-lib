@@ -47,6 +47,9 @@ supported =
   , "systemStart"
   , "eraSummaries"
   , "currentProtocolParameters"
+  , "poolIds"
+  , "poolParameters"
+  , "delegationsAndRewards"
   , "SubmitTx"
   , "EvaluateTx"
   -- TODO Support plutus:v2 parameters
@@ -166,6 +169,12 @@ suite = group "Ogmios Aeson tests" do
             "eraSummaries" -> handle (Proxy :: _ O.EraSummaries)
             "currentProtocolParameters" -> handle
               (Proxy :: _ O.ProtocolParameters)
+            "poolIds" -> handle
+              (Proxy :: _ O.PoolIdsR)
+            "poolParameters" -> handle
+              (Proxy :: _ O.PoolParametersR)
+            "delegationsAndRewards" -> handle
+              (Proxy :: _ O.DelegationsAndRewardsR)
             "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationR)
             "SubmitTx" -> handle (Proxy :: _ O.SubmitTxR)
             _ -> liftEffect $ throw $ "Unknown case " <> bn

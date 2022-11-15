@@ -4,3 +4,8 @@ exports._pushBrowserEvent = message => () => {
   }
   window.ctlE2ECommunications.push(message);
 };
+
+exports._getClusterSetup = maybe => () =>
+  window.ctlE2EClusterSetup
+    ? maybe.just(window.ctlE2EClusterSetup)
+    : maybe.nothing;

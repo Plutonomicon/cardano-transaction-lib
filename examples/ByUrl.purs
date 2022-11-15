@@ -4,6 +4,10 @@ import Prelude
 
 import Contract.Config
   ( ConfigParams
+  , mainnetFlintConfig
+  , mainnetGeroConfig
+  , mainnetLodeConfig
+  , mainnetNamiConfig
   , testnetEternlConfig
   , testnetFlintConfig
   , testnetGeroConfig
@@ -14,6 +18,7 @@ import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
@@ -51,6 +56,11 @@ wallets = Map.fromFoldable
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
   , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
+  -- Plutip cluster's network ID is set to mainnet:
+  , "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
+  , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
+  , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
+  , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
   ]
 
 examples :: Map E2ETestName (Contract () Unit)
@@ -68,5 +78,6 @@ examples = Map.fromFoldable
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
+  , "Cip30" /\ Cip30.contract
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   ]
