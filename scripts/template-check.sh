@@ -28,7 +28,7 @@ cd "$(dirname "$0")"
 
 main() {
     if [[ -z "${1-}" ]]; then
-        CTL_REVISION="$(git rev-parse HEAD)"
+        CTL_REVISION=""
         echo "CTL revision not provided, using HEAD ($CTL_REVISION)"
     else
         CTL_REVISION="$1"
@@ -40,7 +40,11 @@ main() {
     rm -rf "$TEST_DIR"
     mkdir -p "$TEST_DIR"
     cd "$TEST_DIR"
-    nix flake init -t github:Plutonomicon/cardano-transaction-lib/"$CTL_REVISION"
+    if [[ -z "$CTL_REVISION" ]]; then
+        nix flake init -t ../. # relative to `scripts/`
+    else
+        nix flake init -t github:Plutonomicon/cardano-transaction-lib/"$CTL_REVISION"
+    fi;
     git init
     git config --local user.name 'test'
     git config --local user.email 'test@example.com'
