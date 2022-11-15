@@ -6,8 +6,8 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  - [runPlutipContract](#runPlutipContract)
-  - [testPlutipContracts](#testPlutipContracts)
+  - [Testing in Aff context](#testing-in-aff-context)
+  - [Testing with Mote](#testing-with-mote)
   - [Testing with Nix](#testing-with-nix)
 - [Limitations](#limitations)
 
@@ -32,7 +32,7 @@ The services are NOT run by `docker-compose` as is the case with `launchCtlRunti
 
 There are two entry points to the testing interface: `Contract.Test.Plutip.runPlutipContract` and `Contract.Test.Plutip.testPlutipContracts`. They work similarly, the difference being that `runPlutipContract` accepts a single `Contract` and runs in `Aff`, whereas `testPlutipContracts` transforms a `MoteT` test tree of `PlutipTest` into `Aff`. [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining tests, and combined with `testPlutipContracts` you can use a single plutip instance to run multiple indepedent tests.
 
-### runPlutipContract
+### Testing in Aff context
 
 `Contract.Test.Plutip.runPlutipContract`'s function type is as follows:
 
@@ -90,7 +90,7 @@ In most cases at least two UTxOs per wallet are needed (one of which will be use
 
 Note that during execution WebSocket connection errors may occur. However, payloads are re-sent after these errors, so you can ignore them. [These errors will be suppressed in the future.](https://github.com/Plutonomicon/cardano-transaction-lib/issues/670).
 
-### testPlutipContracts
+### Testing with Mote
 
 `Contract.Test.Plutip.testPlutipContracts` type is as follows:
 
