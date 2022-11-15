@@ -5,7 +5,7 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -28,6 +28,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
+import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Map (Map)
 import Data.Set (Set)
@@ -46,8 +47,9 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
+    ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void

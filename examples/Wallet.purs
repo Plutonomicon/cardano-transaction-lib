@@ -2,7 +2,7 @@ module Ctl.Examples.Wallet (example, contract) where
 
 import Contract.Prelude
 
-import Contract.Address (getWalletAddress, getWalletCollateral)
+import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Config (ConfigParams)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Utxos (getWalletBalance, getWalletUtxos)
@@ -10,7 +10,7 @@ import Contract.Utxos (getWalletBalance, getWalletUtxos)
 contract :: Contract () Unit
 contract = do
   log "Address:"
-  log <<< show =<< getWalletAddress
+  log <<< show =<< getWalletAddresses
   log "Collateral:"
   log <<< show =<< getWalletCollateral
   log "Balance:"
