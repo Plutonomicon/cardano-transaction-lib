@@ -6,7 +6,7 @@ module Ctl.Examples.SendsToken (main, example, contract) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -23,6 +23,7 @@ import Ctl.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   ) as Helpers
+import Data.Array (head)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -55,8 +56,8 @@ mintToken = do
 
 sendToken :: Contract () TransactionHash
 sendToken = do
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- join <<< head <$> ownStakePubKeysHashes
   _ /\ value <- tokenValue
   let
     constraints :: Constraints.TxConstraints Void Void
