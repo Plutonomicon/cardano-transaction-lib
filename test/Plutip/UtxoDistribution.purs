@@ -17,9 +17,9 @@ import Prelude
 import Contract.Address
   ( Address
   , getNetworkId
-  , getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Monad (Contract, liftedM)
@@ -42,7 +42,7 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Data.Array (foldl, zip)
+import Data.Array (foldl, head, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
@@ -168,7 +168,7 @@ assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 assertUtxosAtPlutipWalletAddress
   :: forall (r :: Row Type). KeyWallet -> Contract r Unit
 assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
-  maybeStake <- ownStakePubKeyHash
+  maybeStake <- join <<< head <$> ownStakePubKeysHashes
   when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
 
 assertNoUtxosAtEnterpriseAddress
@@ -177,7 +177,8 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
   assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
     ( payPubKeyHashEnterpriseAddress
         <$> getNetworkId
-        <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
+        <*> liftedM "Could not get payment pubkeyhash"
+          (head <$> ownPaymentPubKeysHashes)
     )
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
@@ -193,7 +194,7 @@ assertCorrectDistribution
   -> Contract r Unit
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
-    addr <- liftedM "Could not get wallet address" getWalletAddress
+    addr <- liftedM "Could not get wallet address" $ head <$> getWalletAddresses
     utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts

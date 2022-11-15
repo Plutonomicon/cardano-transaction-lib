@@ -81,6 +81,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Adapted Gero wallet extension to `preview` network in E2E test suite ([#1086](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1086))
 - `Contact.TextEnvelope` how provides more type safe interface with simplified error handling ([#988](https://github.com/Plutonomicon/cardano-transaction-lib/issues/988))
 - Forbid minting zero tokens. ([#1156](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156))
+- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Adress)`.  ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
 - `pubKeyHashAddress` and `scriptHashAddress` now both accept an optional `Credential` that corresponds to the staking component of the address ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 
 ### Removed
@@ -91,6 +92,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Address.enterpriseAddressMintingPolicyHash` and `enterpriseAddressStakeValidatorHash` - these functions didn't make much sense (too specific, a very rare use case). ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `ScriptHash` type from the `Contract` interface (use `ValidatorHash`) ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `Contract.Address` re-exports from `Contract.Scripts` ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
+- `Contract.Address.ownPubKeyHash` and `ownPubKeyHashes` - these are not needed, use `ownPaymentPubKeyHash` / `ownPaymentPubKeyHashes` ([#1211](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1211))
 
 ### Fixed
 
