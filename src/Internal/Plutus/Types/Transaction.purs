@@ -10,6 +10,10 @@ module Ctl.Internal.Plutus.Types.Transaction
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  )
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Plutus.Types.Address (Address)
@@ -50,6 +54,9 @@ derive newtype instance Eq TransactionOutput
 instance Show TransactionOutput where
   show = genericShow
 
+derive newtype instance DecodeAeson TransactionOutput
+derive newtype instance EncodeAeson TransactionOutput
+
 instance FromData TransactionOutput where
   fromData (Constr n [ addr, amt, datum, referenceScript ]) | n == zero =
     TransactionOutput <$>
@@ -83,6 +90,9 @@ derive newtype instance Eq TransactionOutputWithRefScript
 
 instance Show TransactionOutputWithRefScript where
   show = genericShow
+
+derive newtype instance DecodeAeson TransactionOutputWithRefScript
+derive newtype instance EncodeAeson TransactionOutputWithRefScript
 
 instance FromData TransactionOutputWithRefScript where
   fromData = map (wrap <<< { output: _, scriptRef: Nothing }) <<< fromData
