@@ -10,7 +10,7 @@ Please also see our
 
 - [Generated docs](https://plutonomicon.github.io/cardano-transaction-lib/)
 
-- [Discord server](https://discord.gg/c8kZWxzJ)
+- [Discord server](https://discord.gg/JhbexnV9Pc)
 
 If you encounter problems and/or want to report a bug, you can open an issue [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues).
 
