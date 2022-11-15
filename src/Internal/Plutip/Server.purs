@@ -30,6 +30,7 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
@@ -569,9 +570,9 @@ startPostgresServer pgConfig = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
-    workingDir = tmpDir <> "/" <> randomStr
-    databaseDir = workingDir <> "/postgres/data"
-    postgresSocket = workingDir <> "/postgres"
+    workingDir = tmpDir <</>> randomStr
+    databaseDir = workingDir <</>> "postgres/data"
+    postgresSocket = workingDir <</>> "postgres"
   waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
   pgChildProcess <- spawn "postgres"
     [ "-D"
@@ -741,4 +742,4 @@ defaultRecovering f =
 
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do
-  "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <> "/" <> path
+  "http://" <> cfg.host <> ":" <> UInt.toString cfg.port <</>> path

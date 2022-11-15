@@ -111,7 +111,7 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Helpers (liftM, logString, logWithLevel)
+import Ctl.Internal.Helpers (liftM, logString, logWithLevel, (<</>>))
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -813,7 +813,7 @@ applyArgs script args =
           language = snd $ unwrap script
 
           url :: String
-          url = mkHttpUrl config <> "/apply-args"
+          url = mkHttpUrl config <</>> "apply-args"
 
           reqBody :: Aeson
           reqBody = encodeAeson
