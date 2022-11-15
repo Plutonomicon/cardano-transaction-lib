@@ -5,20 +5,21 @@
 module Ctl.Internal.Test.E2E.Feedback.Node
   ( getBrowserEvents
   , subscribeToBrowserEvents
+  , setClusterSetup
   ) where
 
 import Prelude
 
-import Aeson (decodeAeson, parseJsonStringToAeson)
+import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Ctl.Internal.Helpers (liftEither)
+import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
 import Data.Array as Array
 import Data.Either (Either(Left), hush, note)
 import Data.Foldable (and)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds))
+import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Data.Traversable (for, traverse_)
 import Effect (Effect)
 import Effect.Aff
@@ -93,7 +94,7 @@ subscribeToBrowserEvents timeout page cont = do
     processFiber <- Ref.new Nothing
     launchAff_ do
       liftEffect <<< flip Ref.write timeoutFiber <<< Just =<< forkAff do
-        delay $ wrap $ 1000.0 * unwrap (fromMaybe (Seconds infinity) timeout)
+        delay $ convertDuration $ fromMaybe (Seconds infinity) timeout
         liftEffect $ f $ Left $ error "Timeout reached"
       liftEffect <<< flip Ref.write processFiber <<< Just =<< forkAff do
         try (process (Just firstTimeConnectionAttempts)) >>= liftEffect <<< f
@@ -115,13 +116,23 @@ getBrowserEvents page = do
     liftEither $ note (error $ "Unable to decode BrowserEvent from: " <> event)
       $ hush
       $ decodeAeson =<< parseJsonStringToAeson event
+  where
+  collectEventsJS :: String
+  collectEventsJS =
+    """
+      (() => {
+        const res = window.ctlE2ECommunications || [];
+        window.ctlE2ECommunications = [];
+        return res;
+      })()
+      """
 
-collectEventsJS :: String
-collectEventsJS =
-  """
-  (() => {
-    const res = window.ctlE2ECommunications || [];
-    window.ctlE2ECommunications = [];
-    return res;
-  })()
-  """
+-- | Injects cluster setup value into the JS context of the page, where it can
+-- | be retrieved using `getClusterSetup`.
+setClusterSetup :: Toppokki.Page -> ClusterSetup -> Aff Unit
+setClusterSetup page clusterSetup = do
+  let
+    jsCode = "(() => window.ctlE2EClusterSetup = ("
+      <> stringifyAeson (encodeAeson clusterSetup)
+      <> "))()"
+  void $ Toppokki.unsafeEvaluateStringFunction jsCode page

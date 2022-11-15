@@ -18,9 +18,8 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.TestPlanM as Utils
 import Data.Maybe (Maybe(Just))
-import Data.Newtype (wrap)
 import Effect (Effect)
-import Effect.Aff (Aff, bracket, launchAff_)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, launchAff_)
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
@@ -33,7 +32,7 @@ import Test.Spec.Runner (defaultConfig)
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
-    defaultConfig { timeout = Just $ wrap 70_000.0, exit = true }
+    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
     $ group "Plutip" do
         Logging.suite
         UtxoDistribution.suite
