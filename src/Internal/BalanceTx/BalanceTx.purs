@@ -26,7 +26,7 @@ import Ctl.Internal.BalanceTx.Error
       ( CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , CouldNotGetWalletAddresses
+      , CouldNotGetWalletAddress
       , ExUnitsEvaluationFailed
       , InsufficientTxInputs
       , ReindexRedeemersError
@@ -42,7 +42,7 @@ import Ctl.Internal.BalanceTx.Error
       ( CouldNotConvertScriptOutputToTxInput
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , CouldNotGetWalletAddresses
+      , CouldNotGetWalletAddress
       , InsufficientTxInputs
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
@@ -145,20 +145,15 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
-      getWalletAddresses :: BalanceTxM (Array Address)
-      getWalletAddresses =
-        liftEitherQueryM $
-          QueryM.getWalletAddresses <#> note CouldNotGetWalletAddresses
-
       depositValuePerCert = (unwrap pparams).stakeAddressDeposit
       certsFee = getStakingBalance (unbalancedTx ^. _transaction')
         depositValuePerCert
 
     ownAddrs <-
-      maybe getWalletAddresses pure
+      maybe (liftQueryM QueryM.getWalletAddresses) pure
         =<< asksConstraints Constraints._ownAddresses
 
-    changeAddr <- liftMaybe CouldNotGetWalletAddresses $ Array.head ownAddrs
+    changeAddr <- liftMaybe CouldNotGetWalletAddress $ Array.head ownAddrs
 
     utxos <- liftEitherQueryM $ traverse utxosAt ownAddrs <#>
       traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
