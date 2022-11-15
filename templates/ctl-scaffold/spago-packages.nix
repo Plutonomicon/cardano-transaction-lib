@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc";
+        version = "b56e8d41d504d8db4a64b6b655281bc278f534b3";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc";
-          sha256 = "1n0vxr3pb8sc8kpi7bib09cqi732iiv9cwy00zfyjsnqkdkrddxd";
+          rev = "b56e8d41d504d8db4a64b6b655281bc278f534b3";
+          sha256 = "1mq83hlfv6b4yix9zicpicdii3hbv8l1704xczrabvw1916aqx5s";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -888,6 +888,18 @@ let
           url = "https://github.com/purescript-node/purescript-node-process.git";
           rev = "e1e807ac7831d1a8a15e242964f7e5005e42f76b";
           sha256 = "0nl9r271s8f71a9wqfkadq9b490h8phwgqc61jbzhm4ags23pqpg";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "node-readline" = pkgs.stdenv.mkDerivation {
+        name = "node-readline";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-readline.git";
+          rev = "c59deb30c7ff5cc91d6b062120c5a3979bd4ccff";
+          sha256 = "0c299bvkhrdbij88fxb75sdm7bl4wpgv9fz7wsj0hw6gkxmplpj9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
