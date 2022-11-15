@@ -1,7 +1,13 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Ctl.Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
+module Ctl.Examples.AlwaysMints
+  ( alwaysMintsPolicy
+  , alwaysMintsPolicyMaybe
+  , contract
+  , example
+  , main
+  ) where
 
 import Contract.Prelude
 
@@ -54,8 +60,12 @@ example cfg = launchAff_ $ do
 
 foreign import alwaysMints :: String
 
+alwaysMintsPolicyMaybe :: Maybe MintingPolicy
+alwaysMintsPolicyMaybe = do
+  envelope <- decodeTextEnvelope alwaysMints
+  PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+
 alwaysMintsPolicy :: Contract () MintingPolicy
 alwaysMintsPolicy =
-  liftMaybe (error "Error decoding alwaysMintsPolicy") do
-    envelope <- decodeTextEnvelope alwaysMints
-    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+  liftMaybe (error "Error decoding alwaysMintsPolicy")
+    alwaysMintsPolicyMaybe

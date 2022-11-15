@@ -77,7 +77,8 @@ import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
+  ( buildBalanceSignAndSubmitTx
+  , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
@@ -495,6 +496,176 @@ suite = do
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
           bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
           submitAndLog bsTx
+
+    test "mustProduceAtLeast success" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending same amount
+
+          pkh <-
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustProduceAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          void $ awaitTxConfirmed txHash'
+
+    test "mustProduceAtLeast fail" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending more than minted amount
+
+          pkh <-
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustProduceAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 101
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
+          result <- balanceTx ubTx
+          result `shouldSatisfy` isLeft
+
+    test "mustSpendAtLeast success" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending same amount
+
+          pkh <-
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustSpendAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          void $ awaitTxConfirmed txHash'
+
+    test "mustSpendAtLeast fail" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          mp <- alwaysMintsPolicy
+          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          tn <- mkTokenName "TheToken"
+
+          -- Minting
+
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = Constraints.mustMintValue
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 100
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = Lookups.mintingPolicy mp
+
+          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          awaitTxConfirmed txHash
+
+          -- Spending more than minted amount
+
+          pkh <-
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+
+          let
+            constraints' :: Constraints.TxConstraints Void Void
+            constraints' = Constraints.mustSpendAtLeast
+              $ Value.singleton cs tn
+              $ BigInt.fromInt 101
+            lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
+          result <- balanceTx ubTx
+          result `shouldSatisfy` isLeft
 
     test "NativeScriptMints" do
       let

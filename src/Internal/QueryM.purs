@@ -659,7 +659,7 @@ getDatumsByHashesWithErrors hashes = unwrap <$> do
 
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
 checkTxByHashAff datumCacheWs logger =
-  mkDatumCacheRequestAff datumCacheWs logger DcWsp.getTxByHash _.getTxByHash
+  mkDatumCacheRequestAff datumCacheWs logger DcWsp.getTxByHashCall _.getTxByHash
     >>> map (unwrap >>> isJust)
 
 allowError

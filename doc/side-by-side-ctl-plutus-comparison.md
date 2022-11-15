@@ -315,7 +315,7 @@ grab
   -> TransactionHash
   -> Contract () Unit
 grab vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
+  let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
