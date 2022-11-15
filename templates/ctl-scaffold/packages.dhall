@@ -105,8 +105,8 @@ in  upstream
 -------------------------------
 -}
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20211116/packages.dhall
-        sha256:7ba810597a275e43c83411d2ab0d4b3c54d0b551436f4b1632e9ff3eb62e327a
+      https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20220224/packages.dhall
+        sha256:67cc3d4f0e8fb72bb1413ba94ddd72a3ceb0783eb725e3b22ad7568b3b581163
 
 let additions =
       { aeson =
@@ -116,9 +116,9 @@ let additions =
           , "argonaut-codecs"
           , "argonaut-core"
           , "arrays"
+          , "avar"
           , "bifunctors"
           , "bigints"
-          , "const"
           , "control"
           , "effect"
           , "either"
@@ -327,6 +327,7 @@ let additions =
           , "node-fs-aff"
           , "node-path"
           , "node-process"
+          , "node-readline"
           , "node-streams"
           , "nonempty"
           , "now"
@@ -366,8 +367,9 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "eddd6b9786c75b3bd6a5776a0e88491c49fe48dc"
+        , version = "b56e8d41d504d8db4a64b6b655281bc278f534b3"
         }
       }
 
-in  upstream // additions
+in  (upstream // additions)
+  with parsing.version = "v7.0.1"

@@ -9,6 +9,7 @@ module Ctl.Internal.Types.PubKeyHash
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
+  , ed25519RewardAddress
   ) where
 
 import Prelude
@@ -16,11 +17,9 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonObject
   , decodeAeson
   , encodeAeson'
-  , getField
+  , (.:)
   )
 import Aeson.Decode as Decode
 import Aeson.Encode as Encode
@@ -42,7 +41,6 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.ToData (class ToData)
-import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -123,15 +121,17 @@ derive newtype instance FromData PaymentPubKeyHash
 derive newtype instance Ord PaymentPubKeyHash
 derive newtype instance ToData PaymentPubKeyHash
 
+instance EncodeAeson PaymentPubKeyHash where
+  encodeAeson' (PaymentPubKeyHash pkh) = encodeAeson'
+    { "unPaymentPubKeyHash": pkh }
+
+instance DecodeAeson PaymentPubKeyHash where
+  decodeAeson json = do
+    obj <- decodeAeson json
+    PaymentPubKeyHash <<< PubKeyHash <$> obj .: "unPaymentPubKeyHash"
+
 instance Show PaymentPubKeyHash where
   show = genericShow
-
--- This is needed for `ApplyArgs`. Plutus has an `unPaymentPubKeyHash` field so
--- don't newtype derive.
-instance DecodeAeson PaymentPubKeyHash where
-  decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object")
-    $ flip getField "unPaymentPubKeyHash" >=> decodeAeson >>> map
-        PaymentPubKeyHash
 
 newtype StakePubKeyHash = StakePubKeyHash PubKeyHash
 

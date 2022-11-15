@@ -4,31 +4,17 @@
 module Contract.Scripts
   ( applyArgs
   , applyArgsM
-  , module Address
   , module ExportQueryM
   , module ExportScripts
   , module Hash
   , module NativeScript
   , module TypedValidator
   , module TypesScripts
+  , module X
   ) where
 
 import Prelude
 
--- See Contract.Address for documentation on the various helpers, some are
--- constructive/deconstructive on the Plutus `Address` type, others are from
--- the CSL API and converted to use Plutus types.
-import Contract.Address
-  ( enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
-  , scriptHashAddress -- Directly uses Plutus `Address`
-  , toValidatorHash -- Directly uses Plutus `Address`
-  , typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
-  , validatorHashBaseAddress
-  , validatorHashEnterpriseAddress
-  ) as Address
 import Contract.Monad (Contract, wrapContract)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
@@ -40,6 +26,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
+import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
 import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
@@ -50,8 +37,8 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM (applyArgs) as QueryM
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
-  , scriptHash
-  , stakeValidatorHash
+  , nativeScriptStakeValidatorHash
+  , plutusScriptStakeValidatorHash
   , validatorHash
   ) as ExportScripts
 import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
@@ -59,8 +46,9 @@ import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
+  , NativeScriptStakeValidator(NativeScriptStakeValidator)
   , PlutusScript(PlutusScript)
-  , StakeValidator(StakeValidator)
+  , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)

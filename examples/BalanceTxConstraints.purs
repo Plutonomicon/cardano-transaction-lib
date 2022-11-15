@@ -7,8 +7,8 @@ import Contract.Prelude
 
 import Contract.Address
   ( Address
-  , getWalletAddressWithNetworkTag
-  , ownPaymentPubKeyHash
+  , getWalletAddressesWithNetworkTag
+  , ownPaymentPubKeysHashes
   )
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
@@ -41,6 +41,7 @@ import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Bind (bindFlipped)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Data.Array (head)
 import Data.Array (sort) as Array
 import Data.BigInt (BigInt, fromInt)
 import Data.Map (keys, member) as Map
@@ -111,15 +112,17 @@ contract (ContractParams p) = do
   logInfo' "Examples.BalanceTxConstraints"
 
   alicePubKeyHash <-
-    liftedM "Failed to get own PKH" ownPaymentPubKeyHash
+    liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
 
   bobPubKeyHash <-
     liftedM "Failed to get Bob's PKH"
-      (withKeyWallet p.bobKeyWallet ownPaymentPubKeyHash)
+      $ head
+      <$> (withKeyWallet p.bobKeyWallet ownPaymentPubKeysHashes)
 
   bobAddress <-
     liftedM "Failed to get Bob's address"
-      (withKeyWallet p.bobKeyWallet getWalletAddressWithNetworkTag)
+      $ head
+      <$> (withKeyWallet p.bobKeyWallet getWalletAddressesWithNetworkTag)
 
   nonSpendableOref <-
     liftedM "Failed to get utxos at Bob's address"
