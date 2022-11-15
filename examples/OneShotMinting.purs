@@ -11,7 +11,7 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Address (Address, getWalletAddress)
+import Contract.Address (Address, getWalletAddresses)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -43,6 +43,7 @@ import Ctl.Examples.Helpers
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.Array (head)
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
@@ -81,7 +82,8 @@ mkContractWithAssertions
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
 
-  ownAddress <- liftedM "Failed to get own address" getWalletAddress
+  ownAddress <- liftedM "Failed to get own address" $ head <$>
+    getWalletAddresses
   utxos <- liftedM "Failed to get utxo set" $ utxosAt ownAddress
   oref <-
     liftContractM "Utxo set is empty"
