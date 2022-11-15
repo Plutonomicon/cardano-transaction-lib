@@ -8,6 +8,10 @@ module Ctl.Internal.Plutus.Types.TransactionUnspentOutput
 
 import Prelude
 
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  )
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript
   , UtxoMap
@@ -42,6 +46,9 @@ derive newtype instance Eq TransactionUnspentOutput
 
 instance Show TransactionUnspentOutput where
   show = genericShow
+
+derive newtype instance DecodeAeson TransactionUnspentOutput
+derive newtype instance EncodeAeson TransactionUnspentOutput
 
 lookupTxHash
   :: TransactionHash -> UtxoMap -> Array TransactionUnspentOutput

@@ -14,7 +14,13 @@ module Ctl.Internal.Types.PubKeyHash
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson')
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAeson
+  , encodeAeson'
+  , (.:)
+  )
 import Aeson.Decode as Decode
 import Aeson.Encode as Encode
 import Ctl.Internal.FromData (class FromData)
@@ -116,10 +122,13 @@ derive newtype instance Ord PaymentPubKeyHash
 derive newtype instance ToData PaymentPubKeyHash
 
 instance EncodeAeson PaymentPubKeyHash where
-  encodeAeson' (PaymentPubKeyHash (PubKeyHash pkh)) = encodeAeson' pkh
+  encodeAeson' (PaymentPubKeyHash pkh) = encodeAeson'
+    { "unPaymentPubKeyHash": pkh }
 
 instance DecodeAeson PaymentPubKeyHash where
-  decodeAeson json = PaymentPubKeyHash <<< PubKeyHash <$> decodeAeson json
+  decodeAeson json = do
+    obj <- decodeAeson json
+    PaymentPubKeyHash <<< PubKeyHash <$> obj .: "unPaymentPubKeyHash"
 
 instance Show PaymentPubKeyHash where
   show = genericShow
