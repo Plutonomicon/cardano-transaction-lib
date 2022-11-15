@@ -168,7 +168,7 @@ assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 assertUtxosAtPlutipWalletAddress
   :: forall (r :: Row Type). KeyWallet -> Contract r Unit
 assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
-  maybeStake <- head <$> ownStakePubKeysHashes
+  maybeStake <- join <<< head <$> ownStakePubKeysHashes
   when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
 
 assertNoUtxosAtEnterpriseAddress
