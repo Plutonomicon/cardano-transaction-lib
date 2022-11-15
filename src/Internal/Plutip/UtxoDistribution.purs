@@ -14,9 +14,9 @@ import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
@@ -48,6 +48,7 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
+import Data.Array (head)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
@@ -180,12 +181,12 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
-    ourAddr <- liftedM "Could not get our address"
-      $ withKeyWallet ourWallet getWalletAddress
-    ourUtxos <- liftedM "Could not find our utxos"
-      $ utxosAt ourAddr
-    ourPkh <- liftedM "Could not get our payment pkh"
-      $ withKeyWallet ourWallet ownPaymentPubKeyHash
+    ourAddr <- liftedM "Could not get our address" $
+      head <$> withKeyWallet ourWallet getWalletAddresses
+    ourUtxos <- liftedM "Could not find our utxos" $
+      utxosAt ourAddr
+    ourPkh <- liftedM "Could not get our payment pkh" $
+      head <$> withKeyWallet ourWallet ownPaymentPubKeysHashes
     let
       lookups :: Lookups.ScriptLookups Void
       lookups = Lookups.unspentOutputs ourUtxos
@@ -229,11 +230,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -> KeyWallet
     -> Contract r (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
-    ownStakePubKeyHash >>= case _ of
+    join <<< head <$> ownStakePubKeysHashes >>= case _ of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
-        payPkh <- liftedM "Could not get payment pubkeyhash"
-          ownPaymentPubKeyHash
+        payPkh <- liftedM "Could not get payment pubkeyhash" $
+          head <$> ownPaymentPubKeysHashes
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $
           payPubKeyHashEnterpriseAddress networkId payPkh
