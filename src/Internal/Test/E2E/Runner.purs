@@ -75,7 +75,7 @@ import Ctl.Internal.Wallet.Key
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
 import Data.Int as Int
@@ -93,7 +93,15 @@ import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , fiberCanceler
+  , launchAff
+  , launchAff_
+  , makeAff
+  , try
+  )
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
@@ -280,12 +288,18 @@ testPlan opts@{ tests } rt@{ wallets } =
                 , confirmAccess: confirmAccess extensionId re
                 , sign: sign extensionId password re
                 }
-            subscribeToBrowserEvents page
-              case _ of
-                ConfirmAccess -> launchAff_ someWallet.confirmAccess
-                Sign -> launchAff_ someWallet.sign
-                Success -> pure unit
-                Failure err -> throw err
+            makeAff $ \k -> do
+              let
+                rethrow aff = launchAff_ do
+                  res <- try aff
+                  when (isLeft res) $ liftEffect $ k res
+              map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
+                subscribeToBrowserEvents page
+                  case _ of
+                    ConfirmAccess -> rethrow someWallet.confirmAccess
+                    Sign -> rethrow someWallet.sign
+                    Success -> pure unit
+                    Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
   where
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
