@@ -32,7 +32,7 @@ import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Map as Map
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Effect.Exception (error)
 import Record.Builder (build, merge)
 
@@ -54,7 +54,13 @@ getPoolParameters poolPubKeyHash = do
   res <- liftM (error "Unable to find pool ID in the response") $ Map.lookup
     poolIdStr
     params
-  pure $ build (merge { operator: poolPubKeyHash }) res
+  pure $ build
+    ( merge
+        { operator: poolPubKeyHash
+        , poolOwners: res.poolOwners <#> wrap >>> wrap
+        }
+    )
+    res
 
 type DelegationsAndRewards =
   { rewards :: Maybe Coin
