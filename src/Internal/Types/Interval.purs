@@ -238,9 +238,9 @@ derive instance Functor UpperBound
 instance Show a => Show (UpperBound a) where
   show = genericShow
 
--- | A new abstraction for `Interval` on top of the old one
--- |(wrap), it restricts the creation of intervals
--- |to the only ones that can be used in practice:
+-- | An abstraction for `Interval`,
+-- | it restricts the creation of intervals
+-- | to the only ones that we can use in practice:
 -- | [a,b+1) , [-infinity,b+1), [a,infinity], [-infinity,infinity],
 -- | empty.
 -- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041
@@ -265,12 +265,13 @@ instance (Show a, Ord a, Semiring a) => Show (Interval a) where
     <> ")"
   show (StartAt end) = "(StartAt " <> show end <> ")"
   show (EndAt start) = "(EndAt " <> show start <> ")"
-  show AlwaysInterval = "(AlwaysInterval)"
-  show EmptyInterval = "(EmptyInterval)"
+  show AlwaysInterval = "AlwaysInterval"
+  show EmptyInterval = "EmptyInterval"
 
 instance Ord a => MeetSemilattice (Interval a) where
   meet = intersection
 
+-- This instance is written to be compatible with plutus.
 instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
   toData (FiniteInterval start end) =
     ( Constr (BigInt.fromInt 0)
@@ -312,6 +313,7 @@ instance Ord a => BoundedMeetSemilattice (Interval a) where
 instance Ord a => BoundedJoinSemilattice (Interval a) where
   bottom = EmptyInterval
 
+-- This instance is written to be compatible with plutus.
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
   fromData (Constr index [ lower, upper ]) | index == zero = do
     (LowerBound start startBool) <- fromData lower
