@@ -233,12 +233,14 @@ suite = do
           parallel $ withKeyWallet alice do
             pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet bob
               ownPaymentPubKeysHashes
-            stakePkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+            stakePkh <- join <<< head <$> withKeyWallet bob
+              ownStakePubKeysHashes
             pkh2PkhContract pkh stakePkh
           parallel $ withKeyWallet bob do
             pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
               ownPaymentPubKeysHashes
-            stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeysHashes
+            stakePkh <- join <<< head <$> withKeyWallet alice
+              ownStakePubKeysHashes
             pkh2PkhContract pkh stakePkh
           in unit
 
@@ -262,12 +264,14 @@ suite = do
             parallel $ withKeyWallet alice do
               pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet bob
                 ownPaymentPubKeysHashes
-              stakePkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+              stakePkh <- join <<< head <$> withKeyWallet bob
+                ownStakePubKeysHashes
               pkh2PkhContract pkh stakePkh
             parallel $ withKeyWallet bob do
               pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
                 ownPaymentPubKeysHashes
-              stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeysHashes
+              stakePkh <- join <<< head <$> withKeyWallet alice
+                ownStakePubKeysHashes
               pkh2PkhContract pkh stakePkh
             in unit
 
@@ -964,7 +968,8 @@ suite = do
 
         withWallets distribution \alice -> do
           withKeyWallet alice do
-            pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
+            pkh <- liftedM "Failed to get PKH" $ head <$>
+              ownPaymentPubKeysHashes
 
             let
               constraints0 :: TxConstraints Unit Unit
@@ -1058,7 +1063,8 @@ suite = do
 
         withWallets distribution \alice -> do
           withKeyWallet alice do
-            pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
+            pkh <- liftedM "Failed to get PKH" $ head <$>
+              ownPaymentPubKeysHashes
 
             wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
             logInfo' $ "wUtxos0 " <> show wUtxos0
@@ -1274,7 +1280,8 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
-            pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
+            pkh <- liftedM "Failed to get PKH" $ head <$>
+              ownPaymentPubKeysHashes
             stakePkh <- join <<< head <$> ownStakePubKeysHashes
             pkh2PkhContract pkh stakePkh
 
