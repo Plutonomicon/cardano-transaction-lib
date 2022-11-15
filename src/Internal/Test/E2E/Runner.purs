@@ -88,7 +88,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith) as String
-import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
+import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
@@ -295,7 +295,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                   when (isLeft res) $ liftEffect $ k res
 
               map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
-                subscribeToBrowserEvents (Just $ Seconds 10.0) page
+                subscribeToBrowserEvents page
                   case _ of
                     ConfirmAccess -> rethrow someWallet.confirmAccess
                     Sign -> rethrow someWallet.sign
@@ -305,7 +305,7 @@ testPlan opts@{ tests } rt@{ wallets } =
   where
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents (Just $ Seconds 10.0) page
+    subscribeToBrowserEvents page
       case _ of
         Success -> pure unit
         Failure err -> throw err

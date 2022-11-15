@@ -14,9 +14,9 @@ import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
@@ -34,6 +34,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Wallet (withKeyWallet)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
+import Control.Monad.State.Trans (StateT(StateT), runStateT)
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
@@ -47,6 +48,7 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
+import Data.Array (head)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
@@ -54,7 +56,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
@@ -97,35 +98,38 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
-  encodeDistribution amounts = amounts
-  decodeWallets _ privateKeyResponses =
-    Just $
-      ( \(PrivateKeyResponse key) -> privateKeysToKeyWallet
-          (PrivatePaymentKey key)
-          Nothing
-      ) <$> privateKeyResponses
-  decodeWallets' listOfInitialUTxOs privateKeyResponses = do
-    wallets <- traverse (\utxos -> decodeWallets utxos privateKeyResponses)
-      listOfInitialUTxOs
-    pure (wallets /\ privateKeyResponses)
-  keyWallets _ wallets = wallets
+  encodeDistribution = encodeDistributionArray
+  decodeWallets d = decodeWalletsDefault d
+  decodeWallets' = decodeWallets'Array
+  keyWallets = keyWalletsArray
 
 instance UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet) where
-  encodeDistribution listOfInitialUTxOsWithStakeKey =
-    (\(InitialUTxOsWithStakeKey _ amounts) -> amounts) <$>
-      listOfInitialUTxOsWithStakeKey
-  decodeWallets listOfInitialUTxOsWithStakeKey privateKeyResponses =
-    Just $
-      ( \(Tuple (PrivateKeyResponse key) (InitialUTxOsWithStakeKey stakeKey _)) ->
-          privateKeysToKeyWallet
-            (PrivatePaymentKey key)
-            (Just stakeKey)
-      ) <$> Array.zip privateKeyResponses listOfInitialUTxOsWithStakeKey
-  decodeWallets' listOfInitialUTxOsWithStakeKey privateKeyResponses = do
-    wallets <- traverse (\utxos -> decodeWallets utxos privateKeyResponses)
-      listOfInitialUTxOsWithStakeKey
-    pure (wallets /\ privateKeyResponses)
-  keyWallets _ wallets = wallets
+  encodeDistribution = encodeDistributionArray
+  decodeWallets d = decodeWalletsDefault d
+  decodeWallets' = decodeWallets'Array
+  keyWallets = keyWalletsArray
+
+encodeDistributionArray
+  :: forall (distr :: Type)
+   . UtxoDistribution distr KeyWallet
+  => Array distr
+  -> Array (Array UtxoAmount)
+encodeDistributionArray = (_ >>= encodeDistribution)
+
+decodeWallets'Array
+  :: forall (distr :: Type)
+   . UtxoDistribution distr KeyWallet
+  => Array distr
+  -> Array PrivateKeyResponse
+  -> Maybe (Array KeyWallet /\ Array PrivateKeyResponse)
+decodeWallets'Array = runStateT <<< traverse (StateT <<< decodeWallets')
+
+keyWalletsArray
+  :: forall (distr :: Type)
+   . Proxy distr
+  -> Array KeyWallet
+  -> Array KeyWallet
+keyWalletsArray _ wallets = wallets
 
 instance
   ( UtxoDistribution headSpec headWallets
@@ -135,10 +139,10 @@ instance
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
   decodeWallets d p = decodeWalletsDefault d p
-  decodeWallets' (distr /\ rest) pks = do
-    (headWallets /\ pks') <- decodeWallets' distr pks
-    (restWallets /\ pks'') <- decodeWallets' rest pks'
-    pure $ (headWallets /\ restWallets) /\ pks''
+  decodeWallets' (distr /\ rest) = runStateT do
+    headWallets <- StateT $ decodeWallets' distr
+    restWallets <- StateT $ decodeWallets' rest
+    pure (headWallets /\ restWallets)
   keyWallets _ (headWallets /\ restWallets) =
     keyWallets (Proxy :: Proxy headSpec) headWallets
       <> keyWallets (Proxy :: Proxy restSpec) restWallets
@@ -177,12 +181,12 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
-    ourAddr <- liftedM "Could not get our address"
-      $ withKeyWallet ourWallet getWalletAddress
-    ourUtxos <- liftedM "Could not find our utxos"
-      $ utxosAt ourAddr
-    ourPkh <- liftedM "Could not get our payment pkh"
-      $ withKeyWallet ourWallet ownPaymentPubKeyHash
+    ourAddr <- liftedM "Could not get our address" $
+      head <$> withKeyWallet ourWallet getWalletAddresses
+    ourUtxos <- liftedM "Could not find our utxos" $
+      utxosAt ourAddr
+    ourPkh <- liftedM "Could not get our payment pkh" $
+      head <$> withKeyWallet ourWallet ownPaymentPubKeysHashes
     let
       lookups :: Lookups.ScriptLookups Void
       lookups = Lookups.unspentOutputs ourUtxos
@@ -226,11 +230,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -> KeyWallet
     -> Contract r (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
-    ownStakePubKeyHash >>= case _ of
+    join <<< head <$> ownStakePubKeysHashes >>= case _ of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
-        payPkh <- liftedM "Could not get payment pubkeyhash"
-          ownPaymentPubKeyHash
+        payPkh <- liftedM "Could not get payment pubkeyhash" $
+          head <$> ownPaymentPubKeysHashes
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $
           payPubKeyHashEnterpriseAddress networkId payPkh
