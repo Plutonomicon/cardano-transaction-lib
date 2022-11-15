@@ -250,6 +250,7 @@ foreign import addVkeywitness :: Vkeywitnesses -> Vkeywitness -> Effect Unit
 foreign import newVkeyFromPublicKey :: PublicKey -> Effect Vkey
 
 foreign import publicKeyHash :: PublicKey -> Ed25519KeyHash
+
 foreign import transactionWitnessSetSetVkeys
   :: TransactionWitnessSet -> Vkeywitnesses -> Effect Unit
 
