@@ -17,7 +17,7 @@ import Effect.Exception (throw)
 
 getTxByHash :: TxHash -> QueryM (Maybe Transaction)
 getTxByHash txHash = do
-  unwrap <$> mkDatumCacheRequest QueryM.getTxByHash _.getTxByHash txHash >>=
+  unwrap <$> mkDatumCacheRequest QueryM.getTxByHashCall _.getTxByHash txHash >>=
     maybe
       (pure Nothing)
       \txBase64 -> do

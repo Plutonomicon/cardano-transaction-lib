@@ -19,6 +19,7 @@ import Aeson
   , encodeAeson'
   , getField
   )
+import Control.Monad.Gen as Gen
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
@@ -29,11 +30,16 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.RawBytes
+  ( hexToRawBytesUnsafe
+  )
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
+import Data.Array.NonEmpty (fromArray)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap, wrap)
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
@@ -54,6 +60,21 @@ instance EncodeAeson CurrencySymbol where
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
+
+instance Arbitrary CurrencySymbol where
+  arbitrary = Gen.elements $ map translate $ unsafeNonEmpty
+    [ "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+    , "92c4f22371bd453aec9fe19ccebfbc88211ae854b5eab424bcd4c26d"
+    , "c9e9c15d4f16a7948d3736c93aa79034621d51dccc4df5d31c7d34aa"
+    ]
+    where
+    unsafeNonEmpty x = unsafePartial $ fromJust $ fromArray x
+
+    translate :: String -> CurrencySymbol
+    translate x =
+      scriptHashAsCurrencySymbol $ unsafePartial $ fromJust
+        $ scriptHashFromBytes
+        $ hexToRawBytesUnsafe x
 
 adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty

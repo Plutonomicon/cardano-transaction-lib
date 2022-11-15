@@ -3,6 +3,7 @@ module Ctl.Examples.PlutusV2.ReferenceInputs
   , contract
   , example
   , main
+  , mintAlwaysMintsV2ToTheScript
   ) where
 
 import Contract.Prelude
@@ -31,6 +32,7 @@ import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
   , MintingPolicyHash
   , PlutusScript
+  , Validator
   , ValidatorHash
   , mintingPolicyHash
   , validatorHash
@@ -52,7 +54,7 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
-import Contract.Value (lovelaceValueOf) as Value
+import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -198,3 +200,28 @@ alwaysMintsPolicyScriptV2 =
   liftMaybe (error "Error decoding alwaysMintsV2") do
     envelope <- decodeTextEnvelope alwaysMintsV2
     plutusScriptV2FromEnvelope envelope
+
+mintAlwaysMintsV2ToTheScript
+  :: TokenName -> Validator -> Int -> Contract () Unit
+mintAlwaysMintsV2ToTheScript tokenName validator sum = do
+  mp <- alwaysMintsPolicyV2
+  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+
+  let
+    vhash = validatorHash validator
+
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = mconcat
+      [ Constraints.mustMintValue
+          $ Value.singleton cs tokenName
+          $ BigInt.fromInt sum
+      , Constraints.mustPayToScript vhash unitDatum Constraints.DatumWitness
+          $ Value.singleton cs tokenName
+          $ BigInt.fromInt sum
+      ]
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = Lookups.mintingPolicy mp
+
+  txHash <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  void $ awaitTxConfirmed txHash
