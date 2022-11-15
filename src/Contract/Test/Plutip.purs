@@ -20,6 +20,7 @@ import Ctl.Internal.Plutip.Server (PlutipTest, testPlutipContracts) as Server
 import Ctl.Internal.Plutip.Types
   ( InitialUTxODistribution
   , InitialUTxOs
+  , InitialUTxOsWithStakeKey
   , PlutipConfig
   , PostgresConfig
   , UtxoAmount

@@ -105,7 +105,7 @@ suite = group "UtxoDistribution" do
   distrs <- liftEffect $ randomSample' 5 arbitrary
   for_ distrs $ \distr ->
     test
-      ( "runPlutipContract: stake key transfers with random distribution: "
+      ( "stake key transfers with random distribution: "
           <> ppArbitraryUtxoDistr distr
       )
       $
