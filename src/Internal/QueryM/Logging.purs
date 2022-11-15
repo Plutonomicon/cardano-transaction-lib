@@ -24,6 +24,7 @@ setupLogs
        { addLogEntry :: LogLevel -> Message -> Effect Unit
        , logger :: LogLevel -> String -> Effect Unit
        , printLogs :: Effect Unit
+       , clearLogs :: Effect Unit
        , suppressedLogger :: LogLevel -> String -> Effect Unit
        }
 setupLogs logLevel customLogger = do
@@ -39,17 +40,22 @@ setupLogs logLevel customLogger = do
     logger :: Logger
     logger = mkLogger logLevel customLogger
 
-    -- Looger that adds message to the queue, respecting LogLevel
+    -- Logger that adds message to the queue, respecting LogLevel
     suppressedLogger :: Logger
     suppressedLogger = mkLogger logLevel
       (Just $ map liftEffect <<< addLogEntry)
+
+    -- Clear the suppressed logs without printing
+    clearLogs :: Effect Unit
+    clearLogs = do
+      Ref.write Nil logsRef
 
     -- Print suppressed logs
     printLogs :: Effect Unit
     printLogs = do
       logs <- List.reverse <$> Ref.read logsRef
-      Ref.write Nil logsRef
+      clearLogs
       for_ logs \logEntry -> do
         logger logEntry.level logEntry.message
 
-  pure { addLogEntry, logger, printLogs, suppressedLogger }
+  pure { addLogEntry, logger, printLogs, clearLogs, suppressedLogger }
