@@ -280,7 +280,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                 , confirmAccess: confirmAccess extensionId re
                 , sign: sign extensionId password re
                 }
-            subscribeToBrowserEvents (Just $ Seconds 10.0) page
+            subscribeToBrowserEvents page
               case _ of
                 ConfirmAccess -> launchAff_ someWallet.confirmAccess
                 Sign -> launchAff_ someWallet.sign
@@ -289,7 +289,7 @@ testPlan opts@{ tests } rt@{ wallets } =
   where
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents (Just $ Seconds 10.0) page
+    subscribeToBrowserEvents page
       case _ of
         Success -> pure unit
         Failure err -> throw err
