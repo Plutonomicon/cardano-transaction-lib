@@ -97,3 +97,9 @@ Don't forget to update the [template `package.json`](../templates/ctl-scaffold/p
 ## Switching development networks
 
 Set new `network.name` and `network.magic` in `runtime.nix`. Point `datumCache.blockFetcher.firstBlock` to a correct block/slot. Also see [Changing network configurations](./runtime.md#changing-network-configurations)
+
+## Maintaining the template
+
+[The template](../templates/ctl-scaffold/) must be kept up-to-date with the repo. Although there are some checks for common problems in CI, it's still possible to forget to update the `package-lock.json` file.
+
+[This helper script](../scripts/template-check.sh) can be used to make sure the template can be initialized properly from a given revision.
