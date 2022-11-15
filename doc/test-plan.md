@@ -25,6 +25,7 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] `mustMintValue` (`mintingPolicy`). Also implies
   - `mustMintCurrency`
 - [x] `mustPayToScript` (`validator`)
+- [x] `mustPayToScriptAddress`
 - [x] `mustPayToPubKey`
   - **Note**: This invokes the same code as `mustPayToPubKeyAddress`, but does not include a stake key component
 - [x] `mustPayToPubKeyAddress`
@@ -49,6 +50,7 @@ The following constraints were added for `PlutusV2` features as part of our `v2.
 - [x] `mustMintCurrencyUsingScriptRef`
 - [x] `mustMintCurrencyWithRedeemerUsingScriptRef`
 - [x] `mustPayToScriptWithScriptRef`
+- [x] `mustPayToScriptAddressWithScriptRef`
 - [x] `mustPayToPubKeyAddressWithDatumAndScriptRef`
 - [x] `mustPayToPubKeyAddressWithScriptRef`
 - [x] `mustPayToPubKeyWithDatumAndScriptRef`
@@ -58,6 +60,7 @@ The following constraints were added for `PlutusV2` features as part of our `v2.
 That release also included the following constraints for working with native scripts, which also have no `plutus-apps` analogue:
 
 - [x] `mustPayToNativeScript`
+- [x] `mustPayToNativeScriptAddress`
 - [x] `mustSpendNativeScriptOutput`
 
 In addition, several redeemer combinations in a **single transaction** must be covered by tests or examples as well, namely
@@ -66,9 +69,37 @@ In addition, several redeemer combinations in a **single transaction** must be c
 - [ ] Two or more `Spend` redeemers
 - [ ] (At least) One each of a `Spend` and `Mint` redeemer
 
-#### Exceptions
+#### Stake operations
 
-CTL does **not** currently support staking validators (see [#785](https://github.com/Plutonomicon/cardano-transaction-lib/issues/785)) so other `RedeemerTag`s are currently exempt from the above requirements. CTL also only makes guarantees for the **present era**, currently Babbage.
+New constraints for operations with stake will be added in `v3`.
+
+##### Stake pools
+
+- [x] mustRegisterPool
+- [x] mustRetirePool
+
+##### Stake credential registration
+
+- [x] mustRegisterStakePubKey
+- [x] mustRegisterStakeScript
+
+##### Delegation
+
+- [x] mustDelegateStakePubKey
+- [x] mustDelegateStakePlutusScript
+- [x] mustDelegateStakeNativeScript
+
+##### Rewards withdrawal
+
+- [x] mustWithdrawStakePubKey
+- [x] mustWithdrawStakePlutusScript
+- [x] mustWithdrawStakeNativeScript
+
+##### Stake credential deregistration
+
+- [x] mustDeregisterStakePubKey
+- [x] mustDeregisterStakePlutusScript
+- [x] mustDeregisterStakeNativeScript
 
 ### Other functionality
 

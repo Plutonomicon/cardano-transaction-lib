@@ -28,6 +28,7 @@ module Contract.Transaction
   , module ScriptRef
   , module Transaction
   , module UnbalancedTx
+  , module X
   , reindexSpentScriptRedeemers
   , signTransaction
   , submit
@@ -96,6 +97,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , GenesisHash(GenesisHash)
   , Mint(Mint)
   , Nonce(IdentityNonce, HashNonce)
+  , PoolPubKeyHash(PoolPubKeyHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -107,6 +109,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
+  , URL(URL)
   , UnitInterval
   , Update
   , Vkey(Vkey)
@@ -190,6 +193,13 @@ import Ctl.Internal.Types.OutputDatum
   , outputDatumDataHash
   , outputDatumDatum
   ) as OutputDatum
+import Ctl.Internal.Types.RewardAddress
+  ( RewardAddress
+  , rewardAddressFromBech32
+  , rewardAddressFromBytes
+  , rewardAddressToBech32
+  , rewardAddressToBytes
+  ) as X
 import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
@@ -244,6 +254,11 @@ import Ctl.Internal.Types.UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
+import Ctl.Internal.Types.VRFKeyHash
+  ( VRFKeyHash
+  , vrfKeyHashFromBytes
+  , vrfKeyHashToBytes
+  ) as X
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush)
@@ -279,7 +294,7 @@ signTransaction =
     <<< unwrap
 
 -- | Submits a `BalancedSignedTransaction`, which is the output of
--- | `signTransaction`
+-- | `signTransaction`.
 submit
   :: forall (r :: Row Type)
    . BalancedSignedTransaction
