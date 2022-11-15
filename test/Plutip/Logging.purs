@@ -19,7 +19,7 @@ import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  group "Plutip logging" do
+  group "Logging" do
     test "Logs that are not suppressed really appear" do
       hasLogged <- liftEffect $ Ref.new false
       let
