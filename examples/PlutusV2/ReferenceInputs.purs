@@ -96,7 +96,7 @@ payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- head <$> ownStakePubKeysHashes
+  skh <- join <<< head <$> ownStakePubKeysHashes
   let
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)

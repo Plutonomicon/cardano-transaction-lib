@@ -24,7 +24,8 @@ contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- liftedM "Failed to get own SKH" $ head <$> ownStakePubKeysHashes
+  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
+    ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void

@@ -57,7 +57,7 @@ module Ctl.Internal.QueryM
   , mkRequestAff
   , mkWalletBySpec
   , ownPaymentPubKeyHashes
-  , ownStakePubKeyHash
+  , ownStakePubKeysHashes
   , runQueryM
   , runQueryMWithSettings
   , runQueryMInRuntime
@@ -728,23 +728,17 @@ ownPubKeyHashes = do
 ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
-ownStakePubKeyHash :: QueryM (Array StakePubKeyHash)
-ownStakePubKeyHash = do
+ownStakePubKeysHashes :: QueryM (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes = do
   addresses <- getWalletAddresses
-  baseAddresses <- traverse
-    ( liftM
-        (error "ownStakePubKeyHash: failed to convert to base address")
-        <<< baseAddressFromAddress
-    )
-    addresses
-  keyHashes <- traverse
-    ( liftM
-        (error "ownStakePubKeyHash: failed to convert to get ed25519KeyHash")
-        <<< stakeCredentialToKeyHash
-        <<< baseAddressDelegationCred
-    )
-    baseAddresses
-  pure $ wrap <<< wrap <$> keyHashes
+  pure $ addressToMStakePubKeyHash <$> addresses
+  where
+
+  addressToMStakePubKeyHash :: Address -> Maybe StakePubKeyHash
+  addressToMStakePubKeyHash address = do
+    baseAddress <- baseAddressFromAddress address
+    wrap <<< wrap <$> stakeCredentialToKeyHash
+      (baseAddressDelegationCred baseAddress)
 
 withMWalletAff
   :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)

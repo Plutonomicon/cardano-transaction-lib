@@ -63,7 +63,7 @@ contract = do
 toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract () Unit
 toSelfContract cs tn amount = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- head <$> ownStakePubKeysHashes
+  skh <- join <<< head <$> ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void
