@@ -15,9 +15,9 @@ import Contract.Address
   , PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   )
@@ -54,6 +54,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
+import Data.Array (head)
 import Data.BigInt (BigInt)
 import Data.Lens (view)
 import Data.Map (empty) as Map
@@ -84,7 +85,7 @@ mkAssertions
        )
 mkAssertions params@(ContractParams p) = do
   senderAddress <-
-    liftedM "Failed to get sender address" getWalletAddress
+    liftedM "Failed to get sender address" $ head <$> getWalletAddresses
   receiverAddress <-
     liftedM "Failed to get receiver address" (getReceiverAddress params)
   dhash <- liftContractM "Failed to hash datum" $ datumHash $ p.datumToAttach
@@ -118,8 +119,8 @@ mkAssertions params@(ContractParams p) = do
 contract :: ContractParams -> Contract () Unit
 contract params@(ContractParams p) = do
   logInfo' "Running Examples.ContractTestUtils"
-  ownPkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  ownSkh <- ownStakePubKeyHash
+  ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  ownSkh <- join <<< head <$> ownStakePubKeysHashes
   let
     mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
       ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
@@ -160,7 +161,8 @@ contract params@(ContractParams p) = do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully!"
 
-    senderAddress <- liftedM "Failed to get sender address" getWalletAddress
+    senderAddress <- liftedM "Failed to get sender address" $ head <$>
+      getWalletAddresses
     utxos <- fromMaybe Map.empty <$> utxosAt senderAddress
 
     txOutputUnderTest <-
