@@ -43,7 +43,7 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Data.Array (foldl, replicate, head, zip)
+import Data.Array (foldl, head, replicate, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
