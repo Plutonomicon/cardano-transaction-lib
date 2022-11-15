@@ -72,7 +72,7 @@ import Ctl.Internal.QueryM
   ( getNetworkId
   , getWalletAddresses
   , ownPaymentPubKeyHashes
-  , ownStakePubKeyHash
+  , ownStakePubKeysHashes
   ) as QueryM
 import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
 import Ctl.Internal.Scripts
@@ -211,11 +211,11 @@ ownStakePubKeyHash
            "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHash`es are available. Use `ownStakePubKeysHashes` instead"
        )
   => Contract r (Maybe StakePubKeyHash)
-ownStakePubKeyHash = head <$> ownStakePubKeysHashes
+ownStakePubKeyHash = join <<< head <$> ownStakePubKeysHashes
 
 ownStakePubKeysHashes
-  :: forall (r :: Row Type). Contract r (Array StakePubKeyHash)
-ownStakePubKeysHashes = wrapContract QueryM.ownStakePubKeyHash
+  :: forall (r :: Row Type). Contract r (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes = wrapContract QueryM.ownStakePubKeysHashes
 
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId

@@ -227,7 +227,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -> KeyWallet
     -> Contract r (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
-    head <$> ownStakePubKeysHashes >>= case _ of
+    join <<< head <$> ownStakePubKeysHashes >>= case _ of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
         payPkh <- liftedM "Could not get payment pubkeyhash" $

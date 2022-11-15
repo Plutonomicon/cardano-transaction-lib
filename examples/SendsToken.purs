@@ -57,7 +57,7 @@ mintToken = do
 sendToken :: Contract () TransactionHash
 sendToken = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- head <$> ownStakePubKeysHashes
+  skh <- join <<< head <$> ownStakePubKeysHashes
   _ /\ value <- tokenValue
   let
     constraints :: Constraints.TxConstraints Void Void

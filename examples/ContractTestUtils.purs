@@ -120,7 +120,7 @@ contract :: ContractParams -> Contract () Unit
 contract params@(ContractParams p) = do
   logInfo' "Running Examples.ContractTestUtils"
   ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  ownSkh <- head <$> ownStakePubKeysHashes
+  ownSkh <- join <<< head <$> ownStakePubKeysHashes
   let
     mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
       ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
