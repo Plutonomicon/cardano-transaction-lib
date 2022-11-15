@@ -4,6 +4,7 @@ module Ctl.Internal.Test.E2E.Browser
 
 import Prelude
 
+import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Test.E2E.Types (E2ETestRuntime, ExtensionId, unExtensionId)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff, bracket)
@@ -60,4 +61,4 @@ launchWithExtension noHeadless rt@{ browser, chromeUserDataDir } extensionId =
     ] <> if not noHeadless then [ "--headless=chrome" ] else []
 
   extensionsList :: String
-  extensionsList = rt.tmpDir <> "/" <> unExtensionId extensionId
+  extensionsList = rt.tmpDir <</>> unExtensionId extensionId
