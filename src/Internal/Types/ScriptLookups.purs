@@ -1,6 +1,7 @@
 module Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( CannotConvertPOSIXTimeRange
+      , CannotSolveTimeConstraints
       , CannotConvertPaymentPubKeyHash
       , CannotFindDatum
       , CannotGetMintingPolicyScriptIndex
@@ -157,6 +158,9 @@ import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Interval
   ( POSIXTimeRange
   , PosixTimeToSlotError
+  , always
+  , intersection
+  , isEmpty
   , posixTimeRangeToTransactionValidity
   )
 import Ctl.Internal.Types.OutputDatum
@@ -245,7 +249,7 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   )
-import Data.Array (filter, mapWithIndex, toUnfoldable, zip)
+import Data.Array (cons, filter, mapWithIndex, partition, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
@@ -272,6 +276,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import MedeaPrelude (mapMaybe)
 import Type.Proxy (Proxy(Proxy))
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
@@ -603,7 +608,10 @@ processLookupsAndConstraints
     mpsMap = fromFoldable $ zip mpsHashes mps
     osMap = fromFoldable $ zip validatorHashes scripts
 
-  ExceptT $ foldConstraints (processConstraint mpsMap osMap) constraints
+  timeConstraintsSolved <- except $ resumeTimeConstraints constraints
+
+  ExceptT $ foldConstraints (processConstraint mpsMap osMap)
+    timeConstraintsSolved
 
   -- Attach mint redeemers to witness set.
   mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
@@ -851,17 +859,51 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provideValue value'
 
+resumeTimeConstraints
+  :: Array TxConstraint -> Either MkUnbalancedTxError (Array TxConstraint)
+resumeTimeConstraints constraints = do
+  let
+    { no: nonTimeConstraints, yes: timeConstraints } = partition
+      isTimeConstraint
+      constraints
+    intervals = mapMaybe constraintToInterval timeConstraints
+  newInterval <- foldM mergeIntervals always intervals
+  pure $ cons (MustValidateIn newInterval) nonTimeConstraints
+  where
+  mergeIntervals
+    :: POSIXTimeRange
+    -> POSIXTimeRange
+    -> Either MkUnbalancedTxError POSIXTimeRange
+  mergeIntervals interval1 interval2 =
+    let
+      newInterval :: POSIXTimeRange
+      newInterval = intersection interval1 interval2
+    in
+      if isEmpty newInterval then Left $ CannotSolveTimeConstraints interval1
+        interval2
+      else pure newInterval
+
+  constraintToInterval :: TxConstraint -> Maybe POSIXTimeRange
+  constraintToInterval = case _ of
+    MustValidateIn x -> Just x
+    _ -> Nothing
+
+  isTimeConstraint :: TxConstraint -> Boolean
+  isTimeConstraint (MustValidateIn _) = true
+  isTimeConstraint _ = false
+
 data MkUnbalancedTxError
-  = CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
-  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
+  = CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotFindDatum
+  | CannotQueryDatum DataHash
+  | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
+  | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
   | CannotHashDatum Datum
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
   | CannotMakeValue CurrencySymbol TokenName BigInt
-  | CannotQueryDatum DataHash
   | CannotWithdrawRewardsPubKey StakePubKeyHash
   | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
   | CannotWithdrawRewardsNativeScript NativeScriptStakeValidator
