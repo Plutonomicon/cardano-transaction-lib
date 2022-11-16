@@ -6047,15 +6047,16 @@
     "kupo": {
       "flake": false,
       "locked": {
-        "lastModified": 1667559349,
-        "narHash": "sha256-+eqyvEzoHMFR5Vnny6veqFKJM+UGoEK6VyCwneTrwOw=",
+        "lastModified": 1668598393,
+        "narHash": "sha256-n1oob0LjJdfkkfWTa5GI6aAKG0xYRIAD63KIPr1E9nY=",
         "owner": "CardanoSolutions",
         "repo": "kupo",
-        "rev": "dfd635a3bafd3ce527a4d399449ddcf0fe30a9f9",
+        "rev": "c0312e5850a528e6ecebb350b3c54e7ab92c55ef",
         "type": "github"
       },
       "original": {
         "owner": "CardanoSolutions",
+        "ref": "v2.2.0",
         "repo": "kupo",
         "type": "github"
       }
@@ -6065,7 +6066,9 @@
         "flake-utils": "flake-utils_7",
         "haskell-nix": "haskell-nix_2",
         "iohk-nix": "iohk-nix_2",
-        "kupo": "kupo",
+        "kupo": [
+          "kupo"
+        ],
         "nixpkgs": [
           "kupo-nixos",
           "haskell-nix",
@@ -10240,6 +10243,7 @@
           "iohk-nix"
         ],
         "iohk-nix-environments": "iohk-nix-environments",
+        "kupo": "kupo",
         "kupo-nixos": "kupo-nixos",
         "nixpkgs": [
           "ogmios",

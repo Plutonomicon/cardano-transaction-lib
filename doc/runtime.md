@@ -21,7 +21,7 @@ The services that are currently **required** are:
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
 - [Kupo](https://github.com/CardanoSolutions/kupo)
   - Required to query UTxOs and resolve inline datums and reference scripts
-  - You must currently use the latest (unstable) version of Kupo
+  - You **must** use Kupo v2.2.0 or greater with CTL
   - Like Ogmios, Kupo requires a running Cardano node
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
   - This is required to query for datums, which Ogmios itself does not support

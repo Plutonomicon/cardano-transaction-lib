@@ -56,7 +56,7 @@ rec {
       port = 1442;
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
-      tag = "latest";
+      tag = "v2.2.0";
       # TODO: Do we want to support connection through ogmios?
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This

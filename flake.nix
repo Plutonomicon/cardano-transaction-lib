@@ -26,6 +26,12 @@
     };
 
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
+    kupo-nixos.inputs.kupo.follows = "kupo";
+
+    kupo = {
+      url = "github:CardanoSolutions/kupo/v2.2.0";
+      flake = false;
+    };
 
     cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 

@@ -949,8 +949,7 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1225
-    skip $ test "AlwaysFails Ada Collateral Return" do
+    test "AlwaysFails Ada Collateral Return" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
@@ -976,8 +975,7 @@ suite = do
             collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt $ -5_000_000
           balance `shouldEqual` (balanceBefore <> collateralLoss)
 
-    -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1225
-    skip $ test "AlwaysFails Native Asset Collateral Return" do
+    test "AlwaysFails Native Asset Collateral Return" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =

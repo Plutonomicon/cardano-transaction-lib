@@ -107,8 +107,7 @@ spendLockedByIntOutputParams
        )
 spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   let vhash = validatorHash validator
-  utxo <- liftContractM ("could not get utxos at " <> show vhash) =<<
-    utxosAt (scriptHashAddress vhash Nothing)
+  utxo <- utxosAt (scriptHashAddress vhash Nothing)
   constraints <- pure $ mconcat do
     input <- List.fromFoldable $ Map.keys utxo
     pure $
