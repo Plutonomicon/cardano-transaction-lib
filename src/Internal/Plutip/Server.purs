@@ -35,7 +35,10 @@ import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
+  , OnSignalRef
+  , cleanupOnSigint
   , cleanupTmpDir
+  , removeOnSignal
   , spawn
   , stop
   , waitForStop
@@ -339,13 +342,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
 
   startPostgres' :: ClusterStartupParameters -> Aff Unit
   startPostgres' response =
-    bracket (startPostgresServer plutipCfg.postgresConfig)
-      (stopChildProcessWithPort plutipCfg.postgresConfig.port <<< fst)
-      \(process /\ workingDir) -> do
-        let
-          testClusterDir = (dirname <<< dirname) response.nodeConfigPath
-        liftEffect $ cleanupTmpDir process workingDir testClusterDir
-        configurePostgresServer plutipCfg.postgresConfig
+    bracket (startPostgresServer plutipCfg.postgresConfig response)
+      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.postgresConfig.port)
+      \(process /\ workingDir /\ _) -> do
+        liftEffect $ cleanupTmpDir process workingDir
+        void $ configurePostgresServer plutipCfg.postgresConfig
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
@@ -565,14 +566,18 @@ checkPlutipServer cfg = do
     $ stopPlutipCluster cfg
 
 startPostgresServer
-  :: PostgresConfig -> Aff (ManagedProcess /\ String)
-startPostgresServer pgConfig = do
+  :: PostgresConfig
+  -> ClusterStartupParameters
+  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
+startPostgresServer pgConfig params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workingDir = tmpDir <</>> randomStr
     databaseDir = workingDir <</>> "postgres/data"
     postgresSocket = workingDir <</>> "postgres"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+  sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
   waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
   pgChildProcess <- spawn "postgres"
     [ "-D"
@@ -586,7 +591,7 @@ startPostgresServer pgConfig = do
     ]
     defaultSpawnOptions
     Nothing
-  pure (pgChildProcess /\ workingDir)
+  pure (pgChildProcess /\ workingDir /\ sig)
 
 configurePostgresServer
   :: PostgresConfig -> Aff Unit
@@ -641,6 +646,17 @@ stopChildProcessWithPort port childProcess = do
       isAvailable <- isPortAvailable port
       unless isAvailable do
         liftEffect $ throw "retry"
+
+stopChildProcessWithPortAndRemoveOnSignal
+  :: UInt -> (ManagedProcess /\ String /\ OnSignalRef) -> Aff Unit
+stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
+  stop $ childProcess
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
+  liftEffect $ removeOnSignal sig
 
 startOgmiosDatumCache
   :: PlutipConfig
