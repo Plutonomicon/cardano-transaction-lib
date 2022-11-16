@@ -9,7 +9,7 @@ module Ctl.Examples.MultipleRedeemers
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Monad (Contract, liftContractM)
+import Contract.Monad (Contract)
 import Contract.PlutusData
   ( PlutusData(Integer)
   , Redeemer(Redeemer)

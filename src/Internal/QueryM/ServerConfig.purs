@@ -15,7 +15,7 @@ import Prelude
 
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.JsWebSocket (Url)
-import Data.Maybe (Maybe(Nothing), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 
@@ -57,7 +57,7 @@ defaultKupoServerConfig =
   { port: UInt.fromInt 4008
   , host: "localhost"
   , secure: false
-  , path: Nothing
+  , path: Just "kupo"
   }
 
 mkHttpUrl :: ServerConfig -> Url
