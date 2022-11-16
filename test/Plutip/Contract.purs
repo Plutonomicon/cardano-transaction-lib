@@ -128,7 +128,7 @@ import Data.Either (isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -353,7 +353,7 @@ suite = do
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
+            utxos <- utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
               view _input <$> lookupTxHash txId utxos !! 0
             let
@@ -451,7 +451,7 @@ suite = do
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
+            utxos <- utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
               view _input <$> lookupTxHash txId utxos !! 0
             let

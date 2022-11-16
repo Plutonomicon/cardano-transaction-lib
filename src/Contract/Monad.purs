@@ -242,6 +242,7 @@ type ConfigParams (r :: Row Type) =
   { ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
   , ctlServerConfig :: Maybe ServerConfig
+  , kupoConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -296,6 +297,7 @@ mkContractEnv
     { ctlServerConfig
     , ogmiosConfig
     , datumCacheConfig
+    , kupoConfig
     , networkId
     , logLevel
     , walletSpec
@@ -308,6 +310,7 @@ mkContractEnv
       { ctlServerConfig
       , ogmiosConfig
       , datumCacheConfig
+      , kupoConfig
       , networkId
       , logLevel
       , walletSpec
@@ -349,6 +352,7 @@ withContractEnv
     { ctlServerConfig
     , ogmiosConfig
     , datumCacheConfig
+    , kupoConfig
     , networkId
     , logLevel
     , walletSpec
@@ -365,6 +369,7 @@ withContractEnv
       { ctlServerConfig
       , ogmiosConfig
       , datumCacheConfig
+      , kupoConfig
       , networkId
       , logLevel
       , walletSpec

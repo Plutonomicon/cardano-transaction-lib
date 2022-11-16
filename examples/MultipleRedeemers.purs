@@ -9,7 +9,7 @@ module Ctl.Examples.MultipleRedeemers
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Monad (Contract, liftContractM)
+import Contract.Monad (Contract)
 import Contract.PlutusData
   ( PlutusData(Integer)
   , Redeemer(Redeemer)
@@ -107,8 +107,7 @@ spendLockedByIntOutputParams
        )
 spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   let vhash = validatorHash validator
-  utxo <- liftContractM ("could not get utxos at " <> show vhash) =<<
-    utxosAt (scriptHashAddress vhash Nothing)
+  utxo <- utxosAt (scriptHashAddress vhash Nothing)
   constraints <- pure $ mconcat do
     input <- List.fromFoldable $ Map.keys utxo
     pure $
