@@ -5,7 +5,7 @@
 module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashesWithErrors
+  , getDatumsByHashesWithError
   , module DataSchema
   , module Datum
   , module ExportQueryM
@@ -73,11 +73,7 @@ import Ctl.Internal.QueryM
   , defaultDatumCacheWsConfig
   , mkDatumCacheWebSocketAff
   ) as ExportQueryM
-import Ctl.Internal.QueryM
-  ( getDatumByHash
-  , getDatumsByHashes
-  , getDatumsByHashesWithErrors
-  ) as QueryM
+import Ctl.Internal.QueryM.Kupo (getDatumByHash, getDatumsByHashes) as Kupo
 import Ctl.Internal.Serialization (serializeData) as Serialization
 import Ctl.Internal.ToData
   ( class ToData
@@ -93,7 +89,7 @@ import Ctl.Internal.ToData
   , toDataWithSchema
   ) as ToData
 import Ctl.Internal.TypeLevel.Nat (Nat, S, Z) as Nat
-import Ctl.Internal.Types.Datum (DataHash)
+import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -107,30 +103,32 @@ import Ctl.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Data.Either (Either)
+import Data.Bifunctor (lmap)
+import Data.Either (Either, hush)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 
--- | Get a `PlutusData` given a `DatumHash`.
-getDatumByHash
-  :: forall (r :: Row Type)
-   . DataHash
-  -> Contract r (Maybe Datum.Datum)
-getDatumByHash = wrapContract <<< QueryM.getDatumByHash
+-- | Retrieve the full resolved datum associated to a given datum hash.
+getDatumByHash :: forall (r :: Row Type). DataHash -> Contract r (Maybe Datum)
+getDatumByHash = wrapContract <<< map (join <<< hush) <<< Kupo.getDatumByHash
 
--- | Get `PlutusData`s given an `Array` of `DataHash`.
--- | This function discards all possible error getting a `DataHash`.
+-- | Retrieve full resolved datums associated with given datum hashes.
+-- | The resulting `Map` will only contain datums that have been successfully
+-- | resolved. This function returns `Nothing` in case of an error during
+-- | response processing (bad HTTP code or response parsing error).
 getDatumsByHashes
   :: forall (r :: Row Type)
    . Array DataHash
-  -> Contract r (Map DataHash Datum.Datum)
-getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
+  -> Contract r (Maybe (Map DataHash Datum))
+getDatumsByHashes = wrapContract <<< map hush <<< Kupo.getDatumsByHashes
 
--- | Get `PlutusData`s given an `Array` of `DataHash`.
--- | In case of error, the returned string contains the needed information.
-getDatumsByHashesWithErrors
+-- | Retrieve full resolved datums associated with given datum hashes.
+-- | The resulting `Map` will only contain datums that have been successfully
+-- | resolved.
+getDatumsByHashesWithError
   :: forall (r :: Row Type)
    . Array DataHash
-  -> Contract r (Map DataHash (Either String Datum.Datum))
-getDatumsByHashesWithErrors = wrapContract <<<
-  QueryM.getDatumsByHashesWithErrors
+  -> Contract r (Either String (Map DataHash Datum))
+getDatumsByHashesWithError =
+  wrapContract <<< map (lmap show) <<< Kupo.getDatumsByHashes
+
