@@ -65,6 +65,8 @@ By default, Webpack will build a [small Purescript example](../examples/Pkh2Pkh.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 
+**Note**: The `KUPO_HOST` environment variable must be set the base URL of the Kupo service in order to successfully run the project for the browser (e.g. `KUPO_HOST=http://localhost:1442`), otherwise all requests to Kupo will fail.
+
 ## Generating PS documentation
 
 CTL PureScript docs are publicly deployed [here](https://plutonomicon.github.io/cardano-transaction-lib/).

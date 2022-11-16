@@ -125,6 +125,7 @@ let
                   pkgs.ogmios-datum-cache
                   pkgs.plutip-server
                   pkgs.postgresql
+                  pkgs.kupo
                 ]
                 # this package will be soon put into its own overlay, so we'll
                 # check this now for future compat
@@ -260,6 +261,7 @@ let
           ogmios
           ogmios-datum-cache
           plutip-server
+          kupo
         ]
         ++ (pkgs.lib.lists.optional withCtlServer pkgs.ctl-server)
         ++ (args.buildInputs or [ ]);

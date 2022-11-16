@@ -80,7 +80,7 @@ spendFromAlwaysFails
 spendFromAlwaysFails vhash validator txId = do
   balanceBefore <- fold <$> getWalletBalance
   let scriptAddress = scriptHashAddress vhash Nothing
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
+  utxos <- utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput -> do
       let

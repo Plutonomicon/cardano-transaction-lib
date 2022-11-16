@@ -32,7 +32,7 @@ import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.BigInt (fromInt) as BigInt
-import Data.Map (empty, toUnfoldable) as Map
+import Data.Map (toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -94,7 +94,7 @@ spendFromAlwaysSucceeds vhash txId = do
   let
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
+  utxos <- utxosAt scriptAddress
 
   txInput /\ txOutput <-
     liftContractM "Could not find unspent output locked at script address"

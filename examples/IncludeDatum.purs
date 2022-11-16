@@ -38,7 +38,6 @@ import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
-import Data.Map as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -82,7 +81,7 @@ spendFromIncludeDatum
   -> Contract () Unit
 spendFromIncludeDatum vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
+  utxos <- utxosAt scriptAddress
   case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->
       let
