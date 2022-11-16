@@ -147,6 +147,7 @@ derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
 derive newtype instance Ord Coin
+derive newtype instance DecodeAeson Coin
 derive newtype instance EncodeAeson Coin
 derive newtype instance Equipartition Coin
 

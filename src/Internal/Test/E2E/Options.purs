@@ -94,6 +94,7 @@ type ClusterPortsOptions_ (r :: Row Type) =
   , ogmiosDatumCachePort :: Maybe UInt
   , ctlServerPort :: Maybe UInt
   , postgresPort :: Maybe UInt
+  , kupoPort :: Maybe UInt
   | r
   )
 
@@ -306,6 +307,7 @@ uintParser = eitherReader \str ->
 
 defaultPorts
   :: { ctlServer :: Int
+     , kupo :: Int
      , ogmios :: Int
      , ogmiosDatumCache :: Int
      , plutip :: Int
@@ -317,6 +319,7 @@ defaultPorts =
   , ogmiosDatumCache: 10005
   , ctlServer: 8088
   , postgres: 5438
+  , kupo: 1443
   }
 
 clusterPortsOptionsParser :: Parser ClusterPortsOptions
@@ -361,12 +364,21 @@ clusterPortsOptionsParser = ado
         showPort "POSTGRES" defaultPorts.postgres
     , metavar "PORT"
     ]
+  kupoPort <- option (Just <$> uintParser) $ fold
+    [ long "kupo-port"
+    , help "Kupo port for use with local Plutip cluster"
+    , value Nothing
+    , showDefaultWith $ const $
+        showPort "KUPO" defaultPorts.kupo
+    , metavar "PORT"
+    ]
   in
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
     , ctlServerPort
     , postgresPort
+    , kupoPort
     }
   where
   showPort :: String -> Int -> String

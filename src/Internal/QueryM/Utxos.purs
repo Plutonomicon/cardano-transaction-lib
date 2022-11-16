@@ -12,7 +12,6 @@ import Prelude
 
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
-import Ctl.Internal.Address (addressToOgmiosAddress)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
@@ -24,27 +23,21 @@ import Ctl.Internal.QueryM
   , callCip30Wallet
   , getNetworkId
   , getWalletAddresses
-  , mkOgmiosRequest
   )
-import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.TxOutput
-  ( ogmiosTxOutToTransactionOutput
-  , txOutRefToTransactionInput
-  )
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet))
 import Data.Array (head)
 import Data.Array as Array
-import Data.Bifunctor (bimap)
-import Data.Bitraversable (bisequence)
+import Data.Either (hush)
 import Data.Foldable (fold, foldr)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, for_, sequence, traverse)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Traversable (for, for_, traverse)
+import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
@@ -55,52 +48,19 @@ import Effect.Exception (throw)
 -- UtxosAt
 --------------------------------------------------------------------------------
 
--- If required, we can change to Either with more granular error handling.
+-- If required, we can change to `Either` with more granular error handling.
 -- | Gets utxos at an (internal) `Address` in terms of (internal) `Cardano.Transaction.Types`.
 -- | Results may vary depending on `Wallet` type.
-utxosAt
-  :: Address
-  -> QueryM (Maybe UtxoMap)
-utxosAt address =
-  mkUtxoQuery
-    <<< mkOgmiosRequest Ogmios.queryUtxosAtCall _.utxosAt
-    $ addressToOgmiosAddress address
+utxosAt :: Address -> QueryM (Maybe UtxoMap)
+utxosAt address = mkUtxoQuery (hush <$> Kupo.utxosAt address)
 
--- | Queries for UTxO given a transaction input filtering out collaterals.
-getUtxo
-  :: TransactionInput -> QueryM (Maybe TransactionOutput)
-getUtxo ref = do
-  res <- mkOgmiosRequest Ogmios.queryUtxoCall _.utxo ref
-  pure $ convertUtxos res >>= Map.lookup ref
+-- | Queries for an utxo given a transaction input.
+getUtxo :: TransactionInput -> QueryM (Maybe TransactionOutput)
+getUtxo = map (join <<< hush) <<< Kupo.getUtxoByOref
 
-  where
-  convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoMap
-  convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
-    let
-      out'
-        :: Array
-             ( Maybe TransactionInput /\ Maybe
-                 TransactionOutput
-             )
-      out' = Map.toUnfoldable utxoQueryResult
-        <#> bimap
-          txOutRefToTransactionInput
-          ogmiosTxOutToTransactionOutput
-
-      out
-        :: Maybe
-             ( Array
-                 ( TransactionInput /\
-                     TransactionOutput
-                 )
-             )
-      out = out' <#> bisequence # sequence
-    in
-      Map.fromFoldable <$> out
-
-mkUtxoQuery :: QueryM Ogmios.UtxoQR -> QueryM (Maybe UtxoMap)
-mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt
-  utxosAtByWallet
+mkUtxoQuery :: QueryM (Maybe UtxoMap) -> QueryM (Maybe UtxoMap)
+mkUtxoQuery allUtxosAt =
+  maybe allUtxosAt utxosAtByWallet =<< asks (_.wallet <<< _.runtime)
   where
   -- Add more wallet types here:
   utxosAtByWallet :: Wallet -> QueryM (Maybe UtxoMap)
@@ -111,35 +71,6 @@ mkUtxoQuery query = asks (_.runtime >>> _.wallet) >>= maybe allUtxosAt
     Eternl _ -> cip30UtxosAt
     Lode _ -> cip30UtxosAt
     KeyWallet _ -> allUtxosAt
-
-  -- Gets all utxos at an (internal) Address in terms of (internal)
-  -- Cardano.Transaction.Types.
-  allUtxosAt :: QueryM (Maybe UtxoMap)
-  allUtxosAt = convertUtxos <$> query
-    where
-    convertUtxos :: Ogmios.UtxoQR -> Maybe UtxoMap
-    convertUtxos (Ogmios.UtxoQR utxoQueryResult) =
-      let
-        out'
-          :: Array
-               ( Maybe TransactionInput /\ Maybe
-                   TransactionOutput
-               )
-        out' = Map.toUnfoldable utxoQueryResult
-          <#> bimap
-            txOutRefToTransactionInput
-            ogmiosTxOutToTransactionOutput
-
-        out
-          :: Maybe
-               ( Array
-                   ( TransactionInput /\
-                       TransactionOutput
-                   )
-               )
-        out = out' <#> bisequence # sequence
-      in
-        Map.fromFoldable <$> out
 
   cip30UtxosAt :: QueryM (Maybe UtxoMap)
   cip30UtxosAt = getWalletCollateral >>= maybe

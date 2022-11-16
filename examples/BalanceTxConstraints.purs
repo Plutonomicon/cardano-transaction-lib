@@ -38,7 +38,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (singleton, valueOf) as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
-import Control.Bind (bindFlipped)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
@@ -126,7 +125,7 @@ contract (ContractParams p) = do
 
   nonSpendableOref <-
     liftedM "Failed to get utxos at Bob's address"
-      (bindFlipped (Set.findMin <<< Map.keys) <$> utxosAt bobAddress)
+      (Set.findMin <<< Map.keys <$> utxosAt bobAddress)
 
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "The Token"
