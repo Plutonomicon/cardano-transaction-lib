@@ -171,6 +171,13 @@
           };
 
           checks = {
+            ctl-e2e-test = project.runE2ETest {
+              name = "ctl-e2e-test";
+              testMain = "Test.Ctl.E2E";
+              # After updating `PlutipConfig` this can be set for now:
+              # withCtlServer = false;
+              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+            };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
               testMain = "Test.Ctl.Plutip";

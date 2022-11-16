@@ -266,6 +266,48 @@ let
       }
     );
 
+  runE2ETest = 
+    { 
+      # The name of the main Purescript module
+      testMain ? "Test.Ctl.E2E"
+      # Can be used to override the name of the resulting derivation
+    , name ? "${projectName}-e2e"
+      # Generated `node_modules` in the Nix store. Can be passed to have better
+      # control over individual project components
+    , nodeModules ? projectNodeModules
+      # Additional variables to pass to the test environment
+    , env ? { }
+      # Passed through to the `buildInputs` of the derivation. Use this to add
+      # additional packages to the test environment
+    , buildInputs ? [ ]
+    , ...
+    }@args:
+    pkgs.runCommand "${name}" ({
+        buildInputs = with pkgs; [
+          project
+          nodeModules
+          postgresql
+          ogmios
+          ogmios-datum-cache
+          plutip-server
+          chromium
+          # Utils needed by E2E test code
+          which # used to check for browser availability
+          gnutar # used unpack settings archive within E2E test code
+        ] ++ [ pkgs.ctl-server ]
+          ++ (args.buildInputs or [ ]);
+        NODE_PATH = "${nodeModules}/lib/node_modules";
+    } // env)
+    ''
+      cd ${project}
+      export E2E_CHROME_USER_DATA=$out/test-data/chrome-user-data;
+      export E2E_SETTINGS_ARCHIVE=$out/test-data/preview/settings.tar.gz;
+      export E2E_SETTINGS_ARCHIVE_URL="https://github.com/mlabs-haskell/ctl-e2e-assets/releases/download/preview-1/preview-settings.tar.gz";
+      ${nodejs}/bin/node -e 'require("./output/${testMain}").main()' e2e-test run
+      touch $out
+    ''
+    ;
+
   # Bundles a Purescript project using Webpack, typically for the browser
   bundlePursProject =
     {
@@ -446,7 +488,7 @@ let
 in
 {
   inherit
-    buildPursProject runPursTest runPlutipTest bundlePursProject
+    buildPursProject runPursTest runPlutipTest runE2ETest bundlePursProject
     buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
     purs nodejs mkNodeModules;
   devShell = shellFor shell;
