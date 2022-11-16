@@ -893,11 +893,9 @@ resumeTimeConstraints constraints = do
   isTimeConstraint _ = false
 
 data MkUnbalancedTxError
-  = CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
-  | CannotConvertPaymentPubKeyHash PaymentPubKeyHash
+  = CannotConvertPaymentPubKeyHash PaymentPubKeyHash
   | CannotFindDatum
   | CannotQueryDatum DataHash
-  | CannotHashDatum Datum
   | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
   | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
@@ -906,7 +904,6 @@ data MkUnbalancedTxError
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
   | CannotMakeValue CurrencySymbol TokenName BigInt
-  | CannotQueryDatum DataHash
   | CannotWithdrawRewardsPubKey StakePubKeyHash
   | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
   | CannotWithdrawRewardsNativeScript NativeScriptStakeValidator
