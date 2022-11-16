@@ -9,8 +9,7 @@ module Ctl.Examples.PlutusV2.ReferenceInputs
 import Contract.Prelude
 
 import Contract.Address
-  ( Address
-  , PaymentPubKeyHash
+  ( PaymentPubKeyHash
   , StakePubKeyHash
   , getWalletAddresses
   , ownPaymentPubKeysHashes
@@ -60,8 +59,7 @@ import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, mkTokenName) as Helper
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
-import Data.Map (Map)
-import Data.Map (empty, toUnfoldable) as Map
+import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -129,8 +127,8 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   let scriptAddress = scriptHashAddress vhash Nothing
   ownAddress <- liftedM "Failed to get own address" $ head <$>
     getWalletAddresses
-  (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt' ownAddress
-  scriptAddressUtxos <- utxosAt' scriptAddress
+  (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt ownAddress
+  scriptAddressUtxos <- utxosAt scriptAddress
 
   txInput /\ _ <-
     liftContractM "Could not find unspent output locked at script address"
@@ -172,11 +170,6 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
     :: PlutusScript -> _ /\ TransactionOutputWithRefScript -> Boolean
   hasRefPlutusScript plutusScript (_ /\ txOutput) =
     (unwrap txOutput).scriptRef == Just (PlutusScriptRef plutusScript)
-
-  utxosAt'
-    :: Address
-    -> Contract () (Map TransactionInput TransactionOutputWithRefScript)
-  utxosAt' = map (fromMaybe Map.empty) <<< utxosAt
 
 mustPayToPubKeyStakeAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)

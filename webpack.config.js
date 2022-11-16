@@ -23,6 +23,11 @@ module.exports = {
 
   devServer: {
     port: 4008,
+    proxy: {
+      "/matches": process.env.KUPO_HOST, // e.g. http://localhost:1442
+      "/datums": process.env.KUPO_HOST,
+      "/scripts": process.env.KUPO_HOST,
+    },
   },
 
   // we can add more entrypoints as needed

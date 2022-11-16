@@ -6,6 +6,7 @@ module Ctl.Internal.QueryM.Config
 import Ctl.Internal.QueryM (QueryConfig, emptyHooks)
 import Ctl.Internal.QueryM.ServerConfig
   ( defaultDatumCacheWsConfig
+  , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
@@ -18,6 +19,7 @@ testnetTraceQueryConfig =
   { ctlServerConfig: Just defaultServerConfig
   , ogmiosConfig: defaultOgmiosWsConfig
   , datumCacheConfig: defaultDatumCacheWsConfig
+  , kupoConfig: defaultKupoServerConfig
   , networkId: TestnetId
   , logLevel: Trace
   , walletSpec: Nothing

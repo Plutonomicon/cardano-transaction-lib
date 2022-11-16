@@ -41,6 +41,7 @@ module Ctl.Internal.QueryM
   , getProtocolParametersAff
   , getWalletAddresses
   , getWallet
+  , handleAffjaxResponse
   , liftQueryM
   , listeners
   , postAeson
@@ -322,6 +323,7 @@ type QueryConfig =
   { ctlServerConfig :: Maybe ServerConfig
   , ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec

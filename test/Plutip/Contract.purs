@@ -122,7 +122,7 @@ import Data.Either (isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -347,7 +347,7 @@ suite = do
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
+            utxos <- utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
               view _input <$> lookupTxHash txId utxos !! 0
             let
@@ -445,7 +445,7 @@ suite = do
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
               $ toPlutusAddress nsAddr
-            utxos <- fromMaybe Map.empty <$> utxosAt nsAddrPlutus
+            utxos <- utxosAt nsAddrPlutus
             txInput <- liftContractM "Unable to get UTxO" $
               view _input <$> lookupTxHash txId utxos !! 0
             let
@@ -949,7 +949,8 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    test "AlwaysFails Ada Collateral Return" do
+    -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1225
+    skip $ test "AlwaysFails Ada Collateral Return" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
@@ -975,7 +976,8 @@ suite = do
             collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt $ -5_000_000
           balance `shouldEqual` (balanceBefore <> collateralLoss)
 
-    test "AlwaysFails Native Asset Collateral Return" do
+    -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1225
+    skip $ test "AlwaysFails Native Asset Collateral Return" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =

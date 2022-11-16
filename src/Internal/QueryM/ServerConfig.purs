@@ -1,13 +1,14 @@
 module Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
-  , defaultServerConfig
-  , defaultOgmiosWsConfig
   , defaultDatumCacheWsConfig
+  , defaultKupoServerConfig
+  , defaultOgmiosWsConfig
+  , defaultServerConfig
   , mkHttpUrl
-  , mkWsUrl
   , mkOgmiosDatumCacheWsUrl
   , mkServerUrl
+  , mkWsUrl
   ) where
 
 import Prelude
@@ -46,6 +47,14 @@ defaultOgmiosWsConfig =
 defaultDatumCacheWsConfig :: ServerConfig
 defaultDatumCacheWsConfig =
   { port: UInt.fromInt 9999
+  , host: "localhost"
+  , secure: false
+  , path: Nothing
+  }
+
+defaultKupoServerConfig :: ServerConfig
+defaultKupoServerConfig =
+  { port: UInt.fromInt 4008
   , host: "localhost"
   , secure: false
   , path: Nothing

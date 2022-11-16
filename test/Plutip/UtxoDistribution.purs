@@ -214,7 +214,7 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
 assertNoUtxosAtAddress addr = do
-  utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
+  utxos <- utxosAt addr
   assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
 
 -- | For each wallet, assert that there is a one-to-one correspondance
@@ -226,7 +226,7 @@ assertCorrectDistribution
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
     addr <- liftedM "Could not get wallet address" $ head <$> getWalletAddresses
-    utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
+    utxos <- utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts
   where
