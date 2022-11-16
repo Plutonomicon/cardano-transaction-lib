@@ -13,7 +13,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (liftedM)
+import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
@@ -75,7 +75,7 @@ import Ctl.Internal.Wallet.Key
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
 import Data.Int as Int
@@ -88,12 +88,20 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith) as String
-import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
+import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
+import Effect.Aff
+  ( Aff
+  , Canceler(Canceler)
+  , fiberCanceler
+  , launchAff
+  , launchAff_
+  , makeAff
+  , try
+  )
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
@@ -280,16 +288,22 @@ testPlan opts@{ tests } rt@{ wallets } =
                 , confirmAccess: confirmAccess extensionId re
                 , sign: sign extensionId password re
                 }
-            subscribeToBrowserEvents (Just $ Seconds 10.0) page
-              case _ of
-                ConfirmAccess -> launchAff_ someWallet.confirmAccess
-                Sign -> launchAff_ someWallet.sign
-                Success -> pure unit
-                Failure err -> throw err
+            makeAff $ \k -> do
+              let
+                rethrow aff = launchAff_ do
+                  res <- try aff
+                  when (isLeft res) $ liftEffect $ k res
+              map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
+                subscribeToBrowserEvents page
+                  case _ of
+                    ConfirmAccess -> rethrow someWallet.confirmAccess
+                    Sign -> rethrow someWallet.sign
+                    Success -> pure unit
+                    Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
   where
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents (Just $ Seconds 10.0) page
+    subscribeToBrowserEvents page
       case _ of
         Success -> pure unit
         Failure err -> throw err
@@ -304,7 +318,7 @@ runBrowser
   -> Aff Unit
 runBrowser tmpDir chromeUserDataDir browser extensions = do
   let
-    extPath ext = tmpDir <> "/" <> unExtensionId ext.extensionId
+    extPath ext = tmpDir <</>> unExtensionId ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
@@ -482,7 +496,7 @@ ensureChromeUserDataDir chromeUserDataDir = do
     defaultSpawnOptions
     defaultErrorReader
   void $ spawnAndCollectOutput "rm"
-    [ "-f", chromeUserDataDir <> "/" <> "SingletonLock" ]
+    [ "-f", chromeUserDataDir <</>> "SingletonLock" ]
     defaultSpawnOptions
     defaultErrorReader
 
@@ -571,7 +585,7 @@ extractExtension tmpDir extension = do
   void $ spawnAndCollectOutput "unzip"
     [ extension.crx
     , "-d"
-    , tmpDir <> "/" <> unExtensionId extension.extensionId
+    , tmpDir <</>> unExtensionId extension.extensionId
     ]
     defaultSpawnOptions
     errorReader
@@ -775,10 +789,10 @@ createTmpDir mbOptionsTmpDir browser = do
       defaultErrorReader
   createNewSubdir prefix = do
     uniqPart <- execAndCollectOutput "mktemp -du e2e.XXXXXXX"
-    void $ spawnAndCollectOutput "mkdir" [ "-p", prefix <> "/" <> uniqPart ]
+    void $ spawnAndCollectOutput "mkdir" [ "-p", prefix <</>> uniqPart ]
       defaultSpawnOptions
       defaultErrorReader
-    pure $ prefix <> "/" <> uniqPart
+    pure $ prefix <</>> uniqPart
   createNew = do
     realPath <- spawnAndCollectOutput "which" [ browser ]
       defaultSpawnOptions
@@ -793,8 +807,8 @@ createTmpDir mbOptionsTmpDir browser = do
           <> " provide E2E_TMPDIR variable or use --tmp-dir CLI argument"
     else do
       prefix <- execAndCollectOutput "mktemp -d"
-      void $ execAndCollectOutput $ "mkdir -p " <> prefix <> "/" <> uniqPart
-      pure $ prefix <> "/" <> uniqPart
+      void $ execAndCollectOutput $ "mkdir -p " <> prefix <</>> uniqPart
+      pure $ prefix <</>> uniqPart
 
 execAndCollectOutput_
   :: String

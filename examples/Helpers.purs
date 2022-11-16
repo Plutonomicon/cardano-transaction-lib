@@ -4,6 +4,7 @@ module Ctl.Examples.Helpers
   , mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
+  , submitAndLog
   ) where
 
 import Contract.Prelude
@@ -16,8 +17,11 @@ import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
 import Contract.Scripts (class ValidatorTypes, MintingPolicy)
 import Contract.Transaction
-  ( TransactionHash
+  ( BalancedSignedTransaction
+  , TransactionHash
+  , awaitTxConfirmed
   , balanceTx
+  , getTxByHash
   , getTxFinalFee
   , signTransaction
   , submit
@@ -26,6 +30,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
 import Data.BigInt (BigInt)
+import Effect.Exception (throw)
 
 buildBalanceSignAndSubmitTx'
   :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
@@ -80,4 +85,17 @@ mustPayToPubKeyStakeAddress pkh Nothing =
   Constraints.mustPayToPubKey pkh
 mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
+
+submitAndLog
+  :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
+submitAndLog bsTx = do
+  txId <- submit bsTx
+  logInfo' $ "Tx ID: " <> show txId
+  awaitTxConfirmed txId
+  mbTransaction <- getTxByHash txId
+  logInfo' $ "Retrieved tx: " <> show mbTransaction
+  liftEffect $ when (isNothing mbTransaction) do
+    void $ throw "Unable to get Tx contents"
+    when (mbTransaction /= Just (unwrap bsTx)) do
+      throw "Tx contents do not match"
 

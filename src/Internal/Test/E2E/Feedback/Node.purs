@@ -17,9 +17,7 @@ import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
 import Data.Array as Array
 import Data.Either (Either(Left), hush, note)
 import Data.Foldable (and)
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Number (infinity)
-import Data.Time.Duration (Seconds(Seconds), convertDuration)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse_)
 import Effect (Effect)
 import Effect.Aff
@@ -43,11 +41,10 @@ import Toppokki as Toppokki
 
 -- | React to events raised by the browser
 subscribeToBrowserEvents
-  :: Maybe Seconds
-  -> Toppokki.Page
+  :: Toppokki.Page
   -> (BrowserEvent -> Effect Unit)
   -> Aff Unit
-subscribeToBrowserEvents timeout page cont = do
+subscribeToBrowserEvents page cont = do
   logs <- liftEffect $ Ref.new ""
   let
     addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
@@ -90,17 +87,12 @@ subscribeToBrowserEvents timeout page cont = do
           else process Nothing
         else pure unit
 
-    timeoutFiber <- Ref.new Nothing
     processFiber <- Ref.new Nothing
     launchAff_ do
-      liftEffect <<< flip Ref.write timeoutFiber <<< Just =<< forkAff do
-        delay $ convertDuration $ fromMaybe (Seconds infinity) timeout
-        liftEffect $ f $ Left $ error "Timeout reached"
       liftEffect <<< flip Ref.write processFiber <<< Just =<< forkAff do
         try (process (Just firstTimeConnectionAttempts)) >>= liftEffect <<< f
     pure $ Canceler \e -> do
-      liftEffect (Ref.read timeoutFiber) >>= traverse_ (killFiber e)
-      liftEffect (Ref.read timeoutFiber) >>= traverse_ (killFiber e)
+      liftEffect (Ref.read processFiber) >>= traverse_ (killFiber e)
   where
   -- How many times to try until we get any event?
   firstTimeConnectionAttempts :: Int

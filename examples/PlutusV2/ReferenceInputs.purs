@@ -3,6 +3,7 @@ module Ctl.Examples.PlutusV2.ReferenceInputs
   , contract
   , example
   , main
+  , mintAlwaysMintsV2ToTheScript
   ) where
 
 import Contract.Prelude
@@ -11,9 +12,9 @@ import Contract.Address
   ( Address
   , PaymentPubKeyHash
   , StakePubKeyHash
-  , getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   , scriptHashAddress
   )
 import Contract.Config (ConfigParams, testnetNamiConfig)
@@ -31,14 +32,12 @@ import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
   , MintingPolicyHash
   , PlutusScript
+  , Validator
   , ValidatorHash
   , mintingPolicyHash
   , validatorHash
   )
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV2FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
@@ -55,13 +54,11 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
-import Contract.Value (lovelaceValueOf) as Value
+import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkTokenName
-  ) as Helpers
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (Map)
 import Data.Map (empty, toUnfoldable) as Map
@@ -100,8 +97,8 @@ contract = do
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- join <<< head <$> ownStakePubKeysHashes
   let
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
@@ -130,7 +127,8 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   let scriptAddress = scriptHashAddress vhash Nothing
-  ownAddress <- liftedM "Failed to get own address" getWalletAddress
+  ownAddress <- liftedM "Failed to get own address" $ head <$>
+    getWalletAddresses
   (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt' ownAddress
   scriptAddressUtxos <- utxosAt' scriptAddress
 
@@ -202,3 +200,28 @@ alwaysMintsPolicyScriptV2 =
   liftMaybe (error "Error decoding alwaysMintsV2") do
     envelope <- decodeTextEnvelope alwaysMintsV2
     plutusScriptV2FromEnvelope envelope
+
+mintAlwaysMintsV2ToTheScript
+  :: TokenName -> Validator -> Int -> Contract () Unit
+mintAlwaysMintsV2ToTheScript tokenName validator sum = do
+  mp <- alwaysMintsPolicyV2
+  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+
+  let
+    vhash = validatorHash validator
+
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = mconcat
+      [ Constraints.mustMintValue
+          $ Value.singleton cs tokenName
+          $ BigInt.fromInt sum
+      , Constraints.mustPayToScript vhash unitDatum Constraints.DatumWitness
+          $ Value.singleton cs tokenName
+          $ BigInt.fromInt sum
+      ]
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = Lookups.mintingPolicy mp
+
+  txHash <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  void $ awaitTxConfirmed txHash

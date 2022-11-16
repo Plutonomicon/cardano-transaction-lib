@@ -8,7 +8,7 @@ import Prelude
 
 import Control.Parallel (parOneOf)
 import Ctl.Internal.QueryM (QueryM, getChainTip, mkDatumCacheRequest)
-import Ctl.Internal.QueryM.DatumCacheWsp (getTxByHash)
+import Ctl.Internal.QueryM.DatumCacheWsp (getTxByHashCall)
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot)
@@ -41,7 +41,7 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   -- request
   findTx :: QueryM Boolean
   findTx = do
-    isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHash
+    isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHashCall
       _.getTxByHash
       txHash
     if isTxFound then pure true
@@ -78,7 +78,7 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
 
   go :: Slot -> QueryM Unit
   go timeout =
-    mkDatumCacheRequest getTxByHash _.getTxByHash txHash >>= \found ->
+    mkDatumCacheRequest getTxByHashCall _.getTxByHash txHash >>= \found ->
       unless (isJust $ unwrap found) do
         slot <- getCurrentSlot
         when (slot >= timeout) do

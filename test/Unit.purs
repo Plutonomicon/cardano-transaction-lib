@@ -19,6 +19,7 @@ import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
 import Test.Ctl.Internal.Plutus.Time as Plutus.Time
 import Test.Ctl.Metadata.Cip25 as Cip25
+import Test.Ctl.MustSpendTotal as MustSpendTotal
 import Test.Ctl.NativeScript as NativeScript
 import Test.Ctl.Ogmios.Address as Ogmios.Address
 import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
@@ -34,6 +35,7 @@ import Test.Ctl.TxOutput as TxOutput
 import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
+import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 
@@ -70,8 +72,10 @@ testPlan = do
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Types.TokenName.suite
+  Types.Transaction.suite
   Ctl.Data.Interval.suite
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
   E2E.Route.suite
+  MustSpendTotal.suite

@@ -57,8 +57,7 @@ module Ctl.Internal.QueryM
   , mkRequestAff
   , mkWalletBySpec
   , ownPaymentPubKeyHashes
-  , ownPubKeyHashes
-  , ownStakePubKeyHash
+  , ownStakePubKeysHashes
   , runQueryM
   , runQueryMWithSettings
   , runQueryMInRuntime
@@ -112,7 +111,7 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Helpers (liftM, logString, logWithLevel)
+import Ctl.Internal.Helpers (liftM, logString, logWithLevel, (<</>>))
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -242,7 +241,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
-import Data.Array (head, singleton) as Array
+import Data.Array (singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
 import Data.Foldable (fold, foldl)
@@ -660,7 +659,7 @@ getDatumsByHashesWithErrors hashes = unwrap <$> do
 
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
 checkTxByHashAff datumCacheWs logger =
-  mkDatumCacheRequestAff datumCacheWs logger DcWsp.getTxByHash _.getTxByHash
+  mkDatumCacheRequestAff datumCacheWs logger DcWsp.getTxByHashCall _.getTxByHash
     >>> map (unwrap >>> isJust)
 
 allowError
@@ -729,13 +728,15 @@ ownPubKeyHashes = do
 ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
--- TODO: change to array of StakePubKeyHash
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045
-ownStakePubKeyHash :: QueryM (Maybe StakePubKeyHash)
-ownStakePubKeyHash = do
-  mbAddress <- getWalletAddresses <#> Array.head
-  pure do
-    baseAddress <- mbAddress >>= baseAddressFromAddress
+ownStakePubKeysHashes :: QueryM (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes = do
+  addresses <- getWalletAddresses
+  pure $ addressToMStakePubKeyHash <$> addresses
+  where
+
+  addressToMStakePubKeyHash :: Address -> Maybe StakePubKeyHash
+  addressToMStakePubKeyHash address = do
+    baseAddress <- baseAddressFromAddress address
     wrap <<< wrap <$> stakeCredentialToKeyHash
       (baseAddressDelegationCred baseAddress)
 
@@ -812,7 +813,7 @@ applyArgs script args =
           language = snd $ unwrap script
 
           url :: String
-          url = mkHttpUrl config <> "/apply-args"
+          url = mkHttpUrl config <</>> "apply-args"
 
           reqBody :: Aeson
           reqBody = encodeAeson
