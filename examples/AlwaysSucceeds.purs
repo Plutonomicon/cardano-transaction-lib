@@ -1,6 +1,6 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
--- | that pays two Ada to the `AlwaysSucceeds` script address
+-- | that pays two Ada to the `AlwaysSucceeds` script address.
 module Ctl.Examples.AlwaysSucceeds
   ( alwaysSucceeds
   , alwaysSucceedsScript
@@ -37,7 +37,6 @@ import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
-import Data.Map as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -95,7 +94,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
   let
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
+  utxos <- utxosAt scriptAddress
   case view _input <$> head (lookupTxHash txId utxos) of
     Just txInput ->
       let
