@@ -182,7 +182,8 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
 
       balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
       balanceTxConstraints =
-        BalanceTxConstraints.mustBalanceTxWithAddress address
+        BalanceTxConstraints.mustUseUtxosAtAddress address
+          <> BalanceTxConstraints.mustSendChangeToAddress address
           <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
     -- `liftedE` will throw a runtime exception on `Left`s

@@ -12,10 +12,10 @@ import Contract.Address
   )
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
-  , mustBalanceTxWithAddress
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
+  , mustUseUtxosAtAddress
   ) as BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
@@ -142,7 +142,7 @@ contract (ContractParams p) = do
     balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
     balanceTxConstraints =
       BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
-        <> BalanceTxConstraints.mustBalanceTxWithAddress bobAddress
+        <> BalanceTxConstraints.mustUseUtxosAtAddress bobAddress
         <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 

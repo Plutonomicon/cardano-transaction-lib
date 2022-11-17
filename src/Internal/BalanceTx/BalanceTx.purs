@@ -19,7 +19,7 @@ import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
-  , _ownAddresses
+  , _srcAddresses
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
@@ -150,13 +150,13 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
       certsFee = getStakingBalance (unbalancedTx ^. _transaction')
         depositValuePerCert
 
-    ownAddrs <-
-      maybe (liftQueryM QueryM.getWalletAddresses) pure
-        =<< asksConstraints Constraints._ownAddresses
+    srcAddrs <-
+      asksConstraints Constraints._srcAddresses
+        >>= maybe (liftQueryM QueryM.getWalletAddresses) pure
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM $ traverse utxosAt ownAddrs <#>
+    utxos <- liftEitherQueryM $ traverse utxosAt srcAddrs <#>
       traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
 
         >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
