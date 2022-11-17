@@ -99,7 +99,6 @@ import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Fiber, killFiber)
-import Effect.Console (log)
 import Effect.Exception (error)
 import Node.Process as Process
 import Type.Proxy (Proxy(Proxy))

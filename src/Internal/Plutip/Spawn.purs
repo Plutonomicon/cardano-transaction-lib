@@ -37,7 +37,6 @@ import Node.ChildProcess
   , stdout
   )
 import Node.ChildProcess as ChildProcess
-import Node.Process as Process
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 
 -- | Carry along an `AVar` which resolves when the process closes.
