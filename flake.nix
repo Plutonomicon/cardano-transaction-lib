@@ -35,7 +35,7 @@
 
     cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/862c6bfcb6110b8fe816e26b3bba105dfb492b24";
 
     # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
     ogmios-nixos.url = "github:mlabs-haskell/ogmios";
