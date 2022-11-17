@@ -55,6 +55,7 @@ The following constraints were added for `PlutusV2` features as part of our `v2.
 - [x] `mustPayToPubKeyAddressWithScriptRef`
 - [x] `mustPayToPubKeyWithDatumAndScriptRef`
 - [x] `mustPayToPubKeyWithScriptRef`
+- [x] `mustReferenceOutput`
 - [x] `mustSpendScriptOutputUsingScriptRef`
 
 That release also included the following constraints for working with native scripts, which also have no `plutus-apps` analogue:
