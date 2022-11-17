@@ -28,6 +28,7 @@ type AffSpec a = SpecT Aff Unit Aff a
 -- | We use `mote` here so that we can use effects to build up a test tree, which
 -- | is then interpreted here in a pure context, mainly due to some painful types
 -- | in Test.Spec which prohibit effects.
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 interpret :: TestPlanM (Aff Unit) Unit -> Aff Unit
 interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
 
@@ -60,4 +61,3 @@ planToSpec =
   runBracket :: Aff Unit -> Maybe (Bracket Aff) -> Aff Unit
   runBracket action = maybe action
     $ unBracket \before after -> bracket before after (const action)
-
