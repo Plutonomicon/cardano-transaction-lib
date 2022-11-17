@@ -104,7 +104,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Absence of `serializeData` in Plutip ([#1078](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1078))
 - Fix excessive reconnection attempts after `Contract` runtime finalization ([#965](https://github.com/Plutonomicon/cardano-transaction-lib/pull/965))
 - Fix wallet extension error terminating the whole test suite ([#1209](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1209))
-- Examples fails when they can't find the needed utxos([#1207](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1207)) 
+- Examples fails when they can't find the needed utxos([#1207](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1207))
 
 ## [2.0.0] - 2022-09-12
 
