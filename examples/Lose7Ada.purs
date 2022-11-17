@@ -81,32 +81,34 @@ spendFromAlwaysFails vhash validator txId = do
   balanceBefore <- fold <$> getWalletBalance
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
-  case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just txInput -> do
-      let
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.validator validator
-          <> Lookups.unspentOutputs utxos
+  txInput <-  liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  let
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
 
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutput txInput unitRedeemer
-            <> Constraints.mustNotBeValid
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutput txInput unitRedeemer
+        <> Constraints.mustNotBeValid
 
-      spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-      logInfo' $ "Tx ID: " <> show spendTxId
-      awaitTxConfirmed spendTxId
-      logInfo' "Successfully spent locked values."
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  logInfo' $ "Tx ID: " <> show spendTxId
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
 
-      balance <- fold <$> getWalletBalance
-      let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-5_000_000)
-      balance `shouldEqual` (balanceBefore <> collateralLoss)
+  balance <- fold <$> getWalletBalance
+  let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-5_000_000)
+  balance `shouldEqual` (balanceBefore <> collateralLoss)
 
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =

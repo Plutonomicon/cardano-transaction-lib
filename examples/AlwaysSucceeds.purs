@@ -95,27 +95,27 @@ spendFromAlwaysSucceeds vhash validator txId = do
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
-  case view _input <$> head (lookupTxHash txId utxos) of
-    Just txInput ->
-      let
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.validator validator
-          <> Lookups.unspentOutputs utxos
+  txInput <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+     (view _input <$> head (lookupTxHash txId utxos))
+  let
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
 
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutput txInput unitRedeemer
-      in
-        do
-          spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-          awaitTxConfirmed spendTxId
-          logInfo' "Successfully spent locked values."
-
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutput txInput unitRedeemer
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
 
 foreign import alwaysSucceeds :: String
 
