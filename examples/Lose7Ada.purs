@@ -81,15 +81,15 @@ spendFromAlwaysFails vhash validator txId = do
   balanceBefore <- fold <$> getWalletBalance
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
-  txInput <-  liftM
-      ( error
-          ( "The id "
-              <> show txId
-              <> " does not have output locked at: "
-              <> show scriptAddress
-          )
-      )
-      (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  txInput <- liftM
+    ( error
+        ( "The id "
+            <> show txId
+            <> " does not have output locked at: "
+            <> show scriptAddress
+        )
+    )
+    (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
   let
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = Lookups.validator validator

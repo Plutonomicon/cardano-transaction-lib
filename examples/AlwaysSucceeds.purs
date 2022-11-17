@@ -13,7 +13,7 @@ module Ctl.Examples.AlwaysSucceeds
 
 import Contract.Prelude
 
-import Contract.Address (ownStakePubKeyHash, scriptHashAddress)
+import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
@@ -60,7 +60,7 @@ example cfg = launchAff_ do
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
   -- Send to own stake credential. This is used to test mustPayToScriptAddress.
-  mbStakeKeyHash <- ownStakePubKeyHash
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -90,7 +90,7 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   -- Use own stake credential if available
-  mbStakeKeyHash <- ownStakePubKeyHash
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
   let
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
@@ -104,7 +104,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
               <> show scriptAddress
           )
       )
-     (view _input <$> head (lookupTxHash txId utxos))
+      (view _input <$> head (lookupTxHash txId utxos))
   let
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = Lookups.validator validator
