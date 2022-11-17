@@ -35,9 +35,9 @@ main = launchAff_ do
     defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
     $ group "Plutip" do
         Logging.suite
-        UtxoDistribution.suite
         testStartPlutipCluster
         testPlutipContracts config Contract.suite
+        UtxoDistribution.suite
 
 testStartPlutipCluster :: TestPlanM (Aff Unit) Unit
 testStartPlutipCluster = group "Server" do
