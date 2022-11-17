@@ -64,6 +64,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - `Contract.Staking.getValidatorHashDelegationsAndRewards`
 - `Contract.Test.Plutip.testPlutipContracts` to run multiple Mote Plutip tests on the same Plutip cluster, saving on cluster startup time. ([#1154](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1154)).
 - `EncodeAeson` and `DecodeAeson` instances for `TransactionInput`, `TransactionOutput`/`TransactionOutputWithRefScript` and `PaymentPubKeyHash`([#1138](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1138))
+- [Breaking Change] `mustSendChangeToAddress` balancer constraint, allowing to explicitly set the address to send all generated change to. Please update your code to use this constraint, if any of your contracts rely on the false assumption that `mustBalanceTxWithAddress` or `mustBalanceTxWithAddresses` should implicitly set the change address. ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
 
 ### Changed
 
