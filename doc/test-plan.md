@@ -43,7 +43,7 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] `mustSatisfyAnyOf`
 - [x] `mustSpendAtLeastTotal`. Also implies
   - [x] `mustSpendAtLeast`
-- [ ] `mustValidateIn`
+- [x] `mustValidateIn`
 
 The following constraints were added for `PlutusV2` features as part of our `v2.0.0` release. They do not have direct correspondances in `plutus-apps`:
 

@@ -208,6 +208,12 @@ buildPlutipConfig options =
       , password: "ctxlib"
       , dbname: "ctxlib"
       }
+  , kupoConfig:
+      { host: "127.0.0.1"
+      , port: fromMaybe (UInt.fromInt defaultPorts.kupo) options.kupoPort
+      , secure: false
+      , path: Nothing
+      }
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
@@ -342,6 +348,7 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
             <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
+            <<< delete (Proxy :: Proxy "kupoPort")
         )
   readBrowserRuntime Nothing $ removeUnneeded testOptions
 
@@ -357,12 +364,15 @@ readPorts testOptions = do
     readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   postgresPort <-
     readPortNumber "POSTGRES" testOptions.postgresPort
+  kupoPort <-
+    readPortNumber "KUPO" testOptions.kupoPort
   pure
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
     , ctlServerPort
     , postgresPort
+    , kupoPort
     }
   where
   readPortNumber varName Nothing = do

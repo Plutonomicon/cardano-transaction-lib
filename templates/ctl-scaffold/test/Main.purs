@@ -47,6 +47,12 @@ config =
       , secure: false
       , path: Nothing
       }
+  , kupoConfig:
+      { port: UInt.fromInt 1442
+      , host: "127.0.0.1"
+      , secure: false
+      , path: Nothing
+      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: UInt.fromInt 5433

@@ -93,8 +93,8 @@ derive newtype instance Eq DataHash
 derive newtype instance FromData DataHash
 derive newtype instance Ord DataHash
 derive newtype instance ToData DataHash
-derive newtype instance EncodeAeson DataHash
 derive newtype instance DecodeAeson DataHash
+derive newtype instance EncodeAeson DataHash
 
 instance Show DataHash where
   show = genericShow

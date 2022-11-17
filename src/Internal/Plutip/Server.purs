@@ -111,7 +111,8 @@ import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
-import Node.Path (dirname)
+import Node.FS.Sync (exists, mkdir) as FSSync
+import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -293,6 +294,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   ourKey /\ response <- startPlutipCluster'
   startPostgres' response
   startOgmios' response
+  startKupo' response
   startOgmiosDatumCache' response
   startMCtlServer'
   { env, printLogs, clearLogs } <- mkContractEnv'
@@ -352,6 +354,12 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startOgmios' response =
     bracket (startOgmios plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosConfig.port)
+      (const $ pure unit)
+
+  startKupo' :: ClusterStartupParameters -> Aff Unit
+  startKupo' response =
+    bracket (startKupo plutipCfg response)
+      (stopChildProcessWithPort plutipCfg.kupoConfig.port)
       (const $ pure unit)
 
   startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
@@ -433,6 +441,7 @@ configCheck cfg = do
     services =
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
+      , cfg.kupoConfig.port /\ "kupo"
       , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
       , cfg.postgresConfig.port /\ "postgres"
       ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
@@ -543,6 +552,45 @@ startOgmios cfg params = do
     , cfg.ogmiosConfig.host
     , "--port"
     , UInt.toString cfg.ogmiosConfig.port
+    , "--node-socket"
+    , params.nodeSocketPath
+    , "--node-config"
+    , params.nodeConfigPath
+    ]
+
+startKupo :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
+startKupo cfg params = do
+  tmpDir <- liftEffect tmpdir
+  let
+    workdir = tmpDir <> "/kupo-db"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+  liftEffect do
+    workdirExists <- FSSync.exists workdir
+    unless workdirExists (FSSync.mkdir workdir)
+  childProcess <- spawnKupoProcess workdir
+  liftEffect $ cleanupTmpDir childProcess workdir testClusterDir
+  pure childProcess
+  where
+  spawnKupoProcess :: FilePath -> Aff ManagedProcess
+  spawnKupoProcess workdir =
+    spawn "kupo" (kupoArgs workdir) defaultSpawnOptions $
+      Just (String.indexOf outputString >>> maybe NoOp (const Success))
+    where
+    outputString :: Pattern
+    outputString = Pattern "ConfigurationCheckpointsForIntersection"
+
+  kupoArgs :: FilePath -> Array String
+  kupoArgs workdir =
+    [ "--match"
+    , "*/*"
+    , "--since"
+    , "origin"
+    , "--workdir"
+    , workdir
+    , "--host"
+    , cfg.kupoConfig.host
+    , "--port"
+    , UInt.toString cfg.kupoConfig.port
     , "--node-socket"
     , params.nodeSocketPath
     , "--node-config"
@@ -718,6 +766,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         { ctlServerConfig: plutipCfg.ctlServerConfig
         , ogmiosConfig: plutipCfg.ogmiosConfig
         , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
+        , kupoConfig: plutipCfg.kupoConfig
         , networkId: MainnetId
         , logLevel: plutipCfg.logLevel
         , walletSpec: Nothing
