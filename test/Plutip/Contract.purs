@@ -60,13 +60,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
-import Contract.Wallet
-  ( getWalletUtxos
-  , isFlintAvailable
-  , isGeroAvailable
-  , isNamiAvailable
-  , withKeyWallet
-  )
+import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
@@ -112,6 +106,9 @@ import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
+import Ctl.Internal.Wallet
+  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet)
+  )
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
@@ -1376,20 +1373,28 @@ suite = do
             , BigInt.fromInt 2_000_000_000
             ]
         withWallets distribution \alice -> do
-          try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
-          try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
-          try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+          try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
+            isLeft
+          try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
+            isLeft
+          try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
+            shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockNami do
-            liftEffect isNamiAvailable >>= shouldEqual true
-          try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
+            (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockGero do
-            liftEffect isGeroAvailable >>= shouldEqual true
-          try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
+            (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
+            isLeft
           withCip30Mock alice MockFlint do
-            liftEffect isFlintAvailable >>= shouldEqual true
-          try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+            (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
+            shouldSatisfy
+            isLeft
 
       test "Collateral selection" do
         let

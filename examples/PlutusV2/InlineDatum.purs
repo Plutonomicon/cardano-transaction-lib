@@ -24,10 +24,7 @@ import Contract.PlutusData
   )
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV2FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction
   ( OutputDatum(OutputDatum)
   , TransactionHash
@@ -90,29 +87,32 @@ spendFromCheckDatumIsInline
 spendFromCheckDatumIsInline vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
-  case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just txInput -> do
-      let
-        redeemer :: Redeemer
-        redeemer = Redeemer plutusData
+  txInput <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  let
+    redeemer :: Redeemer
+    redeemer = Redeemer plutusData
 
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.validator validator
-          <> Lookups.unspentOutputs utxos
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
 
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutput txInput redeemer
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutput txInput redeemer
 
-      spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-      awaitTxConfirmed spendTxId
-      logInfo' "Successfully spent locked values."
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
 
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
@@ -143,16 +143,19 @@ readFromCheckDatumIsInline
 readFromCheckDatumIsInline vhash txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
-  case snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just (TransactionOutputWithRefScript { output }) -> do
-      (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)
-      logInfo' "Successfully read inline datum."
+  TransactionOutputWithRefScript { output } <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      (snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)
+  logInfo' "Successfully read inline datum."
 
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
