@@ -15,6 +15,7 @@ import Contract.BalanceTxConstraints
   , mustBalanceTxWithAddress
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
+  , mustSendChangeToAddress
   ) as BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
@@ -142,6 +143,7 @@ contract (ContractParams p) = do
     balanceTxConstraints =
       BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
         <> BalanceTxConstraints.mustBalanceTxWithAddress bobAddress
+        <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
   void $ TestUtils.withAssertions assertions do

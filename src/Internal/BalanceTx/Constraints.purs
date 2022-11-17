@@ -7,8 +7,10 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
+  , mustSendChangeToAddress
   , mustUseAdditionalUtxos
   , _additionalUtxos
+  , _changeAddress
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
   , _ownAddresses
@@ -16,7 +18,10 @@ module Ctl.Internal.BalanceTx.Constraints
 
 import Prelude
 
-import Ctl.Internal.Plutus.Conversion (fromPlutusAddress)
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusAddress
+  , fromPlutusAddressWithNetworkTag
+  )
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -43,6 +48,7 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   , maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
   , ownAddresses :: Maybe (Array Address)
+  , changeAddress :: Maybe Address
   }
 
 derive instance Newtype BalanceTxConstraints _
@@ -59,6 +65,9 @@ _nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
 
 _ownAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
 _ownAddresses = _Newtype <<< prop (Proxy :: Proxy "ownAddresses")
+
+_changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
+_changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
 
 newtype BalanceTxConstraintsBuilder =
   BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
@@ -80,9 +89,25 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
     , ownAddresses: Nothing
+    , changeAddress: Nothing
     }
 
+-- | Tells the balancer to send all generated change to a given address.
+-- | If this constraint is not set, then the default change address owned by
+-- | the wallet is used.
+-- |
+-- | NOTE: Setting `mustBalanceTxWithAddress` or `mustBalanceTxWithAddresses`
+-- | does NOT have any effect on which address will be used as a change address.
+mustSendChangeToAddress
+  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
+mustSendChangeToAddress =
+  wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
+
 -- | Tells the balancer to treat the provided addresses like user's own.
+-- |
+-- | NOTE: Setting `mustBalanceTxWithAddress` or `mustBalanceTxWithAddresses`
+-- | does NOT have any effect on which address will be used as a change address.
+-- | (see `mustSendChangeToAddress`)
 mustBalanceTxWithAddresses
   :: NetworkId -> Array Plutus.Address -> BalanceTxConstraintsBuilder
 mustBalanceTxWithAddresses networkId =
@@ -90,6 +115,10 @@ mustBalanceTxWithAddresses networkId =
 
 -- | Tells the balancer to treat the provided address like user's own.
 -- | Like `mustBalanceTxWithAddress`, but takes `AddressWithNetworkTag`.
+-- |
+-- | NOTE: Setting `mustBalanceTxWithAddress` or `mustBalanceTxWithAddresses`
+-- | does NOT have any effect on which address will be used as a change address.
+-- | (see `mustSendChangeToAddress`)
 mustBalanceTxWithAddress
   :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
 mustBalanceTxWithAddress
