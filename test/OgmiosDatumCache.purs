@@ -44,7 +44,10 @@ readGetDatumsByHashesSample = do
     "./fixtures/test/ogmios-datum-cache/get-datums-by-hashes-samples.json"
 
 getDatumsByHashesHashingTest
-  :: forall m. Bind m => MonadEffect m => MonadThrow Error m => m Unit
+  :: forall (m :: Type -> Type)
+   . MonadEffect m
+  => MonadThrow Error m
+  => m Unit
 getDatumsByHashesHashingTest = do
   datums <- Map.toUnfoldable <<< unwrap <$> readGetDatumsByHashesSample
   for_ (datums :: Array _) \(hash /\ datum) -> do

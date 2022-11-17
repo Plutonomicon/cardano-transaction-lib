@@ -29,7 +29,7 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (liftM, mconcat, sequence)
+import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
@@ -124,7 +124,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
-import Data.Either (isLeft)
+import Data.Either (Either(Right), isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
@@ -724,9 +724,7 @@ suite = do
         datums :: Array Datum
         datums = [ datum2, datum1 ]
 
-        hashes :: Maybe (Array DataHash)
-        hashes = sequence <<< map datumHash $ datums
-
+      let
         payToTest :: ValidatorHash -> Contract () TransactionHash
         payToTest vhash = do
           let
@@ -747,7 +745,6 @@ suite = do
           buildBalanceSignAndSubmitTx lookups constraints
 
       withWallets distribution \alice -> do
-        dhashes <- liftM (error "Couldn't get hashes for datums [1,2]") hashes
         withKeyWallet alice do
           validator <- AlwaysSucceeds.alwaysSucceedsScript
           let vhash = validatorHash validator
@@ -756,8 +753,23 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
 
-          logInfo' <<< show =<< getDatumsByHashes dhashes
-          logInfo' <<< show =<< getDatumsByHashesWithErrors dhashes
+          hash1 <- liftM (error "Couldn't get hash for datums 1") $
+            datumHash datum1
+          hash2 <- liftM (error "Couldn't get hash for datums 2") $
+            datumHash datum2
+          hashes <- liftM (error "Couldn't get hashes for datums [1,2]") $
+            traverse datumHash datums
+
+          actualDatums1 <- getDatumsByHashes hashes
+          actualDatums1 `shouldEqual` Map.fromFoldable
+            [ hash1 /\ datum1
+            , hash2 /\ datum2
+            ]
+          actualDatums2 <- getDatumsByHashesWithErrors hashes
+          actualDatums2 `shouldEqual` Map.fromFoldable
+            [ hash1 /\ Right datum1
+            , hash2 /\ Right datum2
+            ]
 
     test "MintZeroToken" do
       let
