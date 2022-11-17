@@ -10,6 +10,7 @@ import Mote.Monad (mapTest)
 import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
+import Test.Ctl.Data.Interval as Ctl.Data.Interval
 import Test.Ctl.Deserialization as Deserialization
 import Test.Ctl.E2E.Route as E2E.Route
 import Test.Ctl.Equipartition as Equipartition
@@ -72,6 +73,7 @@ testPlan = do
   ProtocolParams.suite
   Types.TokenName.suite
   Types.Transaction.suite
+  Ctl.Data.Interval.suite
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
