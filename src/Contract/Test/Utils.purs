@@ -43,6 +43,8 @@ module Contract.Test.Utils
   , checkOutputHasRefScript
   , checkTxHasMetadata
   , label
+  , exitCode
+  , interruptOnSignal
   , runContractAssertionM
   , runContractAssertionM'
   , unlabel
@@ -55,8 +57,9 @@ module Contract.Test.Utils
 import Prelude
 
 import Contract.Address (Address)
-import Contract.Monad (Contract, throwContractError)
+import Contract.Monad (Contract, launchAff_, throwContractError)
 import Contract.PlutusData (OutputDatum)
+import Contract.Prelude (Effect)
 import Contract.Transaction
   ( ScriptRef
   , Transaction(Transaction)
@@ -65,13 +68,7 @@ import Contract.Transaction
   , getTxByHash
   )
 import Contract.Utxos (utxosAt)
-import Contract.Value
-  ( CurrencySymbol
-  , TokenName
-  , Value
-  , valueOf
-  , valueToCoin'
-  )
+import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
 import Control.Monad.Except.Trans (ExceptT, except, runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer.Trans (WriterT, runWriterT, tell)
@@ -94,11 +91,17 @@ import Data.Map (filterKeys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Monoid.Endo (Endo(Endo))
 import Data.Newtype (class Newtype, ala, unwrap)
+import Data.Posix.Signal (Signal)
+import Data.Posix.Signal as Signal
 import Data.Semigroup.Last (Last(Last))
 import Data.String.Common (joinWith) as String
 import Data.Traversable (traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (Fiber, killFiber)
+import Effect.Console (log)
+import Effect.Exception (error)
+import Node.Process as Process
 import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
@@ -629,3 +632,14 @@ checkTxHasMetadata
   -> Contract r Boolean
 checkTxHasMetadata txHash =
   mkCheckFromAssertion <<< assertTxHasMetadataImpl mempty txHash
+
+--------------------------------------------------------------------------------
+-- function to cancel aff fibers on signal
+--------------------------------------------------------------------------------
+
+foreign import exitCode :: Int -> Effect Unit
+
+interruptOnSignal :: forall a. Signal -> Fiber a -> Effect Unit
+interruptOnSignal signal fiber = Process.onSignal signal do
+  launchAff_ do
+    killFiber (error $ Signal.toString signal) fiber

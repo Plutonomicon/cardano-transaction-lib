@@ -20,56 +20,18 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad
-  ( Contract
-  , ContractEnv(ContractEnv)
-  , liftContractM
-  , runContractInEnv
-  )
+import Contract.Monad (Contract, ContractEnv(ContractEnv), liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
-import Ctl.Internal.Plutip.Spawn
-  ( ManagedProcess
-  , NewOutputAction(Success, NoOp)
-  , OnSignalRef
-  , cleanupOnSigint
-  , cleanupTmpDir
-  , removeOnSignal
-  , spawn
-  , stop
-  , waitForStop
-  )
-import Ctl.Internal.Plutip.Types
-  ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxODistribution
-  , InitialUTxOs
-  , PlutipConfig
-  , PostgresConfig
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
-  , StopClusterRequest(StopClusterRequest)
-  , StopClusterResponse
-  )
+import Ctl.Internal.Plutip.Spawn (ManagedProcess, NewOutputAction(Success, NoOp), OnSignalRef, cleanupOnSigint, cleanupTmpDir, removeOnSignal, spawn, stop, waitForStop)
+import Ctl.Internal.Plutip.Types (ClusterStartupParameters, ClusterStartupRequest(ClusterStartupRequest), InitialUTxODistribution, InitialUTxOs, PlutipConfig, PostgresConfig, PrivateKeyResponse(PrivateKeyResponse), StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure), StopClusterRequest(StopClusterRequest), StopClusterResponse)
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Plutip.UtxoDistribution
-  ( class UtxoDistribution
-  , decodeWallets
-  , encodeDistribution
-  , keyWallets
-  , transferFundsFromEnterpriseToBase
-  )
-import Ctl.Internal.QueryM
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  , Logger
-  , emptyHooks
-  , mkLogger
-  , stopQueryRuntime
-  )
+import Ctl.Internal.Plutip.UtxoDistribution (class UtxoDistribution, decodeWallets, encodeDistribution, keyWallets, transferFundsFromEnterpriseToBase)
+import Ctl.Internal.QueryM (ClientError(ClientDecodeJsonError, ClientHttpError), Logger, emptyHooks, mkLogger, stopQueryRuntime)
 import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
@@ -97,13 +59,9 @@ import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
-import Effect.Aff.Retry
-  ( RetryPolicy
-  , constantDelay
-  , limitRetriesByCumulativeDelay
-  , recovering
-  )
+import Effect.Aff.Retry (RetryPolicy, constantDelay, limitRetriesByCumulativeDelay, recovering)
 import Effect.Class (liftEffect)
+import Effect.Console (log)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -577,6 +535,7 @@ startPostgresServer pgConfig params = do
     databaseDir = workingDir <</>> "postgres/data"
     postgresSocket = workingDir <</>> "postgres"
     testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+  liftEffect $ log "adding listener"
   sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
   waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
   pgChildProcess <- spawn "postgres"
@@ -656,6 +615,7 @@ stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
       isAvailable <- isPortAvailable port
       unless isAvailable do
         liftEffect $ throw "retry"
+  liftEffect $ log "remove listener"
   liftEffect $ removeOnSignal sig
 
 startOgmiosDatumCache

@@ -137,7 +137,6 @@ cleanupOnSigint workingDir testClusterDir = do
   sig <- onSignal SIGINT do
     _rmdirSync workingDir
     _rmdirSync testClusterDir
-    Process.exit 1
   pure sig
 
 cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit
