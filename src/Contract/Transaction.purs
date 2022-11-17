@@ -129,6 +129,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _outputs
   , _plutusData
   , _plutusScripts
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
   , _ttl
