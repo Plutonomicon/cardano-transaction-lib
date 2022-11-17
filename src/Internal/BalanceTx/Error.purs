@@ -5,9 +5,9 @@ module Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
       ( CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetChangeAddress
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , CouldNotGetWalletAddress
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
       , ExUnitsEvaluationFailed
@@ -66,9 +66,9 @@ import Data.Tuple.Nested (type (/\), (/\))
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
   = CouldNotConvertScriptOutputToTxInput
+  | CouldNotGetChangeAddress
   | CouldNotGetCollateral
   | CouldNotGetUtxos
-  | CouldNotGetWalletAddress
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
