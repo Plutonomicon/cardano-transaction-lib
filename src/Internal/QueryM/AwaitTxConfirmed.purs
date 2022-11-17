@@ -75,7 +75,7 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
 
   go :: Slot -> QueryM Unit
   go timeout =
-    isTxConfirmed txHash >>= \found -> 
+    isTxConfirmed txHash >>= \found ->
       unless found do
         slot <- getCurrentSlot
         when (slot >= timeout) do
@@ -87,5 +87,5 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
 
 isTxConfirmed :: TxHash -> QueryM Boolean
 isTxConfirmed txHash =
-  Kupo.isTxConfirmed (wrap txHash) 
-    >>= either (liftEffect <<< throw <<< show) pure 
+  Kupo.isTxConfirmed (wrap txHash)
+    >>= either (liftEffect <<< throw <<< show) pure
