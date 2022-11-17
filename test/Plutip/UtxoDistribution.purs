@@ -75,7 +75,7 @@ import Type.Prelude (Proxy(Proxy))
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "UtxoDistribution" do
   test
-    "runPlutipContract: stake key transfers with distribution: [[1000000000,1000000000]]"
+    "stake key transfers with distribution: [[1000000000,1000000000]]"
     do
       let
         distribution :: Array InitialUTxOs
@@ -83,7 +83,7 @@ suite = group "UtxoDistribution" do
       runPlutipContract config distribution $ checkUtxoDistribution distribution
 
   test
-    "runPlutipContract: stake key transfers with distribution: stake + [[1000000000,1000000000]]"
+    "stake key transfers with distribution: stake + [[1000000000,1000000000]]"
     do
       let
         distribution :: Array InitialUTxOsWithStakeKey
@@ -92,7 +92,7 @@ suite = group "UtxoDistribution" do
       runPlutipContract config distribution $ checkUtxoDistribution distribution
 
   test
-    "runPlutipContract: stake key transfers with distribution: ([[1000000000,1000000000]], stake + [[1000000000,1000000000]])"
+    "stake key transfers with distribution: ([[1000000000,1000000000]], stake + [[1000000000,1000000000]])"
     do
       let
         distribution1 :: Array InitialUTxOs

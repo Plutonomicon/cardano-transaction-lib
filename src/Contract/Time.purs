@@ -44,7 +44,7 @@ import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
-  , Interval(Interval)
+  , Interval
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -77,12 +77,11 @@ import Ctl.Internal.Types.Interval
   , from
   , hull
   , intersection
-  , interval
   , isEmpty
   , lowerBound
   , maxSlot
   , member
-  , mkInterval
+  , mkFiniteInterval
   , never
   , overlaps
   , posixTimeRangeToSlotRange

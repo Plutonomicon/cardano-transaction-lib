@@ -1,6 +1,6 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
--- | that pays two Ada to the `AlwaysSucceeds` script address
+-- | that pays two Ada to the `AlwaysSucceeds` script address.
 module Ctl.Examples.AlwaysSucceeds
   ( alwaysSucceeds
   , alwaysSucceedsScript
