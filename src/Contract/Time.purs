@@ -79,7 +79,6 @@ import Ctl.Internal.Types.Interval
   , intersection
   , isEmpty
   , lowerBound
-  -- , isEmpty'
   , maxSlot
   , member
   , mkFiniteInterval
