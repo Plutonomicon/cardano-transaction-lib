@@ -562,13 +562,12 @@ startKupo :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
-    workdir = tmpDir <> "/kupo-db"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+    workdir = tmpDir <</>> "kupo-db"
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  liftEffect $ cleanupTmpDir childProcess workdir testClusterDir
+  liftEffect $ cleanupTmpDir childProcess workdir
   pure childProcess
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
