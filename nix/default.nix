@@ -126,6 +126,9 @@ let
                   pkgs.plutip-server
                   pkgs.postgresql
                   pkgs.kupo
+                  # Required to fix initdb locale issue in shell
+                  # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
+                  pkgs.glibcLocales
                 ]
                 # this package will be soon put into its own overlay, so we'll
                 # check this now for future compat
