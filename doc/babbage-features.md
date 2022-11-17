@@ -18,7 +18,7 @@ In CTL, reference scripts can be utilized by first creating a reference point fo
 
 This constraint utilises a new `ScriptRef` type that includes either a native script or a Plutus script.
 
-Then, `mustSpendScriptOutputUsingScriptRef` (or its variants) can be used to use a reference script. It accepts a value of type `InputWithScriptRef` that allows to either spend the UTxO, or just reference it.
+Then, `mustSpendScriptOutputUsingScriptRef` (or its variants) can be used to use a reference script. It accepts a value of type `InputWithScriptRef` that specifies whether the UTxO with the reference script should be spent or referenced.
 
 [Usage example](../examples/PlutusV2/ReferenceScripts.purs)
 
