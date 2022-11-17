@@ -5,8 +5,11 @@ CTL can be imported as an additional dependency into a Purescript project built 
 **Table of Contents**
 
 - [Caveats](#caveats)
-- [Using CTL's overlays](#using-ctls-overlays)
+- [Using CTL's overlays](#using-ctl-s-overlays)
 - [Upgrading CTL](#upgrading-ctl)
+- [Using CTL from JS](#using-ctl-from-js)
+  + [Bundling](#bundling)
+  + [Wrapping CTL into a JS interface](#wrapping-ctl-into-a-js-interface)
 
 ## Caveats
 
@@ -74,3 +77,36 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 - Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
 - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
 - If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
+
+## Using CTL from JS
+
+### Bundling
+
+The recommended way to bundle CTL is to use WebPack.
+
+We depend on WebPack's `DefinePlugin` to conditionally load one of our dependency (`cardano-serialization-lib`) nodejs or browser version.
+
+That means that CTL _requires_ bundling it the same way when used as a dependency, as we do in development. If you intend to use another bundler, something like `DefinePlugin` should be used to transform the imports from
+
+```javascript
+let lib;
+if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+  lib = require("@emurgo/cardano-serialization-lib-browser");
+} else {
+  lib = require("@emurgo/cardano-serialization-lib-nodejs");
+}
+```
+
+to only one of the variants.
+
+Our default [WebPack config](../webpack.config.js) uses `BROWSER_RUNTIME` environment variable to differentiate between two bundling options.
+
+The reason why we are tied to WebPack is that it is one of the few bundlers that support asyn WASM imports.
+
+There's [a claim that Vite bundler can also be used](https://github.com/Plutonomicon/cardano-transaction-lib/issues/79#issuecomment-1257036068), although we don't officially support this method.
+
+### Wrapping CTL into a JS interface
+
+Some users may want to provide a small set of APIs behind a JS/TS interface, instead of dealing with PureScript code.
+
+There's nothing specific to be done for CTL (it's a normal PureScript project), so [this PureScript guide](https://book.purescript.org/chapter10.html#calling-purescript-from-javascript) may be of help. Note that our PureScript version is using CommonJS modules and not ES modules.
