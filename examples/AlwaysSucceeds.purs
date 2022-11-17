@@ -13,7 +13,7 @@ module Ctl.Examples.AlwaysSucceeds
 
 import Contract.Prelude
 
-import Contract.Address (ownStakePubKeyHash, scriptHashAddress)
+import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
@@ -60,7 +60,7 @@ example cfg = launchAff_ do
 payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysSucceeds vhash = do
   -- Send to own stake credential. This is used to test mustPayToScriptAddress.
-  mbStakeKeyHash <- ownStakePubKeyHash
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -90,32 +90,32 @@ spendFromAlwaysSucceeds
   -> Contract () Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   -- Use own stake credential if available
-  mbStakeKeyHash <- ownStakePubKeyHash
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
   let
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
-  case view _input <$> head (lookupTxHash txId utxos) of
-    Just txInput ->
-      let
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.validator validator
-          <> Lookups.unspentOutputs utxos
+  txInput <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      (view _input <$> head (lookupTxHash txId utxos))
+  let
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
 
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutput txInput unitRedeemer
-      in
-        do
-          spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-          awaitTxConfirmed spendTxId
-          logInfo' "Successfully spent locked values."
-
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutput txInput unitRedeemer
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
 
 foreign import alwaysSucceeds :: String
 
