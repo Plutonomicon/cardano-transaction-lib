@@ -1,8 +1,5 @@
 { src
-, inputs
 , pkgs
-, doCoverage ? false
-, deferPluginErrors ? true
 , CHaP
 , ...
 }:
@@ -21,19 +18,7 @@ pkgs.haskell-nix.cabalProject {
   shell = {
     inputsFrom = [ pkgs.libsodium-vrf ];
 
-    # Make sure to keep this list updated after upgrading git dependencies!
-    additional = ps: with ps; [
-      cardano-api
-      cardano-binary
-      cardano-ledger-shelley
-      cardano-ledger-shelley-ma
-      cardano-prelude
-      optparse-applicative
-      plutus-tx
-      plutus-ledger-api
-    ];
-
-    withHoogle = true;
+    withHoogle = false;
 
     tools = {
       cabal = "latest";
