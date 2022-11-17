@@ -7,14 +7,15 @@ module Ctl.Internal.QueryM.AwaitTxConfirmed
 import Prelude
 
 import Control.Parallel (parOneOf)
-import Ctl.Internal.QueryM (QueryM, getChainTip, mkDatumCacheRequest)
-import Ctl.Internal.QueryM.DatumCacheWsp (getTxByHashCall)
+import Ctl.Internal.QueryM (QueryM, getChainTip)
+import Ctl.Internal.QueryM.Kupo (isTxConfirmed) as Kupo
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
-import Data.Maybe (isJust, maybe)
+import Data.Either (either)
+import Data.Maybe (maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
 import Data.Time.Duration (Milliseconds, Seconds(Seconds), fromDuration)
@@ -40,12 +41,9 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   -- Try to find the TX indefinitely, with a waiting period between each
   -- request
   findTx :: QueryM Boolean
-  findTx = do
-    isTxFound <- isJust <<< unwrap <$> mkDatumCacheRequest getTxByHashCall
-      _.getTxByHash
-      txHash
-    if isTxFound then pure true
-    else liftAff (delay delayTime) *> findTx
+  findTx =
+    isTxConfirmed txHash >>= \found ->
+      if found then pure true else liftAff (delay delayTime) *> findTx
 
   -- Wait until the timeout elapses and return false
   waitAndFail :: QueryM Boolean
@@ -60,9 +58,8 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   delayTime = wrap 1000.0
 
 awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
-awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
+awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
   getCurrentSlot >>= addSlots timeoutSlots >>= go
-
   where
   getCurrentSlot :: QueryM Slot
   getCurrentSlot = getChainTip >>= case _ of
@@ -78,8 +75,8 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
 
   go :: Slot -> QueryM Unit
   go timeout =
-    mkDatumCacheRequest getTxByHashCall _.getTxByHash txHash >>= \found ->
-      unless (isJust $ unwrap found) do
+    isTxConfirmed txHash >>= \found -> 
+      unless found do
         slot <- getCurrentSlot
         when (slot >= timeout) do
           liftEffect $ throw $
@@ -87,3 +84,8 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
             \ timeout exceeded, Transaction not confirmed"
         void $ addSlots 1 slot >>= waitUntilSlot
         go timeout
+
+isTxConfirmed :: TxHash -> QueryM Boolean
+isTxConfirmed txHash =
+  Kupo.isTxConfirmed (wrap txHash) 
+    >>= either (liftEffect <<< throw <<< show) pure 
