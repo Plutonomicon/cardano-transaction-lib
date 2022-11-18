@@ -6,9 +6,15 @@ This document is a reference/explainer for the new CTL APIs introduced for Babba
 
 [Reference inputs](https://cips.cardano.org/cips/cip31/#referenceinputs) allow looking at an output without spending it in Plutus scripts.
 
-There are two ways to use an input as a reference in the constraints API. The first is via `mustReferenceOutput`, which allows Plutus scripts to access the datum and value of the output. The second is by providing constraints which accept a value of the type `InputWithScriptRef` with the `RefInput` constructor. These allow scripts (validating or minting) to be reused by reference between multiple transactions without including them in those transactions, explained further in [Reference Scripts](#reference-scripts).
+There are two ways to use an input as a reference in the constraints API:
+
+1. via `mustReferenceOutput`, which allows Plutus scripts to access the information (e.g. datum, locked value) contained in the output.
 
 [Usage example](../examples/PlutusV2/ReferenceInputs.purs)
+
+2. by providing constraints which accept a value of the type `InputWithScriptRef` with the `RefInput` constructor. These allow scripts (validating or minting) to be reused by reference between multiple transactions without including them in those transactions, explained further in [Reference Scripts](#reference-scripts).
+
+[Usage example](../examples/PlutusV2/ReferenceInputsAndScripts.purs)
 
 ## Reference Scripts
 
