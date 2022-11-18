@@ -455,6 +455,40 @@
               make check-examples-imports
               touch $out
             '';
+          remove-me = pkgs.runCommand "examples-imports-check" {
+              buildInputs = [ pkgs.chromium pkgs.nodePackages.live-server pkgs.curl];
+            }
+            ''
+              mkdir asd
+              XDG_CONFIG_HOME=./asd
+              chmod 777 asd
+              echo "helloooo" >> ./asd/hello.txt
+              ls -la
+              # python -m http.server 8000 --directory ./asd
+
+              ${pkgs.bubblewrap}/bin/bwrap \
+                --unshare-all \
+                --share-net \
+                --ro-bind /nix/store /nix/store \
+                --bind /build /build \
+                --uid 1000 \
+                --gid 1000 \
+                --proc /proc \
+                --dir /tmp \
+                --dev /dev \
+                --setenv TMPDIR /tmp \
+                --setenv XDG_RUNTIME_DIR /tmp \
+                --bind . /data \
+                --chdir /data  \
+                -- live-server --port=8000 ./asd &
+              
+              sleep 5
+
+              curl -v http://127.0.0.1:8000/hello.txt
+
+              chromium --no-sandbox --headless --disable-gpu --user-data-dir=./asd
+              touch $out
+            '';
         });
 
       templatePath = builtins.toString self + self.templates.ctl-scaffold.path;

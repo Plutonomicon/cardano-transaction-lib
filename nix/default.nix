@@ -326,11 +326,29 @@ let
       export XDG_CONFIG_HOME="$out/test-data/chrome-user-data"
 
 
-      python -m http.server 4008 --directory ${bundledPursProject}/dist &
-      # live-server ${bundledPursProject}/dist --port 4008 &
+      # python -m http.server 4008 --directory ${bundledPursProject}/dist &
 
-      ls -la ${bundledPursProject}/dist
+      ${pkgs.bubblewrap}/bin/bwrap \
+        --unshare-all \
+        --share-net \
+        --ro-bind /nix/store /nix/store \
+        --bind /build /build \
+        --uid 1000 \
+        --gid 1000 \
+        --proc /proc \
+        --dir /tmp \
+        --dev /dev \
+        --setenv TMPDIR /tmp \
+        --setenv XDG_RUNTIME_DIR /tmp \
+        --bind . /data \
+        --chdir /data  \
+        -- live-server ${bundledPursProject}/dist --port=4008 &
+
+      sleep 5
+
+      # ls -la ${bundledPursProject}/dist
       curl http://127.0.0.1:4008/index.html
+
 
       cd $out
       chmod -R +rwx .
