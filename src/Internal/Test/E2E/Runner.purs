@@ -605,7 +605,7 @@ findSettingsArchive testOptions = do
               "Please specify --settings-archive option or ensure E2E_SETTINGS_ARCHIVE is set"
           ) $ liftEffect $ lookupEnv "E2E_SETTINGS_ARCHIVE"
       )
-      pure $ testOptions.chromeUserDataDir
+      pure $ testOptions.settingsArchive
 
   doesExist <- exists settingsArchive
 

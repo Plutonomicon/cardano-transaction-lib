@@ -282,6 +282,12 @@ let
     , buildInputs ? [ ]
     , ...
     }@args:
+    let 
+        bundledPursProject = bundlePursProject {
+              main = "Ctl.Examples.ByUrl";
+              entrypoint = "examples/index.js";
+        };
+    in
     pkgs.runCommand "${name}" ({
         buildInputs = with pkgs; [
           project
@@ -291,20 +297,46 @@ let
           ogmios-datum-cache
           plutip-server
           chromium
+          nodePackages.live-server
           # Utils needed by E2E test code
           which # used to check for browser availability
           gnutar # used unpack settings archive within E2E test code
+          curl
         ] ++ [ pkgs.ctl-server ]
           ++ (args.buildInputs or [ ]);
         NODE_PATH = "${nodeModules}/lib/node_modules";
     } // env)
     ''
+      mkdir $out
+
       cd ${project}
-      export E2E_CHROME_USER_DATA=$out/test-data/chrome-user-data;
-      export E2E_SETTINGS_ARCHIVE=$out/test-data/preview/settings.tar.gz;
-      export E2E_SETTINGS_ARCHIVE_URL="https://github.com/mlabs-haskell/ctl-e2e-assets/releases/download/preview-1/preview-settings.tar.gz";
-      ${nodejs}/bin/node -e 'require("./output/${testMain}").main()' e2e-test run
-      touch $out
+      source ${project}/test/e2e-ci.env
+
+      export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
+      export E2E_CHROME_USER_DATA="$out/test-data/chrome-user-data"
+      export E2E_TEST_TIMEOUT=200
+      export E2E_BROWSER=chromium
+      export E2E_NO_HEADLESS=false
+      export PLUTIP_PORT=8087
+      export OGMIOS_PORT=1345
+      export OGMIOS_DATUM_CACHE_PORT=10005
+      export CTL_SERVER_PORT=8088
+      export POSTGRES_PORT=5438
+      # export PUPPETEER_EXECUTABLE_PATH='${pkgs.chromium}/bin/chromium'
+      export XDG_CONFIG_HOME="$out/test-data/chrome-user-data"
+
+
+      python -m http.server 4008 --directory ${bundledPursProject}/dist &
+      # live-server ${bundledPursProject}/dist --port 4008 &
+
+      ls -la ${bundledPursProject}/dist
+      curl http://127.0.0.1:4008/index.html
+
+      cd $out
+      chmod -R +rwx .
+
+     # BROWSER_RUNTIME=1 webpack-dev-server --progress
+     ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
     ''
     ;
 
