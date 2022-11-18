@@ -303,7 +303,8 @@ let
               <cachedir>${cache}</cachedir>
             </fontconfig>
           '';
-        in pkgs.buildEnv { name = "etc-fonts"; paths = ["${pkgs.fontconfig.out}/etc/fonts" config]; };
+        in
+        pkgs.buildEnv { name = "etc-fonts"; paths = [ "${pkgs.fontconfig.out}/etc/fonts" config ]; };
       # We use bubblewrap to populate /etc/fonts.
       # We use ungoogled-chromium because chromium some times times out on Hydra.
       chromium = pkgs.writeShellScriptBin "chromium" ''
@@ -350,46 +351,46 @@ let
         NODE_PATH = "${nodeModules}/lib/node_modules";
       } // env)
       ''
-         mkdir $out
-         chmod -R +rw $out
+        mkdir $out
+        chmod -R +rw $out
 
-         source ${project}/test/e2e-ci.env
+        source ${project}/test/e2e-ci.env
 
-         export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
-         export E2E_CHROME_USER_DATA="$out/test-data/chrome-user-data"
-         export E2E_TEST_TIMEOUT=200
-         export E2E_BROWSER=${chromium}/bin/chromium
-         export E2E_NO_HEADLESS=false
-         export PLUTIP_PORT=8087
-         export OGMIOS_PORT=1345
-         export OGMIOS_DATUM_CACHE_PORT=10005
-         export CTL_SERVER_PORT=8088
-         export POSTGRES_PORT=5438
-         export E2E_SKIP_JQUERY_DOWNLOAD=true
+        export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
+        export E2E_CHROME_USER_DATA="$out/test-data/chrome-user-data"
+        export E2E_TEST_TIMEOUT=200
+        export E2E_BROWSER=${chromium}/bin/chromium
+        export E2E_NO_HEADLESS=false
+        export PLUTIP_PORT=8087
+        export OGMIOS_PORT=1345
+        export OGMIOS_DATUM_CACHE_PORT=10005
+        export CTL_SERVER_PORT=8088
+        export POSTGRES_PORT=5438
+        export E2E_SKIP_JQUERY_DOWNLOAD=true
 
-         python -m http.server 4008 --directory ${bundledPursProject}/dist &
+        python -m http.server 4008 --directory ${bundledPursProject}/dist &
 
-         sleep 3
+        sleep 3
 
-         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
-         # ${nodejs}/bin/node -e "
-         #  const pp = require('puppeteer-core');
-         #  const  browserUrl = 'http://127.0.0.1:9222';
-         #  const delay =(m) => new Promise(r => setTimeout(r, m));
-         #  (async () => {
-         #      // const browser = await pp.connect({ browserURL: browserUrl });
-         #      const browser = await pp.launch({headless: true, executablePath: '${chromium}/bin/chromium'});
-         #      const page = await browser.newPage();
-         #      page.setBypassCSP(true);
-         #      await page.goto('http://127.0.0.1:4008', {timeout: 5000});
-         #      console.log('weeeeeeeeeeent')
-         #      await delay(2000);
-         #      const content = await page.content()
-         #      console.log('content: ', content)
-         #    })()
-         #    "
+        ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
+        # ${nodejs}/bin/node -e "
+        #  const pp = require('puppeteer-core');
+        #  const  browserUrl = 'http://127.0.0.1:9222';
+        #  const delay =(m) => new Promise(r => setTimeout(r, m));
+        #  (async () => {
+        #      // const browser = await pp.connect({ browserURL: browserUrl });
+        #      const browser = await pp.launch({headless: true, executablePath: '${chromium}/bin/chromium'});
+        #      const page = await browser.newPage();
+        #      page.setBypassCSP(true);
+        #      await page.goto('http://127.0.0.1:4008', {timeout: 5000});
+        #      console.log('weeeeeeeeeeent')
+        #      await delay(2000);
+        #      const content = await page.content()
+        #      console.log('content: ', content)
+        #    })()
+        #    "
 
-         touch $out
+        touch $out
       ''
   ;
 

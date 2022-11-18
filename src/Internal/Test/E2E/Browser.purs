@@ -35,8 +35,9 @@ launch noHeadless { browser, chromeUserDataDir } =
       , userDataDir: chromeUserDataDir
       , executablePath: browser
       }
-   where
-   args = []
+  where
+  args = []
+
 --     [ "--user-data-dir=" <> chromeUserDataDir
 --     ] <> if not noHeadless then [ "--headless=chrome" ] else []
 
