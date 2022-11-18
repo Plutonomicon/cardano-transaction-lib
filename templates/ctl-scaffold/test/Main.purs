@@ -6,23 +6,34 @@ import Contract.Prelude
 
 import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
+import Contract.Test.Plutip (PlutipTest, testPlutipContracts)
 import Contract.Test.Plutip as Contract.Test.Plutip
 import Contract.Wallet as Contract.Wallet
+import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.BigInt as BigInt
 import Data.UInt as UInt
+import Mote (test)
 import Scaffold as Scaffold
+import Test.Spec.Runner (defaultConfig)
 
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  let
-    distribution :: Contract.Test.Plutip.InitialUTxOs
-    distribution =
-      [ BigInt.fromInt 5_000_000
-      , BigInt.fromInt 2_000_000_000
-      ]
-  Contract.Test.Plutip.runPlutipContract config distribution \alice ->
-    Contract.Wallet.withKeyWallet alice $ do
-      Scaffold.contract
+main = Contract.Monad.launchAff_ do
+  interpretWithConfig
+    defaultConfig
+    $ testPlutipContracts config suite
+
+suite :: TestPlanM PlutipTest Unit
+suite = do
+  test "Print PublicKey" do
+    let
+      distribution :: Contract.Test.Plutip.InitialUTxOs
+      distribution =
+        [ BigInt.fromInt 5_000_000
+        , BigInt.fromInt 2_000_000_000
+        ]
+    Contract.Test.Plutip.withWallets distribution \alice -> do
+      Contract.Wallet.withKeyWallet alice $ do
+        Scaffold.contract
 
 config :: Contract.Test.Plutip.PlutipConfig
 config =
