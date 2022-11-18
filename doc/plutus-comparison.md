@@ -7,12 +7,13 @@ Note that differences between Haskell and Purescript, while also relevant to suc
 **Table of Contents**
 
 - [Core conceptual differences](#core-conceptual-differences)
-  - [Library vs. process](#library-vs-process)
-  - [The `Contract` type](#the-contract-type)
+  + [Library vs. process](#library-vs-process)
+  + [The `Contract` type](#the--contract--type)
 - [API differences](#api-differences)
-  - [Constraints and lookups](#constraints-and-lookups)
-  - [Typed scripts](#typed-scripts)
-  - [Working with scripts](#working-with-scripts)
+  + [Constraints and lookups](#constraints-and-lookups)
+    - [Babbage-era constraints](#babbage-era-constraints)
+  + [Typed scripts](#typed-scripts)
+  + [Working with scripts](#working-with-scripts)
     - [Using scripts from the frontend](#using-scripts-from-the-frontend)
     - [Applying arguments to parameterized scripts](#applying-arguments-to-parameterized-scripts)
 

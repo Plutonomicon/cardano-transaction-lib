@@ -1574,18 +1574,18 @@ suite = do
           withCip30Mock alice MockNami do
             Cip30.contract
 
-      -- TODO
-      skip $ test "Failing getWalletBalance - investigate" do
+      test "getWalletBalance" do
         let
           distribution :: InitialUTxOs
           distribution =
-            [ BigInt.fromInt 2_000_000
+            [ BigInt.fromInt 5_000_000
             , BigInt.fromInt 2_000_000
+            , BigInt.fromInt 1_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
-              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
+              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do
