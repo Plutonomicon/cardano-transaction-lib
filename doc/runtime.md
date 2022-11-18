@@ -5,11 +5,12 @@ In order to run CTL's `Contract` effects, several services are required. These c
 **Table of Contents**
 
 - [Current services](#current-services)
-- [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
+- [Using NixOS module](#using-nixos-module)
+- [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
 - [Changing network configurations](#changing-network-configurations)
 - [Other requirements](#other-requirements)
-  - [With Nami:](#with-nami)
-  - [With Gero:](#with-gero)
+  - [With Nami:](#with-nami-)
+  - [With Gero:](#with-gero-)
 
 ### Current services
 
