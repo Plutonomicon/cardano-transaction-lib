@@ -8,9 +8,9 @@ exports._retrieveJQuery = page => () =>
       .catch(_ => "")
   );
 
-try {
-  Error.stackTraceLimit = Infinity;
-} catch (_) {}
+// try {
+//   Error.stackTraceLimit = Infinity;
+// } catch (_) {}
 
 exports._ourGoto = page => url => () => {
   return page.goto(url, { waitUntil: "networkidle0" });

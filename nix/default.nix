@@ -342,26 +342,23 @@ let
           ogmios-datum-cache
           plutip-server
           chromium
-          nodePackages.live-server
+          python38 # To serve bundled CTL
           # Utils needed by E2E test code
           which # used to check for browser availability
           gnutar # used unpack settings archive within E2E test code
-          curl
-          python38
         ] ++ [ pkgs.ctl-server ]
         ++ (args.buildInputs or [ ]);
         NODE_PATH = "${nodeModules}/lib/node_modules";
       } // env)
       ''
-        mkdir $out
-        chmod -R +rw $out
+        chmod -R +rw .
 
         source ${project}/test/e2e-ci.env
 
         export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
-        export E2E_CHROME_USER_DATA="$out/test-data/chrome-user-data"
+        export E2E_CHROME_USER_DATA="./test-data/chrome-user-data"
         export E2E_TEST_TIMEOUT=200
-        export E2E_BROWSER=${chromium}/bin/chromium
+        export E2E_BROWSER=${chromium}/bin/chromium # use custom bwrap-ed chromium
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345

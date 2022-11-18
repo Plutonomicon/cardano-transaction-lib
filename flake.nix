@@ -184,6 +184,7 @@
               # After updating `PlutipConfig` this can be set for now:
               # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+              buildInputs = [ inputs.kupo-nixos.defaultPackage.${pkgs.system} ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
