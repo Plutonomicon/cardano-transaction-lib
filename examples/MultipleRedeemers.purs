@@ -9,7 +9,7 @@ module Ctl.Examples.MultipleRedeemers
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Monad (Contract, liftContractM)
+import Contract.Monad (Contract)
 import Contract.PlutusData
   ( PlutusData(Integer)
   , Redeemer(Redeemer)
@@ -34,10 +34,10 @@ import Ctl.Examples.Helpers
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt3
   )
-import Ctl.Examples.PlutusV2.ReferenceInputs
-  ( alwaysMintsPolicyV2
-  , mintAlwaysMintsV2ToTheScript
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
+  ( mintAlwaysMintsV2ToTheScript
   )
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Data.BigInt as BigInt
 import Data.List as List
 import Data.Map as Map
@@ -107,8 +107,7 @@ spendLockedByIntOutputParams
        )
 spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   let vhash = validatorHash validator
-  utxo <- liftContractM ("could not get utxos at " <> show vhash) =<<
-    utxosAt (scriptHashAddress vhash Nothing)
+  utxo <- utxosAt (scriptHashAddress vhash Nothing)
   constraints <- pure $ mconcat do
     input <- List.fromFoldable $ Map.keys utxo
     pure $

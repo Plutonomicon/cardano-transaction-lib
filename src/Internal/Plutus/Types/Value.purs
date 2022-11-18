@@ -89,7 +89,7 @@ instance EncodeAeson Value where
 
 arbitrarySingletonValue :: Gen Value
 arbitrarySingletonValue = do
-  currencySymbol <- unMaybeGen $ mkCurrencySymbol <$> arbitrary
+  currencySymbol <- arbitrary
   tokenName <- unMaybeGen $ mkTokenName <$> arbitrary
   num <- BigInt.fromInt <$> genPositive
   pure $ singleton currencySymbol tokenName num

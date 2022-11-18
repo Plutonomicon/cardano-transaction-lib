@@ -32,6 +32,7 @@ import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultDatumCacheWsConfig
+  , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
@@ -60,6 +61,7 @@ testnetConfig =
   { ogmiosConfig: defaultOgmiosWsConfig
   , datumCacheConfig: defaultDatumCacheWsConfig
   , ctlServerConfig: Just defaultServerConfig
+  , kupoConfig: defaultKupoServerConfig
   , networkId: TestnetId
   , extraConfig: {}
   , walletSpec: Nothing

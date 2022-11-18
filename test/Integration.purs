@@ -16,6 +16,7 @@ import Mote (skip)
 import Mote.Monad (mapTest)
 import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.BalanceTx.Collateral as Collateral
+import Test.Ctl.BalanceTx.Time as BalanceTx.Time
 import Test.Ctl.Logging as Logging
 import Test.Ctl.PrivateKey as PrivateKey
 import Test.Ctl.Types.Interval as Types.Interval
@@ -41,6 +42,7 @@ testPlan = do
   Collateral.suite
   PrivateKey.suite
   Logging.suite
+  BalanceTx.Time.suite
   where
   runQueryM' =
     runContract (testnetConfig { suppressLogs = true }) <<< wrapContract

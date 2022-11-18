@@ -1,21 +1,46 @@
 #!/bin/sh
 
-# Check trailing whitespaces
+files="
+*.md
+*.nix
+*.dhall
+.eslintrc.json
+.mlc_config.json
+.tidyrc.json
+LICENSE
+Makefile
+webpack.config.js
+package.json
+doc/
+examples/
+fixtures/scripts/
+scripts/
+server/*.md
+server/*.nix
+server/*.yaml
+server/Makefile
+server/cabal.project
+server/ctl-server.cabal
+server/nix/
+server/exe/
+server/src/
+server/test/
+src/
+templates/ctl-scaffold/*.md
+templates/ctl-scaffold/*.nix
+templates/ctl-scaffold/*.dhall
+templates/ctl-scaffold/index.html
+templates/ctl-scaffold/index.js
+templates/ctl-scaffold/package.json
+templates/ctl-scaffold/webpack.config.js
+templates/ctl-scaffold/Makefile
+templates/ctl-scaffold/exe/
+templates/ctl-scaffold/src/
+templates/ctl-scaffold/test/
+test/
+"
 
-trailing_whitespaces=$(grep -I '[[:blank:]]$' -R \
-  $(find ./doc \
-    ./examples \
-    ./fixtures/scripts \
-    ./nix \
-    ./scripts \
-    ./server \
-    ./src \
-    ./templates/ctl-scaffold \
-    ./test \
-    ./*.md \
-    ./*.nix \
-    ./Makefile \
-    ./*.dhall))
+trailing_whitespaces=$(grep -I '[[:blank:]]$' -R $files)
 
 if [ -z "$trailing_whitespaces" ]
 then
@@ -28,20 +53,8 @@ fi
 
 # Check newline on end of a file
 
-no_newline=$(find ./doc \
-  ./examples \
-  ./fixtures/scripts \
-  ./nix \
-  ./scripts \
-  ./server \
-  ./src \
-  ./templates/ctl-scaffold \
-  ./test \
-  ./*.md \
-  ./*.nix \
-  ./Makefile \
-  ./*.dhall \
--type f -exec sh -c 'file -b "{}" | grep -q text' \; \
+no_newline=$(find $files \
+-type f \
 -exec sh -c \
     '[ "$(tail -c 1 "{}" | od -An -a | tr -d "[:space:]")" != "nl" ]' \; \
 -print)

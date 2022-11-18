@@ -6,10 +6,10 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  - [Testing in Aff context](#testing-in-aff-context)
-  - [Testing with Mote](#testing-with-mote)
-  - [Testing with Nix](#testing-with-nix)
-- [Limitations](#limitations)
+  + [Testing in Aff context](#testing-in-aff-context)
+  + [Testing with Mote](#testing-with-mote)
+  + [Testing with Nix](#testing-with-nix)
+- [Using addresses with staking key components](#using-addresses-with-staking-key-components)
 
 ## Architecture
 

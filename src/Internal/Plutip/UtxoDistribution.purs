@@ -183,8 +183,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     let ourWallet = privateKeysToKeyWallet ourKey Nothing
     ourAddr <- liftedM "Could not get our address" $
       head <$> withKeyWallet ourWallet getWalletAddresses
-    ourUtxos <- liftedM "Could not find our utxos" $
-      utxosAt ourAddr
+    ourUtxos <- utxosAt ourAddr
     ourPkh <- liftedM "Could not get our payment pkh" $
       head <$> withKeyWallet ourWallet ownPaymentPubKeysHashes
     let
@@ -238,7 +237,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $
           payPubKeyHashEnterpriseAddress networkId payPkh
-        utxos' <- liftedM "Could not find utxos" $ utxosAt addr
+        utxos' <- utxosAt addr
         pure $ { utxos: utxos', payPkh, stakePkh, wallet } : walletsInfo
 
 withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey

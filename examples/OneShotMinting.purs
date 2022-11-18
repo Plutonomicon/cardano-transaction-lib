@@ -7,6 +7,8 @@ module Ctl.Examples.OneShotMinting
   , main
   , mkContractWithAssertions
   , mkOneShotMintingPolicy
+  , oneShotMintingPolicy
+  , oneShotMintingPolicyScript
   ) where
 
 import Contract.Prelude
@@ -84,7 +86,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 
   ownAddress <- liftedM "Failed to get own address" $ head <$>
     getWalletAddresses
-  utxos <- liftedM "Failed to get utxo set" $ utxosAt ownAddress
+  utxos <- utxosAt ownAddress
   oref <-
     liftContractM "Utxo set is empty"
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
@@ -115,7 +117,11 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
-oneShotMintingPolicy txInput = do
+oneShotMintingPolicy =
+  map PlutusMintingPolicy <<< oneShotMintingPolicyScript
+
+oneShotMintingPolicyScript :: TransactionInput -> Contract () PlutusScript
+oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV1FromEnvelope envelope
@@ -124,11 +130,11 @@ oneShotMintingPolicy txInput = do
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Contract () MintingPolicy
-mkOneShotMintingPolicy unappliedMintingPolicy oref = do
+  -> Contract () PlutusScript
+mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
+  in
+    liftedE $ applyArgs unappliedMintingPolicy mintingPolicyArgs
 
-  liftedE $ map PlutusMintingPolicy <$> applyArgs unappliedMintingPolicy
-    mintingPolicyArgs

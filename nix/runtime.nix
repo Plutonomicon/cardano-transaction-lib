@@ -52,6 +52,13 @@ rec {
         filter = builtins.toJSON { const = true; };
       };
     };
+    kupo = {
+      port = 1442;
+      since = "origin";
+      match = "*/*"; # matches Shelley addresses only
+      tag = "v2.2.0";
+      # TODO: Do we want to support connection through ogmios?
+    };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
     # corresponds directly to YAML that would be written in a `docker-compose` file,
     # e.g. volumes
@@ -105,6 +112,7 @@ rec {
         );
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
+      kupoDbVol = "kupo-${config.network.name}-db";
       nodeSocketPath = "/ipc/node.socket";
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
@@ -128,6 +136,32 @@ rec {
               "${nodeSocketPath}"
               "--topology"
               "/config/topology.json"
+            ];
+          };
+        };
+        kupo = {
+          service = {
+            image = "cardanosolutions/kupo:${kupo.tag}";
+            ports = [ (bindPort kupo.port) ];
+            volumes = [
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
+              "${nodeIpcVol}:/ipc"
+              "${kupoDbVol}:/kupo-db"
+            ];
+            command = [
+              "--node-config"
+              "/config/cardano-node/config.json"
+              "--node-socket"
+              "${nodeSocketPath}"
+              "--since"
+              "${kupo.since}"
+              "--defer-db-indexes"
+              "--match"
+              "${"${kupo.match}"}"
+              "--host"
+              "0.0.0.0"
+              "--workdir"
+              "kupo-db"
             ];
           };
         };
@@ -223,6 +257,7 @@ rec {
           volumes = {
             "${nodeDbVol}" = { };
             "${nodeIpcVol}" = { };
+            "${kupoDbVol}" = { };
           };
         }
         config.extraDockerCompose;

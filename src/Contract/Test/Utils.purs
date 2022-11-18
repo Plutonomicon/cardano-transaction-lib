@@ -4,7 +4,6 @@ module Contract.Test.Utils
   ( class ContractAssertions
   , ContractAssertionFailure
       ( CouldNotGetTxByHash
-      , CouldNotGetUtxosAtAddress
       , CouldNotParseMetadata
       , CustomFailure
       , TransactionHasNoMetadata
@@ -157,7 +156,6 @@ liftContractTestM = lift <<< lift
 
 data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash
-  | CouldNotGetUtxosAtAddress (Labeled Address)
   | CouldNotParseMetadata Label
   | TransactionHasNoMetadata TransactionHash (Maybe Label)
   | UnexpectedDatumInOutput (Labeled TransactionOutputWithRefScript)
@@ -184,9 +182,6 @@ instance Show ContractAssertionFailures where
 instance Show ContractAssertionFailure where
   show (CouldNotGetTxByHash txHash) =
     "Could not get tx by hash " <> showTxHash txHash
-
-  show (CouldNotGetUtxosAtAddress addr) =
-    "Could not get utxos at " <> show addr
 
   show (CouldNotParseMetadata mdLabel) =
     "Could not parse " <> show mdLabel <> " metadata"
@@ -351,8 +346,7 @@ utxosAtAddress
   :: forall (r :: Row Type) (w :: Type)
    . Labeled Address
   -> ContractAssertionM r w UtxoMap
-utxosAtAddress addr =
-  assertContractM (CouldNotGetUtxosAtAddress addr) (utxosAt $ unlabel addr)
+utxosAtAddress = liftContractTestM <<< lift <<< utxosAt <<< unlabel
 
 valueAtAddress
   :: forall (r :: Row Type) (w :: Type)

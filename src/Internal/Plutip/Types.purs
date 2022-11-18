@@ -62,6 +62,7 @@ type PlutipConfig =
   , ogmiosDatumCacheConfig :: ServerConfig
   -- Set this to `Nothing` to avoid spawning `ctl-server`
   , ctlServerConfig :: Maybe ServerConfig
+  , kupoConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)

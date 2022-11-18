@@ -5,11 +5,12 @@ In order to run CTL's `Contract` effects, several services are required. These c
 **Table of Contents**
 
 - [Current services](#current-services)
-- [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
+- [Using NixOS module](#using-nixos-module)
+- [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
 - [Changing network configurations](#changing-network-configurations)
 - [Other requirements](#other-requirements)
-  - [With Nami:](#with-nami)
-  - [With Gero:](#with-gero)
+  - [With Nami:](#with-nami-)
+  - [With Gero:](#with-gero-)
 
 ### Current services
 
@@ -19,6 +20,10 @@ The services that are currently **required** are:
   - You **must** use Ogmios v5.2.0 or greater with CTL
   - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v1.34.0 or greater is recommended
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
+- [Kupo](https://github.com/CardanoSolutions/kupo)
+  - Required to query UTxOs and resolve inline datums and reference scripts
+  - You **must** use Kupo v2.2.0 or greater with CTL
+  - Like Ogmios, Kupo requires a running Cardano node
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
   - This is required to query for datums, which Ogmios itself does not support
   - This in turn requires a PostgreSQL DB

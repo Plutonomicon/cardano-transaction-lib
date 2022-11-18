@@ -6,11 +6,13 @@ This document outlines development workflows for CTL itself. You may also wish t
 
 - [Nix environment](#nix-environment)
 - [Launching services for development](#launching-services-for-development)
-- [Building, testing, and running the PS project](#building-testing-and-running-the-ps-project)
+- [Building, testing, and running the PS project](#building--testing--and-running-the-ps-project)
 - [Generating PS documentation](#generating-ps-documentation)
-- [Adding PS/JS dependencies](#adding-psjs-dependencies)
-  - [Purescript](#purescript)
-  - [JS](#js)
+- [Adding PS/JS dependencies](#adding-ps-js-dependencies)
+  + [Purescript](#purescript)
+  + [JS](#js)
+- [Switching development networks](#switching-development-networks)
+- [Maintaining the template](#maintaining-the-template)
 
 ## Nix environment
 
@@ -64,6 +66,8 @@ To develop locally, you can use one the CTL flake to launch all required service
 By default, Webpack will build a [small Purescript example](../examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](./runtime.md#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
+
+**Note**: The `KUPO_HOST` environment variable must be set the base URL of the Kupo service in order to successfully run the project for the browser (e.g. `KUPO_HOST=http://localhost:1442`), otherwise all requests to Kupo will fail.
 
 ## Generating PS documentation
 

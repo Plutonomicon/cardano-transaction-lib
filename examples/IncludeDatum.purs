@@ -15,14 +15,11 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , _input
@@ -38,7 +35,6 @@ import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
-import Data.Map as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -82,24 +78,21 @@ spendFromIncludeDatum
   -> Contract () Unit
 spendFromIncludeDatum vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
-  case view _input <$> head (lookupTxHash txId utxos) of
-    Just txInput ->
-      let
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.validator validator
-          <> Lookups.unspentOutputs utxos
+  utxos <- utxosAt scriptAddress
+  txInput <- liftContractM "no locked output at address"
+    (view _input <$> head (lookupTxHash txId utxos))
+  let
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
 
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutput txInput unitRedeemer
-            <> Constraints.mustIncludeDatum datum
-      in
-        do
-          spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
-          awaitTxConfirmed spendTxId
-          logInfo' "Successfully spent locked values."
-    _ -> logInfo' "no locked output at address"
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutput txInput unitRedeemer
+        <> Constraints.mustIncludeDatum datum
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
 
 foreign import includeDatum :: String
 
