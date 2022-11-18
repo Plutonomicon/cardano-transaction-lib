@@ -37,7 +37,7 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array as Array
 import Data.Either (hush)
-import Data.Foldable (foldMap, fold)
+import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
