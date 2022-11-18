@@ -18,7 +18,7 @@ import Contract.BalanceTxConstraints
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
 import Contract.Chain (currentTime)
-import Contract.Hashing (nativeScriptHash)
+import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
@@ -29,10 +29,15 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (mconcat)
+import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
+import Contract.Scripts
+  ( ValidatorHash
+  , applyArgs
+  , mintingPolicyHash
+  , validatorHash
+  )
 import Contract.Test.Plutip
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
@@ -46,6 +51,7 @@ import Contract.Transaction
   ( DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
+  , TransactionHash
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
@@ -115,7 +121,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
-import Data.Either (isLeft)
+import Data.Either (Either(Right), isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
@@ -124,7 +130,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
@@ -697,6 +703,70 @@ suite = do
           , mkDatumHash
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
+
+    test "GetDatumsByHashes" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+
+        datum1 :: Datum
+        datum1 = Datum $ Integer $ BigInt.fromInt 1
+
+        datum2 :: Datum
+        datum2 = Datum $ Integer $ BigInt.fromInt 2
+
+        datums :: Array Datum
+        datums = [ datum2, datum1 ]
+
+      let
+        payToTest :: ValidatorHash -> Contract () TransactionHash
+        payToTest vhash = do
+          let
+            constraints =
+              Constraints.mustPayToScript
+                vhash
+                datum1
+                Constraints.DatumWitness
+                (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+                <> Constraints.mustPayToScript
+                  vhash
+                  datum2
+                  Constraints.DatumWitness
+                  (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+
+            lookups :: Lookups.ScriptLookups PlutusData
+            lookups = mempty
+          buildBalanceSignAndSubmitTx lookups constraints
+
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
+          let vhash = validatorHash validator
+          logInfo' "Running GetDatums submittx"
+          txId <- payToTest vhash
+          awaitTxConfirmed txId
+          logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
+
+          hash1 <- liftM (error "Couldn't get hash for datums 1") $
+            datumHash datum1
+          hash2 <- liftM (error "Couldn't get hash for datums 2") $
+            datumHash datum2
+          hashes <- liftM (error "Couldn't get hashes for datums [1,2]") $
+            traverse datumHash datums
+
+          actualDatums1 <- getDatumsByHashes hashes
+          actualDatums1 `shouldEqual` Map.fromFoldable
+            [ hash1 /\ datum1
+            , hash2 /\ datum2
+            ]
+          actualDatums2 <- getDatumsByHashesWithErrors hashes
+          actualDatums2 `shouldEqual` Map.fromFoldable
+            [ hash1 /\ Right datum1
+            , hash2 /\ Right datum2
+            ]
 
     test "MintZeroToken" do
       let
@@ -1491,18 +1561,18 @@ suite = do
           withCip30Mock alice MockNami do
             Cip30.contract
 
-      -- TODO
-      skip $ test "Failing getWalletBalance - investigate" do
+      test "getWalletBalance" do
         let
           distribution :: InitialUTxOs
           distribution =
-            [ BigInt.fromInt 2_000_000
+            [ BigInt.fromInt 5_000_000
             , BigInt.fromInt 2_000_000
+            , BigInt.fromInt 1_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
-              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
+              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do

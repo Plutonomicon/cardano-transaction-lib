@@ -152,7 +152,6 @@
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
-                file
               ];
             };
           };
@@ -372,7 +371,6 @@
                 nodePackages.prettier
                 nodePackages.eslint
                 fd
-                file
               ];
             }
             ''

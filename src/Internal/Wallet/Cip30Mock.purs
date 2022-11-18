@@ -37,7 +37,7 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array as Array
 import Data.Either (hush)
-import Data.Foldable (foldMap)
+import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
@@ -136,7 +136,7 @@ mkCip30Mock pKey mSKey = do
         (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
           maxCollateralInputs
           utxos
-          >>= liftMaybe (error "No UTxOs at address")
+          <#> fold
 
   pure $
     { getNetworkId: fromAff $ pure $
