@@ -91,12 +91,15 @@ import Ctl.Examples.MintsMultipleTokens
   )
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
-import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
-import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
+  ( contract
+  ) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
@@ -1008,7 +1011,7 @@ suite = do
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
-          validator <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+          validator <- alwaysSucceedsScriptV2
           let vhash = validatorHash validator
           logInfo' "Attempt to lock value"
           txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
@@ -1122,6 +1125,16 @@ suite = do
           ]
       withWallets distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
+
+    test "ReferenceInputsAndScripts" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice ReferenceInputsAndScripts.contract
 
     test "OneShotMinting" do
       let
@@ -1313,7 +1326,7 @@ suite = do
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
 
             validatorV1 <- AlwaysSucceeds.alwaysSucceedsScript
-            validatorV2 <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+            validatorV2 <- alwaysSucceedsScriptV2
 
             let
               value :: Value.Value

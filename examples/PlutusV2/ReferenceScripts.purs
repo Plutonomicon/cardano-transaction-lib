@@ -30,7 +30,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import Ctl.Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
 import Data.Map (toUnfoldable) as Map

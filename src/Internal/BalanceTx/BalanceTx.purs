@@ -87,6 +87,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
+  , _referenceInputs
   , _withdrawals
   )
 import Ctl.Internal.Cardano.Types.Value
@@ -435,7 +436,9 @@ addTransactionInputs changeAddress utxos certsFee unbalancedTx = do
 
     spendableUtxos :: UtxoMap
     spendableUtxos =
-      Map.filterKeys (not <<< flip Set.member nonSpendableInputs) utxos
+      flip Map.filterKeys utxos \oref -> not $
+        Set.member oref nonSpendableInputs
+          || Set.member oref (txBody ^. _referenceInputs)
 
   newTxInputs <-
     except $ collectTransactionInputs txInputs spendableUtxos requiredInputValue
