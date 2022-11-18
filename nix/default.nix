@@ -351,8 +351,8 @@ let
       } // env)
       ''
          mkdir $out
+         chmod -R +rw $out
 
-         cd ${project}
          source ${project}/test/e2e-ci.env
 
          export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
@@ -367,17 +367,9 @@ let
          export POSTGRES_PORT=5438
          export E2E_SKIP_JQUERY_DOWNLOAD=true
 
-
          python -m http.server 4008 --directory ${bundledPursProject}/dist &
 
-         sleep 5
-
-         # ls -la ${bundledPursProject}/dist
-         # curl http://127.0.0.1:4008/index.html
-         # curl "http://127.0.0.1:4008/?plutip-nami-mock:OneShotMinting"
-
-         cd $out
-         chmod -R +rwx .
+         sleep 3
 
          ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
          # ${nodejs}/bin/node -e "
