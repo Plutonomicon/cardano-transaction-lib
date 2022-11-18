@@ -556,7 +556,6 @@ startExample skipJQuery url browser = do
       Just <$> retrieveJQuery page
   liftEffect $ Console.log $ unwrap url
   toAffE $ _ourGoto page url
-
   pure { browser, jQuery, page }
 
 foreign import _ourGoto

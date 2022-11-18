@@ -35,13 +35,10 @@ launch noHeadless { browser, chromeUserDataDir } =
       , userDataDir: chromeUserDataDir
       , executablePath: browser
       }
-  where
-  args =
-    [ "--user-data-dir=" <> chromeUserDataDir
-    , "--no-sandbox"
-    , "--disable-gpu"
-    , "--remote-debugging-port=9222"
-    ] <> if not noHeadless then [ "--headless=chrome" ] else []
+   where
+   args = []
+--     [ "--user-data-dir=" <> chromeUserDataDir
+--     ] <> if not noHeadless then [ "--headless=chrome" ] else []
 
 launchWithExtension
   :: Boolean
