@@ -112,6 +112,12 @@ let
               pkgs.easy-ps.spago2nix
               pkgs.nodePackages.node2nix
               pkgs.unzip
+
+              # Required to fix initdb locale issue in shell
+              # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
+              # Well, not really, as we set initdb locale to C for all cases now
+              # Anyway, seems like it's good to have whole set of locales in the shell
+              pkgs.glibcLocales
             ]
 
             (lists.optional pursls pkgs.easy-ps.purescript-language-server)
@@ -126,9 +132,6 @@ let
                   pkgs.plutip-server
                   pkgs.postgresql
                   pkgs.kupo
-                  # Required to fix initdb locale issue in shell
-                  # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
-                  pkgs.glibcLocales
                 ]
                 # this package will be soon put into its own overlay, so we'll
                 # check this now for future compat
