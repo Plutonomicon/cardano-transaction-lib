@@ -41,7 +41,7 @@ launch noHeadless { browser, chromeUserDataDir } =
     , "--no-sandbox"
     , "--disable-gpu"
     , "--remote-debugging-port=9222"
-    ] -- <> if not noHeadless then [ "--headless=chrome" ] else []
+    ] <> if not noHeadless then [ "--headless=chrome" ] else []
 
 launchWithExtension
   :: Boolean

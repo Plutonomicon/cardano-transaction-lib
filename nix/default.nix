@@ -266,8 +266,8 @@ let
       }
     );
 
-  runE2ETest = 
-    { 
+  runE2ETest =
+    {
       # The name of the main Purescript module
       testMain ? "Test.Ctl.E2E"
       # Can be used to override the name of the resulting derivation
@@ -282,13 +282,14 @@ let
     , buildInputs ? [ ]
     , ...
     }@args:
-    let 
-        bundledPursProject = bundlePursProject {
-              main = "Ctl.Examples.ByUrl";
-              entrypoint = "examples/index.js";
-        };
+    let
+      bundledPursProject = bundlePursProject {
+        main = "Ctl.Examples.ByUrl";
+        entrypoint = "examples/index.js";
+      };
     in
-    pkgs.runCommand "${name}" ({
+    pkgs.runCommand "${name}"
+      ({
         buildInputs = with pkgs; [
           project
           nodeModules
@@ -303,60 +304,46 @@ let
           gnutar # used unpack settings archive within E2E test code
           curl
         ] ++ [ pkgs.ctl-server ]
-          ++ (args.buildInputs or [ ]);
+        ++ (args.buildInputs or [ ]);
         NODE_PATH = "${nodeModules}/lib/node_modules";
-    } // env)
-    ''
-      mkdir $out
+      } // env)
+      ''
+         mkdir $out
 
-      cd ${project}
-      source ${project}/test/e2e-ci.env
+         cd ${project}
+         source ${project}/test/e2e-ci.env
 
-      export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
-      export E2E_CHROME_USER_DATA="$out/test-data/chrome-user-data"
-      export E2E_TEST_TIMEOUT=200
-      export E2E_BROWSER=chromium
-      export E2E_NO_HEADLESS=false
-      export PLUTIP_PORT=8087
-      export OGMIOS_PORT=1345
-      export OGMIOS_DATUM_CACHE_PORT=10005
-      export CTL_SERVER_PORT=8088
-      export POSTGRES_PORT=5438
-      # export PUPPETEER_EXECUTABLE_PATH='${pkgs.chromium}/bin/chromium'
-      export XDG_CONFIG_HOME="$out/test-data/chrome-user-data"
-
-
-      # python -m http.server 4008 --directory ${bundledPursProject}/dist &
-
-      ${pkgs.bubblewrap}/bin/bwrap \
-        --unshare-all \
-        --share-net \
-        --ro-bind /nix/store /nix/store \
-        --bind /build /build \
-        --uid 1000 \
-        --gid 1000 \
-        --proc /proc \
-        --dir /tmp \
-        --dev /dev \
-        --setenv TMPDIR /tmp \
-        --setenv XDG_RUNTIME_DIR /tmp \
-        --bind . /data \
-        --chdir /data  \
-        -- live-server ${bundledPursProject}/dist --port=4008 &
-
-      sleep 5
-
-      # ls -la ${bundledPursProject}/dist
-      curl http://127.0.0.1:4008/index.html
+         export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
+         export E2E_CHROME_USER_DATA="$out/test-data/chrome-user-data"
+         export E2E_TEST_TIMEOUT=200
+         export E2E_BROWSER=chromium
+         export E2E_NO_HEADLESS=false
+         export PLUTIP_PORT=8087
+         export OGMIOS_PORT=1345
+         export OGMIOS_DATUM_CACHE_PORT=10005
+         export CTL_SERVER_PORT=8088
+         export POSTGRES_PORT=5438
+         export E2E_SKIP_JQUERY_DOWNLOAD=true
+         # export PUPPETEER_EXECUTABLE_PATH='${pkgs.chromium}/bin/chromium'
+         export XDG_CONFIG_HOME="$out/test-data/chrome-user-data"
 
 
-      cd $out
-      chmod -R +rwx .
+         # python -m http.server 4008 --directory ${bundledPursProject}/dist &
 
-     # BROWSER_RUNTIME=1 webpack-dev-server --progress
-     ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
-    ''
-    ;
+         live-server ${bundledPursProject}/dist --port=4008 &
+
+         sleep 5
+
+         # ls -la ${bundledPursProject}/dist
+         curl http://127.0.0.1:4008/index.html
+         curl "http://127.0.0.1:4008/?plutip-nami-mock:OneShotMinting"
+
+         cd $out
+         chmod -R +rwx .
+
+         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
+      ''
+  ;
 
   # Bundles a Purescript project using Webpack, typically for the browser
   bundlePursProject =

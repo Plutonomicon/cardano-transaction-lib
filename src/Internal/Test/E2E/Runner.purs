@@ -105,6 +105,7 @@ import Effect.Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
+import Effect.Console as Console
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Mote (group, test)
@@ -141,9 +142,14 @@ runE2ECommand = case _ of
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
     portOptions <- liftEffect $ readPorts testOptions
+    skipJQuery <- liftEffect $ readSkipJQuery testOptions.skipJQuery
     let
       testOptions' = build (merge portOptions) $ testOptions
-        { noHeadless = noHeadless, testTimeout = testTimeout, tests = tests }
+        { noHeadless = noHeadless
+        , testTimeout = testTimeout
+        , tests = tests
+        , skipJQuery = skipJQuery
+        }
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
     runtime <- readBrowserRuntime Nothing browserOptions
@@ -230,7 +236,7 @@ testPlan opts@{ tests } rt@{ wallets } =
     for_ tests \testEntry@{ specString } -> test specString $ case testEntry of
       { url, wallet: NoWallet } -> do
         withBrowser opts.noHeadless rt Nothing \browser -> do
-          withE2ETest (wrap url) browser \{ page } -> do
+          withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
             subscribeToTestStatusUpdates page
       { url, wallet: PlutipCluster } -> do
         let
@@ -256,7 +262,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     }
                 }
             withBrowser opts.noHeadless rt Nothing \browser -> do
-              withE2ETest (wrap url) browser \{ page } -> do
+              withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
                 setClusterSetup page clusterSetup
                 subscribeToTestStatusUpdates page
       { url, wallet: WalletExtension wallet } -> do
@@ -265,7 +271,7 @@ testPlan opts@{ tests } rt@{ wallets } =
               (error $ "Wallet was not provided: " <> walletName wallet)
           $ Map.lookup wallet wallets
         withBrowser opts.noHeadless rt (Just extensionId) \browser -> do
-          withE2ETest (wrap url) browser \re@{ page } -> do
+          withE2ETest opts.skipJQuery (wrap url) browser \re@{ page } -> do
             let
               confirmAccess =
                 case wallet of
@@ -342,6 +348,7 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
             <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
+            <<< delete (Proxy :: Proxy "skipJQuery")
         )
   readBrowserRuntime Nothing $ removeUnneeded testOptions
 
@@ -523,32 +530,53 @@ readTests optUrls = do
 -- | ```purescript
 -- |   withBrowser options NamiExt \browser -> do
 -- |     withE2ETest
+-- |        false -- do not skip jQuery
 -- |        (wrap "http://myserver:1234/docontract")
 -- |        browser do
 -- |          namiSign $ wrap "mypassword"
 -- | ```
 withE2ETest
   :: forall (a :: Type)
-   . Toppokki.URL
+   . Boolean
+  -> Toppokki.URL
   -> Toppokki.Browser
   -> (RunningE2ETest -> Aff a)
   -> Aff a
-withE2ETest url browser action = do
-  startExample url browser >>= action
+withE2ETest skipJQuery url browser action = do
+  startExample skipJQuery url browser >>= action
 
 -- | Navigate to an example's page, inject jQuery and set up error handlers
-startExample :: Toppokki.URL -> Toppokki.Browser -> Aff RunningE2ETest
-startExample url browser = do
+startExample
+  :: Boolean -> Toppokki.URL -> Toppokki.Browser -> Aff RunningE2ETest
+startExample skipJQuery url browser = do
   page <- Toppokki.newPage browser
-  jQuery <- retrieveJQuery page
-  Toppokki.goto url page
+  jQuery <-
+    if skipJQuery then pure Nothing
+    else
+      Just <$> retrieveJQuery page
+  liftEffect $ Console.log $ unwrap url
+  toAffE $ _ourGoto page url
+
   pure { browser, jQuery, page }
+
+foreign import _ourGoto
+  :: Toppokki.Page -> Toppokki.URL -> Effect (Promise Unit)
 
 -- | Download jQuery
 retrieveJQuery :: Toppokki.Page -> Aff String
 retrieveJQuery = toAffE <<< _retrieveJQuery
 
 foreign import _retrieveJQuery :: Toppokki.Page -> Effect (Promise String)
+
+readSkipJQuery :: Boolean -> Effect Boolean
+readSkipJQuery true = pure true
+readSkipJQuery false = do
+  mbStr <- lookupEnv "E2E_SKIP_JQUERY_DOWNLOAD"
+  case mbStr of
+    Nothing -> pure false
+    Just str -> do
+      liftMaybe (error $ "Failed to read E2E_SKIP_JQUERY_DOWNLOAD: " <> str) $
+        readBoolean str
 
 readNoHeadless :: Boolean -> Effect Boolean
 readNoHeadless true = pure true
@@ -559,11 +587,12 @@ readNoHeadless false = do
     Just str -> do
       liftMaybe (error $ "Failed to read E2E_NO_HEADLESS: " <> str) $
         readBoolean str
-  where
-  readBoolean = case _ of
-    "true" -> Just true
-    "false" -> Just false
-    _ -> Nothing
+
+readBoolean :: String -> Maybe Boolean
+readBoolean = case _ of
+  "true" -> Just true
+  "false" -> Just false
+  _ -> Nothing
 
 readTestTimeout :: Maybe Int -> Effect (Maybe Int)
 readTestTimeout r@(Just _) = pure r

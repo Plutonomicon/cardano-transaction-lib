@@ -156,7 +156,7 @@ mkE2ETest str =
 -- | Represents a connection to a running E2E test.
 type RunningE2ETest =
   { browser :: Toppokki.Browser
-  , jQuery :: String
+  , jQuery :: Maybe String
   , page :: Toppokki.Page
   }
 

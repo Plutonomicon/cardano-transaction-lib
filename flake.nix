@@ -455,8 +455,9 @@
               make check-examples-imports
               touch $out
             '';
-          remove-me = pkgs.runCommand "examples-imports-check" {
-              buildInputs = [ pkgs.chromium pkgs.nodePackages.live-server pkgs.curl];
+          remove-me = pkgs.runCommand "examples-imports-check"
+            {
+              buildInputs = [ pkgs.chromium pkgs.nodePackages.live-server pkgs.curl ];
             }
             ''
               mkdir asd
