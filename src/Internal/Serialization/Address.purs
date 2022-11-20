@@ -458,7 +458,6 @@ addressFromBech32 = _addressFromBech32 maybeFfiHelper
 addressPaymentCred :: Address -> Maybe StakeCredential
 addressPaymentCred addr =
   (baseAddressPaymentCred <$> baseAddressFromAddress addr)
-    <|> (rewardAddressPaymentCred <$> rewardAddressFromAddress addr)
     <|> (pointerAddressPaymentCred <$> pointerAddressFromAddress addr)
     <|> (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
 
