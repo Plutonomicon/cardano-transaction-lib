@@ -460,8 +460,7 @@ addressPaymentCred addr =
   (baseAddressPaymentCred <$> baseAddressFromAddress addr)
     <|> (rewardAddressPaymentCred <$> rewardAddressFromAddress addr)
     <|> (pointerAddressPaymentCred <$> pointerAddressFromAddress addr)
-    <|>
-      (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
+    <|> (enterpriseAddressPaymentCred <$> enterpriseAddressFromAddress addr)
 
 addressStakeCred :: Address -> Maybe StakeCredential
 addressStakeCred addr =
