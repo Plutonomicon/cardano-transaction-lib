@@ -106,7 +106,6 @@ import Effect.Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
-import Effect.Console as Console
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Mote (group, test)
@@ -572,12 +571,8 @@ startExample skipJQuery url browser = do
     if skipJQuery then pure Nothing
     else
       Just <$> retrieveJQuery page
-  liftEffect $ Console.log $ unwrap url
   Toppokki.goto url page
   pure { browser, jQuery, page }
-
-foreign import _ourGoto
-  :: Toppokki.Page -> Toppokki.URL -> Effect (Promise Unit)
 
 -- | Download jQuery
 retrieveJQuery :: Toppokki.Page -> Aff String

@@ -309,6 +309,8 @@ let
         pkgs.buildEnv { name = "etc-fonts"; paths = [ "${pkgs.fontconfig.out}/etc/fonts" config ]; };
       # We use bubblewrap to populate /etc/fonts.
       # We use ungoogled-chromium because chromium some times times out on Hydra.
+      #
+      # Chromium wrapper code was provided to us by Las Safin (thanks)
       chromium = pkgs.writeShellScriptBin "chromium" ''
         env - ${pkgs.bubblewrap}/bin/bwrap \
           --unshare-all \

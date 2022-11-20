@@ -7,11 +7,3 @@ exports._retrieveJQuery = page => () =>
       .then(res => res.text())
       .catch(_ => "")
   );
-
-// try {
-//   Error.stackTraceLimit = Infinity;
-// } catch (_) {}
-
-exports._ourGoto = page => url => () => {
-  return page.goto(url, { waitUntil: "networkidle0" });
-};
