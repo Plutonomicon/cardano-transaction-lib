@@ -290,6 +290,7 @@ type ClusterSetup =
   { ctlServerConfig :: Maybe ServerConfig
   , ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
   , keys ::
       { payment :: PrivatePaymentKey
       , stake :: Maybe PrivateStakeKey

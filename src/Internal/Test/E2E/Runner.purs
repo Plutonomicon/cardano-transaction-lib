@@ -37,6 +37,7 @@ import Ctl.Internal.Test.E2E.Options
   )
 import Ctl.Internal.Test.E2E.Types
   ( Browser
+  , BrowserArg
   , ChromeUserDataDir
   , E2ETest
   , E2ETestRuntime
@@ -87,7 +88,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
-import Data.String.Utils (startsWith) as String
+import Data.String.Utils (startsWith, words) as String
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
@@ -143,12 +144,14 @@ runE2ECommand = case _ of
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
     portOptions <- liftEffect $ readPorts testOptions
     skipJQuery <- liftEffect $ readSkipJQuery testOptions.skipJQuery
+    extraBrowserArgs <- liftEffect $ readExtraArgs testOptions.extraBrowserArgs
     let
       testOptions' = build (merge portOptions) $ testOptions
         { noHeadless = noHeadless
         , testTimeout = testTimeout
         , tests = tests
         , skipJQuery = skipJQuery
+        , extraBrowserArgs = extraBrowserArgs
         }
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
@@ -241,9 +244,10 @@ testPlan opts@{ tests } rt@{ wallets } =
   group "E2E tests" do
     for_ tests \testEntry@{ specString } -> test specString $ case testEntry of
       { url, wallet: NoWallet } -> do
-        withBrowser opts.noHeadless rt Nothing \browser -> do
-          withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
-            subscribeToTestStatusUpdates page
+        withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing \browser ->
+          do
+            withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
+              subscribeToTestStatusUpdates page
       { url, wallet: PlutipCluster } -> do
         let
           distr = withStakeKey privateStakeKey
@@ -262,56 +266,59 @@ testPlan opts@{ tests } rt@{ wallets } =
                 { ctlServerConfig: (unwrap env).config.ctlServerConfig
                 , ogmiosConfig: (unwrap env).config.ogmiosConfig
                 , datumCacheConfig: (unwrap env).config.datumCacheConfig
+                , kupoConfig: (unwrap env).config.kupoConfig
                 , keys:
                     { payment: keyWalletPrivatePaymentKey wallet
                     , stake: keyWalletPrivateStakeKey wallet
                     }
                 }
-            withBrowser opts.noHeadless rt Nothing \browser -> do
-              withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
-                setClusterSetup page clusterSetup
-                subscribeToTestStatusUpdates page
+            withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing
+              \browser -> do
+                withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
+                  setClusterSetup page clusterSetup
+                  subscribeToTestStatusUpdates page
       { url, wallet: WalletExtension wallet } -> do
         { password, extensionId } <- liftEffect
           $ liftMaybe
               (error $ "Wallet was not provided: " <> walletName wallet)
           $ Map.lookup wallet wallets
-        withBrowser opts.noHeadless rt (Just extensionId) \browser -> do
-          withE2ETest opts.skipJQuery (wrap url) browser \re@{ page } -> do
-            let
-              confirmAccess =
-                case wallet of
-                  EternlExt -> eternlConfirmAccess
-                  FlintExt -> flintConfirmAccess
-                  GeroExt -> geroConfirmAccess
-                  LodeExt -> lodeConfirmAccess
-                  NamiExt -> namiConfirmAccess
-              sign =
-                case wallet of
-                  EternlExt -> eternlSign
-                  FlintExt -> flintSign
-                  GeroExt -> geroSign
-                  LodeExt -> lodeSign
-                  NamiExt -> namiSign
-              someWallet =
-                { wallet
-                , name: walletName wallet
-                , extensionId
-                , confirmAccess: confirmAccess extensionId re
-                , sign: sign extensionId password re
-                }
-            makeAff $ \k -> do
+        withBrowser opts.noHeadless opts.extraBrowserArgs rt (Just extensionId)
+          \browser -> do
+            withE2ETest opts.skipJQuery (wrap url) browser \re@{ page } -> do
               let
-                rethrow aff = launchAff_ do
-                  res <- try aff
-                  when (isLeft res) $ liftEffect $ k res
-              map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
-                subscribeToBrowserEvents page
-                  case _ of
-                    ConfirmAccess -> rethrow someWallet.confirmAccess
-                    Sign -> rethrow someWallet.sign
-                    Success -> pure unit
-                    Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
+                confirmAccess =
+                  case wallet of
+                    EternlExt -> eternlConfirmAccess
+                    FlintExt -> flintConfirmAccess
+                    GeroExt -> geroConfirmAccess
+                    LodeExt -> lodeConfirmAccess
+                    NamiExt -> namiConfirmAccess
+                sign =
+                  case wallet of
+                    EternlExt -> eternlSign
+                    FlintExt -> flintSign
+                    GeroExt -> geroSign
+                    LodeExt -> lodeSign
+                    NamiExt -> namiSign
+                someWallet =
+                  { wallet
+                  , name: walletName wallet
+                  , extensionId
+                  , confirmAccess: confirmAccess extensionId re
+                  , sign: sign extensionId password re
+                  }
+              makeAff $ \k -> do
+                let
+                  rethrow aff = launchAff_ do
+                    res <- try aff
+                    when (isLeft res) $ liftEffect $ k res
+                map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
+                  subscribeToBrowserEvents page
+                    case _ of
+                      ConfirmAccess -> rethrow someWallet.confirmAccess
+                      Sign -> rethrow someWallet.sign
+                      Success -> pure unit
+                      Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
   where
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
@@ -446,6 +453,7 @@ readBrowserRuntime mbTests testOptions = do
     ( delete (Proxy :: Proxy "wallets")
         <<< delete (Proxy :: Proxy "tmpDir")
         <<< delete (Proxy :: Proxy "browser")
+        <<< delete (Proxy :: Proxy "extraBrowserArgs")
     )
     testOptions
 
@@ -586,6 +594,14 @@ readSkipJQuery false = do
     Just str -> do
       liftMaybe (error $ "Failed to read E2E_SKIP_JQUERY_DOWNLOAD: " <> str) $
         readBoolean str
+
+readExtraArgs :: Array BrowserArg -> Effect (Array BrowserArg)
+readExtraArgs old = do
+  mbStr <- lookupEnv "E2E_EXTRA_BROWSER_ARGS"
+  case mbStr of
+    Nothing -> pure old
+    Just str -> do
+      pure $ String.words str <> old
 
 readNoHeadless :: Boolean -> Effect Boolean
 readNoHeadless true = pure true

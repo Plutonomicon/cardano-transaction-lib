@@ -366,30 +366,13 @@ let
         export CTL_SERVER_PORT=8088
         export POSTGRES_PORT=5438
         export E2E_SKIP_JQUERY_DOWNLOAD=true
+        export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
         python -m http.server 4008 --directory ${bundledPursProject}/dist &
-
-        sleep 3
+        sleep 3 # Wait for it to start serving
 
         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
-        # ${nodejs}/bin/node -e "
-        #  const pp = require('puppeteer-core');
-        #  const  browserUrl = 'http://127.0.0.1:9222';
-        #  const delay =(m) => new Promise(r => setTimeout(r, m));
-        #  (async () => {
-        #      // const browser = await pp.connect({ browserURL: browserUrl });
-        #      const browser = await pp.launch({headless: true, executablePath: '${chromium}/bin/chromium'});
-        #      const page = await browser.newPage();
-        #      page.setBypassCSP(true);
-        #      await page.goto('http://127.0.0.1:4008', {timeout: 5000});
-        #      console.log('weeeeeeeeeeent')
-        #      await delay(2000);
-        #      const content = await page.content()
-        #      console.log('content: ', content)
-        #    })()
-        #    "
-
-        touch $out
+        mkdir $out
       ''
   ;
 
