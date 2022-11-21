@@ -242,6 +242,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
+import Data.Array (catMaybes)
 import Data.Array (singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
@@ -291,6 +292,7 @@ type ClusterSetup =
   { ctlServerConfig :: Maybe ServerConfig
   , ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
   , keys ::
       { payment :: PrivatePaymentKey
       , stake :: Maybe PrivateStakeKey
@@ -727,10 +729,15 @@ getNetworkId :: QueryM NetworkId
 getNetworkId = asks $ _.config >>> _.networkId
 
 ownPubKeyHashes :: QueryM (Array PubKeyHash)
-ownPubKeyHashes = do
+ownPubKeyHashes = catMaybes <$> do
   getWalletAddresses >>= traverse \address -> do
-    liftM (error "Failed to convert Address to PubKeyHash") $
-      (addressPaymentCred >=> stakeCredentialToKeyHash >>> map wrap) address
+    paymentCred <-
+      liftM
+        ( error $
+            "Unable to get payment credential from Address"
+        ) $
+        addressPaymentCred address
+    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
 
 ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
