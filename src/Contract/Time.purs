@@ -9,6 +9,8 @@ module Contract.Time
   , module SerializationAddress
   ) where
 
+import Prelude
+
 import Contract.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
@@ -16,16 +18,12 @@ import Contract.Chain
   , getTip
   ) as Chain
 import Contract.Monad (Contract, wrapContract)
-import QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
-import QueryM.EraSummaries (getEraSummaries) as EraSummaries
-import QueryM.Ogmios
-  ( CurrentEpoch
-  , EraSummaries
-  , SystemStart
-  )
-import QueryM.Ogmios
+import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
+import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
+import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
-  , Epoch(Epoch)
   , EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -35,16 +33,18 @@ import QueryM.Ogmios
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
   ) as ExportOgmios
-import QueryM.SystemStart (getSystemStart) as SystemStart
-import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  ) as SerializationAddress
-import Types.Interval
+import Ctl.Internal.QueryM.Ogmios
+  ( CurrentEpoch(CurrentEpoch)
+  , EraSummaries
+  , SystemStart
+  )
+import Ctl.Internal.QueryM.SystemStart (getSystemStart) as SystemStart
+import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
+import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
-  , Interval(Interval)
+  , Interval
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -77,16 +77,13 @@ import Types.Interval
   , from
   , hull
   , intersection
-  , interval
   , isEmpty
-  -- , isEmpty'
   , lowerBound
   , maxSlot
   , member
-  , mkInterval
+  , mkFiniteInterval
   , never
   , overlaps
-  -- , overlaps'
   , posixTimeRangeToSlotRange
   , posixTimeToSlot
   , singleton
@@ -98,11 +95,18 @@ import Types.Interval
   , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
+import Data.BigInt as BigInt
+import Data.UInt as UInt
+import Effect.Exception (error)
 
 -- | Get the current Epoch. Details can be found https://ogmios.dev/api/ under
 -- | "currentEpoch" query
-getCurrentEpoch :: forall (r :: Row Type). Contract r CurrentEpoch
-getCurrentEpoch = wrapContract CurrentEpoch.getCurrentEpoch
+getCurrentEpoch :: forall (r :: Row Type). Contract r Epoch
+getCurrentEpoch = do
+  CurrentEpoch bigInt <- wrapContract CurrentEpoch.getCurrentEpoch
+  map Epoch $ liftM (error "Unable to convert CurrentEpoch")
+    $ UInt.fromString
+    $ BigInt.toString (bigInt :: BigInt.BigInt)
 
 -- | Get `EraSummaries` as used for Slot arithemetic. Details can be found
 -- | https://ogmios.dev/api/ under "eraSummaries" query

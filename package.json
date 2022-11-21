@@ -1,6 +1,6 @@
 {
   "name": "cardano-transaction-lib",
-  "version": "2.0.0-alpha",
+  "version": "3.0.0",
   "description": "",
   "repository": {
     "type": "git",
@@ -10,18 +10,26 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npm run unit-test && npm run integration-test && npm run plutip-test",
-    "integration-test": "spago run --main Test.Integration",
-    "unit-test": "spago run --main Ctl.Test.Unit",
-    "plutip-test": "spago run --main Test.Plutip",
+    "test": "npm run unit-test && npm run integration-test && npm run plutip-test && npm run staking-test",
+    "integration-test": "spago run --main Test.Ctl.Integration",
+    "unit-test": "spago run --main Test.Ctl.Unit",
+    "plutip-test": "spago run --main Test.Ctl.Plutip",
+    "staking-test": "spago run --main Test.Ctl.Plutip.Staking",
+    "e2e-test": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run'",
+    "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run --no-headless'",
+    "e2e-browser": "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'",
+    "e2e-pack-settings": "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test pack'",
+    "e2e-unpack-settings": "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test unpack'",
     "dev": "make run-dev",
     "build": "make run-build"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@emurgo/cardano-serialization-lib-browser": "11.0.5",
-    "@emurgo/cardano-serialization-lib-nodejs": "11.0.5",
+    "@emurgo/cardano-message-signing-browser": "1.0.1",
+    "@emurgo/cardano-message-signing-nodejs": "1.0.1",
+    "@emurgo/cardano-serialization-lib-browser": "^11.1.1-alpha.1",
+    "@emurgo/cardano-serialization-lib-nodejs": "11.1.1-alpha.1",
     "base64-js": "^1.5.1",
     "big-integer": "1.6.51",
     "blakejs": "1.2.1",

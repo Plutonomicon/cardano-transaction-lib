@@ -2,4 +2,4 @@
 -- | outside of CTL's custom types.
 module Contract.Numeric.Convert (module Helpers) where
 
-import Helpers (bigIntToUInt, uIntToBigInt) as Helpers
+import Ctl.Internal.Helpers (bigIntToUInt, uIntToBigInt) as Helpers

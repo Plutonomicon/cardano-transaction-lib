@@ -4,8 +4,12 @@ You can edit this file as you like.
 -}
 { name = "ctl-package-example"
 , dependencies =
-  [ "cardano-transaction-lib"
+  [ "aff"
   , "bigints"
+  , "cardano-transaction-lib"
+  , "effect"
+  , "ordered-collections"
+  , "prelude"
   , "uint"
   ]
 , packages = ./packages.dhall

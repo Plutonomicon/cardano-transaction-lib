@@ -1,4 +1,4 @@
-module Test.Plutip.UtxoDistribution
+module Test.Ctl.Plutip.UtxoDistribution
   ( ArbitraryUtxoDistr
   , assertContract
   , assertCorrectDistribution
@@ -17,9 +17,9 @@ import Prelude
 import Contract.Address
   ( Address
   , getNetworkId
-  , getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Monad (Contract, liftedM)
@@ -27,6 +27,7 @@ import Contract.Test.Plutip
   ( class UtxoDistribution
   , InitialUTxOs
   , runPlutipContract
+  , withStakeKey
   )
 import Contract.Transaction
   ( TransactionInput
@@ -36,13 +37,19 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
-import Data.Array (foldl, zip)
+import Ctl.Internal.Plutip.Types
+  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  )
+import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Data.Array (foldl, head, replicate, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.List (fromFoldable) as List
-import Data.Map (isEmpty, empty, insert) as Map
+import Data.Map (empty, insert, isEmpty) as Map
 import Data.Maybe (isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
@@ -52,10 +59,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
-import Plutip.Types (InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey))
-import Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Plutus.Types.Transaction (UtxoMap)
-import Test.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
@@ -66,15 +70,42 @@ import Test.QuickCheck.Gen
   , resize
   , sized
   )
-import TestM (TestPlanM)
 import Type.Prelude (Proxy(Proxy))
 
 suite :: TestPlanM (Aff Unit) Unit
-suite = group "Plutip UtxoDistribution" do
+suite = group "UtxoDistribution" do
+  test
+    "stake key transfers with distribution: [[1000000000,1000000000]]"
+    do
+      let
+        distribution :: Array InitialUTxOs
+        distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution $ checkUtxoDistribution distribution
+
+  test
+    "stake key transfers with distribution: stake + [[1000000000,1000000000]]"
+    do
+      let
+        distribution :: Array InitialUTxOsWithStakeKey
+        distribution = withStakeKey privateStakeKey <$> replicate 2
+          [ BigInt.fromInt 1_000_000_000 ]
+      runPlutipContract config distribution $ checkUtxoDistribution distribution
+
+  test
+    "stake key transfers with distribution: ([[1000000000,1000000000]], stake + [[1000000000,1000000000]])"
+    do
+      let
+        distribution1 :: Array InitialUTxOs
+        distribution1 = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+
+        distribution = distribution1 /\
+          (withStakeKey privateStakeKey <$> distribution1)
+      runPlutipContract config distribution $ checkUtxoDistribution distribution
+
   distrs <- liftEffect $ randomSample' 5 arbitrary
   for_ distrs $ \distr ->
     test
-      ( "runPlutipContract: stake key transfers with random distribution: "
+      ( "stake key transfers with random distribution: "
           <> ppArbitraryUtxoDistr distr
       )
       $
@@ -124,6 +155,8 @@ instance Arbitrary ArbitraryUtxoDistr where
             )
         ]
 
+-- TODO Add UDArray
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1187
 data ArbitraryUtxoDistr
   = UDUnit
   | UDInitialUtxos InitialUTxOs
@@ -166,7 +199,7 @@ assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 assertUtxosAtPlutipWalletAddress
   :: forall (r :: Row Type). KeyWallet -> Contract r Unit
 assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
-  maybeStake <- ownStakePubKeyHash
+  maybeStake <- join <<< head <$> ownStakePubKeysHashes
   when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
 
 assertNoUtxosAtEnterpriseAddress
@@ -175,12 +208,13 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
   assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
     ( payPubKeyHashEnterpriseAddress
         <$> getNetworkId
-        <*> liftedM "Could not get payment pubkeyhash" ownPaymentPubKeyHash
+        <*> liftedM "Could not get payment pubkeyhash"
+          (head <$> ownPaymentPubKeysHashes)
     )
 
 assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
 assertNoUtxosAtAddress addr = do
-  utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
+  utxos <- utxosAt addr
   assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
 
 -- | For each wallet, assert that there is a one-to-one correspondance
@@ -191,8 +225,8 @@ assertCorrectDistribution
   -> Contract r Unit
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
-    addr <- liftedM "Could not get wallet address" getWalletAddress
-    utxos <- liftedM "Could not get wallet utxos" $ utxosAt addr
+    addr <- liftedM "Could not get wallet address" $ head <$> getWalletAddresses
+    utxos <- utxosAt addr
     assertContract "Incorrect distribution of utxos" $
       checkDistr utxos expectedAmounts
   where

@@ -69,52 +69,53 @@ newtype Contract w (s :: Row *) e a = Contract { unContract :: Eff (ContractEffs
   deriving newtype (Functor, Applicative, Monad)
 ```
 
-The Plutus `Contract` environment is specialized to just two values and is fixed. 
-Also, Plutus `Contract` uses a phantom type `s` to contract schema 
-and parameters `w` for a writer and `e` for errors. 
-In the case of CTL we don't have the contract schema parameter or the writer 
-parameter since CTL definition allows performing arbitrary effects. 
-This is possible  since the definition of `LoggerT` is: 
+The Plutus `Contract` environment is specialized to just two values and is fixed.
+Also, Plutus `Contract` uses a phantom type `s` to contract schema
+and parameters `w` for a writer and `e` for errors.
+In the case of CTL we don't have the contract schema parameter or the writer
+parameter since CTL definition allows performing arbitrary effects.
+This is possible  since the definition of `LoggerT` is:
 
 ```PureScript
 newtype LoggerT m a = LoggerT ((Message -> m Unit) -> m a)
 ```
 
-The use of `Aff` inside `LoggerT` allows us to use asynchronous effects 
-inside the logger. In particular, this has a similar effect as using `IO` 
-in Haskell, although isn't the same. Of course we can log to console 
+The use of `Aff` inside `LoggerT` allows us to use asynchronous effects
+inside the logger. In particular, this has a similar effect as using `IO`
+in Haskell, although isn't the same. Of course we can log to console
 using just `Aff` but `LoggerT` provide us with structured logging.
 
 
 
 ## Contract comparison
 
-We can now begin to compare contracts. 
+We can now begin to compare contracts.
 
-The most famous contracts are those contained as part of 
-the [Plutus pioneer program](https://plutus-pioneer-program.readthedocs.io/en/latest/pioneer/week2.html) in week2. 
-Both of them use the same on-chain contract that allows an arbitrary 
-datum and arbitrary redeemer. 
+The most famous contracts are those contained as part of
+the [Plutus pioneer program](https://plutus-pioneer-program.readthedocs.io/en/latest/pioneer/week2.html) in week2.
+Both of them use the same on-chain contract that allows an arbitrary
+datum and arbitrary redeemer.
 
-### Signature and submit 
+### Signature and submit
 
-We are going to need the auxiliary PureScript function that isn't part 
-of CTL: 
+We are going to need the auxiliary PureScript function that isn't part
+of CTL:
 
 ```PureScript
 module ExampleModule where
 
 import Contract.Prelude
-import Contract.Monad (Contract, liftedE, liftedM, logInfo')
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, liftedE)
 import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
 import Contract.PlutusData (PlutusData)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceAndSignTx
+  ( balanceTx
+  , TransactionHash
+  , signTransaction
   , submit
   )
-import Types.TxConstraints (TxConstraints)
-import Types.Transaction (TransactionHash)
+import Contract.TxConstraints (TxConstraints)
 
 buildBalanceSignAndSubmitTx
   :: ScriptLookups PlutusData
@@ -122,54 +123,53 @@ buildBalanceSignAndSubmitTx
   -> Contract () TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints = do
   ubTx <- liftedE $ mkUnbalancedTx lookups constraints
-  bsTx <-
-    liftedM "Failed to balance/sign tx" $ balanceAndSignTx ubTx
+  bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   pure txId
 ```
 
 
-This function takes our lookups and constraints, then it: 
+This function takes our lookups and constraints, then it:
 
-- Constructs an unbalanced transaction. 
+- Constructs an unbalanced transaction.
 - Attempts to balance the transaction.
 - Request the user to sign this transaction.
 - Submits the transaction.
 - Returns the Id for the submitted transaction.
 
-Note that some errors could happen in this process and 
-the use of the functions `liftedE` and `liftedM` to 
-propagate those errors and internalize them in the `Contract` monad. 
-Also, as when we work with Haskell `IO` values, some other 
-errors could happen performing the operations inside 
-and `Aff` effect (some server could be unreachable, 
+Note that some errors could happen in this process and
+the use of the functions `liftedE` and `liftedM` to
+propagate those errors and internalize them in the `Contract` monad.
+Also, as when we work with Haskell `IO` values, some other
+errors could happen performing the operations inside
+and `Aff` effect (some server could be unreachable,
 the user could fail provide the signature, etc).
 
-This is a separate function as is almost boilerplate once we 
+This is a separate function as is almost boilerplate once we
 have set our environment.
 
-We can see this function as a more explicit version of the 
-process made by Plutus with the `submitTx` function: 
+We can see this function as a more explicit version of the
+process made by Plutus with the `submitTx` function:
 
-```Haskell 
--- | Build a transaction that satisfies the constraints, then submit it to 
--- | the network. The constraints do not refer to any 
+```Haskell
+-- | Build a transaction that satisfies the constraints, then submit it to
+-- | the network. The constraints do not refer to any
 -- | typed script inputs or outputs.
-submitTx 
-  :: forall w s e. AsContractError e 
+submitTx
+  :: forall w s e. AsContractError e
     => TxConstraints Void Void -> Contract w s e CardanoTx
 ```
 
-A major difference in both functions is the fact that we 
-are also signing the transaction as part of the balance of 
+A major difference in both functions is the fact that we
+are also signing the transaction as part of the balance of
 the transaction.
 
 
 ### MustPayTo functions
 
 
-In the case of Plutus `Contract`, we use the function 
+In the case of Plutus `Contract`, we use the function
 `mustPayToOtherScript`, according to Plutus ledger, is defined as:
 
 ```Haskell
@@ -184,11 +184,11 @@ In the case of Plutus `Contract`, we use the function
 -- If used in 'Ledger.Constraints.OnChain', this constraint verifies that @d@ is
 -- part of the datum witness set and that the script transaction output with
 -- @vh@, @d@ and @v@ is part of the transaction's outputs.
-mustPayToOtherScript 
+mustPayToOtherScript
   :: forall i o. ValidatorHash -> Datum -> Value -> TxConstraints i o
 ```
 
-While in the case of CTL we would use `mustPayToScript`: 
+While in the case of CTL we would use `mustPayToScript`:
 
 ```PureScript
 -- | Note that CTL does not have explicit equivalents of Plutus'
@@ -204,29 +204,29 @@ mustPayToScript
   -> TxConstraints i o
 ```
 
-### The `give` contract 
+### The `give` contract
 
-Now we can write and compare the `give` contract. 
-This contract takes and amount of Ada from our wallet 
+Now we can write and compare the `give` contract.
+This contract takes and amount of Ada from our wallet
 an lock it to the script that validates any
 transactions.
 
 ```Haskell
--- Haskell 
-give :: 
-  forall (w :: Type) (s :: Type) (e :: Type). 
-    AsContractError e => 
+-- Haskell
+give ::
+  forall (w :: Type) (s :: Type) (e :: Type).
+    AsContractError e =>
       Integer -> Contract w s e ()
 give amount = do
-   let tx = mustPayToOtherScript vHash (Datum $ Constr 0 []) 
+   let tx = mustPayToOtherScript vHash (Datum $ Constr 0 [])
               $ Ada.lovelaceValueOf amount
    ledgerTx <- submitTx tx
    void $ awaitTxConfirmed $ txId ledgerTx
    logInfo @String $ printf "made a gift of %d lovelace" amount
 ```
 
-We include some of the imports for the PureScript 
-contract. 
+We include some of the imports for the PureScript
+contract.
 
 ```PureScript
 -- PureScript
@@ -253,10 +253,10 @@ give vhash = do
 
 ### The `grab` contract
 
-The Plutus `grab` example takes all the UTxOs locked by 
-the on-chain contract that always validates a transaction, and spends 
+The Plutus `grab` example takes all the UTxOs locked by
+the on-chain contract that always validates a transaction, and spends
 them to get all in the wallet of the user running the example.
-This isn't a problem as the example is intended to run inside a 
+This isn't a problem as the example is intended to run inside a
 Plutus `EmulatorTrace` in a local toy environment.
 
 ```Haskell
@@ -268,23 +268,22 @@ grab = do
       lookups = Constraints.unspentOutputs utxos <>
                  Constraints.otherScript validator
       tx :: TxConstraints Void Void
-      tx = 
+      tx =
         mconcat [mustSpendScriptOutput oref $ Redeemer $ I 17 | oref <- orefs]
    ledgerTx <- submitTxConstraintsWith @Void lookups tx
    void $ awaitTxConfirmed $ txId ledgerTx
    logInfo @String $ "collected gifts"
 ```
 
-To talk about the grab contract in CTL we need to talk about some 
-functions and types of CTL first. 
+To talk about the grab contract in CTL we need to talk about some
+functions and types of CTL first.
 
 ```PureScript
-module Plutus.Types.Transaction ... 
+module Ctl.Internal.Plutus.Types.Transaction ...
 .
 .
 .
-type Utxo = Map TransactionInput TransactionOutput
-newtype UtxoM = UtxoM Utxo
+type UtxoMap = Map TransactionInput TransactionOutputWithRefScript
 ```
 
 ```PureScript
@@ -296,17 +295,17 @@ module Contract.Utxos ...
 -- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
 -- | Results may vary depending on `Wallet` type. See `QueryM` for more details
 -- | on wallet variance.
-utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoM)
+utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoMap)
 ```
 
 
-In the case of the CTL version of `grab`, we cannot use all the UTxOs locked by 
-the validator that always validates, since the example is 
-intended to run in the `testnet` and other people could have some 
+In the case of the CTL version of `grab`, we cannot use all the UTxOs locked by
+the validator that always validates, since the example is
+intended to run in the `testnet` and other people could have some
 values locked by the script.
-This is the reason we assume we have already run the `give` contract to 
+This is the reason we assume we have already run the `give` contract to
 pay some `testAda` to the validator first, and then We got a `TransactionHash`.
-We would use the `TransactionHash` to locate the right UTxO to spend. 
+We would use the `TransactionHash` to locate the right UTxO to spend.
 
 ```PureScript
 -- PureScript
@@ -316,8 +315,8 @@ grab
   -> TransactionHash
   -> Contract () Unit
 grab vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
-  UtxoM utxos <- fromMaybe (UtxoM Map.empty) <$> utxosAt scriptAddress
+  let scriptAddress = scriptHashAddress vhash Nothing
+  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
   case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
     Just txInput ->
       let
@@ -347,16 +346,16 @@ Notice the explicit signature in:
   fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _)
 ```
 
-Since PureScript has JS as the backend, `Array` is the most used container 
+Since PureScript has JS as the backend, `Array` is the most used container
 (instead of `List` as in Haskell), so, we prefer the use of `Array` over `List`
 whenever it's adequate.
-A downside of this is the lack of pattern matching over arbitrary arrays. 
+A downside of this is the lack of pattern matching over arbitrary arrays.
 
 
-Both versions of the contract use the same kind of constraints. 
-Both need to add the validator and the UTxOs to the `lookups` 
-and both need the `SpendScriptOutput` constraint. 
-In the case of Plutus, this is done by a special function 
-that accept lookups, while in CTL this is done by the explicit 
+Both versions of the contract use the same kind of constraints.
+Both need to add the validator and the UTxOs to the `lookups`
+and both need the `SpendScriptOutput` constraint.
+In the case of Plutus, this is done by a special function
+that accept lookups, while in CTL this is done by the explicit
 construction of an unbalanced transaction.
 

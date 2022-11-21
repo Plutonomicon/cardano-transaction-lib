@@ -1,7 +1,7 @@
 -- | This module demonstrates creating a UTxO whose datum is inline via the
 -- | `Contract` interface. The `checkDatumIsInlineScript` only validates if the
 -- | scripts own input was supplied with an inline datum matching the redeemer.
-module Examples.PlutusV2.InlineDatum
+module Ctl.Examples.PlutusV2.InlineDatum
   ( main
   , example
   , checkDatumIsInlineScript
@@ -16,40 +16,31 @@ import Contract.Prelude
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftedE
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData
-  ( PlutusData(Integer)
-  , Datum(Datum)
+  ( Datum(Datum)
+  , PlutusData(Integer)
   , Redeemer(Redeemer)
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
-import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV2)
-  , textEnvelopeBytes
-  )
+import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction
-  ( TransactionHash
+  ( OutputDatum(OutputDatum)
+  , TransactionHash
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , OutputDatum(OutputDatum)
   , awaitTxConfirmed
-  , balanceAndSignTxE
-  , submit
-  , plutusV2Script
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 import Data.Map as Map
+import Effect.Exception (error)
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -66,7 +57,6 @@ example cfg = launchAff_ do
     awaitTxConfirmed txId
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromCheckDatumIsInline vhash validator txId
-  publishTestFeedback true
 
 plutusData :: PlutusData
 plutusData = Integer $ BigInt.fromInt 31415927
@@ -87,7 +77,7 @@ payToCheckDatumIsInline vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 spendFromCheckDatumIsInline
   :: ValidatorHash
@@ -95,31 +85,34 @@ spendFromCheckDatumIsInline
   -> TransactionHash
   -> Contract () Unit
 spendFromCheckDatumIsInline vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
-  case fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just txInput -> do
-      let
-        redeemer :: Redeemer
-        redeemer = Redeemer plutusData
+  let scriptAddress = scriptHashAddress vhash Nothing
+  utxos <- utxosAt scriptAddress
+  txInput <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  let
+    redeemer :: Redeemer
+    redeemer = Redeemer plutusData
 
-        lookups :: Lookups.ScriptLookups PlutusData
-        lookups = Lookups.validator validator
-          <> Lookups.unspentOutputs utxos
+    lookups :: Lookups.ScriptLookups PlutusData
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
 
-        constraints :: TxConstraints Unit Unit
-        constraints =
-          Constraints.mustSpendScriptOutput txInput redeemer
+    constraints :: TxConstraints Unit Unit
+    constraints =
+      Constraints.mustSpendScriptOutput txInput redeemer
 
-      spendTxId <- buildBalanceSignAndSubmitTx lookups constraints
-      awaitTxConfirmed spendTxId
-      logInfo' "Successfully spent locked values."
+  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  awaitTxConfirmed spendTxId
+  logInfo' "Successfully spent locked values."
 
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
@@ -141,44 +134,37 @@ payToCheckDatumIsInlineWrong vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
 readFromCheckDatumIsInline
   :: ValidatorHash
   -> TransactionHash
   -> Contract () Unit
 readFromCheckDatumIsInline vhash txId = do
-  let scriptAddress = scriptHashAddress vhash
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
-  case snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _) of
-    Just (TransactionOutputWithRefScript { output }) -> do
-      (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)
-      logInfo' "Successfully read inline datum."
+  let scriptAddress = scriptHashAddress vhash Nothing
+  utxos <- utxosAt scriptAddress
+  TransactionOutputWithRefScript { output } <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      (snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)
+  logInfo' "Successfully read inline datum."
 
-    _ ->
-      logInfo' $ "The id "
-        <> show txId
-        <> " does not have output locked at: "
-        <> show scriptAddress
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
-buildBalanceSignAndSubmitTx
-  :: Lookups.ScriptLookups PlutusData
-  -> TxConstraints Unit Unit
-  -> Contract () TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints = do
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceAndSignTxE ubTx
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  pure txId
-
 foreign import checkDatumIsInline :: String
 
 checkDatumIsInlineScript :: Contract () Validator
-checkDatumIsInlineScript = wrap <<< plutusV2Script <$> textEnvelopeBytes
-  checkDatumIsInline
-  PlutusScriptV2
+checkDatumIsInlineScript =
+  liftMaybe (error "Error decoding checkDatumIsInline") do
+    envelope <- decodeTextEnvelope checkDatumIsInline
+    Validator <$> plutusScriptV2FromEnvelope envelope

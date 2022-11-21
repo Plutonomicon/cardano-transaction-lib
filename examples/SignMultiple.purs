@@ -1,11 +1,11 @@
 -- | This module balances and signs two transactions at once and demonstrates
 -- | the `withBalancedandSignedTxs` bracket. The point is that two different
 -- | Utxos will be used for these transactions.
-module Examples.SignMultiple (example, contract, main) where
+module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -17,22 +17,26 @@ import Contract.Monad
   , throwContractError
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
+  , signTransaction
   , submit
-  , withBalancedAndSignedTxs
+  , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
+import Data.Array (head)
 import Data.BigInt as BigInt
+import Data.Map (Map)
+import Data.Set (Set)
+import Data.UInt (UInt)
 import Effect.Ref as Ref
-import Types.UsedTxOuts (TxOutRefCache)
 
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs
+  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
 getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
@@ -43,8 +47,9 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
+    ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void
@@ -55,24 +60,24 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  txIds <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs
-    logInfo' $ "Locked inputs inside bracket (should be nonempty): " <> show
-      locked
-    traverse submitAndLog txs
+    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+      <> show locked
+    traverse (submitAndLog <=< signTransaction) balancedTxs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
   case txIds of
-    [ txId1, txId2 ] -> do
+    [ txId0, txId1 ] -> do
+      awaitTxConfirmed txId0
+      logInfo' $ "Tx 0 submitted successfully!"
       awaitTxConfirmed txId1
       logInfo' $ "Tx 1 submitted successfully!"
-      awaitTxConfirmed txId2
-      logInfo' $ "Tx 2 submitted successfully!"
     _ -> throwContractError "Unexpected error - no transaction IDs"
 
   where
@@ -88,4 +93,3 @@ contract = do
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true

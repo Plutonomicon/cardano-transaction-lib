@@ -2,17 +2,29 @@
 rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
+    # { name = "preprod"; magic = 1; }
+    # { name = "mainnet"; magic = null; }
+    # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
+    # for info on how to switch networks.
     network = {
-      name = "preprod";
-      magic = 1; # use `null` for mainnet
+      name = "preview";
+      magic = 2; # use `null` for mainnet
     };
+    # *All* of these values are optional, and shown with their default
+    # values. If you need even more customization, you can use `overideAttrs`
+    # to change the values after calling `buildCtlRuntime` (e.g. a secrets
+    # volume for the `postgres` service)
     node = {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
       # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "1.35.3";
+      tag = "1.35.4";
     };
     ogmios = { port = 1337; };
+    # If you don't need to use `applyArgs` (i.e. you're not using parameterized
+    # scripts), you can disable CTL's server entirely in the runtime using
+    # `{ ctlServer.enable = false; }`. Currently we default to enabling it
+    # by default for backwards compatibility
     ctlServer = {
       enable = true;
       port = 8081;
@@ -23,22 +35,29 @@ rec {
       # Postgres will always be accessible via `postgres:5432` from
       # containers.
       port = 5432;
-      user = "ctxlib";
-      password = "ctxlib";
-      db = "ctxlib";
+      user = "ctl";
+      password = "ctl";
+      db = "ctl-${network.name}";
     };
     datumCache = {
       port = 9999;
       controlApiToken = "";
       blockFetcher = {
         firstBlock = {
-          slot = 5854109;
-          id = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
+          slot = 1345203;
+          id = "8f027f183cc72dc90d4cdb8b5815deaef4b57d5a10f078ebfce87cadf9cae688";
         };
         autoStart = true;
         startFromLast = false;
         filter = builtins.toJSON { const = true; };
       };
+    };
+    kupo = {
+      port = 1442;
+      since = "origin";
+      match = "*/*"; # matches Shelley addresses only
+      tag = "v2.2.0";
+      # TODO: Do we want to support connection through ogmios?
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
     # corresponds directly to YAML that would be written in a `docker-compose` file,
@@ -93,6 +112,7 @@ rec {
         );
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
+      kupoDbVol = "kupo-${config.network.name}-db";
       nodeSocketPath = "/ipc/node.socket";
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
@@ -119,6 +139,32 @@ rec {
             ];
           };
         };
+        kupo = {
+          service = {
+            image = "cardanosolutions/kupo:${kupo.tag}";
+            ports = [ (bindPort kupo.port) ];
+            volumes = [
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
+              "${nodeIpcVol}:/ipc"
+              "${kupoDbVol}:/kupo-db"
+            ];
+            command = [
+              "--node-config"
+              "/config/cardano-node/config.json"
+              "--node-socket"
+              "${nodeSocketPath}"
+              "--since"
+              "${kupo.since}"
+              "--defer-db-indexes"
+              "--match"
+              "${"${kupo.match}"}"
+              "--host"
+              "0.0.0.0"
+              "--workdir"
+              "kupo-db"
+            ];
+          };
+        };
         ogmios = {
           service = {
             useHostStore = true;
@@ -140,7 +186,7 @@ rec {
             ];
           };
         };
-        postgres = {
+        "postgres-${network.name}" = {
           service = {
             image = "postgres:13";
             ports =
@@ -165,7 +211,7 @@ rec {
               useHostStore = true;
               ports = [ (bindPort datumCache.port) ];
               restart = "on-failure";
-              depends_on = [ "postgres" "ogmios" ];
+              depends_on = [ "postgres-${network.name}" "ogmios" ];
               command = [
                 "${pkgs.bash}/bin/sh"
                 "-c"
@@ -178,7 +224,7 @@ rec {
                     --ogmios-address ogmios \
                     --ogmios-port ${toString ogmios.port} \
                     --db-port 5432 \
-                    --db-host postgres \
+                    --db-host postgres-${network.name} \
                     --db-user "${postgres.user}" \
                     --db-name "${postgres.db}" \
                     --db-password "${postgres.password}" \
@@ -211,6 +257,7 @@ rec {
           volumes = {
             "${nodeDbVol}" = { };
             "${nodeIpcVol}" = { };
+            "${kupoDbVol}" = { };
           };
         }
         config.extraDockerCompose;

@@ -1,21 +1,21 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a transaction. It creates a simple transaction that gets
 -- | UTxOs from the user's wallet and sends two Ada back to the same wallet address
-module Examples.Pkh2Pkh (main, contract, example) where
+module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
+import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Data.Array (head)
 import Data.BigInt as BigInt
-import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -23,8 +23,9 @@ main = example testnetNamiConfig
 contract :: Contract () Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
-  pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
-  skh <- liftedM "Failed to get own SKH" ownStakePubKeyHash
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
+    ownStakePubKeysHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void
@@ -39,7 +40,6 @@ contract = do
 
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"
-  liftAff $ publishTestFeedback true
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do

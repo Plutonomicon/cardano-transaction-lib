@@ -1,4 +1,4 @@
-module Test.Types.Interval
+module Test.Ctl.Types.Interval
   ( suite
   , eraSummariesFixture
   , systemStartFixture
@@ -6,11 +6,32 @@ module Test.Types.Interval
 
 import Prelude
 
-import Aeson (decodeJsonString, class DecodeAeson, printJsonDecodeError)
-import Control.Monad.Except (throwError)
+import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
 import Control.Monad.Error.Class (liftEither)
-import Data.BigInt (fromString) as BigInt
+import Control.Monad.Except (throwError)
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Ctl.Internal.Types.Interval
+  ( Interval
+  , POSIXTime(POSIXTime)
+  , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
+  , always
+  , contains
+  , from
+  , hull
+  , intersection
+  , isEmpty
+  , member
+  , mkFiniteInterval
+  , never
+  , posixTimeToSlot
+  , slotToPosixTime
+  , to
+  )
 import Data.Bifunctor (lmap)
+import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Traversable (traverse_)
@@ -21,26 +42,26 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
 import Partial.Unsafe (unsafePartial)
-import QueryM.Ogmios (EraSummaries, SystemStart)
-import Serialization.Address (Slot(Slot))
+import Test.QuickCheck (Result(Success, Failed), quickCheck, (<?>))
+import Test.QuickCheck.Combinators ((&=&))
 import Test.Spec.Assertions (shouldEqual)
-import TestM (TestPlanM)
-import Types.BigNum (fromInt) as BigNum
-import Types.Interval
-  ( PosixTimeToSlotError(PosixTimeBeforeSystemStart)
-  , POSIXTime(POSIXTime)
-  , posixTimeToSlot
-  , slotToPosixTime
-  )
 
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
-  group "Interval type" do
-    test "Inverse posixTimeToSlot >>> slotToPosixTime " $
-      testPosixTimeToSlot
-    test "Inverse slotToPosixTime >>> posixTimeToSlot " $
-      testSlotToPosixTime
-    test "PosixTimeToSlot errors" $ testPosixTimeToSlotError
+  group "Interval" do
+    group "EraSumaries related" do
+      test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
+      test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
+      test "PosixTimeToSlot errors" testPosixTimeToSlotError
+    group "Properties" do
+      test "UpperRay" $ liftToTest testUpperRay
+      test "LowerRay" $ liftToTest testLowerRay
+      test "Always" $ liftToTest testAlways
+      test "Empty" $ liftToTest testEmpty
+      test "FiniteInterval" $ liftToTest testFiniteInterval
+      test "Contains" $ liftToTest testContains
+      test "Hull" $ liftToTest testHull
+      test "Intersection" $ liftToTest testIntersection
 
 loadOgmiosFixture
   :: forall (a :: Type). DecodeAeson a => String -> String -> Effect a
@@ -145,9 +166,6 @@ testPosixTimeToSlot eraSummaries sysStart = do
         either (throwError <<< error <<< show) (shouldEqual $ transf posixTime)
           ePosixTime
 
-mkPosixTime :: String -> POSIXTime
-mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString
-
 testSlotToPosixTime :: EraSummaries -> SystemStart -> Effect Unit
 testSlotToPosixTime eraSummaries sysStart = do
   -- See *Testing far into the future note during hardforks:* for details on
@@ -197,3 +215,184 @@ testPosixTimeToSlotError eraSummaries sysStart = do
       Right _ ->
         throwError $ error $ "Test should have failed giving: " <> show
           expectedErr
+
+-- All this test can be generalized to use :
+-- forall (a::Type) . Arbitrary a => Ord a => Ring a
+
+testUpperRay :: Effect Unit
+testUpperRay = quickCheck test
+  where
+  test :: Int -> Result
+  test value =
+    let
+      ray = from value
+      isIn = value `member` ray <?> "value is member of ray"
+      notIn = not ((sub value one) `member` ray)
+        <?> "check that " <> show (sub value one) <> " is not in ray"
+    in
+      withMsg
+        ("value : " <> show value <> ", ray :" <> show ray)
+        $ isIn &=& notIn
+
+testLowerRay :: Effect Unit
+testLowerRay = quickCheck test
+  where
+  test :: Int -> Result
+  test value =
+    let
+      ray = to value
+      isIn = value `member` ray <?> "value is member of ray"
+      notIn = not ((add one value) `member` ray)
+        <?> "check that " <> show (add one value) <> " is not in ray"
+    in
+      withMsg
+        ("value : " <> show value <> ", ray :" <> show ray)
+        $ isIn &=& notIn
+
+testAlways :: Effect Unit
+testAlways = quickCheck test
+  where
+  test :: Int -> Result
+  test value = value `member` always
+    <?> "check that " <> show value <> ", is in always"
+
+testEmpty :: Effect Unit
+testEmpty = quickCheck test
+  where
+  test :: Int -> Result
+  test value = (not $ value `member` never)
+    <?> "check that " <> show value <> ", isn't in empty"
+
+testFiniteInterval :: Effect Unit
+testFiniteInterval = quickCheck test
+  where
+  test :: Int -> Int -> Result
+  test in1 in2 =
+    let
+      start = BigInt.fromInt (min in1 in2)
+      end = BigInt.fromInt (max in1 in2)
+      inter = mkFiniteInterval start end
+      startIn = start `member` inter <?> "start in interval"
+      endIn = end `member` inter <?> "end in interval"
+      beforeNotIn = (not $ (sub start one) `member` inter)
+        <?> "values before start aren't in interval"
+      afterNotIn = (not $ (add one end) `member` inter)
+        <?> "values after end aren't in interval"
+    in
+      withMsg
+        ( "start : " <> show start
+            <> ", end : "
+            <> show end
+            <> ", interval :"
+            <> show inter
+        )
+        $ startIn &=& endIn &=& beforeNotIn &=& afterNotIn
+
+testContains :: Effect Unit
+testContains = quickCheck test
+  where
+  test :: Int -> Interval Int -> Result
+  test value interval =
+    let
+      inAlways =
+        value `member` always
+          && always `contains` interval
+          <?> "always has all the values and intervals"
+      cantContainAlways =
+        ( interval == always
+            || not (interval `contains` always)
+        )
+          <?> "always can't be contained in other intervals"
+      hasEmpty = interval `contains` never
+        <?> "i `contains` EmptyInterval"
+      notInEmpty =
+        not (value `member` never)
+          &&
+            ( never == interval
+                || not (never `contains` interval)
+            )
+          <?> "empty can't contain others values or intervals"
+      reflexivity = interval `contains` interval
+        <?> "i `contains` i"
+    in
+      withMsg
+        ( "value : " <> show value
+            <> ", interval : "
+            <> show interval
+        )
+        $ inAlways &=& cantContainAlways &=& hasEmpty &=& notInEmpty
+            &=& reflexivity
+
+testHull :: Effect Unit
+testHull = quickCheck test
+  where
+  test :: Interval Int -> Interval Int -> Result
+  test i1 i2 =
+    let
+      theHull = hull i1 i2
+      contains1 = theHull `contains` i1 <?> "i1 contained in `hull i1 i2`"
+      contains2 = theHull `contains` i2 <?> "i2 contained in `hull i1 i2`"
+      symmetric = hull i2 i1 == theHull <?> "`hull i1 i2 == hull i2 i1`"
+      -- since it's symmetric we only need to check this for idempotence
+      idempotent = hull theHull i2 == theHull
+        <?> "`hull (hull i1 i2) i1 == hull i1 i2`"
+      alwaysTest =
+        hull i1 always `contains` i1
+          && hull i2 always `contains` i2
+          <?> "hull i always `contains` i"
+    in
+      withMsg
+        ( "i1 : " <> show i1
+            <> ", i2 : "
+            <> show i2
+            <> ", hull i1 i2 : "
+            <> show theHull
+        )
+        $ contains1 &=& contains2 &=& symmetric &=& idempotent &=& alwaysTest
+
+testIntersection :: Effect Unit
+testIntersection = quickCheck test
+  where
+  test :: Interval Int -> Interval Int -> Result
+  test i1 i2 =
+    let
+      theHull = hull i1 i2
+      inter1 = intersection i1 theHull
+      inHull = inter1 == i1 <?> "i1 `intersection` hull i1 i2 is i1"
+      symmetric =
+        inter1 == intersection theHull i1
+          && intersection i1 i2 == intersection i2 i1
+          <?> "intersection i1 i2 = intersection i2 i1"
+      idempotent =
+        intersection i1 inter1 == inter1
+          && intersection i1 (intersection i1 i2) == intersection i1 i2
+          <?> "intersection i1 (intersection i1 i2) == intersection i1 i2"
+      neverTest =
+        isEmpty (intersection i1 never)
+          && isEmpty (intersection i2 never)
+          <?> "intersection i EmptyInterval == EmptyInterval"
+    in
+      withMsg
+        ( "i1 : " <> show i1
+            <> ", i2 : "
+            <> show i2
+            <> ", hull i1 i2 : "
+            <> show theHull
+            <> ", inter : "
+            <> show inter1
+        )
+        $ inHull &=& symmetric &=& idempotent &=& neverTest
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+liftToTest :: Effect Unit -> (EraSummaries -> SystemStart -> Effect Unit)
+liftToTest = pure <<< pure
+
+withMsg :: String -> Result -> Result
+withMsg _ Success = Success
+withMsg msg (Failed original) = Failed $ "(" <> msg <> ") : " <> original
+
+mkPosixTime :: String -> POSIXTime
+mkPosixTime = POSIXTime <<< unsafePartial fromJust <<< BigInt.fromString

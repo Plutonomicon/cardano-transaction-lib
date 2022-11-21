@@ -1,4 +1,4 @@
-module Examples.PlutusV2.ReferenceScripts
+module Ctl.Examples.PlutusV2.ReferenceScripts
   ( main
   , example
   , contract
@@ -6,14 +6,14 @@ module Examples.PlutusV2.ReferenceScripts
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
 import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (ValidatorHash, validatorHash)
-import Contract.Test.E2E (publishTestFeedback)
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
@@ -29,10 +29,11 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
+import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
-import Data.Map (empty, toUnfoldable) as Map
-import Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
-import Examples.PlutusV2.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Data.Map (toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -40,7 +41,6 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-  publishTestFeedback true
 
 contract :: Contract () Unit
 contract = do
@@ -62,12 +62,25 @@ contract = do
 payWithScriptRefToAlwaysSucceeds
   :: ValidatorHash -> ScriptRef -> Contract () TransactionHash
 payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
+  -- Send to own stake credential. This is used to test
+  -- `mustPayToScriptAddressWithScriptRef`
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
   let
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
-        scriptRef
-        (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+      case mbStakeKeyHash of
+        Nothing ->
+          Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
+            scriptRef
+            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+        Just stakeKeyHash ->
+          Constraints.mustPayToScriptAddressWithScriptRef
+            vhash
+            (PubKeyCredential $ unwrap stakeKeyHash)
+            unitDatum
+            DatumWitness
+            scriptRef
+            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
@@ -76,8 +89,13 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
 
 spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract () Unit
 spendFromAlwaysSucceeds vhash txId = do
-  let scriptAddress = scriptHashAddress vhash
-  utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress
+  -- Send to own stake credential. This is used to test
+  -- `mustPayToScriptAddressWithScriptRef`
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
+  let
+    scriptAddress =
+      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
+  utxos <- utxosAt scriptAddress
 
   txInput /\ txOutput <-
     liftContractM "Could not find unspent output locked at script address"
@@ -90,7 +108,7 @@ spendFromAlwaysSucceeds vhash txId = do
         (SpendInput $ mkTxUnspentOut txInput txOutput)
 
     lookups :: Lookups.ScriptLookups PlutusData
-    lookups = Lookups.unspentOutputs utxos
+    lookups = mempty
 
   spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
   awaitTxConfirmed spendTxId

@@ -1,7 +1,13 @@
 -- | This module demonstrates how the `Contract` interface can be used to build,
 -- | balance, and submit a smart-contract transaction. It creates a transaction
 -- | that mints a value using the `AlwaysMints` policy
-module Examples.AlwaysMints (main, example, contract, alwaysMintsPolicy) where
+module Ctl.Examples.AlwaysMints
+  ( alwaysMintsPolicy
+  , alwaysMintsPolicyMaybe
+  , contract
+  , example
+  , main
+  ) where
 
 import Contract.Prelude
 
@@ -9,21 +15,22 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
-import Contract.Test.E2E (publishTestFeedback)
+import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.TextEnvelope
-  ( TextEnvelopeType(PlutusScriptV1)
-  , textEnvelopeBytes
+  ( decodeTextEnvelope
+  , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed, plutusV1Script)
+import Contract.Transaction (awaitTxConfirmed)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Data.BigInt as BigInt
-import Examples.Helpers
+import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
   , mkTokenName
   ) as Helpers
+import Data.BigInt as BigInt
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -51,10 +58,14 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 
-  publishTestFeedback true
-
 foreign import alwaysMints :: String
 
+alwaysMintsPolicyMaybe :: Maybe MintingPolicy
+alwaysMintsPolicyMaybe = do
+  envelope <- decodeTextEnvelope alwaysMints
+  PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+
 alwaysMintsPolicy :: Contract () MintingPolicy
-alwaysMintsPolicy = wrap <<< plutusV1Script <$> textEnvelopeBytes alwaysMints
-  PlutusScriptV1
+alwaysMintsPolicy =
+  liftMaybe (error "Error decoding alwaysMintsPolicy")
+    alwaysMintsPolicyMaybe

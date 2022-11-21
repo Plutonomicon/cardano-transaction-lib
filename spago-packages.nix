@@ -7,11 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "286862a975f4bafbef15540c365bbbb0480e0bf7";
+        version = "8e9d42980e824450c18c397295573160d1ce8424";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "286862a975f4bafbef15540c365bbbb0480e0bf7";
-          sha256 = "1d5h9n9f2qk8hjzqmhjfzwf86x3y60g3cm13gyvm5aaqjraaksvg";
+          rev = "8e9d42980e824450c18c397295573160d1ce8424";
+          sha256 = "0cz6wvrld468sc1i98wv7zsqxsp99lhianb4pxmsqfcz353a6sc9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -463,11 +463,11 @@ let
 
     "free" = pkgs.stdenv.mkDerivation {
         name = "free";
-        version = "v6.1.0";
+        version = "v6.2.0";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript/purescript-free.git";
-          rev = "fea875168b4da6dec7ab819d780d8ecde9f37dbd";
-          sha256 = "038wbpmbv86q8s69fcvqb8fngkqc863axp7khzgnsqw55d1926r4";
+          rev = "c185c0b2144ddfb2bc3ac2b345df32e33221b21d";
+          sha256 = "10zsw49wzlzz78882b3grl19gpca5llpdk3ph608075h0ygk3q3k";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -811,11 +811,11 @@ let
 
     "node-fs" = pkgs.stdenv.mkDerivation {
         name = "node-fs";
-        version = "v6.1.0";
+        version = "v6.2.0";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript-node/purescript-node-fs.git";
-          rev = "09a2b71a3a86f0cd19c46f4b6c40310cc1648909";
-          sha256 = "1w97m2afn7yn757niknkbk7w6nyg4n5dabxr7gzfz368z1nkf45s";
+          rev = "3cb63cc55a02e506fe07d3940a50d6f0eb6ca2f2";
+          sha256 = "1b89sxr6asxvgx59myhfbahiiz1z6sg2qfrm9bqd46h93ai8bhn1";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -876,6 +876,18 @@ let
           url = "https://github.com/purescript-node/purescript-node-process.git";
           rev = "e1e807ac7831d1a8a15e242964f7e5005e42f76b";
           sha256 = "0nl9r271s8f71a9wqfkadq9b490h8phwgqc61jbzhm4ags23pqpg";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "node-readline" = pkgs.stdenv.mkDerivation {
+        name = "node-readline";
+        version = "v5.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-readline.git";
+          rev = "c59deb30c7ff5cc91d6b062120c5a3979bd4ccff";
+          sha256 = "0c299bvkhrdbij88fxb75sdm7bl4wpgv9fz7wsj0hw6gkxmplpj9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1471,11 +1483,11 @@ let
 
     "unicode" = pkgs.stdenv.mkDerivation {
         name = "unicode";
-        version = "v5.0.0";
+        version = "v5.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/purescript-contrib/purescript-unicode.git";
-          rev = "8e360802e31d080dec7f3ddf4d3329c56773490f";
-          sha256 = "0sqvgl3il2rl3zxkbzsqb19wib108zvyw73jxiavpfdm6hdmnxvc";
+          rev = "2b66dcdb2ea533c7bc864574e860012c57ace2aa";
+          sha256 = "0xh9wwyrl9nsw3h3wzalc1gaph39drj0i6k648cf9bnbb96nxa4z";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

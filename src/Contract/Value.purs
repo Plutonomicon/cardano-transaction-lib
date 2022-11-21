@@ -6,15 +6,7 @@ module Contract.Value
   , module Value
   ) where
 
-import Scripts (scriptCurrencySymbol) as Scripts
-import Types.TokenName
-  ( TokenName
-  , adaToken
-  , getTokenName
-  , mkTokenName
-  , mkTokenNames
-  ) as TokenName
-import Plutus.Types.CurrencySymbol
+import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
   , currencyMPSHash
@@ -23,7 +15,7 @@ import Plutus.Types.CurrencySymbol
   , mpsSymbol
   , scriptHashAsCurrencySymbol
   ) as CurrencySymbol
-import Plutus.Types.Value
+import Ctl.Internal.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
@@ -49,3 +41,11 @@ import Plutus.Types.Value
   , valueToCoin
   , valueToCoin'
   ) as Value
+import Ctl.Internal.Scripts (scriptCurrencySymbol) as Scripts
+import Ctl.Internal.Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  ) as TokenName

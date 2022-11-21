@@ -1,18 +1,11 @@
-module Test.Plutus.Time
+module Test.Ctl.Internal.Plutus.Time
   ( suite
   ) where
 
 import Prelude
 
-import Data.BigInt as BigInt
-import Data.Int as Int
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
-import Effect.Aff (Aff)
-import Mote (group)
-import QueryM.Ogmios
-  ( CurrentEpoch(CurrentEpoch)
-  , Epoch(Epoch)
+import Ctl.Internal.QueryM.Ogmios
+  ( Epoch(Epoch)
   , EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -23,11 +16,10 @@ import QueryM.Ogmios
   , SlotLength(SlotLength)
   , SystemStart(SystemStart)
   )
-import Serialization.Address (Slot(Slot))
-import Test.Utils (toFromAesonTest, toFromAesonTestWith)
-import TestM (TestPlanM)
-import Types.BigNum as BigNum
-import Types.Interval
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)
   , POSIXTime(POSIXTime)
@@ -48,6 +40,13 @@ import Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
+import Data.BigInt as BigInt
+import Data.Int as Int
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
+import Effect.Aff (Aff)
+import Mote (group)
+import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
 
 slotFixture :: Slot
 slotFixture = mkSlot 34892625
@@ -76,8 +75,8 @@ relTimeFixture = RelTime $ BigInt.fromInt 85723
 relSlotFixture :: RelSlot
 relSlotFixture = RelSlot $ BigInt.fromInt 12855
 
-currentEpochFixture :: CurrentEpoch
-currentEpochFixture = CurrentEpoch $ BigInt.fromInt 58326646
+currentEpochFixture :: Epoch
+currentEpochFixture = Epoch $ BigInt.fromInt 58326646
 
 systemStartFixture :: SystemStart
 systemStartFixture = SystemStart "2019-07-24T20:20:16Z"

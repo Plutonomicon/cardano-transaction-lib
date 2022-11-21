@@ -4,14 +4,19 @@ This document outlines CTL's test plan, i.e. a formalized description of testing
 
 **Table of Contents**
 
-- [User interactions](#user-interactions)
-  - [Constraints/lookups](#constraintslookups)
-    - [Exceptions](#exceptions)
-  - [Other functionality](#other-functionality)
-- [Acceptance criteria](#acceptance-criteria)
-  - [Example contracts as tests](#example-contracts-as-tests)
-  - [Test environments](#test-environments)
-  - [Unit and integration testing](#unit-and-integration-testing)
+* [User interactions](#user-interactions)
+  + [Constraints/lookups](#constraints-lookups)
+    - [Stake operations](#stake-operations)
+      * [Stake pools](#stake-pools)
+      * [Stake credential registration](#stake-credential-registration)
+      * [Delegation](#delegation)
+      * [Rewards withdrawal](#rewards-withdrawal)
+      * [Stake credential deregistration](#stake-credential-deregistration)
+  + [Other functionality](#other-functionality)
+* [Acceptance criteria](#acceptance-criteria)
+  + [Example contracts as tests](#example-contracts-as-tests)
+    - [Test environments](#test-environments)
+  + [Unit and integration testing](#unit-and-integration-testing)
     - [Required parsing tests](#required-parsing-tests)
 
 ## User interactions
@@ -25,53 +30,82 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] `mustMintValue` (`mintingPolicy`). Also implies
   - `mustMintCurrency`
 - [x] `mustPayToScript` (`validator`)
+- [x] `mustPayToScriptAddress`
 - [x] `mustPayToPubKey`
   - **Note**: This invokes the same code as `mustPayToPubKeyAddress`, but does not include a stake key component
 - [x] `mustPayToPubKeyAddress`
 - [x] `mustMintValueWithRedeemer` (`mintingPolicy`). Also implies
   - `mustMintCurrencyWithRedeemer`
 - [x] `mustSpendScriptOutput`
-- [ ] `mustSpendPubKeyOutput`
-  - **Note**: This constraint is included in our stake key integration with Plutip. We should still write a full contract that uses it
-- [ ] `mustBeSignedBy`
-  - **Note**: This constraint is also included in our Plutip stake key integration, as with `mustSpendPubKeyOutput`
-- [ ] `mustHashDatum`
-- [ ] `mustIncludeDatum`
-- [ ] `mustPayWithDatumToPubKey`
-- [ ] `mustPayWithDatumToPubKeyAddress`
-- [ ] `mustProduceAtLeastTotal`. Also implies
-  - [ ] `mustProduceAtLeast`
-- [ ] `mustSatisfyAnyOf`
-- [ ] `mustSpendAtLeastTotal`. Also implies
-  - [ ] `mustSpendAtLeast`
-- [ ] `mustSpendPubKeyOutput`
-- [ ] `mustValidateIn`
+- [x] `mustSpendPubKeyOutput`
+- [x] `mustBeSignedBy`
+- [x] `mustHashDatum`
+- [x] `mustIncludeDatum`
+- [x] `mustPayToPubKeyWithDatum`
+- [x] `mustPayToPubKeyAddressWithDatum`
+- [x] `mustProduceAtLeastTotal`. Also implies
+  - [x] `mustProduceAtLeast`
+- [x] `mustSatisfyAnyOf`
+- [x] `mustSpendAtLeastTotal`. Also implies
+  - [x] `mustSpendAtLeast`
+- [x] `mustValidateIn`
 
 The following constraints were added for `PlutusV2` features as part of our `v2.0.0` release. They do not have direct correspondances in `plutus-apps`:
 
 - [x] `mustMintCurrencyUsingScriptRef`
 - [x] `mustMintCurrencyWithRedeemerUsingScriptRef`
 - [x] `mustPayToScriptWithScriptRef`
+- [x] `mustPayToScriptAddressWithScriptRef`
 - [x] `mustPayToPubKeyAddressWithDatumAndScriptRef`
 - [x] `mustPayToPubKeyAddressWithScriptRef`
 - [x] `mustPayToPubKeyWithDatumAndScriptRef`
 - [x] `mustPayToPubKeyWithScriptRef`
+- [x] `mustReferenceOutput`
 - [x] `mustSpendScriptOutputUsingScriptRef`
 
 That release also included the following constraints for working with native scripts, which also have no `plutus-apps` analogue:
 
 - [x] `mustPayToNativeScript`
+- [x] `mustPayToNativeScriptAddress`
 - [x] `mustSpendNativeScriptOutput`
 
 In addition, several redeemer combinations in a **single transaction** must be covered by tests or examples as well, namely
 
 - [x] Two or more `Mint` redeemers
-- [ ] Two or more `Spend` redeemers
-- [ ] (At least) One each of a `Spend` and `Mint` redeemer
+- [x] Two or more `Spend` redeemers
+- [x] (At least) One each of a `Spend` and `Mint` redeemer
 
-#### Exceptions
+#### Stake operations
 
-CTL does **not** currently support staking validators (see [#785](https://github.com/Plutonomicon/cardano-transaction-lib/issues/785)) so other `RedeemerTag`s are currently exempt from the above requirements. CTL also only makes guarantees for the **present era**, currently Babbage.
+New constraints for operations with stake will be added in `v3`.
+
+##### Stake pools
+
+- [x] mustRegisterPool
+- [x] mustRetirePool
+
+##### Stake credential registration
+
+- [x] mustRegisterStakePubKey
+- [x] mustRegisterStakeScript
+
+##### Delegation
+
+- [x] mustDelegateStakePubKey
+- [x] mustDelegateStakePlutusScript
+- [x] mustDelegateStakeNativeScript
+
+##### Rewards withdrawal
+
+- [x] mustWithdrawStakePubKey
+- [x] mustWithdrawStakePlutusScript
+- [x] mustWithdrawStakeNativeScript
+
+##### Stake credential deregistration
+
+- [x] mustDeregisterStakePubKey
+- [x] mustDeregisterStakePlutusScript
+- [x] mustDeregisterStakeNativeScript
 
 ### Other functionality
 
@@ -86,7 +120,7 @@ In addition to the constraints/lookups listed above, there are several other cri
 - `Contract.Scripts.*`
   - [x] `validatorHash`
   - [x] `mintingPolicy`
-  - [ ] `applyArgs`
+  - [x] `applyArgs`
 - `Contract.Hashing.*`
   - [x] `datumHash`
   - [x] `plutusScriptHash`
@@ -187,8 +221,8 @@ Currently, we require parsing tests for the following data structures, organized
   - [x] `SubmitTxR`
 - `ogmios-datum-cache`
   - [x] `GetDatumByHashR`
-  - [ ] `GetDatumsByHashesR`
-  - [ ] `GetTxByHashR`
+  - [x] `GetDatumsByHashesR`
+  - [x] `GetTxByHashR`
 - `cardano-serialization-lib`
   - `Transaction`
     - [x] Serialization

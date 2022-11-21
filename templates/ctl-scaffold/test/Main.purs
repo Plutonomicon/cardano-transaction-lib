@@ -1,7 +1,10 @@
-module Scaffold.Test.Main (main) where
+-- | This module implements a test suite that uses Plutip to automate running
+-- | contracts in temporary, private networks.
+module Test.Scaffold.Main (main) where
 
 import Contract.Prelude
 
+import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
 import Contract.Test.Plutip as Contract.Test.Plutip
 import Contract.Wallet as Contract.Wallet
@@ -44,6 +47,12 @@ config =
       , secure: false
       , path: Nothing
       }
+  , kupoConfig:
+      { port: UInt.fromInt 1443
+      , host: "127.0.0.1"
+      , secure: false
+      , path: Nothing
+      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: UInt.fromInt 5433
@@ -52,5 +61,6 @@ config =
       , dbname: "ctxlib"
       }
   , customLogger: Nothing
-  , suppressLogs: false
+  , suppressLogs: true
+  , hooks: Contract.Config.emptyHooks
   }

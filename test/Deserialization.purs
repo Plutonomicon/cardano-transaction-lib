@@ -1,44 +1,56 @@
-module Test.Deserialization (suite) where
+module Test.Ctl.Deserialization (suite) where
 
 import Prelude
 
-import Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
-import Cardano.Types.Transaction (TransactionOutput) as T
-import Cardano.Types.TransactionUnspentOutput
+import Contract.Address (ByteArray)
+import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
+import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
+import Ctl.Internal.Cardano.TextEnvelope
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeType(Other)
+  , decodeTextEnvelope
+  )
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
+import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import Contract.Address (ByteArray)
-import Control.Monad.Error.Class (class MonadThrow)
+import Ctl.Internal.Deserialization.BigInt as DB
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.NativeScript as NSD
+import Ctl.Internal.Deserialization.PlutusData as DPD
+import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
+import Ctl.Internal.Deserialization.UnspentOutput
+  ( convertUnspentOutput
+  , mkTransactionUnspentOutput
+  , newTransactionUnspentOutputFromBytes
+  )
+import Ctl.Internal.Deserialization.WitnessSet
+  ( convertWitnessSet
+  , deserializeWitnessSet
+  )
+import Ctl.Internal.Serialization (convertTransaction) as TS
+import Ctl.Internal.Serialization (toBytes)
+import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization.BigInt as SB
+import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
+import Ctl.Internal.Serialization.PlutusData as SPD
+import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
+import Ctl.Internal.Serialization.WitnessSet as SW
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
+import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
-import Deserialization.BigInt as DB
-import Deserialization.FromBytes (fromBytes)
-import Deserialization.NativeScript as NSD
-import Deserialization.PlutusData as DPD
-import Deserialization.Transaction (convertTransaction) as TD
-import Deserialization.UnspentOutput
-  ( convertUnspentOutput
-  , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
-  )
-import Serialization (convertTransaction) as TS
-import Deserialization.WitnessSet (convertWitnessSet, deserializeWitnessSet)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error)
-import Mote (group, test)
-import Serialization (toBytes)
-import Serialization as Serialization
-import Serialization.BigInt as SB
-import Serialization.NativeScript (convertNativeScript) as NSS
-import Serialization.PlutusData as SPD
-import Serialization.Types (TransactionUnspentOutput)
-import Serialization.WitnessSet as SW
-import Test.Fixtures
+import Effect.Exception (Error, error)
+import Mote (group, skip, test)
+import Test.Ctl.Fixtures
   ( nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
@@ -61,6 +73,7 @@ import Test.Fixtures
   , txFixture3
   , txFixture4
   , txFixture5
+  , txFixture6
   , txInputFixture1
   , txOutputFixture1
   , utxoFixture1
@@ -72,11 +85,8 @@ import Test.Fixtures
   , witnessSetFixture3Value
   , witnessSetFixture4
   )
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy, expectError)
-import Test.Utils (errMaybe)
-import TestM (TestPlanM)
-import Types.BigNum (fromBigInt, toBigInt) as BigNum
-import Types.Transaction (TransactionInput) as T
+import Test.Ctl.Utils (errMaybe)
+import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -146,32 +156,13 @@ suite = do
           newTransactionUnspentOutputFromBytes utxoFixture1 >>=
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
-    group "Transaction" do
-      test "deserialization is inverse to serialization #1" do
-        let input = txFixture1
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #2" do
-        let input = txFixture2
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #3" do
-        let input = txFixture3
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #4" do
-        let input = txFixture4
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
-      test "deserialization is inverse to serialization #5" do
-        let input = txFixture5
-        serialized <- liftEffect $ TS.convertTransaction input
-        let expected = TD.convertTransaction serialized
-        pure input `shouldEqual` hush expected
+    group "Transaction Roundtrips" do
+      test "CSL <-> CTL Transaction roundtrip #1" $ txRoundtrip txFixture1
+      test "CSL <-> CTL Transaction roundtrip #2" $ txRoundtrip txFixture2
+      test "CSL <-> CTL Transaction roundtrip #3" $ txRoundtrip txFixture3
+      test "CSL <-> CTL Transaction roundtrip #4" $ txRoundtrip txFixture4
+      test "CSL <-> CTL Transaction roundtrip #5" $ txRoundtrip txFixture5
+      test "CSL <-> CTL Transaction roundtrip #6" $ txRoundtrip txFixture6
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
@@ -219,12 +210,12 @@ suite = do
       test "fixture #7" do
         liftEffect $ testNativeScript nativeScriptFixture7
       -- This is here just to acknowledge the problem
-      test "too much nesting leads to recursion error" do
+      skip $ test "too much nesting leads to recursion error" do
         expectError $ do
           let
             longNativeScript =
               Array.foldr (\_ acc -> T.ScriptAny [ acc ]) nativeScriptFixture1 $
-                Array.range 0 5000
+                Array.range 0 50 -- change this to 50000
           liftEffect $ testNativeScript longNativeScript
     group "WitnessSet - deserialization is inverse to serialization" do
       let
@@ -247,6 +238,11 @@ suite = do
       test "fixture #3" $ witnessSetRoundTrip witnessSetFixture3
       -- TODO: enable when nativeScripts are implemented
       test "fixture #4" $ witnessSetRoundTrip witnessSetFixture4
+    group "TextEnvelope decoding" do
+      test "Decoding TestEnvelope with some other type" do
+        TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
+          decodeTextEnvelope otherTypeTextEnvelope
+        envelope.type_ `shouldEqual` (Other "SomeOtherType")
 
 createUnspentOutput
   :: T.TransactionInput
@@ -259,8 +255,21 @@ createUnspentOutput input output = do
 
 testNativeScript :: T.NativeScript -> Effect Unit
 testNativeScript input = do
-  serialized <- errMaybe "Failed serialization" $ NSS.convertNativeScript input
+  serialized <- pure $ NSS.convertNativeScript input
+  {-            ^^^^ This is necessary here as convertNativeScript can throw
+                a maximum call stack size runtime error (see excessive nesting
+                test above). It needs to be lifted into the Effect monad for
+                purescript to handle it correctly.
+  -}
+
   let bytes = Serialization.toBytes (asOneOf serialized)
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input
+
+txRoundtrip :: T.Transaction -> Aff Unit
+txRoundtrip tx = do
+  cslTX <- liftEffect $ TS.convertTransaction tx
+  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
+    TD.convertTransaction cslTX
+  tx `shouldEqual` expected

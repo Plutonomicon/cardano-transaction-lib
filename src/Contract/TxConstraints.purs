@@ -2,45 +2,33 @@
 -- | as part of an off-chain transaction.
 module Contract.TxConstraints (module TxConstraints) where
 
-import Types.TxConstraints
+import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
-  , TxConstraint
-      ( MustIncludeDatum
-      , MustValidateIn
-      , MustBeSignedBy
-      , MustSpendAtLeast
-      , MustProduceAtLeast
-      , MustSpendPubKeyOutput
-      , MustSpendScriptOutput
-      , MustSpendNativeScriptOutput
-      , MustReferenceOutput
-      , MustMintValue
-      , MustPayToPubKeyAddress
-      , MustPayToScript
-      , MustHashDatum
-      , MustSatisfyAnyOf
-      , MustNotBeValid
-      )
   , TxConstraints(TxConstraints)
   , addTxIn
   , isSatisfiable
-  , modifiesUtxoSet
   , mustBeSignedBy
+  , mustDelegateStakeNativeScript
+  , mustDelegateStakePlutusScript
+  , mustDelegateStakePubKey
+  , mustDeregisterStakeNativeScript
+  , mustDeregisterStakePlutusScript
+  , mustDeregisterStakePubKey
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
+  , mustMintCurrencyUsingNativeScript
   , mustMintCurrencyUsingScriptRef
   , mustMintCurrencyWithRedeemer
   , mustMintCurrencyWithRedeemerUsingScriptRef
   , mustMintValue
   , mustMintValueWithRedeemer
-  , mustPayToNativeScript
   , mustNotBeValid
-  , mustPayToScript
-  , mustPayToScriptWithScriptRef
+  , mustPayToNativeScript
+  , mustPayToNativeScriptAddress
   , mustPayToPubKey
   , mustPayToPubKeyAddress
   , mustPayToPubKeyAddressWithDatum
@@ -49,17 +37,28 @@ import Types.TxConstraints
   , mustPayToPubKeyWithDatum
   , mustPayToPubKeyWithDatumAndScriptRef
   , mustPayToPubKeyWithScriptRef
+  , mustPayToScript
+  , mustPayToScriptAddress
+  , mustPayToScriptAddressWithScriptRef
+  , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustProduceAtLeastTotal
   , mustReferenceOutput
+  , mustRegisterPool
+  , mustRegisterStakePubKey
+  , mustRegisterStakeScript
+  , mustRetirePool
   , mustSatisfyAnyOf
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
+  , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
-  , mustSpendNativeScriptOutput
   , mustSpendScriptOutputUsingScriptRef
   , mustValidateIn
+  , mustWithdrawStakeNativeScript
+  , mustWithdrawStakePlutusScript
+  , mustWithdrawStakePubKey
   , pubKeyPayments
   , requiredDatums
   , requiredMonetaryPolicies

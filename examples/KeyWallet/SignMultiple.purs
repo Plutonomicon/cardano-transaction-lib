@@ -1,26 +1,30 @@
-module Examples.KeyWallet.SignMultiple where
+module Ctl.Examples.KeyWallet.SignMultiple where
 
 import Contract.Prelude
 
-import Contract.Monad (Contract, liftedE, throwContractError)
 import Contract.Log (logInfo')
-import Control.Monad.Reader (asks)
+import Contract.Monad (Contract, liftedE, throwContractError)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
+  , signTransaction
   , submit
-  , withBalancedAndSignedTxs
+  , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
+import Control.Monad.Reader (asks)
+import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import Data.Map (Map)
 import Data.Newtype (unwrap)
+import Data.Set (Set)
+import Data.UInt (UInt)
 import Effect.Ref (read) as Ref
-import Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
-import Types.UsedTxOuts (TxOutRefCache)
 
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs
+  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
 getLockedInputs = do
   cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
   liftEffect $ Ref.read $ unwrap cache
@@ -37,24 +41,24 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  txIds <- withBalancedAndSignedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs
     logInfo' $ "Locked inputs inside bracket (should be nonempty): "
       <> show locked
-    traverse submitAndLog txs
+    traverse (submitAndLog <=< signTransaction) balancedTxs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
   case txIds of
-    [ txId1, txId2 ] -> do
+    [ txId0, txId1 ] -> do
+      awaitTxConfirmed txId0
+      logInfo' $ "Tx 0 submitted successfully!"
       awaitTxConfirmed txId1
       logInfo' $ "Tx 1 submitted successfully!"
-      awaitTxConfirmed txId2
-      logInfo' $ "Tx 2 submitted successfully!"
     _ -> throwContractError "Unexpected error - no transaction IDs"
 
   liftEffect unlock

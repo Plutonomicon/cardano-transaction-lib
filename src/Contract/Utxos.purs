@@ -11,49 +11,49 @@ module Contract.Utxos
 
 import Prelude
 
-import Contract.Monad (Contract, liftContractM, wrapContract)
+import Contract.Monad (Contract, liftContractM, liftedE, wrapContract)
 import Contract.Prelude (for)
 import Contract.Transaction (TransactionInput, TransactionOutput)
-import Control.Monad.Reader.Class (asks)
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusAddress
+  , toPlutusTxOutput
+  , toPlutusUtxoMap
+  )
+import Ctl.Internal.Plutus.Conversion.Value (toPlutusValue)
+import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
+import Ctl.Internal.Plutus.Types.Value (Value)
+import Ctl.Internal.QueryM (getNetworkId)
+import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
+import Ctl.Internal.QueryM.Utxos (getWalletBalance, getWalletUtxos) as Utxos
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap)
-import Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoMap)
-import Plutus.Conversion.Value (toPlutusValue)
-import Plutus.Types.Address (Address)
-import Plutus.Types.Transaction (UtxoMap)
-import Plutus.Types.Transaction (UtxoMap) as X
-import Plutus.Types.Value (Value)
-import QueryM.Utxos (getUtxo, getWalletBalance, getWalletUtxos, utxosAt) as Utxos
 
--- | This module defines query functionality via Ogmios to get utxos.
+-- | This module defines the functionality for requesting utxos via Kupo.
 
--- | Gets utxos at an (internal) `Address` in terms of a Plutus `Address`.
--- | Results may vary depending on `Wallet` type. See `QueryM` for more details
--- | on wallet variance.
--- |
--- | NOTE: Querying for UTxOs by address is deprecated. See
--- | [here](https://github.com/Plutonomicon/cardano-transaction-lib/issues/536).
+-- | Queries for utxos at the given Plutus `Address`.
 utxosAt
-  :: forall (r :: Row Type)
-   . Address
-  -> Contract r (Maybe UtxoMap)
+  :: forall (r :: Row Type) (address :: Type)
+   . PlutusAddress address
+  => address
+  -> Contract r UtxoMap
 utxosAt address = do
-  networkId <- asks (_.networkId <<< _.config <<< unwrap)
-  let cardanoAddr = fromPlutusAddress networkId address
-  -- Don't error if we get `Nothing` as the Cardano utxos
-  mCardanoUtxos <- wrapContract $ Utxos.utxosAt cardanoAddr
-  for mCardanoUtxos
-    (liftContractM "utxosAt: unable to deserialize utxos" <<< toPlutusUtxoMap)
+  networkId <- wrapContract getNetworkId
+  let cardanoAddr = fromPlutusAddress networkId (getAddress address)
+  cardanoUtxoMap <- liftedE $ wrapContract $ Kupo.utxosAt cardanoAddr
+  toPlutusUtxoMap cardanoUtxoMap
+    # liftContractM "utxosAt: failed to convert utxos"
 
--- | Queries for UTxO given a transaction input.
+-- | Queries for an utxo given a transaction input.
+-- | Returns `Nothing` if the output has already been spent.
 getUtxo
   :: forall (r :: Row Type)
    . TransactionInput
   -> Contract r (Maybe TransactionOutput)
-getUtxo ref = do
-  cardanoTxOut <- wrapContract $ Utxos.getUtxo ref
-  for cardanoTxOut
-    (liftContractM "getUtxo: unable to deserialize UTxO" <<< toPlutusTxOutput)
+getUtxo oref = do
+  cardanoTxOutput <- liftedE $ wrapContract $ Kupo.getUtxoByOref oref
+  for cardanoTxOutput
+    (liftContractM "getUtxo: failed to convert tx output" <<< toPlutusTxOutput)
 
 getWalletBalance
   :: forall (r :: Row Type)

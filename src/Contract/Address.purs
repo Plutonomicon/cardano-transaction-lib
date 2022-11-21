@@ -1,12 +1,16 @@
 -- | A module for Address-related functionality and querying own wallet.
 module Contract.Address
-  ( enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
+  ( addressPaymentValidatorHash
+  , addressStakeValidatorHash
   , getNetworkId
+  , addressWithNetworkTagFromBech32
   , addressWithNetworkTagToBech32
+  , addressFromBech32
   , addressToBech32
   , getWalletAddress
+  , getWalletAddresses
+  , getWalletAddressWithNetworkTag
+  , getWalletAddressesWithNetworkTag
   , getWalletCollateral
   , module ByteArray
   , module ExportAddress
@@ -16,8 +20,9 @@ module Contract.Address
   , module SerializationAddress
   , module TypeAliases
   , ownPaymentPubKeyHash
-  , ownPubKeyHash
+  , ownPaymentPubKeysHashes
   , ownStakePubKeyHash
+  , ownStakePubKeysHashes
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyHashRewardAddress
@@ -33,95 +38,141 @@ module Contract.Address
 
 import Prelude
 
-import Address
-  ( enterpriseAddressScriptHash
-  , enterpriseAddressStakeValidatorHash
-  , enterpriseAddressValidatorHash
+import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
+import Contract.Prelude (liftM)
+import Control.Monad.Error.Class (throwError)
+import Ctl.Internal.Address
+  ( addressPaymentValidatorHash
+  , addressStakeValidatorHash
   ) as Address
-import Contract.Monad (Contract, wrapContract, liftedM)
-import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
-import Plutus.Conversion
+import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
+  , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
+  , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Plutus.Conversion.Address (fromPlutusAddressWithNetworkTag)
-import Plutus.Types.Address
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   )
-import Plutus.Types.Address
+import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   , pubKeyHashAddress
   , scriptHashAddress
   , toPubKeyHash
-  , toValidatorHash
   , toStakingCredential
+  , toValidatorHash
   ) as ExportAddress
-import Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import QueryM
-  ( getWalletAddress
-  , ownPaymentPubKeyHash
-  , ownPubKeyHash
-  , ownStakePubKeyHash
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.QueryM
+  ( getNetworkId
+  , getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeysHashes
   ) as QueryM
-import QueryM.NetworkId (getNetworkId) as QueryM
-import QueryM.Utxos (getWalletCollateral) as QueryM
-import Scripts
+import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
+import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
-import Serialization.Address (NetworkId(MainnetId), addressBech32)
-import Serialization.Address
-  ( Slot(Slot)
-  , BlockId(BlockId)
-  , TransactionIndex(TransactionIndex)
-  , CertificateIndex(CertificateIndex)
-  , Pointer
+import Ctl.Internal.Serialization.Address
+  ( BlockId(BlockId)
   , ByronProtocolMagic(ByronProtocolMagic)
+  , CertificateIndex(CertificateIndex)
   , NetworkId(TestnetId, MainnetId)
+  , Pointer
+  , Slot(Slot)
+  , TransactionIndex(TransactionIndex)
   ) as SerializationAddress
-import Serialization.Hash (Ed25519KeyHash) as Hash
-import Serialization.Hash (ScriptHash)
-import Types.Aliases (Bech32String)
-import Types.Aliases (Bech32String) as TypeAliases
-import Types.ByteArray (ByteArray) as ByteArray
-import Types.PubKeyHash
+import Ctl.Internal.Serialization.Address
+  ( NetworkId(MainnetId)
+  , addressBech32
+  , addressNetworkId
+  )
+import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
+import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as ExportPubKeyHash
-import Types.PubKeyHash (PubKeyHash, PaymentPubKeyHash, StakePubKeyHash)
-import Types.PubKeyHash
+import Ctl.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
-  , payPubKeyHashRewardAddress
   , payPubKeyHashEnterpriseAddress
+  , payPubKeyHashRewardAddress
   , pubKeyHashBaseAddress
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
-import Types.Scripts (StakeValidatorHash, ValidatorHash)
-import Types.TypedValidator (TypedValidator)
-import Types.UnbalancedTransaction
-  ( PaymentPubKey(PaymentPubKey)
-  , ScriptOutput(ScriptOutput)
-  ) as ExportUnbalancedTransaction
+import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
+import Ctl.Internal.Types.TypedValidator (TypedValidator)
+import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey)) as ExportUnbalancedTransaction
+import Data.Array (head)
+import Data.Maybe (Maybe)
+import Data.Traversable (for, traverse)
+import Effect.Exception (error)
+import Prim.TypeError (class Warn, Text)
 
--- | Get the `Address` of the browser wallet.
+-- | Get an `Address` of the browser wallet.
 getWalletAddress
-  :: forall (r :: Row Type). Contract r (Maybe Address)
-getWalletAddress = do
-  mbAddr <- wrapContract $ QueryM.getWalletAddress
-  for mbAddr $
-    liftedM "getWalletAddress: failed to deserialize Address"
-      <<< wrapContract
-      <<< pure
-      <<< toPlutusAddress
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `Adress` even in case multiple `Adress`es are available. Use `getWalletAdresses` instead"
+       )
+  => Contract r (Maybe Address)
+getWalletAddress = head <$> getWalletAddresses
+
+-- | Get all the `Address`es of the browser wallet.
+getWalletAddresses
+  :: forall (r :: Row Type). Contract r (Array Address)
+getWalletAddresses = do
+  addresses <- wrapContract QueryM.getWalletAddresses
+  traverse
+    ( liftM
+        (error "getWalletAddresses: failed to deserialize `Address`")
+        <<< toPlutusAddress
+    )
+    addresses
+
+-- | Get an `AddressWithNetworkTag` of the browser wallet.
+getWalletAddressWithNetworkTag
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use `getWalletAddressesWithNetworkTag` instead"
+       )
+  => Contract r (Maybe AddressWithNetworkTag)
+getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
+
+-- | Get all the `AddressWithNetworkTag` of the browser wallet discarding errors.
+getWalletAddressesWithNetworkTag
+  :: forall (r :: Row Type). Contract r (Array AddressWithNetworkTag)
+getWalletAddressesWithNetworkTag = do
+  addresses <- wrapContract QueryM.getWalletAddresses
+  traverse
+    ( liftM
+        ( error
+            "getWalletAddressesWithNetworkTag: failed to deserialize `Address`"
+        )
+        <<< toPlutusAddressWithNetworkTag
+    )
+    addresses
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
@@ -135,21 +186,36 @@ getWalletCollateral = do
   for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
-      <<< wrapContract
       <<< pure
       <<< toPlutusTxUnspentOutput
 
--- | Gets the wallet `PaymentPubKeyHash` via `getWalletAddress`.
+-- | Gets a wallet `PaymentPubKeyHash` via `getWalletAddresses`.
 ownPaymentPubKeyHash
-  :: forall (r :: Row Type). Contract r (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = wrapContract QueryM.ownPaymentPubKeyHash
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHash`es are available. Use `ownPaymentPubKeysHashes` instead"
+       )
+  => Contract r (Maybe PaymentPubKeyHash)
+ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
 
--- | Gets the wallet `PubKeyHash` via `getWalletAddress`.
-ownPubKeyHash :: forall (r :: Row Type). Contract r (Maybe PubKeyHash)
-ownPubKeyHash = wrapContract QueryM.ownPubKeyHash
+-- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
+ownPaymentPubKeysHashes
+  :: forall (r :: Row Type). Contract r (Array PaymentPubKeyHash)
+ownPaymentPubKeysHashes = wrapContract QueryM.ownPaymentPubKeyHashes
 
-ownStakePubKeyHash :: forall (r :: Row Type). Contract r (Maybe StakePubKeyHash)
-ownStakePubKeyHash = wrapContract QueryM.ownStakePubKeyHash
+ownStakePubKeyHash
+  :: forall (r :: Row Type)
+   . Warn
+       ( Text
+           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHash`es are available. Use `ownStakePubKeysHashes` instead"
+       )
+  => Contract r (Maybe StakePubKeyHash)
+ownStakePubKeyHash = join <<< head <$> ownStakePubKeysHashes
+
+ownStakePubKeysHashes
+  :: forall (r :: Row Type). Contract r (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes = wrapContract QueryM.ownStakePubKeysHashes
 
 getNetworkId
   :: forall (r :: Row Type). Contract r NetworkId
@@ -168,6 +234,14 @@ addressWithNetworkTagToBech32 :: AddressWithNetworkTag -> Bech32String
 addressWithNetworkTagToBech32 = fromPlutusAddressWithNetworkTag >>>
   addressBech32
 
+-- | Convert `Bech32String` to `AddressWithNetworkTag`.
+addressWithNetworkTagFromBech32 :: Bech32String -> Maybe AddressWithNetworkTag
+addressWithNetworkTagFromBech32 str = do
+  cslAddress <- SA.addressFromBech32 str
+  address <- toPlutusAddress cslAddress
+  let networkId = addressNetworkId cslAddress
+  pure $ AddressWithNetworkTag { address, networkId }
+
 -- | Convert `Address` to `Bech32String`, using current `NetworkId` provided by
 -- | `Contract` configuration to determine the network tag.
 addressToBech32 :: forall (r :: Row Type). Address -> Contract r Bech32String
@@ -176,25 +250,33 @@ addressToBech32 address = do
   pure $ addressWithNetworkTagToBech32
     (AddressWithNetworkTag { address, networkId })
 
--- | Get the `ValidatorHash` with an Plutus `Address`
-enterpriseAddressValidatorHash :: Address -> Maybe ValidatorHash
-enterpriseAddressValidatorHash =
+-- | Convert `Bech32String` to `Address`, asserting that the address `networkId`
+-- | corresponds to the contract environment `networkId`
+addressFromBech32
+  :: forall (r :: Row Type). Bech32String -> Contract r Address
+addressFromBech32 str = do
+  networkId <- getNetworkId
+  cslAddress <- liftContractM "addressFromBech32: unable to read address" $
+    SA.addressFromBech32 str
+  address <-
+    liftContractM "addressFromBech32: unable to convert to plutus address" $
+      toPlutusAddress cslAddress
+  when (networkId /= addressNetworkId cslAddress)
+    (throwError $ error "addressFromBech32: address has wrong NetworkId")
+  pure address
+
+-- | Get the `ValidatorHash` component of a Plutus `Address`
+addressPaymentValidatorHash :: Address -> Maybe ValidatorHash
+addressPaymentValidatorHash =
   -- Network id does not matter here (#484)
-  Address.enterpriseAddressValidatorHash
+  Address.addressPaymentValidatorHash
     <<< fromPlutusAddress MainnetId
 
--- | Get the `StakeValidatorHash` with an Plutus `Address`
-enterpriseAddressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
-enterpriseAddressStakeValidatorHash =
+-- | Get the `ValidatorHash` component of a Plutus `Address`
+addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
+addressStakeValidatorHash =
   -- Network id does not matter here (#484)
-  Address.enterpriseAddressStakeValidatorHash
-    <<< fromPlutusAddress MainnetId
-
--- | Get the `ScriptHash` with an Plutus `Address`
-enterpriseAddressScriptHash :: Address -> Maybe ScriptHash
-enterpriseAddressScriptHash =
-  -- Network id does not matter here (#484)
-  Address.enterpriseAddressScriptHash
+  Address.addressStakeValidatorHash
     <<< fromPlutusAddress MainnetId
 
 -- | Converts a Plutus `TypedValidator` to a Plutus (`BaseAddress`) `Address`

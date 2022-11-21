@@ -1,8 +1,26 @@
-module Test.Plutus.Conversion.Address (suite) where
+module Test.Ctl.Internal.Plutus.Conversion.Address (suite) where
 
 import Prelude
 
-import Data.Array (range, length, zip)
+import Contract.Numeric.BigNum (BigNum)
+import Contract.Numeric.BigNum (fromInt) as BigNum
+import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address) as Plutus
+import Ctl.Internal.Plutus.Types.Credential
+  ( Credential(PubKeyCredential, ScriptCredential)
+  , StakingCredential(StakingHash, StakingPtr)
+  )
+import Ctl.Internal.Serialization.Address
+  ( NetworkId(MainnetId, TestnetId)
+  , addressFromBech32
+  )
+import Ctl.Internal.Serialization.Hash
+  ( ed25519KeyHashFromBech32
+  , scriptHashFromBech32
+  )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Data.Array (length, range, zip)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Traversable (for_)
@@ -10,23 +28,8 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Plutus.Conversion (fromPlutusAddress, toPlutusAddress)
-import Plutus.Types.Address (Address) as Plutus
-import Plutus.Types.Credential
-  ( Credential(PubKeyCredential, ScriptCredential)
-  , StakingCredential(StakingHash, StakingPtr)
-  )
-import Serialization.Address
-  ( NetworkId(MainnetId, TestnetId)
-  , addressFromBech32
-  )
-import Serialization.Hash (ed25519KeyHashFromBech32, scriptHashFromBech32)
+import Test.Ctl.Utils (errMaybe, toFromAesonTest)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (errMaybe, toFromAesonTest)
-import TestM (TestPlanM)
-import Types.Aliases (Bech32String)
-import Types.BigNum (BigNum)
-import Types.BigNum (fromInt) as BigNum
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

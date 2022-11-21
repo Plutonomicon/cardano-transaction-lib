@@ -1,0 +1,5 @@
+{
+    "description": "validator that checks whether redeemer is 1",
+    "cborHex": "4e4d0100002223375e0046ea120021",
+    "type": "PlutusScriptV1"
+}

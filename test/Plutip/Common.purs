@@ -1,19 +1,20 @@
-module Test.Plutip.Common
+module Test.Ctl.Plutip.Common
   ( config
   , privateStakeKey
   ) where
 
 import Prelude
 
+import Contract.Config (emptyHooks)
 import Contract.Wallet (privateKeyFromBytes)
+import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
-import Plutip.Types (PlutipConfig)
-import Types.RawBytes (hexToRawBytes)
-import Wallet.Key (PrivateStakeKey)
 
 config :: PlutipConfig
 config =
@@ -39,6 +40,12 @@ config =
       , secure: false
       , path: Nothing
       }
+  , kupoConfig:
+      { port: UInt.fromInt 1443
+      , host: "127.0.0.1"
+      , secure: false
+      , path: Nothing
+      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: UInt.fromInt 5433
@@ -48,6 +55,7 @@ config =
       }
   , suppressLogs: true
   , customLogger: Nothing
+  , hooks: emptyHooks
   }
 
 privateStakeKey :: PrivateStakeKey

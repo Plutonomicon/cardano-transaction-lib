@@ -24,8 +24,8 @@
 - [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
 - [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
 - [x] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary)
-  - [ ] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API (**In progress**)
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet
+  - [x] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators, and support CIP workflows on the public testnet (**In progress**)
 - [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server
 
 ### Light wallet support
@@ -35,10 +35,11 @@ Support is planned for the following light wallets:
 - [x] [Nami](https://namiwallet.io/)
 - [x] [Gero](https://gerowallet.io/)
 - [x] [Flint](https://flint-wallet.com/)
+- [x] [Lode](https://lodewallet.io/)
+- [x] [Eternl (formerly CCvault)](https://eternl.io/)
 - [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
-- [ ] [Eternl (formerly CCvault)](https://eternl.io/)
 
 Due to recent ecosystem migration from legacy testnet to `preprod` and `preview` networks, some of the wallets stopped working. The progress of adapting them is tracked in [this issue](https://github.com/Plutonomicon/cardano-transaction-lib/issues/994).
 
@@ -64,8 +65,8 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 1. How do we get the transaction in the right format?
    - This is handled by `cardano-serialization-lib`, a Rust library available as WASM
 2. How do we query the chain?
-   - This has been solved using Ogmios
-   - We may, however, support a BlockFrost backend as well in the future
+   - This has been solved using Ogmios & Kupo
+   - We will support an alternative BlockFrost backend as well in the future
 3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
    - `ogmios-datum-cache` solves this problem
 4. How do we submit the transaction?
@@ -80,6 +81,7 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 - [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/)
 - [Ogmios](https://ogmios.dev) for chain queries
+- [Kupo](https://cardanosolutions.github.io/kupo/) for chain queries
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
 - [Nami docs](https://github.com/Berry-Pool/nami-wallet)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)
@@ -88,5 +90,5 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 You can find help, more information and ongoing discusion about the project here:
 
-- Plutonomicon Discord: https://discord.gg/gGFdGaUE
+- [Plutonomicon Discord](https://discord.gg/JhbexnV9Pc)
 - #ctl channel at MLabs' Slack

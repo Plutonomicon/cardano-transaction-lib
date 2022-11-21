@@ -1,40 +1,50 @@
-module Test.BalanceTx.Collateral (suite) where
+module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
-import BalanceTx.Collateral.Select
+import Contract.Config (testnetConfig)
+import Contract.Monad (Contract, runContract)
+import Control.Monad.Reader.Trans (asks)
+import Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
   , selectCollateral
   )
-import BalanceTx.FakeOutput (fakeOutputWithValue)
-import Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Cardano.Types.Value (Coin(Coin), Value(Value))
-import Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset) as Value
-import Control.Monad.Reader.Trans (asks)
+import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
+import Ctl.Internal.Cardano.Types.Value
+  ( lovelaceValueOf
+  , mkSingletonNonAdaAsset
+  ) as Value
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Just), fromMaybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Maybe (Maybe(Just))
+import Data.Newtype (unwrap, wrap)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt (fromInt, toInt) as UInt
-import Effect.Class (liftEffect)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Mote (group, test)
-import QueryM (QueryM, runQueryM)
-import QueryM.Config (testnetTraceQueryConfig)
-import QueryM.Ogmios (CoinsPerUtxoUnit)
-import Test.Fixtures (currencySymbol1, tokenName1, tokenName2, txInputFixture1)
+import Test.Ctl.Fixtures
+  ( currencySymbol1
+  , tokenName1
+  , tokenName2
+  , txInputFixture1
+  )
+import Test.Ctl.Utils (measure, measureWithTimeout)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Utils (Seconds(Seconds))
-import Test.Utils (measure, measureWithTimeout) as TestUtils
-import TestM (TestPlanM)
-import Types.Transaction (TransactionHash, TransactionInput)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -43,7 +53,7 @@ suite = do
       test "Prefers a single Ada-only inp if it covers minRequiredCollateral" do
         withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
-            TestUtils.measure
+            measure
               $ liftEffect
               $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture1
@@ -53,7 +63,7 @@ suite = do
       test "Prefers an input with the lowest min ada for collateral output" do
         withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
-            TestUtils.measure
+            measure
               $ liftEffect
               $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture2
@@ -62,25 +72,25 @@ suite = do
 
       test "Selects a collateral in less than 2 seconds" do
         withParams \coinsPerUtxoUnit maxCollateralInputs ->
-          TestUtils.measureWithTimeout (Seconds 2.0)
+          measureWithTimeout (Seconds 2.0)
             ( void $ liftEffect $ selectCollateral coinsPerUtxoUnit
                 maxCollateralInputs
                 utxosFixture3
             )
 
-withParams :: (CoinsPerUtxoUnit -> Int -> QueryM Unit) -> Aff Unit
+withParams :: (CoinsPerUtxoUnit -> Int -> Contract () Unit) -> Aff Unit
 withParams test =
-  runQueryM testnetTraceQueryConfig
+  runContract testnetConfig { suppressLogs = true }
     (join (test <$> getCoinsPerUtxoUnit <*> getMaxCollateralInputs))
   where
-  getMaxCollateralInputs :: QueryM Int
+  getMaxCollateralInputs :: Contract () Int
   getMaxCollateralInputs =
-    asks $ _.runtime >>> _.pparams <#>
-      fromMaybe 3 <<< map UInt.toInt <<< _.maxCollateralInputs <<< unwrap
+    asks $ unwrap >>> _.runtime >>> _.pparams <#>
+      UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
-  getCoinsPerUtxoUnit :: QueryM CoinsPerUtxoUnit
+  getCoinsPerUtxoUnit :: Contract () CoinsPerUtxoUnit
   getCoinsPerUtxoUnit =
-    asks (_.runtime >>> _.pparams) <#> unwrap >>>
+    asks (unwrap >>> _.runtime >>> _.pparams) <#> unwrap >>>
       _.coinsPerUtxoUnit
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.
