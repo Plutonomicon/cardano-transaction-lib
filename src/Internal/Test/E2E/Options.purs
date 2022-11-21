@@ -8,6 +8,7 @@ module Ctl.Internal.Test.E2E.Options
   , CommonOptions_
   , ClusterPortsOptions_
   , ClusterPortsOptions
+  , JQuery_
   , SettingsOptions
   , E2ECommand
       ( RunE2ETests
@@ -27,6 +28,7 @@ import Affjax (URL)
 import Control.Alt ((<|>))
 import Ctl.Internal.Test.E2E.Types
   ( Browser
+  , BrowserArg
   , ChromeUserDataDir
   , CrxFilePath
   , E2ETest
@@ -42,14 +44,15 @@ import Ctl.Internal.Test.E2E.Types
 import Data.Array (catMaybes)
 import Data.Array as Array
 import Data.Either (note)
-import Data.Foldable (fold)
+import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.List (List(Nil))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Show.Generic (genericShow)
 import Data.String (toLower)
+import Data.String.Utils (words) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -84,7 +87,8 @@ import Type.Row (type (+))
 
 -- | CLI options for E2E tests.
 type TestOptions = Record
-  ( NoHeadless_ + Tests_ + TestTimeout_ + ClusterPortsOptions_ + CommonOptions_
+  ( NoHeadless_ + Tests_ + TestTimeout_ + ClusterPortsOptions_ + JQuery_
+      + CommonOptions_
       + ()
   )
 
@@ -100,6 +104,8 @@ type ClusterPortsOptions_ (r :: Row Type) =
 
 type ClusterPortsOptions = Record (ClusterPortsOptions_ ())
 
+type JQuery_ (r :: Row Type) = (skipJQuery :: Boolean | r)
+
 type NoHeadless_ (r :: Row Type) = (noHeadless :: Boolean | r)
 
 type Tests_ (r :: Row Type) = (tests :: Array E2ETest | r)
@@ -114,6 +120,7 @@ type CommonOptions_ (r :: Row Type) =
   , tmpDir :: Maybe TmpDir
   , settingsArchive :: Maybe SettingsArchive
   , settingsArchiveUrl :: Maybe SettingsArchiveUrl
+  , extraBrowserArgs :: Array BrowserArg
   )
 
 -- | CLI options for the `browser` command.
@@ -203,6 +210,16 @@ browserOptionsParser = ado
         Just a -> show a
     , metavar "DIR"
     ]
+  extraBrowserArgs <- map (foldMap String.words)
+    $ option (Just <$> str)
+    $ fold
+        [ long "extra-browser-args"
+        , help
+            "Extra browser CLI command arguments, combined with E2E_EXTRA_BROWSER_ARGS env variable"
+        , value Nothing
+        , showDefaultWith (maybe "E2E_EXTRA_BROWSER_ARGS" show)
+        , metavar "CHROMIUM CLI ARGUMENT"
+        ]
 
   nami <- parseWallet "Nami"
   eternl <- parseWallet "Eternl"
@@ -227,6 +244,7 @@ browserOptionsParser = ado
     , tmpDir
     , settingsArchive
     , settingsArchiveUrl
+    , extraBrowserArgs
     }
   where
   mkConfig
@@ -284,6 +302,10 @@ testOptionsParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
+  skipJQuery <- switch $ fold
+    [ long "skip-jquery-download"
+    , help "Skip downloading JQuery (useful for offline mode)"
+    ]
   testTimeout <- option (Just <$> int) $ fold
     [ long "test-timeout"
     , help "Timeout for each test"
@@ -292,7 +314,9 @@ testOptionsParser = ado
     , metavar "SECONDS"
     ]
   (clusterPorts :: ClusterPortsOptions) <- clusterPortsOptionsParser
-  in build (merge clusterPorts <<< merge res) { noHeadless, tests, testTimeout }
+  in
+    build (merge clusterPorts <<< merge res)
+      { noHeadless, tests, testTimeout, skipJQuery }
 
 testParser :: ReadM E2ETest
 testParser = eitherReader \str ->
