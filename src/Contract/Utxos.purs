@@ -26,10 +26,9 @@ import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM (getNetworkId)
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
+import Ctl.Internal.QueryM.QueryHandle (getQueryHandle)
 import Ctl.Internal.QueryM.Utxos (getWalletBalance, getWalletUtxos) as Utxos
 import Data.Maybe (Maybe)
-
--- | This module defines the functionality for requesting utxos via Kupo.
 
 -- | Queries for utxos at the given Plutus `Address`.
 utxosAt
@@ -40,7 +39,8 @@ utxosAt
 utxosAt address = do
   networkId <- wrapContract getNetworkId
   let cardanoAddr = fromPlutusAddress networkId (getAddress address)
-  cardanoUtxoMap <- liftedE $ wrapContract $ Kupo.utxosAt cardanoAddr
+  queryHandle <- wrapContract getQueryHandle
+  cardanoUtxoMap <- liftedE $ wrapContract $ queryHandle.utxosAt cardanoAddr
   toPlutusUtxoMap cardanoUtxoMap
     # liftContractM "utxosAt: failed to convert utxos"
 

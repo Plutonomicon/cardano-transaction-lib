@@ -110,6 +110,7 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw)
 import Prim.TypeError (class Warn, Text)
+import Undefined (undefined)
 
 -- | The `Contract` monad is a newtype wrapper over `QueryM` which is `ReaderT`
 -- | on `QueryConfig` over asynchronous effects, `Aff`. Throwing and catching
@@ -307,7 +308,8 @@ mkContractEnv
     } = do
   let
     config =
-      { ctlServerConfig
+      { backend: undefined -- TODO:
+      , ctlServerConfig
       , ogmiosConfig
       , datumCacheConfig
       , kupoConfig
@@ -366,7 +368,8 @@ withContractEnv
   let
     config :: QueryConfig
     config =
-      { ctlServerConfig
+      { backend: undefined -- TODO:
+      , ctlServerConfig
       , ogmiosConfig
       , datumCacheConfig
       , kupoConfig

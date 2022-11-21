@@ -13,10 +13,12 @@ import Ctl.Internal.QueryM.ServerConfig
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId))
 import Data.Log.Level (LogLevel(Error, Trace))
 import Data.Maybe (Maybe(Just, Nothing))
+import Undefined (undefined)
 
 testnetTraceQueryConfig :: QueryConfig
 testnetTraceQueryConfig =
-  { ctlServerConfig: Just defaultServerConfig
+  { backend: undefined -- TODO:
+  , ctlServerConfig: Just defaultServerConfig
   , ogmiosConfig: defaultOgmiosWsConfig
   , datumCacheConfig: defaultDatumCacheWsConfig
   , kupoConfig: defaultKupoServerConfig

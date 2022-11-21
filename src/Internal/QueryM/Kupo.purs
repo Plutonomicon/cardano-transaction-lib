@@ -1,5 +1,6 @@
 module Ctl.Internal.QueryM.Kupo
-  ( getUtxoByOref
+  ( getDatumByHash
+  , getUtxoByOref
   , utxosAt
   ) where
 
