@@ -6,30 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 **Table of Contents**
 
-- [[Unreleased]](#unreleased)
+- [[Unreleased]](#-unreleased-)
   - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
   - [Fixed](#fixed)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+- [[3.0.0]](#-300-)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Removed](#removed-1)
   - [Fixed](#fixed-1)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+- [[2.0.0] - 2022-09-12](#-200----2022-09-12)
   - [Added](#added-2)
-  - [Removed](#removed-2)
   - [Changed](#changed-2)
+  - [Removed](#removed-2)
   - [Fixed](#fixed-2)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#-200-alpha----2022-07-05)
+  - [Added](#added-3)
+  - [Removed](#removed-3)
+  - [Changed](#changed-3)
   - [Fixed](#fixed-3)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#-110----2022-06-30)
   - [Fixed](#fixed-4)
-- [[1.0.0] - 2022-06-10](#100---2022-06-10)
-
-
+- [[1.0.1] - 2022-06-17](#-101----2022-06-17)
+  - [Fixed](#fixed-5)
+- [[1.0.0] - 2022-06-10](#-100----2022-06-10)
 
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+## [3.0.0]
 
 ### Added
 
@@ -90,6 +103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Interval` type is redesigned to restrain some finite intervals to be expressed in the system ([#1041](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041))
 
 ### Removed
+
 - `balanceAndSignTxE`, `balanceAndSignTx`, `balanceAndSignTxs`, `balanceTxWithAddress`, `balanceTxsWithAddress`, `withBalancedAndSignedTx` and `withBalancedAndSignedTxs` from `Contract.Transaction` ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
 - `ScriptOutput` is removed and therefore not exported by `Contract.Address` anymore. also, `Contract.Transaction` doesn't export `scriptOutputToTransactionOutput` anymore ([#652](https://github.com/Plutonomicon/cardano-transaction-lib/issues/652)).
 - `Contract.TxConstraints.TxConstraint` type from public API. The users should rely on domain functions instead ([#1135](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1135))
