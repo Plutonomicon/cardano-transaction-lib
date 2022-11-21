@@ -7,6 +7,7 @@ module Ctl.Internal.Test.E2E.Types
   , ChromeUserDataDir
   , CrxFilePath
   , ExtensionId
+  , BrowserArg
   , mkExtensionId
   , unExtensionId
   , WalletPassword
@@ -52,6 +53,9 @@ type SettingsArchiveUrl = String
 
 -- | Chrome user data directory
 type ChromeUserDataDir = FilePath
+
+-- | Browser CLI interface argument
+type BrowserArg = String
 
 -- | Path to a `.crx` chrome extension file.
 type CrxFilePath = FilePath
@@ -156,7 +160,7 @@ mkE2ETest str =
 -- | Represents a connection to a running E2E test.
 type RunningE2ETest =
   { browser :: Toppokki.Browser
-  , jQuery :: String
+  , jQuery :: Maybe String
   , page :: Toppokki.Page
   }
 
