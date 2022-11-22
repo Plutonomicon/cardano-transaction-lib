@@ -8,9 +8,7 @@ In order to run CTL's `Contract` effects, several services are required. These c
 - [Using NixOS module](#using-nixos-module)
 - [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
 - [Changing network configurations](#changing-network-configurations)
-- [Other requirements](#other-requirements)
-  - [With Nami:](#with-nami-)
-  - [With Gero:](#with-gero-)
+- [Wallet requirements](#wallet-requirements)
 
 ### Current services
 
@@ -60,21 +58,10 @@ inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
 
 When changing networks, make sure that `network.magic` is correctly synchronized with value in config (see `protocolConsts.protocolMagic` in `byron.json`).
 
-### Other requirements
+### Wallet requirements
 
-In order to run most `Contract` actions in the browser, **you must use Nami or Gero wallet**. The following steps must be taken to ensure that you can run CTL contracts:
+In order to run most `Contract` actions in the browser, **you must use one of the supported wallets**. The following steps must be taken to ensure that you can run CTL contracts:
 
-#### With Nami:
-
-1. Install [Nami extension](https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo)
-   - Due to limitations with Nami itself, only Chromium-based browsers are supported
-2. Make sure that you have an active wallet
-3. Make sure that your wallet is running on the testnet (can be configured via a toggle in the settings menu)
-4. Make sure that you have set collateral for the wallet, which Nami reserves apart from other wallet UTxOs
-
-#### With Gero:
-
-1. Install [GeroWallet Testnet extension](https://chrome.google.com/webstore/detail/gerowallet-testnet/iifeegfcfhlhhnilhfoeihllenamcfgc)
-   - Due to limitations with Gero itself, only Chromium-based browsers are supported
-2. Make sure that you have an active wallet
-3. Make sure that you have set collateral for the wallet, which Gero reserves apart from other wallet UTxOs
+1. Make sure that your wallet is running on the testnet (some wallets can be configured via a toggle in the settings menu, other provide a separate extension)
+2. Fund the wallet using the [Testnet Faucet](https://docs.cardano.org/cardano-testnet/tools/faucet/)
+3. Make sure that you have set collateral for the wallet, which wallets reserve apart from other UTxOs
