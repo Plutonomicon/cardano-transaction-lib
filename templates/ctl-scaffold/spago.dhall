@@ -8,8 +8,10 @@ You can edit this file as you like.
   , "bigints"
   , "cardano-transaction-lib"
   , "effect"
+  , "mote"
   , "ordered-collections"
   , "prelude"
+  , "spec"
   , "uint"
   ]
 , packages = ./packages.dhall
