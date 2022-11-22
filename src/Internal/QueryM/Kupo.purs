@@ -1,6 +1,10 @@
 module Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
+  , getDatumsByHashes
+  , getScriptByHash
+  , getScriptsByHashes
   , getUtxoByOref
+  , isTxConfirmed
   , utxosAt
   ) where
 
@@ -70,13 +74,14 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   )
+import Data.Array (null) as Array
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Map (Map)
-import Data.Map (fromFoldable, lookup) as Map
+import Data.Map (catMaybes, fromFoldable, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -123,11 +128,31 @@ getDatumByHash (DataHash dataHashBytes) = do
   kupoGetRequest endpoint
     <#> map unwrapKupoDatum <<< handleAffjaxResponse
 
+getDatumsByHashes
+  :: Array DataHash -> QueryM (Either ClientError (Map DataHash Datum))
+getDatumsByHashes =
+  runExceptT
+    <<< map (Map.catMaybes <<< Map.fromFoldable)
+    <<< parTraverse (\dh -> Tuple dh <$> ExceptT (getDatumByHash dh))
+
 getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do
   let endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
+
+getScriptsByHashes
+  :: Array ScriptHash -> QueryM (Either ClientError (Map ScriptHash ScriptRef))
+getScriptsByHashes =
+  runExceptT
+    <<< map (Map.catMaybes <<< Map.fromFoldable)
+    <<< parTraverse (\sh -> Tuple sh <$> ExceptT (getScriptByHash sh))
+
+isTxConfirmed :: TransactionHash -> QueryM (Either ClientError Boolean)
+isTxConfirmed (TransactionHash txHash) = do
+  let endpoint = "/matches/*@" <> byteArrayToHex txHash
+  kupoGetRequest endpoint
+    <#> map (not <<< Array.null :: Array Aeson -> _) <<< handleAffjaxResponse
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing
