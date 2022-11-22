@@ -26,7 +26,6 @@ import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM (getNetworkId)
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
-import Ctl.Internal.QueryM.QueryHandle (getQueryHandle)
 import Ctl.Internal.QueryM.Utxos (getWalletBalance, getWalletUtxos) as Utxos
 import Data.Maybe (Maybe)
 
@@ -39,8 +38,7 @@ utxosAt
 utxosAt address = do
   networkId <- wrapContract getNetworkId
   let cardanoAddr = fromPlutusAddress networkId (getAddress address)
-  queryHandle <- wrapContract getQueryHandle
-  cardanoUtxoMap <- liftedE $ wrapContract $ queryHandle.utxosAt cardanoAddr
+  cardanoUtxoMap <- liftedE $ wrapContract $ Kupo.utxosAt cardanoAddr
   toPlutusUtxoMap cardanoUtxoMap
     # liftContractM "utxosAt: failed to convert utxos"
 

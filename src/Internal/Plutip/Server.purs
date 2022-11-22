@@ -111,7 +111,6 @@ import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
-import Undefined (undefined)
 
 -- | Run a single `Contract` in Plutip environment.
 runPlutipContract
@@ -748,8 +747,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
   pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
     { config:
-        { backend: undefined -- TODO:
-        , ctlServerConfig: plutipCfg.ctlServerConfig
+        { ctlServerConfig: plutipCfg.ctlServerConfig
         , ogmiosConfig: plutipCfg.ogmiosConfig
         , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
         , kupoConfig: plutipCfg.kupoConfig

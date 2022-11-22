@@ -17,7 +17,6 @@ module Ctl.Internal.QueryM
   , Logger
   , OgmiosListeners
   , OgmiosWebSocket
-  , QueryBackend(BlockfrostBackend, CtlBackend)
   , QueryConfig
   , QueryM
   , ParQueryM
@@ -278,7 +277,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, throw, try)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Undefined (undefined)
 import Untagged.Union (asOneOf)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -315,15 +313,6 @@ emptyHooks =
   , onError: Nothing
   }
 
-data QueryBackend
-  = CtlBackend
-      { ogmiosConfig :: ServerConfig
-      , kupoConfig :: ServerConfig
-      }
-  | BlockfrostBackend
-      { blockfrostConfig :: ServerConfig
-      }
-
 -- | `QueryConfig` contains a complete specification on how to initialize a
 -- | `QueryM` environment.
 -- | It includes:
@@ -333,11 +322,10 @@ data QueryBackend
 -- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { backend :: QueryBackend
-  , ctlServerConfig :: Maybe ServerConfig
-  , datumCacheConfig :: ServerConfig -- TODO: make optional
-  , ogmiosConfig :: ServerConfig -- TODO: remove, use `QueryBackend` instead
-  , kupoConfig :: ServerConfig -- TODO: remove, use `QueryBackend` instead
+  { ctlServerConfig :: Maybe ServerConfig
+  , datumCacheConfig :: ServerConfig
+  , ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -355,11 +343,11 @@ type QueryConfig =
 -- | - A data structure to keep UTxOs that has already been spent
 -- | - Current protocol parameters
 type QueryRuntime =
-  { ogmiosWs :: OgmiosWebSocket -- TODO: make optional
-  , datumCacheWs :: DatumCacheWebSocket -- TODO: make optional
+  { ogmiosWs :: OgmiosWebSocket
+  , datumCacheWs :: DatumCacheWebSocket
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
-  , pparams :: Ogmios.ProtocolParameters -- TODO: fetch using specified backend
+  , pparams :: Ogmios.ProtocolParameters
   }
 
 -- | `QueryEnv` contains everything needed for `QueryM` to run.
