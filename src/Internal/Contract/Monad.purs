@@ -5,26 +5,41 @@ import Prelude
 import Control.Monad.Error.Class (class MonadError, class MonadThrow)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask)
-import Control.Monad.Reader.Trans (ReaderT)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.QueryM (DatumCacheWebSocket, OgmiosWebSocket, Hooks)
+import Ctl.Internal.QueryM
+  ( DatumCacheWebSocket
+  , Hooks
+  , Logger
+  , OgmiosWebSocket
+  , QueryEnv
+  , QueryM
+  , mkDatumCacheWebSocketAff
+  , mkLogger
+  , mkOgmiosWebSocketAff
+  , mkWalletBySpec
+  )
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts)
+import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (class Newtype)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Traversable (for_, traverse)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
-import Effect.Class (class MonadEffect)
-import Effect.Exception (Error)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Exception (Error, try)
+import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
-
+import Partial.Unsafe (unsafePartial)
+import Prim.TypeError (class Warn, Text)
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
@@ -62,15 +77,19 @@ instance MonadLogger Contract where
 -- ContractEnv
 --------------------------------------------------------------------------------
 
+type CtlBackend =
+  { ogmiosConfig :: ServerConfig
+  , ogmiosWs :: OgmiosWebSocket
+  , kupoConfig :: ServerConfig
+  }
+
+type BlockfrostBackend =
+  { blockfrostConfig :: ServerConfig
+  }
+
 data QueryBackend
-  = CtlBackend
-      { ogmiosConfig :: ServerConfig
-      , ogmiosWs :: OgmiosWebSocket
-      , kupoConfig :: ServerConfig
-      }
-  | BlockfrostBackend
-      { blockfrostConfig :: ServerConfig
-      }
+  = CtlBackend CtlBackend
+  | BlockfrostBackend BlockfrostBackend
 
 type ContractEnv =
   { backend :: QueryBackend
@@ -88,6 +107,46 @@ type ContractEnv =
   , pparams :: Ogmios.ProtocolParameters -- TODO:
   }
 
+-- | Initializes a `Contract` environment. Does not ensure finalization.
+-- | Consider using `withContractEnv` if possible - otherwise use
+-- | `stopContractEnv` to properly finalize.
+mkContractEnv
+  :: Warn
+       ( Text
+           "Using `mkContractEnv` is not recommended: it does not ensure `ContractEnv` finalization. Consider using `withContractEnv`"
+       )
+  => ContractParams
+  -> Aff ContractEnv
+mkContractEnv params = do
+  runtime <- mkContractRuntime params
+  pure
+    { backend: mkQueryBackend params.backendParams runtime
+    , ctlServerConfig: params.ctlServerConfig
+    , datumCache: { config: params.datumCacheConfig, ws: runtime.datumCacheWs }
+    , networkId: params.networkId
+    , logLevel: params.logLevel
+    , walletSpec: params.walletSpec
+    , customLogger: params.customLogger
+    , suppressLogs: params.suppressLogs
+    , hooks: params.hooks
+    , wallet: runtime.wallet
+    , usedTxOuts: runtime.usedTxOuts
+    , pparams: runtime.pparams
+    }
+  where
+  mkQueryBackend :: QueryBackendParams -> ContractRuntime -> QueryBackend
+  mkQueryBackend (BlockfrostBackendParams backend) _ = BlockfrostBackend backend
+  mkQueryBackend (CtlBackendParams { ogmiosConfig, kupoConfig }) runtime =
+    CtlBackend
+      { ogmiosConfig
+      , ogmiosWs: unsafePartial fromJust runtime.ogmiosWs
+      , kupoConfig
+      }
+
+--------------------------------------------------------------------------------
+-- ContractRuntime
+--------------------------------------------------------------------------------
+
 type ContractRuntime =
   { ogmiosWs :: Maybe OgmiosWebSocket
   , datumCacheWs :: DatumCacheWebSocket
@@ -96,36 +155,39 @@ type ContractRuntime =
   , pparams :: Ogmios.ProtocolParameters -- TODO:
   }
 
-{-
--- | Initializes a `Contract` environment. Does not ensure finalization.
--- | Consider using `withContractEnv` if possible - otherwise use
--- | `stopContractEnv` to properly finalize.
-mkContractEnv
-  :: Warn
-       (  Text "Using `mkContractEnv` is not recommended: it does not ensure"
-       <> Text " `ContractEnv` finalization. Consider using `withContractEnv`"
-       )
-  => ContractParams
-  -> Aff ContractEnv
-mkContractEnv
-  params@
-    { backendParams
-    , ctlServerConfig
-    , datumCacheConfig
-    , networkId
-    , logLevel
-    , walletSpec
-    , customLogger
-    , suppressLogs
-    , hooks
-    } =
--}
+-- | Used in `mkContractRuntime` only
+data ContractRuntimeModel = ContractRuntimeModel
+  DatumCacheWebSocket
+  (Maybe OgmiosWebSocket)
+  (Maybe Wallet)
 
-{- mkContractRuntime :: ContractParams -> Aff ContractRuntime
+mkContractRuntime :: ContractParams -> Aff ContractRuntime
 mkContractRuntime params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
   usedTxOuts <- newUsedTxOuts
--}
+  datumCacheWsRef <- liftEffect $ Ref.new Nothing
+  ContractRuntimeModel datumCacheWs ogmiosWs wallet <- sequential $
+    ContractRuntimeModel
+      <$> parallel
+        ( mkDatumCacheWebSocketAff datumCacheWsRef logger
+            params.datumCacheConfig
+        )
+      <*> parallel
+        ( traverse (mkOgmiosWebSocketAff datumCacheWsRef logger)
+            mOgmiosConfig
+        )
+      <*> parallel (traverse mkWalletBySpec params.walletSpec)
+  pparams <- undefined -- TODO:
+  pure { ogmiosWs, datumCacheWs, wallet, usedTxOuts, pparams }
+  where
+  logger :: Logger
+  logger = mkLogger params.logLevel params.customLogger
+
+  mOgmiosConfig :: Maybe ServerConfig
+  mOgmiosConfig =
+    case params.backendParams of
+      CtlBackendParams { ogmiosConfig } -> Just ogmiosConfig
+      _ -> Nothing
 
 --------------------------------------------------------------------------------
 -- ContractParams
@@ -158,5 +220,37 @@ type ContractParams =
   -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   , hooks :: Hooks
+  }
+
+--------------------------------------------------------------------------------
+-- QueryM
+--------------------------------------------------------------------------------
+
+runQueryM :: forall (a :: Type). ContractEnv -> CtlBackend -> QueryM a -> Aff a
+runQueryM contractEnv ctlBackend =
+  flip runReaderT (mkQueryEnv contractEnv ctlBackend) <<< unwrap
+
+mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv ()
+mkQueryEnv contractEnv ctlBackend =
+  { config:
+      { ctlServerConfig: contractEnv.ctlServerConfig
+      , datumCacheConfig: contractEnv.datumCache.config
+      , ogmiosConfig: ctlBackend.ogmiosConfig
+      , kupoConfig: ctlBackend.kupoConfig
+      , networkId: contractEnv.networkId
+      , logLevel: contractEnv.logLevel
+      , walletSpec: contractEnv.walletSpec
+      , customLogger: contractEnv.customLogger
+      , suppressLogs: contractEnv.suppressLogs
+      , hooks: contractEnv.hooks
+      }
+  , runtime:
+      { ogmiosWs: ctlBackend.ogmiosWs
+      , datumCacheWs: contractEnv.datumCache.ws
+      , wallet: contractEnv.wallet
+      , usedTxOuts: contractEnv.usedTxOuts
+      , pparams: contractEnv.pparams
+      }
+  , extraConfig: {}
   }
 
