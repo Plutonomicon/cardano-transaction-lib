@@ -18,7 +18,7 @@ import Contract.BalanceTxConstraints
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
 import Contract.Chain (currentTime)
-import Contract.Hashing (nativeScriptHash)
+import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
 import Contract.PlutusData
@@ -29,10 +29,15 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (mconcat)
+import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (applyArgs, mintingPolicyHash, validatorHash)
+import Contract.Scripts
+  ( ValidatorHash
+  , applyArgs
+  , mintingPolicyHash
+  , validatorHash
+  )
 import Contract.Test.Plutip
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
@@ -46,6 +51,7 @@ import Contract.Transaction
   ( DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
+  , TransactionHash
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
@@ -60,13 +66,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
-import Contract.Wallet
-  ( getWalletUtxos
-  , isFlintAvailable
-  , isGeroAvailable
-  , isNamiAvailable
-  , withKeyWallet
-  )
+import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
@@ -91,12 +91,15 @@ import Ctl.Examples.MintsMultipleTokens
   )
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
-import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
-import Ctl.Examples.PlutusV2.ReferenceInputs (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
+  ( contract
+  ) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
@@ -112,13 +115,16 @@ import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
+import Ctl.Internal.Wallet
+  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet)
+  )
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint)
   , withCip30Mock
   )
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
-import Data.Either (isLeft)
+import Data.Either (Either(Right), isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
@@ -127,7 +133,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
@@ -701,6 +707,70 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
+    test "GetDatumsByHashes" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+
+        datum1 :: Datum
+        datum1 = Datum $ Integer $ BigInt.fromInt 1
+
+        datum2 :: Datum
+        datum2 = Datum $ Integer $ BigInt.fromInt 2
+
+        datums :: Array Datum
+        datums = [ datum2, datum1 ]
+
+      let
+        payToTest :: ValidatorHash -> Contract () TransactionHash
+        payToTest vhash = do
+          let
+            constraints =
+              Constraints.mustPayToScript
+                vhash
+                datum1
+                Constraints.DatumWitness
+                (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+                <> Constraints.mustPayToScript
+                  vhash
+                  datum2
+                  Constraints.DatumWitness
+                  (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+
+            lookups :: Lookups.ScriptLookups PlutusData
+            lookups = mempty
+          buildBalanceSignAndSubmitTx lookups constraints
+
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          validator <- AlwaysSucceeds.alwaysSucceedsScript
+          let vhash = validatorHash validator
+          logInfo' "Running GetDatums submittx"
+          txId <- payToTest vhash
+          awaitTxConfirmed txId
+          logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
+
+          hash1 <- liftM (error "Couldn't get hash for datums 1") $
+            datumHash datum1
+          hash2 <- liftM (error "Couldn't get hash for datums 2") $
+            datumHash datum2
+          hashes <- liftM (error "Couldn't get hashes for datums [1,2]") $
+            traverse datumHash datums
+
+          actualDatums1 <- getDatumsByHashes hashes
+          actualDatums1 `shouldEqual` Map.fromFoldable
+            [ hash1 /\ datum1
+            , hash2 /\ datum2
+            ]
+          actualDatums2 <- getDatumsByHashesWithErrors hashes
+          actualDatums2 `shouldEqual` Map.fromFoldable
+            [ hash1 /\ Right datum1
+            , hash2 /\ Right datum2
+            ]
+
     test "MintZeroToken" do
       let
         distribution :: InitialUTxOs
@@ -941,7 +1011,7 @@ suite = do
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
-          validator <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+          validator <- alwaysSucceedsScriptV2
           let vhash = validatorHash validator
           logInfo' "Attempt to lock value"
           txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
@@ -1055,6 +1125,16 @@ suite = do
           ]
       withWallets distribution \alice ->
         withKeyWallet alice ReferenceInputs.contract
+
+    test "ReferenceInputsAndScripts" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice ReferenceInputsAndScripts.contract
 
     test "OneShotMinting" do
       let
@@ -1246,7 +1326,7 @@ suite = do
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
 
             validatorV1 <- AlwaysSucceeds.alwaysSucceedsScript
-            validatorV2 <- AlwaysSucceedsV2.alwaysSucceedsScriptV2
+            validatorV2 <- alwaysSucceedsScriptV2
 
             let
               value :: Value.Value
@@ -1376,20 +1456,28 @@ suite = do
             , BigInt.fromInt 2_000_000_000
             ]
         withWallets distribution \alice -> do
-          try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
-          try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
-          try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+          try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
+            isLeft
+          try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
+            isLeft
+          try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
+            shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockNami do
-            liftEffect isNamiAvailable >>= shouldEqual true
-          try (liftEffect isNamiAvailable) >>= flip shouldSatisfy isLeft
+            (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockGero do
-            liftEffect isGeroAvailable >>= shouldEqual true
-          try (liftEffect isGeroAvailable) >>= flip shouldSatisfy isLeft
+            (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
+            isLeft
           withCip30Mock alice MockFlint do
-            liftEffect isFlintAvailable >>= shouldEqual true
-          try (liftEffect isFlintAvailable) >>= flip shouldSatisfy isLeft
+            (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
+            shouldSatisfy
+            isLeft
 
       test "Collateral selection" do
         let
@@ -1486,18 +1574,18 @@ suite = do
           withCip30Mock alice MockNami do
             Cip30.contract
 
-      -- TODO
-      skip $ test "Failing getWalletBalance - investigate" do
+      test "getWalletBalance" do
         let
           distribution :: InitialUTxOs
           distribution =
-            [ BigInt.fromInt 2_000_000
+            [ BigInt.fromInt 5_000_000
             , BigInt.fromInt 2_000_000
+            , BigInt.fromInt 1_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
-              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 3_000_000)
+              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do

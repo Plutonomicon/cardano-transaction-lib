@@ -16,6 +16,7 @@ import Prelude
 
 import Control.MonadPlus (guard)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Test.E2E.Types
   ( ExtensionId
   , RunningE2ETest
@@ -30,11 +31,11 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Seconds(Seconds))
-import Data.Traversable (for)
+import Data.Traversable (for, for_)
 import Effect (Effect)
 import Effect.Aff (Aff, delay, try)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import Foreign (Foreign, unsafeFromForeign)
 import Toppokki as Toppokki
 
@@ -107,7 +108,7 @@ inWalletPage
   -> Aff a
 inWalletPage pattern { browser, jQuery } timeout cont = do
   page <- waitForWalletPage pattern timeout browser
-  injectJQuery page jQuery
+  for_ jQuery $ injectJQuery page
   cont page
 
 -- | Provide an extension ID and a pattern to match.
@@ -129,7 +130,7 @@ inWalletPageOptional extId pattern { browser, jQuery } timeout cont = do
     page <- waitForWalletPage (Pattern $ unExtensionId extId) timeout browser
     url <- liftEffect $ pageUrl page
     if String.contains pattern url then do
-      injectJQuery page jQuery
+      for_ jQuery $ injectJQuery page
       Just <$> cont page
     else do
       pure Nothing
@@ -230,12 +231,18 @@ flintSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 flintSign _ _ _ = do
   liftEffect $ throw "Flint support is not implemented"
 
+getJQuery :: RunningE2ETest -> Aff String
+getJQuery re =
+  liftM (error "JQuery not available (E2E_SKIP_JQUERY_DOWNLOAD=true)") re.jQuery
+
 lodeConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 lodeConfirmAccess extId re = do
   wasOnAccessPage <- inWalletPage pattern re confirmAccessTimeout \page -> do
     delaySec 0.1
-    isOnAccessPage <- isJQuerySelectorAvailable (buttonWithText "Access") page
-      re.jQuery
+    isOnAccessPage <- getJQuery re >>= isJQuerySelectorAvailable
+      (buttonWithText "Access")
+      page
+
     when isOnAccessPage do
       void $ doJQ (buttonWithText "Access") click page
     pure isOnAccessPage
@@ -250,8 +257,9 @@ lodeSign extId gpassword re = do
     void $ Toppokki.pageWaitForSelector (wrap $ unwrap $ inputType "password")
       {}
       page
-    isOnSignPage <- isJQuerySelectorAvailable (buttonWithText "Approve") page
-      re.jQuery
+    isOnSignPage <- getJQuery re >>= isJQuerySelectorAvailable
+      (buttonWithText "Approve")
+      page
     unless isOnSignPage do
       liftEffect $ throw $ "lodeSign: unable to find signing page"
     typeInto (inputType "password") gpassword page

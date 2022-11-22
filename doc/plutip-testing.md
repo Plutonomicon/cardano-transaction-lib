@@ -6,10 +6,10 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  - [Testing in Aff context](#testing-in-aff-context)
-  - [Testing with Mote](#testing-with-mote)
-  - [Testing with Nix](#testing-with-nix)
-- [Limitations](#limitations)
+  + [Testing in Aff context](#testing-in-aff-context)
+  + [Testing with Mote](#testing-with-mote)
+  + [Testing with Nix](#testing-with-nix)
+- [Using addresses with staking key components](#using-addresses-with-staking-key-components)
 
 ## Architecture
 
@@ -17,6 +17,7 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 
 - `plutip-server` to launch a local `cardano-node` cluster
 - [`ogmios`](https://ogmios.dev/)
+- [`kupo`](https://cardanosolutions.github.io/kupo/)
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
 - PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
 

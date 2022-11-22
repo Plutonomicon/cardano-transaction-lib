@@ -2,21 +2,26 @@ module Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints(BalanceTxConstraints)
   , BalanceTxConstraintsBuilder(BalanceTxConstraintsBuilder)
   , buildBalanceTxConstraints
-  , mustBalanceTxWithAddress
-  , mustBalanceTxWithAddresses
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
+  , mustSendChangeToAddress
   , mustUseAdditionalUtxos
+  , mustUseUtxosAtAddress
+  , mustUseUtxosAtAddresses
   , _additionalUtxos
+  , _changeAddress
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
-  , _ownAddresses
+  , _srcAddresses
   ) where
 
 import Prelude
 
-import Ctl.Internal.Plutus.Conversion (fromPlutusAddress)
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusAddress
+  , fromPlutusAddressWithNetworkTag
+  )
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -42,7 +47,8 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   { additionalUtxos :: Plutus.UtxoMap
   , maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
-  , ownAddresses :: Maybe (Array Address)
+  , srcAddresses :: Maybe (Array Address)
+  , changeAddress :: Maybe Address
   }
 
 derive instance Newtype BalanceTxConstraints _
@@ -57,8 +63,11 @@ _maxChangeOutputTokenQuantity =
 _nonSpendableInputs :: Lens' BalanceTxConstraints (Set TransactionInput)
 _nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
 
-_ownAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
-_ownAddresses = _Newtype <<< prop (Proxy :: Proxy "ownAddresses")
+_srcAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
+_srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
+
+_changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
+_changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
 
 newtype BalanceTxConstraintsBuilder =
   BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
@@ -79,22 +88,42 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     { additionalUtxos: Map.empty
     , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
-    , ownAddresses: Nothing
+    , srcAddresses: Nothing
+    , changeAddress: Nothing
     }
 
--- | Tells the balancer to treat the provided addresses like user's own.
-mustBalanceTxWithAddresses
-  :: NetworkId -> Array Plutus.Address -> BalanceTxConstraintsBuilder
-mustBalanceTxWithAddresses networkId =
-  wrap <<< setJust _ownAddresses <<< map (fromPlutusAddress networkId)
-
--- | Tells the balancer to treat the provided address like user's own.
--- | Like `mustBalanceTxWithAddress`, but takes `AddressWithNetworkTag`.
-mustBalanceTxWithAddress
+-- | Tells the balancer to send all generated change to a given address.
+-- | If this constraint is not set, then the default change address owned by
+-- | the wallet is used.
+-- |
+-- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
+-- | does NOT have any effect on which address will be used as a change address.
+mustSendChangeToAddress
   :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
-mustBalanceTxWithAddress
-  (Plutus.AddressWithNetworkTag { address, networkId }) =
-  mustBalanceTxWithAddresses networkId (Array.singleton address)
+mustSendChangeToAddress =
+  wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
+
+-- | Tells the balancer to use utxos at given addresses.
+-- | If this constraint is not set, then the default addresses owned by the
+-- | wallet are used.
+-- |
+-- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
+-- | does NOT have any effect on which address will be used as a change address.
+mustUseUtxosAtAddresses
+  :: NetworkId -> Array Plutus.Address -> BalanceTxConstraintsBuilder
+mustUseUtxosAtAddresses networkId =
+  wrap <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
+
+-- | Tells the balancer to use utxos at a given address.
+-- | If this constraint is not set, then the default addresses owned by the
+-- | wallet are used.
+-- |
+-- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
+-- | does NOT have any effect on which address will be used as a change address.
+mustUseUtxosAtAddress
+  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
+mustUseUtxosAtAddress (Plutus.AddressWithNetworkTag { address, networkId }) =
+  mustUseUtxosAtAddresses networkId (Array.singleton address)
 
 -- | Tells the balancer to split change outputs and equipartition change `Value`
 -- | between them if the total change `Value` contains token quantities

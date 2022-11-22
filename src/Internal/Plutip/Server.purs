@@ -30,6 +30,7 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
@@ -89,7 +90,7 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
-import Data.Tuple (fst, snd)
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -747,17 +748,23 @@ mkClusterContractEnv
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Aff (ContractEnv ())
 mkClusterContractEnv plutipCfg logger customLogger = do
-  datumCacheWs <-
-    QueryM.mkDatumCacheWebSocketAff logger
-      QueryM.defaultDatumCacheWsConfig
-        { port = plutipCfg.ogmiosDatumCacheConfig.port
-        , host = plutipCfg.ogmiosDatumCacheConfig.host
-        }
-  ogmiosWs <- QueryM.mkOgmiosWebSocketAff datumCacheWs logger
-    QueryM.defaultOgmiosWsConfig
-      { port = plutipCfg.ogmiosConfig.port
-      , host = plutipCfg.ogmiosConfig.host
-      }
+  datumCacheWsRef <- liftEffect $ Ref.new Nothing
+  datumCacheWs /\ ogmiosWs <- sequential $
+    Tuple
+      <$> parallel
+        ( QueryM.mkDatumCacheWebSocketAff datumCacheWsRef logger
+            QueryM.defaultDatumCacheWsConfig
+              { port = plutipCfg.ogmiosDatumCacheConfig.port
+              , host = plutipCfg.ogmiosDatumCacheConfig.host
+              }
+        )
+      <*> parallel
+        ( QueryM.mkOgmiosWebSocketAff datumCacheWsRef logger
+            QueryM.defaultOgmiosWsConfig
+              { port = plutipCfg.ogmiosConfig.port
+              , host = plutipCfg.ogmiosConfig.host
+              }
+        )
   usedTxOuts <- newUsedTxOuts
   pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
