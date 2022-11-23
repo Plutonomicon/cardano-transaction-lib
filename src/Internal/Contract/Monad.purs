@@ -1,8 +1,22 @@
-module Ctl.Internal.Contract.Monad where
+module Ctl.Internal.Contract.Monad
+  ( Contract(Contract)
+  , ContractEnv
+  , ContractParams
+  , mkContractEnv
+  , runContract
+  , runContractInEnv
+  , runQueryM
+  , stopContractEnv
+  , withContractEnv
+  ) where
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, class MonadThrow)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
@@ -17,6 +31,7 @@ import Ctl.Internal.Contract.QueryBackend
   , lookupBackend
   )
 import Ctl.Internal.Helpers (logWithLevel)
+import Ctl.Internal.JsWebSocket (JsWebSocket, _wsClose, _wsFinalize)
 import Ctl.Internal.QueryM
   ( DatumCacheWebSocket
   , Hooks
@@ -28,19 +43,23 @@ import Ctl.Internal.QueryM
   , mkLogger
   , mkOgmiosWebSocketAff
   , mkWalletBySpec
+  , underlyingWebSocket
   )
+import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec)
+import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (for_, traverse)
-import Effect.Aff (Aff)
+import Effect (Effect)
+import Effect.Aff (Aff, attempt, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, try)
@@ -80,6 +99,23 @@ instance MonadLogger Contract where
     config <- ask
     let logFunction = fromMaybe logWithLevel config.customLogger
     liftAff $ logFunction config.logLevel msg
+
+-- | Interprets a contract into an `Aff` context.
+-- | Implicitly initializes and finalizes a new `ContractEnv` runtime.
+-- |
+-- | Use `withContractEnv` if your application contains multiple contracts that
+-- | can be run in parallel, reusing the same environment (see
+-- | `withContractEnv`)
+runContract :: forall (a :: Type). ContractParams -> Contract a -> Aff a
+runContract params contract = do
+  withContractEnv params \config ->
+    runContractInEnv config contract
+
+-- | Runs a contract in existing environment. Does not destroy the environment
+-- | when contract execution ends.
+runContractInEnv :: forall (a :: Type). ContractEnv -> Contract a -> Aff a
+runContractInEnv contractEnv =
+  flip runReaderT contractEnv <<< unwrap
 
 --------------------------------------------------------------------------------
 -- ContractEnv
@@ -150,7 +186,7 @@ type ContractRuntime =
   , pparams :: Ogmios.ProtocolParameters -- TODO:
   }
 
--- | Used in `mkContractRuntime` only
+-- | Used in `mkContractRuntime` only.
 data ContractRuntimeModel = ContractRuntimeModel
   DatumCacheWebSocket
   (Maybe OgmiosWebSocket)
@@ -183,6 +219,60 @@ mkContractRuntime params = do
     lookupBackend CtlBackendLabel params.backendParams >>= case _ of
       CtlBackendParams { ogmiosConfig } -> Just ogmiosConfig
       _ -> Nothing
+
+-- | Finalizes a `Contract` environment.
+-- | Closes the websockets in `ContractEnv`, effectively making it unusable.
+stopContractEnv
+  :: Warn
+       ( Text
+           "Using `stopContractEnv` is not recommended: users should rely on `withContractEnv` to finalize the runtime environment instead"
+       )
+  => ContractEnv
+  -> Effect Unit
+stopContractEnv contractEnv = do
+  _wsFinalize datumCacheWs *> _wsClose datumCacheWs
+  for_ mOgmiosWs \ogmiosWs -> _wsFinalize ogmiosWs *> _wsClose ogmiosWs
+  where
+  datumCacheWs :: JsWebSocket
+  datumCacheWs = underlyingWebSocket contractEnv.datumCache.ws
+
+  mOgmiosWs :: Maybe JsWebSocket
+  mOgmiosWs =
+    lookupBackend CtlBackendLabel contractEnv.backend >>= case _ of
+      CtlBackend { ogmiosWs } ->
+        Just $ underlyingWebSocket ogmiosWs
+      _ -> Nothing
+
+-- | Constructs and finalizes a contract environment that is usable inside a
+-- | bracket callback.
+-- | One environment can be used by multiple `Contract`s in parallel (see
+-- | `runContractInEnv`).
+-- | Make sure that `Aff` action does not end before all contracts that use the
+-- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
+withContractEnv
+  :: forall (a :: Type). ContractParams -> (ContractEnv -> Aff a) -> Aff a
+withContractEnv params action = do
+  { addLogEntry, printLogs } <-
+    liftEffect $ setupLogs params.logLevel params.customLogger
+  let
+    customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+    customLogger
+      | params.suppressLogs = Just $ map liftEffect <<< addLogEntry
+      | otherwise = params.customLogger
+
+  contractEnv <- mkContractEnv params <#> _ { customLogger = customLogger }
+  eiRes <-
+    -- TODO: Adapt `networkIdCheck` from QueryM module
+    attempt $ supervise (action contractEnv)
+      `flip finally` liftEffect (stopContractEnv contractEnv)
+  liftEffect $ case eiRes of
+    Left err -> do
+      for_ contractEnv.hooks.onError \f -> void $ try $ f err
+      when contractEnv.suppressLogs printLogs
+      throwError err
+    Right res -> do
+      for_ contractEnv.hooks.onSuccess (void <<< try)
+      pure res
 
 --------------------------------------------------------------------------------
 -- ContractParams
