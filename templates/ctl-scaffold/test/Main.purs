@@ -11,10 +11,10 @@ import Contract.Test.Plutip as Contract.Test.Plutip
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.BigInt as BigInt
 import Data.UInt as UInt
+import Effect.Aff (Milliseconds(Milliseconds))
 import Mote (test)
 import Scaffold as Scaffold
 import Test.Spec.Runner (defaultConfig)
-import Effect.Aff (Milliseconds(Milliseconds))
 
 main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do
