@@ -147,6 +147,7 @@ withPlutipContractEnv plutipCfg distr cont = do
 -- |       Namely, brackets are run for each of the following groups and tests.
 -- |       If you wish to only set up Plutip once, ensure all tests are wrapped
 -- |       in a single group.
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
   -> TestPlanM PlutipTest Unit
