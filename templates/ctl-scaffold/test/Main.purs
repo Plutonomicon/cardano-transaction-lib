@@ -8,18 +8,18 @@ import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
 import Contract.Test.Plutip (PlutipTest, testPlutipContracts)
 import Contract.Test.Plutip as Contract.Test.Plutip
-import Contract.Wallet as Contract.Wallet
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Mote (test)
 import Scaffold as Scaffold
 import Test.Spec.Runner (defaultConfig)
+import Effect.Aff (Milliseconds(Milliseconds))
 
 main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do
   interpretWithConfig
-    defaultConfig
+    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
     $ testPlutipContracts config suite
 
 suite :: TestPlanM PlutipTest Unit
@@ -31,9 +31,8 @@ suite = do
         [ BigInt.fromInt 5_000_000
         , BigInt.fromInt 2_000_000_000
         ]
-    Contract.Test.Plutip.withWallets distribution \alice -> do
-      Contract.Wallet.withKeyWallet alice $ do
-        Scaffold.contract
+    Contract.Test.Plutip.withWallets distribution \_ -> do
+      Scaffold.contract
 
 config :: Contract.Test.Plutip.PlutipConfig
 config =
