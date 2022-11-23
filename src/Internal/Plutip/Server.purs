@@ -110,7 +110,7 @@ import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath, dirname)
+import Node.Path (FilePath)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -341,13 +341,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       pure
 
   startPostgres' :: ClusterStartupParameters -> Aff Unit
-  startPostgres' response =
+  startPostgres' _ =
     bracket (startPostgresServer plutipCfg.postgresConfig)
       (stopChildProcessWithPort plutipCfg.postgresConfig.port <<< fst)
       \(process /\ workingDir) -> do
-        let
-          testClusterDir = (dirname <<< dirname) response.nodeConfigPath
-        liftEffect $ cleanupTmpDir process workingDir testClusterDir
+        liftEffect $ cleanupTmpDir process workingDir
         configurePostgresServer plutipCfg.postgresConfig
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
@@ -563,12 +561,11 @@ startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
     workdir = tmpDir <> "/kupo-db"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  liftEffect $ cleanupTmpDir childProcess workdir testClusterDir
+  liftEffect $ cleanupTmpDir childProcess workdir
   pure childProcess
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
