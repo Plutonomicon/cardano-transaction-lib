@@ -8,6 +8,14 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (parallel, sequential)
+import Ctl.Internal.Contract.QueryBackend
+  ( CtlBackend
+  , QueryBackend(BlockfrostBackend, CtlBackend)
+  , QueryBackendLabel(CtlBackendLabel)
+  , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
+  , QueryBackends
+  , lookupBackend
+  )
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM
   ( DatumCacheWebSocket
@@ -77,22 +85,8 @@ instance MonadLogger Contract where
 -- ContractEnv
 --------------------------------------------------------------------------------
 
-type CtlBackend =
-  { ogmiosConfig :: ServerConfig
-  , ogmiosWs :: OgmiosWebSocket
-  , kupoConfig :: ServerConfig
-  }
-
-type BlockfrostBackend =
-  { blockfrostConfig :: ServerConfig
-  }
-
-data QueryBackend
-  = CtlBackend CtlBackend
-  | BlockfrostBackend BlockfrostBackend
-
 type ContractEnv =
-  { backend :: QueryBackend
+  { backend :: QueryBackends QueryBackend
   , ctlServerConfig :: Maybe ServerConfig
   , datumCache :: { config :: ServerConfig, ws :: DatumCacheWebSocket } -- TODO:
   -- , datumCache :: Maybe { config :: ServerConfig, ws :: DatumCacheWebSocket }
@@ -120,7 +114,7 @@ mkContractEnv
 mkContractEnv params = do
   runtime <- mkContractRuntime params
   pure
-    { backend: mkQueryBackend params.backendParams runtime
+    { backend: mkQueryBackend runtime <$> params.backendParams
     , ctlServerConfig: params.ctlServerConfig
     , datumCache: { config: params.datumCacheConfig, ws: runtime.datumCacheWs }
     , networkId: params.networkId
@@ -134,9 +128,10 @@ mkContractEnv params = do
     , pparams: runtime.pparams
     }
   where
-  mkQueryBackend :: QueryBackendParams -> ContractRuntime -> QueryBackend
-  mkQueryBackend (BlockfrostBackendParams backend) _ = BlockfrostBackend backend
-  mkQueryBackend (CtlBackendParams { ogmiosConfig, kupoConfig }) runtime =
+  mkQueryBackend :: ContractRuntime -> QueryBackendParams -> QueryBackend
+  mkQueryBackend _ (BlockfrostBackendParams backend) =
+    BlockfrostBackend backend
+  mkQueryBackend runtime (CtlBackendParams { ogmiosConfig, kupoConfig }) =
     CtlBackend
       { ogmiosConfig
       , ogmiosWs: unsafePartial fromJust runtime.ogmiosWs
@@ -185,22 +180,13 @@ mkContractRuntime params = do
 
   mOgmiosConfig :: Maybe ServerConfig
   mOgmiosConfig =
-    case params.backendParams of
+    lookupBackend CtlBackendLabel params.backendParams >>= case _ of
       CtlBackendParams { ogmiosConfig } -> Just ogmiosConfig
       _ -> Nothing
 
 --------------------------------------------------------------------------------
 -- ContractParams
 --------------------------------------------------------------------------------
-
-data QueryBackendParams
-  = CtlBackendParams
-      { ogmiosConfig :: ServerConfig
-      , kupoConfig :: ServerConfig
-      }
-  | BlockfrostBackendParams
-      { blockfrostConfig :: ServerConfig
-      }
 
 -- | Options to construct a `ContractEnv` indirectly.
 -- |
@@ -209,7 +195,7 @@ data QueryBackendParams
 -- | contains multiple contracts that can be run in parallel, reusing the same
 -- | environment (see `withContractEnv`)
 type ContractParams =
-  { backendParams :: QueryBackendParams
+  { backendParams :: QueryBackends QueryBackendParams
   , ctlServerConfig :: Maybe ServerConfig
   , datumCacheConfig :: ServerConfig -- TODO:
   -- , datumCacheConfig :: Maybe ServerConfig
