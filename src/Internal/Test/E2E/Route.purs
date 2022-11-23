@@ -206,12 +206,14 @@ route configs tests = do
     { ctlServerConfig
     , ogmiosConfig
     , datumCacheConfig
+    , kupoConfig
     }
     config =
     config
       { ctlServerConfig = ctlServerConfig
       , ogmiosConfig = ogmiosConfig
       , datumCacheConfig = datumCacheConfig
+      , kupoConfig = kupoConfig
       }
 
 foreign import _queryString :: Effect String

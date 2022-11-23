@@ -65,8 +65,8 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 1. How do we get the transaction in the right format?
    - This is handled by `cardano-serialization-lib`, a Rust library available as WASM
 2. How do we query the chain?
-   - This has been solved using Ogmios
-   - We may, however, support a BlockFrost backend as well in the future
+   - This has been solved using Ogmios & Kupo
+   - We will support an alternative BlockFrost backend as well in the future
 3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
    - `ogmios-datum-cache` solves this problem
 4. How do we submit the transaction?
@@ -81,6 +81,7 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
 
 - [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/)
 - [Ogmios](https://ogmios.dev) for chain queries
+- [Kupo](https://cardanosolutions.github.io/kupo/) for chain queries
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
 - [Nami docs](https://github.com/Berry-Pool/nami-wallet)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)

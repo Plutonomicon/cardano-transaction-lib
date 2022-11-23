@@ -6,11 +6,13 @@ This document outlines development workflows for CTL itself. You may also wish t
 
 - [Nix environment](#nix-environment)
 - [Launching services for development](#launching-services-for-development)
-- [Building, testing, and running the PS project](#building-testing-and-running-the-ps-project)
+- [Building, testing, and running the PS project](#building--testing--and-running-the-ps-project)
 - [Generating PS documentation](#generating-ps-documentation)
-- [Adding PS/JS dependencies](#adding-psjs-dependencies)
-  - [Purescript](#purescript)
-  - [JS](#js)
+- [Adding PS/JS dependencies](#adding-ps-js-dependencies)
+  + [Purescript](#purescript)
+  + [JS](#js)
+- [Switching development networks](#switching-development-networks)
+- [Maintaining the template](#maintaining-the-template)
 
 ## Nix environment
 

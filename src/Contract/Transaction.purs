@@ -129,6 +129,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _outputs
   , _plutusData
   , _plutusScripts
+  , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
   , _ttl
@@ -341,14 +342,14 @@ calculateMinFeeM
 calculateMinFeeM tx additionalUtxos =
   map hush $ calculateMinFee tx additionalUtxos
 
--- | Helper to adapt to UsedTxOuts
+-- | Helper to adapt to UsedTxOuts.
 withUsedTxOuts
   :: forall (r :: Row Type) (a :: Type)
    . ReaderT UsedTxOuts (Contract r) a
   -> Contract r a
 withUsedTxOuts f = asks (_.usedTxOuts <<< _.runtime <<< unwrap) >>= runReaderT f
 
--- Helper to avoid repetition
+-- Helper to avoid repetition.
 withTransactions
   :: forall (a :: Type)
        (t :: Type -> Type)

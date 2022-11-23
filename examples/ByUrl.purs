@@ -27,6 +27,7 @@ import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs as ReferenceInputsV2
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts as ReferenceInputsAndScriptsV2
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.TxChaining as TxChaining
@@ -81,5 +82,6 @@ examples = Map.fromFoldable
   , "OneShotMintingV2" /\ OneShotMintingV2.contract
   , "Cip30" /\ Cip30.contract
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
+  , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
   ]

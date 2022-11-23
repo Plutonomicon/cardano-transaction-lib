@@ -31,9 +31,8 @@ const callPaymentCred = callMethodParameterless("payment_cred");
 const callStakeCred = callMethodParameterless("stake_cred");
 
 exports.withStakeCredential = cbObj => stakeCred => {
-  const keyhash = stakeCred.to_keyhash();
-  return keyhash
-    ? cbObj.onKeyHash(keyhash)
+  return stakeCred.kind() == lib.StakeCredKind.Key
+    ? cbObj.onKeyHash(stakeCred.to_keyhash())
     : cbObj.onScriptHash(stakeCred.to_scripthash());
 };
 

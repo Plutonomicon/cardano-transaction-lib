@@ -32,7 +32,7 @@ import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
 import Data.Maybe (fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
-import Data.Set (difference, fromFoldable, intersection, union) as Set
+import Data.Set (difference, fromFoldable, intersection, mapMaybe, union) as Set
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
@@ -85,10 +85,14 @@ getSelfSigners tx additionalUtxos = do
     txOwnAddrs = ownAddrs `Set.intersection`
       (additionalUtxosAddrs `Set.union` inUtxosAddrs `Set.union` inCollatAddrs)
 
-  -- Extract payment pub key hashes from addresses
-  paymentPkhs <- setFor txOwnAddrs $
-    liftM (error "Could not convert address to key hash")
-      <<< (addressPaymentCred >=> stakeCredentialToKeyHash)
+  -- Extract payment pub key hashes from addresses.
+  paymentPkhs <- map (Set.mapMaybe identity) $ setFor txOwnAddrs $ \addr -> do
+    paymentCred <-
+      liftM
+        ( error $ "Could not extract payment credential from Address: " <> show
+            addr
+        ) $ addressPaymentCred addr
+    pure $ stakeCredentialToKeyHash paymentCred
 
   -- Extract stake pub key hashes from addresses
   let
