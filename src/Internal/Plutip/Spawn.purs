@@ -122,6 +122,6 @@ cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit
 cleanupTmpDir (ManagedProcess _ child _) workingDir = do
   ChildProcess.onExit child \_ -> do
     _rmdirSync workingDir
-  -- TODO
-  -- cleanup directories in case of ctrl+c exit,
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1176
+-- TODO
+-- cleanup directories in case of ctrl+c exit,
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1176
