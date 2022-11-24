@@ -6,36 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 **Table of Contents**
 
-- [[Unreleased]](#unreleased)
+- [[Unreleased]](#-unreleased-)
   - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
   - [Fixed](#fixed)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Removed](#removed-1)
   - [Fixed](#fixed-1)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-2)
-  - [Removed](#removed-2)
   - [Changed](#changed-2)
+  - [Removed](#removed-2)
   - [Fixed](#fixed-2)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-3)
+  - [Removed](#removed-3)
+  - [Changed](#changed-3)
   - [Fixed](#fixed-3)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-4)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-5)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
-
-
 
 ## [Unreleased]
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [3.0.0] - 2022-11-21
+
+### Added
+
 - Support passing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
-- `Ctl.Examples.OneShotMinting` example, demonstrating the use of `applyArgs` ([#1024](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1024))
-- `Ctl.Examples.PlutusV2.OneShotMinting` example, demonstrating the use of `applyArgs` with a PlutusV2 script ([#1038](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1038))
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 - `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
 - Balancer constraints interface (check [Building and submitting transactions](https://github.com/Plutonomicon/cardano-transaction-lib/blob/95bdd213eff16a5e00df82fb27bbe2479e8b4196/doc/getting-started.md#building-and-submitting-transactions) and `examples/BalanceTxConstraints.purs` for reference) ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
@@ -66,6 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `EncodeAeson` and `DecodeAeson` instances for `TransactionInput`, `TransactionOutput`/`TransactionOutputWithRefScript` and `PaymentPubKeyHash`([#1138](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1138))
 - `mustSendChangeToAddress` balancer constraint, allowing to explicitly set the address to send all generated change to ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
 - `mustUseUtxosAtAddress` and `mustUseUtxosAtAddresses` balancer constraints, allowing to specify addresses that should be treated like utxos sources during balancing ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
+- Add ability to provide extra browser CLI arguments in E2E test suite ([#1253](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1253))
 
 ### Changed
 
@@ -91,6 +103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Interval` type is redesigned to restrain some finite intervals to be expressed in the system ([#1041](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041))
 
 ### Removed
+
 - `balanceAndSignTxE`, `balanceAndSignTx`, `balanceAndSignTxs`, `balanceTxWithAddress`, `balanceTxsWithAddress`, `withBalancedAndSignedTx` and `withBalancedAndSignedTxs` from `Contract.Transaction` ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
 - `ScriptOutput` is removed and therefore not exported by `Contract.Address` anymore. also, `Contract.Transaction` doesn't export `scriptOutputToTransactionOutput` anymore ([#652](https://github.com/Plutonomicon/cardano-transaction-lib/issues/652)).
 - `Contract.TxConstraints.TxConstraint` type from public API. The users should rely on domain functions instead ([#1135](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1135))
@@ -109,6 +122,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Fix excessive reconnection attempts after `Contract` runtime finalization ([#965](https://github.com/Plutonomicon/cardano-transaction-lib/pull/965))
 - Fix wallet extension error terminating the whole test suite ([#1209](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1209))
 - Now we can process multiple time constraints ([#1124](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1124))
+- E2E test suite didn't apply settings archive CLI option properly ([#1254](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1254))
 
 ## [2.0.0] - 2022-09-12
 
@@ -136,7 +150,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Chain.waitNSlots`,  `Contract.Chain.currentSlot` and `Contract.Chain.currentTime` a function to wait at least `N` number of slots and functions to get the current time in `Slot` or `POSIXTime`. ([#740](https://github.com/Plutonomicon/cardano-transaction-lib/issues/740))
 - `Contract.Transaction.getTxByHash` to retrieve contents of an on-chain transaction.
 - `project.launchSearchablePursDocs` to create an `apps` output for serving Pursuit documentation locally ([#816](https://github.com/Plutonomicon/cardano-transaction-lib/issues/816))
-- `KeyWallet.MintsAndSendsToken` example ([#802](https://github.com/Plutonomicon/cardano-transaction-lib/pull/802))
 - `Contract.PlutusData.IsData` type class (`ToData` + `FromData`) ([#809](https://github.com/Plutonomicon/cardano-transaction-lib/pull/809))
 - A check for port availability before Plutip runtime initialization attempt ([#837](https://github.com/Plutonomicon/cardano-transaction-lib/issues/837))
 - `Contract.Address.addressToBech32` and `Contract.Address.addressWithNetworkTagToBech32` ([#846](https://github.com/Plutonomicon/cardano-transaction-lib/issues/846))
@@ -159,14 +172,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Test.Utils` for making assertions about `Contract`s. ([#1005](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1005))
 - `Examples.ContractTestUtils` demonstrating the use of `Contract.Test.Utils`. ([#1005](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1005))
 - `mustNotBeValid` constraint which marks the transaction as invalid, allowing scripts to fail during balancing and for Ogmios to allow submission. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
-- `ReferenceScripts` example, for testing reference scripts ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
-- `ReferenceInputs` example, for testing reference inputs ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
 - Constraints for creating outputs with reference scripts: `mustPayToScriptWithScriptRef`, `mustPayToPubKeyAddressWithDatumAndScriptRef`, `mustPayToPubKeyAddressWithScriptRef`, `mustPayToPubKeyWithDatumAndScriptRef`, `mustPayToPubKeyWithScriptRef` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
 - Constraints for using reference validators and minting policies: `mustSpendScriptOutputUsingScriptRef`, `mustMintCurrencyUsingScriptRef`, `mustMintCurrencyWithRedeemerUsingScriptRef` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
 - Constraint for attaching a reference input to a transaction: `mustReferenceOutput` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
-- `Lose7Ada` example, for testing collateral return. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
-- `PlutusV2.AlwaysSucceeds` example, for testing PlutusV2 scripts. ([#947](https://github.com/Plutonomicon/cardano-transaction-lib/pull/947))
-- `InlineDatum` example, for testing inline datum constraints. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - `DatumPresence` data type, which tags paying constraints that accept datum, to mark whether the datum should be inline or hashed in the transaction output. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - Utility conversion functions `serializeData` and `deserializeData` between `PlutusData` and `CborBytes` to `Contract.PlutusData`. ([#1001](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1001))
 - Added [CIP-30](https://cips.cardano.org/cips/cip30/) methods: `getNetworkId`, `getChangeAddress`, `getRewardAddresses`, `getUnusedAddresses`, `signData`, `isWalletAvailable`, `isEnabled`, `apiVersion`, `name` and `icon` to `Contract.Wallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))

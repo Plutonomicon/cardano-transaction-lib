@@ -89,42 +89,45 @@ Although most users will have some version of Chromium or Google Chrome installe
 
 The tests can set up using CLI arguments, environment variables, or both. CLI arguments have higher priority.
 
-| Parameter                         | CLI argument                | Environment variable       |
-|-----------------------------------|-----------------------------|----------------------------|
-| Temporary directory               | `--tmp-dir`                 | `E2E_TMPDIR`               |
-| Test specs (`wallet:url` format)  | `--test` (multiple allowed) | `E2E_TESTS`                |
-| Test timeout                      | `--test-timeout`            | `E2E_TEST_TIMEOUT`         |
-| Browser binary path or name       | `--browser`                 | `E2E_BROWSER`              |
-| Don't use headless mode           | `--no-headless`             | `E2E_NO_HEADLESS`          |
-| Path to the user settings archive | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE`     |
-| URL of settings archive asset     | `--settings-archive-url`    | `E2E_SETTINGS_ARCHIVE_URL` |
-| Path to the user data directory   | `--chrome-user-data`        | `E2E_CHROME_USER_DATA`     |
-|-----------------------------------|-----------------------------|----------------------------|
-| Eternl CRX URL                    | `--eternl-crx-url`          | `ETERNL_CRX_URL`           |
-| Eternl CRX file                   | `--eternl-crx`              | `ETERNL_CRX`               |
-| Eternl password                   | `--eternl-password`         | `ETERNL_PASSWORD`          |
-| Eternl Extension ID               | `--eternl-extid`            | `ETERNL_EXTID`             |
-| Lode CRX URL                      | `--lode-crx-url`            | `LODE_CRX_URL`             |
-| Lode password                     | `--lode-password`           | `LODE_PASSWORD`            |
-| Lode Extension ID                 | `--lode-extid`              | `LODE_EXTID`               |
-| Nami CRX URL                      | `--nami-crx-url`            | `NAMI_CRX_URL`             |
-| Nami CRX file                     | `--nami-crx`                | `NAMI_CRX`                 |
-| Nami password                     | `--nami-password`           | `NAMI_PASSWORD`            |
-| Nami Extension ID                 | `--nami-extid`              | `NAMI_EXTID`               |
-| Flint CRX URL                     | `--flint-crx-url`           | `FLINT_CRX_URL`            |
-| Flint CRX file                    | `--flint-crx`               | `FLINT_CRX`                |
-| Flint password                    | `--flint-password`          | `FLINT_PASSWORD`           |
-| Flint Extension ID                | `--flint-extid`             | `FLINT_EXTID`              |
-| Gero CRX URL                      | `--gero-crx-url`            | `GERO_CRX_URL`             |
-| Gero CRX file                     | `--gero-crx`                | `GERO_CRX`                 |
-| Gero password                     | `--gero-password`           | `GERO_PASSWORD`            |
-| Gero Extension ID                 | `--gero-extid`              | `GERO_EXTID`               |
-|-----------------------------------|-----------------------------|----------------------------|
-| E2E+Plutip: Plutip port number    | `--plutip-port`             | `PLUTIP_PORT`              |
-| E2E+Plutip: Ogmios port number    | `--ogmios-port`             | `OGMIOS_PORT`              |
-| E2E+Plutip: ODC port number       | `--ogmios-datum-cache-port` | `OGMIOS_DATUM_CACHE_PORT`  |
-| E2E+Plutip: CTL server port       | `--ctl-server-port`         | `CTL_SERVER_PORT`          |
-| E2E+Plutip: Postgres port         | `--postgres-port`           | `POSTGRES_PORT`            |
+| Parameter                                                              | CLI argument                | Environment variable       |
+|------------------------------------------------------------------------|-----------------------------|----------------------------|
+| Temporary directory                                                    | `--tmp-dir`                 | `E2E_TMPDIR`               |
+| Test specs (`wallet:url` format)                                       | `--test` (multiple allowed) | `E2E_TESTS`                |
+| Test timeout                                                           | `--test-timeout`            | `E2E_TEST_TIMEOUT`         |
+| Browser binary path or name                                            | `--browser`                 | `E2E_BROWSER`              |
+| Don't use headless mode                                                | `--no-headless`             | `E2E_NO_HEADLESS`          |
+| Path to the user settings archive                                      | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE`     |
+| URL of settings archive asset                                          | `--settings-archive-url`    | `E2E_SETTINGS_ARCHIVE_URL` |
+| Path to the user data directory                                        | `--chrome-user-data`        | `E2E_CHROME_USER_DATA`     |
+| Extra browser CLI arguments                                            | `--extra-browser-args`      | `E2E_EXTRA_BROWSER_ARGS`   |
+| Skip downloading jQuery (allows to run E2E+Plutip tests fully offline) | `--skip-jquery-download`    | `E2E_SKIP_JQUERY_DOWNLOAD` |
+|------------------------------------------------------------------------|-----------------------------|----------------------------|
+| Eternl CRX URL                                                         | `--eternl-crx-url`          | `ETERNL_CRX_URL`           |
+| Eternl CRX file                                                        | `--eternl-crx`              | `ETERNL_CRX`               |
+| Eternl password                                                        | `--eternl-password`         | `ETERNL_PASSWORD`          |
+| Eternl Extension ID                                                    | `--eternl-extid`            | `ETERNL_EXTID`             |
+| Lode CRX URL                                                           | `--lode-crx-url`            | `LODE_CRX_URL`             |
+| Lode password                                                          | `--lode-password`           | `LODE_PASSWORD`            |
+| Lode Extension ID                                                      | `--lode-extid`              | `LODE_EXTID`               |
+| Nami CRX URL                                                           | `--nami-crx-url`            | `NAMI_CRX_URL`             |
+| Nami CRX file                                                          | `--nami-crx`                | `NAMI_CRX`                 |
+| Nami password                                                          | `--nami-password`           | `NAMI_PASSWORD`            |
+| Nami Extension ID                                                      | `--nami-extid`              | `NAMI_EXTID`               |
+| Flint CRX URL                                                          | `--flint-crx-url`           | `FLINT_CRX_URL`            |
+| Flint CRX file                                                         | `--flint-crx`               | `FLINT_CRX`                |
+| Flint password                                                         | `--flint-password`          | `FLINT_PASSWORD`           |
+| Flint Extension ID                                                     | `--flint-extid`             | `FLINT_EXTID`              |
+| Gero CRX URL                                                           | `--gero-crx-url`            | `GERO_CRX_URL`             |
+| Gero CRX file                                                          | `--gero-crx`                | `GERO_CRX`                 |
+| Gero password                                                          | `--gero-password`           | `GERO_PASSWORD`            |
+| Gero Extension ID                                                      | `--gero-extid`              | `GERO_EXTID`               |
+|------------------------------------------------------------------------|-----------------------------|----------------------------|
+| E2E+Plutip: Plutip port number                                         | `--plutip-port`             | `PLUTIP_PORT`              |
+| E2E+Plutip: Ogmios port number                                         | `--ogmios-port`             | `OGMIOS_PORT`              |
+| E2E+Plutip: ODC port number                                            | `--ogmios-datum-cache-port` | `OGMIOS_DATUM_CACHE_PORT`  |
+| E2E+Plutip: CTL server port                                            | `--ctl-server-port`         | `CTL_SERVER_PORT`          |
+| E2E+Plutip: Postgres port                                              | `--postgres-port`           | `POSTGRES_PORT`            |
+| E2E+Plutip: Kupo port                                                  | `--kupo-port`               | `KUPO_PORT`                |
 
 The default configuration can be found in `test/e2e.env`.
 
