@@ -242,6 +242,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
+import Data.Array (catMaybes)
 import Data.Array (singleton) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight)
@@ -274,6 +275,7 @@ import Effect.Aff
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, throw, try)
+import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
 import Untagged.Union (asOneOf)
@@ -290,6 +292,7 @@ type ClusterSetup =
   { ctlServerConfig :: Maybe ServerConfig
   , ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
   , keys ::
       { payment :: PrivatePaymentKey
       , stake :: Maybe PrivateStakeKey
@@ -484,7 +487,8 @@ stopQueryRuntime runtime = do
 
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
-  (OgmiosWebSocket /\ DatumCacheWebSocket /\ Ogmios.ProtocolParameters)
+  DatumCacheWebSocket
+  (OgmiosWebSocket /\ Ogmios.ProtocolParameters)
   (Maybe Wallet)
 
 mkQueryRuntime
@@ -493,15 +497,18 @@ mkQueryRuntime
 mkQueryRuntime config = do
   for_ config.hooks.beforeInit (void <<< liftEffect <<< try)
   usedTxOuts <- newUsedTxOuts
-  QueryRuntimeModel (ogmiosWs /\ datumCacheWs /\ pparams) wallet <- sequential $
+  datumCacheWsRef <- liftEffect $ Ref.new Nothing
+  QueryRuntimeModel datumCacheWs (ogmiosWs /\ pparams) wallet <- sequential $
     QueryRuntimeModel
-      <$> parallel do
-        datumCacheWs <-
-          mkDatumCacheWebSocketAff logger config.datumCacheConfig
+      <$> parallel
+        ( mkDatumCacheWebSocketAff datumCacheWsRef logger
+            config.datumCacheConfig
+        )
+      <*> parallel do
         ogmiosWs <-
-          mkOgmiosWebSocketAff datumCacheWs logger config.ogmiosConfig
+          mkOgmiosWebSocketAff datumCacheWsRef logger config.ogmiosConfig
         pparams <- getProtocolParametersAff ogmiosWs logger
-        pure $ ogmiosWs /\ datumCacheWs /\ pparams
+        pure $ ogmiosWs /\ pparams
       <*> parallel (for config.walletSpec mkWalletBySpec)
   pure
     { ogmiosWs
@@ -723,10 +730,15 @@ getNetworkId :: QueryM NetworkId
 getNetworkId = asks $ _.config >>> _.networkId
 
 ownPubKeyHashes :: Maybe Paginate -> QueryM (Array PubKeyHash)
-ownPubKeyHashes paginate = do
+ownPubKeyHashes paginate = catMaybes <$> do
   (getWalletAddresses paginate) >>= traverse \address -> do
-    liftM (error "Failed to convert Address to PubKeyHash") $
-      (addressPaymentCred >=> stakeCredentialToKeyHash >>> map wrap) address
+    paymentCred <-
+      liftM
+        ( error $
+            "Unable to get payment credential from Address"
+        ) $
+        addressPaymentCred address
+    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
 
 ownPaymentPubKeyHashes :: Maybe Paginate -> QueryM (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes paginate = map wrap <$> ownPubKeyHashes paginate
@@ -899,15 +911,25 @@ listeners (WebSocket _ ls) = ls
 -- OgmiosWebSocket Setup and PrimOps
 --------------------------------------------------------------------------------
 
-mkDatumCacheWebSocketAff :: Logger -> ServerConfig -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff logger serverConfig = do
+mkDatumCacheWebSocketAff
+  :: Ref (Maybe DatumCacheWebSocket)
+  -> Logger
+  -> ServerConfig
+  -> Aff DatumCacheWebSocket
+mkDatumCacheWebSocketAff datumCacheWsRef logger serverConfig = do
   lens <- liftEffect $ mkDatumCacheWebSocketLens logger
-  makeAff $ mkServiceWebSocket lens (mkOgmiosDatumCacheWsUrl serverConfig)
+  makeAff $ \continue ->
+    mkServiceWebSocket lens (mkOgmiosDatumCacheWsUrl serverConfig) \res ->
+      res # either (\_ -> continue res)
+        (\ws -> Ref.write (Just ws) datumCacheWsRef *> continue res)
 
 mkOgmiosWebSocketAff
-  :: DatumCacheWebSocket -> Logger -> ServerConfig -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff datumCacheWebSocket logger serverConfig = do
-  lens <- liftEffect $ mkOgmiosWebSocketLens logger datumCacheWebSocket
+  :: Ref (Maybe DatumCacheWebSocket)
+  -> Logger
+  -> ServerConfig
+  -> Aff OgmiosWebSocket
+mkOgmiosWebSocketAff datumCacheWsRef logger serverConfig = do
+  lens <- liftEffect $ mkOgmiosWebSocketLens logger datumCacheWsRef
   makeAff $ mkServiceWebSocket lens (mkWsUrl serverConfig)
 
 mkServiceWebSocket
@@ -967,7 +989,7 @@ mkServiceWebSocket lens url continue = do
 -- | the request.
 resendPendingSubmitRequests
   :: OgmiosWebSocket
-  -> DatumCacheWebSocket
+  -> Ref (Maybe DatumCacheWebSocket)
   -> Logger
   -> (RequestBody -> Effect Unit)
   -> Dispatcher
@@ -1007,8 +1029,11 @@ resendPendingSubmitRequests ogmiosWs odcWs logger sendRequest dispatcher pr = do
     retrySubmitTx <-
       if txInMempool then pure false
       else do
+        datumCacheWebSocket <- liftEffect do
+          let err = "handlePendingSubmitRequest: failed to access ODC WebSocket"
+          maybe (throw err) pure =<< Ref.read odcWs
         -- Check if the transaction was included in the block:
-        txConfirmed <- checkTxByHashAff odcWs logger txHash
+        txConfirmed <- checkTxByHashAff datumCacheWebSocket logger txHash
         log "Tx confirmed" txConfirmed txHash
         unless txConfirmed $ liftEffect do
           sendRequest requestBody
@@ -1065,9 +1090,9 @@ mkDatumCacheWebSocketLens logger = do
 
 mkOgmiosWebSocketLens
   :: Logger
-  -> DatumCacheWebSocket
+  -> Ref (Maybe DatumCacheWebSocket)
   -> Effect (MkServiceWebSocketLens OgmiosListeners)
-mkOgmiosWebSocketLens logger datumCacheWebSocket = do
+mkOgmiosWebSocketLens logger datumCacheWebSocketRef = do
   dispatcher <- newDispatcher
   pendingRequests <- newPendingRequests
   pendingSubmitTxRequests <- newPendingRequests
@@ -1109,7 +1134,7 @@ mkOgmiosWebSocketLens logger datumCacheWebSocket = do
       resendPendingRequests ws = do
         let sendRequest = _wsSend ws (logger Debug)
         Ref.read pendingRequests >>= traverse_ sendRequest
-        resendPendingSubmitRequests (ogmiosWebSocket ws) datumCacheWebSocket
+        resendPendingSubmitRequests (ogmiosWebSocket ws) datumCacheWebSocketRef
           logger
           sendRequest
           dispatcher
