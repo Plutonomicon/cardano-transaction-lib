@@ -73,6 +73,11 @@ import Undefined (undefined)
 -- Contract
 --------------------------------------------------------------------------------
 
+-- | The `Contract` monad is a newtype wrapper over `ReaderT` on `ContractEnv`
+-- | over asynchronous effects, `Aff`. Throwing and catching errors can
+-- | therefore be implemented with native JavaScript `Effect.Exception.Error`s
+-- | and `Effect.Class.Console.log` replaces the `Writer` monad. `Aff` enables
+-- | the user to make effectful calls inside this `Contract` monad.
 newtype Contract (a :: Type) = Contract (ReaderT ContractEnv Aff a)
 
 -- Many of these derivations depend on the underlying `ReaderT` and

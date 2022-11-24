@@ -23,7 +23,8 @@ module Contract.PlutusData
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
 import Ctl.Internal.FromData
   ( class FromData
@@ -107,28 +108,29 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either, hush)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
+import Effect.Aff.Class (liftAff)
 
 -- | Retrieve the full resolved datum associated to a given datum hash.
-getDatumByHash :: forall (r :: Row Type). DataHash -> Contract r (Maybe Datum)
-getDatumByHash = wrapContract <<< map (join <<< hush) <<< Kupo.getDatumByHash
+getDatumByHash :: DataHash -> Contract (Maybe Datum)
+getDatumByHash dataHash = do
+  queryHandle <- getQueryHandle
+  liftAff $ join <<< hush <$> queryHandle.getDatumByHash dataHash
 
 -- | Retrieve full resolved datums associated with given datum hashes.
 -- | The resulting `Map` will only contain datums that have been successfully
 -- | resolved. This function returns `Nothing` in case of an error during
 -- | response processing (bad HTTP code or response parsing error).
-getDatumsByHashes
-  :: forall (r :: Row Type)
-   . Array DataHash
-  -> Contract r (Maybe (Map DataHash Datum))
-getDatumsByHashes = wrapContract <<< map hush <<< Kupo.getDatumsByHashes
+getDatumsByHashes :: Array DataHash -> Contract (Maybe (Map DataHash Datum))
+getDatumsByHashes hashes = do
+  queryHandle <- getQueryHandle
+  liftAff $ hush <$> queryHandle.getDatumsByHashes hashes
 
 -- | Retrieve full resolved datums associated with given datum hashes.
 -- | The resulting `Map` will only contain datums that have been successfully
 -- | resolved.
 getDatumsByHashesWithError
-  :: forall (r :: Row Type)
-   . Array DataHash
-  -> Contract r (Either String (Map DataHash Datum))
-getDatumsByHashesWithError =
-  wrapContract <<< map (lmap show) <<< Kupo.getDatumsByHashes
+  :: Array DataHash -> Contract (Either String (Map DataHash Datum))
+getDatumsByHashesWithError hashes = do
+  queryHandle <- getQueryHandle
+  liftAff $ lmap show <$> queryHandle.getDatumsByHashes hashes
 
