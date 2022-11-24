@@ -16,7 +16,9 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.Utxos (getUtxo, getWalletUtxos)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Ctl.Internal.Wallet (Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami))
+import Ctl.Internal.Wallet
+  ( Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami, Nufi)
+  )
 import Data.Array (elem, fromFoldable)
 import Data.Lens ((<>~))
 import Data.Lens.Getter ((^.))
@@ -49,6 +51,7 @@ signTransaction tx = do
       walletWaitForInputs txInputs
       liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
     Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
+    Nufi nufi -> liftAff $ callCip30Wallet nufi \w -> flip w.signTx tx
     KeyWallet kw -> liftAff do
       witnessSet <- (unwrap kw).signTx tx
       pure $ Just (tx # _witnessSet <>~ witnessSet)
