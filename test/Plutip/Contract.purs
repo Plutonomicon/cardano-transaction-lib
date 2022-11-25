@@ -116,10 +116,10 @@ import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet
-  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet)
+  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NufiWallet)
   )
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
+  ( WalletMock(MockNami, MockGero, MockFlint, MockNufi)
   , withCip30Mock
   )
 import Data.Array (head, (!!))
@@ -1463,6 +1463,8 @@ suite = do
           try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
             shouldSatisfy
             isLeft
+          try (liftEffect $ isWalletAvailable NufiWallet) >>= flip shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockNami do
             (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
@@ -1473,10 +1475,16 @@ suite = do
             (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
           try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
             isLeft
+
           withCip30Mock alice MockFlint do
             (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
           try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
             shouldSatisfy
+            isLeft
+
+          withCip30Mock alice MockNufi do
+            (liftEffect $ isWalletAvailable NufiWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable NufiWallet) >>= flip shouldSatisfy
             isLeft
 
       test "Collateral selection" do
