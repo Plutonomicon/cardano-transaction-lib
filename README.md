@@ -37,6 +37,7 @@ Support is planned for the following light wallets:
 - [x] [Flint](https://flint-wallet.com/)
 - [x] [Lode](https://lodewallet.io/)
 - [x] [Eternl (formerly CCvault)](https://eternl.io/)
+- [x] [NuFi](https://nu.fi/)
 - [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
