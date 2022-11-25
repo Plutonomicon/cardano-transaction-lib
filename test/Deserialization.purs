@@ -27,7 +27,6 @@ import Ctl.Internal.Deserialization.UnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue) as UOD
-import Ctl.Internal.Deserialization.Value (valueFromBech32)
 import Ctl.Internal.Deserialization.WitnessSet
   ( convertWitnessSet
   , deserializeWitnessSet
@@ -40,7 +39,6 @@ import Ctl.Internal.Serialization.BigInt as SB
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
-import Ctl.Internal.Serialization.Value (bech32FromValue)
 import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
@@ -249,14 +247,6 @@ suite = do
         TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
           decodeTextEnvelope otherTypeTextEnvelope
         envelope.type_ `shouldEqual` (Other "SomeOtherType")
-    group "Value serialization" do
-      test "roundtrip" do
-        let value = lovelaceValueOf $ BigInt.fromInt 1000
-        cv <- liftEffect $ convertValue value
-        Just value `shouldEqual`
-          ( UOD.convertValue =<<
-              (valueFromBech32 $ bech32FromValue cv)
-          )
 
 createUnspentOutput
   :: T.TransactionInput

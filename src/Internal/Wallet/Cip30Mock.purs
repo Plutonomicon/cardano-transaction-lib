@@ -17,7 +17,6 @@ import Ctl.Internal.Cardano.Types.Value (Value, geq)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue) as DSV
-import Ctl.Internal.Deserialization.Value (valueFromBech32)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, runQueryMInRuntime)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
