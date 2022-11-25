@@ -12,6 +12,12 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Effect.Aff (Aff, attempt, error, finally, supervise)
+import Data.Array (head)
+import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
+import Ctl.Internal.QueryM (Hooks, Logger, QueryEnv, QueryM, WebSocket, getProtocolParametersAff, getSystemStartAff, getEraSummariesAff, mkDatumCacheWebSocketAff, mkLogger, mkOgmiosWebSocketAff, mkWalletBySpec, underlyingWebSocket)
+import Record.Builder (build, merge)
+import Control.Parallel (parTraverse, parallel, sequential)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -21,32 +27,16 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
-import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
-  , QueryBackendLabel(CtlBackendLabel)
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
   , QueryBackends
-  , lookupBackend
+  , defaultBackend
   )
-import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.JsWebSocket (JsWebSocket, _wsClose, _wsFinalize)
-import Ctl.Internal.QueryM
-  ( DatumCacheWebSocket
-  , Hooks
-  , Logger
-  , OgmiosWebSocket
-  , QueryEnv
-  , QueryM
-  , mkDatumCacheWebSocketAff
-  , mkLogger
-  , mkOgmiosWebSocketAff
-  , mkWalletBySpec
-  , underlyingWebSocket
-  )
+import Ctl.Internal.Helpers (liftedM, logWithLevel)
 import Ctl.Internal.QueryM.Logging (setupLogs)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SlotLength, SystemStart) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
@@ -55,17 +45,15 @@ import Ctl.Internal.Wallet.Spec (WalletSpec)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (for_, traverse)
 import Effect (Effect)
-import Effect.Aff (Aff, attempt, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, try)
 import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
-import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Undefined (undefined)
 
@@ -128,9 +116,8 @@ runContractInEnv contractEnv =
 
 type ContractEnv =
   { backend :: QueryBackends QueryBackend
+  -- ctlServer is currently used for applyArgs, which is needed for all backends. This will be removed later
   , ctlServerConfig :: Maybe ServerConfig
-  , datumCache :: { config :: ServerConfig, ws :: DatumCacheWebSocket } -- TODO:
-  -- , datumCache :: Maybe { config :: ServerConfig, ws :: DatumCacheWebSocket }
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -139,7 +126,12 @@ type ContractEnv =
   , hooks :: Hooks
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
-  , pparams :: Ogmios.ProtocolParameters -- TODO:
+  -- TODO: Duplicate types to Contract
+  , ledgerConstants ::
+    { pparams :: Ogmios.ProtocolParameters
+    , systemStart :: Ogmios.SystemStart
+    , slotLength :: Ogmios.SlotLength
+    }
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -153,80 +145,78 @@ mkContractEnv
   => ContractParams
   -> Aff ContractEnv
 mkContractEnv params = do
-  runtime <- mkContractRuntime params
-  pure
-    { backend: mkQueryBackend runtime <$> params.backendParams
-    , ctlServerConfig: params.ctlServerConfig
-    , datumCache: { config: params.datumCacheConfig, ws: runtime.datumCacheWs }
-    , networkId: params.networkId
-    , logLevel: params.logLevel
-    , walletSpec: params.walletSpec
-    , customLogger: params.customLogger
-    , suppressLogs: params.suppressLogs
-    , hooks: params.hooks
-    , wallet: runtime.wallet
-    , usedTxOuts: runtime.usedTxOuts
-    , pparams: runtime.pparams
-    }
-  where
-  mkQueryBackend :: ContractRuntime -> QueryBackendParams -> QueryBackend
-  mkQueryBackend _ (BlockfrostBackendParams backend) =
-    BlockfrostBackend backend
-  mkQueryBackend runtime (CtlBackendParams { ogmiosConfig, kupoConfig }) =
-    CtlBackend
-      { ogmiosConfig
-      , ogmiosWs: unsafePartial fromJust runtime.ogmiosWs
-      , kupoConfig
-      }
-
---------------------------------------------------------------------------------
--- ContractRuntime
---------------------------------------------------------------------------------
-
-type ContractRuntime =
-  { ogmiosWs :: Maybe OgmiosWebSocket
-  , datumCacheWs :: DatumCacheWebSocket
-  , wallet :: Maybe Wallet
-  , usedTxOuts :: UsedTxOuts
-  , pparams :: Ogmios.ProtocolParameters -- TODO:
-  }
-
--- | Used in `mkContractRuntime` only.
-data ContractRuntimeModel = ContractRuntimeModel
-  DatumCacheWebSocket
-  (Maybe OgmiosWebSocket)
-  (Maybe Wallet)
-
-mkContractRuntime :: ContractParams -> Aff ContractRuntime
-mkContractRuntime params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
-  usedTxOuts <- newUsedTxOuts
-  datumCacheWsRef <- liftEffect $ Ref.new Nothing
-  ContractRuntimeModel datumCacheWs ogmiosWs wallet <- sequential $
-    ContractRuntimeModel
-      <$> parallel
-        ( mkDatumCacheWebSocketAff datumCacheWsRef logger
-            params.datumCacheConfig
-        )
-      <*> parallel
-        ( traverse (mkOgmiosWebSocketAff datumCacheWsRef logger)
-            mOgmiosConfig
-        )
-      <*> parallel (traverse mkWalletBySpec params.walletSpec)
-  pparams <- undefined -- TODO:
-  pure { ogmiosWs, datumCacheWs, wallet, usedTxOuts, pparams }
-  where
-  logger :: Logger
-  logger = mkLogger params.logLevel params.customLogger
 
-  mOgmiosConfig :: Maybe ServerConfig
-  mOgmiosConfig =
-    lookupBackend CtlBackendLabel params.backendParams >>= case _ of
-      CtlBackendParams { ogmiosConfig } -> Just ogmiosConfig
-      _ -> Nothing
+  usedTxOuts <- newUsedTxOuts
+
+  envBuilder <- sequential ado
+    b1 <- parallel do
+      backend <- buildBackend
+      -- Use the default backend to fetch ledger constants
+      ledgerConstants <- getLedgerConstants $ defaultBackend backend
+      pure $ merge { backend, ledgerConstants }
+    b2 <- parallel do
+      wallet <- buildWallet
+      pure $ merge { wallet }
+    -- compose the sub-builders together
+    in b1 >>> b2 >>> merge { usedTxOuts }
+
+  pure $ build envBuilder constants
+  where
+    logger :: Logger
+    logger = mkLogger params.logLevel params.customLogger
+
+    -- TODO Move CtlServer to a backend? Wouldn't make sense as a 'main' backend though
+    buildBackend :: Aff (QueryBackends QueryBackend)
+    buildBackend = flip parTraverse params.backendParams case _ of
+      CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
+        datumCacheWsRef <- liftEffect $ Ref.new Nothing
+        sequential ado
+          odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger odcConfig
+          ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger ogmiosConfig
+          in CtlBackend
+            { ogmios:
+              { config: ogmiosConfig
+              , ws: ogmiosWs
+              }
+            , odc:
+              { config: odcConfig
+              , ws: odcWs
+              }
+            , kupoConfig
+            }
+      BlockfrostBackendParams bf -> pure $ BlockfrostBackend bf
+
+    getLedgerConstants :: QueryBackend -> Aff
+      { pparams :: Ogmios.ProtocolParameters
+      , systemStart :: Ogmios.SystemStart
+      , slotLength :: Ogmios.SlotLength
+      }
+    getLedgerConstants backend = case backend of
+      CtlBackend { ogmios: { ws } } -> do
+        pparams <- getProtocolParametersAff ws logger
+        systemStart <- getSystemStartAff ws logger
+        slotLength <- liftedM (error "Could not get EraSummary") do
+          map (_.slotLength <<< unwrap <<< _.parameters <<< unwrap) <<< head <<< unwrap <$> getEraSummariesAff ws logger
+        pure { pparams, slotLength, systemStart }
+      BlockfrostBackend _ -> undefined
+
+    buildWallet :: Aff (Maybe Wallet)
+    buildWallet = traverse mkWalletBySpec params.walletSpec
+
+    constants =
+      { ctlServerConfig: params.ctlServerConfig
+      , networkId: params.networkId
+      , logLevel: params.logLevel
+      , walletSpec: params.walletSpec
+      , customLogger: params.customLogger
+      , suppressLogs: params.suppressLogs
+      , hooks: params.hooks
+      }
 
 -- | Finalizes a `Contract` environment.
 -- | Closes the websockets in `ContractEnv`, effectively making it unusable.
+-- TODO Move to Aff?
 stopContractEnv
   :: Warn
        ( Text
@@ -235,18 +225,14 @@ stopContractEnv
   => ContractEnv
   -> Effect Unit
 stopContractEnv contractEnv = do
-  _wsFinalize datumCacheWs *> _wsClose datumCacheWs
-  for_ mOgmiosWs \ogmiosWs -> _wsFinalize ogmiosWs *> _wsClose ogmiosWs
-  where
-  datumCacheWs :: JsWebSocket
-  datumCacheWs = underlyingWebSocket contractEnv.datumCache.ws
-
-  mOgmiosWs :: Maybe JsWebSocket
-  mOgmiosWs =
-    lookupBackend CtlBackendLabel contractEnv.backend >>= case _ of
-      CtlBackend { ogmiosWs } ->
-        Just $ underlyingWebSocket ogmiosWs
-      _ -> Nothing
+  for_ contractEnv.backend case _ of
+    CtlBackend { ogmios, odc } -> do
+      let
+        stopWs :: forall (a :: Type). WebSocket a -> Effect Unit
+        stopWs = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
+      stopWs odc.ws
+      stopWs ogmios.ws
+    BlockfrostBackend _ -> undefined
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
@@ -291,9 +277,8 @@ withContractEnv params action = do
 -- | environment (see `withContractEnv`)
 type ContractParams =
   { backendParams :: QueryBackends QueryBackendParams
+  -- TODO: Move CtlServer to a backend?
   , ctlServerConfig :: Maybe ServerConfig
-  , datumCacheConfig :: ServerConfig -- TODO:
-  -- , datumCacheConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -315,8 +300,8 @@ mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv ()
 mkQueryEnv contractEnv ctlBackend =
   { config:
       { ctlServerConfig: contractEnv.ctlServerConfig
-      , datumCacheConfig: contractEnv.datumCache.config
-      , ogmiosConfig: ctlBackend.ogmiosConfig
+      , datumCacheConfig: ctlBackend.odc.config
+      , ogmiosConfig: ctlBackend.ogmios.config
       , kupoConfig: ctlBackend.kupoConfig
       , networkId: contractEnv.networkId
       , logLevel: contractEnv.logLevel
@@ -326,11 +311,12 @@ mkQueryEnv contractEnv ctlBackend =
       , hooks: contractEnv.hooks
       }
   , runtime:
-      { ogmiosWs: ctlBackend.ogmiosWs
-      , datumCacheWs: contractEnv.datumCache.ws
+      { ogmiosWs: ctlBackend.ogmios.ws
+      , datumCacheWs: ctlBackend.odc.ws
       , wallet: contractEnv.wallet
       , usedTxOuts: contractEnv.usedTxOuts
-      , pparams: contractEnv.pparams
+      -- TODO: Make queryM use the new constants
+      , pparams: contractEnv.ledgerConstants.pparams
       }
   , extraConfig: {}
   }

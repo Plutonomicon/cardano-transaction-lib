@@ -15,10 +15,11 @@ module Ctl.Internal.Contract.QueryBackend
 
 import Prelude
 
-import Ctl.Internal.QueryM (OgmiosWebSocket)
+import Ctl.Internal.QueryM (OgmiosWebSocket, DatumCacheWebSocket)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Data.Array (filter, nub) as Array
 import Data.Array ((:))
+import Data.Traversable
 import Data.Foldable (foldl, length)
 import Data.Map (Map)
 import Data.Map (empty, insert, lookup, singleton) as Map
@@ -30,10 +31,23 @@ import Effect.Exception (throw)
 -- QueryBackends
 --------------------------------------------------------------------------------
 
+-- | A generic type to represent a choice of backend with a set of fallback
+-- | backends when an operation is not supported by the default.
+-- TODO Should this just be a list?
+--      How do operations decide on what backend to use?
 data QueryBackends (backend :: Type) =
   QueryBackends backend (Map QueryBackendLabel backend)
 
 derive instance Functor QueryBackends
+
+instance Foldable QueryBackends where
+  foldr f z (QueryBackends x xs) = f x (foldr f z xs)
+  foldl f z (QueryBackends x xs) = foldl f (f z x) xs
+  foldMap f (QueryBackends x xs) = f x <> foldMap f xs
+
+instance Traversable QueryBackends where
+  traverse f (QueryBackends x xs) = QueryBackends <$> f x <*> traverse f xs
+  sequence (QueryBackends x xs) = QueryBackends <$> x <*> sequence xs
 
 mkSingletonBackendParams
   :: QueryBackendParams -> QueryBackends QueryBackendParams
@@ -93,8 +107,14 @@ instance HasQueryBackendLabel QueryBackendParams where
 --------------------------------------------------------------------------------
 
 type CtlBackend =
-  { ogmiosConfig :: ServerConfig
-  , ogmiosWs :: OgmiosWebSocket
+  { ogmios ::
+    { config :: ServerConfig
+    , ws :: OgmiosWebSocket
+    }
+  , odc ::
+    { config :: ServerConfig
+    , ws :: DatumCacheWebSocket
+    }
   , kupoConfig :: ServerConfig
   }
 
@@ -114,6 +134,7 @@ data QueryBackendParams
   = CtlBackendParams
       { ogmiosConfig :: ServerConfig
       , kupoConfig :: ServerConfig
+      , odcConfig :: ServerConfig
       }
   | BlockfrostBackendParams
       { blockfrostConfig :: ServerConfig

@@ -39,6 +39,8 @@ module Ctl.Internal.QueryM
   , getRewardAddresses
   , getProtocolParameters
   , getProtocolParametersAff
+  , getSystemStartAff
+  , getEraSummariesAff
   , getWalletAddresses
   , getWallet
   , handleAffjaxResponse
@@ -572,6 +574,24 @@ getProtocolParametersAff
 getProtocolParametersAff ogmiosWs logger =
   mkOgmiosRequestAff ogmiosWs logger Ogmios.queryProtocolParametersCall
     _.getProtocolParameters
+    unit
+
+getSystemStartAff
+  :: OgmiosWebSocket
+  -> (LogLevel -> String -> Effect Unit)
+  -> Aff Ogmios.SystemStart
+getSystemStartAff ogmiosWs logger =
+  mkOgmiosRequestAff ogmiosWs logger Ogmios.querySystemStartCall
+    _.systemStart
+    unit
+
+getEraSummariesAff
+  :: OgmiosWebSocket
+  -> (LogLevel -> String -> Effect Unit)
+  -> Aff Ogmios.EraSummaries
+getEraSummariesAff ogmiosWs logger =
+  mkOgmiosRequestAff ogmiosWs logger Ogmios.queryEraSummariesCall
+    _.eraSummaries
     unit
 
 --------------------------------------------------------------------------------

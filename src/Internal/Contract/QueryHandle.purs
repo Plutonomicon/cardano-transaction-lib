@@ -36,6 +36,7 @@ import Data.Maybe (Maybe)
 import Effect.Aff (Aff)
 import Undefined (undefined)
 
+-- Why ClientError?
 type AffE (a :: Type) = Aff (Either ClientError a)
 
 type QueryHandle =
@@ -46,6 +47,17 @@ type QueryHandle =
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
+  -- submitTx
+  -- evaluateTx
+  -- chainTip
+  -- getProtocolParameters
+    -- this gets done early on
+    -- perhaps genesis/systemStart should be too
+    -- getConstantParameters
+  -- systemStart
+  -- currentEpoch
+  -- we need era summaries start + end, and the era summaries slot length
+  -- ogmios has eraSummaries, BF has epochs for start + end, and genesis for slot length (idk if this is safe)
   }
 
 getQueryHandle :: Contract QueryHandle
