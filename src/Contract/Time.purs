@@ -11,13 +11,17 @@ module Contract.Time
 
 import Prelude
 
+import Effect.Aff.Class (liftAff)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Control.Monad.Reader.Class (asks)
+import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Contract.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
   , getTip
   ) as Chain
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
@@ -99,21 +103,21 @@ import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Exception (error)
 
--- | Get the current Epoch. Details can be found https://ogmios.dev/api/ under
--- | "currentEpoch" query
-getCurrentEpoch :: forall (r :: Row Type). Contract r Epoch
+-- | Get the current Epoch.
+getCurrentEpoch :: Contract Epoch
 getCurrentEpoch = do
-  CurrentEpoch bigInt <- wrapContract CurrentEpoch.getCurrentEpoch
+  queryHandle <- getQueryHandle
+  CurrentEpoch bigInt <- liftAff $ queryHandle.getCurrentEpoch
   map Epoch $ liftM (error "Unable to convert CurrentEpoch")
     $ UInt.fromString
     $ BigInt.toString (bigInt :: BigInt.BigInt)
 
--- | Get `EraSummaries` as used for Slot arithemetic. Details can be found
--- | https://ogmios.dev/api/ under "eraSummaries" query
-getEraSummaries :: forall (r :: Row Type). Contract r EraSummaries
-getEraSummaries = wrapContract EraSummaries.getEraSummaries
+-- | Get `EraSummaries` as used for Slot arithemetic. Ogmios only.
+-- | Details can be found https://ogmios.dev/api/ under "eraSummaries" query
+getEraSummaries :: Contract EraSummaries
+getEraSummaries = wrapQueryM EraSummaries.getEraSummaries
 
--- | Get the current system start time. Details can be found
--- | https://ogmios.dev/api/ under "systemStart" query
-getSystemStart :: forall (r :: Row Type). Contract r SystemStart
-getSystemStart = wrapContract SystemStart.getSystemStart
+-- | Get the current system start time.
+getSystemStart :: Contract SystemStart
+getSystemStart = do
+  asks $ _.ledgerConstants >>> _.systemStart

@@ -41,7 +41,7 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
   let

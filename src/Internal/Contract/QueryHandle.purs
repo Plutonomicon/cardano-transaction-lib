@@ -5,6 +5,7 @@ import Prelude
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.QueryM.CurrentEpoch(getCurrentEpoch) as QueryM
 import Ctl.Internal.Contract.Monad
   ( Contract
   , ContractEnv
@@ -16,6 +17,7 @@ import Ctl.Internal.Contract.QueryBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   , defaultBackend
   )
+import Ctl.Internal.QueryM (getChainTip) as QueryM
 import Ctl.Internal.QueryM (ClientError, QueryM)
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
@@ -35,6 +37,8 @@ import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Effect.Aff (Aff)
 import Undefined (undefined)
+import Ctl.Internal.Types.Chain as Chain
+import Ctl.Internal.QueryM.Ogmios (CurrentEpoch) as Ogmios
 
 -- Why ClientError?
 type AffE (a :: Type) = Aff (Either ClientError a)
@@ -47,6 +51,8 @@ type QueryHandle =
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
+  , getChainTip :: Aff Chain.Tip
+  , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
   -- submitTx
   -- evaluateTx
   -- chainTip
@@ -78,6 +84,8 @@ queryHandleForCtlBackend contractEnv backend =
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
   , isTxConfirmed: runQueryM' <<< Kupo.isTxConfirmed
   , utxosAt: runQueryM' <<< Kupo.utxosAt
+  , getChainTip: runQueryM' QueryM.getChainTip
+  , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
   }
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a

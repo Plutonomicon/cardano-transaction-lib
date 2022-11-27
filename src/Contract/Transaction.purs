@@ -174,11 +174,11 @@ import Ctl.Internal.QueryM
       )
   ) as ExportQueryM
 import Ctl.Internal.QueryM (submitTxOgmios) as QueryM
-import Ctl.Internal.QueryM.AwaitTxConfirmed
+import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
-  ) as AwaitTx
+  ) as Contract
 import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
 import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess, SubmitFail))
@@ -548,7 +548,7 @@ awaitTxConfirmed
   :: forall (r :: Row Type)
    . TransactionHash
   -> Contract r Unit
-awaitTxConfirmed = wrapContract <<< AwaitTx.awaitTxConfirmed <<< unwrap
+awaitTxConfirmed = Contract.awaitTxConfirmed
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.
@@ -557,9 +557,7 @@ awaitTxConfirmedWithTimeout
    . Seconds
   -> TransactionHash
   -> Contract r Unit
-awaitTxConfirmedWithTimeout timeout = wrapContract
-  <<< AwaitTx.awaitTxConfirmedWithTimeout timeout
-  <<< unwrap
+awaitTxConfirmedWithTimeout = Contract.awaitTxConfirmedWithTimeout
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
 -- | Throws an exception on timeout.
@@ -568,9 +566,8 @@ awaitTxConfirmedWithTimeoutSlots
    . Int
   -> TransactionHash
   -> Contract r Unit
-awaitTxConfirmedWithTimeoutSlots timeout = wrapContract
-  <<< AwaitTx.awaitTxConfirmedWithTimeoutSlots timeout
-  <<< unwrap
+awaitTxConfirmedWithTimeoutSlots =
+  Contract.awaitTxConfirmedWithTimeoutSlots
 
 -- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the

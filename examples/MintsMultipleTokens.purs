@@ -37,7 +37,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.MintsMultipleTokens"
   tn1 <- Helpers.mkTokenName "Token with a long name"
@@ -79,19 +79,19 @@ foreign import redeemerInt1 :: String
 foreign import redeemerInt2 :: String
 foreign import redeemerInt3 :: String
 
-mintingPolicyRdmrInt1 :: Contract () MintingPolicy
+mintingPolicyRdmrInt1 :: Contract MintingPolicy
 mintingPolicyRdmrInt1 =
   liftMaybe (error "Error decoding redeemerInt1") do
     envelope <- decodeTextEnvelope redeemerInt3
     PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
-mintingPolicyRdmrInt2 :: Contract () MintingPolicy
+mintingPolicyRdmrInt2 :: Contract MintingPolicy
 mintingPolicyRdmrInt2 =
   liftMaybe (error "Error decoding redeemerInt2") do
     envelope <- decodeTextEnvelope redeemerInt3
     PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
-mintingPolicyRdmrInt3 :: Contract () MintingPolicy
+mintingPolicyRdmrInt3 :: Contract MintingPolicy
 mintingPolicyRdmrInt3 =
   liftMaybe (error "Error decoding redeemerInt3") do
     envelope <- decodeTextEnvelope redeemerInt3

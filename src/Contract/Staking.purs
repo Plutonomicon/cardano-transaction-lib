@@ -7,7 +7,8 @@ module Contract.Staking
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
+import Ctl.Internal.Contract.Monad (wrapQueryM)
+import Contract.Monad (Contract)
 import Ctl.Internal.Cardano.Types.Transaction
   ( PoolPubKeyHash
   , PoolRegistrationParams
@@ -18,25 +19,22 @@ import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Maybe (Maybe)
 
-getPoolIds :: forall (r :: Row Type). Contract r (Array PoolPubKeyHash)
-getPoolIds = wrapContract QueryM.getPoolIds
+getPoolIds :: Contract (Array PoolPubKeyHash)
+getPoolIds = wrapQueryM QueryM.getPoolIds
 
 getPoolParameters
-  :: forall (r :: Row Type)
-   . PoolPubKeyHash
-  -> Contract r PoolRegistrationParams
-getPoolParameters poolId = wrapContract $ QueryM.getPoolParameters poolId
+  :: PoolPubKeyHash
+  -> Contract PoolRegistrationParams
+getPoolParameters poolId = wrapQueryM $ QueryM.getPoolParameters poolId
 
 getPubKeyHashDelegationsAndRewards
-  :: forall (r :: Row Type)
-   . StakePubKeyHash
-  -> Contract r (Maybe DelegationsAndRewards)
+  :: StakePubKeyHash
+  -> Contract (Maybe DelegationsAndRewards)
 getPubKeyHashDelegationsAndRewards =
-  wrapContract <<< QueryM.getPubKeyHashDelegationsAndRewards
+  wrapQueryM <<< QueryM.getPubKeyHashDelegationsAndRewards
 
 getValidatorHashDelegationsAndRewards
-  :: forall (r :: Row Type)
-   . StakeValidatorHash
-  -> Contract r (Maybe DelegationsAndRewards)
+  :: StakeValidatorHash
+  -> Contract (Maybe DelegationsAndRewards)
 getValidatorHashDelegationsAndRewards =
-  wrapContract <<< QueryM.getValidatorHashDelegationsAndRewards
+  wrapQueryM <<< QueryM.getValidatorHashDelegationsAndRewards

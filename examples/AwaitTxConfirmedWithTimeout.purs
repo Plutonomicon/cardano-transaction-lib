@@ -27,7 +27,7 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running AwaitTxConfirmedWithTimeout"
   let

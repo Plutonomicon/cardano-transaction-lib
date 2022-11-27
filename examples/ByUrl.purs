@@ -65,7 +65,7 @@ wallets = Map.fromFoldable
   , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
   ]
 
-examples :: Map E2ETestName (Contract () Unit)
+examples :: Map E2ETestName (Contract Unit)
 examples = Map.fromFoldable
   [ "AlwaysMints" /\ AlwaysMints.contract
   , "NativeScriptMints" /\ NativeScriptMints.contract

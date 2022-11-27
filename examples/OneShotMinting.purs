@@ -73,14 +73,14 @@ mkAssertions ownAddress nft =
         \{ txFinalFee } -> pure txFinalFee
     ]
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract =
   mkContractWithAssertions "Examples.OneShotMinting" oneShotMintingPolicy
 
 mkContractWithAssertions
   :: String
-  -> (TransactionInput -> Contract () MintingPolicy)
-  -> Contract () Unit
+  -> (TransactionInput -> Contract MintingPolicy)
+  -> Contract Unit
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
 
@@ -116,11 +116,11 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 
 foreign import oneShotMinting :: String
 
-oneShotMintingPolicy :: TransactionInput -> Contract () MintingPolicy
+oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicy =
   map PlutusMintingPolicy <<< oneShotMintingPolicyScript
 
-oneShotMintingPolicyScript :: TransactionInput -> Contract () PlutusScript
+oneShotMintingPolicyScript :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
@@ -130,7 +130,7 @@ oneShotMintingPolicyScript txInput = do
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Contract () PlutusScript
+  -> Contract PlutusScript
 mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData

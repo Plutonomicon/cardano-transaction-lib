@@ -10,14 +10,14 @@ module Contract.Chain
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
-import Ctl.Internal.QueryM (getChainTip) as QueryM
-import Ctl.Internal.QueryM.WaitUntilSlot
+import Contract.Monad (Contract)
+import Ctl.Internal.Contract (getChainTip) as Contract
+import Ctl.Internal.Contract.WaitUntilSlot
   ( currentSlot
   , currentTime
   , waitNSlots
   , waitUntilSlot
-  ) as QueryM
+  ) as Contract
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)
@@ -27,17 +27,17 @@ import Ctl.Internal.Types.Chain
 import Ctl.Internal.Types.Interval (POSIXTime)
 import Ctl.Internal.Types.Natural (Natural)
 
-getTip :: forall (r :: Row Type). Contract r Chain.Tip
-getTip = wrapContract QueryM.getChainTip
+getTip :: Contract Chain.Tip
+getTip = Contract.getChainTip
 
-waitUntilSlot :: forall (r :: Row Type). Slot -> Contract r Chain.Tip
-waitUntilSlot = wrapContract <<< QueryM.waitUntilSlot
+waitUntilSlot :: Slot -> Contract Chain.Tip
+waitUntilSlot = Contract.waitUntilSlot
 
-waitNSlots :: forall (r :: Row Type). Natural -> Contract r Chain.Tip
-waitNSlots = wrapContract <<< QueryM.waitNSlots
+waitNSlots :: Natural -> Contract Chain.Tip
+waitNSlots = Contract.waitNSlots
 
-currentTime :: forall (r :: Row Type). Contract r POSIXTime
-currentTime = wrapContract QueryM.currentTime
+currentTime :: Contract POSIXTime
+currentTime = Contract.currentTime
 
-currentSlot :: forall (r :: Row Type). Contract r Slot
-currentSlot = wrapContract QueryM.currentSlot
+currentSlot :: Contract Slot
+currentSlot = Contract.currentSlot

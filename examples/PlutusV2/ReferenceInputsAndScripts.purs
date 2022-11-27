@@ -69,7 +69,7 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputsAndScripts"
   validator <- alwaysSucceedsScriptV2
@@ -93,7 +93,7 @@ contract = do
     tokenName
 
 payToAlwaysSucceedsAndCreateScriptRefOutput
-  :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract () TransactionHash
+  :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   skh <- join <<< head <$> ownStakePubKeysHashes
@@ -122,7 +122,7 @@ spendFromAlwaysSucceeds
   -> PlutusScript
   -> PlutusScript
   -> TokenName
-  -> Contract () Unit
+  -> Contract Unit
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   let scriptAddress = scriptHashAddress vhash Nothing
   ownAddress <- liftedM "Failed to get own address" $ head <$>
@@ -184,7 +184,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
   Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh
 
 mintAlwaysMintsV2ToTheScript
-  :: TokenName -> Validator -> Int -> Contract () Unit
+  :: TokenName -> Validator -> Int -> Contract Unit
 mintAlwaysMintsV2ToTheScript tokenName validator sum = do
   mp <- alwaysMintsPolicyV2
   cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp

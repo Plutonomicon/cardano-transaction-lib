@@ -1,4 +1,4 @@
--- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ConfigParams`.
+-- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ContractParams`.
 module Contract.Config
   ( testnetConfig
   , testnetNamiConfig
@@ -13,7 +13,8 @@ module Contract.Config
   , mainnetEternlConfig
   , mainnetLodeConfig
   , module Contract.Address
-  , module Contract.Monad
+  , module Ctl.Internal.Contract.Monad
+  , module Ctl.Internal.Contract.QueryBackend
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys
@@ -23,8 +24,11 @@ module Contract.Config
   , module X
   ) where
 
+import Prelude
+
 import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Contract.Monad (ConfigParams)
+import Ctl.Internal.Contract.Monad (ContractParams)
+import Ctl.Internal.Contract.QueryBackend (QueryBackendParams(CtlBackendParams, BlockfrostBackendParams), mkSingletonBackendParams)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM (emptyHooks)
 import Ctl.Internal.QueryM (emptyHooks) as X
@@ -56,14 +60,15 @@ import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
 
-testnetConfig :: ConfigParams ()
+testnetConfig :: ContractParams
 testnetConfig =
-  { ogmiosConfig: defaultOgmiosWsConfig
-  , datumCacheConfig: defaultDatumCacheWsConfig
+  { backendParams: mkSingletonBackendParams $ CtlBackendParams
+    { ogmiosConfig: defaultOgmiosWsConfig
+    , odcConfig: defaultDatumCacheWsConfig
+    , kupoConfig: defaultKupoServerConfig
+    }
   , ctlServerConfig: Just defaultServerConfig
-  , kupoConfig: defaultKupoServerConfig
   , networkId: TestnetId
-  , extraConfig: {}
   , walletSpec: Nothing
   , logLevel: Trace
   , customLogger: Nothing
@@ -71,35 +76,35 @@ testnetConfig =
   , hooks: emptyHooks
   }
 
-testnetNamiConfig :: ConfigParams ()
+testnetNamiConfig :: ContractParams
 testnetNamiConfig = testnetConfig { walletSpec = Just ConnectToNami }
 
-testnetGeroConfig :: ConfigParams ()
+testnetGeroConfig :: ContractParams
 testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
 
-testnetFlintConfig :: ConfigParams ()
+testnetFlintConfig :: ContractParams
 testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
 
-testnetEternlConfig :: ConfigParams ()
+testnetEternlConfig :: ContractParams
 testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 
-testnetLodeConfig :: ConfigParams ()
+testnetLodeConfig :: ContractParams
 testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 
-mainnetConfig :: ConfigParams ()
+mainnetConfig :: ContractParams
 mainnetConfig = testnetConfig { networkId = MainnetId }
 
-mainnetNamiConfig :: ConfigParams ()
+mainnetNamiConfig :: ContractParams
 mainnetNamiConfig = mainnetConfig { walletSpec = Just ConnectToNami }
 
-mainnetGeroConfig :: ConfigParams ()
+mainnetGeroConfig :: ContractParams
 mainnetGeroConfig = mainnetConfig { walletSpec = Just ConnectToGero }
 
-mainnetFlintConfig :: ConfigParams ()
+mainnetFlintConfig :: ContractParams
 mainnetFlintConfig = mainnetConfig { walletSpec = Just ConnectToFlint }
 
-mainnetEternlConfig :: ConfigParams ()
+mainnetEternlConfig :: ContractParams
 mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
 
-mainnetLodeConfig :: ConfigParams ()
+mainnetLodeConfig :: ContractParams
 mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }

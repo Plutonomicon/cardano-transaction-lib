@@ -107,7 +107,7 @@ assertions =
   , assertSelectedUtxoIsNotSpent
   ]
 
-contract :: ContractParams -> Contract () Unit
+contract :: ContractParams -> Contract Unit
 contract (ContractParams p) = do
   logInfo' "Examples.BalanceTxConstraints"
 

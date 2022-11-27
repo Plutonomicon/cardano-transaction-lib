@@ -25,7 +25,7 @@ import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.AlwaysSucceeds"
   validator <- alwaysSucceedsScriptV2

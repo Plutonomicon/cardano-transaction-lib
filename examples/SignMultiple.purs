@@ -44,7 +44,7 @@ getLockedInputs = do
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes

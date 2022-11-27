@@ -42,7 +42,7 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceScripts"
   validator <- alwaysSucceedsScriptV2
@@ -60,7 +60,7 @@ contract = do
   spendFromAlwaysSucceeds vhash txId
 
 payWithScriptRefToAlwaysSucceeds
-  :: ValidatorHash -> ScriptRef -> Contract () TransactionHash
+  :: ValidatorHash -> ScriptRef -> Contract TransactionHash
 payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`
@@ -87,7 +87,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
 
   Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
-spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract () Unit
+spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract Unit
 spendFromAlwaysSucceeds vhash txId = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`

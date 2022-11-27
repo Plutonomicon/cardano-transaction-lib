@@ -60,7 +60,7 @@ nonConfigFunctions extensionWallet = do
     result <- f extensionWallet
     log $ msg <> ":" <> (show result)
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Cip30"
   logInfo' "Funtions that depend on `Contract`"
@@ -84,8 +84,8 @@ contract = do
     :: forall (a :: Type)
      . Show a
     => String
-    -> Contract () a
-    -> Contract () a
+    -> Contract a
+    -> Contract a
   performAndLog logMsg cont = do
     result <- cont
     logInfo' $ logMsg <> ": " <> show result

@@ -97,6 +97,8 @@ import Ctl.Internal.QueryM.Ogmios
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , SystemStart
+  , RelativeTime
+  , SlotLength
   , aesonObject
   , slotLengthFactor
   )
@@ -697,21 +699,22 @@ extractArg o = do
 -- | Start, then add any excess for a UNIX Epoch time. Recall that POSIXTime
 -- | is in milliseconds for Protocol Version >= 6.
 slotToPosixTime
-  :: EraSummaries
+  :: { slot :: Slot, time :: RelativeTime }
+  -> SlotLength
   -> SystemStart
   -> Slot
   -> Effect (Either SlotToPosixTimeError POSIXTime)
-slotToPosixTime eraSummaries sysStart slot = runExceptT do
+slotToPosixTime slotReference slotLength sysStart slot = runExceptT do
   -- Get JSDate:
   sysStartD <- liftEffect $ parse $ unwrap sysStart
   -- Find current era:
-  currentEra <- liftEither $ findSlotEraSummary eraSummaries slot
+  -- currentEra <- liftEither $ findSlotEraSummary eraSummaries slot
   -- Convert absolute slot (relative to System start) to relative slot of era
-  relSlot <- liftEither $ relSlotFromSlot currentEra slot
+  relSlot <- liftEither $ relSlotFromSlot slotReference.slot slot
   -- Convert relative slot to relative time for that era
-  relTime <- liftM CannotGetBigIntFromNumber $ relTimeFromRelSlot currentEra
+  relTime <- liftM CannotGetBigIntFromNumber $ relTimeFromRelSlot slotLength
     relSlot
-  absTime <- liftEither $ absTimeFromRelTime currentEra relTime
+  absTime <- liftEither $ absTimeFromRelTime slotReference.time relTime
   -- Get POSIX time for system start
   sysStartPosix <- liftM CannotGetBigIntFromNumber
     $ BigInt.fromNumber
@@ -806,29 +809,26 @@ instance Show AbsTime where
 -- | in conjunction with `findSlotEraSummary`. However, we choose to make the
 -- | function more general, guarding against a larger `start`ing slot
 relSlotFromSlot
-  :: EraSummary -> Slot -> Either SlotToPosixTimeError RelSlot
-relSlotFromSlot (EraSummary { start }) s@(Slot slot) = do
+  :: Slot -> Slot -> Either SlotToPosixTimeError RelSlot
+relSlotFromSlot start s@(Slot slot) = do
   let
-    startSlot = BigNum.toBigIntUnsafe $ unwrap (unwrap start).slot
+    startSlot = BigNum.toBigIntUnsafe $ unwrap start
     biSlot = BigNum.toBigIntUnsafe slot
   unless (startSlot <= biSlot) (throwError $ StartingSlotGreaterThanSlot s)
   pure $ wrap $ biSlot - startSlot
 
-relTimeFromRelSlot :: EraSummary -> RelSlot -> Maybe RelTime
-relTimeFromRelSlot eraSummary (RelSlot relSlot) =
-  let
-    slotLength = getSlotLength eraSummary
-  in
-    (<$>) wrap <<< BigInt.fromNumber $ (BigInt.toNumber relSlot) * slotLength
+relTimeFromRelSlot :: SlotLength -> RelSlot -> Maybe RelTime
+relTimeFromRelSlot slotLength (RelSlot relSlot) =
+  (<$>) wrap <<< BigInt.fromNumber $ (BigInt.toNumber relSlot) * (unwrap slotLength)
 
 -- As justified in https://github.com/input-output-hk/ouroboros-network/blob/bd9e5653647c3489567e02789b0ec5b75c726db2/ouroboros-consensus/src/Ouroboros/Consensus/HardFork/History/Qry.hs#L461-L481
 -- Treat the upperbound as inclusive.
 -- | Returns the absolute time relative to some system start, not UNIX epoch.
 absTimeFromRelTime
-  :: EraSummary -> RelTime -> Either SlotToPosixTimeError AbsTime
-absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
+  :: RelativeTime -> RelTime -> Either SlotToPosixTimeError AbsTime
+absTimeFromRelTime start (RelTime relTime) = do
   let
-    startTime = unwrap (unwrap start).time * slotLengthFactor
+    startTime = unwrap start * slotLengthFactor
     absTime = startTime + BigInt.toNumber relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
@@ -836,12 +836,12 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     -- here could be issues going far into the future. But certain contracts are
     -- required to be in the distant future. Onchain, this uses POSIXTime which
     -- is stable, unlike Slots.
-    endTime = maybe (absTime + one)
-      ((*) slotLengthFactor <<< unwrap <<< _.time <<< unwrap)
-      end
-  unless
-    (absTime <= endTime)
-    (throwError $ EndTimeLessThanTime absTime)
+    -- endTime = maybe (absTime + one)
+    --   ((*) slotLengthFactor <<< unwrap <<< _.time <<< unwrap)
+    --   end
+  -- unless
+  --   (absTime <= endTime)
+  --   (throwError $ EndTimeLessThanTime absTime)
 
   wrap <$> (liftM CannotGetBigIntFromNumber $ BigInt.fromNumber absTime)
 
@@ -938,11 +938,12 @@ instance DecodeAeson PosixTimeToSlotError where
 -- | Converts a `POSIXTime` to `Slot` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
 posixTimeToSlot
-  :: EraSummaries
+  :: { slot :: Slot, time :: RelativeTime }
+  -> SlotLength
   -> SystemStart
   -> POSIXTime
   -> Effect (Either PosixTimeToSlotError Slot)
-posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
+posixTimeToSlot slotReference slotLength sysStart pt'@(POSIXTime pt) = runExceptT do
   -- Get JSDate:
   sysStartD <- liftEffect $ parse $ unwrap sysStart
   -- Get POSIX time for system start
@@ -957,14 +958,14 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   -- Keep as milliseconds:
   let absTime = wrap $ pt - sysStartPosix
   -- Find current era:
-  currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
+  -- currentEra <- liftEither $ findTimeEraSummary eraSummaries absTime
   -- Get relative time from absolute time w.r.t. current era
-  relTime <- liftEither $ relTimeFromAbsTime currentEra absTime
+  relTime <- liftEither $ relTimeFromAbsTime slotReference.time absTime
   -- Convert to relative slot
-  relSlotMod <- liftM CannotGetBigIntFromNumber' $ relSlotFromRelTime currentEra
+  relSlotMod <- liftM CannotGetBigIntFromNumber' $ relSlotFromRelTime slotLength
     relTime
   -- Get absolute slot relative to system start
-  liftEither $ slotFromRelSlot currentEra relSlotMod
+  liftEither $ slotFromRelSlot slotReference.slot relSlotMod
 
 -- | Finds the `EraSummary` an `AbsTime` lies inside (if any).
 findTimeEraSummary
@@ -987,9 +988,9 @@ findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
           end
 
 relTimeFromAbsTime
-  :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
-relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
-  let startTime = unwrap (unwrap start).time * slotLengthFactor
+  :: RelativeTime -> AbsTime -> Either PosixTimeToSlotError RelTime
+relTimeFromAbsTime start at@(AbsTime absTime) = do
+  let startTime = unwrap start * slotLengthFactor
   unless (startTime <= BigInt.toNumber absTime)
     (throwError $ StartTimeGreaterThanTime at)
   let
@@ -1003,24 +1004,23 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
 -- | Converts relative time to relative slot (using Euclidean division) and
 -- | modulus for any leftover.
 relSlotFromRelTime
-  :: EraSummary -> RelTime -> Maybe (RelSlot /\ ModTime)
-relSlotFromRelTime eraSummary (RelTime relTime) =
+  :: SlotLength -> RelTime -> Maybe (RelSlot /\ ModTime)
+relSlotFromRelTime slotLength (RelTime relTime) =
   let
-    slotLength = getSlotLength eraSummary
     relSlot = wrap <$>
-      (BigInt.fromNumber <<< Math.trunc) (BigInt.toNumber relTime / slotLength)
+      (BigInt.fromNumber <<< Math.trunc) (BigInt.toNumber relTime / unwrap slotLength)
     modTime = wrap <$>
-      BigInt.fromNumber (BigInt.toNumber relTime Math.% slotLength)
+      BigInt.fromNumber (BigInt.toNumber relTime Math.% unwrap slotLength)
   in
     (/\) <$> relSlot <*> modTime
 
 slotFromRelSlot
-  :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
+  :: Slot -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
 slotFromRelSlot
-  (EraSummary { start, end })
+  start -- (EraSummary { start, end })
   (RelSlot relSlot /\ mt@(ModTime modTime)) = do
   let
-    startSlot = BigNum.toBigIntUnsafe $ unwrap (unwrap start).slot
+    startSlot = BigNum.toBigIntUnsafe $ unwrap start
     -- Round down to the nearest Slot to accept Milliseconds as input.
     slot = startSlot + relSlot -- relative to system start
     -- If `EraSummary` doesn't have an end, the condition is automatically
@@ -1029,13 +1029,13 @@ slotFromRelSlot
     -- here could be issues going far into the future. But certain contracts are
     -- required to be in the distant future. Onchain, this uses POSIXTime which
     -- is stable, unlike Slots.
-    endSlot = maybe (slot + one)
-      (BigNum.toBigIntUnsafe <<< unwrap <<< _.slot <<< unwrap)
-      end
+    -- endSlot = maybe (slot + one)
+    --   (BigNum.toBigIntUnsafe <<< unwrap <<< _.slot <<< unwrap)
+    --   end
   bnSlot <- liftM CannotGetBigNumFromBigInt' $ BigNum.fromBigInt slot
   -- Check we are less than the end slot, or if equal, there is no excess:
-  unless (slot < endSlot || slot == endSlot && modTime == zero)
-    (throwError $ EndSlotLessThanSlotOrModNonZero (wrap bnSlot) mt)
+  -- unless (slot < endSlot || slot == endSlot && modTime == zero)
+  --   (throwError $ EndSlotLessThanSlotOrModNonZero (wrap bnSlot) mt)
   pure $ wrap bnSlot
 
 -- | Get SlotLength in Milliseconds
@@ -1059,28 +1059,32 @@ sequenceInterval AlwaysInterval = pure AlwaysInterval
 -- | Converts a `POSIXTimeRange` to `SlotRange` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
 posixTimeRangeToSlotRange
-  :: EraSummaries
+  :: { slot :: Slot, time :: RelativeTime }
+  -> SlotLength
   -> SystemStart
   -> POSIXTimeRange
   -> Effect (Either PosixTimeToSlotError SlotRange)
 posixTimeRangeToSlotRange
-  eraSummaries
+  slotReference
+  slotLength
   sysStart
   range = sequenceInterval <$>
-  sequenceInterval (posixTimeToSlot eraSummaries sysStart <$> range)
+  sequenceInterval (posixTimeToSlot slotReference slotLength sysStart <$> range)
 
 -- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
 slotRangeToPosixTimeRange
-  :: EraSummaries
+  :: { slot :: Slot, time :: RelativeTime }
+  -> SlotLength
   -> SystemStart
   -> SlotRange
   -> Effect (Either SlotToPosixTimeError POSIXTimeRange)
 slotRangeToPosixTimeRange
-  eraSummaries
+  slotReference
+  slotLength
   sysStart
   range = sequenceInterval <$>
-  sequenceInterval (slotToPosixTime eraSummaries sysStart <$> range)
+  sequenceInterval (slotToPosixTime slotReference slotLength sysStart <$> range)
 
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
@@ -1112,12 +1116,13 @@ slotRangeToTransactionValidity EmptyInterval =
 -- | Converts a `POSIXTimeRange` to a transaction validity interval via a
 -- | `SlotRange` to be used when building a CSL transaction body
 posixTimeRangeToTransactionValidity
-  :: EraSummaries
+  :: { slot :: Slot, time :: RelativeTime }
+  -> SlotLength
   -> SystemStart
   -> POSIXTimeRange
   -> Effect (Either PosixTimeToSlotError TransactionValiditySlot)
-posixTimeRangeToTransactionValidity es ss =
-  map (map slotRangeToTransactionValidity) <<< posixTimeRangeToSlotRange es ss
+posixTimeRangeToTransactionValidity sr sl ss =
+  map (map slotRangeToTransactionValidity) <<< posixTimeRangeToSlotRange sr sl ss
 
 data ToOnChainPosixTimeRangeError
   = PosixTimeToSlotError' PosixTimeToSlotError
@@ -1290,21 +1295,22 @@ haskIntervalToInterval (HaskInterval { ivFrom, ivTo }) = case ivFrom, ivTo of
 -- | `OnchainPOSIXTimeRange` is intended to equal the validity range found in
 -- | the on-chain `ScriptContext`
 toOnchainPosixTimeRange
-  :: EraSummaries
+  :: { slot :: Slot, time :: RelativeTime }
+  -> SlotLength
   -> SystemStart
   -> POSIXTimeRange
   -> Effect (Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange)
-toOnchainPosixTimeRange es ss ptr = runExceptT do
+toOnchainPosixTimeRange sr sl ss ptr = runExceptT do
   { validityStartInterval, timeToLive } <-
-    ExceptT $ posixTimeRangeToTransactionValidity es ss ptr
+    ExceptT $ posixTimeRangeToTransactionValidity sr sl ss ptr
       <#> lmap PosixTimeToSlotError'
   case validityStartInterval, timeToLive of
     Nothing, Nothing -> liftEither $ Right $ wrap always
-    Just s, Nothing -> ExceptT $ slotToPosixTime es ss s
+    Just s, Nothing -> ExceptT $ slotToPosixTime sr sl ss s
       <#> bimap SlotToPosixTimeError' (from >>> wrap)
-    Nothing, Just s -> ExceptT $ slotToPosixTime es ss s
+    Nothing, Just s -> ExceptT $ slotToPosixTime sr sl ss s
       <#> bimap SlotToPosixTimeError' (to >>> wrap)
     Just s1, Just s2 -> do
-      t1 <- ExceptT $ slotToPosixTime es ss s1 <#> lmap SlotToPosixTimeError'
-      t2 <- ExceptT $ slotToPosixTime es ss s2 <#> lmap SlotToPosixTimeError'
+      t1 <- ExceptT $ slotToPosixTime sr sl ss s1 <#> lmap SlotToPosixTimeError'
+      t2 <- ExceptT $ slotToPosixTime sr sl ss s2 <#> lmap SlotToPosixTimeError'
       liftEither $ Right $ wrap $ mkFiniteInterval t1 t2

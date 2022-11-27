@@ -15,7 +15,7 @@ module Contract.Scripts
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -34,7 +34,7 @@ import Ctl.Internal.QueryM
       , ClientEncodingError
       )
   ) as ExportQueryM
-import Ctl.Internal.QueryM (applyArgs) as QueryM
+import Ctl.Internal.Contract.ApplyArgs (applyArgs) as Contract
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , nativeScriptStakeValidatorHash
@@ -72,16 +72,14 @@ import Data.Maybe (Maybe)
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
-  :: forall (r :: Row Type)
-   . PlutusScript
+  :: PlutusScript
   -> Array PlutusData
-  -> Contract r (Either ExportQueryM.ClientError PlutusScript)
-applyArgs a = wrapContract <<< QueryM.applyArgs a
+  -> Contract (Either ExportQueryM.ClientError PlutusScript)
+applyArgs = Contract.applyArgs
 
 -- | Same as `applyArgs` with arguments hushed.
 applyArgsM
-  :: forall (r :: Row Type)
-   . PlutusScript
+  :: PlutusScript
   -> Array PlutusData
-  -> Contract r (Maybe PlutusScript)
+  -> Contract (Maybe PlutusScript)
 applyArgsM a = map hush <<< applyArgs a

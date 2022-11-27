@@ -78,7 +78,7 @@ type ContractResult =
 
 mkAssertions
   :: ContractParams
-  -> Contract ()
+  -> Contract
        ( Array (ContractWrapAssertion () ContractResult)
            /\ Array (ContractBasicAssertion () ContractResult Unit)
        )
@@ -115,7 +115,7 @@ mkAssertions params@(ContractParams p) = do
           TestUtils.assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
       ]
 
-contract :: ContractParams -> Contract () Unit
+contract :: ContractParams -> Contract Unit
 contract params@(ContractParams p) = do
   logInfo' "Running Examples.ContractTestUtils"
   ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
@@ -181,7 +181,7 @@ contract params@(ContractParams p) = do
       OutputDatumHash _ -> true
       _ -> false
 
-getReceiverAddress :: ContractParams -> Contract () (Maybe Address)
+getReceiverAddress :: ContractParams -> Contract (Maybe Address)
 getReceiverAddress (ContractParams { receiverPkh, receiverSkh }) =
   getNetworkId <#> \networkId ->
     case receiverSkh of

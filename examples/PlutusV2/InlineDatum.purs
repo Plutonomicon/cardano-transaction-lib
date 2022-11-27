@@ -61,7 +61,7 @@ example cfg = launchAff_ do
 plutusData :: PlutusData
 plutusData = Integer $ BigInt.fromInt 31415927
 
-payToCheckDatumIsInline :: ValidatorHash -> Contract () TransactionHash
+payToCheckDatumIsInline :: ValidatorHash -> Contract TransactionHash
 payToCheckDatumIsInline vhash = do
   let
     datum :: Datum
@@ -83,7 +83,7 @@ spendFromCheckDatumIsInline
   :: ValidatorHash
   -> Validator
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 spendFromCheckDatumIsInline vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
@@ -118,7 +118,7 @@ spendFromCheckDatumIsInline vhash validator txId = do
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
-payToCheckDatumIsInlineWrong :: ValidatorHash -> Contract () TransactionHash
+payToCheckDatumIsInlineWrong :: ValidatorHash -> Contract TransactionHash
 payToCheckDatumIsInlineWrong vhash = do
   let
     datum :: Datum
@@ -139,7 +139,7 @@ payToCheckDatumIsInlineWrong vhash = do
 readFromCheckDatumIsInline
   :: ValidatorHash
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 readFromCheckDatumIsInline vhash txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
@@ -163,7 +163,7 @@ readFromCheckDatumIsInline vhash txId = do
 
 foreign import checkDatumIsInline :: String
 
-checkDatumIsInlineScript :: Contract () Validator
+checkDatumIsInlineScript :: Contract Validator
 checkDatumIsInlineScript =
   liftMaybe (error "Error decoding checkDatumIsInline") do
     envelope <- decodeTextEnvelope checkDatumIsInline

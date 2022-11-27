@@ -35,7 +35,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysMints"
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
@@ -65,7 +65,7 @@ alwaysMintsPolicyMaybe = do
   envelope <- decodeTextEnvelope alwaysMints
   PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
-alwaysMintsPolicy :: Contract () MintingPolicy
+alwaysMintsPolicy :: Contract MintingPolicy
 alwaysMintsPolicy =
   liftMaybe (error "Error decoding alwaysMintsPolicy")
     alwaysMintsPolicyMaybe

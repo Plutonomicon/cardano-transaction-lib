@@ -55,7 +55,7 @@ example cfg = launchAff_ do
 datum :: Datum
 datum = Datum $ Integer $ BigInt.fromInt 42
 
-payToIncludeDatum :: ValidatorHash -> Contract () TransactionHash
+payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
 payToIncludeDatum vhash =
   let
     constraints :: TxConstraints Unit Unit
@@ -75,7 +75,7 @@ spendFromIncludeDatum
   :: ValidatorHash
   -> Validator
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 spendFromIncludeDatum vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
@@ -97,7 +97,7 @@ spendFromIncludeDatum vhash validator txId = do
 foreign import includeDatum :: String
 
 -- | checks if the datum equals 42
-only42Script :: Contract () Validator
+only42Script :: Contract Validator
 only42Script =
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum

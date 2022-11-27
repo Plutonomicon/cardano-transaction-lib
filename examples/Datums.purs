@@ -19,7 +19,7 @@ module Ctl.Examples.Datums (main, contract, example) where
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetConfig)
+import Contract.Config (ContractParams, testnetConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
@@ -28,7 +28,7 @@ import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 main :: Effect Unit
 main = example testnetConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Datums"
   logInfo' <<< show =<< getDatumByHash
@@ -45,6 +45,6 @@ contract = do
   mkDatumHash :: String -> DataHash
   mkDatumHash = wrap <<< hexToByteArrayUnsafe
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract

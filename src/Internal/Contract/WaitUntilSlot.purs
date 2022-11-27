@@ -8,12 +8,12 @@ module Ctl.Internal.Contract.WaitUntilSlot
 import Prelude
 
 import Ctl.Internal.Contract.Monad(Contract)
+import Control.Monad.Reader.Class (asks)
 
 import Contract.Log (logTrace')
 import Ctl.Internal.Helpers (liftEither, liftM)
-import Ctl.Internal.QueryM (QueryM, getChainTip)
 -- import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart, RelativeTime, SlotLength)
 -- import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.BigNum as BigNum
@@ -38,6 +38,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Now (now)
+import Ctl.Internal.Contract (getChainTip)
 
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> Contract Chain.Tip
@@ -46,9 +47,8 @@ waitUntilSlot futureSlot =
     tip@(Chain.Tip (Chain.ChainTip { slot }))
       | slot >= futureSlot -> pure tip
       | otherwise -> do
-          -- TODO Read sysStart and slotLength(Ms) from env
-          eraSummaries <- getEraSummaries
-          sysStart <- getSystemStart
+          { systemStart, slotLength, slotReference } <- asks _.ledgerConstants
+          let slotLengthMs = unwrap slotLength * 1000.0
           -- slotLengthMs <- map getSlotLength $ liftEither
           --   $ lmap (const $ error "Unable to get current Era summary")
           --   $ findSlotEraSummary eraSummaries slot
@@ -56,9 +56,9 @@ waitUntilSlot futureSlot =
           -- If there are less than `slotPadding` slots remaining, start querying for chainTip
           -- repeatedly, because it's possible that at any given moment Ogmios suddenly
           -- synchronizes with node that is also synchronized with global time.
-          getLag eraSummaries sysStart slot >>= logLag slotLengthMs
+          getLag slotReference slotLength systemStart slot >>= logLag slotLengthMs
           futureTime <-
-            liftEffect (slotToPosixTime eraSummaries sysStart futureSlot)
+            liftEffect (slotToPosixTime slotReference slotLength systemStart futureSlot)
               >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
           delayTime <- estimateDelayUntil futureTime
           liftAff $ delay delayTime
@@ -71,7 +71,7 @@ waitUntilSlot futureSlot =
                   | currentSlot_ >= futureSlot -> pure currentTip
                   | otherwise -> do
                       liftAff $ delay $ Milliseconds slotLengthMs
-                      getLag eraSummaries sysStart currentSlot_ >>= logLag
+                      getLag slotReference slotLength systemStart currentSlot_ >>= logLag
                         slotLengthMs
                       fetchRepeatedly
                 Chain.TipAtGenesis -> do
@@ -95,9 +95,9 @@ waitUntilSlot futureSlot =
 
 -- | Calculate difference between estimated POSIX time of given slot
 -- | and current time.
-getLag :: EraSummaries -> SystemStart -> Slot -> Contract Milliseconds
-getLag eraSummaries sysStart nowSlot = do
-  nowPosixTime <- liftEffect (slotToPosixTime eraSummaries sysStart nowSlot) >>=
+getLag :: { slot :: Slot, time :: RelativeTime } -> SlotLength -> SystemStart -> Slot -> Contract Milliseconds
+getLag slotReference slotLength sysStart nowSlot = do
+  nowPosixTime <- liftEffect (slotToPosixTime slotReference slotLength sysStart nowSlot) >>=
     hush >>> liftM (error "Unable to convert Slot to POSIXTime")
   nowMs <- unwrap <<< unInstant <$> liftEffect now
   logTrace' $
@@ -170,9 +170,9 @@ slotToEndPOSIXTime :: Slot -> Contract POSIXTime
 slotToEndPOSIXTime slot = do
   futureSlot <- liftM (error "Unable to advance slot")
     $ wrap <$> BigNum.add (unwrap slot) (BigNum.fromInt 1)
-  eraSummaries <- getEraSummaries
-  sysStart <- getSystemStart
-  futureTime <- liftEffect $ slotToPosixTime eraSummaries sysStart futureSlot
+  { systemStart, slotLength, slotReference } <- asks _.ledgerConstants
+  futureTime <- liftEffect $ slotToPosixTime slotReference slotLength systemStart futureSlot
     >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
   -- We assume that a slot is 1000 milliseconds here.
+  -- TODO Don't
   pure ((wrap <<< BigInt.fromInt $ -1) + futureTime)

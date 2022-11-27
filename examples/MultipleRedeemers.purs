@@ -44,7 +44,7 @@ import Data.Map as Map
 import Data.Traversable (sequence)
 import Effect.Exception (error)
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   tokenName <- mkTokenName "Token"
   validator1 <- redeemerIs1Validator
@@ -69,7 +69,7 @@ contract = do
     constraints
   void $ awaitTxConfirmed txHash
 
-contractWithMintRedeemers :: Contract () Unit
+contractWithMintRedeemers :: Contract Unit
 contractWithMintRedeemers = do
   tokenName <- mkTokenName "Token"
   validator1 <- redeemerIs1Validator
@@ -127,19 +127,19 @@ foreign import vredeemerInt2 :: String
 foreign import vredeemerInt3 :: String
 
 -- | checks whether redeemer is 1
-redeemerIs1Validator :: Contract () Validator
+redeemerIs1Validator :: Contract Validator
 redeemerIs1Validator = liftMaybe (error "Error decoding vredeemerInt1") do
   envelope <- decodeTextEnvelope vredeemerInt1
   Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 2
-redeemerIs2Validator :: Contract () Validator
+redeemerIs2Validator :: Contract Validator
 redeemerIs2Validator = liftMaybe (error "Error decoding vredeemerInt2") do
   envelope <- decodeTextEnvelope vredeemerInt2
   Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 3
-redeemerIs3Validator :: Contract () Validator
+redeemerIs3Validator :: Contract Validator
 redeemerIs3Validator = liftMaybe (error "Error decoding vredeemerInt3") do
   envelope <- decodeTextEnvelope vredeemerInt3
   Validator <$> plutusScriptV1FromEnvelope envelope

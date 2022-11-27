@@ -38,7 +38,7 @@ example cfg = launchAff_ do
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
-testMustSatisfyAnyOf :: Contract () Unit
+testMustSatisfyAnyOf :: Contract Unit
 testMustSatisfyAnyOf = do
   wrongDatumHash <- liftMaybe (error "Cannot get DatumHash") $ Hashing.datumHash
     wrongDatum

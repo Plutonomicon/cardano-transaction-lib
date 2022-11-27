@@ -34,7 +34,7 @@ import Data.BigInt as BigInt
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
@@ -60,7 +60,7 @@ contract = do
 
   toSelfContract cs tn $ BigInt.fromInt 50
 
-toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract () Unit
+toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract Unit
 toSelfContract cs tn amount = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   skh <- join <<< head <$> ownStakePubKeysHashes

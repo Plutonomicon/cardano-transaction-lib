@@ -1,4 +1,4 @@
-module Ctl.Internal.QueryM.AwaitTxConfirmed
+module Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
@@ -7,10 +7,12 @@ module Ctl.Internal.QueryM.AwaitTxConfirmed
 import Prelude
 
 import Control.Parallel (parOneOf)
-import Ctl.Internal.QueryM (QueryM, getChainTip)
-import Ctl.Internal.QueryM.Kupo (isTxConfirmed) as Kupo
+import Ctl.Internal.Contract (getChainTip)
+import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+-- import Ctl.Internal.QueryM.Kupo (isTxConfirmed) as Kupo
 import Ctl.Internal.QueryM.Ogmios (TxHash)
-import Ctl.Internal.QueryM.WaitUntilSlot (waitUntilSlot)
+import Ctl.Internal.Contract.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
@@ -24,10 +26,10 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 
-awaitTxConfirmed :: TxHash -> QueryM Unit
+awaitTxConfirmed :: TxHash -> Contract Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
-awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> Contract Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   -- If timeout is infinity, do not use a timeout at all
   if unwrap timeoutSeconds == infinity then void findTx
@@ -40,13 +42,13 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   where
   -- Try to find the TX indefinitely, with a waiting period between each
   -- request
-  findTx :: QueryM Boolean
+  findTx :: Contract Boolean
   findTx =
     isTxConfirmed txHash >>= \found ->
       if found then pure true else liftAff (delay delayTime) *> findTx
 
   -- Wait until the timeout elapses and return false
-  waitAndFail :: QueryM Boolean
+  waitAndFail :: Contract Boolean
   waitAndFail = do
     liftAff $ delay $ timeout
     pure false
@@ -57,23 +59,23 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   delayTime :: Milliseconds
   delayTime = wrap 1000.0
 
-awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> QueryM Unit
+awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> Contract Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
   getCurrentSlot >>= addSlots timeoutSlots >>= go
   where
-  getCurrentSlot :: QueryM Slot
+  getCurrentSlot :: Contract Slot
   getCurrentSlot = getChainTip >>= case _ of
     Chain.TipAtGenesis -> do
       liftAff $ delay $ wrap 1000.0
       getCurrentSlot
     Chain.Tip (Chain.ChainTip { slot }) -> pure slot
 
-  addSlots :: Int -> Slot -> QueryM Slot
+  addSlots :: Int -> Slot -> Contract Slot
   addSlots n slot =
     maybe (liftEffect $ throw "Cannot determine next slot") (pure <<< wrap) $
       unwrap slot `BigNum.add` BigNum.fromInt n
 
-  go :: Slot -> QueryM Unit
+  go :: Slot -> Contract Unit
   go timeout =
     isTxConfirmed txHash >>= \found ->
       unless found do
@@ -85,7 +87,9 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
         void $ addSlots 1 slot >>= waitUntilSlot
         go timeout
 
-isTxConfirmed :: TxHash -> QueryM Boolean
-isTxConfirmed txHash =
-  Kupo.isTxConfirmed (wrap txHash)
+isTxConfirmed :: TxHash -> Contract Boolean
+isTxConfirmed txHash = do
+  queryHandle <- getQueryHandle
+  liftAff $ queryHandle.isTxConfirmed (wrap txHash)
     >>= either (liftEffect <<< throw <<< show) pure
+

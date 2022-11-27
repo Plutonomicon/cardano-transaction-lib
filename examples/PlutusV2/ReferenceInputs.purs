@@ -51,7 +51,7 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example = launchAff_ <<< flip runContract contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
 

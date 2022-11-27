@@ -34,6 +34,8 @@ import Prelude
 
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Effect.Aff.Class (liftAff)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
@@ -42,7 +44,6 @@ import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.IsData (class IsData)
-import Ctl.Internal.QueryM (QueryM, getDatumByHash)
 import Ctl.Internal.Scripts (typedValidatorEnterpriseAddress)
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.ToData (class ToData, toData)
@@ -54,11 +55,12 @@ import Ctl.Internal.Types.OutputDatum
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TypedValidator (class DatumType, TypedValidator)
-import Data.Either (Either, note)
+import Data.Either (Either, hush, note)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Ctl.Internal.Contract.Monad (Contract)
 
 -- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
@@ -263,16 +265,17 @@ typeTxOut
   => NetworkId
   -> TypedValidator validator
   -> TransactionOutput
-  -> QueryM (Either TypeCheckError (TypedTxOut validator datum))
+  -> Contract (Either TypeCheckError (TypedTxOut validator datum))
 typeTxOut
   networkId
   typedVal
-  (TransactionOutput { address, amount, datum }) =
+  (TransactionOutput { address, amount, datum }) = do
+  queryHandle <- getQueryHandle
   runExceptT do
     -- Assume `Nothing` is a public key.
     dHash <- liftM ExpectedScriptGotPubkey $ outputDatumDataHash datum
     void $ checkValidatorAddress networkId typedVal address
-    pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+    pd <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> join >>> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd
     except $
       note CannotMakeTypedTxOut (mkTypedTxOut networkId typedVal dtOut amount)
@@ -289,7 +292,7 @@ typeTxOutRef
   -> (TransactionInput -> Maybe TransactionOutput)
   -> TypedValidator validator
   -> TransactionInput
-  -> QueryM (Either TypeCheckError (TypedTxOutRef validator datum))
+  -> Contract (Either TypeCheckError (TypedTxOutRef validator datum))
 typeTxOutRef networkId lookupRef typedVal txOutRef = runExceptT do
   out <- liftM UnknownRef (lookupRef txOutRef)
   typedTxOut <- ExceptT $ typeTxOut networkId typedVal out

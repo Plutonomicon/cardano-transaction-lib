@@ -1,19 +1,23 @@
 module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
+  , ParContract(ParContract)
   , ContractEnv
   , ContractParams
   , mkContractEnv
   , runContract
   , runContractInEnv
   , runQueryM
+  , wrapQueryM
   , stopContractEnv
   , withContractEnv
   ) where
 
 import Prelude
 
-import Effect.Aff (Aff, attempt, error, finally, supervise)
-import Data.Array (head)
+import Data.Function (on)
+import Data.Foldable (maximumBy)
+import Ctl.Internal.Serialization.Address (Slot)
+import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.QueryM (Hooks, Logger, QueryEnv, QueryM, WebSocket, getProtocolParametersAff, getSystemStartAff, getEraSummariesAff, mkDatumCacheWebSocketAff, mkLogger, mkOgmiosWebSocketAff, mkWalletBySpec, underlyingWebSocket)
 import Record.Builder (build, merge)
@@ -24,19 +28,21 @@ import Control.Monad.Error.Class
   , throwError
   )
 import Control.Monad.Logger.Class (class MonadLogger)
-import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, asks)
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
   , QueryBackends
+  , QueryBackendLabel(CtlBackendLabel)
   , defaultBackend
+  , lookupBackend
   )
-import Ctl.Internal.Helpers (liftedM, logWithLevel)
+import Ctl.Internal.Helpers (liftM, liftedM, logWithLevel)
 import Ctl.Internal.QueryM.Logging (setupLogs)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SlotLength, SystemStart) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SlotLength, SystemStart, RelativeTime) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
@@ -56,6 +62,10 @@ import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
 import Prim.TypeError (class Warn, Text)
 import Undefined (undefined)
+import Control.Parallel (class Parallel, parallel, sequential)
+import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
+import Control.Plus (class Plus)
 
 --------------------------------------------------------------------------------
 -- Contract
@@ -93,6 +103,24 @@ instance MonadLogger Contract where
     let logFunction = fromMaybe logWithLevel config.customLogger
     liftAff $ logFunction config.logLevel msg
 
+instance Parallel ParContract Contract where
+  parallel :: Contract ~> ParContract
+  parallel (Contract a) = ParContract $ parallel a
+  sequential :: ParContract ~> Contract
+  sequential (ParContract a) = Contract $ sequential a
+
+newtype ParContract (a :: Type) = ParContract
+  (ReaderT ContractEnv ParAff a)
+
+derive newtype instance Functor ParContract
+derive newtype instance Apply ParContract
+derive newtype instance Applicative ParContract
+derive newtype instance Alt ParContract
+derive newtype instance Plus ParContract
+derive newtype instance Alternative ParContract
+derive newtype instance Semigroup a => Semigroup (ParContract a)
+derive newtype instance Monoid a => Monoid (ParContract a)
+
 -- | Interprets a contract into an `Aff` context.
 -- | Implicitly initializes and finalizes a new `ContractEnv` runtime.
 -- |
@@ -127,10 +155,17 @@ type ContractEnv =
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
   -- TODO: Duplicate types to Contract
+  -- We don't support changing protocol parameters, so supporting a HFC is even less unlikely
+  -- slotLength can only change with a HFC.
   , ledgerConstants ::
     { pparams :: Ogmios.ProtocolParameters
     , systemStart :: Ogmios.SystemStart
+    -- Why not use Duration?
     , slotLength :: Ogmios.SlotLength
+    -- A reference point in which the slotLength is assumed to be constant from
+    -- then until now, not including HFC which occur during contract evaluation
+    -- TODO: Drop systemStart and just normalize time AOT
+    , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
     }
   }
 
@@ -191,14 +226,20 @@ mkContractEnv params = do
       { pparams :: Ogmios.ProtocolParameters
       , systemStart :: Ogmios.SystemStart
       , slotLength :: Ogmios.SlotLength
+      , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
       }
     getLedgerConstants backend = case backend of
       CtlBackend { ogmios: { ws } } -> do
         pparams <- getProtocolParametersAff ws logger
         systemStart <- getSystemStartAff ws logger
-        slotLength <- liftedM (error "Could not get EraSummary") do
-          map (_.slotLength <<< unwrap <<< _.parameters <<< unwrap) <<< head <<< unwrap <$> getEraSummariesAff ws logger
-        pure { pparams, slotLength, systemStart }
+        -- Do we ever recieve an eraSummary ahead of schedule?
+        -- Maybe search for the chainTip's era
+        latestEraSummary <- liftedM (error "Could not get EraSummary") do
+          map unwrap <<< (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot))) <<< unwrap <$> getEraSummariesAff ws logger
+        let
+          slotLength = _.slotLength $ unwrap $ _.parameters $ latestEraSummary
+          slotReference = (\{slot, time} -> {slot, time}) $ unwrap $ _.start $ latestEraSummary
+        pure { pparams, slotLength, systemStart, slotReference }
       BlockfrostBackend _ -> undefined
 
     buildWallet :: Aff (Maybe Wallet)
@@ -291,6 +332,14 @@ type ContractParams =
 --------------------------------------------------------------------------------
 -- QueryM
 --------------------------------------------------------------------------------
+
+wrapQueryM :: forall a. QueryM a -> Contract a
+wrapQueryM qm = do
+  backend <- asks _.backend
+  ctlBackend <- liftM (error "Operation only supported on CTL backend") $ lookupBackend CtlBackendLabel backend >>= case _ of
+    CtlBackend b -> Just b
+    _ -> Nothing
+  Contract $ ReaderT \contractEnv -> runQueryM contractEnv ctlBackend qm
 
 runQueryM :: forall (a :: Type). ContractEnv -> CtlBackend -> QueryM a -> Aff a
 runQueryM contractEnv ctlBackend =

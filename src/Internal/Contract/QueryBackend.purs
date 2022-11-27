@@ -72,6 +72,7 @@ mkBackendParams defaultBackend backends =
 defaultBackend :: forall (backend :: Type). QueryBackends backend -> backend
 defaultBackend (QueryBackends backend _) = backend
 
+-- Still requires a match on the backend constructor...
 lookupBackend
   :: forall (backend :: Type)
    . HasQueryBackendLabel backend

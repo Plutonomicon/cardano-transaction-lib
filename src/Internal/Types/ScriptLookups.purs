@@ -54,10 +54,14 @@ module Ctl.Internal.Types.ScriptLookups
 
 import Prelude hiding (join)
 
+import Effect.Aff.Class (liftAff)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract)
 import Aeson (class EncodeAeson)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (addressPaymentValidatorHash)
@@ -253,7 +257,7 @@ import Data.Array (cons, filter, mapWithIndex, partition, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), either, isRight, note)
+import Data.Either (Either(Left, Right), either, isRight, note, hush)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -572,7 +576,7 @@ requireValue required = ValueSpentBalances { required, provided: mempty }
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
 type ConstraintsM (a :: Type) (b :: Type) =
-  StateT (ConstraintProcessingState a) (QueryMExtended () Aff) b
+  StateT (ConstraintProcessingState a) Contract b
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall v. (FromData (DatumType v), ToData (DatumType v), ToData (RedeemerType v))`
@@ -817,7 +821,7 @@ addOwnInput
   -> InputConstraint redeemer
   -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 addOwnInput _pd (InputConstraint { txOutRef }) = do
-  networkId <- getNetworkId
+  networkId <- asks _.networkId
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
@@ -842,7 +846,8 @@ addOwnOutput
   => OutputConstraint datum
   -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 addOwnOutput (OutputConstraint { datum: d, value }) = do
-  networkId <- getNetworkId
+  queryHandle <- getQueryHandle
+  networkId <- asks _.networkId
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
@@ -854,7 +859,8 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     -- in the `OutputConstraint`:
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
     dat <-
-      ExceptT $ lift $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
+      -- TODO fix
+      ExceptT $ liftAff $ (queryHandle.getDatumByHash dHash <#> hush >>> join >>> note (CannotQueryDatum dHash))
     _cpsToTxBody <<< _outputs %= Array.(:) txOut
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provideValue value'
@@ -1054,13 +1060,10 @@ processConstraint mpsMap osMap = do
   case _ of
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
-      -- Potential improvement: bring these out so we have one source of truth
-      -- although they should be static in a single contract call
-      es <- lift getEraSummaries
-      ss <- lift getSystemStart
+      { slotReference, slotLength, systemStart } <- asks _.ledgerConstants
       runExceptT do
         ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
-          posixTimeRangeToTransactionValidity es ss posixTimeRange
+          posixTimeRangeToTransactionValidity slotReference slotLength systemStart posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsToTxBody <<< _Newtype %=
           _
@@ -1511,4 +1514,4 @@ getNetworkId
   :: forall (a :: Type)
    . ConstraintsM a NetworkId
 getNetworkId = use (_cpsToTxBody <<< _networkId)
-  >>= maybe (lift $ QueryM.getNetworkId) pure
+  >>= maybe (asks _.networkId) pure

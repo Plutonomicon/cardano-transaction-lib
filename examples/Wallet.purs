@@ -7,7 +7,7 @@ import Contract.Config (ConfigParams)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Utxos (getWalletBalance, getWalletUtxos)
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   log "Address:"
   log <<< show =<< getWalletAddresses

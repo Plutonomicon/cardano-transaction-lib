@@ -169,7 +169,7 @@ getWalletCollateral = do
         addr <- liftAff $ (unwrap kw).address networkId
         utxos <- (liftAff $ queryHandle.utxosAt addr) <#> hush >>> fromMaybe Map.empty
           >>= filterLockedUtxos
-        pparams <- asks $ _.pparams <#> unwrap
+        pparams <- asks $ _.ledgerConstants >>> _.pparams <#> unwrap
         let
           coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
           maxCollateralInputs = UInt.toInt $
@@ -178,7 +178,7 @@ getWalletCollateral = do
           maxCollateralInputs
           utxos
   for_ mbCollateralUTxOs \collateralUTxOs -> do
-    pparams <- asks $ _.pparams
+    pparams <- asks $ _.ledgerConstants >>> _.pparams
     let
       tooManyCollateralUTxOs =
         UInt.fromInt (Array.length collateralUTxOs) >

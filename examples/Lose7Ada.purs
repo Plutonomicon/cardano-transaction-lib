@@ -57,7 +57,7 @@ example cfg = launchAff_ do
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromAlwaysFails vhash validator txId
 
-payToAlwaysFails :: ValidatorHash -> Contract () TransactionHash
+payToAlwaysFails :: ValidatorHash -> Contract TransactionHash
 payToAlwaysFails vhash = do
   let
     constraints :: TxConstraints Unit Unit
@@ -76,7 +76,7 @@ spendFromAlwaysFails
   :: ValidatorHash
   -> Validator
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 spendFromAlwaysFails vhash validator txId = do
   balanceBefore <- fold <$> getWalletBalance
   let scriptAddress = scriptHashAddress vhash Nothing
@@ -116,7 +116,7 @@ spendFromAlwaysFails vhash validator txId = do
 
 foreign import alwaysFails :: String
 
-alwaysFailsScript :: Contract () Validator
+alwaysFailsScript :: Contract Validator
 alwaysFailsScript =
   liftMaybe (error "Error decoding alwaysFails") do
     envelope <- decodeTextEnvelope alwaysFails

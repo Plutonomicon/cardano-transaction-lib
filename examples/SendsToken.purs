@@ -32,7 +32,7 @@ example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SendsToken"
 
@@ -42,7 +42,7 @@ contract = do
   sendToken >>= awaitTxConfirmed
   logInfo' "Tx submitted successfully!"
 
-mintToken :: Contract () TransactionHash
+mintToken :: Contract TransactionHash
 mintToken = do
   mp /\ value <- tokenValue
   let
@@ -54,7 +54,7 @@ mintToken = do
 
   Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
-sendToken :: Contract () TransactionHash
+sendToken :: Contract TransactionHash
 sendToken = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   skh <- join <<< head <$> ownStakePubKeysHashes
@@ -68,7 +68,7 @@ sendToken = do
 
   Helpers.buildBalanceSignAndSubmitTx lookups constraints
 
-tokenValue :: Contract () (MintingPolicy /\ Value)
+tokenValue :: Contract (MintingPolicy /\ Value)
 tokenValue = do
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "TheToken"

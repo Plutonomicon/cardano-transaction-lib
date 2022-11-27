@@ -49,7 +49,7 @@ main = example testnetNamiConfig
 example :: ConfigParams () -> Effect Unit
 example = launchAff_ <<< flip runContract contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Utxos"
   pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash

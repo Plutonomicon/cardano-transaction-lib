@@ -20,7 +20,7 @@ import Data.BigInt as BigInt
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
