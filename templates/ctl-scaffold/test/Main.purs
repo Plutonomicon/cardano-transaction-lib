@@ -6,23 +6,23 @@ import Contract.Prelude
 
 import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
+import Ctl.Internal.Test.TestPlanM as Contract.Test.Mote
 import Contract.Test.Plutip (PlutipTest, testPlutipContracts)
 import Contract.Test.Plutip as Contract.Test.Plutip
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff (Milliseconds(Milliseconds))
-import Mote (MoteT, test)
+import Mote (test)
 import Scaffold as Scaffold
-import Test.Scaffold.Plan as Plan
 import Test.Spec.Runner (defaultConfig)
 
 main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do
-  Plan.interpretWithConfig
+  Contract.Test.Mote.interpretWithConfig
     defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
     $ testPlutipContracts config suite
 
-suite :: MoteT Aff PlutipTest Aff Unit
+suite :: Contract.Test.Mote.TestPlanM PlutipTest Unit
 suite = do
   test "Print PubKey" do
     let
