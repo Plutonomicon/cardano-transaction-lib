@@ -1,7 +1,6 @@
 module Ctl.Internal.Test.TestPlanM
   ( TestPlanM
   , interpret
-  , interpretWithTimeout
   , interpretWithConfig
   ) where
 
@@ -11,7 +10,6 @@ import Ctl.Internal.Test.ConsoleReporter (consoleReporter)
 import Data.Foldable (sequence_)
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (wrap)
-import Data.Time.Duration (Milliseconds)
 import Effect.Aff (Aff, bracket)
 import Mote (MoteT, Plan, foldPlan, planT)
 import Mote.Entry (Bracket, unBracket)
@@ -30,11 +28,6 @@ type AffSpec a = SpecT Aff Unit Aff a
 -- | in Test.Spec which prohibit effects.
 interpret :: TestPlanM (Aff Unit) Unit -> Aff Unit
 interpret = interpretWithConfig defaultConfig { timeout = Just (wrap 50000.0) }
-
-interpretWithTimeout
-  :: Maybe Milliseconds -> TestPlanM (Aff Unit) Unit -> Aff Unit
-interpretWithTimeout timeout spif = do
-  interpretWithConfig (defaultConfig { timeout = timeout }) spif
 
 interpretWithConfig
   :: SpecRunner.Config -> TestPlanM (Aff Unit) Unit -> Aff Unit
@@ -60,4 +53,3 @@ planToSpec =
   runBracket :: Aff Unit -> Maybe (Bracket Aff) -> Aff Unit
   runBracket action = maybe action
     $ unBracket \before after -> bracket before after (const action)
-
