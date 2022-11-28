@@ -11,7 +11,7 @@ module Ctl.Examples.PlutusV2.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
 import Contract.TextEnvelope
@@ -29,7 +29,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 

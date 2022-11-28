@@ -99,9 +99,8 @@ contractWithMintRedeemers = do
   void $ awaitTxConfirmed txHash
 
 spendLockedByIntOutputParams
-  :: forall x
-   . Tuple Validator Int
-  -> Contract x
+  :: Tuple Validator Int
+  -> Contract
        ( Tuple (Constraints.TxConstraints Void Void)
            (Lookups.ScriptLookups Void)
        )

@@ -38,6 +38,7 @@ import Effect.Exception (throw)
 data QueryBackends (backend :: Type) =
   QueryBackends backend (Map QueryBackendLabel backend)
 
+-- Functor breaks this datatype...
 derive instance Functor QueryBackends
 
 instance Foldable QueryBackends where

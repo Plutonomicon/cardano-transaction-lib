@@ -14,7 +14,7 @@ module Ctl.Examples.AlwaysSucceeds
 import Contract.Prelude
 
 import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
@@ -53,7 +53,7 @@ contract = do
   logInfo' "Tx submitted successfully, Try to spend locked values"
   spendFromAlwaysSucceeds vhash validator txId
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 

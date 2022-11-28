@@ -8,7 +8,7 @@ module Ctl.Examples.Cip30
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Prim.ByteArray (rawBytesFromAscii)
@@ -34,7 +34,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   mWallet <- runContract cfg getWallet
   let mSupportWallet = walletToWalletExtension =<< mWallet

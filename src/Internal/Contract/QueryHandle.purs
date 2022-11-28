@@ -2,10 +2,18 @@ module Ctl.Internal.Contract.QueryHandle where
 
 import Prelude
 
+import Contract.Log (logDebug')
+import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
+import Data.Either (Either)
+import Untagged.Union (asOneOf)
+import Data.Newtype (unwrap, wrap)
+import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Effect.Class (liftEffect)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput, UtxoMap)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.QueryM.CurrentEpoch(getCurrentEpoch) as QueryM
+import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
 import Ctl.Internal.Contract.Monad
   ( Contract
   , ContractEnv
@@ -17,7 +25,7 @@ import Ctl.Internal.Contract.QueryBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   , defaultBackend
   )
-import Ctl.Internal.QueryM (getChainTip) as QueryM
+import Ctl.Internal.QueryM (getChainTip, submitTxOgmios, evaluateTxOgmios) as QueryM
 import Ctl.Internal.QueryM (ClientError, QueryM)
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
@@ -28,17 +36,17 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
+import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
-import Data.Either (Either)
 import Data.Map (Map)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff)
 import Undefined (undefined)
 import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.QueryM.Ogmios (CurrentEpoch) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (CurrentEpoch, AdditionalUtxoSet) as Ogmios
 
 -- Why ClientError?
 type AffE (a :: Type) = Aff (Either ClientError a)
@@ -53,6 +61,15 @@ type QueryHandle =
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: Aff Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
+  -- TODO Capture errors from all backends
+  , submitTx :: Transaction -> Aff (Maybe TransactionHash)
+  , getTxByHash :: TransactionHash -> Aff (Maybe Transaction)
+  , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
+
+  -- getTxByHash
+  --   bf: /txs/{hash}
+  --   ctl: requires ODC
+  --     Not a problem for now
   -- submitTx
   -- evaluateTx
   -- chainTip
@@ -75,6 +92,14 @@ getQueryHandle =
       BlockfrostBackend backend ->
         queryHandleForBlockfrostBackend contractEnv backend
 
+getQueryHandle' :: ContractEnv -> QueryHandle
+getQueryHandle' contractEnv =
+  case defaultBackend contractEnv.backend of
+    CtlBackend backend ->
+      queryHandleForCtlBackend contractEnv backend
+    BlockfrostBackend backend ->
+      queryHandleForBlockfrostBackend contractEnv backend
+
 queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
 queryHandleForCtlBackend contractEnv backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
@@ -86,6 +111,22 @@ queryHandleForCtlBackend contractEnv backend =
   , utxosAt: runQueryM' <<< Kupo.utxosAt
   , getChainTip: runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
+  , submitTx: \tx -> runQueryM' do
+      cslTx <- liftEffect $ Serialization.convertTransaction tx
+      let txHash = Hashing.transactionHash cslTx
+      logDebug' $ "Pre-calculated tx hash: " <> show txHash
+      let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
+      result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes
+      case result of
+        SubmitTxSuccess a -> pure $ Just $ wrap a
+        _ -> pure Nothing
+  , getTxByHash: runQueryM' <<< QueryM.getTxByHash <<< unwrap
+  , evaluateTx: \tx additionalUtxos -> runQueryM' do
+      txBytes <- liftEffect
+        ( wrap <<< Serialization.toBytes <<< asOneOf <$>
+            Serialization.convertTransaction tx
+        )
+      QueryM.evaluateTxOgmios txBytes additionalUtxos
   }
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a

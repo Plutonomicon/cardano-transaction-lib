@@ -22,7 +22,7 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 
 submitAndLog
-  :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
+  :: BalancedSignedTransaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
@@ -34,7 +34,7 @@ submitAndLog bsTx = do
     when (mbTransaction /= Just (unwrap bsTx)) do
       throw "Tx contents do not match"
 
-getLockedInputs :: forall (r :: Row Type). Contract r TxOutRefCache
+getLockedInputs :: Contract TxOutRefCache
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
+  cache <- asks _.usedTxOuts
   liftEffect $ Ref.read $ unwrap cache

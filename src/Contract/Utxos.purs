@@ -11,9 +11,12 @@ module Contract.Utxos
 
 import Prelude
 
-import Contract.Monad (Contract, liftContractM, liftedE, wrapContract)
+import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
 import Contract.Transaction (TransactionInput, TransactionOutput)
+import Control.Monad.Reader.Class (asks)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Effect.Aff.Class (liftAff)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusTxOutput
@@ -24,39 +27,37 @@ import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
-import Ctl.Internal.QueryM (getNetworkId)
-import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
-import Ctl.Internal.QueryM.Utxos (getWalletBalance, getWalletUtxos) as Utxos
+import Ctl.Internal.Contract.Wallet (getWalletBalance, getWalletUtxos) as Utxos
 import Data.Maybe (Maybe)
 
 -- | Queries for utxos at the given Plutus `Address`.
 utxosAt
-  :: forall (r :: Row Type) (address :: Type)
+  :: forall (address :: Type)
    . PlutusAddress address
   => address
-  -> Contract r UtxoMap
+  -> Contract UtxoMap
 utxosAt address = do
-  networkId <- wrapContract getNetworkId
+  networkId <- asks _.networkId
+  queryHandle <- getQueryHandle
   let cardanoAddr = fromPlutusAddress networkId (getAddress address)
-  cardanoUtxoMap <- liftedE $ wrapContract $ Kupo.utxosAt cardanoAddr
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosAt cardanoAddr
   toPlutusUtxoMap cardanoUtxoMap
     # liftContractM "utxosAt: failed to convert utxos"
 
 -- | Queries for an utxo given a transaction input.
 -- | Returns `Nothing` if the output has already been spent.
 getUtxo
-  :: forall (r :: Row Type)
-   . TransactionInput
-  -> Contract r (Maybe TransactionOutput)
+  :: TransactionInput
+  -> Contract (Maybe TransactionOutput)
 getUtxo oref = do
-  cardanoTxOutput <- liftedE $ wrapContract $ Kupo.getUtxoByOref oref
+  queryHandle <- getQueryHandle
+  cardanoTxOutput <- liftedE $ liftAff $ queryHandle.getUtxoByOref oref
   for cardanoTxOutput
     (liftContractM "getUtxo: failed to convert tx output" <<< toPlutusTxOutput)
 
 getWalletBalance
-  :: forall (r :: Row Type)
-   . Contract r (Maybe Value)
-getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
+  :: Contract (Maybe Value)
+getWalletBalance = Utxos.getWalletBalance <#> map toPlutusValue
 
 -- | Similar to `utxosAt` called on own address, except that it uses CIP-30
 -- | wallet state and not query layer state.
@@ -65,10 +66,9 @@ getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
 -- | This function is expected to be more performant than `utxosAt` when there
 -- | is a large number of assets.
 getWalletUtxos
-  :: forall (r :: Row Type)
-   . Contract r (Maybe UtxoMap)
+  :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
-  mCardanoUtxos <- wrapContract Utxos.getWalletUtxos
+  mCardanoUtxos <- Utxos.getWalletUtxos
   for mCardanoUtxos $
     liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
       toPlutusUtxoMap

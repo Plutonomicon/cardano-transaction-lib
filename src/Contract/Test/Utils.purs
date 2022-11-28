@@ -106,8 +106,8 @@ import Type.Proxy (Proxy(Proxy))
 
 -- | Monad allowing for accumulation of assertion failures. Should be used in
 -- | conjunction with `ContractAssertionM`.
-type ContractTestM (r :: Row Type) (a :: Type) =
-  WriterT (Array ContractAssertionFailure) (Contract r) a
+type ContractTestM (a :: Type) =
+  WriterT (Array ContractAssertionFailure) Contract a
 
 -- | Represents computations which may fail with `ContractAssertionFailure`,
 -- | with the capability of storing some intermediate result, usually the result
@@ -117,20 +117,20 @@ type ContractTestM (r :: Row Type) (a :: Type) =
 -- | run (`ContractWrapAssertion`s). So in case of a failure after the contract
 -- | has already been executed, we can return the result of the contract, thus
 -- | preventing the failure of subsequent assertions.
-type ContractAssertionM (r :: Row Type) (w :: Type) (a :: Type) =
+type ContractAssertionM (w :: Type) (a :: Type) =
   -- ExceptT ContractAssertionFailure
-  --   (Writer (Maybe (Last w)) (ContractTestM r)) a
+  --   (Writer (Maybe (Last w)) (ContractTestM)) a
   ExceptT ContractAssertionFailure
     ( WriterT (Maybe (Last w))
-        (WriterT (Array ContractAssertionFailure) (Contract r))
+        (WriterT (Array ContractAssertionFailure) (Contract))
     )
     a
 
 runContractAssertionM
-  :: forall (r :: Row Type) (a :: Type)
-   . ContractTestM r a
-  -> ContractAssertionM r a a
-  -> ContractTestM r a
+  :: forall (a :: Type)
+   . ContractTestM a
+  -> ContractAssertionM a a
+  -> ContractTestM a
 runContractAssertionM contract wrappedContract =
   runWriterT (runExceptT wrappedContract) >>= case _ of
     Right result /\ _ ->
@@ -139,15 +139,14 @@ runContractAssertionM contract wrappedContract =
       tell [ failure ] *> maybe contract (pure <<< unwrap) result
 
 runContractAssertionM'
-  :: forall (r :: Row Type)
-   . ContractAssertionM r Unit Unit
-  -> ContractTestM r Unit
+  :: ContractAssertionM Unit Unit
+  -> ContractTestM Unit
 runContractAssertionM' = runContractAssertionM (pure unit)
 
 liftContractTestM
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
-   . ContractTestM r a
-  -> ContractAssertionM r w a
+  :: forall (w :: Type) (a :: Type)
+   . ContractTestM a
+  -> ContractAssertionM w a
 liftContractTestM = lift <<< lift
 
 --------------------------------------------------------------------------------
@@ -243,88 +242,88 @@ instance Show a => Show (ExpectedActual a) where
 --------------------------------------------------------------------------------
 
 -- | An assertion that only needs the result of the contract.
-type ContractBasicAssertion (r :: Row Type) (a :: Type) (b :: Type) =
-  a -> ContractTestM r b
+type ContractBasicAssertion (a :: Type) (b :: Type) =
+  a -> ContractTestM b
 
 -- | An assertion that can control when the contract is run. The assertion
 -- | inhabiting this type should not call the contract more than once, as other
 -- | assertions need to be able to make this assumption to succesfully compose.
-type ContractWrapAssertion (r :: Row Type) (a :: Type) =
-  ContractTestM r a -> ContractTestM r a
+type ContractWrapAssertion (a :: Type) =
+  ContractTestM a -> ContractTestM a
 
 -- | Class to unify different methods of making assertions about a contract
 -- | under a single interface. Note that the typechecker may need some help when
 -- | using this class; try providing type annotations for your assertions using
 -- | the type aliases for the instances of this class.
-class ContractAssertions (f :: Type) (r :: Row Type) (a :: Type) where
+class ContractAssertions (f :: Type) (a :: Type) where
   -- | Wrap a contract in an assertion. The wrapped contract itself becomes a
   -- | contract which can be wrapped, allowing for composition of assertions.
   -- |
   -- | No guarantees are made about the order in which assertions are made.
   -- | Assertions with side effects should not be used.
-  wrapAndAssert :: ContractTestM r a -> f -> ContractTestM r a
+  wrapAndAssert :: ContractTestM a -> f -> ContractTestM a
 
-instance ContractAssertions (ContractWrapAssertion r a) r a where
+instance ContractAssertions (ContractWrapAssertion a) a where
   wrapAndAssert contract assertion = assertion contract
-else instance ContractAssertions (ContractBasicAssertion r a b) r a where
+else instance ContractAssertions (ContractBasicAssertion a b) a where
   wrapAndAssert contract assertion = contract >>= \r -> assertion r *> pure r
 
-instance ContractAssertions (Array (ContractWrapAssertion r a)) r a where
+instance ContractAssertions (Array (ContractWrapAssertion a)) a where
   wrapAndAssert contract assertions = ala Endo foldMap assertions contract
 else instance
-  ContractAssertions (Array (ContractBasicAssertion r a b)) r a where
+  ContractAssertions (Array (ContractBasicAssertion a b)) a where
   wrapAndAssert contract assertions =
     contract >>= \r -> traverse_ (_ $ r) assertions *> pure r
 
 instance
-  ( ContractAssertions f r a
-  , ContractAssertions g r a
+  ( ContractAssertions f a
+  , ContractAssertions g a
   ) =>
-  ContractAssertions (f /\ g) r a where
+  ContractAssertions (f /\ g) a where
   wrapAndAssert contract (assertionsX /\ assertionsY) =
     wrapAndAssert (wrapAndAssert contract assertionsX) assertionsY
 
 assertContract
-  :: forall (r :: Row Type) (w :: Type)
+  :: forall (w :: Type)
    . ContractAssertionFailure
   -> Boolean
-  -> ContractAssertionM r w Unit
+  -> ContractAssertionM w Unit
 assertContract failure cond
   | cond = pure unit
   | otherwise = except (Left failure)
 
 assertContractM'
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+  :: forall (w :: Type) (a :: Type)
    . ContractAssertionFailure
   -> Maybe a
-  -> ContractAssertionM r w a
+  -> ContractAssertionM w a
 assertContractM' msg = maybe (except $ Left msg) pure
 
 assertContractM
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+  :: forall (w :: Type) (a :: Type)
    . ContractAssertionFailure
-  -> Contract r (Maybe a)
-  -> ContractAssertionM r w a
+  -> Contract (Maybe a)
+  -> ContractAssertionM w a
 assertContractM msg cm =
   liftContractTestM (lift cm) >>= assertContractM' msg
 
 assertContractExpectedActual
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+  :: forall (w :: Type) (a :: Type)
    . Eq a
   => (ExpectedActual a -> ContractAssertionFailure)
   -> a
   -> a
-  -> ContractAssertionM r w Unit
+  -> ContractAssertionM w Unit
 assertContractExpectedActual mkAssertionFailure expected actual =
   assertContract (mkAssertionFailure $ ExpectedActual expected actual)
     (expected == actual)
 
 withAssertions
-  :: forall (r :: Row Type) (a :: Type) (assertions :: Type)
-   . ContractAssertions assertions r a
+  :: forall (a :: Type) (assertions :: Type)
+   . ContractAssertions assertions a
   => assertions
-  -> Contract r a
-  -> Contract r a
+  -> Contract a
+  -> Contract a
 withAssertions assertions contract = do
   result /\ failures <-
     runWriterT $ wrapAndAssert (lift contract) assertions
@@ -332,9 +331,9 @@ withAssertions assertions contract = do
   else throwContractError (ContractAssertionFailures failures)
 
 mkCheckFromAssertion
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
-   . ContractAssertionM r w a
-  -> Contract r Boolean
+  :: forall (w :: Type) (a :: Type)
+   . ContractAssertionM w a
+  -> Contract Boolean
 mkCheckFromAssertion =
   map (fst <<< fst) <<< runWriterT <<< runWriterT <<< map isRight <<< runExceptT
 
@@ -343,24 +342,24 @@ mkCheckFromAssertion =
 --------------------------------------------------------------------------------
 
 utxosAtAddress
-  :: forall (r :: Row Type) (w :: Type)
+  :: forall (w :: Type)
    . Labeled Address
-  -> ContractAssertionM r w UtxoMap
+  -> ContractAssertionM w UtxoMap
 utxosAtAddress = liftContractTestM <<< lift <<< utxosAt <<< unlabel
 
 valueAtAddress
-  :: forall (r :: Row Type) (w :: Type)
+  :: forall (w :: Type)
    . Labeled Address
-  -> ContractAssertionM r w Value
+  -> ContractAssertionM w Value
 valueAtAddress =
   map (foldMap (view (_output <<< _amount))) <<< utxosAtAddress
 
 checkBalanceDeltaAtAddress
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+  :: forall (w :: Type) (a :: Type)
    . Labeled Address
-  -> ContractTestM r w
-  -> (w -> Value -> Value -> ContractAssertionM r w a)
-  -> ContractAssertionM r w a
+  -> ContractTestM w
+  -> (w -> Value -> Value -> ContractAssertionM w a)
+  -> ContractAssertionM w a
 checkBalanceDeltaAtAddress addr contract check = do
   valueBefore <- valueAtAddress addr
   res <- liftContractTestM contract
@@ -369,22 +368,22 @@ checkBalanceDeltaAtAddress addr contract check = do
   check res valueBefore valueAfter
 
 checkNewUtxosAtAddress
-  :: forall (r :: Row Type) (w :: Type) (a :: Type)
+  :: forall (w :: Type) (a :: Type)
    . Labeled Address
   -> TransactionHash
-  -> (Array TransactionOutputWithRefScript -> ContractAssertionM r w a)
-  -> ContractAssertionM r w a
+  -> (Array TransactionOutputWithRefScript -> ContractAssertionM w a)
+  -> ContractAssertionM w a
 checkNewUtxosAtAddress addr txHash check =
   utxosAtAddress addr >>= \utxos ->
     check $ Array.fromFoldable $ Map.values $
       Map.filterKeys (\oref -> (unwrap oref).transactionId == txHash) utxos
 
 assertLovelaceDeltaAtAddress
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
-  -> (a -> Contract r BigInt)
+  -> (a -> Contract BigInt)
   -> (BigInt -> BigInt -> Boolean)
-  -> ContractWrapAssertion r a
+  -> ContractWrapAssertion a
 assertLovelaceDeltaAtAddress addr getExpected comp contract =
   runContractAssertionM contract $
     checkBalanceDeltaAtAddress addr contract
@@ -404,50 +403,50 @@ assertLovelaceDeltaAtAddress addr getExpected comp contract =
 -- | Requires that the computed amount of lovelace was gained at the address
 -- | by calling the contract.
 assertGainAtAddress
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
-  -> (a -> Contract r BigInt)
-  -> ContractWrapAssertion r a
+  -> (a -> Contract BigInt)
+  -> ContractWrapAssertion a
 assertGainAtAddress addr getMinGain =
   assertLovelaceDeltaAtAddress addr getMinGain eq
 
 -- | Requires that the passed amount of lovelace was gained at the address
 -- | by calling the contract.
 assertGainAtAddress'
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> BigInt
-  -> ContractWrapAssertion r a
+  -> ContractWrapAssertion a
 assertGainAtAddress' addr minGain =
   assertGainAtAddress addr (const $ pure minGain)
 
 -- | Requires that the computed amount of lovelace was lost at the address
 -- | by calling the contract.
 assertLossAtAddress
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
-  -> (a -> Contract r BigInt)
-  -> ContractWrapAssertion r a
+  -> (a -> Contract BigInt)
+  -> ContractWrapAssertion a
 assertLossAtAddress addr getMinLoss =
   assertLovelaceDeltaAtAddress addr (map negate <<< getMinLoss) eq
 
 -- | Requires that the passed amount of lovelace was lost at the address
 -- | by calling the contract.
 assertLossAtAddress'
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> BigInt
-  -> ContractWrapAssertion r a
+  -> ContractWrapAssertion a
 assertLossAtAddress' addr minLoss =
   assertLossAtAddress addr (const $ pure minLoss)
 
 assertTokenDeltaAtAddress
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName)
-  -> (a -> Contract r BigInt)
+  -> (a -> Contract BigInt)
   -> (BigInt -> BigInt -> Boolean)
-  -> ContractWrapAssertion r a
+  -> ContractWrapAssertion a
 assertTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
   runContractAssertionM contract $
     checkBalanceDeltaAtAddress addr contract
@@ -467,50 +466,49 @@ assertTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
 -- | Requires that the computed number of tokens was gained at the address
 -- | by calling the contract.
 assertTokenGainAtAddress
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName)
-  -> (a -> Contract r BigInt)
-  -> ContractWrapAssertion r a
+  -> (a -> Contract BigInt)
+  -> ContractWrapAssertion a
 assertTokenGainAtAddress addr token getMinGain =
   assertTokenDeltaAtAddress addr token getMinGain eq
 
 -- | Requires that the passed number of tokens was gained at the address
 -- | by calling the contract.
 assertTokenGainAtAddress'
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName /\ BigInt)
-  -> ContractWrapAssertion r a
+  -> ContractWrapAssertion a
 assertTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
   assertTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
 
 -- | Requires that the computed number of tokens was lost at the address
 -- | by calling the contract.
 assertTokenLossAtAddress
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName)
-  -> (a -> Contract r BigInt)
-  -> ContractWrapAssertion r a
+  -> (a -> Contract BigInt)
+  -> ContractWrapAssertion a
 assertTokenLossAtAddress addr token getMinLoss =
   assertTokenDeltaAtAddress addr token (map negate <<< getMinLoss) eq
 
 -- | Requires that the passed number of tokens was lost at the address
 -- | by calling the contract.
 assertTokenLossAtAddress'
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Labeled Address
   -> (CurrencySymbol /\ TokenName /\ BigInt)
-  -> ContractWrapAssertion r a
+  -> ContractWrapAssertion a
 assertTokenLossAtAddress' addr (cs /\ tn /\ minLoss) =
   assertTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
 
 assertOutputHasDatumImpl
-  :: forall (r :: Row Type)
-   . OutputDatum
+  :: OutputDatum
   -> Labeled TransactionOutputWithRefScript
-  -> ContractAssertionM r Unit Unit
+  -> ContractAssertionM Unit Unit
 assertOutputHasDatumImpl expectedDatum txOutput = do
   let actualDatum = unlabel txOutput ^. _output <<< _datum
   assertContractExpectedActual (UnexpectedDatumInOutput txOutput)
@@ -520,29 +518,26 @@ assertOutputHasDatumImpl expectedDatum txOutput = do
 -- | Requires that the transaction output contains the specified datum or
 -- | datum hash.
 assertOutputHasDatum
-  :: forall (r :: Row Type)
-   . OutputDatum
+  :: OutputDatum
   -> Labeled TransactionOutputWithRefScript
-  -> ContractTestM r Unit
+  -> ContractTestM Unit
 assertOutputHasDatum expectedDatum =
   runContractAssertionM' <<< assertOutputHasDatumImpl expectedDatum
 
 -- | Checks whether the transaction output contains the specified datum or
 -- | datum hash.
 checkOutputHasDatum
-  :: forall (r :: Row Type)
-   . OutputDatum
+  :: OutputDatum
   -> TransactionOutputWithRefScript
-  -> Contract r Boolean
+  -> Contract Boolean
 checkOutputHasDatum expectedDatum txOutput =
   mkCheckFromAssertion $
     assertOutputHasDatumImpl expectedDatum (noLabel txOutput)
 
 assertOutputHasRefScriptImpl
-  :: forall (r :: Row Type)
-   . ScriptRef
+  :: ScriptRef
   -> Labeled TransactionOutputWithRefScript
-  -> ContractAssertionM r Unit Unit
+  -> ContractAssertionM Unit Unit
 assertOutputHasRefScriptImpl expectedRefScript txOutput = do
   let actualRefScript = unlabel txOutput ^. _scriptRef
   assertContractExpectedActual (UnexpectedRefScriptInOutput txOutput)
@@ -552,33 +547,31 @@ assertOutputHasRefScriptImpl expectedRefScript txOutput = do
 -- | Requires that the transaction output contains the specified reference
 -- | script.
 assertOutputHasRefScript
-  :: forall (r :: Row Type)
-   . ScriptRef
+  :: ScriptRef
   -> Labeled TransactionOutputWithRefScript
-  -> ContractTestM r Unit
+  -> ContractTestM Unit
 assertOutputHasRefScript expectedRefScript =
   runContractAssertionM' <<< assertOutputHasRefScriptImpl expectedRefScript
 
 -- | Checks whether the transaction output contains the specified reference
 -- | script.
 checkOutputHasRefScript
-  :: forall (r :: Row Type)
-   . ScriptRef
+  :: ScriptRef
   -> TransactionOutputWithRefScript
-  -> Contract r Boolean
+  -> Contract Boolean
 checkOutputHasRefScript expectedRefScript txOutput =
   mkCheckFromAssertion $
     assertOutputHasRefScriptImpl expectedRefScript (noLabel txOutput)
 
 assertTxHasMetadataImpl
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . MetadataType a
   => Eq a
   => Show a
   => Label
   -> TransactionHash
   -> a
-  -> ContractAssertionM r Unit Unit
+  -> ContractAssertionM Unit Unit
 assertTxHasMetadataImpl mdLabel txHash expectedMetadata = do
   Transaction { auxiliaryData } <-
     assertContractM (CouldNotGetTxByHash txHash) (getTxByHash txHash)
@@ -601,25 +594,25 @@ assertTxHasMetadataImpl mdLabel txHash expectedMetadata = do
 
 -- | Requires that the transaction contains the specified metadata.
 assertTxHasMetadata
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . MetadataType a
   => Eq a
   => Show a
   => Label
   -> TransactionHash
   -> a
-  -> ContractTestM r Unit
+  -> ContractTestM Unit
 assertTxHasMetadata mdLabel txHash =
   runContractAssertionM' <<< assertTxHasMetadataImpl mdLabel txHash
 
 -- | Checks whether the transaction contains the specified metadata.
 checkTxHasMetadata
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . MetadataType a
   => Eq a
   => Show a
   => TransactionHash
   -> a
-  -> Contract r Boolean
+  -> Contract Boolean
 checkTxHasMetadata txHash =
   mkCheckFromAssertion <<< assertTxHasMetadataImpl mempty txHash

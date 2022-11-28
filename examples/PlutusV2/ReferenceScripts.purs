@@ -7,7 +7,7 @@ module Ctl.Examples.PlutusV2.ReferenceScripts
 import Contract.Prelude
 
 import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
@@ -38,7 +38,7 @@ import Data.Map (toUnfoldable) as Map
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 

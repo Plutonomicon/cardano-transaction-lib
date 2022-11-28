@@ -12,6 +12,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend), defaultBackend)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
@@ -84,7 +85,7 @@ import Data.List (intercalate)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
@@ -260,17 +261,18 @@ testPlan opts@{ tests } rt@{ wallets } =
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
         liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
           \env wallet -> do
-            let
-              (clusterSetup :: ClusterSetup) =
-                { ctlServerConfig: (unwrap env).config.ctlServerConfig
-                , ogmiosConfig: (unwrap env).config.ogmiosConfig
-                , datumCacheConfig: (unwrap env).config.datumCacheConfig
-                , kupoConfig: (unwrap env).config.kupoConfig
+            (clusterSetup :: ClusterSetup) <- case defaultBackend env.backend of
+              CtlBackend backend -> pure
+                { ctlServerConfig: env.ctlServerConfig
+                , ogmiosConfig: backend.ogmios.config
+                , datumCacheConfig: backend.odc.config
+                , kupoConfig: backend.kupoConfig
                 , keys:
                     { payment: keyWalletPrivatePaymentKey wallet
                     , stake: keyWalletPrivateStakeKey wallet
                     }
                 }
+              _ -> liftEffect $ throw "Unsupported backend"
             withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing
               \browser -> do
                 withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do

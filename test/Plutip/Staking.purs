@@ -255,7 +255,7 @@ suite = do
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
-        networkId <- asks $ unwrap >>> _.config >>> _.networkId
+        networkId <- asks _.networkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $
             publicKeyFromPrivateKey (unwrap privateStakeKey)
@@ -335,7 +335,7 @@ suite = do
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
         let
-          waitEpoch :: forall (r :: Row Type). Epoch -> Contract r Epoch
+          waitEpoch :: Epoch -> Contract Epoch
           waitEpoch epoch = do
             epochNow <- getCurrentEpoch
             if unwrap epochNow >= unwrap epoch then pure epochNow

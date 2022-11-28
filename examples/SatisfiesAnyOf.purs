@@ -10,7 +10,7 @@ module Ctl.Examples.SatisfiesAnyOf
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash) as Hashing
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, runContract)
@@ -29,7 +29,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.SatisfiesAnyOf"

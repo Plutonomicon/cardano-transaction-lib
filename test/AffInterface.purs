@@ -49,84 +49,86 @@ addr1 =
 -- state, and ogmios itself.
 suite :: TestPlanM (QueryM Unit) Unit
 suite = do
-  group "Aff Interface" do
-    test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
-    test "UtxosAt Mainnet" $ testUtxosAt addr1
-    test "Get ChainTip" testGetChainTip
-    test "Get waitUntilSlot" testWaitUntilSlot
-    test "Get EraSummaries" testGetEraSummaries
-    test "Get CurrentEpoch" testGetCurrentEpoch
-    test "Get SystemStart" testGetSystemStart
-  group "Ogmios error" do
-    test "Ogmios fails with user-friendly message" do
-      try testSubmitTxFailure >>= case _ of
-        Right _ -> do
-          void $ throwError $ error $
-            "Unexpected success in testSubmitTxFailure"
-        Left error -> do
-          (Pattern "Server responded with `fault`" `indexOf` show error)
-            `shouldSatisfy` isJust
-  group "Ogmios datum cache" do
-    test "Can process GetDatumByHash" do
-      testOgmiosDatumCacheGetDatumByHash
-    test "Can process GetDatumsByHashes" do
-      testOgmiosDatumCacheGetDatumsByHashes
-    test "Can process GetDatumsByHashesWithErrors" do
-      testOgmiosDatumCacheGetDatumsByHashesWithErrors
-    test "Can process GetTxByHash" do
-      testOgmiosGetTxByHash
-
-testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
-testOgmiosDatumCacheGetDatumByHash = do
-  void $ getDatumByHash $ DataHash $ hexToByteArrayUnsafe
-    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-
-testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
-testOgmiosDatumCacheGetDatumsByHashes = do
-  void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
-    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-
-testOgmiosDatumCacheGetDatumsByHashesWithErrors :: QueryM Unit
-testOgmiosDatumCacheGetDatumsByHashesWithErrors = do
-  void $ getDatumsByHashesWithErrors $ pure $ DataHash $ hexToByteArrayUnsafe
-    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-
-testOgmiosGetTxByHash :: QueryM Unit
-testOgmiosGetTxByHash = do
-  void $ getTxByHash $ hexToByteArrayUnsafe
-    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
-
-testUtxosAt :: OgmiosAddress -> QueryM Unit
-testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
-  Nothing -> throwError (error "Failed UtxosAt")
-  Just addr -> void $ utxosAt addr
-
-testGetChainTip :: QueryM Unit
-testGetChainTip = do
-  void getChainTip
-
-testWaitUntilSlot :: QueryM Unit
-testWaitUntilSlot = do
-  void $ getChainTip >>= case _ of
-    TipAtGenesis -> throwError $ error "Tip is at genesis"
-    Tip (ChainTip { slot }) -> do
-      waitUntilSlot $ over Slot
-        (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
-        slot
-
-testGetEraSummaries :: QueryM Unit
-testGetEraSummaries = do
-  void getEraSummaries
-
-testSubmitTxFailure :: QueryM Unit
-testSubmitTxFailure = do
-  let bytes = hexToByteArrayUnsafe "00"
-  void $ submitTxOgmios bytes (wrap bytes)
-
-testGetCurrentEpoch :: QueryM Unit
-testGetCurrentEpoch = do
-  void getCurrentEpoch
-
-testGetSystemStart :: QueryM Unit
-testGetSystemStart = do
-  void getSystemStart
+  pure unit
+-- 
+--   group "Aff Interface" do
+--     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
+--     test "UtxosAt Mainnet" $ testUtxosAt addr1
+--     test "Get ChainTip" testGetChainTip
+--     test "Get waitUntilSlot" testWaitUntilSlot
+--     test "Get EraSummaries" testGetEraSummaries
+--     test "Get CurrentEpoch" testGetCurrentEpoch
+--     test "Get SystemStart" testGetSystemStart
+--   group "Ogmios error" do
+--     test "Ogmios fails with user-friendly message" do
+--       try testSubmitTxFailure >>= case _ of
+--         Right _ -> do
+--           void $ throwError $ error $
+--             "Unexpected success in testSubmitTxFailure"
+--         Left error -> do
+--           (Pattern "Server responded with `fault`" `indexOf` show error)
+--             `shouldSatisfy` isJust
+--   group "Ogmios datum cache" do
+--     test "Can process GetDatumByHash" do
+--       testOgmiosDatumCacheGetDatumByHash
+--     test "Can process GetDatumsByHashes" do
+--       testOgmiosDatumCacheGetDatumsByHashes
+--     test "Can process GetDatumsByHashesWithErrors" do
+--       testOgmiosDatumCacheGetDatumsByHashesWithErrors
+--     test "Can process GetTxByHash" do
+--       testOgmiosGetTxByHash
+-- 
+-- testOgmiosDatumCacheGetDatumByHash :: QueryM Unit
+-- testOgmiosDatumCacheGetDatumByHash = do
+--   void $ getDatumByHash $ DataHash $ hexToByteArrayUnsafe
+--     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+-- 
+-- testOgmiosDatumCacheGetDatumsByHashes :: QueryM Unit
+-- testOgmiosDatumCacheGetDatumsByHashes = do
+--   void $ getDatumsByHashes $ pure $ DataHash $ hexToByteArrayUnsafe
+--     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+-- 
+-- testOgmiosDatumCacheGetDatumsByHashesWithErrors :: QueryM Unit
+-- testOgmiosDatumCacheGetDatumsByHashesWithErrors = do
+--   void $ getDatumsByHashesWithErrors $ pure $ DataHash $ hexToByteArrayUnsafe
+--     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+-- 
+-- testOgmiosGetTxByHash :: QueryM Unit
+-- testOgmiosGetTxByHash = do
+--   void $ getTxByHash $ hexToByteArrayUnsafe
+--     "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
+-- 
+-- testUtxosAt :: OgmiosAddress -> QueryM Unit
+-- testUtxosAt testAddr = case ogmiosAddressToAddress testAddr of
+--   Nothing -> throwError (error "Failed UtxosAt")
+--   Just addr -> void $ utxosAt addr
+-- 
+-- testGetChainTip :: QueryM Unit
+-- testGetChainTip = do
+--   void getChainTip
+-- 
+-- testWaitUntilSlot :: QueryM Unit
+-- testWaitUntilSlot = do
+--   void $ getChainTip >>= case _ of
+--     TipAtGenesis -> throwError $ error "Tip is at genesis"
+--     Tip (ChainTip { slot }) -> do
+--       waitUntilSlot $ over Slot
+--         (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
+--         slot
+-- 
+-- testGetEraSummaries :: QueryM Unit
+-- testGetEraSummaries = do
+--   void getEraSummaries
+-- 
+-- testSubmitTxFailure :: QueryM Unit
+-- testSubmitTxFailure = do
+--   let bytes = hexToByteArrayUnsafe "00"
+--   void $ submitTxOgmios bytes (wrap bytes)
+-- 
+-- testGetCurrentEpoch :: QueryM Unit
+-- testGetCurrentEpoch = do
+--   void getCurrentEpoch
+-- 
+-- testGetSystemStart :: QueryM Unit
+-- testGetSystemStart = do
+--   void getSystemStart

@@ -4,6 +4,31 @@ import Prelude
 
 import Ctl.Internal.Contract.Monad (Contract)
 
+import Control.Monad.Reader (withReaderT)
+import Control.Monad.Reader.Trans (ReaderT, asks)
+import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
+import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Helpers as Helpers
+import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
+import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet))
+import Data.Array (head)
+import Data.Array as Array
+import Data.Either (hush)
+import Data.Foldable (fold)
+import Data.Map as Map
+import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (for, for_, traverse)
+import Data.Tuple.Nested ((/\))
+import Data.UInt as UInt
+import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization.Address
@@ -28,28 +53,8 @@ import Ctl.Internal.Wallet
   )
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (catMaybes)
-import Data.Foldable (fold)
-import Data.Newtype (unwrap, wrap)
-import Effect.Aff
-  ( Aff
-  )
-import Effect.Aff.Class (liftAff)
 import Effect.Exception (error, throw)
-import Control.Monad.Reader (withReaderT)
-import Control.Monad.Reader.Trans (ReaderT, asks)
-import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Helpers as Helpers
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Data.Array as Array
-import Data.Either (hush)
-import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Traversable (for_, traverse)
-import Data.UInt as UInt
-import Effect.Class (liftEffect)
 
 getUnusedAddresses :: Contract (Array Address)
 getUnusedAddresses = fold <$> do
@@ -142,6 +147,7 @@ callCip30Wallet
   -> Aff a
 callCip30Wallet wallet act = act wallet wallet.connection
 
+-- TODO Move
 filterLockedUtxos :: UtxoMap -> Contract UtxoMap
 filterLockedUtxos utxos =
   withTxRefsCache $
@@ -191,3 +197,39 @@ getWalletCollateral = do
     "Wallet returned too many UTxOs as collateral. This is likely a bug in \
     \the wallet."
 
+getWalletBalance
+  :: Contract (Maybe Value)
+getWalletBalance = do
+  queryHandle <- getQueryHandle
+  asks _.wallet >>= map join <<< traverse case _ of
+    Nami wallet -> liftAff $ wallet.getBalance wallet.connection
+    Gero wallet -> liftAff $ wallet.getBalance wallet.connection
+    Eternl wallet -> liftAff $ wallet.getBalance wallet.connection
+    Flint wallet -> liftAff $ wallet.getBalance wallet.connection
+    Lode wallet -> liftAff $ wallet.getBalance wallet.connection
+    KeyWallet _ -> do
+      -- Implement via `utxosAt`
+      addresses <- getWalletAddresses
+      fold <$> for addresses \address -> do
+        liftAff $ queryHandle.utxosAt address <#> hush >>> map
+          -- Combine `Value`s
+          (fold <<< map _.amount <<< map unwrap <<< Map.values)
+
+getWalletUtxos :: Contract (Maybe UtxoMap)
+getWalletUtxos = do
+  queryHandle <- getQueryHandle
+  asks _.wallet >>= map join <<< traverse case _ of
+    Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
+      toUtxoMap
+    Eternl wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
+      toUtxoMap
+    Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    KeyWallet _ -> do
+      mbAddress <- getWalletAddresses <#> head
+      map join $ for mbAddress $ map hush <<< liftAff <<< queryHandle.utxosAt
+  where
+  toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
+  toUtxoMap = Map.fromFoldable <<< map
+    (unwrap >>> \({ input, output }) -> input /\ output)

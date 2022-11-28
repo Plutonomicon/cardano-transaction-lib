@@ -3,7 +3,7 @@ module Ctl.Examples.ByUrl (main) where
 import Prelude
 
 import Contract.Config
-  ( ConfigParams
+  ( ContractParams
   , mainnetFlintConfig
   , mainnetGeroConfig
   , mainnetLodeConfig
@@ -47,7 +47,7 @@ main = do
   addLinks wallets examples
   route wallets examples
 
-wallets :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 wallets = Map.fromFoldable
   [ "nami" /\ testnetNamiConfig /\ Nothing
   , "gero" /\ testnetGeroConfig /\ Nothing

@@ -20,18 +20,18 @@ module Contract.Wallet
 import Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad (Contract, ContractEnv, wrapContract)
+import Contract.Monad (Contract, ContractEnv)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
+import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
-import Ctl.Internal.QueryM
+import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
-  , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   , getWallet
   , signData
-  ) as QueryM
+  ) as Contract
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
@@ -76,48 +76,34 @@ import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
 import Type.Proxy (Proxy(Proxy))
 
-getNetworkId :: forall (r :: Row Type). Contract r NetworkId
-getNetworkId = wrapContract QueryM.getNetworkId
+getNetworkId :: Contract NetworkId
+getNetworkId = asks _.networkId
 
-getUnusedAddresses :: forall (r :: Row Type). Contract r (Array Address)
-getUnusedAddresses = wrapContract QueryM.getUnusedAddresses
+getUnusedAddresses :: Contract (Array Address)
+getUnusedAddresses = Contract.getUnusedAddresses
 
-getChangeAddress :: forall (r :: Row Type). Contract r (Maybe Address)
-getChangeAddress = wrapContract QueryM.getChangeAddress
+getChangeAddress :: Contract (Maybe Address)
+getChangeAddress = Contract.getChangeAddress
 
-getRewardAddresses :: forall (r :: Row Type). Contract r (Array Address)
-getRewardAddresses = wrapContract QueryM.getRewardAddresses
+getRewardAddresses :: Contract (Array Address)
+getRewardAddresses = Contract.getRewardAddresses
 
 signData
-  :: forall (r :: Row Type)
-   . Address
+  :: Address
   -> RawBytes
-  -> Contract r (Maybe DataSignature)
-signData address dat = wrapContract (QueryM.signData address dat)
+  -> Contract (Maybe DataSignature)
+signData address dat = Contract.signData address dat
 
-getWallet :: forall (r :: Row Type). Contract r (Maybe Wallet)
-getWallet = wrapContract QueryM.getWallet
+getWallet :: Contract (Maybe Wallet)
+getWallet = Contract.getWallet
 
 withKeyWallet
-  :: forall (r :: Row Type) (a :: Type)
+  :: forall (a :: Type)
    . Wallet.KeyWallet
-  -> Contract r a
-  -> Contract r a
+  -> Contract a
+  -> Contract a
 withKeyWallet wallet action = do
-  let
-    setUpdatedWallet :: ContractEnv r -> ContractEnv r
-    setUpdatedWallet =
-      simple _Newtype <<< _runtime <<< _wallet .~
-        (Just (KeyWallet wallet))
-  local setUpdatedWallet action
-  where
-  _wallet
-    :: forall x rest. Lens { wallet :: x | rest } { wallet :: x | rest } x x
-  _wallet = prop (Proxy :: Proxy "wallet")
-
-  _runtime
-    :: forall x rest. Lens { runtime :: x | rest } { runtime :: x | rest } x x
-  _runtime = prop (Proxy :: Proxy "runtime")
+  local _ { wallet = Just $ KeyWallet wallet } action
 
 mkKeyWalletFromPrivateKeys
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet

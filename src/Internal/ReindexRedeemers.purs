@@ -8,10 +8,7 @@ module Ctl.Internal.ReindexRedeemers
 
 import Prelude
 
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
-import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (elemIndex)
@@ -42,19 +39,18 @@ type RedeemersTxIn = T.Redeemer /\ Maybe TransactionInput
 reindexSpentScriptRedeemers
   :: Array TransactionInput
   -> Array RedeemersTxIn
-  -> QueryM (Either ReindexErrors (Array T.Redeemer))
-reindexSpentScriptRedeemers inputs redeemersTxIns = runExceptT do
-  redeemersTxInsReindexed <- ExceptT $
+  -> Either ReindexErrors (Array T.Redeemer)
+reindexSpentScriptRedeemers inputs redeemersTxIns = do
+  redeemersTxInsReindexed <- 
     reindexSpentScriptRedeemers' inputs redeemersTxIns
-  except <<< Right $
-    map fst redeemersTxInsReindexed
+  Right $ map fst redeemersTxInsReindexed
 
 reindexSpentScriptRedeemers'
   :: Array TransactionInput
   -> Array RedeemersTxIn
-  -> QueryM (Either ReindexErrors (Array RedeemersTxIn))
-reindexSpentScriptRedeemers' inputs redeemersTxIns = runExceptT do
-  liftEither $ traverse (reindex inputs) redeemersTxIns
+  -> Either ReindexErrors (Array RedeemersTxIn)
+reindexSpentScriptRedeemers' inputs redeemersTxIns = do
+  traverse (reindex inputs) redeemersTxIns
   where
   reindex
     :: Array TransactionInput

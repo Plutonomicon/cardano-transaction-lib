@@ -8,7 +8,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -48,7 +48,7 @@ import Data.Set (member) as Set
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
 
 contract :: Contract Unit
@@ -93,7 +93,7 @@ type ContractResult =
   , balancedSignedTx :: BalancedSignedTransaction
   }
 
-assertTxContainsReferenceInput :: ContractBasicAssertion () ContractResult Unit
+assertTxContainsReferenceInput :: ContractBasicAssertion ContractResult Unit
 assertTxContainsReferenceInput { balancedSignedTx, referenceInput } =
   let
     assertionFailure :: ContractAssertionFailure
@@ -105,7 +105,7 @@ assertTxContainsReferenceInput { balancedSignedTx, referenceInput } =
         Set.member referenceInput
           (unwrap balancedSignedTx ^. _body <<< _referenceInputs)
 
-assertReferenceInputNotSpent :: ContractBasicAssertion () ContractResult Unit
+assertReferenceInputNotSpent :: ContractBasicAssertion ContractResult Unit
 assertReferenceInputNotSpent { ownAddress, referenceInput } =
   let
     assertionFailure :: ContractAssertionFailure
@@ -117,7 +117,7 @@ assertReferenceInputNotSpent { ownAddress, referenceInput } =
       TestUtils.assertContract assertionFailure do
         Map.member referenceInput utxos
 
-assertions :: Array (ContractBasicAssertion () ContractResult Unit)
+assertions :: Array (ContractBasicAssertion ContractResult Unit)
 assertions =
   [ assertTxContainsReferenceInput
   , assertReferenceInputNotSpent

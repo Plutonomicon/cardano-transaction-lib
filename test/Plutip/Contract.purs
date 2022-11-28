@@ -4,12 +4,14 @@ module Test.Ctl.Plutip.Contract
 
 import Prelude
 
+import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
   , getWalletAddresses
   , getWalletCollateral
+  , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
@@ -20,7 +22,7 @@ import Contract.BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -68,7 +70,6 @@ import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
 import Control.Monad.Error.Class (try)
-import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
@@ -161,7 +162,7 @@ suite :: TestPlanM PlutipTest Unit
 suite = do
   group "Contract" do
     flip mapTest AffInterface.suite
-      (noWallet <<< wrapContract)
+      (noWallet <<< wrapQueryM)
 
     NetworkId.suite
 
@@ -348,7 +349,7 @@ suite = do
           -- Bob attempts to unlock and send Ada to Charlie
           withKeyWallet bob do
             -- First, he should find the transaction input where Ada is locked
-            networkId <- asks $ unwrap >>> _.config >>> _.networkId
+            networkId <- getNetworkId
             let
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
@@ -446,7 +447,7 @@ suite = do
           -- Bob attempts to unlock and send Ada to Charlie
           withKeyWallet bob do
             -- First, he should find the transaction input where Ada is locked
-            networkId <- asks $ unwrap >>> _.config >>> _.networkId
+            networkId <- getNetworkId
             let
               nsAddr = nativeScriptHashEnterpriseAddress networkId nsHash
             nsAddrPlutus <- liftContractM "Unable to convert to Plutus address"
@@ -725,7 +726,7 @@ suite = do
         datums = [ datum2, datum1 ]
 
       let
-        payToTest :: ValidatorHash -> Contract () TransactionHash
+        payToTest :: ValidatorHash -> Contract TransactionHash
         payToTest vhash = do
           let
             constraints =
@@ -1591,7 +1592,7 @@ suite = do
             getWalletBalance >>= flip shouldSatisfy
               (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
 
-signMultipleContract :: forall (r :: Row Type). Contract r Unit
+signMultipleContract :: Contract Unit
 signMultipleContract = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   stakePkh <- join <<< head <$> ownStakePubKeysHashes
@@ -1620,10 +1621,9 @@ signMultipleContract = do
     liftEffect $ throw "locked inputs map is not empty"
 
 pkh2PkhContract
-  :: forall (r :: Row Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
-  -> Contract r Unit
+  -> Contract Unit
 pkh2PkhContract pkh stakePkh = do
   let
     constraints :: Constraints.TxConstraints Void Void

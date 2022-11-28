@@ -9,9 +9,10 @@ module Ctl.Internal.E2E.Route
 
 import Prelude
 
-import Contract.Config (ConfigParams)
+import Contract.Config (ContractParams)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
+import Ctl.Internal.Contract.QueryBackend (QueryBackendParams(CtlBackendParams), mkSingletonBackendParams)
 import Contract.Wallet
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
@@ -102,8 +103,8 @@ parseRoute queryString =
     mkPrivateKey str <#> PrivateStakeKey
 
 addLinks
-  :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
-  -> Map E2ETestName (Contract () Unit)
+  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 addLinks configMaps testMaps = do
   let
@@ -133,8 +134,8 @@ addLinks configMaps testMaps = do
 -- | from the cluster should be used. If there's no local cluster, an error
 -- | will be thrown.
 route
-  :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
-  -> Map E2ETestName (Contract () Unit)
+  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 route configs tests = do
   queryString <- fold <<< last <<< split (Pattern "?") <$> _queryString
@@ -176,7 +177,7 @@ route configs tests = do
                 test
   where
   -- Eternl does not initialize instantly. We have to add a small delay.
-  delayIfEternl :: forall (r :: Row Type). ConfigParams r -> Aff Unit
+  delayIfEternl :: ContractParams -> Aff Unit
   delayIfEternl config =
     case config.walletSpec of
       Just ConnectToEternl ->
@@ -201,7 +202,7 @@ route configs tests = do
 
   -- Override config values with parameters from cluster setup
   setClusterOptions
-    :: forall (r :: Row Type). ClusterSetup -> ConfigParams r -> ConfigParams r
+    :: ClusterSetup -> ContractParams -> ContractParams
   setClusterOptions
     { ctlServerConfig
     , ogmiosConfig
@@ -210,10 +211,12 @@ route configs tests = do
     }
     config =
     config
-      { ctlServerConfig = ctlServerConfig
-      , ogmiosConfig = ogmiosConfig
-      , datumCacheConfig = datumCacheConfig
-      , kupoConfig = kupoConfig
+      { backendParams = mkSingletonBackendParams $ CtlBackendParams
+        { ogmiosConfig: ogmiosConfig
+        , odcConfig: datumCacheConfig
+        , kupoConfig: kupoConfig
+        }
+      , ctlServerConfig = ctlServerConfig
       }
 
 foreign import _queryString :: Effect String

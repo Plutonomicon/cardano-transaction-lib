@@ -33,14 +33,14 @@ import Data.BigInt (BigInt)
 import Effect.Exception (throw)
 
 buildBalanceSignAndSubmitTx'
-  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+  :: forall (validator :: Type) (datum :: Type)
        (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
   => Lookups.ScriptLookups validator
   -> Constraints.TxConstraints redeemer datum
-  -> Contract r { txHash :: TransactionHash, txFinalFee :: BigInt }
+  -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 buildBalanceSignAndSubmitTx' lookups constraints = do
   unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   balancedTx <- liftedE $ balanceTx unbalancedTx
@@ -50,27 +50,26 @@ buildBalanceSignAndSubmitTx' lookups constraints = do
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
 
 buildBalanceSignAndSubmitTx
-  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+  :: forall (validator :: Type) (datum :: Type)
        (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
   => Lookups.ScriptLookups validator
   -> Constraints.TxConstraints redeemer datum
-  -> Contract r TransactionHash
+  -> Contract TransactionHash
 buildBalanceSignAndSubmitTx lookups constraints =
   _.txHash <$> buildBalanceSignAndSubmitTx' lookups constraints
 
 mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Contract r MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
+  :: Contract MintingPolicy
+  -> Contract (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
   cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
+mkTokenName :: String -> Contract TokenName
 mkTokenName =
   liftContractM "Cannot make token name"
     <<< (Value.mkTokenName <=< byteArrayFromAscii)
@@ -87,7 +86,7 @@ mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
 
 submitAndLog
-  :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
+  :: BalancedSignedTransaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId

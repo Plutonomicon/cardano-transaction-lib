@@ -11,7 +11,7 @@ module Ctl.Examples.AlwaysMints
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
@@ -54,7 +54,7 @@ contract = do
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 

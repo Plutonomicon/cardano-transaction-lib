@@ -3,6 +3,8 @@ module Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
+  , getSlotLength
+  , getSlotReference
   , module Chain
   , module ExportOgmios
   , module Interval
@@ -24,7 +26,6 @@ import Contract.Chain
 import Contract.Monad (Contract)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as CurrentEpoch
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
@@ -41,8 +42,10 @@ import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , EraSummaries
   , SystemStart
+  , SlotLength
+  , RelativeTime
   )
-import Ctl.Internal.QueryM.SystemStart (getSystemStart) as SystemStart
+import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
@@ -121,3 +124,11 @@ getEraSummaries = wrapQueryM EraSummaries.getEraSummaries
 getSystemStart :: Contract SystemStart
 getSystemStart = do
   asks $ _.ledgerConstants >>> _.systemStart
+
+getSlotLength :: Contract SlotLength
+getSlotLength = do
+  asks $ _.ledgerConstants >>> _.slotLength
+
+getSlotReference :: Contract { slot :: Slot, time :: RelativeTime }
+getSlotReference = do
+  asks $ _.ledgerConstants >>> _.slotReference

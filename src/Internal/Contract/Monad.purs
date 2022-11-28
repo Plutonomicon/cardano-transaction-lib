@@ -10,6 +10,8 @@ module Ctl.Internal.Contract.Monad
   , wrapQueryM
   , stopContractEnv
   , withContractEnv
+  , buildBackend
+  , getLedgerConstants
   ) where
 
 import Prelude
@@ -60,7 +62,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, try)
 import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
-import Prim.TypeError (class Warn, Text)
 import Undefined (undefined)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Alt (class Alt)
@@ -173,11 +174,7 @@ type ContractEnv =
 -- | Consider using `withContractEnv` if possible - otherwise use
 -- | `stopContractEnv` to properly finalize.
 mkContractEnv
-  :: Warn
-       ( Text
-           "Using `mkContractEnv` is not recommended: it does not ensure `ContractEnv` finalization. Consider using `withContractEnv`"
-       )
-  => ContractParams
+  :: ContractParams
   -> Aff ContractEnv
 mkContractEnv params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
@@ -186,9 +183,9 @@ mkContractEnv params = do
 
   envBuilder <- sequential ado
     b1 <- parallel do
-      backend <- buildBackend
+      backend <- buildBackend logger params.backendParams
       -- Use the default backend to fetch ledger constants
-      ledgerConstants <- getLedgerConstants $ defaultBackend backend
+      ledgerConstants <- getLedgerConstants logger $ defaultBackend backend
       pure $ merge { backend, ledgerConstants }
     b2 <- parallel do
       wallet <- buildWallet
@@ -200,47 +197,6 @@ mkContractEnv params = do
   where
     logger :: Logger
     logger = mkLogger params.logLevel params.customLogger
-
-    -- TODO Move CtlServer to a backend? Wouldn't make sense as a 'main' backend though
-    buildBackend :: Aff (QueryBackends QueryBackend)
-    buildBackend = flip parTraverse params.backendParams case _ of
-      CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
-        datumCacheWsRef <- liftEffect $ Ref.new Nothing
-        sequential ado
-          odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger odcConfig
-          ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger ogmiosConfig
-          in CtlBackend
-            { ogmios:
-              { config: ogmiosConfig
-              , ws: ogmiosWs
-              }
-            , odc:
-              { config: odcConfig
-              , ws: odcWs
-              }
-            , kupoConfig
-            }
-      BlockfrostBackendParams bf -> pure $ BlockfrostBackend bf
-
-    getLedgerConstants :: QueryBackend -> Aff
-      { pparams :: Ogmios.ProtocolParameters
-      , systemStart :: Ogmios.SystemStart
-      , slotLength :: Ogmios.SlotLength
-      , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
-      }
-    getLedgerConstants backend = case backend of
-      CtlBackend { ogmios: { ws } } -> do
-        pparams <- getProtocolParametersAff ws logger
-        systemStart <- getSystemStartAff ws logger
-        -- Do we ever recieve an eraSummary ahead of schedule?
-        -- Maybe search for the chainTip's era
-        latestEraSummary <- liftedM (error "Could not get EraSummary") do
-          map unwrap <<< (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot))) <<< unwrap <$> getEraSummariesAff ws logger
-        let
-          slotLength = _.slotLength $ unwrap $ _.parameters $ latestEraSummary
-          slotReference = (\{slot, time} -> {slot, time}) $ unwrap $ _.start $ latestEraSummary
-        pure { pparams, slotLength, systemStart, slotReference }
-      BlockfrostBackend _ -> undefined
 
     buildWallet :: Aff (Maybe Wallet)
     buildWallet = traverse mkWalletBySpec params.walletSpec
@@ -255,15 +211,52 @@ mkContractEnv params = do
       , hooks: params.hooks
       }
 
+-- TODO Move CtlServer to a backend? Wouldn't make sense as a 'main' backend though
+buildBackend :: Logger -> QueryBackends QueryBackendParams -> Aff (QueryBackends QueryBackend)
+buildBackend logger = parTraverse case _ of
+  CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
+    datumCacheWsRef <- liftEffect $ Ref.new Nothing
+    sequential ado
+      odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger odcConfig
+      ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger ogmiosConfig
+      in CtlBackend
+        { ogmios:
+          { config: ogmiosConfig
+          , ws: ogmiosWs
+          }
+        , odc:
+          { config: odcConfig
+          , ws: odcWs
+          }
+        , kupoConfig
+        }
+  BlockfrostBackendParams bf -> pure $ BlockfrostBackend bf
+
+getLedgerConstants :: Logger -> QueryBackend -> Aff
+  { pparams :: Ogmios.ProtocolParameters
+  , systemStart :: Ogmios.SystemStart
+  , slotLength :: Ogmios.SlotLength
+  , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
+  }
+getLedgerConstants logger backend = case backend of
+  CtlBackend { ogmios: { ws } } -> do
+    pparams <- getProtocolParametersAff ws logger
+    systemStart <- getSystemStartAff ws logger
+    -- Do we ever recieve an eraSummary ahead of schedule?
+    -- Maybe search for the chainTip's era
+    latestEraSummary <- liftedM (error "Could not get EraSummary") do
+      map unwrap <<< (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot))) <<< unwrap <$> getEraSummariesAff ws logger
+    let
+      slotLength = _.slotLength $ unwrap $ _.parameters $ latestEraSummary
+      slotReference = (\{slot, time} -> {slot, time}) $ unwrap $ _.start $ latestEraSummary
+    pure { pparams, slotLength, systemStart, slotReference }
+  BlockfrostBackend _ -> undefined
+
 -- | Finalizes a `Contract` environment.
 -- | Closes the websockets in `ContractEnv`, effectively making it unusable.
 -- TODO Move to Aff?
 stopContractEnv
-  :: Warn
-       ( Text
-           "Using `stopContractEnv` is not recommended: users should rely on `withContractEnv` to finalize the runtime environment instead"
-       )
-  => ContractEnv
+  :: ContractEnv
   -> Effect Unit
 stopContractEnv contractEnv = do
   for_ contractEnv.backend case _ of

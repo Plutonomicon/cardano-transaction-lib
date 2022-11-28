@@ -2,12 +2,10 @@ module Test.Ctl.Integration (main, testPlan) where
 
 import Prelude
 
+import Contract.Monad (runContract)
+import Contract.Time (getSlotReference, getSystemStart, getSlotLength)
 import Contract.Config (testnetConfig)
-import Contract.Monad (runContract, wrapContract)
-import Ctl.Internal.QueryM (runQueryM)
-import Ctl.Internal.QueryM.Config (testnetTraceQueryConfig)
-import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -33,16 +31,17 @@ testPlan = do
   -- These tests depend on assumptions about testnet history.
   -- We disabled them during transition from `testnet` to `preprod` networks.
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
-  skip $ flip mapTest Types.Interval.suite \f -> runQueryM
-    testnetTraceQueryConfig { suppressLogs = true }
+  skip $ flip mapTest Types.Interval.suite \f -> runContract testnetConfig { suppressLogs = true }
     do
-      eraSummaries <- getEraSummaries
-      sysStart <- getSystemStart
-      liftEffect $ f eraSummaries sysStart
+      slotReference <- getSlotReference
+      slotLength <- getSlotLength
+      systemStart <- getSystemStart
+      liftEffect $ f { slotReference, slotLength, systemStart }
   Collateral.suite
   PrivateKey.suite
   Logging.suite
   BalanceTx.Time.suite
   where
+  -- TODO Don't use wrapQueryM
   runQueryM' =
-    runContract (testnetConfig { suppressLogs = true }) <<< wrapContract
+    runContract (testnetConfig { suppressLogs = true }) <<< wrapQueryM

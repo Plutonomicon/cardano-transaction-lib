@@ -172,10 +172,9 @@ type WalletInfo =
 -- | be cleared (this function is intended to be used only on plutip
 -- | startup).
 transferFundsFromEnterpriseToBase
-  :: forall (r :: Row Type)
-   . PrivatePaymentKey
+  :: PrivatePaymentKey
   -> Array KeyWallet
-  -> Contract r Unit
+  -> Contract Unit
 transferFundsFromEnterpriseToBase ourKey wallets = do
   -- Get all utxos and key hashes at all wallets containing a stake key
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
@@ -207,7 +206,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -- Clear the used txouts cache because we know the state of these
     -- utxos is settled, see here:
     -- https://github.com/Plutonomicon/cardano-transaction-lib/pull/838#discussion_r941592493
-    cache <- asks (unwrap <<< _.usedTxOuts <<< _.runtime <<< unwrap)
+    cache <- asks (unwrap <<< _.usedTxOuts)
     liftEffect $ Ref.write Map.empty cache
   where
   constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
@@ -227,7 +226,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   addStakeKeyWalletInfo
     :: List WalletInfo
     -> KeyWallet
-    -> Contract r (List WalletInfo)
+    -> Contract (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
     join <<< head <$> ownStakePubKeysHashes >>= case _ of
       Nothing -> pure walletsInfo

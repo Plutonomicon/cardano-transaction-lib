@@ -6,7 +6,7 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -36,9 +36,9 @@ import Data.UInt (UInt)
 import Effect.Ref as Ref
 
 getLockedInputs
-  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
+  :: Contract (Map TransactionHash (Set UInt))
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
+  cache <- asks _.usedTxOuts
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
@@ -82,14 +82,13 @@ contract = do
 
   where
   submitAndLog
-    :: forall (r :: Row Type)
-     . BalancedSignedTransaction
-    -> Contract r TransactionHash
+    :: BalancedSignedTransaction
+    -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     pure txId
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract

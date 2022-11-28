@@ -14,7 +14,7 @@ module Ctl.Examples.OneShotMinting
 import Contract.Prelude
 
 import Contract.Address (Address, getWalletAddresses)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -54,14 +54,14 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
 mkAssertions
   :: Address
   -> (CurrencySymbol /\ TokenName /\ BigInt)
-  -> Array (ContractWrapAssertion () { txFinalFee :: BigInt })
+  -> Array (ContractWrapAssertion { txFinalFee :: BigInt })
 mkAssertions ownAddress nft =
   let
     labeledOwnAddress :: Labeled Address

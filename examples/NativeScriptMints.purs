@@ -9,7 +9,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
@@ -79,7 +79,7 @@ toSelfContract cs tn amount = do
   awaitTxConfirmed txId
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 

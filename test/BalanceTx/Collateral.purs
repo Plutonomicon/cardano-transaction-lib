@@ -78,19 +78,19 @@ suite = do
                 utxosFixture3
             )
 
-withParams :: (CoinsPerUtxoUnit -> Int -> Contract () Unit) -> Aff Unit
+withParams :: (CoinsPerUtxoUnit -> Int -> Contract Unit) -> Aff Unit
 withParams test =
   runContract testnetConfig { suppressLogs = true }
     (join (test <$> getCoinsPerUtxoUnit <*> getMaxCollateralInputs))
   where
-  getMaxCollateralInputs :: Contract () Int
+  getMaxCollateralInputs :: Contract Int
   getMaxCollateralInputs =
-    asks $ unwrap >>> _.runtime >>> _.pparams <#>
+    asks $ _.ledgerConstants >>> _.pparams <#>
       UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
-  getCoinsPerUtxoUnit :: Contract () CoinsPerUtxoUnit
+  getCoinsPerUtxoUnit :: Contract CoinsPerUtxoUnit
   getCoinsPerUtxoUnit =
-    asks (unwrap >>> _.runtime >>> _.pparams) <#> unwrap >>>
+    asks (_.ledgerConstants >>> _.pparams) <#> unwrap >>>
       _.coinsPerUtxoUnit
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.

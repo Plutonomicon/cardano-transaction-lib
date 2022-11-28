@@ -15,7 +15,7 @@ import Contract.Address
   , ownStakePubKeysHashes
   , scriptHashAddress
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -65,7 +65,7 @@ import Data.Map (toUnfoldable) as Map
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 

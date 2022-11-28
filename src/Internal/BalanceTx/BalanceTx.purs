@@ -10,6 +10,9 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
+import Control.Monad.Reader.Class (asks)
+import Effect.Aff.Class (liftAff)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
@@ -68,8 +71,8 @@ import Ctl.Internal.BalanceTx.Types
   , askCoinsPerUtxoUnit
   , askNetworkId
   , asksConstraints
-  , liftEitherQueryM
-  , liftQueryM
+  , liftEitherContract
+  , liftContract
   , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
@@ -102,12 +105,11 @@ import Ctl.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
-import Ctl.Internal.QueryM (getChangeAddress, getWalletAddresses) as QueryM
-import Ctl.Internal.QueryM.Utxos
-  ( filterLockedUtxos
-  , getWalletCollateral
-  , utxosAt
+import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract
+import Ctl.Internal.Contract.Wallet
+  ( getWalletCollateral
+  , filterLockedUtxos
   )
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -141,9 +143,10 @@ import Effect.Class (class MonadEffect, liftEffect)
 balanceTxWithConstraints
   :: UnattachedUnbalancedTx
   -> BalanceTxConstraintsBuilder
-  -> QueryM (Either BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder = do
-  pparams <- getProtocolParameters
+  pparams <- asks $ _.ledgerConstants >>> _.pparams
+  queryHandle <- getQueryHandle
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
@@ -153,11 +156,11 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     srcAddrs <-
       asksConstraints Constraints._srcAddresses
-        >>= maybe (liftQueryM QueryM.getWalletAddresses) pure
+        >>= maybe (liftContract Contract.getWalletAddresses) pure
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM $ traverse utxosAt srcAddrs <#>
+    utxos <- liftEitherContract $ traverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs <#>
       traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
 
         >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
@@ -176,7 +179,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
         -- involved with the contract in the unbalanced transaction:
         utxos `Map.union` (unbalancedTx ^. _unbalancedTx <<< _utxoIndex)
 
-    availableUtxos <- liftQueryM $ filterLockedUtxos allUtxos
+    availableUtxos <- liftContract $ filterLockedUtxos allUtxos
 
     logTx "unbalancedCollTx" availableUtxos unbalancedCollTx
 
@@ -187,7 +190,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   getChangeAddress :: BalanceTxM Address
   getChangeAddress =
     liftMaybe CouldNotGetChangeAddress
-      =<< maybe (liftQueryM QueryM.getChangeAddress) (pure <<< Just)
+      =<< maybe (liftContract Contract.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
 
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
@@ -199,7 +202,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
   setTransactionCollateral changeAddr transaction = do
     collateral <-
-      liftEitherQueryM $ note CouldNotGetCollateral <$> getWalletCollateral
+      liftEitherContract $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
     -- Don't mess with Cip30 collateral
     isCip30 <- isJust <$> askCip30Wallet

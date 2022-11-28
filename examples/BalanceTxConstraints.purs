@@ -63,7 +63,7 @@ type ContractResult =
 -- | correctly, i.e. their token quantities do not exceed the specified upper
 -- | limit of 4 tokens per change output.
 assertChangeOutputsPartitionedCorrectly
-  :: ContractBasicAssertion () ContractResult Unit
+  :: ContractBasicAssertion ContractResult Unit
 assertChangeOutputsPartitionedCorrectly
   { txHash, changeAddress: addr, mintedToken: cs /\ tn } = do
   let labeledAddr = label addr "changeAddress"
@@ -89,7 +89,7 @@ assertChangeOutputsPartitionedCorrectly
 -- | Checks that the utxo with the specified output reference
 -- | (`nonSpendableOref`) is not consumed during transaction balancing.
 assertSelectedUtxoIsNotSpent
-  :: ContractBasicAssertion () ContractResult Unit
+  :: ContractBasicAssertion ContractResult Unit
 assertSelectedUtxoIsNotSpent { changeAddress, nonSpendableOref } =
   TestUtils.runContractAssertionM' do
     utxos <- TestUtils.utxosAtAddress (label changeAddress "changeAddress")
@@ -101,7 +101,7 @@ assertSelectedUtxoIsNotSpent { changeAddress, nonSpendableOref } =
     TestUtils.assertContract assertionFailure $
       Map.member nonSpendableOref utxos
 
-assertions :: Array (ContractBasicAssertion () ContractResult Unit)
+assertions :: Array (ContractBasicAssertion ContractResult Unit)
 assertions =
   [ assertChangeOutputsPartitionedCorrectly
   , assertSelectedUtxoIsNotSpent

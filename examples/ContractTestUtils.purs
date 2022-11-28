@@ -79,8 +79,8 @@ type ContractResult =
 mkAssertions
   :: ContractParams
   -> Contract
-       ( Array (ContractWrapAssertion () ContractResult)
-           /\ Array (ContractBasicAssertion () ContractResult Unit)
+       ( Array (ContractWrapAssertion ContractResult)
+           /\ Array (ContractBasicAssertion ContractResult Unit)
        )
 mkAssertions params@(ContractParams p) = do
   senderAddress <-

@@ -14,7 +14,7 @@ module Ctl.Examples.Lose7Ada
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
@@ -45,7 +45,7 @@ import Test.Spec.Assertions (shouldEqual)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.AlwaysFails"

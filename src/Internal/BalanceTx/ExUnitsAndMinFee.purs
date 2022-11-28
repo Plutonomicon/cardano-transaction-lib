@@ -5,7 +5,9 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 
 import Prelude
 
-import Control.Monad.Error.Class (throwError)
+import Control.Monad.Error.Class (liftEither, throwError)
+import Effect.Aff.Class (liftAff)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos) as Constraints
 import Ctl.Internal.BalanceTx.Error
@@ -23,8 +25,7 @@ import Ctl.Internal.BalanceTx.Types
   , askCostModelsForLanguages
   , askNetworkId
   , asksConstraints
-  , liftEitherQueryM
-  , liftQueryM
+  , liftContract
   )
 import Ctl.Internal.Cardano.Types.ScriptRef as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
@@ -43,9 +44,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _witnessSet
   )
 import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
-import Ctl.Internal.QueryM (QueryM)
-import Ctl.Internal.QueryM (evaluateTxOgmios) as QueryM
-import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
+import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , TxEvaluationResult(TxEvaluationResult)
@@ -54,7 +53,6 @@ import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors
   , reindexSpentScriptRedeemers'
   )
-import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Transaction (setScriptDataHash)
 import Ctl.Internal.TxOutput
   ( transactionInputToTxOutRef
@@ -85,20 +83,16 @@ import Data.Traversable (for)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Untagged.Union (asOneOf)
 
 evalTxExecutionUnits
   :: Transaction
   -> UnattachedUnbalancedTx
   -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx unattachedTx = do
-  txBytes <- liftEffect
-    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-        Serialization.convertTransaction tx
-    )
+  queryHandle <- liftContract getQueryHandle
   additionalUtxos <- getOgmiosAdditionalUtxoSet
   evalResult <-
-    unwrap <$> liftQueryM (QueryM.evaluateTxOgmios txBytes additionalUtxos)
+    unwrap <$> liftContract (liftAff $ queryHandle.evaluateTx tx additionalUtxos)
 
   case evalResult of
     Right a -> pure a
@@ -127,8 +121,8 @@ evalExUnitsAndMinFee
   -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
 evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   -- Reindex `Spent` script redeemers:
-  reindexedUnattachedTx <- liftEitherQueryM $
-    reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
+  reindexedUnattachedTx <- liftEither $
+    reindexRedeemers unattachedTx # lmap ReindexRedeemersError
   -- Reattach datums and redeemers before evaluating ex units:
   let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
   -- Evaluate transaction ex units:
@@ -145,7 +139,7 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   additionalUtxos <-
     fromPlutusUtxoMap networkId
       <$> asksConstraints Constraints._additionalUtxos
-  minFee <- liftQueryM $ QueryM.calculateMinFee finalizedTx additionalUtxos
+  minFee <- liftContract $ Contract.calculateMinFee finalizedTx additionalUtxos
   pure $ reindexedUnattachedTxWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
@@ -201,13 +195,13 @@ finalizeTransaction reindexedUnattachedTxWithExUnits utxos = do
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
-  -> QueryM (Either ReindexErrors UnattachedUnbalancedTx)
+  -> Either ReindexErrors UnattachedUnbalancedTx
 reindexRedeemers
   unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
   let
     inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
   in
-    reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
+    reindexSpentScriptRedeemers' inputs redeemersTxIns #
       map \redeemersTxInsReindexed ->
         unattachedTx # _redeemersTxIns .~ redeemersTxInsReindexed
 

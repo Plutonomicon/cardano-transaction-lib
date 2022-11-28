@@ -13,7 +13,7 @@ module Ctl.Examples.IncludeDatum
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
@@ -40,7 +40,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.IncludeDatum"

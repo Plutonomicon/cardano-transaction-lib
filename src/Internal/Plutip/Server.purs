@@ -20,9 +20,13 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
+import Contract.Config (QueryBackendParams(CtlBackendParams))
+import Ctl.Internal.Contract.QueryBackend (defaultBackend, mkSingletonBackendParams)
+import Ctl.Internal.Contract.Monad (buildBackend, getLedgerConstants)
+import Ctl.Internal.Contract.Monad (stopContractEnv) as Contract
 import Contract.Monad
   ( Contract
-  , ContractEnv(ContractEnv)
+  , ContractEnv
   , liftContractM
   , runContractInEnv
   )
@@ -30,7 +34,6 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
-import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
@@ -66,9 +69,7 @@ import Ctl.Internal.QueryM
   , Logger
   , emptyHooks
   , mkLogger
-  , stopQueryRuntime
   )
-import Ctl.Internal.QueryM as QueryM
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -83,11 +84,11 @@ import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (over, unwrap, wrap)
+import Data.Newtype (over, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -119,7 +120,7 @@ runPlutipContract
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> (wallets -> Contract () a)
+  -> (wallets -> Contract a)
   -> Aff a
 runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
   \env wallets ->
@@ -132,7 +133,7 @@ withPlutipContractEnv
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> (ContractEnv () -> wallets -> Aff a)
+  -> (ContractEnv -> wallets -> Aff a)
   -> Aff a
 withPlutipContractEnv plutipCfg distr cont = do
   cleanupRef <- liftEffect $ Ref.new mempty
@@ -204,19 +205,19 @@ newtype PlutipTest = PlutipTest
 
 type PlutipTestHandler :: Type -> Type -> Type -> Type
 type PlutipTestHandler distr wallets r =
-  UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
+  UtxoDistribution distr wallets => distr -> (wallets -> Contract Unit) -> r
 
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
 withWallets
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
   => distr
-  -> (wallets -> Contract () Unit)
+  -> (wallets -> Contract Unit)
   -> PlutipTest
 withWallets distr tests = PlutipTest \h -> h distr tests
 
 -- | Lift a `Contract` into `PlutipTest`
-noWallet :: Contract () Unit -> PlutipTest
+noWallet :: Contract Unit -> PlutipTest
 noWallet = withWallets unit <<< const
 
 -- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
@@ -232,7 +233,7 @@ type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
 type PlutipTestPlanHandler distr wallets r =
   UtxoDistribution distr wallets
   => distr
-  -> TestPlanM (wallets -> Contract () Unit) Unit
+  -> TestPlanM (wallets -> Contract Unit) Unit
   -> r
 
 -- | Lifts the utxo distributions of each test out of Mote, into a combined
@@ -281,7 +282,7 @@ startPlutipContractEnv
   -> distr
   -> Ref (Array (Aff Unit))
   -> Aff
-       { env :: ContractEnv ()
+       { env :: ContractEnv
        , wallets :: wallets
        , printLogs :: Aff Unit
        , clearLogs :: Aff Unit
@@ -378,13 +379,13 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         $ const (pure unit)
 
   mkWallets'
-    :: ContractEnv ()
+    :: ContractEnv
     -> PrivatePaymentKey
     -> ClusterStartupParameters
     -> Aff wallets
   mkWallets' env ourKey response = do
     runContractInEnv
-      (over wrap (_ { config { customLogger = Just (\_ _ -> pure unit) } }) env)
+      ((_ { customLogger = Just (\_ _ -> pure unit) }) env)
       do
         wallets <-
           liftContractM
@@ -396,7 +397,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
 
   mkContractEnv'
     :: Aff
-         { env :: ContractEnv ()
+         { env :: ContractEnv
          , printLogs :: Aff Unit
          , clearLogs :: Aff Unit
          }
@@ -430,8 +431,8 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         }
 
   -- a version of Contract.Monad.stopContractEnv without a compile-time warning
-  stopContractEnv :: ContractEnv () -> Effect Unit
-  stopContractEnv env = stopQueryRuntime (unwrap env).runtime
+  stopContractEnv :: ContractEnv -> Effect Unit
+  stopContractEnv env = Contract.stopContractEnv env
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
@@ -731,48 +732,27 @@ mkClusterContractEnv
   :: PlutipConfig
   -> Logger
   -> Maybe (LogLevel -> Message -> Aff Unit)
-  -> Aff (ContractEnv ())
+  -> Aff ContractEnv
 mkClusterContractEnv plutipCfg logger customLogger = do
-  datumCacheWsRef <- liftEffect $ Ref.new Nothing
-  datumCacheWs /\ ogmiosWs <- sequential $
-    Tuple
-      <$> parallel
-        ( QueryM.mkDatumCacheWebSocketAff datumCacheWsRef logger
-            QueryM.defaultDatumCacheWsConfig
-              { port = plutipCfg.ogmiosDatumCacheConfig.port
-              , host = plutipCfg.ogmiosDatumCacheConfig.host
-              }
-        )
-      <*> parallel
-        ( QueryM.mkOgmiosWebSocketAff datumCacheWsRef logger
-            QueryM.defaultOgmiosWsConfig
-              { port = plutipCfg.ogmiosConfig.port
-              , host = plutipCfg.ogmiosConfig.host
-              }
-        )
   usedTxOuts <- newUsedTxOuts
-  pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
-  pure $ ContractEnv
-    { config:
-        { ctlServerConfig: plutipCfg.ctlServerConfig
-        , ogmiosConfig: plutipCfg.ogmiosConfig
-        , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
-        , kupoConfig: plutipCfg.kupoConfig
-        , networkId: MainnetId
-        , logLevel: plutipCfg.logLevel
-        , walletSpec: Nothing
-        , customLogger: customLogger
-        , suppressLogs: plutipCfg.suppressLogs
-        , hooks: emptyHooks
-        }
-    , runtime:
-        { ogmiosWs
-        , datumCacheWs
-        , wallet: Nothing
-        , usedTxOuts
-        , pparams
-        }
-    , extraConfig: {}
+  backend <- buildBackend logger $ mkSingletonBackendParams $ CtlBackendParams
+    { ogmiosConfig: plutipCfg.ogmiosConfig
+    , odcConfig: plutipCfg.ogmiosDatumCacheConfig
+    , kupoConfig: plutipCfg.kupoConfig
+    }
+  ledgerConstants <- getLedgerConstants logger $ defaultBackend backend
+  pure
+    { backend
+    , ctlServerConfig: plutipCfg.ctlServerConfig
+    , networkId: MainnetId
+    , logLevel: plutipCfg.logLevel
+    , walletSpec: Nothing
+    , customLogger: customLogger
+    , suppressLogs: plutipCfg.suppressLogs
+    , hooks: emptyHooks
+    , wallet: Nothing
+    , usedTxOuts
+    , ledgerConstants
     }
 
 startCtlServer :: UInt -> Aff ManagedProcess

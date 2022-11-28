@@ -53,10 +53,11 @@ module Ctl.Internal.Types.ScriptLookups
   ) where
 
 import Prelude hiding (join)
+import Prelude (join) as Bind
 
+import Ctl.Internal.Contract.Monad (Contract, wrapQueryM)
 import Effect.Aff.Class (liftAff)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Contract.Monad (Contract)
 import Aeson (class EncodeAeson)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
@@ -119,19 +120,10 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.QueryM
-  ( QueryM
-  , QueryMExtended
-  , getDatumByHash
-  , getProtocolParameters
-  )
-import Ctl.Internal.QueryM (getNetworkId) as QueryM
-import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.Pools
   ( getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
-import Ctl.Internal.QueryM.SystemStart (getSystemStart)
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , nativeScriptStakeValidatorHash
@@ -278,7 +270,6 @@ import Data.Traversable (for, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import MedeaPrelude (mapMaybe)
 import Type.Proxy (Proxy(Proxy))
@@ -647,9 +638,9 @@ runConstraintsM
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> QueryM (Either MkUnbalancedTxError (ConstraintProcessingState validator))
+  -> Contract (Either MkUnbalancedTxError (ConstraintProcessingState validator))
 runConstraintsM lookups txConstraints = do
-  costModels <- getProtocolParameters <#> unwrap >>> _.costModels
+  costModels <- asks $ _.ledgerConstants >>> _.pparams >>> unwrap >>> _.costModels
   let
     initCps :: ConstraintProcessingState validator
     initCps =
@@ -684,7 +675,7 @@ mkUnbalancedTx'
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> QueryM (Either MkUnbalancedTxError UnbalancedTx)
+  -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx' scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map _.unbalancedTx
 
@@ -722,7 +713,7 @@ mkUnbalancedTx
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> QueryM (Either MkUnbalancedTxError UnattachedUnbalancedTx)
+  -> Contract (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
     \{ unbalancedTx, datums, redeemersTxIns } ->
@@ -846,7 +837,7 @@ addOwnOutput
   => OutputConstraint datum
   -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 addOwnOutput (OutputConstraint { datum: d, value }) = do
-  queryHandle <- getQueryHandle
+  queryHandle <- lift $ getQueryHandle
   networkId <- asks _.networkId
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
@@ -858,9 +849,7 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     -- We are erroring if we don't have a datumhash given the polymorphic datum
     -- in the `OutputConstraint`:
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
-    dat <-
-      -- TODO fix
-      ExceptT $ liftAff $ (queryHandle.getDatumByHash dHash <#> hush >>> join >>> note (CannotQueryDatum dHash))
+    dat <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> Bind.join >>> note (CannotQueryDatum dHash)
     _cpsToTxBody <<< _outputs %= Array.(:) txOut
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provideValue value'
@@ -1056,8 +1045,9 @@ processConstraint
   -> Map ValidatorHash Validator
   -> TxConstraint
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-processConstraint mpsMap osMap = do
-  case _ of
+processConstraint mpsMap osMap c = do
+  queryHandle <- lift $ getQueryHandle
+  case c of
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
       { slotReference, slotLength, systemStart } <- asks _.ledgerConstants
@@ -1125,7 +1115,7 @@ processConstraint mpsMap osMap = do
                   if isRight mDatumLookup then
                     pure mDatumLookup
                   else
-                    lift $ getDatumByHash dHash <#> note
+                    liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> Bind.join >>> note
                       (CannotQueryDatum dHash)
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
@@ -1379,8 +1369,8 @@ processConstraint mpsMap osMap = do
         poolKeyHash
       attachToCps attachNativeScript (unwrap stakeValidator)
     MustWithdrawStakePubKey spkh -> runExceptT do
-      networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ getPubKeyHashDelegationsAndRewards spkh
+      networkId <- asks _.networkId
+      mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
       let
@@ -1390,8 +1380,8 @@ processConstraint mpsMap osMap = do
         Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = plutusScriptStakeValidatorHash stakeValidator
-      networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
+      networkId <- asks _.networkId
+      mbRewards <- lift $ lift $ wrapQueryM $ getValidatorHashDelegationsAndRewards hash
       let
         rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
           hash
@@ -1412,8 +1402,8 @@ processConstraint mpsMap osMap = do
       _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = nativeScriptStakeValidatorHash stakeValidator
-      networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ getValidatorHashDelegationsAndRewards hash
+      networkId <- asks _.networkId
+      mbRewards <- lift $ lift $ wrapQueryM $ getValidatorHashDelegationsAndRewards hash
       let
         rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
           hash
@@ -1458,7 +1448,7 @@ processConstraint mpsMap osMap = do
     -> DatumPresence
     -> ExceptT
          MkUnbalancedTxError
-         (StateT (ConstraintProcessingState a) (QueryMExtended () Aff))
+         (StateT (ConstraintProcessingState a) Contract)
          OutputDatum
   outputDatum dat = case _ of
     DatumInline -> pure $ OutputDatum dat

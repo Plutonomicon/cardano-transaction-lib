@@ -5,7 +5,6 @@ module Test.Ctl.Ogmios.GenerateFixtures
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
-import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.JsWebSocket
@@ -19,6 +18,7 @@ import Ctl.Internal.JsWebSocket
 import Ctl.Internal.QueryM
   ( WebSocket(WebSocket)
   , WebsocketDispatch
+  , ListenerSet
   , defaultMessageListener
   , defaultOgmiosWsConfig
   , mkListenerSet
