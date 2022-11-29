@@ -79,7 +79,6 @@ You can edit this file as you like.
   , "strings"
   , "stringutils"
   , "tailrec"
-  , "text-encoding"
   , "these"
   , "transformers"
   , "tuples"
