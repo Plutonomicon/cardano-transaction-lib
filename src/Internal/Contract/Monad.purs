@@ -18,12 +18,12 @@ import Prelude
 
 import Data.Function (on)
 import Data.Foldable (maximumBy)
-import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Serialization.Address (NetworkId, Slot)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.QueryM (Hooks, Logger, QueryEnv, QueryM, WebSocket, getProtocolParametersAff, getSystemStartAff, getEraSummariesAff, mkDatumCacheWebSocketAff, mkLogger, mkOgmiosWebSocketAff, mkWalletBySpec, underlyingWebSocket)
 import Record.Builder (build, merge)
-import Control.Parallel (parTraverse, parallel, sequential)
+import Control.Parallel (class Parallel, parTraverse, parallel, sequential)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -46,9 +46,9 @@ import Ctl.Internal.Helpers (liftM, liftedM, logWithLevel)
 import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SlotLength, SystemStart, RelativeTime) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
+import Ctl.Internal.Wallet (getNetworkId) as Wallet
 import Ctl.Internal.Wallet.Spec (WalletSpec)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel)
@@ -59,11 +59,10 @@ import Data.Traversable (for_, traverse)
 import Effect (Effect)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, try)
+import Effect.Exception (Error, try, throw)
 import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
 import Undefined (undefined)
-import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Plus (class Plus)
@@ -199,7 +198,7 @@ mkContractEnv params = do
     logger = mkLogger params.logLevel params.customLogger
 
     buildWallet :: Aff (Maybe Wallet)
-    buildWallet = traverse mkWalletBySpec params.walletSpec
+    buildWallet = traverse (mkWalletBySpec params.networkId) params.walletSpec
 
     constants =
       { ctlServerConfig: params.ctlServerConfig
@@ -216,6 +215,8 @@ buildBackend :: Logger -> QueryBackends QueryBackendParams -> Aff (QueryBackends
 buildBackend logger = parTraverse case _ of
   CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
     datumCacheWsRef <- liftEffect $ Ref.new Nothing
+    -- TODO Check the network in env matches up with the network of odc, ogmios and kupo
+    --      Need to pass in the networkid
     sequential ado
       odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger odcConfig
       ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger ogmiosConfig
@@ -238,7 +239,7 @@ getLedgerConstants :: Logger -> QueryBackend -> Aff
   , slotLength :: Ogmios.SlotLength
   , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
   }
-getLedgerConstants logger backend = case backend of
+getLedgerConstants logger = case _ of
   CtlBackend { ogmios: { ws } } -> do
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
@@ -251,6 +252,20 @@ getLedgerConstants logger backend = case backend of
       slotReference = (\{slot, time} -> {slot, time}) $ unwrap $ _.start $ latestEraSummary
     pure { pparams, slotLength, systemStart, slotReference }
   BlockfrostBackend _ -> undefined
+
+-- | Ensure that `NetworkId` from wallet is the same as specified in the
+-- | `ContractEnv`.
+walletNetworkCheck :: NetworkId -> Wallet -> Aff Unit
+walletNetworkCheck envNetworkId wallet = do
+  networkId <- Wallet.getNetworkId wallet
+  unless (envNetworkId == networkId) do
+    liftEffect $ throw $
+      "The networkId that is specified is not equal to the one from wallet."
+        <> " The wallet is using "
+        <> show networkId
+        <> " while "
+        <> show envNetworkId
+        <> " is specified in the config."
 
 -- | Finalizes a `Contract` environment.
 -- | Closes the websockets in `ContractEnv`, effectively making it unusable.
@@ -286,8 +301,8 @@ withContractEnv params action = do
       | otherwise = params.customLogger
 
   contractEnv <- mkContractEnv params <#> _ { customLogger = customLogger }
+  for_ contractEnv.wallet $ walletNetworkCheck contractEnv.networkId
   eiRes <-
-    -- TODO: Adapt `networkIdCheck` from QueryM module
     attempt $ supervise (action contractEnv)
       `flip finally` liftEffect (stopContractEnv contractEnv)
   liftEffect $ case eiRes of

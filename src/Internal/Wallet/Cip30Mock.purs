@@ -18,7 +18,7 @@ import Ctl.Internal.Serialization
   , convertValue
   , toBytes
   )
-import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Serialization.Address (Address, NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
@@ -130,13 +130,18 @@ mkCip30Mock pKey mSKey = do
       let queryHandle = getQueryHandle' env
       queryHandle.utxosAt address
 
+    keyWallet = privateKeysToKeyWallet env.networkId pKey mSKey
+
+    addressHex = 
+      byteArrayToHex $ toBytes $ asOneOf ((unwrap keyWallet).address :: Address)
+
   pure $
     { getNetworkId: fromAff $ pure $
         case env.networkId of
           TestnetId -> 0
           MainnetId -> 1
     , getUtxos: fromAff do
-        ownAddress <- (unwrap keyWallet).address env.networkId
+        let ownAddress = (unwrap keyWallet).address
         utxos <- utxosAt ownAddress
         collateralUtxos <- getCollateralUtxos utxos
         let
@@ -151,7 +156,7 @@ mkCip30Mock pKey mSKey = do
               TransactionUnspentOutput { input, output }
         pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
     , getCollateral: fromAff do
-        ownAddress <- (unwrap keyWallet).address env.networkId
+        let ownAddress = (unwrap keyWallet).address
         utxos <- utxosAt ownAddress
         collateralUtxos <- getCollateralUtxos utxos
         cslUnspentOutput <- liftEffect $ traverse
@@ -159,22 +164,19 @@ mkCip30Mock pKey mSKey = do
           collateralUtxos
         pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
     , getBalance: fromAff do
-        ownAddress <- (unwrap keyWallet).address env.networkId
+        let ownAddress = (unwrap keyWallet).address
         utxos <- utxosAt ownAddress
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
         pure $ byteArrayToHex $ toBytes $ asOneOf value
     , getUsedAddresses: fromAff do
-        (unwrap keyWallet).address env.networkId <#> \address ->
-          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+        pure [addressHex]
     , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
-        (unwrap keyWallet).address env.networkId <#>
-          (byteArrayToHex <<< toBytes <<< asOneOf)
+        pure addressHex
     , getRewardAddresses: fromAff do
-        (unwrap keyWallet).address env.networkId <#> \address ->
-          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+        pure [addressHex]
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
@@ -188,10 +190,8 @@ mkCip30Mock pKey mSKey = do
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)
-        (unwrap keyWallet).signData env.networkId (wrap msgBytes)
+        (unwrap keyWallet).signData (wrap msgBytes)
     }
-  where
-  keyWallet = privateKeysToKeyWallet pKey mSKey
 
 -- returns an action that removes the mock.
 foreign import injectCip30Mock :: String -> Cip30Mock -> Effect (Effect Unit)

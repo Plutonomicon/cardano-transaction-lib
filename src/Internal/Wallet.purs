@@ -29,6 +29,16 @@ module Ctl.Internal.Wallet
   , apiVersion
   , name
   , icon
+  , getNetworkId
+  , getUnusedAddresses
+  , getChangeAddress
+  , getRewardAddresses
+  , getWalletAddresses
+  , actionBasedOnWalletAff
+  , signData
+  , ownPubKeyHashes
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeysHashes
   ) where
 
 import Prelude
@@ -49,6 +59,7 @@ import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
 import Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
+  , DataSignature
   , mkCip30WalletAff
   )
 import Ctl.Internal.Wallet.Key
@@ -60,13 +71,32 @@ import Ctl.Internal.Wallet.Key
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (over, wrap)
+import Data.Newtype (over, wrap, unwrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Class (liftEffect)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
+import Ctl.Internal.Helpers as Helpers
+import Data.Array as Array
+import Data.Foldable (fold)
+import Data.Traversable (traverse)
+import Effect.Exception (throw)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId(TestnetId, MainnetId)
+  , addressPaymentCred
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , stakeCredentialToKeyHash
+  )
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.RawBytes (RawBytes)
 
 data Wallet
   = Nami Cip30Wallet
@@ -83,9 +113,8 @@ data WalletExtension
   | EternlWallet
   | LodeWallet
 
-mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
-  mbStakeKey
+mkKeyWallet :: NetworkId -> PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
+mkKeyWallet network payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet network payKey mbStakeKey
 
 foreign import _enableWallet :: String -> Effect (Promise Cip30Connection)
 foreign import _isWalletAvailable :: String -> Effect Boolean
@@ -273,3 +302,94 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
               "ed25519_sig1ynufn5umzl746ekpjtzt2rf58ep0wg6mxpgyezh8vx0e8jpgm3kuu3tgm453wlz4rq5yjtth0fnj0ltxctaue0dgc2hwmysr9jvhjzswt86uk"
           )
     )
+
+getNetworkId :: Wallet -> Aff NetworkId
+getNetworkId wallet = do
+  actionBasedOnWalletAff
+    (\w -> intToNetworkId <=< _.getNetworkId w)
+    (\kw -> pure (unwrap kw).networkId)
+    wallet
+  where
+  intToNetworkId :: Int -> Aff NetworkId
+  intToNetworkId = case _ of
+    0 -> pure TestnetId
+    1 -> pure MainnetId
+    _ -> liftEffect $ throw "Unknown network id"
+
+getUnusedAddresses :: Wallet -> Aff (Array Address)
+getUnusedAddresses wallet = fold <$> do
+  actionBasedOnWalletAff _.getUnusedAddresses
+    (\_ -> pure $ pure [])
+    wallet
+
+getChangeAddress :: Wallet -> Aff (Maybe Address)
+getChangeAddress wallet = do
+  actionBasedOnWalletAff _.getChangeAddress (\kw -> pure $ pure (unwrap kw).address)
+    wallet
+
+getRewardAddresses :: Wallet -> Aff (Array Address)
+getRewardAddresses wallet = fold <$> do
+  actionBasedOnWalletAff _.getRewardAddresses
+    (\kw -> pure $ pure $ pure (unwrap kw).address)
+    wallet
+
+getWalletAddresses :: Wallet -> Aff (Array Address)
+getWalletAddresses wallet = fold <$> do
+  actionBasedOnWalletAff _.getWalletAddresses
+    (\kw -> pure $ pure $ Array.singleton (unwrap kw).address)
+    wallet
+
+signData :: Address -> RawBytes -> Wallet -> Aff (Maybe DataSignature)
+signData address payload wallet = do
+  actionBasedOnWalletAff
+    (\w conn -> w.signData conn address payload)
+    (\kw -> pure <$> (unwrap kw).signData payload)
+    wallet
+
+actionBasedOnWalletAff
+  :: forall (a :: Type)
+   . (Cip30Wallet -> Cip30Connection -> Aff a)
+  -> (KeyWallet -> Aff a)
+  -> Wallet
+  -> Aff a
+actionBasedOnWalletAff walletAction keyWalletAction =
+  case _ of
+    Eternl wallet -> callCip30Wallet wallet walletAction
+    Nami wallet -> callCip30Wallet wallet walletAction
+    Gero wallet -> callCip30Wallet wallet walletAction
+    Flint wallet -> callCip30Wallet wallet walletAction
+    Lode wallet -> callCip30Wallet wallet walletAction
+    KeyWallet kw -> keyWalletAction kw
+
+ownPubKeyHashes :: Wallet -> Aff (Array PubKeyHash)
+ownPubKeyHashes wallet = Array.catMaybes <$> do
+  getWalletAddresses wallet >>= traverse \address -> do
+    paymentCred <-
+      Helpers.liftM
+        ( error $
+            "Unable to get payment credential from Address"
+        ) $
+        addressPaymentCred address
+    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
+
+ownPaymentPubKeyHashes :: Wallet -> Aff (Array PaymentPubKeyHash)
+ownPaymentPubKeyHashes wallet = map wrap <$> ownPubKeyHashes wallet
+
+ownStakePubKeysHashes :: Wallet -> Aff (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes wallet = do
+  addresses <- getWalletAddresses wallet
+  pure $ addressToMStakePubKeyHash <$> addresses
+  where
+
+  addressToMStakePubKeyHash :: Address -> Maybe StakePubKeyHash
+  addressToMStakePubKeyHash address = do
+    baseAddress <- baseAddressFromAddress address
+    wrap <<< wrap <$> stakeCredentialToKeyHash
+      (baseAddressDelegationCred baseAddress)
+
+callCip30Wallet
+  :: forall (a :: Type)
+   . Cip30Wallet
+  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
+  -> Aff a
+callCip30Wallet wallet act = act wallet wallet.connection

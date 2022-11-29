@@ -14,7 +14,7 @@ import Ctl.Internal.Contract.Wallet
   ( callCip30Wallet
   , getWalletAddresses
   , getWalletUtxos
-  , withMWallet
+  , withWallet
   )
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Wallet (Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami))
@@ -40,7 +40,7 @@ signTransaction tx = do
     runHook =
       for_ hooks.beforeSign (void <<< liftEffect <<< try)
   runHook
-  withMWallet case _ of
+  withWallet case _ of
     Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
     Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
     Flint flint -> liftAff $ callCip30Wallet flint \nw -> flip nw.signTx tx

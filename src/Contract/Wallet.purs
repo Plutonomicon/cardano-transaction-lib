@@ -20,7 +20,7 @@ module Contract.Wallet
 import Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
-import Contract.Monad (Contract, ContractEnv)
+import Contract.Monad (Contract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
 import Control.Monad.Reader.Class (asks)
@@ -49,12 +49,13 @@ import Ctl.Internal.Wallet
   , name
   , walletToWalletExtension
   ) as Wallet
-import Ctl.Internal.Wallet (Wallet(KeyWallet), mkKeyWallet)
+import Ctl.Internal.Wallet (Wallet(KeyWallet))
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
+  , privateKeysToKeyWallet
   )
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey)
 import Ctl.Internal.Wallet.Spec
@@ -69,12 +70,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       )
   )
-import Data.Lens (Lens, (.~))
-import Data.Lens.Common (simple)
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(Just))
-import Type.Proxy (Proxy(Proxy))
 
 getNetworkId :: Contract NetworkId
 getNetworkId = asks _.networkId
@@ -106,5 +102,7 @@ withKeyWallet wallet action = do
   local _ { wallet = Just $ KeyWallet wallet } action
 
 mkKeyWalletFromPrivateKeys
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWalletFromPrivateKeys = mkKeyWallet
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Wallet.KeyWallet
+mkKeyWalletFromPrivateKeys payment mbStake = do
+  networkId <- getNetworkId
+  pure $ privateKeysToKeyWallet networkId payment mbStake

@@ -10,6 +10,8 @@ module Ctl.Internal.Plutip.UtxoDistribution
 
 import Prelude
 
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
+import Contract.Wallet (mkKeyWalletFromPrivateKeys, withKeyWallet)
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
@@ -31,7 +33,6 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
-import Contract.Wallet (withKeyWallet)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
@@ -85,7 +86,7 @@ instance UtxoDistribution InitialUTxOs KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
-      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
+      (privateKeysToKeyWallet MainnetId (PrivatePaymentKey key) Nothing) /\ tail
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
@@ -93,7 +94,7 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (InitialUTxOsWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
-      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
+      privateKeysToKeyWallet MainnetId (PrivatePaymentKey key) (Just stake) /\
         tail
   keyWallets _ wallet = [ wallet ]
 
@@ -179,7 +180,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   -- Get all utxos and key hashes at all wallets containing a stake key
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
-    let ourWallet = privateKeysToKeyWallet ourKey Nothing
+    ourWallet <- mkKeyWalletFromPrivateKeys ourKey Nothing
     ourAddr <- liftedM "Could not get our address" $
       head <$> withKeyWallet ourWallet getWalletAddresses
     ourUtxos <- utxosAt ourAddr

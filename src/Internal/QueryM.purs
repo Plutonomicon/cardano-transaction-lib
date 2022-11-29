@@ -27,24 +27,13 @@ module Ctl.Internal.QueryM
   , WebSocket(WebSocket)
   , Hooks
   , allowError
-  , applyArgs
   , evaluateTxOgmios
   , getChainTip
-  , getDatumByHash
-  , getDatumsByHashes
-  , getDatumsByHashesWithErrors
   , getLogger
-  , getUnusedAddresses
-  , getChangeAddress
-  , getRewardAddresses
-  , getProtocolParameters
   , getProtocolParametersAff
   , getSystemStartAff
   , getEraSummariesAff
-  , getWalletAddresses
-  , getWallet
   , handleAffjaxResponse
-  , liftQueryM
   , listeners
   , postAeson
   , mkDatumCacheWebSocketAff
@@ -58,22 +47,11 @@ module Ctl.Internal.QueryM
   , mkQueryRuntime
   , mkRequest
   , mkRequestAff
+  -- TODO Move mkWalletBySpec into Contract once import cycles are resolved
   , mkWalletBySpec
-  , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
-  , runQueryM
-  , runQueryMWithSettings
-  , runQueryMInRuntime
   , scriptToAeson
-  , signData
-  , stopQueryRuntime
   , submitTxOgmios
   , underlyingWebSocket
-  , withMWalletAff
-  , withMWallet
-  , withQueryRuntime
-  , callCip30Wallet
-  , getNetworkId
   , emptyHooks
   ) where
 
@@ -107,14 +85,12 @@ import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans
   ( ReaderT(ReaderT)
   , asks
-  , runReaderT
-  , withReaderT
   )
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Helpers (liftM, logString, logWithLevel, (<</>>))
+import Ctl.Internal.Helpers (logString, logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -182,40 +158,20 @@ import Ctl.Internal.QueryM.ServerConfig
   ) as ExportServerConfig
 import Ctl.Internal.QueryM.ServerConfig
   ( ServerConfig
-  , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Serialization (toBytes) as Serialization
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId(TestnetId, MainnetId)
-  , addressPaymentCred
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , stakeCredentialToKeyHash
-  )
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
+import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Ctl.Internal.Types.PlutusData (PlutusData)
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash
-  , PubKeyHash
-  , StakePubKeyHash
-  )
-import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Types.Scripts (Language, PlutusScript(PlutusScript))
+import Ctl.Internal.Types.Datum (DataHash)
+import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet
-  ( Cip30Connection
-  , Cip30Wallet
-  , KeyWallet
-  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
+  ( Wallet
   , WalletExtension
       ( LodeWallet
       , EternlWallet
@@ -226,7 +182,6 @@ import Ctl.Internal.Wallet
   , mkKeyWallet
   , mkWalletAff
   )
-import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
@@ -244,43 +199,35 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       )
   )
-import Data.Array (catMaybes)
-import Data.Array (singleton) as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, hush, isRight)
-import Data.Foldable (fold, foldl)
+import Data.Either (Either(Left, Right), either, isRight)
+import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
 import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
-import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Traversable (for, for_, traverse_)
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff
   ( Aff
   , Canceler(Canceler)
   , ParAff
-  , attempt
   , delay
-  , finally
   , launchAff_
   , makeAff
   , runAff_
-  , supervise
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Foreign.Object as Object
-import Untagged.Union (asOneOf)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -415,78 +362,6 @@ instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
   sequential :: QueryMExtended r ParAff ~> QueryMExtended r Aff
   sequential = wrap <<< sequential <<< unwrap
 
-liftQueryM
-  :: forall (r :: Row Type) (a :: Type). QueryM a -> QueryMExtended r Aff a
-liftQueryM = unwrap >>> withReaderT toDefaultQueryEnv >>> wrap
-  where
-  toDefaultQueryEnv :: QueryEnv r -> DefaultQueryEnv
-  toDefaultQueryEnv c = c { extraConfig = {} }
-
--- | Constructs and finalizes a contract environment that is usable inside a
--- | bracket callback.
--- | Make sure that `Aff` action does not end before all contracts that use the
--- | runtime terminate. Otherwise `WebSocket`s will be closed too early.
-withQueryRuntime
-  :: forall a
-   . QueryConfig
-  -> (QueryRuntime -> Aff a)
-  -> Aff a
-withQueryRuntime config action = do
-  eiRes <- attempt do
-    runtime <- mkQueryRuntime config
-    supervise (networkIdCheck config runtime *> action runtime)
-      `flip finally` liftEffect do
-        stopQueryRuntime runtime
-  case eiRes of
-    Right res -> do
-      liftEffect $ for_ config.hooks.onSuccess (void <<< try)
-      pure res
-    Left err -> do
-      for_ config.hooks.onError \f -> do
-        void $ liftEffect $ try $ f err
-      liftEffect $ throwError err
-
--- | Ensure that `NetworkId` from wallet is the same as specified in the
--- | `QueryConfig`.
-networkIdCheck :: QueryConfig -> QueryRuntime -> Aff Unit
-networkIdCheck config runtime = do
-  mbNetworkId <- runQueryMInRuntime config runtime getWalletNetworkId
-  for_ mbNetworkId \networkId ->
-    unless (networkToInt config.networkId == networkId) do
-      liftEffect $ throw $
-        "The networkId that is specified is not equal to the one from wallet."
-          <> " The wallet is using "
-          <> printNetworkIdName networkId
-          <> " while "
-          <> printNetworkIdName (networkToInt config.networkId)
-          <> " is specified in the config."
-  where
-  networkToInt :: NetworkId -> Int
-  networkToInt = case _ of
-    TestnetId -> 0
-    MainnetId -> 1
-
-  printNetworkIdName :: Int -> String
-  printNetworkIdName = case _ of
-    0 -> "Testnet"
-    _ -> "Mainnet"
-
-  getWalletNetworkId :: QueryM (Maybe Int)
-  getWalletNetworkId = do
-    join <$> actionBasedOnWallet
-      (\w -> map (Just <<< Just) <<< _.getNetworkId w)
-      (\_ -> pure Nothing)
-
--- | Close the websockets in `QueryRuntime`, effectively making it unusable
-stopQueryRuntime
-  :: QueryRuntime
-  -> Effect Unit
-stopQueryRuntime runtime = do
-  _wsFinalize $ underlyingWebSocket runtime.ogmiosWs
-  _wsClose $ underlyingWebSocket runtime.ogmiosWs
-  _wsFinalize $ underlyingWebSocket runtime.datumCacheWs
-  _wsClose $ underlyingWebSocket runtime.datumCacheWs
-
 -- | Used in `mkQueryRuntime` only
 data QueryRuntimeModel = QueryRuntimeModel
   DatumCacheWebSocket
@@ -511,7 +386,7 @@ mkQueryRuntime config = do
           mkOgmiosWebSocketAff datumCacheWsRef logger config.ogmiosConfig
         pparams <- getProtocolParametersAff ogmiosWs logger
         pure $ ogmiosWs /\ pparams
-      <*> parallel (for config.walletSpec mkWalletBySpec)
+      <*> parallel (for config.walletSpec $ mkWalletBySpec config.networkId)
   pure
     { ogmiosWs
     , datumCacheWs
@@ -522,8 +397,8 @@ mkQueryRuntime config = do
   where
   logger = mkLogger config.logLevel config.customLogger
 
-mkWalletBySpec :: WalletSpec -> Aff Wallet
-mkWalletBySpec = case _ of
+mkWalletBySpec :: NetworkId -> WalletSpec -> Aff Wallet
+mkWalletBySpec networkId = case _ of
   UseKeys paymentKeySpec mbStakeKeySpec -> do
     privatePaymentKey <- case paymentKeySpec of
       PrivatePaymentKeyFile filePath ->
@@ -532,40 +407,12 @@ mkWalletBySpec = case _ of
     mbPrivateStakeKey <- for mbStakeKeySpec case _ of
       PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
       PrivateStakeKeyValue key -> pure key
-    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
+    pure $ mkKeyWallet networkId privatePaymentKey mbPrivateStakeKey
   ConnectToNami -> mkWalletAff NamiWallet
   ConnectToGero -> mkWalletAff GeroWallet
   ConnectToFlint -> mkWalletAff FlintWallet
   ConnectToEternl -> mkWalletAff EternlWallet
   ConnectToLode -> mkWalletAff LodeWallet
-
-runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
-runQueryM config action = do
-  withQueryRuntime config \runtime ->
-    runQueryMInRuntime config runtime action
-
-runQueryMWithSettings
-  :: forall (r :: Row Type) (a :: Type)
-   . QueryEnv r
-  -> QueryM a
-  -> Aff a
-runQueryMWithSettings settings action = do
-  runQueryMInRuntime settings.config settings.runtime action
-
-runQueryMInRuntime
-  :: forall (r :: Row Type) (a :: Type)
-   . QueryConfig
-  -> QueryRuntime
-  -> QueryM a
-  -> Aff a
-runQueryMInRuntime config runtime = do
-  flip runReaderT { config, runtime, extraConfig: {} } <<< unwrap
-
--- | Returns the `ProtocolParameters` from the `QueryM` environment.
--- | Note that this is not necessarily the current value from the ledger.
-getProtocolParameters :: QueryM Ogmios.ProtocolParameters
-getProtocolParameters =
-  asks $ _.runtime >>> _.pparams
 
 getProtocolParametersAff
   :: OgmiosWebSocket
@@ -673,19 +520,6 @@ mempoolSnapshotHasTxAff ogmiosWs logger ms =
 -- Datum Cache Queries
 --------------------------------------------------------------------------------
 
-getDatumByHash :: DataHash -> QueryM (Maybe Datum)
-getDatumByHash hash = unwrap <$> do
-  mkDatumCacheRequest DcWsp.getDatumByHashCall _.getDatumByHash hash
-
-getDatumsByHashes :: Array DataHash -> QueryM (Map DataHash Datum)
-getDatumsByHashes hashes = Map.mapMaybe hush <$> getDatumsByHashesWithErrors
-  hashes
-
-getDatumsByHashesWithErrors
-  :: Array DataHash -> QueryM (Map DataHash (Either String Datum))
-getDatumsByHashesWithErrors hashes = unwrap <$> do
-  mkDatumCacheRequest DcWsp.getDatumsByHashesCall _.getDatumsByHashes hashes
-
 checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
 checkTxByHashAff datumCacheWs logger =
   mkDatumCacheRequestAff datumCacheWs logger DcWsp.getTxByHashCall _.getTxByHash
@@ -696,99 +530,8 @@ allowError
 allowError func = func <<< Right
 
 --------------------------------------------------------------------------------
--- Wallet
+-- Affjax
 --------------------------------------------------------------------------------
-
-getUnusedAddresses :: QueryM (Array Address)
-getUnusedAddresses = fold <$> do
-  actionBasedOnWallet _.getUnusedAddresses
-    (\_ -> pure [])
-
-getChangeAddress :: QueryM (Maybe Address)
-getChangeAddress = do
-  networkId <- getNetworkId
-  actionBasedOnWallet _.getChangeAddress (\kw -> (unwrap kw).address networkId)
-
-getRewardAddresses :: QueryM (Array Address)
-getRewardAddresses = fold <$> do
-  networkId <- getNetworkId
-  actionBasedOnWallet _.getRewardAddresses
-    (\kw -> Array.singleton <$> (unwrap kw).address networkId)
-
-getWalletAddresses :: QueryM (Array Address)
-getWalletAddresses = fold <$> do
-  networkId <- getNetworkId
-  actionBasedOnWallet _.getWalletAddresses
-    (\kw -> Array.singleton <$> (unwrap kw).address networkId)
-
-actionBasedOnWallet
-  :: forall (a :: Type)
-   . (Cip30Wallet -> Cip30Connection -> Aff (Maybe a))
-  -> (KeyWallet -> Aff a)
-  -> QueryM (Maybe a)
-actionBasedOnWallet walletAction keyWalletAction =
-  withMWalletAff case _ of
-    Eternl wallet -> callCip30Wallet wallet walletAction
-    Nami wallet -> callCip30Wallet wallet walletAction
-    Gero wallet -> callCip30Wallet wallet walletAction
-    Flint wallet -> callCip30Wallet wallet walletAction
-    Lode wallet -> callCip30Wallet wallet walletAction
-    KeyWallet kw -> pure <$> keyWalletAction kw
-
-signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)
-signData address payload = do
-  networkId <- getNetworkId
-  actionBasedOnWallet
-    (\wallet conn -> wallet.signData conn address payload)
-    (\kw -> (unwrap kw).signData networkId payload)
-
-getWallet :: QueryM (Maybe Wallet)
-getWallet = asks (_.runtime >>> _.wallet)
-
-getNetworkId :: QueryM NetworkId
-getNetworkId = asks $ _.config >>> _.networkId
-
-ownPubKeyHashes :: QueryM (Array PubKeyHash)
-ownPubKeyHashes = catMaybes <$> do
-  getWalletAddresses >>= traverse \address -> do
-    paymentCred <-
-      liftM
-        ( error $
-            "Unable to get payment credential from Address"
-        ) $
-        addressPaymentCred address
-    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
-
-ownPaymentPubKeyHashes :: QueryM (Array PaymentPubKeyHash)
-ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
-
-ownStakePubKeysHashes :: QueryM (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = do
-  addresses <- getWalletAddresses
-  pure $ addressToMStakePubKeyHash <$> addresses
-  where
-
-  addressToMStakePubKeyHash :: Address -> Maybe StakePubKeyHash
-  addressToMStakePubKeyHash address = do
-    baseAddress <- baseAddressFromAddress address
-    wrap <<< wrap <$> stakeCredentialToKeyHash
-      (baseAddressDelegationCred baseAddress)
-
-withMWalletAff
-  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> QueryM (Maybe a)
-withMWalletAff act = withMWallet (liftAff <<< act)
-
-withMWallet
-  :: forall (a :: Type). (Wallet -> QueryM (Maybe a)) -> QueryM (Maybe a)
-withMWallet act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
-  act
-
-callCip30Wallet
-  :: forall (a :: Type)
-   . Cip30Wallet
-  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
-  -> Aff a
-callCip30Wallet wallet act = act wallet wallet.connection
 
 data ClientError
   = ClientHttpError Affjax.Error
@@ -819,55 +562,6 @@ instance Show ClientError where
     "(ClientOtherError "
       <> err
       <> ")"
-
--- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
--- | returning an updated script with the provided arguments applied
-applyArgs
-  :: PlutusScript
-  -> Array PlutusData
-  -> QueryM (Either ClientError PlutusScript)
-applyArgs script args =
-  asks (_.ctlServerConfig <<< _.config) >>= case _ of
-    Nothing -> pure
-      $ Left
-      $
-        ClientOtherError
-          "The `ctl-server` service is required to call `applyArgs`. Please \
-          \provide a `Just` value in `ConfigParams.ctlServerConfig` and make \
-          \sure that the `ctl-server` service is running and available at the \
-          \provided host and port. The `ctl-server` packages can be obtained \
-          \from `overlays.ctl-server` defined in CTL's flake. Please see \
-          \`doc/runtime.md` in the CTL repository for more information"
-    Just config -> case traverse plutusDataToAeson args of
-      Nothing -> pure $ Left $ ClientEncodingError
-        "Failed to convert script args"
-      Just ps -> do
-        let
-          language :: Language
-          language = snd $ unwrap script
-
-          url :: String
-          url = mkHttpUrl config <</>> "apply-args"
-
-          reqBody :: Aeson
-          reqBody = encodeAeson
-            $ Object.fromFoldable
-                [ "script" /\ scriptToAeson script
-                , "args" /\ encodeAeson ps
-                ]
-        liftAff (postAeson url reqBody)
-          <#> map (PlutusScript <<< flip Tuple language) <<<
-            handleAffjaxResponse
-  where
-  plutusDataToAeson :: PlutusData -> Maybe Aeson
-  plutusDataToAeson =
-    map
-      ( encodeAeson
-          <<< byteArrayToHex
-          <<< Serialization.toBytes
-          <<< asOneOf
-      )
-      <<< Serialization.convertPlutusData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.

@@ -8,17 +8,17 @@ import Ctl.Internal.Address (ogmiosAddressToAddress)
 import Ctl.Internal.QueryM
   ( QueryM
   , getChainTip
-  , getDatumByHash
-  , getDatumsByHashes
-  , getDatumsByHashesWithErrors
+--   , getDatumByHash
+--   , getDatumsByHashes
+--   , getDatumsByHashesWithErrors
   , submitTxOgmios
   )
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.QueryM.GetTxByHash (getTxByHash)
 import Ctl.Internal.QueryM.Ogmios (OgmiosAddress)
-import Ctl.Internal.QueryM.SystemStart (getSystemStart)
-import Ctl.Internal.QueryM.Utxos (utxosAt)
+-- import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+-- import Ctl.Internal.QueryM.Utxos (utxosAt)
 import Ctl.Internal.Contract.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)

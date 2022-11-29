@@ -30,7 +30,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -51,53 +51,26 @@ import Ctl.Internal.Wallet
   , KeyWallet
   , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
   )
+import Ctl.Internal.Wallet (getChangeAddress, getRewardAddresses, getUnusedAddresses, getWalletAddresses, signData) as Aff
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (catMaybes)
 import Effect.Exception (error, throw)
 import Data.Traversable (for_, traverse)
 
 getUnusedAddresses :: Contract (Array Address)
-getUnusedAddresses = fold <$> do
-  actionBasedOnWallet _.getUnusedAddresses
-    (\_ -> pure [])
+getUnusedAddresses = withWalletAff Aff.getUnusedAddresses
 
 getChangeAddress :: Contract (Maybe Address)
-getChangeAddress = do
-  networkId <- getNetworkId
-  actionBasedOnWallet _.getChangeAddress (\kw -> (unwrap kw).address networkId)
+getChangeAddress = withWalletAff Aff.getChangeAddress
 
 getRewardAddresses :: Contract (Array Address)
-getRewardAddresses = fold <$> do
-  networkId <- getNetworkId
-  actionBasedOnWallet _.getRewardAddresses
-    (\kw -> Array.singleton <$> (unwrap kw).address networkId)
+getRewardAddresses = withWalletAff Aff.getRewardAddresses
 
 getWalletAddresses :: Contract (Array Address)
-getWalletAddresses = fold <$> do
-  networkId <- getNetworkId
-  actionBasedOnWallet _.getWalletAddresses
-    (\kw -> Array.singleton <$> (unwrap kw).address networkId)
-
-actionBasedOnWallet
-  :: forall (a :: Type)
-   . (Cip30Wallet -> Cip30Connection -> Aff (Maybe a))
-  -> (KeyWallet -> Aff a)
-  -> Contract (Maybe a)
-actionBasedOnWallet walletAction keyWalletAction =
-  withMWalletAff case _ of
-    Eternl wallet -> callCip30Wallet wallet walletAction
-    Nami wallet -> callCip30Wallet wallet walletAction
-    Gero wallet -> callCip30Wallet wallet walletAction
-    Flint wallet -> callCip30Wallet wallet walletAction
-    Lode wallet -> callCip30Wallet wallet walletAction
-    KeyWallet kw -> pure <$> keyWalletAction kw
+getWalletAddresses = withWalletAff Aff.getWalletAddresses
 
 signData :: Address -> RawBytes -> Contract (Maybe DataSignature)
-signData address payload = do
-  networkId <- getNetworkId
-  actionBasedOnWallet
-    (\wallet conn -> wallet.signData conn address payload)
-    (\kw -> (unwrap kw).signData networkId payload)
+signData address payload = withWalletAff (Aff.signData address payload)
 
 getWallet :: Contract (Maybe Wallet)
 getWallet = asks (_.wallet)
@@ -131,14 +104,15 @@ ownStakePubKeysHashes = do
     wrap <<< wrap <$> stakeCredentialToKeyHash
       (baseAddressDelegationCred baseAddress)
 
-withMWalletAff
-  :: forall (a :: Type). (Wallet -> Aff (Maybe a)) -> Contract (Maybe a)
-withMWalletAff act = withMWallet (liftAff <<< act)
+withWalletAff
+  :: forall (a :: Type). (Wallet -> Aff a) -> Contract a
+withWalletAff act = withWallet (liftAff <<< act)
 
-withMWallet
-  :: forall (a :: Type). (Wallet -> Contract (Maybe a)) -> Contract (Maybe a)
-withMWallet act = asks _.wallet >>= maybe (pure Nothing)
-  act
+withWallet
+  :: forall (a :: Type). (Wallet -> Contract a) -> Contract a
+withWallet act = do
+  wallet <- liftedM (error "No wallet set") $ asks _.wallet
+  act wallet
 
 callCip30Wallet
   :: forall (a :: Type)
@@ -171,8 +145,7 @@ getWalletCollateral = do
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
-        networkId <- getNetworkId
-        addr <- liftAff $ (unwrap kw).address networkId
+        let addr = (unwrap kw).address
         utxos <- (liftAff $ queryHandle.utxosAt addr) <#> hush >>> fromMaybe Map.empty
           >>= filterLockedUtxos
         pparams <- asks $ _.ledgerConstants >>> _.pparams <#> unwrap

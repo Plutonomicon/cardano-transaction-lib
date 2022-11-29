@@ -173,7 +173,7 @@ route configs tests = do
               # maybe identity setClusterOptions mbClusterSetup
         do
           runContract configWithHooks
-            $ withCip30Mock (privateKeysToKeyWallet paymentKey stakeKey) mock
+            $ withCip30Mock (privateKeysToKeyWallet config.networkId paymentKey stakeKey) mock
                 test
   where
   -- Eternl does not initialize instantly. We have to add a small delay.

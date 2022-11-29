@@ -67,16 +67,17 @@ import Effect.Class (liftEffect)
 -- Key backend
 -------------------------------------------------------------------------------
 newtype KeyWallet = KeyWallet
-  { address :: NetworkId -> Aff Address
+  { address :: Address
   , selectCollateral ::
       CoinsPerUtxoUnit
       -> Int
       -> UtxoMap
       -> Effect (Maybe (Array TransactionUnspentOutput))
   , signTx :: Transaction -> Aff TransactionWitnessSet
-  , signData :: NetworkId -> RawBytes -> Aff DataSignature
+  , signData :: RawBytes -> Aff DataSignature
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
+  , networkId :: NetworkId
   }
 
 derive instance Newtype KeyWallet _
@@ -122,38 +123,40 @@ keyWalletPrivateStakeKey :: KeyWallet -> Maybe PrivateStakeKey
 keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
 
 privateKeysToAddress
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Aff Address
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Address
 privateKeysToAddress payKey mbStakeKey network = do
   let pubPayKey = publicKeyFromPrivateKey (unwrap payKey)
   case mbStakeKey of
-    Just stakeKey -> do
-      pubStakeKey <- pure $ publicKeyFromPrivateKey (unwrap stakeKey)
-      pure $ baseAddressToAddress $
+    Just stakeKey ->
+      let pubStakeKey = publicKeyFromPrivateKey (unwrap stakeKey)
+      in baseAddressToAddress $
         baseAddress
           { network
           , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
           , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
           }
 
-    Nothing -> pure $ pubPayKey # publicKeyHash
+    Nothing -> pubPayKey # publicKeyHash
       >>> keyHashCredential
       >>> { network, paymentCred: _ }
       >>> enterpriseAddress
       >>> enterpriseAddressToAddress
 
 privateKeysToKeyWallet
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
-privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
-  { address
-  , selectCollateral
-  , signTx
-  , signData
-  , paymentKey: payKey
-  , stakeKey: mbStakeKey
-  }
+  :: NetworkId -> PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
+privateKeysToKeyWallet networkId payKey mbStakeKey =
+  KeyWallet
+    { address
+    , selectCollateral
+    , signTx
+    , signData: signData address
+    , paymentKey: payKey
+    , stakeKey: mbStakeKey
+    , networkId
+    }
   where
-  address :: NetworkId -> Aff Address
-  address = privateKeysToAddress payKey mbStakeKey
+  address :: Address
+  address = privateKeysToAddress payKey mbStakeKey networkId
 
   selectCollateral
     :: CoinsPerUtxoUnit
@@ -178,7 +181,6 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
         mempty
     pure witnessSet'
 
-  signData :: NetworkId -> RawBytes -> Aff DataSignature
-  signData networkId payload = do
-    addr <- address networkId
+  signData :: Address -> RawBytes -> Aff DataSignature
+  signData addr payload = do
     liftEffect $ Cip30SignData.signData (unwrap payKey) addr payload

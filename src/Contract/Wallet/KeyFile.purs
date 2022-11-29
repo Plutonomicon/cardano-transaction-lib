@@ -6,8 +6,11 @@ module Contract.Wallet.KeyFile
 
 import Prelude
 
-import Ctl.Internal.Wallet (Wallet) as Wallet
-import Ctl.Internal.Wallet (mkKeyWallet)
+import Control.Monad.Reader.Class (asks)
+import Effect.Aff.Class (liftAff)
+import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Wallet.Key (KeyWallet) as Wallet
+import Ctl.Internal.Wallet.Key (privateKeysToKeyWallet)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyFromTextEnvelope
@@ -18,7 +21,6 @@ import Ctl.Internal.Wallet.KeyFile
   )
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
-import Effect.Aff (Aff)
 import Node.Path (FilePath)
 
 -- | Load `PrivateKey`s from `skey` files (the files should be in JSON format as
@@ -29,8 +31,9 @@ import Node.Path (FilePath)
 -- |
 -- | **NodeJS only**
 mkKeyWalletFromFiles
-  :: FilePath -> Maybe FilePath -> Aff Wallet.Wallet
+  :: FilePath -> Maybe FilePath -> Contract Wallet.KeyWallet
 mkKeyWalletFromFiles paymentKeyFile mbStakeKeyFile = do
-  mkKeyWallet
+  networkId <- asks _.networkId
+  liftAff $ privateKeysToKeyWallet networkId
     <$> privatePaymentKeyFromFile paymentKeyFile
     <*> traverse privateStakeKeyFromFile mbStakeKeyFile
