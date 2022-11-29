@@ -16,7 +16,7 @@ import Mote (test)
 import Scaffold as Scaffold
 import Test.Spec.Runner (defaultConfig)
 
--- Run with `spago test --main Test.Scaffold.Main`
+-- Run with `npm run test`
 main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do
   Contract.Test.Mote.interpretWithConfig

@@ -28,7 +28,7 @@ import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
--- Run with `spago test --main Test.Ctl.Plutip`
+-- Run with `npm run plutip-test`
 main :: Effect Unit
 main = launchAff_ do
   Utils.interpretWithConfig
