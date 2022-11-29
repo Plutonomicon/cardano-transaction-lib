@@ -128,13 +128,15 @@ privateKeysToAddress payKey mbStakeKey network = do
   let pubPayKey = publicKeyFromPrivateKey (unwrap payKey)
   case mbStakeKey of
     Just stakeKey ->
-      let pubStakeKey = publicKeyFromPrivateKey (unwrap stakeKey)
-      in baseAddressToAddress $
-        baseAddress
-          { network
-          , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
-          , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
-          }
+      let
+        pubStakeKey = publicKeyFromPrivateKey (unwrap stakeKey)
+      in
+        baseAddressToAddress $
+          baseAddress
+            { network
+            , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
+            , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
+            }
 
     Nothing -> pubPayKey # publicKeyHash
       >>> keyHashCredential

@@ -7,12 +7,12 @@ module Contract.Staking
 
 import Prelude
 
-import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Contract.Monad (Contract)
 import Ctl.Internal.Cardano.Types.Transaction
   ( PoolPubKeyHash
   , PoolRegistrationParams
   )
+import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools as QueryM
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)

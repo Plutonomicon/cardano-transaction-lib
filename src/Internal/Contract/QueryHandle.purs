@@ -3,17 +3,13 @@ module Ctl.Internal.Contract.QueryHandle where
 import Prelude
 
 import Contract.Log (logDebug')
-import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
-import Data.Either (Either)
-import Untagged.Union (asOneOf)
-import Data.Newtype (unwrap, wrap)
-import Ctl.Internal.Hashing (transactionHash) as Hashing
-import Effect.Class (liftEffect)
-import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput, UtxoMap)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.QueryM.CurrentEpoch(getCurrentEpoch) as QueryM
-import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Transaction
+  , TransactionOutput
+  , UtxoMap
+  )
 import Ctl.Internal.Contract.Monad
   ( Contract
   , ContractEnv
@@ -25,8 +21,11 @@ import Ctl.Internal.Contract.QueryBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   , defaultBackend
   )
-import Ctl.Internal.QueryM (getChainTip, submitTxOgmios, evaluateTxOgmios) as QueryM
+import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.QueryM (ClientError, QueryM)
+import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
+import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
+import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getDatumsByHashes
@@ -36,17 +35,22 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, CurrentEpoch) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import Data.Either (Either)
 import Data.Map (Map)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Undefined (undefined)
-import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.QueryM.Ogmios (CurrentEpoch, AdditionalUtxoSet) as Ogmios
+import Untagged.Union (asOneOf)
 
 -- Why ClientError?
 type AffE (a :: Type) = Aff (Either ClientError a)
@@ -74,9 +78,9 @@ type QueryHandle =
   -- evaluateTx
   -- chainTip
   -- getProtocolParameters
-    -- this gets done early on
-    -- perhaps genesis/systemStart should be too
-    -- getConstantParameters
+  -- this gets done early on
+  -- perhaps genesis/systemStart should be too
+  -- getConstantParameters
   -- systemStart
   -- currentEpoch
   -- we need era summaries start + end, and the era summaries slot length

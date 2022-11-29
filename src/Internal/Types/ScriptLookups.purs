@@ -53,11 +53,7 @@ module Ctl.Internal.Types.ScriptLookups
   ) where
 
 import Prelude hiding (join)
-import Prelude (join) as Bind
 
-import Ctl.Internal.Contract.Monad (Contract, wrapQueryM)
-import Effect.Aff.Class (liftAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Aeson (class EncodeAeson)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
@@ -105,6 +101,8 @@ import Ctl.Internal.Cardano.Types.Value
   , negation
   , split
   )
+import Ctl.Internal.Contract.Monad (Contract, wrapQueryM)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM, (<\>))
 import Ctl.Internal.IsData (class IsData)
@@ -249,7 +247,7 @@ import Data.Array (cons, filter, mapWithIndex, partition, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
-import Data.Either (Either(Left, Right), either, isRight, note, hush)
+import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -270,8 +268,10 @@ import Data.Traversable (for, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import MedeaPrelude (mapMaybe)
+import Prelude (join) as Bind
 import Type.Proxy (Proxy(Proxy))
 
 -- Taken mainly from https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-constraints/html/Ledger-Constraints-OffChain.html
@@ -640,7 +640,8 @@ runConstraintsM
   -> TxConstraints redeemer datum
   -> Contract (Either MkUnbalancedTxError (ConstraintProcessingState validator))
 runConstraintsM lookups txConstraints = do
-  costModels <- asks $ _.ledgerConstants >>> _.pparams >>> unwrap >>> _.costModels
+  costModels <- asks $ _.ledgerConstants >>> _.pparams >>> unwrap >>>
+    _.costModels
   let
     initCps :: ConstraintProcessingState validator
     initCps =
@@ -849,7 +850,9 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     -- We are erroring if we don't have a datumhash given the polymorphic datum
     -- in the `OutputConstraint`:
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
-    dat <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> Bind.join >>> note (CannotQueryDatum dHash)
+    dat <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush
+      >>> Bind.join
+      >>> note (CannotQueryDatum dHash)
     _cpsToTxBody <<< _outputs %= Array.(:) txOut
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provideValue value'
@@ -1053,7 +1056,9 @@ processConstraint mpsMap osMap c = do
       { slotReference, slotLength, systemStart } <- asks _.ledgerConstants
       runExceptT do
         ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
-          posixTimeRangeToTransactionValidity slotReference slotLength systemStart posixTimeRange
+          posixTimeRangeToTransactionValidity slotReference slotLength
+            systemStart
+            posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsToTxBody <<< _Newtype %=
           _
@@ -1115,8 +1120,10 @@ processConstraint mpsMap osMap c = do
                   if isRight mDatumLookup then
                     pure mDatumLookup
                   else
-                    liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> Bind.join >>> note
-                      (CannotQueryDatum dHash)
+                    liftAff $ queryHandle.getDatumByHash dHash <#> hush
+                      >>> Bind.join
+                      >>> note
+                        (CannotQueryDatum dHash)
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
@@ -1370,7 +1377,8 @@ processConstraint mpsMap osMap c = do
       attachToCps attachNativeScript (unwrap stakeValidator)
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- asks _.networkId
-      mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards spkh
+      mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards
+        spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
       let
@@ -1381,7 +1389,8 @@ processConstraint mpsMap osMap c = do
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = plutusScriptStakeValidatorHash stakeValidator
       networkId <- asks _.networkId
-      mbRewards <- lift $ lift $ wrapQueryM $ getValidatorHashDelegationsAndRewards hash
+      mbRewards <- lift $ lift $ wrapQueryM $
+        getValidatorHashDelegationsAndRewards hash
       let
         rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
           hash
@@ -1403,7 +1412,8 @@ processConstraint mpsMap osMap c = do
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = nativeScriptStakeValidatorHash stakeValidator
       networkId <- asks _.networkId
-      mbRewards <- lift $ lift $ wrapQueryM $ getValidatorHashDelegationsAndRewards hash
+      mbRewards <- lift $ lift $ wrapQueryM $
+        getValidatorHashDelegationsAndRewards hash
       let
         rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
           hash

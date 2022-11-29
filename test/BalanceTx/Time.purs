@@ -14,9 +14,9 @@ import Contract.Time
   , Slot
   , always
   , from
-  , getSystemStart
   , getSlotLength
   , getSlotReference
+  , getSystemStart
   , maxSlot
   , mkFiniteInterval
   , never
@@ -160,7 +160,9 @@ toPosixTime time = do
   slotReference <- getSlotReference
   slotLength <- getSlotLength
   systemStart <- getSystemStart
-  eitherTime <- liftEffect $ slotToPosixTime slotReference slotLength systemStart time
+  eitherTime <- liftEffect $ slotToPosixTime slotReference slotLength
+    systemStart
+    time
   case eitherTime of
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value

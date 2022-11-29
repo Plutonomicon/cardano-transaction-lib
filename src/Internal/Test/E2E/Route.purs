@@ -12,7 +12,6 @@ import Prelude
 import Contract.Config (ContractParams)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
-import Ctl.Internal.Contract.QueryBackend (QueryBackendParams(CtlBackendParams), mkSingletonBackendParams)
 import Contract.Wallet
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
@@ -21,6 +20,10 @@ import Contract.Wallet
 import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Internal.Contract.QueryBackend
+  ( QueryBackendParams(CtlBackendParams)
+  , mkSingletonBackendParams
+  )
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
@@ -173,7 +176,9 @@ route configs tests = do
               # maybe identity setClusterOptions mbClusterSetup
         do
           runContract configWithHooks
-            $ withCip30Mock (privateKeysToKeyWallet config.networkId paymentKey stakeKey) mock
+            $ withCip30Mock
+                (privateKeysToKeyWallet config.networkId paymentKey stakeKey)
+                mock
                 test
   where
   -- Eternl does not initialize instantly. We have to add a small delay.
@@ -212,10 +217,10 @@ route configs tests = do
     config =
     config
       { backendParams = mkSingletonBackendParams $ CtlBackendParams
-        { ogmiosConfig: ogmiosConfig
-        , odcConfig: datumCacheConfig
-        , kupoConfig: kupoConfig
-        }
+          { ogmiosConfig: ogmiosConfig
+          , odcConfig: datumCacheConfig
+          , kupoConfig: kupoConfig
+          }
       , ctlServerConfig = ctlServerConfig
       }
 

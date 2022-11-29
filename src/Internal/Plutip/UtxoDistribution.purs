@@ -10,8 +10,6 @@ module Ctl.Internal.Plutip.UtxoDistribution
 
 import Prelude
 
-import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
-import Contract.Wallet (mkKeyWalletFromPrivateKeys, withKeyWallet)
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
@@ -33,6 +31,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
+import Contract.Wallet (mkKeyWalletFromPrivateKeys, withKeyWallet)
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
@@ -43,6 +42,7 @@ import Ctl.Internal.Plutip.Types
   , UtxoAmount
   )
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)

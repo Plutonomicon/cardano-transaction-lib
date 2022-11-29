@@ -3,9 +3,6 @@ module Ctl.Internal.Contract.MinFee (calculateMinFee) where
 import Prelude
 
 import Control.Monad.Reader.Class (asks)
-import Data.Either (hush)
-import Effect.Aff.Class (liftAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , UtxoMap
@@ -17,9 +14,10 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin)
-import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses, getWalletCollateral)
+import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressPaymentCred
@@ -31,6 +29,7 @@ import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
+import Data.Either (hush)
 import Data.Lens.Getter ((^.))
 import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
 import Data.Maybe (fromMaybe, maybe)
@@ -40,6 +39,7 @@ import Data.Set (difference, fromFoldable, intersection, mapMaybe, union) as Set
 import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
+import Effect.Aff.Class (liftAff)
 
 -- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
 calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
@@ -66,7 +66,8 @@ getSelfSigners tx additionalUtxos = do
 
   (inUtxosAddrs :: Set Address) <- setFor txInputs $ \txInput ->
     liftedM (error $ "Couldn't get tx output for " <> show txInput) $
-      (map <<< map) (_.address <<< unwrap) (liftAff $ queryHandle.getUtxoByOref txInput <#> hush >>> join)
+      (map <<< map) (_.address <<< unwrap)
+        (liftAff $ queryHandle.getUtxoByOref txInput <#> hush >>> join)
 
   -- Get all tx output addressses
   let

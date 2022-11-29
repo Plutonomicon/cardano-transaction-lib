@@ -16,9 +16,9 @@ import Ctl.Internal.JsWebSocket
   , _wsSend
   )
 import Ctl.Internal.QueryM
-  ( WebSocket(WebSocket)
+  ( ListenerSet
+  , WebSocket(WebSocket)
   , WebsocketDispatch
-  , ListenerSet
   , defaultMessageListener
   , defaultOgmiosWsConfig
   , mkListenerSet

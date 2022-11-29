@@ -41,7 +41,7 @@ reindexSpentScriptRedeemers
   -> Array RedeemersTxIn
   -> Either ReindexErrors (Array T.Redeemer)
 reindexSpentScriptRedeemers inputs redeemersTxIns = do
-  redeemersTxInsReindexed <- 
+  redeemersTxInsReindexed <-
     reindexSpentScriptRedeemers' inputs redeemersTxIns
   Right $ map fst redeemersTxInsReindexed
 

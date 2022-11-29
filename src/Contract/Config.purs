@@ -28,7 +28,10 @@ import Prelude
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Ctl.Internal.Contract.Monad (ContractParams)
-import Ctl.Internal.Contract.QueryBackend (QueryBackendParams(CtlBackendParams, BlockfrostBackendParams), mkSingletonBackendParams)
+import Ctl.Internal.Contract.QueryBackend
+  ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
+  , mkSingletonBackendParams
+  )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM (emptyHooks)
 import Ctl.Internal.QueryM (emptyHooks) as X
@@ -63,10 +66,10 @@ import Data.Maybe (Maybe(Just, Nothing))
 testnetConfig :: ContractParams
 testnetConfig =
   { backendParams: mkSingletonBackendParams $ CtlBackendParams
-    { ogmiosConfig: defaultOgmiosWsConfig
-    , odcConfig: defaultDatumCacheWsConfig
-    , kupoConfig: defaultKupoServerConfig
-    }
+      { ogmiosConfig: defaultOgmiosWsConfig
+      , odcConfig: defaultDatumCacheWsConfig
+      , kupoConfig: defaultKupoServerConfig
+      }
   , ctlServerConfig: Just defaultServerConfig
   , networkId: TestnetId
   , walletSpec: Nothing

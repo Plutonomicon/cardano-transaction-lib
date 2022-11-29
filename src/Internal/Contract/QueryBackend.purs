@@ -15,15 +15,15 @@ module Ctl.Internal.Contract.QueryBackend
 
 import Prelude
 
-import Ctl.Internal.QueryM (OgmiosWebSocket, DatumCacheWebSocket)
+import Ctl.Internal.QueryM (DatumCacheWebSocket, OgmiosWebSocket)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Data.Array (nub) as Array
 import Data.Array ((:))
-import Data.Traversable (class Traversable, traverse, sequence)
-import Data.Foldable (class Foldable, foldl, foldr, foldMap, length)
+import Data.Foldable (class Foldable, foldMap, foldl, foldr, length)
 import Data.Map (Map)
 import Data.Map (empty, insert, lookup) as Map
 import Data.Maybe (Maybe(Just))
+import Data.Traversable (class Traversable, sequence, traverse)
 import Effect (Effect)
 import Effect.Exception (throw)
 
@@ -110,13 +110,13 @@ instance HasQueryBackendLabel QueryBackendParams where
 
 type CtlBackend =
   { ogmios ::
-    { config :: ServerConfig
-    , ws :: OgmiosWebSocket
-    }
+      { config :: ServerConfig
+      , ws :: OgmiosWebSocket
+      }
   , odc ::
-    { config :: ServerConfig
-    , ws :: DatumCacheWebSocket
-    }
+      { config :: ServerConfig
+      , ws :: DatumCacheWebSocket
+      }
   , kupoConfig :: ServerConfig
   }
 

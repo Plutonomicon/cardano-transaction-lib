@@ -4,8 +4,6 @@ module Ctl.Internal.Contract.ApplyArgs
 
 import Prelude
 
-import Ctl.Internal.QueryM (ClientError(..), scriptToAeson, postAeson, handleAffjaxResponse)
-import Ctl.Internal.Contract.Monad(Contract)
 import Aeson
   ( Aeson
   , encodeAeson
@@ -13,7 +11,14 @@ import Aeson
 import Control.Monad.Reader.Trans
   ( asks
   )
+import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Helpers ((<</>>))
+import Ctl.Internal.QueryM
+  ( ClientError(ClientOtherError, ClientEncodingError)
+  , handleAffjaxResponse
+  , postAeson
+  , scriptToAeson
+  )
 import Ctl.Internal.QueryM.ServerConfig
   ( mkHttpUrl
   )

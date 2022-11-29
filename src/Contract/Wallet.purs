@@ -24,7 +24,6 @@ import Contract.Monad (Contract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
   , getRewardAddresses
@@ -32,6 +31,7 @@ import Ctl.Internal.Contract.Wallet
   , getWallet
   , signData
   ) as Contract
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet

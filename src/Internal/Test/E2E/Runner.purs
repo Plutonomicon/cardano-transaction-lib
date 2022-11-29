@@ -12,7 +12,10 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend), defaultBackend)
+import Ctl.Internal.Contract.QueryBackend
+  ( QueryBackend(CtlBackend)
+  , defaultBackend
+  )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)

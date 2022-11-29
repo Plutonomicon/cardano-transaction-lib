@@ -7,10 +7,10 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle')
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle')
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Serialization
@@ -18,7 +18,10 @@ import Ctl.Internal.Serialization
   , convertValue
   , toBytes
   )
-import Ctl.Internal.Serialization.Address (Address, NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId(TestnetId, MainnetId)
+  )
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
@@ -132,7 +135,7 @@ mkCip30Mock pKey mSKey = do
 
     keyWallet = privateKeysToKeyWallet env.networkId pKey mSKey
 
-    addressHex = 
+    addressHex =
       byteArrayToHex $ toBytes $ asOneOf ((unwrap keyWallet).address :: Address)
 
   pure $
@@ -171,12 +174,12 @@ mkCip30Mock pKey mSKey = do
             utxos
         pure $ byteArrayToHex $ toBytes $ asOneOf value
     , getUsedAddresses: fromAff do
-        pure [addressHex]
+        pure [ addressHex ]
     , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
         pure addressHex
     , getRewardAddresses: fromAff do
-        pure [addressHex]
+        pure [ addressHex ]
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str

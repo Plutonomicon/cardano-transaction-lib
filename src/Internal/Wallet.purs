@@ -54,7 +54,22 @@ import Ctl.Internal.Cardano.Types.Transaction
   , mkPublicKey
   )
 import Ctl.Internal.Helpers ((<<>>))
+import Ctl.Internal.Helpers as Helpers
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId(TestnetId, MainnetId)
+  , addressPaymentCred
+  , baseAddressDelegationCred
+  , baseAddressFromAddress
+  , stakeCredentialToKeyHash
+  )
 import Ctl.Internal.Types.Natural (fromInt', minus)
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash
+  , PubKeyHash
+  , StakePubKeyHash
+  )
+import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
 import Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
@@ -69,34 +84,19 @@ import Ctl.Internal.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
+import Data.Array as Array
+import Data.Foldable (fold)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (over, wrap, unwrap)
+import Data.Newtype (over, unwrap, wrap)
+import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
-import Ctl.Internal.Helpers as Helpers
-import Data.Array as Array
-import Data.Foldable (fold)
-import Data.Traversable (traverse)
-import Effect.Exception (throw)
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId(TestnetId, MainnetId)
-  , addressPaymentCred
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , stakeCredentialToKeyHash
-  )
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash
-  , PubKeyHash
-  , StakePubKeyHash
-  )
-import Ctl.Internal.Types.RawBytes (RawBytes)
 
 data Wallet
   = Nami Cip30Wallet
@@ -114,7 +114,10 @@ data WalletExtension
   | LodeWallet
 
 mkKeyWallet :: NetworkId -> PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWallet network payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet network payKey mbStakeKey
+mkKeyWallet network payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
+  network
+  payKey
+  mbStakeKey
 
 foreign import _enableWallet :: String -> Effect (Promise Cip30Connection)
 foreign import _isWalletAvailable :: String -> Effect Boolean
@@ -324,7 +327,8 @@ getUnusedAddresses wallet = fold <$> do
 
 getChangeAddress :: Wallet -> Aff (Maybe Address)
 getChangeAddress wallet = do
-  actionBasedOnWalletAff _.getChangeAddress (\kw -> pure $ pure (unwrap kw).address)
+  actionBasedOnWalletAff _.getChangeAddress
+    (\kw -> pure $ pure (unwrap kw).address)
     wallet
 
 getRewardAddresses :: Wallet -> Aff (Array Address)

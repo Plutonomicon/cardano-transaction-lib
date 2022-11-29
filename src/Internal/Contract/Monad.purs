@@ -16,14 +16,8 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
-import Data.Function (on)
-import Data.Foldable (maximumBy)
-import Ctl.Internal.Serialization.Address (NetworkId, Slot)
-import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
-import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
-import Ctl.Internal.QueryM (Hooks, Logger, QueryEnv, QueryM, WebSocket, getProtocolParametersAff, getSystemStartAff, getEraSummariesAff, mkDatumCacheWebSocketAff, mkLogger, mkOgmiosWebSocketAff, mkWalletBySpec, underlyingWebSocket)
-import Record.Builder (build, merge)
-import Control.Parallel (class Parallel, parTraverse, parTraverse_, parallel, sequential)
+import Control.Alt (class Alt)
+import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -33,39 +27,70 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Parallel
+  ( class Parallel
+  , parTraverse
+  , parTraverse_
+  , parallel
+  , sequential
+  )
+import Control.Plus (class Plus)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
+  , QueryBackendLabel(CtlBackendLabel)
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
   , QueryBackends
-  , QueryBackendLabel(CtlBackendLabel)
   , defaultBackend
   , lookupBackend
   )
 import Ctl.Internal.Helpers (liftM, liftedM, logWithLevel)
+import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
+import Ctl.Internal.QueryM
+  ( Hooks
+  , Logger
+  , QueryEnv
+  , QueryM
+  , WebSocket
+  , getEraSummariesAff
+  , getProtocolParametersAff
+  , getSystemStartAff
+  , mkDatumCacheWebSocketAff
+  , mkLogger
+  , mkOgmiosWebSocketAff
+  , mkWalletBySpec
+  , underlyingWebSocket
+  )
 import Ctl.Internal.QueryM.Logging (setupLogs)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SlotLength, SystemStart, RelativeTime) as Ogmios
+import Ctl.Internal.QueryM.Ogmios
+  ( ProtocolParameters
+  , RelativeTime
+  , SlotLength
+  , SystemStart
+  ) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
+import Ctl.Internal.Serialization.Address (NetworkId, Slot)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet (getNetworkId) as Wallet
 import Ctl.Internal.Wallet.Spec (WalletSpec)
 import Data.Either (Either(Left, Right))
+import Data.Foldable (maximumBy)
+import Data.Function (on)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (for_, traverse)
 import Effect (Effect)
+import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, try, throw)
+import Effect.Exception (Error, throw, try)
 import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
+import Record.Builder (build, merge)
 import Undefined (undefined)
-import Control.Alt (class Alt)
-import Control.Alternative (class Alternative)
-import Control.Plus (class Plus)
 
 --------------------------------------------------------------------------------
 -- Contract
@@ -158,18 +183,18 @@ type ContractEnv =
   -- We don't support changing protocol parameters, so supporting a HFC is even less unlikely
   -- slotLength can only change with a HFC.
   , ledgerConstants ::
-    { pparams :: Ogmios.ProtocolParameters
-    , systemStart :: Ogmios.SystemStart
-    -- Why not use Duration?
-    , slotLength :: Ogmios.SlotLength
-    -- A reference point in which the slotLength is assumed to be constant from
-    -- then until now, not including HFC which occur during contract evaluation
-    -- TODO: Drop systemStart and just normalize time AOT
-    --       Maybe not drop it, we export it in Contract. I'm not sure why though
-    -- TODO: We need to indicate that calculations in the past may be inaccurate
-    --       Or enforce slot reference to be as 'relatively old'
-    , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
-    }
+      { pparams :: Ogmios.ProtocolParameters
+      , systemStart :: Ogmios.SystemStart
+      -- Why not use Duration?
+      , slotLength :: Ogmios.SlotLength
+      -- A reference point in which the slotLength is assumed to be constant from
+      -- then until now, not including HFC which occur during contract evaluation
+      -- TODO: Drop systemStart and just normalize time AOT
+      --       Maybe not drop it, we export it in Contract. I'm not sure why though
+      -- TODO: We need to indicate that calculations in the past may be inaccurate
+      --       Or enforce slot reference to be as 'relatively old'
+      , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
+      }
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -197,51 +222,60 @@ mkContractEnv params = do
 
   pure $ build envBuilder constants
   where
-    logger :: Logger
-    logger = mkLogger params.logLevel params.customLogger
+  logger :: Logger
+  logger = mkLogger params.logLevel params.customLogger
 
-    buildWallet :: Aff (Maybe Wallet)
-    buildWallet = traverse (mkWalletBySpec params.networkId) params.walletSpec
+  buildWallet :: Aff (Maybe Wallet)
+  buildWallet = traverse (mkWalletBySpec params.networkId) params.walletSpec
 
-    constants =
-      { ctlServerConfig: params.ctlServerConfig
-      , networkId: params.networkId
-      , logLevel: params.logLevel
-      , walletSpec: params.walletSpec
-      , customLogger: params.customLogger
-      , suppressLogs: params.suppressLogs
-      , hooks: params.hooks
-      }
+  constants =
+    { ctlServerConfig: params.ctlServerConfig
+    , networkId: params.networkId
+    , logLevel: params.logLevel
+    , walletSpec: params.walletSpec
+    , customLogger: params.customLogger
+    , suppressLogs: params.suppressLogs
+    , hooks: params.hooks
+    }
 
 -- TODO Move CtlServer to a backend? Wouldn't make sense as a 'main' backend though
-buildBackend :: Logger -> QueryBackends QueryBackendParams -> Aff (QueryBackends QueryBackend)
+buildBackend
+  :: Logger
+  -> QueryBackends QueryBackendParams
+  -> Aff (QueryBackends QueryBackend)
 buildBackend logger = parTraverse case _ of
   CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
     datumCacheWsRef <- liftEffect $ Ref.new Nothing
     -- TODO Check the network in env matches up with the network of odc, ogmios and kupo
     --      Need to pass in the networkid
     sequential ado
-      odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger odcConfig
-      ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger ogmiosConfig
-      in CtlBackend
-        { ogmios:
-          { config: ogmiosConfig
-          , ws: ogmiosWs
+      odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger
+        odcConfig
+      ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger
+        ogmiosConfig
+      in
+        CtlBackend
+          { ogmios:
+              { config: ogmiosConfig
+              , ws: ogmiosWs
+              }
+          , odc:
+              { config: odcConfig
+              , ws: odcWs
+              }
+          , kupoConfig
           }
-        , odc:
-          { config: odcConfig
-          , ws: odcWs
-          }
-        , kupoConfig
-        }
   BlockfrostBackendParams bf -> pure $ BlockfrostBackend bf
 
-getLedgerConstants :: Logger -> QueryBackend -> Aff
-  { pparams :: Ogmios.ProtocolParameters
-  , systemStart :: Ogmios.SystemStart
-  , slotLength :: Ogmios.SlotLength
-  , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
-  }
+getLedgerConstants
+  :: Logger
+  -> QueryBackend
+  -> Aff
+       { pparams :: Ogmios.ProtocolParameters
+       , systemStart :: Ogmios.SystemStart
+       , slotLength :: Ogmios.SlotLength
+       , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
+       }
 getLedgerConstants logger = case _ of
   CtlBackend { ogmios: { ws } } -> do
     pparams <- getProtocolParametersAff ws logger
@@ -249,10 +283,14 @@ getLedgerConstants logger = case _ of
     -- Do we ever recieve an eraSummary ahead of schedule?
     -- Maybe search for the chainTip's era
     latestEraSummary <- liftedM (error "Could not get EraSummary") do
-      map unwrap <<< (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot))) <<< unwrap <$> getEraSummariesAff ws logger
+      map unwrap
+        <<<
+          (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot)))
+        <<< unwrap <$> getEraSummariesAff ws logger
     let
       slotLength = _.slotLength $ unwrap $ _.parameters $ latestEraSummary
-      slotReference = (\{slot, time} -> {slot, time}) $ unwrap $ _.start $ latestEraSummary
+      slotReference = (\{ slot, time } -> { slot, time }) $ unwrap $ _.start $
+        latestEraSummary
     pure { pparams, slotLength, systemStart, slotReference }
   BlockfrostBackend _ -> undefined
 
@@ -346,9 +384,10 @@ type ContractParams =
 wrapQueryM :: forall (a :: Type). QueryM a -> Contract a
 wrapQueryM qm = do
   backend <- asks _.backend
-  ctlBackend <- liftM (error "Operation only supported on CTL backend") $ lookupBackend CtlBackendLabel backend >>= case _ of
-    CtlBackend b -> Just b
-    _ -> Nothing
+  ctlBackend <- liftM (error "Operation only supported on CTL backend") $
+    lookupBackend CtlBackendLabel backend >>= case _ of
+      CtlBackend b -> Just b
+      _ -> Nothing
   contractEnv <- ask
   liftAff $ runQueryM contractEnv ctlBackend qm
 

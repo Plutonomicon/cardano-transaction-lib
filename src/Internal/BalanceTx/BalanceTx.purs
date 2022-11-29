@@ -11,8 +11,6 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
 import Control.Monad.Reader.Class (asks)
-import Effect.Aff.Class (liftAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
@@ -71,8 +69,8 @@ import Ctl.Internal.BalanceTx.Types
   , askCoinsPerUtxoUnit
   , askNetworkId
   , asksConstraints
-  , liftEitherContract
   , liftContract
+  , liftEitherContract
   , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
@@ -106,11 +104,12 @@ import Ctl.Internal.Cardano.Types.Value
   , valueToCoin'
   )
 import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet
-  ( getWalletCollateral
-  , filterLockedUtxos
+  ( filterLockedUtxos
+  , getWalletCollateral
   )
+import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressPaymentCred
@@ -136,6 +135,7 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 
 -- | Balances an unbalanced transaction using the specified balancer
@@ -160,10 +160,11 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherContract $ traverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs <#>
-      traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
+    utxos <- liftEitherContract $
+      traverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs <#>
+        traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
 
-        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+          >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
     unbalancedCollTx <-
       case Array.null (unbalancedTx ^. _redeemersTxIns) of

@@ -28,7 +28,7 @@ import Ctl.Internal.BalanceTx.Constraints
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
-import Ctl.Internal.Contract.Monad (ContractEnv, Contract)
+import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
 import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
@@ -66,7 +66,8 @@ asksContractEnv = lift <<< lift <<< asks
 
 askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
 askCoinsPerUtxoUnit =
-  asksContractEnv (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.ledgerConstants)
+  asksContractEnv
+    (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.ledgerConstants)
 
 askCip30Wallet :: BalanceTxM (Maybe Cip30Wallet)
 askCip30Wallet = asksContractEnv (cip30Wallet <=< _.wallet)

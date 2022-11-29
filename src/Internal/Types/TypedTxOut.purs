@@ -34,12 +34,12 @@ import Prelude
 
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Effect.Aff.Class (liftAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM)
@@ -60,7 +60,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Ctl.Internal.Contract.Monad (Contract)
+import Effect.Aff.Class (liftAff)
 
 -- | A `TransactionInput` tagged by a phantom type: and the
 -- | connection type of the output.
@@ -275,7 +275,8 @@ typeTxOut
     -- Assume `Nothing` is a public key.
     dHash <- liftM ExpectedScriptGotPubkey $ outputDatumDataHash datum
     void $ checkValidatorAddress networkId typedVal address
-    pd <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> join >>> note (CannotQueryDatum dHash)
+    pd <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush >>> join
+      >>> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd
     except $
       note CannotMakeTypedTxOut (mkTypedTxOut networkId typedVal dtOut amount)

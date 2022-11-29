@@ -4,14 +4,13 @@ module Test.Ctl.Plutip.Contract
 
 import Prelude
 
-import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
+  , getNetworkId
   , getWalletAddresses
   , getWalletCollateral
-  , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
@@ -103,6 +102,7 @@ import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
+import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -138,7 +138,6 @@ import Effect.Exception (error, throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
-import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , fullyAppliedScriptFixture
@@ -156,6 +155,7 @@ import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM PlutipTest Unit

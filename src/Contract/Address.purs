@@ -45,6 +45,13 @@ import Ctl.Internal.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
   ) as Address
+import Ctl.Internal.Contract.Wallet
+  ( getNetworkId
+  , getWalletAddresses
+  , getWalletCollateral
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeysHashes
+  ) as Contract
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -68,13 +75,6 @@ import Ctl.Internal.Plutus.Types.Address
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Contract.Wallet
-  ( getNetworkId
-  , getWalletAddresses
-  , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
-  , getWalletCollateral
-  ) as Contract
 import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress

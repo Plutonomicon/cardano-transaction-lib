@@ -21,8 +21,6 @@ import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Config (QueryBackendParams(CtlBackendParams))
-import Ctl.Internal.Contract.QueryBackend (defaultBackend, mkSingletonBackendParams)
-import Ctl.Internal.Contract.Monad (buildBackend, getLedgerConstants, stopContractEnv)
 import Contract.Monad
   ( Contract
   , ContractEnv
@@ -33,6 +31,15 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Ctl.Internal.Contract.Monad
+  ( buildBackend
+  , getLedgerConstants
+  , stopContractEnv
+  )
+import Ctl.Internal.Contract.QueryBackend
+  ( defaultBackend
+  , mkSingletonBackendParams
+  )
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn

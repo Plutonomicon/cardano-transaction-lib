@@ -26,6 +26,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
+import Ctl.Internal.Contract.ApplyArgs (applyArgs) as Contract
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
 import Ctl.Internal.QueryM
   ( ClientError
@@ -34,7 +35,6 @@ import Ctl.Internal.QueryM
       , ClientEncodingError
       )
   ) as ExportQueryM
-import Ctl.Internal.Contract.ApplyArgs (applyArgs) as Contract
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , nativeScriptStakeValidatorHash

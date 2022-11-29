@@ -40,9 +40,7 @@ module Contract.Transaction
 
 import Prelude
 
-import Contract.Prelude (undefined)
 import Aeson (class EncodeAeson, Aeson)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Contract.Monad
   ( Contract
   , liftContractM
@@ -50,6 +48,7 @@ import Contract.Monad
   , liftedM
   , runContractInEnv
   )
+import Contract.Prelude (undefined)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
@@ -144,6 +143,14 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _body
   , _outputs
   )
+import Ctl.Internal.Contract.AwaitTxConfirmed
+  ( awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
+  , awaitTxConfirmedWithTimeoutSlots
+  ) as Contract
+import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Sign (signTransaction) as Contract
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusUtxoMap
@@ -172,13 +179,6 @@ import Ctl.Internal.QueryM
       , ClientOtherError
       )
   ) as ExportQueryM
-import Ctl.Internal.Contract.AwaitTxConfirmed
-  ( awaitTxConfirmed
-  , awaitTxConfirmedWithTimeout
-  , awaitTxConfirmedWithTimeoutSlots
-  ) as Contract
-import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
-import Ctl.Internal.Contract.Sign (signTransaction) as Contract
 import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
@@ -518,7 +518,8 @@ awaitTxConfirmedWithTimeout
   :: Seconds
   -> TransactionHash
   -> Contract Unit
-awaitTxConfirmedWithTimeout timeout = Contract.awaitTxConfirmedWithTimeout timeout <<< unwrap
+awaitTxConfirmedWithTimeout timeout =
+  Contract.awaitTxConfirmedWithTimeout timeout <<< unwrap
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
 -- | Throws an exception on timeout.

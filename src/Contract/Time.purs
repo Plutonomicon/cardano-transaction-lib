@@ -13,10 +13,6 @@ module Contract.Time
 
 import Prelude
 
-import Effect.Aff.Class (liftAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Contract.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
@@ -24,7 +20,10 @@ import Contract.Chain
   , getTip
   ) as Chain
 import Contract.Monad (Contract)
+import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
+import Ctl.Internal.Contract.Monad (wrapQueryM)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
 import Ctl.Internal.QueryM.Ogmios
@@ -41,12 +40,12 @@ import Ctl.Internal.QueryM.Ogmios
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , EraSummaries
-  , SystemStart
-  , SlotLength
   , RelativeTime
+  , SlotLength
+  , SystemStart
   )
-import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
+import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -104,6 +103,7 @@ import Ctl.Internal.Types.Interval
   ) as Interval
 import Data.BigInt as BigInt
 import Data.UInt as UInt
+import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 
 -- | Get the current Epoch.

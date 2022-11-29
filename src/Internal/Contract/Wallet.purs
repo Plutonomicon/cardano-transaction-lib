@@ -2,8 +2,6 @@ module Ctl.Internal.Contract.Wallet where
 
 import Prelude
 
-import Ctl.Internal.Contract.Monad (Contract)
-
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
@@ -11,23 +9,10 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
-import Ctl.Internal.Helpers as Helpers
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Data.Array (head, catMaybes)
-import Data.Array as Array
-import Data.Either (hush)
-import Data.Foldable (fold)
-import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
-import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, for_, traverse)
-import Data.Tuple.Nested ((/\))
-import Data.UInt as UInt
-import Effect.Aff (Aff)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
+import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
+import Ctl.Internal.Helpers as Helpers
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -42,13 +27,33 @@ import Ctl.Internal.Types.PubKeyHash
   , StakePubKeyHash
   )
 import Ctl.Internal.Types.RawBytes (RawBytes)
+import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
   , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
   )
-import Ctl.Internal.Wallet (getChangeAddress, getRewardAddresses, getUnusedAddresses, getWalletAddresses, signData) as Aff
+import Ctl.Internal.Wallet
+  ( getChangeAddress
+  , getRewardAddresses
+  , getUnusedAddresses
+  , getWalletAddresses
+  , signData
+  ) as Aff
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
+import Data.Array (catMaybes, head)
+import Data.Array as Array
+import Data.Either (hush)
+import Data.Foldable (fold)
+import Data.Map as Map
+import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Traversable (for, for_, traverse)
+import Data.Tuple.Nested ((/\))
+import Data.UInt as UInt
+import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 
 getUnusedAddresses :: Contract (Array Address)
@@ -140,7 +145,8 @@ getWalletCollateral = do
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
         let addr = (unwrap kw).address
-        utxos <- (liftAff $ queryHandle.utxosAt addr) <#> hush >>> fromMaybe Map.empty
+        utxos <- (liftAff $ queryHandle.utxosAt addr)
+          <#> hush >>> fromMaybe Map.empty
           >>= filterLockedUtxos
         pparams <- asks $ _.ledgerConstants >>> _.pparams <#> unwrap
         let

@@ -7,7 +7,6 @@ module Contract.Wallet.KeyFile
 import Prelude
 
 import Control.Monad.Reader.Class (asks)
-import Effect.Aff.Class (liftAff)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Wallet.Key (KeyWallet) as Wallet
 import Ctl.Internal.Wallet.Key (privateKeysToKeyWallet)
@@ -21,6 +20,7 @@ import Ctl.Internal.Wallet.KeyFile
   )
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
+import Effect.Aff.Class (liftAff)
 import Node.Path (FilePath)
 
 -- | Load `PrivateKey`s from `skey` files (the files should be in JSON format as

@@ -17,10 +17,7 @@ module Contract.Monad
 
 import Prelude
 
-import Ctl.Internal.Contract.Monad
-  ( mkContractEnv
-  , stopContractEnv
-  ) as Contract
+import Ctl.Internal.Contract.Monad (Contract, ContractEnv, ContractParams)
 import Ctl.Internal.Contract.Monad
   ( Contract(Contract)
   , ContractEnv
@@ -29,6 +26,10 @@ import Ctl.Internal.Contract.Monad
   , runContractInEnv
   , withContractEnv
   ) as ExportContract
+import Ctl.Internal.Contract.Monad
+  ( mkContractEnv
+  , stopContractEnv
+  ) as Contract
 import Data.Either (Either, either, hush)
 import Data.Log.Tag
   ( TagSet
@@ -46,7 +47,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Prim.TypeError (class Warn, Text)
-import Ctl.Internal.Contract.Monad (ContractParams, ContractEnv, Contract)
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use

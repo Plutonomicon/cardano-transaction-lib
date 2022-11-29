@@ -7,18 +7,19 @@ import Prelude
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction (_body, _inputs, _witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as Transaction
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet
   ( callCip30Wallet
   , getWalletAddresses
   , getWalletUtxos
   , withWallet
   )
+import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Wallet (Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami))
 import Data.Array (elem, fromFoldable)
+import Data.Either (hush)
 import Data.Lens ((<>~))
 import Data.Lens.Getter ((^.))
 import Data.Map as Map
@@ -30,7 +31,6 @@ import Effect.Aff (delay, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw, try)
-import Data.Either (hush)
 
 signTransaction
   :: Transaction.Transaction -> Contract (Maybe Transaction.Transaction)
@@ -65,19 +65,19 @@ walletWaitForInputs :: Array TransactionInput -> Contract Unit
 walletWaitForInputs txInputs = do
   queryHandle <- getQueryHandle
   ownAddrs <- getWalletAddresses
-  ownInputUtxos :: Map.Map TransactionInput _
-    <- txInputs #
-         traverse
-           ( \txInput -> do
-               utxo <- liftedM (error "Could not get utxo") $ liftAff $ join <<< hush <$> queryHandle.getUtxoByOref txInput
-               pure (txInput /\ utxo)
-           ) >>> map
-           ( Map.fromFoldable >>> Map.filter
-               ( flip elem ownAddrs
-                   <<< _.address
-                   <<< unwrap
-               )
-           )
+  ownInputUtxos :: Map.Map TransactionInput _ <- txInputs #
+    traverse
+      ( \txInput -> do
+          utxo <- liftedM (error "Could not get utxo") $ liftAff $ join <<< hush
+            <$> queryHandle.getUtxoByOref txInput
+          pure (txInput /\ utxo)
+      ) >>> map
+      ( Map.fromFoldable >>> Map.filter
+          ( flip elem ownAddrs
+              <<< _.address
+              <<< unwrap
+          )
+      )
   let
     go attempts = do
       walletUtxos <- getWalletUtxos <#> fromMaybe Map.empty
@@ -99,5 +99,4 @@ walletWaitForInputs txInputs = do
   -- minutes, so 150 seconds would probably be enough to also account for
   -- possible network latency.
   go 150
-
 

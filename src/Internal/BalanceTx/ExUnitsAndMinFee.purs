@@ -6,8 +6,6 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 import Prelude
 
 import Control.Monad.Error.Class (liftEither, throwError)
-import Effect.Aff.Class (liftAff)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos) as Constraints
 import Ctl.Internal.BalanceTx.Error
@@ -43,8 +41,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , TxEvaluationResult(TxEvaluationResult)
@@ -82,6 +81,7 @@ import Data.Set as Set
 import Data.Traversable (for)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 
 evalTxExecutionUnits
@@ -92,7 +92,8 @@ evalTxExecutionUnits tx unattachedTx = do
   queryHandle <- liftContract getQueryHandle
   additionalUtxos <- getOgmiosAdditionalUtxoSet
   evalResult <-
-    unwrap <$> liftContract (liftAff $ queryHandle.evaluateTx tx additionalUtxos)
+    unwrap <$> liftContract
+      (liftAff $ queryHandle.evaluateTx tx additionalUtxos)
 
   case evalResult of
     Right a -> pure a
