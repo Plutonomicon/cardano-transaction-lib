@@ -6,9 +6,9 @@ import Contract.Prelude
 
 import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
+import Contract.Test.Mote as Contract.Test.Mote
 import Contract.Test.Plutip (PlutipTest, testPlutipContracts)
 import Contract.Test.Plutip as Contract.Test.Plutip
-import Contract.Test.Mote as Contract.Test.Mote
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff (Milliseconds(Milliseconds))
@@ -16,11 +16,12 @@ import Mote (test)
 import Scaffold as Scaffold
 import Test.Spec.Runner (defaultConfig)
 
+-- Run with `spago test --main Test.Scaffold.Main`
 main :: Effect Unit
 main = Contract.Monad.launchAff_ $ do
   Contract.Test.Mote.interpretWithConfig
-    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
-    $ testPlutipContracts config suite
+    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true } $
+    testPlutipContracts config suite
 
 suite :: Contract.Test.Mote.TestPlanM PlutipTest Unit
 suite = do
