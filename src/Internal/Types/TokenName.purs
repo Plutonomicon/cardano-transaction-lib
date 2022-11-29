@@ -30,6 +30,7 @@ import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Right, Left), either, note)
+import Data.Hashable (class Hashable)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
@@ -47,6 +48,7 @@ newtype TokenName = TokenName RawBytes
 derive newtype instance Eq TokenName
 derive newtype instance FromData TokenName
 derive newtype instance FromMetadata TokenName
+derive newtype instance Hashable TokenName
 derive newtype instance ToMetadata TokenName
 derive newtype instance Ord TokenName
 derive newtype instance ToData TokenName
