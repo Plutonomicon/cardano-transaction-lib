@@ -6,9 +6,9 @@ import Contract.Prelude
 
 import Contract.Config as Contract.Config
 import Contract.Monad as Contract.Monad
-import Ctl.Internal.Test.TestPlanM as Contract.Test.Mote
 import Contract.Test.Plutip (PlutipTest, testPlutipContracts)
 import Contract.Test.Plutip as Contract.Test.Plutip
+import Contract.Test.Mote as Contract.Test.Mote
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff (Milliseconds(Milliseconds))
