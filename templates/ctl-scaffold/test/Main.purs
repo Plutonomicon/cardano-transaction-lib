@@ -14,8 +14,8 @@ import Contract.Test.Plutip
   , testPlutipContracts
   , withWallets
   )
-import Data.BigInt as BigInt
-import Data.UInt as UInt
+import Data.BigInt (fromInt) as BigInt
+import Data.UInt (fromInt) as UInt
 import Effect.Aff (Milliseconds(Milliseconds))
 import Mote (test)
 import Scaffold (contract)
