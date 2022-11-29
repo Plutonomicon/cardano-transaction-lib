@@ -100,6 +100,7 @@
             withRuntime = true;
             packageLockOnly = true;
             packages = with pkgs; [
+              fd
               nodePackages.eslint
               nodePackages.prettier
             ];
