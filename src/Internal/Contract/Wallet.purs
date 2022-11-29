@@ -12,10 +12,8 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Helpers as Helpers
-import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
-import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet))
-import Data.Array (head)
+import Data.Array (head, catMaybes)
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Foldable (fold)
@@ -28,7 +26,6 @@ import Data.UInt as UInt
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
@@ -48,14 +45,11 @@ import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
-  , KeyWallet
   , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
   )
 import Ctl.Internal.Wallet (getChangeAddress, getRewardAddresses, getUnusedAddresses, getWalletAddresses, signData) as Aff
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Data.Array (catMaybes)
 import Effect.Exception (error, throw)
-import Data.Traversable (for_, traverse)
 
 getUnusedAddresses :: Contract (Array Address)
 getUnusedAddresses = withWalletAff Aff.getUnusedAddresses

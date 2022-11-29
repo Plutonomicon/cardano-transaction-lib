@@ -17,7 +17,6 @@ module Contract.Monad
 
 import Prelude
 
-import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.Monad
   ( mkContractEnv
   , stopContractEnv
@@ -45,10 +44,9 @@ import Effect.Aff (Aff)
 import Effect.Aff (Aff, launchAff_) as ExportAff
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect (Effect)
 import Effect.Exception (throw)
 import Prim.TypeError (class Warn, Text)
-import Ctl.Internal.Contract.Monad (ContractParams, ContractEnv)
+import Ctl.Internal.Contract.Monad (ContractParams, ContractEnv, Contract)
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
@@ -63,14 +61,14 @@ mkContractEnv
 mkContractEnv = Contract.mkContractEnv
 
 -- | Finalizes a `Contract` environment.
--- | Closes the websockets in `ContractEnv`, effectively making it unusable.
+-- | Closes the connections in `ContractEnv`, effectively making it unusable.
 stopContractEnv
   :: Warn
        ( Text
            "Using `stopContractEnv` is not recommended: users should rely on `withContractEnv` to finalize the runtime environment instead"
        )
   => ContractEnv
-  -> Effect Unit
+  -> Aff Unit
 stopContractEnv = Contract.stopContractEnv
 
 -- | Same as `liftContractM` but the `Maybe` value is in the `Aff` context.

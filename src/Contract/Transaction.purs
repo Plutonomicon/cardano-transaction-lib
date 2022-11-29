@@ -300,7 +300,7 @@ submit tx = do
 submitE
   :: BalancedSignedTransaction
   -> Contract (Either (Array Aeson) TransactionHash)
-submitE tx = -- TODO
+submitE = -- TODO
   undefined
 
 -- | Calculate the minimum transaction fee.

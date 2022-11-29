@@ -1018,7 +1018,7 @@ slotFromRelSlot
   :: Slot -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
 slotFromRelSlot
   start -- (EraSummary { start, end })
-  (RelSlot relSlot /\ mt@(ModTime modTime)) = do
+  (RelSlot relSlot /\ _) = do
   let
     startSlot = BigNum.toBigIntUnsafe $ unwrap start
     -- Round down to the nearest Slot to accept Milliseconds as input.

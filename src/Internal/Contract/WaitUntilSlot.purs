@@ -11,22 +11,17 @@ import Ctl.Internal.Contract.Monad(Contract)
 import Control.Monad.Reader.Class (asks)
 
 import Contract.Log (logTrace')
-import Ctl.Internal.Helpers (liftEither, liftM)
--- import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart, RelativeTime, SlotLength)
--- import Ctl.Internal.QueryM.SystemStart (getSystemStart)
+import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.QueryM.Ogmios (SystemStart, RelativeTime, SlotLength)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
-  , findSlotEraSummary
-  , getSlotLength
   , slotToPosixTime
   )
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural as Natural
-import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
 import Data.Either (hush)
@@ -49,9 +44,6 @@ waitUntilSlot futureSlot =
       | otherwise -> do
           { systemStart, slotLength, slotReference } <- asks _.ledgerConstants
           let slotLengthMs = unwrap slotLength * 1000.0
-          -- slotLengthMs <- map getSlotLength $ liftEither
-          --   $ lmap (const $ error "Unable to get current Era summary")
-          --   $ findSlotEraSummary eraSummaries slot
           -- `timePadding` in slots
           -- If there are less than `slotPadding` slots remaining, start querying for chainTip
           -- repeatedly, because it's possible that at any given moment Ogmios suddenly

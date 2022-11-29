@@ -138,7 +138,7 @@ import Effect.Exception (error, throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
-import Test.Ctl.AffInterface as AffInterface
+import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , fullyAppliedScriptFixture
@@ -161,7 +161,7 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 suite :: TestPlanM PlutipTest Unit
 suite = do
   group "Contract" do
-    flip mapTest AffInterface.suite
+    flip mapTest QueryM.AffInterface.suite
       (noWallet <<< wrapQueryM)
 
     NetworkId.suite

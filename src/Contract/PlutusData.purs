@@ -74,7 +74,6 @@ import Ctl.Internal.QueryM
   , defaultDatumCacheWsConfig
   , mkDatumCacheWebSocketAff
   ) as ExportQueryM
-import Ctl.Internal.QueryM.Kupo (getDatumByHash, getDatumsByHashes) as Kupo
 import Ctl.Internal.Serialization (serializeData) as Serialization
 import Ctl.Internal.ToData
   ( class ToData

@@ -17,12 +17,12 @@ import Prelude
 
 import Ctl.Internal.QueryM (OgmiosWebSocket, DatumCacheWebSocket)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
-import Data.Array (filter, nub) as Array
+import Data.Array (nub) as Array
 import Data.Array ((:))
-import Data.Traversable
-import Data.Foldable (foldl, length)
+import Data.Traversable (class Traversable, traverse, sequence)
+import Data.Foldable (class Foldable, foldl, foldr, foldMap, length)
 import Data.Map (Map)
-import Data.Map (empty, insert, lookup, singleton) as Map
+import Data.Map (empty, insert, lookup) as Map
 import Data.Maybe (Maybe(Just))
 import Effect (Effect)
 import Effect.Exception (throw)
@@ -58,17 +58,17 @@ mkBackendParams
   :: QueryBackendParams
   -> Array QueryBackendParams
   -> Effect (QueryBackends QueryBackendParams)
-mkBackendParams defaultBackend backends =
+mkBackendParams defaultBackend' backends =
   case length backends + 1 /= numUniqueBackends of
     true ->
       throw "mkBackendParams: multiple configs for the same service"
     false ->
-      pure $ QueryBackends defaultBackend $
+      pure $ QueryBackends defaultBackend' $
         foldl (\mp b -> Map.insert (backendLabel b) b mp) Map.empty backends
   where
   numUniqueBackends :: Int
   numUniqueBackends =
-    length $ Array.nub $ map backendLabel (defaultBackend : backends)
+    length $ Array.nub $ map backendLabel (defaultBackend' : backends)
 
 defaultBackend :: forall (backend :: Type). QueryBackends backend -> backend
 defaultBackend (QueryBackends backend _) = backend
@@ -80,8 +80,8 @@ lookupBackend
   => QueryBackendLabel
   -> QueryBackends backend
   -> Maybe backend
-lookupBackend key (QueryBackends defaultBackend backends)
-  | key == backendLabel defaultBackend = Just defaultBackend
+lookupBackend key (QueryBackends defaultBackend' backends)
+  | key == backendLabel defaultBackend' = Just defaultBackend'
   | otherwise = Map.lookup key backends
 
 --------------------------------------------------------------------------------

@@ -8,8 +8,6 @@ module Contract.Chain
   , module Chain
   ) where
 
-import Prelude
-
 import Contract.Monad (Contract)
 import Ctl.Internal.Contract (getChainTip) as Contract
 import Ctl.Internal.Contract.WaitUntilSlot

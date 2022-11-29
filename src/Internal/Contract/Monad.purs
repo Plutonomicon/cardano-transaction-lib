@@ -23,7 +23,7 @@ import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.QueryM (Hooks, Logger, QueryEnv, QueryM, WebSocket, getProtocolParametersAff, getSystemStartAff, getEraSummariesAff, mkDatumCacheWebSocketAff, mkLogger, mkOgmiosWebSocketAff, mkWalletBySpec, underlyingWebSocket)
 import Record.Builder (build, merge)
-import Control.Parallel (class Parallel, parTraverse, parallel, sequential)
+import Control.Parallel (class Parallel, parTraverse, parTraverse_, parallel, sequential)
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -31,7 +31,7 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, asks)
-import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
@@ -165,6 +165,9 @@ type ContractEnv =
     -- A reference point in which the slotLength is assumed to be constant from
     -- then until now, not including HFC which occur during contract evaluation
     -- TODO: Drop systemStart and just normalize time AOT
+    --       Maybe not drop it, we export it in Contract. I'm not sure why though
+    -- TODO: We need to indicate that calculations in the past may be inaccurate
+    --       Or enforce slot reference to be as 'relatively old'
     , slotReference :: { slot :: Slot, time :: Ogmios.RelativeTime }
     }
   }
@@ -268,19 +271,18 @@ walletNetworkCheck envNetworkId wallet = do
         <> " is specified in the config."
 
 -- | Finalizes a `Contract` environment.
--- | Closes the websockets in `ContractEnv`, effectively making it unusable.
--- TODO Move to Aff?
+-- | Closes the connections in `ContractEnv`, effectively making it unusable.
 stopContractEnv
   :: ContractEnv
-  -> Effect Unit
+  -> Aff Unit
 stopContractEnv contractEnv = do
-  for_ contractEnv.backend case _ of
+  flip parTraverse_ contractEnv.backend case _ of
     CtlBackend { ogmios, odc } -> do
       let
         stopWs :: forall (a :: Type). WebSocket a -> Effect Unit
         stopWs = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
-      stopWs odc.ws
-      stopWs ogmios.ws
+      liftEffect $ stopWs odc.ws
+      liftEffect $ stopWs ogmios.ws
     BlockfrostBackend _ -> undefined
 
 -- | Constructs and finalizes a contract environment that is usable inside a
@@ -304,7 +306,7 @@ withContractEnv params action = do
   for_ contractEnv.wallet $ walletNetworkCheck contractEnv.networkId
   eiRes <-
     attempt $ supervise (action contractEnv)
-      `flip finally` liftEffect (stopContractEnv contractEnv)
+      `flip finally` stopContractEnv contractEnv
   liftEffect $ case eiRes of
     Left err -> do
       for_ contractEnv.hooks.onError \f -> void $ try $ f err
@@ -341,13 +343,14 @@ type ContractParams =
 -- QueryM
 --------------------------------------------------------------------------------
 
-wrapQueryM :: forall a. QueryM a -> Contract a
+wrapQueryM :: forall (a :: Type). QueryM a -> Contract a
 wrapQueryM qm = do
   backend <- asks _.backend
   ctlBackend <- liftM (error "Operation only supported on CTL backend") $ lookupBackend CtlBackendLabel backend >>= case _ of
     CtlBackend b -> Just b
     _ -> Nothing
-  Contract $ ReaderT \contractEnv -> runQueryM contractEnv ctlBackend qm
+  contractEnv <- ask
+  liftAff $ runQueryM contractEnv ctlBackend qm
 
 runQueryM :: forall (a :: Type). ContractEnv -> CtlBackend -> QueryM a -> Aff a
 runQueryM contractEnv ctlBackend =

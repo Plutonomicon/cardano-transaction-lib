@@ -12,7 +12,7 @@ import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote (skip)
 import Mote.Monad (mapTest)
-import Test.Ctl.AffInterface as AffInterface
+import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Ctl.BalanceTx.Collateral as Collateral
 import Test.Ctl.BalanceTx.Time as BalanceTx.Time
 import Test.Ctl.Logging as Logging
@@ -27,7 +27,7 @@ main = launchAff_ do
 -- Requires external services listed in README.md
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
-  mapTest runQueryM' AffInterface.suite
+  mapTest runQueryM' QueryM.AffInterface.suite
   -- These tests depend on assumptions about testnet history.
   -- We disabled them during transition from `testnet` to `preprod` networks.
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945

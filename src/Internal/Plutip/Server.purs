@@ -22,8 +22,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Config (QueryBackendParams(CtlBackendParams))
 import Ctl.Internal.Contract.QueryBackend (defaultBackend, mkSingletonBackendParams)
-import Ctl.Internal.Contract.Monad (buildBackend, getLedgerConstants)
-import Ctl.Internal.Contract.Monad (stopContractEnv) as Contract
+import Ctl.Internal.Contract.Monad (buildBackend, getLedgerConstants, stopContractEnv)
 import Contract.Monad
   ( Contract
   , ContractEnv
@@ -92,7 +91,6 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
@@ -410,7 +408,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       configLogger = Just $ map liftEffect <<< addLogEntry
 
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
-      (liftEffect <<< stopContractEnv)
+      stopContractEnv
       \env -> pure
         { env
         , printLogs: liftEffect printLogs
@@ -423,16 +421,12 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
           (mkLogger plutipCfg.logLevel plutipCfg.customLogger)
           plutipCfg.customLogger
       )
-      (liftEffect <<< stopContractEnv)
+      stopContractEnv
       \env -> pure
         { env
         , printLogs: pure unit
         , clearLogs: pure unit
         }
-
-  -- a version of Contract.Monad.stopContractEnv without a compile-time warning
-  stopContractEnv :: ContractEnv -> Effect Unit
-  stopContractEnv env = Contract.stopContractEnv env
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
