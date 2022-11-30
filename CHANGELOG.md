@@ -38,6 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
+
 ### Removed
 
 ### Fixed
