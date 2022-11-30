@@ -30,9 +30,6 @@ exports.bnMul = maybe => lhs => rhs => {
 };
 
 exports._fromString = maybe => str => {
-  if (str[0] == "-") {
-    return maybe.nothing;
-  }
   try {
     return maybe.just(lib.BigNum.from_str(str));
   } catch (_) {
