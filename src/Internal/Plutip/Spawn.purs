@@ -10,6 +10,7 @@ module Ctl.Internal.Plutip.Spawn
   , waitForStop
   , cleanupTmpDir
   , cleanupOnSigint
+  , cleanupOnSigint'
   , removeOnSignal
   ) where
 
@@ -136,6 +137,12 @@ cleanupOnSigint workingDir testClusterDir = do
   sig <- onSignal SIGINT do
     _rmdirSync workingDir
     _rmdirSync testClusterDir
+  pure sig
+
+cleanupOnSigint' :: FilePath -> Effect OnSignalRef
+cleanupOnSigint' workingDir = do
+  sig <- onSignal SIGINT do
+    _rmdirSync workingDir
   pure sig
 
 cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit

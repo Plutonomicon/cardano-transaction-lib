@@ -38,6 +38,7 @@ import Ctl.Internal.Plutip.Spawn
   , NewOutputAction(Success, NoOp)
   , OnSignalRef
   , cleanupOnSigint
+  , cleanupOnSigint'
   , cleanupTmpDir
   , removeOnSignal
   , spawn
@@ -360,8 +361,10 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startKupo' :: ClusterStartupParameters -> Aff Unit
   startKupo' response =
     bracket (startKupo plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.kupoConfig.port)
-      (const $ pure unit)
+      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
+      \(process /\ workdir /\ _) -> do
+        liftEffect $ cleanupTmpDir process workdir
+        pure unit
 
   startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
   startOgmiosDatumCache' response =
@@ -559,7 +562,10 @@ startOgmios cfg params = do
     , params.nodeConfigPath
     ]
 
-startKupo :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
+startKupo
+  :: PlutipConfig
+  -> ClusterStartupParameters
+  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
@@ -568,8 +574,8 @@ startKupo cfg params = do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  liftEffect $ cleanupTmpDir childProcess workdir
-  pure childProcess
+  sig <- liftEffect $ cleanupOnSigint' workdir
+  pure (childProcess /\ workdir /\ sig)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
   spawnKupoProcess workdir =
