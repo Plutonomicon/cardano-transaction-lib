@@ -626,7 +626,10 @@ startPostgresServer pgConfig params = do
     postgresSocket = workingDir <</>> "postgres"
     testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
-  waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
+  waitForStop =<< spawn "initdb"
+    [ "--locale=C", "--encoding=UTF-8", databaseDir ]
+    defaultSpawnOptions
+    Nothing
   pgChildProcess <- spawn "postgres"
     [ "-D"
     , databaseDir
