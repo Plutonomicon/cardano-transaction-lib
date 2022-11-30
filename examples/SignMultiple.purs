@@ -6,8 +6,7 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 import Contract.Prelude
 
 import Contract.Address
-  ( getWalletAddresses
-  , ownPaymentPubKeysHashes
+  ( ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
 import Contract.Config (ConfigParams, testnetNamiConfig)
@@ -30,7 +29,7 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletUtxos, utxosAt)
+import Contract.Utxos (getWalletUtxos)
 import Contract.Value (leq)
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
@@ -57,33 +56,15 @@ contract = do
   skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
     ownStakePubKeysHashes
 
-  let amountToSend = Value.lovelaceValueOf $ BigInt.fromInt 2_000_000
-
-  utxos <- getWalletAddresses >>= traverse utxosAt
-
-  logInfo' $ "Utxos: " <> show utxos
-
-  -- _ <- throwContractError "aoeuaou"
-
   -- Early fail if not enough utxos present for 2 transactions
-  -- walletUtxosLength <- liftedM "Failed to get wallet Utxos"
-  --   $ map
-  --       ( length <<< filter
-  --           ( leq
-  --               ( amountToSend <>
-  --                   ( Value.lovelaceValueOf
-  --                       $ BigInt.fromInt 4_000_000
-  --                   )
-  --               ) <<< _.amount <<< unwrap <<< _.output <<< unwrap
-  --           )
-  --       )
-  --   <$> getWalletUtxos
-
-  -- when (walletUtxosLength < 2) $ throwContractError "Not enough Utxos with sufficient funds at wallet"
+  unlessM hasSufficientUtxos $ throwContractError
+    "Insufficient Utxos for 2 transactions"
 
   let
     constraints :: Constraints.TxConstraints Void Void
-    constraints = Constraints.mustPayToPubKeyAddress pkh skh amountToSend
+    constraints = Constraints.mustPayToPubKeyAddress pkh skh
+      $ Value.lovelaceValueOf
+      $ BigInt.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
@@ -117,6 +98,19 @@ contract = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     pure txId
+
+  hasSufficientUtxos :: forall (r :: Row Type). Contract r Boolean
+  hasSufficientUtxos = do
+    let
+      -- 4 Ada: enough to cover 2 Ada transfer and fees
+      isUtxoValid u = leq (Value.lovelaceValueOf $ BigInt.fromInt 4_000_000)
+        (unwrap (unwrap u).output).amount
+
+    walletValidUtxos <- liftedM "Failed to get wallet Utxos"
+      $ map (length <<< filter isUtxoValid)
+      <$> getWalletUtxos
+
+    pure $ walletValidUtxos >= 2 -- 2 transactions
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do

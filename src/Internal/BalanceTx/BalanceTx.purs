@@ -135,7 +135,6 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
-import Debug (trace)
 import Effect.Class (class MonadEffect, liftEffect)
 
 -- | Balances an unbalanced transaction using the specified balancer
@@ -459,9 +458,6 @@ collectTransactionInputs
 collectTransactionInputs originalTxIns utxos value = do
   txInsValue <- updatedInputs >>= getTxInsValue utxos
   updatedInputs' <- updatedInputs
-  trace (show utxos) $ const $ pure unit
-  trace (show txInsValue) $ const $ pure unit
-  trace (show updatedInputs) $ const $ pure unit
   case isSufficient updatedInputs' txInsValue of
     true ->
       pure $ Set.fromFoldable updatedInputs'
