@@ -5,7 +5,11 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
+import Contract.Address
+  ( getWalletAddresses
+  , ownPaymentPubKeysHashes
+  , ownStakePubKeysHashes
+  )
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -26,11 +30,13 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
+import Contract.Utxos (getWalletUtxos, utxosAt)
+import Contract.Value (leq)
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.BigInt as BigInt
-import Data.Map (Map)
+import Data.Map (Map, filter)
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
@@ -51,11 +57,33 @@ contract = do
   skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
     ownStakePubKeysHashes
 
+  let amountToSend = Value.lovelaceValueOf $ BigInt.fromInt 2_000_000
+
+  utxos <- getWalletAddresses >>= traverse utxosAt
+
+  logInfo' $ "Utxos: " <> show utxos
+
+  -- _ <- throwContractError "aoeuaou"
+
+  -- Early fail if not enough utxos present for 2 transactions
+  -- walletUtxosLength <- liftedM "Failed to get wallet Utxos"
+  --   $ map
+  --       ( length <<< filter
+  --           ( leq
+  --               ( amountToSend <>
+  --                   ( Value.lovelaceValueOf
+  --                       $ BigInt.fromInt 4_000_000
+  --                   )
+  --               ) <<< _.amount <<< unwrap <<< _.output <<< unwrap
+  --           )
+  --       )
+  --   <$> getWalletUtxos
+
+  -- when (walletUtxosLength < 2) $ throwContractError "Not enough Utxos with sufficient funds at wallet"
+
   let
     constraints :: Constraints.TxConstraints Void Void
-    constraints = Constraints.mustPayToPubKeyAddress pkh skh
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+    constraints = Constraints.mustPayToPubKeyAddress pkh skh amountToSend
 
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty

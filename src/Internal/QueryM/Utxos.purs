@@ -16,8 +16,9 @@ import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Helpers as Helpers
+import Ctl.Internal.Plutus.Types.Value (Value)
+import Ctl.Internal.Plutus.Types.Value (geq, lovelaceValueOf) as Value
 import Ctl.Internal.QueryM
   ( QueryM
   , callCip30Wallet
@@ -29,14 +30,17 @@ import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet))
-import Data.Array (head)
+import Data.Array (cons, head)
 import Data.Array as Array
+import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold, foldr)
+import Data.Functor (mapFlipped)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
+import Data.Tuple.Nested ((/\))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Aff (Aff)
@@ -157,6 +161,18 @@ getWalletCollateral = do
         liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoUnit
           maxCollateralInputs
           utxos
+
+  let
+    maxCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
+    sufficientUtxos = mapFlipped mbCollateralUTxOs \colUtxos ->
+      foldr
+        ( \u (us /\ total) ->
+            if total `Value.geq` maxCollateral then (us /\ total)
+            else (cons u us /\ total <> (unwrap (unwrap u).output).amount)
+        )
+        ([] /\ mempty)
+        colUtxos
+
   for_ mbCollateralUTxOs \collateralUTxOs -> do
     pparams <- asks $ _.runtime >>> _.pparams
     let

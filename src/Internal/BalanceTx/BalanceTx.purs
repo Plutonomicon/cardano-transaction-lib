@@ -10,6 +10,7 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
+import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
@@ -134,6 +135,7 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Debug (trace)
 import Effect.Class (class MonadEffect, liftEffect)
 
 -- | Balances an unbalanced transaction using the specified balancer
@@ -157,9 +159,8 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM $ traverse utxosAt srcAddrs <#>
-      traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
-
+    utxos <- liftEitherQueryM $ parTraverse utxosAt srcAddrs <#>
+      traverse (note CouldNotGetUtxos)
         >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
     unbalancedCollTx <-
@@ -458,6 +459,9 @@ collectTransactionInputs
 collectTransactionInputs originalTxIns utxos value = do
   txInsValue <- updatedInputs >>= getTxInsValue utxos
   updatedInputs' <- updatedInputs
+  trace (show utxos) $ const $ pure unit
+  trace (show txInsValue) $ const $ pure unit
+  trace (show updatedInputs) $ const $ pure unit
   case isSufficient updatedInputs' txInsValue of
     true ->
       pure $ Set.fromFoldable updatedInputs'
