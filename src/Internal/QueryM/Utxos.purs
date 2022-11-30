@@ -30,7 +30,7 @@ import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet (Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet))
-import Data.Array (cons, head)
+import Data.Array (cons, foldMap, head)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
@@ -164,13 +164,14 @@ getWalletCollateral = do
 
   let
     maxCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
+    utxoValue u = (unwrap (unwrap u).output).amount
     sufficientUtxos = mapFlipped mbCollateralUTxOs \colUtxos ->
-      fst $ foldl
-        ( \(us /\ total) u ->
-            if total `Value.geq` maxCollateral then (us /\ total)
-            else (cons u us /\ (total <> (unwrap (unwrap u).output).amount))
+      foldl
+        ( \us u ->
+            if foldMap utxoValue us `Value.geq` maxCollateral then us
+            else cons u us
         )
-        ([] /\ mempty)
+        []
         colUtxos
 
   for_ sufficientUtxos \collateralUTxOs -> do
