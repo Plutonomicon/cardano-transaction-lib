@@ -632,6 +632,8 @@ checkTxHasMetadata txHash =
 
 foreign import exitCode :: Int -> Effect Unit
 
+-- | attaches a custom handler on SIGINt to kill the fiber.
+-- | see `doc/plutip-testing#custom-SIGINT-handlers`
 interruptOnSignal :: forall a. Signal -> Fiber a -> Effect Unit
 interruptOnSignal signal fiber = Process.onSignal signal do
   launchAff_ do

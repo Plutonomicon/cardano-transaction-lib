@@ -183,3 +183,7 @@ let
 Although stake keys serve no real purpose in plutip context, they allow to use base addresses, and thus allow to have the same code for plutip testing, in-browser tests and production.
 
 Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
+
+## custom SIGINT handlers
+
+SIGINT does not exit the node process when running a plutip server. Instead, we use a custom handler listening on SIGINT that cancels the fiber. This has the same effect in the end: The process will exit when there are no more possible events, one of them being our custom `cleanupOnSigint` that gets attached and detached to every plutip cluster. We avoid exiting on SIGINT so that multiple plutip servers with different port configs can be run in parallel.
