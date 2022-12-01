@@ -5,7 +5,6 @@ module Test.Scaffold.Main (main) where
 import Contract.Prelude
 
 import Contract.Config (emptyHooks)
-import Contract.Monad (launchAff_)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
   ( InitialUTxOs
@@ -16,17 +15,20 @@ import Contract.Test.Plutip
   )
 import Data.BigInt (fromInt) as BigInt
 import Data.UInt (fromInt) as UInt
-import Effect.Aff (Milliseconds(Milliseconds))
+import Effect.Aff (cancelWith, effectCanceler, launchAff, Milliseconds(Milliseconds))
 import Mote (test)
 import Scaffold (contract)
 import Test.Spec.Runner (defaultConfig)
+import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Data.Posix.Signal (Signal(SIGINT))
 
 -- Run with `npm run test`
 main :: Effect Unit
-main = launchAff_ $ do
-  interpretWithConfig
-    defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true } $
-    testPlutipContracts config suite
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    interpretWithConfig
+      defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true } $
+      testPlutipContracts config suite
 
 suite :: TestPlanM PlutipTest Unit
 suite = do

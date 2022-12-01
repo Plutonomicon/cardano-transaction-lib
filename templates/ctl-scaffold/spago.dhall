@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "effect"
   , "mote"
   , "ordered-collections"
+  , "posix-types"
   , "prelude"
   , "spec"
   , "uint"
