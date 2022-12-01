@@ -69,22 +69,6 @@ type QueryHandle =
   , submitTx :: Transaction -> Aff (Maybe TransactionHash)
   , getTxByHash :: TransactionHash -> Aff (Maybe Transaction)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
-
-  -- getTxByHash
-  --   bf: /txs/{hash}
-  --   ctl: requires ODC
-  --     Not a problem for now
-  -- submitTx
-  -- evaluateTx
-  -- chainTip
-  -- getProtocolParameters
-  -- this gets done early on
-  -- perhaps genesis/systemStart should be too
-  -- getConstantParameters
-  -- systemStart
-  -- currentEpoch
-  -- we need era summaries start + end, and the era summaries slot length
-  -- ogmios has eraSummaries, BF has epochs for start + end, and genesis for slot length (idk if this is safe)
   }
 
 getQueryHandle :: Contract QueryHandle

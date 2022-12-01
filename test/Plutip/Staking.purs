@@ -10,6 +10,7 @@ import Contract.Address
   , PubKeyHash(PubKeyHash)
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
+  , getNetworkId
   )
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
@@ -65,7 +66,6 @@ import Contract.TxConstraints
 import Contract.Value (lovelaceValueOf)
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
-import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head)
@@ -255,7 +255,7 @@ suite = do
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
-        networkId <- asks _.networkId
+        networkId <- getNetworkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $
             publicKeyFromPrivateKey (unwrap privateStakeKey)
