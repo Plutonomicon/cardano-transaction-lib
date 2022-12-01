@@ -40,7 +40,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
-import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Aff (Aff)
