@@ -14,7 +14,7 @@ getChainTip = do
   queryHandle <- getQueryHandle
   liftAff $ queryHandle.getChainTip
 
--- | Returns the `ProtocolParameters` from the `QueryM` environment.
+-- | Returns the `ProtocolParameters` from the environment.
 -- | Note that this is not necessarily the current value from the ledger.
 getProtocolParameters :: Contract Ogmios.ProtocolParameters
 getProtocolParameters =
