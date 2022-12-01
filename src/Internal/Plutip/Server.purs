@@ -114,7 +114,7 @@ import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath)
+import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
