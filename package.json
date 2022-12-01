@@ -39,7 +39,7 @@
     "puppeteer-core": "^15.3.2",
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
-    "uplc": "0.1.0",
+    "uplc": "0.1.4",
     "ws": "8.4.0",
     "xhr2": "0.2.1"
   },
