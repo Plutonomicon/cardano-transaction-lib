@@ -82,8 +82,7 @@ instance DecodeAeson GetTxByHashR where
       txFound <|> txNotFound
 
 -- TODO: delete
-data DatumCacheMethod
-  = GetTxByHash
+data DatumCacheMethod = GetTxByHash
 
 derive instance Eq DatumCacheMethod
 

@@ -164,7 +164,6 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
     utxos <- liftEitherContract $
       parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs <#>
         traverse (note CouldNotGetUtxos)
-
           >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
     unbalancedCollTx <-

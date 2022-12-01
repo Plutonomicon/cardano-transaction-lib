@@ -29,7 +29,8 @@ suite = group "Ogmios Datum Cache tests" $ do
     \https://github.com/mlabs-haskell/purescript-aeson/issues/7)"
     plutusDataToFromAesonTest
   test "Plutus data samples should have a compatible hash" plutusDataHashingTest
-  -- TODO Add GetTxByHash
+
+-- TODO Add GetTxByHash
 
 readPlutusDataSamples
   :: forall (m :: Type -> Type)

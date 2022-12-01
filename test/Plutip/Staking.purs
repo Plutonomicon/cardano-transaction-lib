@@ -8,9 +8,9 @@ import Prelude
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
+  , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
-  , getNetworkId
   )
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
