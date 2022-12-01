@@ -13,14 +13,19 @@ import Contract.Test.Plutip
   , testPlutipContracts
   , withWallets
   )
+import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.BigInt (fromInt) as BigInt
+import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt (fromInt) as UInt
-import Effect.Aff (cancelWith, effectCanceler, launchAff, Milliseconds(Milliseconds))
+import Effect.Aff
+  ( Milliseconds(Milliseconds)
+  , cancelWith
+  , effectCanceler
+  , launchAff
+  )
 import Mote (test)
 import Scaffold (contract)
 import Test.Spec.Runner (defaultConfig)
-import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Data.Posix.Signal (Signal(SIGINT))
 
 -- Run with `npm run test`
 main :: Effect Unit
