@@ -624,7 +624,10 @@ startPostgresServer pgConfig = do
     workingDir = tmpDir <</>> randomStr
     databaseDir = workingDir <</>> "postgres/data"
     postgresSocket = workingDir <</>> "postgres"
-  waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
+  waitForStop =<< spawn "initdb"
+    [ "--locale=C", "--encoding=UTF-8", databaseDir ]
+    defaultSpawnOptions
+    Nothing
   pgChildProcess <- spawn "postgres"
     [ "-D"
     , databaseDir
