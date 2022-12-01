@@ -5,24 +5,27 @@ module Test.Scaffold.Main (main) where
 import Contract.Prelude
 
 import Contract.Config as Contract.Config
-import Contract.Monad as Contract.Monad
 import Contract.Test.Plutip as Contract.Test.Plutip
+import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Wallet as Contract.Wallet
 import Data.BigInt as BigInt
+import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt as UInt
+import Effect.Aff (cancelWith, effectCanceler, launchAff)
 import Scaffold as Scaffold
 
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  let
-    distribution :: Contract.Test.Plutip.InitialUTxOs
-    distribution =
-      [ BigInt.fromInt 5_000_000
-      , BigInt.fromInt 2_000_000_000
-      ]
-  Contract.Test.Plutip.runPlutipContract config distribution \alice ->
-    Contract.Wallet.withKeyWallet alice $ do
-      Scaffold.contract
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    let
+      distribution :: Contract.Test.Plutip.InitialUTxOs
+      distribution =
+        [ BigInt.fromInt 5_000_000
+        , BigInt.fromInt 2_000_000_000
+        ]
+    Contract.Test.Plutip.runPlutipContract config distribution \alice ->
+      Contract.Wallet.withKeyWallet alice $ do
+        Scaffold.contract
 
 config :: Contract.Test.Plutip.PlutipConfig
 config =

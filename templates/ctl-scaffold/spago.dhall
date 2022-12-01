@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "cardano-transaction-lib"
   , "effect"
   , "ordered-collections"
+  , "posix-types"
   , "prelude"
   , "uint"
   ]
