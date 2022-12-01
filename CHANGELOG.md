@@ -44,6 +44,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Fixed
 
+- Added missing `stakePoolTargetNum` ("`nOpt`") protocol parameter (see [CIP-9](https://cips.cardano.org/cips/cip9/)) ([#571](https://github.com/Plutonomicon/cardano-transaction-lib/issues/571))
+
 ## [3.0.0] - 2022-11-21
 
 ### Added
