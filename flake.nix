@@ -539,11 +539,6 @@
         };
       };
 
-      hydraJobs = perSystem
-        (system:
-          self.checks.${system}
-            // self.packages.${system}
-            // self.devShells.${system}
-        ) // { vm = self.nixosConfigurations.test.config.system.build.vm; };
+      herculesCI.ciSystems = [ "x86_64-linux" ];
     };
 }
