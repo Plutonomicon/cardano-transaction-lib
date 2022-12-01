@@ -50,7 +50,7 @@ applyArgs script args =
       $
         ClientOtherError
           "The `ctl-server` service is required to call `applyArgs`. Please \
-          \provide a `Just` value in `ConfigParams.ctlServerConfig` and make \
+          \provide a `Just` value in `ContractParams.ctlServerConfig` and make \
           \sure that the `ctl-server` service is running and available at the \
           \provided host and port. The `ctl-server` packages can be obtained \
           \from `overlays.ctl-server` defined in CTL's flake. Please see \

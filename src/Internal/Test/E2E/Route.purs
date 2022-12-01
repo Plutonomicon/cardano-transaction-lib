@@ -54,7 +54,7 @@ import Effect.Exception (error, throw)
 -- | A name of some particular test. Used in the URL
 type E2ETestName = String
 
--- | A name of some particular E2E test environment (`ConfigParams` and possible
+-- | A name of some particular E2E test environment (`ContractParams` and possible
 -- | CIP-30 mock). Used in the URL for routing
 type E2EConfigName = String
 
