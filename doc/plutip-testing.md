@@ -184,6 +184,17 @@ Although stake keys serve no real purpose in plutip context, they allow to use b
 
 Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
 
-## custom SIGINT handlers
+### Note on SIGINT
 
-SIGINT does not exit the node process when running a plutip server. Instead, we use a custom handler listening on SIGINT that cancels the fiber. This has the same effect in the end: The process will exit when there are no more possible events, one of them being our custom `cleanupOnSigint` that gets attached and detached to every plutip cluster. We avoid exiting on SIGINT so that multiple plutip servers with different port configs can be run in parallel.
+Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, node's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel. To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let node shut down gracefully when no more events are to be processed. 
+
+```purescript
+...
+import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Data.Posix.Signal (Signal(SIGINT))
+import Effect.Aff (cancelWith, effectCanceler, launchAff)
+
+main :: Effect Unit
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    ... test suite in Aff ...
