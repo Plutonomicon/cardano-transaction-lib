@@ -43,7 +43,7 @@ runPlutipContract
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> (wallets -> Contract () a)
+  -> (wallets -> Contract a)
   -> Aff a
 ```
 
@@ -111,10 +111,10 @@ withWallets
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
   => distr
-  -> (wallets -> Contract () Unit)
+  -> (wallets -> Contract Unit)
   -> PlutipTest
 
-noWallet :: Contract () Unit -> PlutipTest
+noWallet :: Contract Unit -> PlutipTest
 noWallet test = withWallets unit (const test)
 ```
 

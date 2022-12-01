@@ -66,9 +66,6 @@ module Ctl.Internal.QueryM.Ogmios
   , queryEraSummariesCall
   , queryProtocolParametersCall
   , querySystemStartCall
-  , queryUtxoCall
-  , queryUtxosAtCall
-  , queryUtxosCall
   , queryPoolParameters
   , queryDelegationsAndRewards
   , submitTxCall
@@ -173,9 +170,8 @@ import Ctl.Internal.Types.Scripts
   , PlutusScript(PlutusScript)
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
-import Data.Array (catMaybes, index, reverse, singleton)
+import Data.Array (catMaybes, index, reverse)
 import Data.Array (head, length, replicate) as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -275,34 +271,6 @@ queryDelegationsAndRewards = mkOgmiosCallType
           }
       }
   }
-
--- | Queries Ogmios for utxos at given addresses.
--- | NOTE. querying for utxos by address is deprecated, should use output reference instead
-queryUtxosCall :: JsonWspCall { utxo :: Array OgmiosAddress } UtxoQR
-queryUtxosCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: { query: _ }
-  }
-
--- | Queries Ogmios for utxos at given address.
--- | NOTE. querying for utxos by address is deprecated, should use output reference instead
-queryUtxosAtCall :: JsonWspCall OgmiosAddress UtxoQR
-queryUtxosAtCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: { query: _ } <<< { utxo: _ } <<< singleton
-  }
-
--- | Queries Ogmios for the utxo with the given output reference.
-queryUtxoCall :: JsonWspCall TransactionInput UtxoQR
-queryUtxoCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: { query: _ } <<< { utxo: _ } <<< singleton <<< renameFields <<< unwrap
-  }
-  where
-  renameFields
-    :: { transactionId :: TransactionHash, index :: UInt }
-    -> { txId :: TransactionHash, index :: UInt }
-  renameFields { transactionId: txId, index } = { txId, index }
 
 type OgmiosAddress = String
 

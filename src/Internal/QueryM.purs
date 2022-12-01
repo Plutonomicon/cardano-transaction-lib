@@ -104,9 +104,7 @@ import Ctl.Internal.JsWebSocket
   , _wsSend
   )
 import Ctl.Internal.QueryM.DatumCacheWsp
-  ( GetDatumByHashR
-  , GetDatumsByHashesR
-  , GetTxByHashR
+  ( GetTxByHashR
   )
 import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.Dispatcher
@@ -166,9 +164,7 @@ import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.Types.Datum (DataHash)
 import Ctl.Internal.Types.Scripts (PlutusScript)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet
   ( Wallet
@@ -784,9 +780,7 @@ mkDatumCacheWebSocketLens logger = do
     let
       datumCacheWebSocket :: JsWebSocket -> DatumCacheWebSocket
       datumCacheWebSocket ws = WebSocket ws
-        { getDatumByHash: mkListenerSet dispatcher pendingRequests
-        , getDatumsByHashes: mkListenerSet dispatcher pendingRequests
-        , getTxByHash: mkListenerSet dispatcher pendingRequests
+        { getTxByHash: mkListenerSet dispatcher pendingRequests
         }
 
       resendPendingRequests :: JsWebSocket -> Effect Unit
@@ -812,11 +806,7 @@ mkOgmiosWebSocketLens logger datumCacheWebSocketRef = do
     let
       ogmiosWebSocket :: JsWebSocket -> OgmiosWebSocket
       ogmiosWebSocket ws = WebSocket ws
-        { utxo:
-            mkListenerSet dispatcher pendingRequests
-        , utxosAt:
-            mkListenerSet dispatcher pendingRequests
-        , chainTip:
+        { chainTip:
             mkListenerSet dispatcher pendingRequests
         , evaluate:
             mkListenerSet dispatcher pendingRequests
@@ -864,9 +854,7 @@ mkOgmiosWebSocketLens logger datumCacheWebSocketRef = do
 --------------------------------------------------------------------------------
 
 type OgmiosListeners =
-  { utxo :: ListenerSet TransactionInput Ogmios.UtxoQR
-  , utxosAt :: ListenerSet Ogmios.OgmiosAddress Ogmios.UtxoQR
-  , chainTip :: ListenerSet Unit Ogmios.ChainTipQR
+  { chainTip :: ListenerSet Unit Ogmios.ChainTipQR
   , submit :: SubmitTxListenerSet
   , evaluate ::
       ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
@@ -882,9 +870,7 @@ type OgmiosListeners =
   }
 
 type DatumCacheListeners =
-  { getDatumByHash :: ListenerSet DataHash GetDatumByHashR
-  , getDatumsByHashes :: ListenerSet (Array DataHash) GetDatumsByHashesR
-  , getTxByHash :: ListenerSet TxHash GetTxByHashR
+  { getTxByHash :: ListenerSet TxHash GetTxByHashR
   }
 
 -- convenience type for adding additional query types later

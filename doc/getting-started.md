@@ -104,43 +104,36 @@ main = Contract.Monad.launchAff_ do
 
 ### Making the `ContractEnv`
 
-The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ConfigParams` should be used instead.
+The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ContractParams` should be used instead.
 
 For local development and testing, we provide `Contract.Config.testnetConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
 
-It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ConfigParams` with `runContract`.
-
-As explained in the [Plutus/PAB comparison](plutus-comparison.md#the-contract-type), the `ContractEnv` environment uses Purescript's extensible records. This can also be done via `ConfigParams`, which holds an `extraConfig` field corresponding to the `Row Type` argument to `ContractEnv` (and by extension, `Contract`).
+It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ContractParams` with `runContract`.
 
 A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
 
-An example of building a `Contract` via `ConfigParams` is as follows:
+An example of building a `Contract` via `ContractParams` is as follows:
 
 ```purescript
 main :: Effect Unit
 main = Contract.Monad.launchAff_ do -- we re-export this for you
   let
-    (config :: ConfigParams (apiKey :: String)) =
-      { ogmiosConfig: defaultOgmiosWsConfig
-      , datumCacheConfig: defaultDatumCacheWsConfig
+    (config :: ContractParams) =
+      { backendParams: mkSingletonBackendParams $ CtlBackendParams
+        { ogmiosConfig: defaultOgmiosWsConfig
+        , odcConfig: defaultDatumCacheWsConfig
+        , kupoConfig: defaultKupoServerConfig
+        }
       , ctlServerConfig: defaultServerConfig
       , networkId: TestnetId
       , logLevel: Trace
-      , extraConfig: { apiKey: "foo" }
       , walletSpec: Just ConnectToNami
       , customLogger: Nothing
       }
-  runContract config someContractWithApiKeyInEnv
+  runContract config someContract
 
--- As we provided `(apiKey :: String)` to the `extraConfig` above, we can now
--- access it in the reader environment of any `Contract` actions call using
--- `askConfig`.
-someContractWithApiKeyInEnv
-  :: forall. Contract (apiKey :: String) Unit
-  -- We can also retain polymorphism by adding `| r` to the row type:
-  --   :: forall (r :: Row Type). Contract (apiKey :: String | r) Unit
-someContractWithApiKeyInEnv = do
-  { apiKey } <- askConfig
+someContract :: Contract Unit
+someContract = do
   ...
 ```
 

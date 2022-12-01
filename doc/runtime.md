@@ -1,16 +1,17 @@
 # CTL's Runtime Dependencies
 
-In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractEnv` that holds websocket connections, information about server hosts/ports, and other requisite information.
+In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractEnv` that holds websocket connections, information about server hosts/ports, and other requisite information. Which services are required depends on which backend you are using.
 
 **Table of Contents**
 
-- [Current services](#current-services)
-- [Using NixOS module](#using-nixos-module)
-- [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
-- [Changing network configurations](#changing-network-configurations)
+- [CTL Backend](#ctl-backend)
+  + [Using NixOS module](#using-nixos-module)
+  + [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
+  + [Changing network configurations](#changing-network-configurations)
+- [Blockfrost Backend](#blockfrost-backend)
 - [Wallet requirements](#wallet-requirements)
 
-### Current services
+## CTL Backend
 
 The services that are currently **required** are:
 
@@ -58,7 +59,11 @@ inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
 
 When changing networks, make sure that `network.magic` is correctly synchronized with value in config (see `protocolConsts.protocolMagic` in `byron.json`).
 
-### Wallet requirements
+## Blockfrost Backend
+
+TODO
+
+## Wallet requirements
 
 In order to run most `Contract` actions in the browser, **you must use one of the supported wallets**. The following steps must be taken to ensure that you can run CTL contracts:
 

@@ -144,7 +144,7 @@ In the case of CTL's constraints/lookups API, in order to be qualified as "cover
   - **Note**: For implemented transaction features _not_ supported by our current constraints/lookups implementation, such as the features introduced by CIPs 31-33 (inline datums, etc...), modifying the transaction directly is also acceptable
 - balance the transaction while calculating sufficient fees/execution units
 - sign the transaction using the attached wallet (either a browser-based light wallet or our own `KeyWallet`)
-- submit the transaction to the node via Ogmios
+- submit the transaction to the node
 
 The functionality to achieve the above **must** be taken from our public API. That is, we must consume the public interface directly in all example contracts rather than importing internal CTL modules (anything outside of `Contract.*`).
 
@@ -173,11 +173,11 @@ module Examples.MintsToken
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams)
+import Contract.Config (ContractParams)
 import Contract.Log (logInfo')
 import Contract.Monad (launchAff_)
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.MintsToken"
@@ -204,7 +204,7 @@ Although such parsers are included implicitly in the example contracts defined a
 - **Integration tests**
   - These tests are run against a full runtime and make real requests to different components
   - These are intended to augment the unit tests described above and are a step below our full example contracts
-  - These can either call effects from the `Contract` interface or its underlying `QueryM` monad stack
+  - These can be effects from the `Contract` interface and the underlying backends
 
 #### Required parsing tests
 
@@ -212,7 +212,6 @@ Currently, we require parsing tests for the following data structures, organized
 
 - Ogmios
   - [x] `ChainTipQR`
-  - [x] `UtxoQR`
   - [x] `CurrentEpoch`
   - [x] `SystemStart`
   - [x] `EraSummaries`
@@ -220,8 +219,6 @@ Currently, we require parsing tests for the following data structures, organized
   - [x] `TxEvaluationR`
   - [x] `SubmitTxR`
 - `ogmios-datum-cache`
-  - [x] `GetDatumByHashR`
-  - [x] `GetDatumsByHashesR`
   - [x] `GetTxByHashR`
 - `cardano-serialization-lib`
   - `Transaction`
@@ -233,3 +230,5 @@ Currently, we require parsing tests for the following data structures, organized
   - `TransactionWitnessSet`
     - [x] Serialization
     - [x] Deserialization
+
+TODO: Kupo and Blockfrost

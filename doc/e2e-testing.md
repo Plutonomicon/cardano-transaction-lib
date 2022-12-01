@@ -212,7 +212,7 @@ main = do
   -- Serves the appropriate `Contract` with e2eTestHooks
   route configs tests
 
-configs :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+configs :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 configs = Map.fromFoldable
   [ "nami" /\ testnetNamiConfig /\ Nothing
   , "gero" /\ testnetGeroConfig /\ Nothing
@@ -225,7 +225,7 @@ configs = Map.fromFoldable
   , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
   ]
 
-tests :: Map E2ETestName (Contract () Unit)
+tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable
   [ "Contract" /\ Scaffold.contract
   -- Add more `Contract`s here
@@ -282,13 +282,13 @@ It's possible to run headless browser tests on top of a temporary plutip cluster
 
 To do that, it's enough to define a config name that:
 
-- uses a `ConfigParams` value with `networkId` set to `MainnetId`.
+- uses a `ContractParams` value with `networkId` set to `MainnetId`.
 - Specifies a wallet mock (e.g. `MockNami`)
 
 E.g.:
 
 ```purescript
-wallets :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 wallets = Map.fromFoldable
   [ "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
   , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero

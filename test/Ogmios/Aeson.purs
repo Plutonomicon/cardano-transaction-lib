@@ -42,7 +42,6 @@ import Type.Proxy (Proxy(Proxy))
 supported :: Array String
 supported =
   [ "chainTip"
-  , "utxo"
   , "currentEpoch"
   , "systemStart"
   , "eraSummaries"
@@ -163,7 +162,6 @@ suite = group "Ogmios Aeson tests" do
               (Aeson.decodeAeson aeson :: _ a)
           case query of
             "chainTip" -> handle (Proxy :: _ O.ChainTipQR)
-            "utxo" -> handle (Proxy :: _ O.UtxoQR)
             "currentEpoch" -> handle (Proxy :: _ O.CurrentEpoch)
             "systemStart" -> handle (Proxy :: _ O.SystemStart)
             "eraSummaries" -> handle (Proxy :: _ O.EraSummaries)
