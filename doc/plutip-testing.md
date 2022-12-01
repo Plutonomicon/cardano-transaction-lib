@@ -142,6 +142,22 @@ suite = testPlutipContracts config do
       ...
 ```
 
+### Note on SIGINT
+
+Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, node's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel. To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let node shut down gracefully when no more events are to be processed.
+
+```purescript
+...
+import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Data.Posix.Signal (Signal(SIGINT))
+import Effect.Aff (cancelWith, effectCanceler, launchAff)
+
+main :: Effect Unit
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    ... test suite in Aff ...
+```
+
 ### Testing with Nix
 
 You can run Plutip tests via CTL's `purescriptProject` as well. After creating your project, you can use the `runPlutipTest` attribute to create a Plutip testing environment that is suitable for use with your flake's `checks`. An example:
@@ -183,18 +199,3 @@ let
 Although stake keys serve no real purpose in plutip context, they allow to use base addresses, and thus allow to have the same code for plutip testing, in-browser tests and production.
 
 Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
-
-### Note on SIGINT
-
-Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, node's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel. To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let node shut down gracefully when no more events are to be processed. 
-
-```purescript
-...
-import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Data.Posix.Signal (Signal(SIGINT))
-import Effect.Aff (cancelWith, effectCanceler, launchAff)
-
-main :: Effect Unit
-main = interruptOnSignal SIGINT =<< launchAff do
-  flip cancelWith (effectCanceler (exitCode 1)) do
-    ... test suite in Aff ...
