@@ -1000,7 +1000,7 @@ type ProtocolParametersRaw =
   , "stakeKeyDeposit" :: BigInt
   , "poolDeposit" :: BigInt
   , "poolRetirementEpochBound" :: BigInt
-  , "desiredNumberOfPools" :: BigInt
+  , "desiredNumberOfPools" :: UInt
   , "poolInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
   , "treasuryExpansion" :: PParamRational
@@ -1054,8 +1054,7 @@ newtype ProtocolParameters = ProtocolParameters
   , stakePoolDeposit :: Coin
   , minPoolCost :: Coin
   , poolRetireMaxEpoch :: Epoch
-  -- TODO: add stakePoolTargetNum :: UInt
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/571
+  , stakePoolTargetNum :: UInt
   , poolPledgeInfluence :: Rational
   , monetaryExpansion :: Rational
   , treasuryCut :: Rational
@@ -1099,6 +1098,7 @@ instance DecodeAeson ProtocolParameters where
       , stakePoolDeposit: Coin ps.poolDeposit
       , minPoolCost: Coin ps.minPoolCost
       , poolRetireMaxEpoch: Epoch ps.poolRetirementEpochBound
+      , stakePoolTargetNum: ps.desiredNumberOfPools
       , poolPledgeInfluence: unwrap ps.poolInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational

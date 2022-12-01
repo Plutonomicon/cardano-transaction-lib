@@ -354,7 +354,6 @@ let additions =
           , "strings"
           , "stringutils"
           , "tailrec"
-          , "text-encoding"
           , "these"
           , "transformers"
           , "tuples"
@@ -367,7 +366,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "a01a9409af204df835e97150bcdefe543910f2f9"
+        , version = "0406be1de40d750e8377da51f6b2a5373ce587f8"
         }
       }
 
