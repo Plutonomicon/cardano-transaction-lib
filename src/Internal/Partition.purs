@@ -33,21 +33,41 @@ import Partial.Unsafe (unsafePartial)
 class Partition (a :: Type) where
   partition :: a -> NonEmptyArray a -> Maybe (NonEmptyArray a)
 
+-- | Partitions a `BigInt` into a number of parts, where the size of each part
+-- | is proportional to the size of its corresponding element in the given
+-- | list of weights, and the number of parts is equal to the number of weights.
+-- |
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/14e0f1c2a457f85b8ea470661e7bec5e6bcf93e0/lib/numeric/src/Cardano/Numeric/Util.hs#L175
 instance Partition BigInt where
   partition target weights
-    | any (\w -> w < zero) weights = Nothing
+    | any (_ < zero) weights = Nothing
     | sum weights == zero = Nothing
     | otherwise = Just portionsRounded
         where
         portionsRounded :: NonEmptyArray BigInt
-        portionsRounded = portionsUnrounded
+        portionsRounded
+          -- 1. Start with the list of unrounded portions:
+          = portionsUnrounded
           # map QuotRem
+          -- 2. Attach an index to each portion, so that we can remember the
+          -- original order:
           # NEArray.zip (NEArray.range 1 $ length portionsUnrounded)
+          -- 3. Sort the portions in descending order of their remainders, and
+          -- then sort each subsequence with equal remainders into descending
+          -- order of their integral parts:
+          --
+          -- NOTE: We sort unrounded portions by comparing their remainders
+          -- and not their fractional parts, as implemented in cardano-wallet.
+          -- This serves the same purpose, namely to distribute the `shortfall`
+          -- fairly between the portions, rounding *up* those portions that
+          -- have a larger remainder (i.e. larger fractional part).
           # NEArray.sortBy ((\x -> Ordering.invert <<< compare x) `on` snd)
+          -- 4. Apply pre-computed roundings to each portion:
           # round
+          -- 5. Restore the original order:
           # NEArray.sortBy (comparing fst)
+          -- 6. Strip away the indices:
           # map snd
 
         round

@@ -1,7 +1,10 @@
 -- | This module provides a multi-asset coin selection algorithm replicated from
--- | cardano-wallet (https://github.com/input-output-hk/cardano-wallet/blob/master/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs). The algorithm supports two selection
--- | strategies (optimal and minimal) and uses priority ordering and round-robin
--- | processing to handle the problem of over-selection.
+-- | cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3395b6e4749544d552125dfd0e060437b5c18d5c/lib/coin-selection/lib/Cardano/CoinSelection/Balance.hs
+-- |
+-- | The algorithm supports two selection strategies (optimal and minimal) and
+-- | uses priority ordering and round-robin processing to handle the problem
+-- | of over-selection.
 module Ctl.Internal.BalanceTx.CoinSelection
   ( Asset
   , SelectionState(SelectionState)
@@ -327,7 +330,7 @@ runSelectionStep lens state
       -- we attempt to improve the selection using `SelectionPriorityImprove`,
       -- which allows us to select only utxos containing the given asset and no
       -- other asset, i.e. we select from the "singleton" subset of utxos.
-      bindFlipped requireImprovement <$> lens.selectQuantityImprove state
+      (requireImprovement =<< _) <$> lens.selectQuantityImprove state
       where
       requireImprovement :: SelectionState -> Maybe SelectionState
       requireImprovement state'
@@ -352,28 +355,30 @@ runSelectionStep lens state
 -- Round-robin processing
 --------------------------------------------------------------------------------
 
-type Processor (m :: Type -> Type) (s :: Type) (s' :: Type) = s -> m (Maybe s')
+type Processor (m :: Type -> Type) (s :: Type) = s -> m (Maybe s)
 
+-- | Uses given processors to update the state sequentially.
+-- | Removes the processor from the list if applying it to the state returns
+-- | `Nothing`. Each processor can only be applied once per round and is
+-- | carried over to the next round if it has successfully updated the state.
+-- |
+-- | We use Round-robin processing to perform coin selection in multiple rounds,
+-- | where a `Processor` runs a single selection step (`runSelectionStep`) for
+-- | an asset from the set of all assets present in `requiredValue`.
+-- | It returns `Nothing` in case the selection for a particular asset is
+-- | already optimal and cannot be improved further.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/3395b6e4749544d552125dfd0e060437b5c18d5c/lib/coin-selection/lib/Cardano/CoinSelection/Balance.hs#L2155
 runRoundRobinM
   :: forall (m :: Type -> Type) (s :: Type)
    . Monad m
   => s
-  -> Array (Processor m s s)
+  -> Array (Processor m s)
   -> m s
-runRoundRobinM state = runRoundRobinM' state identity
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2155
-runRoundRobinM'
-  :: forall (m :: Type -> Type) (s :: Type) (s' :: Type)
-   . Monad m
-  => s
-  -> (s' -> s)
-  -> Array (Processor m s s')
-  -> m s
-runRoundRobinM' state demote processors = go state processors []
+runRoundRobinM state processors = go state processors []
   where
-  go :: s -> Array (Processor m s s') -> Array (Processor m s s') -> m s
+  go :: s -> Array (Processor m s) -> Array (Processor m s) -> m s
   go s [] [] = pure s
   go s ps qs =
     case Array.uncons ps of
@@ -381,7 +386,7 @@ runRoundRobinM' state demote processors = go state processors []
       Just { head: p, tail: ps' } ->
         p s >>= case _ of
           Nothing -> go s ps' qs
-          Just s' -> go (demote s') ps' (Array.snoc qs p)
+          Just s' -> go s' ps' (Array.snoc qs p)
 
 --------------------------------------------------------------------------------
 -- SelectionPriority
