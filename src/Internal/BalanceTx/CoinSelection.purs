@@ -18,7 +18,6 @@ module Ctl.Internal.BalanceTx.CoinSelection
 
 import Prelude
 
-import Control.Bind (bindFlipped)
 import Control.Monad.Error.Class (class MonadThrow, throwError)
 import Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)

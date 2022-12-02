@@ -9,6 +9,7 @@ import Prelude
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (trace) as Logger
+import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
   , SelectionStrategy
@@ -179,9 +180,8 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM $ traverse utxosAt srcAddrs <#>
-      traverse (note CouldNotGetUtxos) -- Maybe -> Either and unwrap UtxoM
-
+    utxos <- liftEitherQueryM $ parTraverse utxosAt srcAddrs <#>
+      traverse (note CouldNotGetUtxos)
         >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
     unbalancedCollTx <-
