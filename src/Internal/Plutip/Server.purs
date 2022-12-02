@@ -36,7 +36,11 @@ import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
+  , OnSignalRef
+  , cleanupOnSigint
+  , cleanupOnSigint'
   , cleanupTmpDir
+  , removeOnSignal
   , spawn
   , stop
   , waitForStop
@@ -110,7 +114,7 @@ import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath)
+import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -147,6 +151,7 @@ withPlutipContractEnv plutipCfg distr cont = do
 -- |       Namely, brackets are run for each of the following groups and tests.
 -- |       If you wish to only set up Plutip once, ensure all tests are wrapped
 -- |       in a single group.
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
   -> TestPlanM PlutipTest Unit
@@ -341,12 +346,12 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       pure
 
   startPostgres' :: ClusterStartupParameters -> Aff Unit
-  startPostgres' _ =
-    bracket (startPostgresServer plutipCfg.postgresConfig)
-      (stopChildProcessWithPort plutipCfg.postgresConfig.port <<< fst)
-      \(process /\ workingDir) -> do
+  startPostgres' response =
+    bracket (startPostgresServer plutipCfg.postgresConfig response)
+      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.postgresConfig.port)
+      \(process /\ workingDir /\ _) -> do
         liftEffect $ cleanupTmpDir process workingDir
-        configurePostgresServer plutipCfg.postgresConfig
+        void $ configurePostgresServer plutipCfg.postgresConfig
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
@@ -357,8 +362,10 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startKupo' :: ClusterStartupParameters -> Aff Unit
   startKupo' response =
     bracket (startKupo plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.kupoConfig.port)
-      (const $ pure unit)
+      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
+      \(process /\ workdir /\ _) -> do
+        liftEffect $ cleanupTmpDir process workdir
+        pure unit
 
   startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
   startOgmiosDatumCache' response =
@@ -556,17 +563,20 @@ startOgmios cfg params = do
     , params.nodeConfigPath
     ]
 
-startKupo :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
+startKupo
+  :: PlutipConfig
+  -> ClusterStartupParameters
+  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
-    workdir = tmpDir <> "/kupo-db"
+    workdir = tmpDir <</>> "kupo-db"
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  liftEffect $ cleanupTmpDir childProcess workdir
-  pure childProcess
+  sig <- liftEffect $ cleanupOnSigint' workdir
+  pure (childProcess /\ workdir /\ sig)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
   spawnKupoProcess workdir =
@@ -611,14 +621,18 @@ checkPlutipServer cfg = do
     $ stopPlutipCluster cfg
 
 startPostgresServer
-  :: PostgresConfig -> Aff (ManagedProcess /\ String)
-startPostgresServer pgConfig = do
+  :: PostgresConfig
+  -> ClusterStartupParameters
+  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
+startPostgresServer pgConfig params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workingDir = tmpDir <</>> randomStr
     databaseDir = workingDir <</>> "postgres/data"
     postgresSocket = workingDir <</>> "postgres"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+  sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
   waitForStop =<< spawn "initdb"
     [ "--locale=C", "--encoding=UTF-8", databaseDir ]
     defaultSpawnOptions
@@ -635,7 +649,7 @@ startPostgresServer pgConfig = do
     ]
     defaultSpawnOptions
     Nothing
-  pure (pgChildProcess /\ workingDir)
+  pure (pgChildProcess /\ workingDir /\ sig)
 
 configurePostgresServer
   :: PostgresConfig -> Aff Unit
@@ -690,6 +704,17 @@ stopChildProcessWithPort port childProcess = do
       isAvailable <- isPortAvailable port
       unless isAvailable do
         liftEffect $ throw "retry"
+
+stopChildProcessWithPortAndRemoveOnSignal
+  :: UInt -> (ManagedProcess /\ String /\ OnSignalRef) -> Aff Unit
+stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
+  stop $ childProcess
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
+  liftEffect $ removeOnSignal sig
 
 startOgmiosDatumCache
   :: PlutipConfig
