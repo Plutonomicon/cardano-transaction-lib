@@ -13,8 +13,10 @@ import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import Ctl.Internal.Helpers (fromJustEff)
 import Ctl.Internal.Serialization.NativeScript (convertNativeScripts)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryData
+  , AuxiliaryDataHash
   , GeneralTransactionMetadata
   , NativeScripts
   , PlutusScripts
@@ -31,7 +33,7 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T
 import Data.Map as Map
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
@@ -73,11 +75,12 @@ foreign import newMetadataText
   :: String -> Effect TransactionMetadatum
 
 foreign import _hashAuxiliaryData
-  :: AuxiliaryData -> ByteArray
+  :: AuxiliaryData -> AuxiliaryDataHash
 
 hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
 hashAuxiliaryData =
-  map (wrap <<< _hashAuxiliaryData) <<< convertAuxiliaryData
+  map (wrap <<< unwrap <<< toBytes <<< _hashAuxiliaryData) <<<
+    convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData
 convertAuxiliaryData

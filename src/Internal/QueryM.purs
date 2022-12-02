@@ -278,7 +278,6 @@ import Effect.Exception (Error, error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Foreign.Object as Object
-import Untagged.Union (asOneOf)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -844,8 +843,8 @@ applyArgs script args =
     map
       ( encodeAeson
           <<< byteArrayToHex
+          <<< unwrap
           <<< Serialization.toBytes
-          <<< asOneOf
       )
       <<< Serialization.convertPlutusData
 

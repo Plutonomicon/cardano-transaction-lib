@@ -8,8 +8,6 @@ module Ctl.Internal.Serialization
   , convertTransactionUnspentOutput
   , convertValue
   , serializeData
-  , newTransactionUnspentOutputFromBytes
-  , newTransactionWitnessSetFromBytes
   , hashScriptData
   , hashTransaction
   , publicKeyHash
@@ -76,6 +74,7 @@ import Ctl.Internal.Serialization.BigInt as Serialization
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
+  , VRFKeyHash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
@@ -111,6 +110,7 @@ import Ctl.Internal.Serialization.Types
   , PlutusData
   , PlutusScript
   , PoolMetadata
+  , PoolMetadataHash
   , PrivateKey
   , ProposedProtocolParameterUpdates
   , ProtocolParamUpdate
@@ -133,7 +133,6 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Value
   , Vkey
   , Vkeywitness
@@ -172,7 +171,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Untagged.Union (UndefinedOr, asOneOf, maybeToUor)
+import Untagged.Union (UndefinedOr, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
 
@@ -209,12 +208,6 @@ foreign import newTransaction_
   :: TransactionBody
   -> TransactionWitnessSet
   -> Effect Transaction
-
-foreign import newTransactionWitnessSetFromBytes
-  :: CborBytes -> Effect TransactionWitnessSet
-
-foreign import newTransactionUnspentOutputFromBytes
-  :: CborBytes -> Effect TransactionUnspentOutput
 
 foreign import newTransactionUnspentOutput
   :: TransactionInput -> TransactionOutput -> Effect TransactionUnspentOutput
@@ -277,7 +270,6 @@ foreign import setTxBodyReferenceInputs
   -> TransactionInputs
   -> Effect Unit
 
-foreign import newScriptDataHashFromBytes :: CborBytes -> Effect ScriptDataHash
 foreign import setTxBodyScriptDataHash
   :: TransactionBody -> ScriptDataHash -> Effect Unit
 
@@ -347,9 +339,9 @@ foreign import newSingleHostAddr
 
 foreign import newSingleHostName :: UndefinedOr Int -> String -> Effect Relay
 foreign import newMultiHostName :: String -> Effect Relay
-foreign import newPoolMetadata :: String -> ByteArray -> Effect PoolMetadata
-foreign import newGenesisHash :: ByteArray -> Effect GenesisHash
-foreign import newGenesisDelegateHash :: ByteArray -> Effect GenesisDelegateHash
+foreign import newPoolMetadata
+  :: String -> PoolMetadataHash -> Effect PoolMetadata
+
 foreign import newMoveInstantaneousRewardToOtherPot
   :: Number -> BigNum -> Effect MoveInstantaneousReward
 
@@ -374,7 +366,7 @@ foreign import transactionBodySetValidityStartInterval
   :: TransactionBody -> BigNum -> Effect Unit
 
 foreign import transactionBodySetAuxiliaryDataHash
-  :: TransactionBody -> ByteArray -> Effect Unit
+  :: TransactionBody -> AuxiliaryDataHash -> Effect Unit
 
 foreign import newWithdrawals
   :: ContainerHelper
@@ -488,9 +480,10 @@ convertTxBody (T.TxBody body) = do
   for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
   for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
-  for_ body.auxiliaryDataHash
-    $ unwrap
-        >>> transactionBodySetAuxiliaryDataHash txBody
+  for_ body.auxiliaryDataHash $
+    unwrap >>> wrap >>> fromBytes >>> fromJustEff
+      "Failed to convert auxiliary data hash"
+      >=> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval
     $ unwrap
         >>> BigNum.toString
@@ -500,15 +493,12 @@ convertTxBody (T.TxBody body) = do
   for_ body.requiredSigners
     $ map unwrap
         >>> transactionBodySetRequiredSigners containerHelper txBody
-  for_ body.auxiliaryDataHash
-    $ unwrap
-        >>> transactionBodySetAuxiliaryDataHash txBody
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
-  for_ body.scriptDataHash
-    ( unwrap >>> wrap >>> newScriptDataHashFromBytes >=>
-        setTxBodyScriptDataHash txBody
-    )
+  for_ body.scriptDataHash $
+    unwrap >>> wrap >>> fromBytes >>> fromJustEff
+      "Failed to convert script data hash"
+      >=> setTxBodyScriptDataHash txBody
   for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
   for_ body.requiredSigners
     $ map unwrap
@@ -554,8 +544,13 @@ convertProposedProtocolParameterUpdates
 convertProposedProtocolParameterUpdates ppus =
   newProposedProtocolParameterUpdates containerHelper =<<
     for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
-      Tuple <$> newGenesisHash (unwrap genesisHash) <*>
-        convertProtocolParamUpdate ppu
+      Tuple
+        <$>
+          ( fromJustEff "Failed to convert genesis hash" $ fromBytes
+              (wrap $ unwrap genesisHash)
+          )
+        <*>
+          convertProtocolParamUpdate ppu
 
 convertProtocolParamUpdate
   :: T.ProtocolParamUpdate -> Effect ProtocolParamUpdate
@@ -695,9 +690,18 @@ convertCert = case _ of
     , vrfKeyhash: T.VRFKeyHash vrfKeyhash
     } -> do
     join $ newGenesisKeyDelegationCertificate
-      <$> newGenesisHash genesisHash
-      <*> newGenesisDelegateHash genesisDelegateHash
-      <*> pure vrfKeyhash
+      <$>
+        ( fromJustEff "Failed to convert genesis hash"
+            $ fromBytes
+            $ wrap genesisHash
+        )
+      <*>
+        ( fromJustEff "Failed to convert genesis delegate hash"
+            $ fromBytes
+            $ wrap genesisDelegateHash
+        )
+      <*>
+        pure vrfKeyhash
   T.MoveInstantaneousRewardsCert mir -> do
     newMoveInstantaneousRewardsCertificate =<<
       convertMoveInstantaneousReward mir
@@ -718,7 +722,9 @@ convertMoveInstantaneousReward (T.ToStakeCreds { pot, amounts }) =
 convertPoolMetadata :: T.PoolMetadata -> Effect PoolMetadata
 convertPoolMetadata
   (T.PoolMetadata { url: T.URL url, hash: T.PoolMetadataHash hash }) =
-  newPoolMetadata url hash
+  ( (fromJustEff "Failed to convert script data hash" <<< fromBytes <<< wrap)
+      >=> (newPoolMetadata url)
+  ) hash
 
 convertRelays :: Array T.Relay -> Effect Relays
 convertRelays relays = do
@@ -743,7 +749,7 @@ convertMint (T.Mint nonAdaAssets) = do
   mint <- newMint
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"
@@ -772,7 +778,7 @@ convertTxInputs fInputs = do
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
 convertTxInput (T.TransactionInput { transactionId, index }) = do
-  tx_hash <- fromBytesEffect (unwrap transactionId)
+  tx_hash <- fromBytesEffect (wrap $ unwrap transactionId)
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
@@ -789,7 +795,7 @@ convertTxOutput
   case datum of
     NoOutputDatum -> pure unit
     OutputDatumHash dataHash -> do
-      for_ (fromBytes $ unwrap dataHash) $
+      for_ (fromBytes $ wrap $ unwrap dataHash) $
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
@@ -813,7 +819,7 @@ convertValue val = do
   multiasset <- newMultiAsset
   forWithIndex_ m \scriptHashBytes' values -> do
     let
-      mScripthash = scriptHashFromBytes $ wrap $ Value.getCurrencySymbol
+      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
         scriptHashBytes'
     scripthash <- fromJustEff
       "scriptHashFromBytes failed while converting value"
@@ -875,5 +881,4 @@ hashScriptData cms rs ps = do
       (traverse convertPlutusData ps)
 
 serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
-serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
-  toData
+serializeData = map toBytes <<< convertPlutusData <<< toData

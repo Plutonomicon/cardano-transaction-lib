@@ -10,10 +10,11 @@ import Prelude
 import Aeson (class EncodeAeson, encodeAeson')
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Serialization.Types as Serialization
+import Ctl.Internal.Serialization.Hash as Serialization
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Data.Function (on)
 import Data.Maybe (Maybe)
+-- TODO: Remove once toBytes is switched to Castable
 import Untagged.Union (asOneOf)
 
 newtype VRFKeyHash = VRFKeyHash Serialization.VRFKeyHash

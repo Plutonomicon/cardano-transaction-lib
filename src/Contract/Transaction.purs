@@ -279,6 +279,7 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+-- TODO: Remove once toBytes is switched to Castable
 import Untagged.Union (asOneOf)
 
 -- | Signs a transaction with potential failure.

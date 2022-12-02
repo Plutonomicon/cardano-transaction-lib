@@ -85,6 +85,7 @@ import Data.Traversable (for)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
+-- TODO: Remove once toBytes is switched to Castable
 import Untagged.Union (asOneOf)
 
 evalTxExecutionUnits

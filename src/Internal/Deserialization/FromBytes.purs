@@ -1,8 +1,5 @@
 module Ctl.Internal.Deserialization.FromBytes
   ( class FromBytes
-  , FromBytesError
-  , _fromBytesError
-  , fromBytesError
   , fromBytes'
   , fromBytes
   , fromBytesEffect
@@ -10,146 +7,107 @@ module Ctl.Internal.Deserialization.FromBytes
 
 import Prelude
 
+import Ctl.Internal.Deserialization.Error (FromBytesError, fromBytesErrorHelper)
 import Ctl.Internal.Error (E)
-import Ctl.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
+import Ctl.Internal.FfiHelpers (ErrorFfiHelper)
+import Ctl.Internal.Serialization.Hash (VRFKeyHash)
 import Ctl.Internal.Serialization.Types
-  ( DataHash
+  ( AuxiliaryDataHash
+  , DataHash
   , Ed25519Signature
+  , GenesisDelegateHash
+  , GenesisHash
   , Mint
   , NativeScript
   , PlutusData
+  , PoolMetadataHash
   , PublicKey
+  , ScriptDataHash
   , Transaction
   , TransactionHash
   , TransactionUnspentOutput
   , TransactionWitnessSet
-  , VRFKeyHash
   , Value
   )
 import Ctl.Internal.Types.ByteArray (ByteArray)
-import Data.Either (Either(Left), hush)
+import Ctl.Internal.Types.CborBytes (CborBytes)
+import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Variant (inj)
+import Data.Newtype (unwrap)
 import Effect (Effect)
 import Effect.Exception (throw)
-import Type.Prelude (Proxy(Proxy))
 import Type.Row (type (+))
 
 -- | Calls `from_bytes` method for the appropriate type
 class FromBytes a where
   fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
+instance FromBytes AuxiliaryDataHash where
+  fromBytes' = _fromBytes "AuxiliaryDataHash" fromBytesErrorHelper
+
 instance FromBytes DataHash where
-  fromBytes' = _fromBytesDataHash eh
+  fromBytes' = _fromBytes "DataHash" fromBytesErrorHelper
 
-instance FromBytes Transaction where
-  fromBytes' = _fromBytesTransaction eh
+instance FromBytes GenesisDelegateHash where
+  fromBytes' = _fromBytes "GenesisDelegateHash" fromBytesErrorHelper
 
-instance FromBytes TransactionHash where
-  fromBytes' = _fromBytesTransactionHash eh
-
-instance FromBytes PlutusData where
-  fromBytes' = _fromBytesPlutusData eh
-
-instance FromBytes TransactionUnspentOutput where
-  fromBytes' = _fromBytesTransactionUnspentOutput eh
-
-instance FromBytes TransactionWitnessSet where
-  fromBytes' = _fromBytesTransactionWitnessSet eh
-
-instance FromBytes NativeScript where
-  fromBytes' = _fromBytesNativeScript eh
+instance FromBytes GenesisHash where
+  fromBytes' = _fromBytes "GenesisHash" fromBytesErrorHelper
 
 instance FromBytes Mint where
-  fromBytes' = _fromBytesMint eh
+  fromBytes' = _fromBytes "Mint" fromBytesErrorHelper
 
-instance FromBytes VRFKeyHash where
-  fromBytes' = _fromBytesVRFKeyHash eh
+instance FromBytes NativeScript where
+  fromBytes' = _fromBytes "NativeScript" fromBytesErrorHelper
+
+instance FromBytes PlutusData where
+  fromBytes' = _fromBytes "PlutusData" fromBytesErrorHelper
+
+instance FromBytes PoolMetadataHash where
+  fromBytes' = _fromBytes "PoolMetadataHash" fromBytesErrorHelper
+
+instance FromBytes ScriptDataHash where
+  fromBytes' = _fromBytes "ScriptDataHash" fromBytesErrorHelper
+
+instance FromBytes Transaction where
+  fromBytes' = _fromBytes "Transaction" fromBytesErrorHelper
+
+instance FromBytes TransactionHash where
+  fromBytes' = _fromBytes "TransactionHash" fromBytesErrorHelper
+
+instance FromBytes TransactionUnspentOutput where
+  fromBytes' = _fromBytes "TransactionUnspentOutput" fromBytesErrorHelper
+
+instance FromBytes TransactionWitnessSet where
+  fromBytes' = _fromBytes "TransactionWitnessSet" fromBytesErrorHelper
 
 instance FromBytes Value where
-  fromBytes' = _fromBytesValue eh
+  fromBytes' = _fromBytes "Value" fromBytesErrorHelper
 
 instance FromBytes PublicKey where
-  fromBytes' = _fromBytesPublicKey eh
+  fromBytes' = _fromBytes "PublicKey" fromBytesErrorHelper
 
 instance FromBytes Ed25519Signature where
-  fromBytes' = _fromBytesEd25519Signature eh
+  fromBytes' = _fromBytes "Ed25519Signature" fromBytesErrorHelper
+
+instance FromBytes VRFKeyHash where
+  fromBytes' = _fromBytes "VRFKeyHash" fromBytesErrorHelper
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
-fromBytes :: forall (a :: Type). FromBytes a => ByteArray -> Maybe a
-fromBytes = fromBytes' >>> hush
+fromBytes :: forall (a :: Type). FromBytes a => CborBytes -> Maybe a
+fromBytes = unwrap >>> fromBytes' >>> hush
 
-fromBytesEffect :: forall (a :: Type). FromBytes a => ByteArray -> Effect a
+fromBytesEffect :: forall (a :: Type). FromBytes a => CborBytes -> Effect a
 fromBytesEffect bytes =
   case fromBytes bytes of
     Nothing -> throw "from_bytes() call failed"
     Just a -> pure a
 
----- Error types
-
--- | FromBytesError row alias
-type FromBytesError r = (fromBytesError :: String | r)
-
--- | Needed to craate a variant type
-_fromBytesError = Proxy :: Proxy "fromBytesError"
-
--- | An error to use
-fromBytesError
-  :: forall (r :: Row Type) (a :: Type)
-   . String
-  -> E (FromBytesError + r) a
-fromBytesError = Left <<< inj _fromBytesError
-
--- | A local helper to shorten code
-eh :: forall (r :: Row Type). ErrorFfiHelper (FromBytesError + r)
-eh = errorHelper (inj _fromBytesError)
-
 ---- Foreign imports
 
-foreign import _fromBytesDataHash
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r DataHash
-
-foreign import _fromBytesTransactionHash
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
+foreign import _fromBytes
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> ErrorFfiHelper r
   -> ByteArray
-  -> E r TransactionHash
-
-foreign import _fromBytesPlutusData
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PlutusData
-
-foreign import _fromBytesTransaction
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Transaction
-
-foreign import _fromBytesTransactionUnspentOutput
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> ByteArray
-  -> E r TransactionUnspentOutput
-
-foreign import _fromBytesTransactionWitnessSet
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> ByteArray
-  -> E r TransactionWitnessSet
-
-foreign import _fromBytesNativeScript
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r NativeScript
-
-foreign import _fromBytesMint
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Mint
-
-foreign import _fromBytesVRFKeyHash
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r VRFKeyHash
-
-foreign import _fromBytesValue
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r Value
-
-foreign import _fromBytesPublicKey
-  :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r PublicKey
-
-foreign import _fromBytesEd25519Signature
-  :: forall (r :: Row Type)
-   . ErrorFfiHelper r
-  -> ByteArray
-  -> E r Ed25519Signature
+  -> E r a
