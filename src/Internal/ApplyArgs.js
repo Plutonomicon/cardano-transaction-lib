@@ -38,3 +38,29 @@ exports.apply_params_to_script = args => script => {
         throw e1
     }
 }
+
+/**
+* @param {} left
+* @param {} right
+* @param {PlutusData} args
+* @param {PlutusScript} script
+* @returns {Either String PlutusScript}
+*/
+exports.apply_params_to_script_with_errors = left => right => args => script => {
+  let version = script.language_version();
+  let appliedScript;
+  try {
+    let scriptBytes = script.bytes(); // raw bytes
+    let argsBytes = args.to_bytes(); // cbor
+
+    try { 
+        appliedScript = uplc.apply_params_to_script_with_errors(argsBytes, scriptBytes);
+    } catch (e) {
+        return left("Error applying argument to script: ".concat(e.toString()));
+    }
+
+  } catch (e1) {
+    return left("Error serializing arguments");
+  }
+  return right(lib.PlutusScript.new_with_version(appliedScript, version));
+}
