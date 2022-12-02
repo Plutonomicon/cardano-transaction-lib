@@ -35,7 +35,6 @@ import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold, foldl, foldr)
-import Data.Functor (mapFlipped)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
@@ -162,12 +161,12 @@ getWalletCollateral = do
           utxos
 
   let
-    maxCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
+    targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
     utxoValue u = (unwrap (unwrap u).output).amount
-    sufficientUtxos = mapFlipped mbCollateralUTxOs \colUtxos ->
+    sufficientUtxos = mbCollateralUTxOs <#> \colUtxos ->
       foldl
         ( \us u ->
-            if foldMap utxoValue us `Value.geq` maxCollateral then us
+            if foldMap utxoValue us `Value.geq` targetCollateral then us
             else cons u us
         )
         []

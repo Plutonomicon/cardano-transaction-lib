@@ -103,14 +103,14 @@ contract = do
   hasSufficientUtxos = do
     let
       -- 4 Ada: enough to cover 2 Ada transfer and fees
-      isUtxoValid u = leq (Value.lovelaceValueOf $ BigInt.fromInt 4_000_000)
+      isUtxoValid u = (Value.lovelaceValueOf $ BigInt.fromInt 4_000_000) `leq`
         (unwrap (unwrap u).output).amount
 
     walletValidUtxos <- liftedM "Failed to get wallet Utxos"
-      $ map (length <<< filter isUtxoValid)
+      $ map (filter isUtxoValid)
       <$> getWalletUtxos
 
-    pure $ walletValidUtxos >= 2 -- 2 transactions
+    pure $ length walletValidUtxos >= 2 -- 2 transactions
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
