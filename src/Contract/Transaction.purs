@@ -279,8 +279,6 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
--- TODO: Remove once toBytes is switched to Castable
-import Untagged.Union (asOneOf)
 
 -- | Signs a transaction with potential failure.
 signTransaction
@@ -318,7 +316,7 @@ submitE tx = do
   cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
   let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
-  let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
+  let txCborBytes = Serialization.toBytes cslTx
   result <- wrapContract $
     QueryM.submitTxOgmios (unwrap txHash) txCborBytes
   pure $ case result of

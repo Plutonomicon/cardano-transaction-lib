@@ -68,10 +68,7 @@ import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  )
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray

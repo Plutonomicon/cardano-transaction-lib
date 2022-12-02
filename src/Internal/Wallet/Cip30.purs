@@ -41,8 +41,8 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes
   ( CborBytes
   , cborBytesToHex
-  , rawBytesAsCborBytes
   , hexToCborBytes
+  , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes
   ( RawBytes

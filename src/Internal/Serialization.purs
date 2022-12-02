@@ -85,6 +85,7 @@ import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
   , AuxiliaryData
+  , AuxiliaryDataHash
   , BigInt
   , Certificate
   , Certificates

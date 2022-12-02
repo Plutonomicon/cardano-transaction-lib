@@ -674,7 +674,7 @@ instance DecodeAeson PoolParametersR where
       vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
         vrfKeyhashHex
       vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
-        vrfKeyhashBytes
+        (wrap vrfKeyhashBytes)
       pledge <- objParams .: "pledge"
       cost <- objParams .: "cost"
       margin <- decodeUnitInterval =<< objParams .: "margin"

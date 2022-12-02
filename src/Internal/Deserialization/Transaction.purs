@@ -138,7 +138,7 @@ import Ctl.Internal.Serialization.Address
   , StakeCredential
   ) as Csl
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash) as Csl
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , AuxiliaryData
@@ -441,7 +441,7 @@ foreign import convertMultiHostName_
 
 convertPoolRetirement
   :: forall (r :: Row Type)
-   . Ed25519KeyHash
+   . Csl.Ed25519KeyHash
   -> Int
   -> Err r T.Certificate
 convertPoolRetirement poolKeyHash epochInt = do
@@ -842,7 +842,7 @@ foreign import _txBodyRequiredSigners
   :: ContainerHelper
   -> MaybeFfiHelper
   -> Csl.TransactionBody
-  -> Maybe (Array Ed25519KeyHash)
+  -> Maybe (Array Csl.Ed25519KeyHash)
 
 -- network_id(): NetworkId | void
 foreign import _txBodyNetworkId
@@ -877,7 +877,7 @@ foreign import _unpackUpdate
      }
 
 foreign import _unpackMint
-  :: ContainerHelper -> Csl.Mint -> Array (ScriptHash /\ Csl.MintAssets)
+  :: ContainerHelper -> Csl.Mint -> Array (Csl.ScriptHash /\ Csl.MintAssets)
 
 foreign import _unpackMintAssets
   :: ContainerHelper -> Csl.MintAssets -> Array (Csl.AssetName /\ Csl.Int)
@@ -886,13 +886,13 @@ type CertConvHelper (r :: Type) =
   { stakeDeregistration :: Csl.StakeCredential -> r
   , stakeRegistration :: Csl.StakeCredential -> r
   , stakeDelegation ::
-      Csl.StakeCredential -> Ed25519KeyHash -> r
+      Csl.StakeCredential -> Csl.Ed25519KeyHash -> r
   , poolRegistration :: Csl.PoolParams -> r
-  , poolRetirement :: Ed25519KeyHash -> Int -> r
+  , poolRetirement :: Csl.Ed25519KeyHash -> Int -> r
   , genesisKeyDelegation ::
       Csl.GenesisHash
       -> Csl.GenesisDelegateHash
-      -> VRFKeyHash
+      -> Csl.VRFKeyHash
       -> r
   , moveInstantaneousRewardsToOtherPotCert ::
       Number -> Csl.BigNum -> r
@@ -906,14 +906,14 @@ foreign import _convertCert
   -> Csl.Certificate
   -> Err r T.Certificate
 
-foreign import poolParamsOperator :: Csl.PoolParams -> Ed25519KeyHash
-foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> VRFKeyHash
+foreign import poolParamsOperator :: Csl.PoolParams -> Csl.Ed25519KeyHash
+foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> Csl.VRFKeyHash
 foreign import poolParamsPledge :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsCost :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsMargin :: Csl.PoolParams -> Csl.UnitInterval
 foreign import poolParamsRewardAccount :: Csl.PoolParams -> Csl.RewardAddress
 foreign import poolParamsPoolOwners
-  :: ContainerHelper -> Csl.PoolParams -> Array Ed25519KeyHash
+  :: ContainerHelper -> Csl.PoolParams -> Array Csl.Ed25519KeyHash
 
 foreign import poolParamsRelays
   :: ContainerHelper -> Csl.PoolParams -> Array Csl.Relay

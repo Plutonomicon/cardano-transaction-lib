@@ -20,12 +20,11 @@ import Ctl.Internal.QueryM.Ogmios
   , PoolParametersR(PoolParametersR)
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Hash
   ( ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
-  , ed25519KeyHashToBytes
   , scriptHashToBech32Unsafe
-  , scriptHashToBytes
   )
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
@@ -81,7 +80,7 @@ getValidatorHashDelegationsAndRewards skh = do
 
   byteHex :: String
   byteHex =
-    byteArrayToHex <<< unwrap <<< scriptHashToBytes <<< unwrap $
+    byteArrayToHex <<< unwrap <<< toBytes <<< unwrap $
       skh
 
 -- TODO: batched variant
@@ -99,6 +98,6 @@ getPubKeyHashDelegationsAndRewards pkh = do
 
   byteHex :: String
   byteHex =
-    byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $
+    byteArrayToHex <<< unwrap <<< toBytes <<< unwrap $
       unwrap
         pkh

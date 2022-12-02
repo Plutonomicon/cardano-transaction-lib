@@ -26,10 +26,7 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.RawBytes
-  ( hexToRawBytesUnsafe
-  )
+import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Data.Array.NonEmpty (fromArray)
 import Data.Either (Either(Left))
@@ -71,7 +68,7 @@ instance Arbitrary CurrencySymbol where
     translate x =
       scriptHashAsCurrencySymbol $ unsafePartial $ fromJust
         $ scriptHashFromBytes
-        $ hexToRawBytesUnsafe x
+        $ hexToByteArrayUnsafe x
 
 adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty

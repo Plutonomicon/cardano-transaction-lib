@@ -66,7 +66,7 @@ suite = do
         let
           pkBytes = bytesFromPublicKey $ convertPubKey pk
           (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> fromBytes
-            (unwrap pkBytes)
+            (wrap $ unwrap pkBytes)
 
         pk'' `shouldSatisfy` isJust
       test "newTransactionHash" do
