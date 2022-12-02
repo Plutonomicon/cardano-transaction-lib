@@ -11,6 +11,7 @@ module Ctl.Internal.BalanceTx.CoinSelection
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , UtxoIndex(UtxoIndex)
   , _leftoverUtxos
+  , buildUtxoIndex
   , performMultiAssetSelection
   , selectedInputs
   ) where
@@ -110,13 +111,13 @@ performMultiAssetSelection
    . MonadEffect m
   => MonadThrow BalanceTxError m
   => SelectionStrategy
-  -> UtxoMap
+  -> UtxoIndex
   -> Value
   -> m SelectionState
-performMultiAssetSelection strategy utxos requiredValue =
+performMultiAssetSelection strategy utxoIndex requiredValue =
   case requiredValue `Value.leq` availableValue of
     true ->
-      runRoundRobinM (mkSelectionState utxos) selectors
+      runRoundRobinM (mkSelectionState utxoIndex) selectors
     false ->
       throwError balanceInsufficientError
   where
@@ -125,7 +126,7 @@ performMultiAssetSelection strategy utxos requiredValue =
     BalanceInsufficientError (Expected requiredValue) (Actual availableValue)
 
   availableValue :: Value
-  availableValue = balance utxos
+  availableValue = balance (utxoIndex ^. _utxos)
 
   selectors
     :: Array (SelectionState -> m (Maybe SelectionState))
@@ -154,11 +155,8 @@ newtype SelectionState = SelectionState
 
 derive instance Newtype SelectionState _
 
-_leftoverUtxos :: Lens' SelectionState UtxoMap
-_leftoverUtxos = _leftoverUtxoIndex <<< _utxos
-
-_leftoverUtxoIndex :: Lens' SelectionState UtxoIndex
-_leftoverUtxoIndex = _Newtype <<< prop (Proxy :: Proxy "leftoverUtxos")
+_leftoverUtxos :: Lens' SelectionState UtxoIndex
+_leftoverUtxos = _Newtype <<< prop (Proxy :: Proxy "leftoverUtxos")
 
 _selectedUtxos :: Lens' SelectionState UtxoMap
 _selectedUtxos = _Newtype <<< prop (Proxy :: Proxy "selectedUtxos")
@@ -167,9 +165,8 @@ _selectedUtxos = _Newtype <<< prop (Proxy :: Proxy "selectedUtxos")
 -- |
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L192
-mkSelectionState :: UtxoMap -> SelectionState
-mkSelectionState =
-  wrap <<< { leftoverUtxos: _, selectedUtxos: Map.empty } <<< buildUtxoIndex
+mkSelectionState :: UtxoIndex -> SelectionState
+mkSelectionState = wrap <<< { leftoverUtxos: _, selectedUtxos: Map.empty }
 
 -- | Moves a single utxo entry from the leftover set to the selected set.
 -- |
@@ -178,7 +175,7 @@ mkSelectionState =
 selectUtxo :: TxUnspentOutput -> SelectionState -> SelectionState
 selectUtxo utxo@(oref /\ out) =
   over _selectedUtxos (Map.insert oref out)
-    <<< over _leftoverUtxoIndex (utxoIndexDeleteEntry utxo)
+    <<< over _leftoverUtxos (utxoIndexDeleteEntry utxo)
 
 -- | Returns the balance of the given utxo set.
 balance :: UtxoMap -> Value
@@ -283,7 +280,7 @@ selectQuantityOf
   -> m (Maybe SelectionState)
 selectQuantityOf asset priority state =
   map updateState <$>
-    selectRandomWithPriority (state ^. _leftoverUtxoIndex) filters
+    selectRandomWithPriority (state ^. _leftoverUtxos) filters
   where
   filters :: NonEmptyArray SelectionFilter
   filters = filtersForAssetWithPriority asset priority

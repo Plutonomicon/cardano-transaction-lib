@@ -12,7 +12,9 @@ import Control.Monad.Logger.Class (trace) as Logger
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
   , SelectionStrategy
+  , UtxoIndex
   , _leftoverUtxos
+  , buildUtxoIndex
   , performMultiAssetSelection
   , selectedInputs
   )
@@ -233,7 +235,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 type BalancerState =
   { unbalancedTx :: UnattachedUnbalancedTx
   , changeOutputs :: Array TransactionOutput
-  , leftoverUtxos :: UtxoMap
+  , leftoverUtxos :: UtxoIndex
   }
 
 runBalancer
@@ -263,7 +265,7 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
   -- | after generation of change, the first balancing step (`prebalanceTx`)
   -- | is performed, otherwise we proceed to `balanceChangeAndMinFee`.
   runNextBalancingStep
-    :: UnattachedUnbalancedTx -> UtxoMap -> BalanceTxM FinalizedTransaction
+    :: UnattachedUnbalancedTx -> UtxoIndex -> BalanceTxM FinalizedTransaction
   runNextBalancingStep unbalancedTx leftoverUtxos = do
     let txBody = unbalancedTx ^. _body'
     inputValue <- except $ getInputValue allUtxos txBody
@@ -285,7 +287,7 @@ runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
 
     selectionState <- performCoinSelection
     let
-      leftoverUtxos' :: UtxoMap
+      leftoverUtxos' :: UtxoIndex
       leftoverUtxos' = selectionState ^. _leftoverUtxos
 
       selectedInputs' :: Set TransactionInput
@@ -647,8 +649,8 @@ mkBalancerState
   -> Array TransactionOutput
   -> UtxoMap
   -> BalancerState
-mkBalancerState unbalancedTx changeOutputs leftoverUtxos =
-  { unbalancedTx, changeOutputs, leftoverUtxos }
+mkBalancerState unbalancedTx changeOutputs =
+  { unbalancedTx, changeOutputs, leftoverUtxos: _ } <<< buildUtxoIndex
 
 logBalancerState :: String -> UtxoMap -> BalancerState -> BalanceTxM Unit
 logBalancerState message utxos { unbalancedTx, changeOutputs } =
