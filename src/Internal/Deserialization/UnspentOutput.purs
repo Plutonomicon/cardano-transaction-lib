@@ -1,7 +1,6 @@
 module Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
   , convertInput
   , convertOutput
   , convertValue
@@ -32,7 +31,7 @@ import Ctl.Internal.Deserialization.WitnessSet (convertPlutusScript)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
@@ -50,7 +49,6 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
@@ -69,7 +67,6 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
-import Untagged.Union (asOneOf)
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
@@ -82,8 +79,8 @@ convertInput :: TransactionInput -> Maybe T.TransactionInput
 convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
-    { transactionId: T.TransactionHash $ toBytes
-        (asOneOf $ getTransactionHash input)
+    { transactionId: T.TransactionHash $ unwrap $ toBytes
+        (getTransactionHash input)
     , index
     }
 
@@ -94,7 +91,7 @@ convertOutput output = do
     address = getAddress output
     mbDataHash =
       getDataHash maybeFfiHelper output <#>
-        asOneOf >>> toBytes >>> T.DataHash
+        toBytes >>> unwrap >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail
@@ -129,7 +126,7 @@ convertValue value = do
         ( traverse
             ( bitraverse
                 -- scripthash to currency symbol
-                (scriptHashToBytes >>> unwrap >>> T.mkCurrencySymbol)
+                (toBytes >>> unwrap >>> T.mkCurrencySymbol)
                 -- nested assetname to tokenname
                 (traverse (ltraverse (T.assetNameName >>> T.mkTokenName)))
             )
@@ -182,11 +179,3 @@ foreign import getDataHash
 
 foreign import mkTransactionUnspentOutput
   :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
-
-foreign import _newTransactionUnspentOutputFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
-
-newTransactionUnspentOutputFromBytes
-  :: ByteArray -> Maybe TransactionUnspentOutput
-newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes
-  maybeFfiHelper

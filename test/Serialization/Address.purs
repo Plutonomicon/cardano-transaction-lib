@@ -44,7 +44,7 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
-import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -68,7 +68,7 @@ mPkh :: Maybe Ed25519KeyHash
 mPkh = ed25519KeyHashFromBech32 pkhBech32
 
 mScriptHash :: Maybe ScriptHash
-mScriptHash = scriptHashFromBytes $ hexToRawBytesUnsafe scriptHashHex
+mScriptHash = scriptHashFromBytes $ hexToByteArrayUnsafe scriptHashHex
 
 addressFunctionsTest :: TestPlanM (Aff Unit) Unit
 addressFunctionsTest = test "Address tests" $ do

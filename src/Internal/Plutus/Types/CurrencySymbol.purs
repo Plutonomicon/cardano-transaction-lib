@@ -23,11 +23,8 @@ import Control.Monad.Gen as Gen
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Hash
-  ( ScriptHash
-  , scriptHashFromBytes
-  , scriptHashToBytes
-  )
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.RawBytes
@@ -37,7 +34,7 @@ import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Data.Array.NonEmpty (fromArray)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 
@@ -80,7 +77,7 @@ adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< toBytes
 
 -- | The minting policy hash of a currency symbol.
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
@@ -88,8 +85,7 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
-  scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ toBytes h
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
@@ -99,7 +95,7 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes (wrap byteArr) $> CurrencySymbol byteArr
+      scriptHashFromBytes byteArr $> CurrencySymbol byteArr
 
 --------------------------------------------------------------------------------
 -- Internal
@@ -108,5 +104,5 @@ mkCurrencySymbol byteArr
 -- This must be safe to use as long as we always construct a
 -- `CurrencySymbol` with the smart-constructors.
 currencyScriptHash :: CurrencySymbol -> ScriptHash
-currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap
+currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes
   <<< getCurrencySymbol

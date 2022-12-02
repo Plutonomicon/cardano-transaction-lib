@@ -138,7 +138,7 @@ import Ctl.Internal.Serialization.Address
   , StakeCredential
   ) as Csl
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , AuxiliaryData
@@ -164,6 +164,7 @@ import Ctl.Internal.Serialization.Types
   , Nonce
   , PlutusScripts
   , PoolMetadata
+  , PoolMetadataHash
   , PoolParams
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -179,7 +180,6 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Withdrawals
   ) as Csl
 import Ctl.Internal.Types.BigNum (BigNum) as Csl
@@ -212,7 +212,6 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant)
 import Type.Row (type (+))
-import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
@@ -300,7 +299,7 @@ convertTxBody txBody = do
     , withdrawals
     , update
     , auxiliaryDataHash:
-        T.AuxiliaryDataHash <<< toBytes <<< asOneOf <$>
+        T.AuxiliaryDataHash <<< unwrap <<< toBytes <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
@@ -325,7 +324,7 @@ convertUpdate u = do
   epoch <- map T.Epoch $ cslNumberToUInt "convertUpdate: epoch" e
   ppus <- traverse
     ( bitraverse
-        (pure <<< T.GenesisHash <<< toBytes <<< asOneOf)
+        (pure <<< T.GenesisHash <<< unwrap <<< toBytes)
         convertProtocolParamUpdate
     )
     paramUpdates
@@ -348,9 +347,9 @@ convertCertificate = _convertCert certConvHelper
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         pure $ T.GenesisKeyDelegation
-          { genesisHash: T.GenesisHash $ toBytes $ asOneOf genesisHash
+          { genesisHash: T.GenesisHash $ unwrap $ toBytes genesisHash
           , genesisDelegateHash: T.GenesisDelegateHash
-              (toBytes $ asOneOf genesisDelegateHash)
+              (unwrap $ toBytes genesisDelegateHash)
           , vrfKeyhash: VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
@@ -385,7 +384,7 @@ convertPoolRegistration params = do
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
         convertPoolMetadata_
           \url hash -> T.PoolMetadata
-            { url: T.URL url, hash: T.PoolMetadataHash hash }
+            { url: T.URL url, hash: T.PoolMetadataHash $ unwrap $ toBytes hash }
     }
 
 type ConvertRelayHelper a =
@@ -659,7 +658,7 @@ convertExUnits nm cslExunits =
       <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
-convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
+convertScriptDataHash = toBytes >>> unwrap >>> T.ScriptDataHash
 
 convertProtocolVersion
   :: forall (r :: Row Type)
@@ -893,7 +892,7 @@ type CertConvHelper (r :: Type) =
   , genesisKeyDelegation ::
       Csl.GenesisHash
       -> Csl.GenesisDelegateHash
-      -> Csl.VRFKeyHash
+      -> VRFKeyHash
       -> r
   , moveInstantaneousRewardsToOtherPotCert ::
       Number -> Csl.BigNum -> r
@@ -908,7 +907,7 @@ foreign import _convertCert
   -> Err r T.Certificate
 
 foreign import poolParamsOperator :: Csl.PoolParams -> Ed25519KeyHash
-foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> Csl.VRFKeyHash
+foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> VRFKeyHash
 foreign import poolParamsPledge :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsCost :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsMargin :: Csl.PoolParams -> Csl.UnitInterval
@@ -928,4 +927,4 @@ foreign import unpackMIRToStakeCredentials_
   -> Array (Csl.StakeCredential /\ Csl.Int)
 
 foreign import convertPoolMetadata_
-  :: forall a. (String -> ByteArray -> a) -> Csl.PoolMetadata -> a
+  :: forall a. (String -> Csl.PoolMetadataHash -> a) -> Csl.PoolMetadata -> a

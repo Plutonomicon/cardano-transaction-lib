@@ -6,20 +6,19 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBytes
   , ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
-  , ed25519KeyHashToBytes
   , scriptHashFromBech32
   , scriptHashFromBytes
   , scriptHashToBech32
   , scriptHashToBech32Unsafe
-  , scriptHashToBytes
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap)
 import Data.Unit (Unit)
 import Effect.Aff (Aff)
 import Test.Ctl.Utils (assertTrue, errMaybe)
@@ -43,8 +42,9 @@ suite = do
   let
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
-    pkhBts = ed25519KeyHashToBytes pkh
-    pkh2 = ed25519KeyHashFromBytes pkhBts
+    pkhBts = toBytes pkh
+    -- TODO: use fromBytes instead?
+    pkh2 = ed25519KeyHashFromBytes $ unwrap pkhBts
 
   assertTrue
     "Safe ed25519KeyHashToBech32 should produce Just when unsafe version works"
@@ -67,14 +67,14 @@ suite = do
     (isNothing $ scriptHashFromBech32 invalidBech32)
 
   scrh <- errMaybe "scriptHashFromBytes failed" $ scriptHashFromBytes
-    $ wrap
     $ hexToByteArrayUnsafe
         scriptHashHex
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
-    scrhBts = scriptHashToBytes scrh
-    scrhFromBytes = scriptHashFromBytes scrhBts
+    scrhBts = toBytes scrh
+    -- TODO: use fromBytes instead?
+    scrhFromBytes = scriptHashFromBytes $ unwrap scrhBts
     scrhFromBech = scriptHashFromBech32 scrhB32
 
   assertTrue "Safe scriptHashToBech32 should produce Just when unsafe works"
