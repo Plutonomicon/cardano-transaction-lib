@@ -90,14 +90,14 @@ checkCip30SignDataResponse address { key, signature } = do
   coseSign1 <- liftEffect $ fromBytesCoseSign1 signature
   coseKey <- liftEffect $ fromBytesCoseKey key
 
-  checkCoseSign1ProtectedHeaders coseSign1 address
+  checkCoseSign1ProtectedHeaders coseSign1
   checkCoseKeyHeaders coseKey
   checkKidHeaders coseSign1 coseKey
   liftEffect $ checkVerification coseSign1 coseKey
   pure { coseKey, coseSign1 }
   where
-  checkCoseSign1ProtectedHeaders :: COSESign1 -> Address -> Aff Unit
-  checkCoseSign1ProtectedHeaders coseSign1 address = do
+  checkCoseSign1ProtectedHeaders :: COSESign1 -> Aff Unit
+  checkCoseSign1ProtectedHeaders coseSign1 = do
     assertTrue "COSE_Sign1's alg (1) header must be set to EdDSA (-8)"
       (getCoseSign1ProtectedHeaderAlg coseSign1 == Just (-8))
 
