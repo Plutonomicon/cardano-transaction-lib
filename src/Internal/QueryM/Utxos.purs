@@ -16,7 +16,7 @@ import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Cardano.Types.Value (Coin, Value)
 import Ctl.Internal.Helpers as Helpers
 import Ctl.Internal.QueryM
   ( QueryM
@@ -75,7 +75,7 @@ mkUtxoQuery allUtxosAt =
     KeyWallet _ -> allUtxosAt
 
   cip30UtxosAt :: QueryM (Maybe UtxoMap)
-  cip30UtxosAt = getWalletCollateral Nothing >>= maybe
+  cip30UtxosAt = getWalletCollateral mempty >>= maybe
     (liftEffect $ throw "CIP-30 wallet missing collateral")
     \collateralUtxos ->
       allUtxosAt <#> \utxos' ->
@@ -139,7 +139,7 @@ getWalletUtxos value paginate = do
     (unwrap >>> \({ input, output }) -> input /\ output)
 
 getWalletCollateral
-  :: Maybe Value -> QueryM (Maybe (Array TransactionUnspentOutput))
+  :: Coin -> QueryM (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral amount = do
   mbCollateralUTxOs <- asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
     case _ of
@@ -176,6 +176,5 @@ getWalletCollateral amount = do
     \the wallet."
 
   common wallet = liftAff do
-    -- amountConverted <- liftEffect $ traverse convertValue amount
     callCip30Wallet wallet
       (\wallet connection -> wallet.getCollateral wallet.connection amount)

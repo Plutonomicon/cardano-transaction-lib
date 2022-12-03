@@ -38,6 +38,7 @@ import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
+import Test.Ctl.Wallet.Cip30Mock as Cip30Mock
 
 -- Run with `spago test --main Test.Ctl.Unit`
 main :: Effect Unit
@@ -52,6 +53,7 @@ testPlan = do
   ByteArray.suite
   Cip25.suite
   Cip30SignData.suite
+  Cip30Mock.suite
   Data.suite
   Deserialization.suite
   Equipartition.suite

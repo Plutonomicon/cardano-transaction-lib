@@ -68,7 +68,7 @@ getSelfSigners tx additionalUtxos = do
     txCollats :: Set TransactionInput
     txCollats = Set.fromFoldable <<< fromMaybe [] $ tx ^. _body <<< _collateral
 
-  walletCollats <- maybe Map.empty toUtxoMap <$> getWalletCollateral Nothing
+  walletCollats <- maybe Map.empty toUtxoMap <$> getWalletCollateral mempty
 
   (inCollatAddrs :: Set Address) <- setFor txCollats
     ( \txCollat ->

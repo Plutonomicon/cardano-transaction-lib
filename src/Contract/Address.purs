@@ -41,7 +41,7 @@ import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
 import Contract.Prelude (liftM)
-import Contract.Value (Value)
+import Contract.Value (Coin, Value, getLovelace)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( addressPaymentValidatorHash
@@ -54,7 +54,7 @@ import Ctl.Internal.Plutus.Conversion
   , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusCoin, fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -127,7 +127,7 @@ import Ctl.Internal.Types.TypedValidator (TypedValidator)
 import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey)) as ExportUnbalancedTransaction
 import Ctl.Internal.Wallet.Cip30 (Paginate)
 import Data.Array (head)
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.Traversable (for, traverse)
 import Effect.Exception (error)
 import Prim.TypeError (class Warn, Text)
@@ -145,12 +145,16 @@ getWalletAddress = head <$> getWalletAddresses
 -- | Get all the `Address`es of the browser wallet.
 getWalletAddresses
   :: forall (r :: Row Type). Contract r (Array Address)
-getWalletAddresses = getWalletAddressesPaginated Nothing
+getWalletAddresses = getWalletAddressesGeneral Nothing
 
 -- | Get all the `Address`es of the browser wallet with pagination.
 getWalletAddressesPaginated
+  :: Paginate -> forall (r :: Row Type). Contract r (Array Address)
+getWalletAddressesPaginated paginate = getWalletAddressesGeneral $ Just paginate
+
+getWalletAddressesGeneral
   :: Maybe Paginate -> forall (r :: Row Type). Contract r (Array Address)
-getWalletAddressesPaginated paginate = do
+getWalletAddressesGeneral paginate = do
   addresses <- wrapContract $ QueryM.getWalletAddresses paginate
   traverse
     ( liftM
@@ -190,11 +194,11 @@ getWalletAddressesWithNetworkTag = do
 -- | is available.
 getWalletCollateral
   :: forall (r :: Row Type)
-   . Maybe Value
+   . Coin
   -> Contract r (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral amount = do
   mtxUnspentOutput <- wrapContract $ QueryM.getWalletCollateral $
-    fromPlutusValue <$> amount
+    fromPlutusCoin amount
   for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"

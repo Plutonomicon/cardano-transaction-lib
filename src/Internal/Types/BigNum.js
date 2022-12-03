@@ -79,4 +79,12 @@ exports._fromString = maybe => str => {
   }
 };
 
+exports._fromStringOrNumber = maybeffi => strOrNum => {
+  if (typeof strOrNum == "number") {
+    return exports._fromString(maybeffi)(String(strOrNum));
+  } else {
+    return exports._fromString(maybeffi)(strOrNum);
+  }
+};
+
 exports.toString = bn => bn.to_str();

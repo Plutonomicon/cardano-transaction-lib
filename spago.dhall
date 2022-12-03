@@ -89,6 +89,7 @@ You can edit this file as you like.
   , "uint"
   , "undefined"
   , "unfoldable"
+  , "unsafe-coerce"
   , "untagged-union"
   , "variant"
   ]

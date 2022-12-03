@@ -129,7 +129,7 @@ import Data.Either (Either(Right), isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -137,6 +137,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
+import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
 import Test.Ctl.Fixtures
@@ -176,7 +177,7 @@ suite = do
             [ BigInt.fromInt 2_000_000_000 ]
       withWallets distribution \(alice /\ bob) -> do
         withKeyWallet alice do
-          getWalletCollateral Nothing >>= liftEffect <<< case _ of
+          getWalletCollateral mempty >>= liftEffect <<< case _ of
             Nothing -> throw "Unable to get collateral"
             Just
               [ TransactionUnspentOutput
@@ -1490,7 +1491,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
-            getWalletCollateral Nothing >>= liftEffect <<< case _ of
+            getWalletCollateral mempty >>= liftEffect <<< case _ of
               Nothing -> throw "Unable to get collateral"
               Just
                 [ TransactionUnspentOutput
@@ -1514,9 +1515,43 @@ suite = do
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             let
-              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+              value = Value.Coin $ BigInt.fromInt
                 2_000_000_001
-            result <- getWalletCollateral mValue
+            result <- getWalletCollateral value
+            result `shouldEqual` Nothing
+
+      test "Collateral selection - amount equal to 5 ADA" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ unsafePartial $ fromJust $ BigInt.fromString "6000000000"
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withCip30Mock alice MockNami do
+            let
+              value = Value.Coin
+                $ unsafePartial
+                $ fromJust
+                $ BigInt.fromString "500000000"
+            result <- getWalletCollateral value
+            result `shouldSatisfy` isJust
+
+      test "Collateral selection - amount more than 5 ADA" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ unsafePartial $ fromJust $ BigInt.fromString "6000000000"
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withCip30Mock alice MockNami do
+            let
+              value = Value.Coin
+                $ unsafePartial
+                $ fromJust
+                $ BigInt.fromString "5000000001"
+            result <- getWalletCollateral value
             result `shouldEqual` Nothing
 
       test "Collateral selection - equal amount" do
@@ -1529,9 +1564,9 @@ suite = do
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             let
-              mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
+              value = Coin $ BigInt.fromInt
                 1_000_000_000
-            result <- getWalletCollateral mValue
+            result <- getWalletCollateral value
             result `shouldSatisfy` isJust
 
       test "Get own UTxOs - no arguments" do
@@ -1639,7 +1674,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
-            let pagination = Just $ { limit: 1, page: 2 }
+            let pagination = { limit: 1, page: 2 }
             mbAddr <- head <$> getWalletAddressesPaginated pagination
             mbAddr `shouldEqual` Nothing
 

@@ -6,7 +6,7 @@ class PaginateError {
   }
 }
 
-exports.raisePaginateError = function (maxSize) {
+exports.raisePaginateError = maxSize => () => {
   throw new PaginateError(maxSize);
 };
 
@@ -14,6 +14,14 @@ class APIError {}
 
 exports.raiseAPIError = function () {
   throw new APIError();
+};
+
+exports._catchPaginateError = maybeffi => action => () => {
+  try {
+    return maybeffi.just(action());
+  } catch (PaginateError) {
+    return maybeffi.nothing;
+  }
 };
 
 exports.injectCip30Mock = walletName => mock => () => {

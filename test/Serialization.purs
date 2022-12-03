@@ -18,7 +18,7 @@ import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromString) as BN
+import Ctl.Internal.Types.BigNum as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
@@ -48,6 +48,7 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Unsafe.Coerce (unsafeCoerce)
 import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -153,6 +154,12 @@ suite = do
       test "BigNum negative" $ do
         let bnNeg = "-1"
         BN.fromString bnNeg `shouldSatisfy` isNothing
+      test "BigNum from number" $ do
+        let input = (unsafeCoerce 1.0) :: BN.StringOrNumber
+        BN.fromStringOrNumber input `shouldSatisfy` isJust
+      test "BigNum from negative number" $ do
+        let input = (unsafeCoerce $ negate (1.0)) :: BN.StringOrNumber
+        BN.fromStringOrNumber input `shouldSatisfy` isNothing
 
 serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =

@@ -200,7 +200,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   setTransactionCollateral changeAddr transaction = do
     collateral <-
       liftEitherQueryM $
-        note CouldNotGetCollateral <$> getWalletCollateral Nothing
+        note CouldNotGetCollateral <$> getWalletCollateral mempty
     let collaterisedTx = addTxCollateral collateral transaction
     -- Don't mess with Cip30 collateral
     isCip30 <- isJust <$> askCip30Wallet

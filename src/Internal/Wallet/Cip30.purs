@@ -19,12 +19,14 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Cardano.Types.Value (Coin, Value, coinToValue, getLovelace)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.Helpers (fromJustEff)
+import Ctl.Internal.Plutus.Types.Value (valueToCoin)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -38,6 +40,7 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressBytes
   , rewardAddressFromAddress
   )
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes
   ( CborBytes
@@ -85,7 +88,7 @@ type Cip30Wallet =
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral ::
       Cip30Connection
-      -> Maybe Value
+      -> Coin
       -> Aff (Maybe (Array TransactionUnspentOutput))
   -- Get combination of all available UTxOs
   , getBalance :: Cip30Connection -> Aff (Maybe Value)
@@ -118,7 +121,7 @@ mkCip30WalletAff
 mkCip30WalletAff walletName enableWallet = do
   wallet <- toAffE enableWallet
   -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral wallet Nothing) do
+  whenM (isNothing <$> getCollateral wallet mempty) do
     liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
@@ -173,7 +176,7 @@ hexStringToAddress =
 -- | is available.
 getCollateral
   :: Cip30Connection
-  -> Maybe Value
+  -> Coin
   -> Aff (Maybe (Array TransactionUnspentOutput))
 getCollateral conn amount = do
   mbUtxoStrs <- toAffE $ getCip30Collateral conn amount
@@ -281,18 +284,22 @@ foreign import _getUtxos
 foreign import _getCollateral
   :: MaybeFfiHelper
   -> Cip30Connection
-  -> String -- Value in hex, can be undefined
+  -> BigNum.StringOrNumber -- Somthing to convert to BigNum
   -> Effect (Promise (Maybe (Array String)))
 
 getCip30Collateral
-  :: Cip30Connection -> Maybe Value -> Effect (Promise (Maybe (Array String)))
+  :: Cip30Connection -> Coin -> Effect (Promise (Maybe (Array String)))
 getCip30Collateral conn amount = do
-  amountPlutus <- liftEffect $ traverse Serialization.convertValue amount
-  let
-    amountHex = byteArrayToHex <$> Serialization.toBytes <$> asOneOf <$>
-      amountPlutus
-  _getCollateral maybeFfiHelper conn (toUndefinable amountHex) `catchError`
+  amountBigNumStr <- fromJustEff "Incorrect Coin value" $
+    coinToBigNumberStr amount
+  _getCollateral maybeFfiHelper conn amountBigNumStr `catchError`
     \_ -> throwError $ error "Wallet doesn't implement `getCollateral`."
+  where
+  coinToBigNumberStr coin =
+    BigNum.stringToStringOrNumber <$> BigNum.toString <$>
+      ( BigNum.fromBigInt $
+          getLovelace coin
+      )
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 

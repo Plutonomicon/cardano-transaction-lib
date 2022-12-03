@@ -13,10 +13,21 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.Cardano.Types.Value (Value, geq)
+import Ctl.Internal.Cardano.Types.Value
+  ( Coin(Coin)
+  , Value
+  , coinToValue
+  , geq
+  , gt
+  , lovelaceValueOf
+  )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue) as DSV
+import Ctl.Internal.FfiHelpers
+  ( MaybeFfiHelper
+  , maybeFfiHelper
+  )
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, runQueryMInRuntime)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
@@ -27,6 +38,7 @@ import Ctl.Internal.Serialization
   )
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
 import Ctl.Internal.Undefinable (fromUndefinable)
@@ -42,23 +54,21 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
-import Data.Array (cons, drop, length, null, take, (!!))
+import Data.Array (length)
 import Data.Array as Array
+import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
+import Data.Int (ceil, toNumber)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
-import Data.List (List(Nil), (:))
-import Data.List (fromFoldable, reverse, toUnfoldable) as List
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Nullable as Nullable
-import Data.Traversable (sequence)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -66,9 +76,9 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (Error)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
+import Partial.Unsafe (unsafePartial)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
 import Untagged.Union (asOneOf)
@@ -123,7 +133,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> "nami"
     MockLode -> "LodeWallet"
 
-type CollateralParams = { amount :: String }
+type CollateralParams = { amount :: BigNum.StringOrNumber }
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
@@ -137,6 +147,13 @@ type Cip30Mock =
   , signTx :: Fn2 String Boolean (Promise String)
   , signData :: Fn2 String String (Promise DataSignature)
   }
+
+-- | By CIP-30 collateral required amount must be not more than 5 ADA
+maxCollateralAmount :: Value
+maxCollateralAmount = lovelaceValueOf
+  $ unsafePartial
+  $ fromJust
+  $ BigInt.fromString "5000000000"
 
 mkCip30Mock
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> QueryM Cip30Mock
@@ -154,6 +171,17 @@ mkCip30Mock pKey mSKey = do
           maxCollateralInputs
           utxos
           <#> fold
+
+  let
+    convertAmount :: BigNum.StringOrNumber -> Effect Value
+    convertAmount amount = do
+      let
+        mAmountCoin = Coin <$>
+          (BigNum.toBigInt =<< BigNum.fromStringOrNumber amount)
+      amountCoin <- case mAmountCoin of
+        Nothing -> liftEffect raiseAPIError
+        Just x -> pure x
+      pure $ coinToValue amountCoin
 
   pure $
     { getNetworkId: fromAff $ pure $
@@ -192,11 +220,11 @@ mkCip30Mock pKey mSKey = do
         utxos <- liftMaybe (error "No UTxOs at address") =<<
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         collateralUtxos <- getCollateralUtxos utxos
-        let
-          amountValue = DSV.convertValue =<< fromBytes =<< hexToByteArray =<<
-            (fromUndefinable amount)
-        if (not hasEnoughAmount amountValue collateralUtxos) then liftEffect $
-          raiseAPIError
+        amountValue <- liftEffect $ convertAmount amount
+        if gt amountValue maxCollateralAmount then liftEffect raiseAPIError
+        else pure unit
+        if (not $ hasEnoughAmount (Just amountValue) collateralUtxos) then
+          liftEffect raiseAPIError
         else do
           cslUnspentOutput <- liftEffect $ traverse
             convertTransactionUnspentOutput
@@ -246,19 +274,23 @@ foreign import injectCip30Mock :: String -> Cip30Mock -> Effect (Effect Unit)
 
 foreign import raisePaginateError :: forall a. Int -> Effect a
 
+foreign import _catchPaginateError
+  :: forall a. MaybeFfiHelper -> Effect a -> Effect (Maybe a)
+
+catchPaginateError :: forall a. Effect a -> Effect (Maybe a)
+catchPaginateError = _catchPaginateError maybeFfiHelper
+
 foreign import raiseAPIError :: forall a. Effect a
 
 paginateArray :: forall a. Maybe Paginate -> Array a -> Effect (Array a)
-paginateArray (Just { page, limit }) xs = process $ pages !! page
+paginateArray (Just { page, limit }) xs =
+  case page >= maxPages of
+    true -> raisePaginateError maxPages
+    false -> pure $ Array.slice startAt endAt xs
   where
-  chunkBy :: forall a. Int -> Array a -> Array (Array a)
-  chunkBy _ ys | null ys = []
-  chunkBy n ys = cons (take n ys) (chunkBy n $ drop n ys)
-  pages = chunkBy limit xs
-
-  process :: Maybe (Array a) -> Effect (Array a)
-  process (Just x) = pure x
-  process Nothing = raisePaginateError $ length pages
+  startAt = page * limit
+  endAt = (page + 1) * limit
+  maxPages = ceil $ (toNumber (length xs)) / (toNumber limit)
 paginateArray Nothing xs = pure xs
 
 hasEnoughAmount :: Maybe Value -> Array TransactionUnspentOutput -> Boolean
