@@ -73,7 +73,7 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
       (unwrap networkId)
 
   dataSignature <- liftEffect $ signData privatePaymentKey address payload
-  { coseKey, coseSign1 } <- checkCip30SignDataResponse address dataSignature
+  { coseKey } <- checkCip30SignDataResponse address dataSignature
 
   assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
     (getCoseKeyHeaderX coseKey == Just (bytesFromPublicKey publicPaymentKey))
