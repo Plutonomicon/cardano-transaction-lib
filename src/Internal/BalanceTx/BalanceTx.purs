@@ -203,8 +203,14 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
     selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
     -- Balance and finalize the transaction:
-    runBalancer selectionStrategy allUtxos availableUtxos changeAddr certsFee
-      (unbalancedTx # _transaction' .~ unbalancedCollTx)
+    runBalancer
+      { strategy: selectionStrategy
+      , unbalancedTx: unbalancedTx # _transaction' .~ unbalancedCollTx
+      , changeAddress: changeAddr
+      , allUtxos
+      , utxos: availableUtxos
+      , certsFee
+      }
   where
   getChangeAddress :: BalanceTxM Address
   getChangeAddress =
@@ -232,112 +238,129 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 -- Balancing Algorithm
 --------------------------------------------------------------------------------
 
-type BalancerState =
-  { unbalancedTx :: UnattachedUnbalancedTx
-  , changeOutputs :: Array TransactionOutput
-  , leftoverUtxos :: UtxoIndex
+type BalancerParams =
+  { strategy :: SelectionStrategy
+  , unbalancedTx :: UnattachedUnbalancedTx
+  , changeAddress :: Address
+  , allUtxos :: UtxoMap
+  , utxos :: UtxoMap
+  , certsFee :: Coin
   }
 
-runBalancer
-  :: SelectionStrategy
+type BalancerState =
+  { transaction :: UnattachedUnbalancedTx
+  , leftoverUtxos :: UtxoIndex
+  , changeOutputs :: Array TransactionOutput
+  , minFee :: BigInt
+  }
+
+initBalancerState
+  :: UnattachedUnbalancedTx
   -> UtxoMap
-  -> UtxoMap
-  -> Address
-  -> Coin
-  -> UnattachedUnbalancedTx
-  -> BalanceTxM FinalizedTransaction
-runBalancer strategy allUtxos utxos changeAddress certsFee unbalancedTx' = do
+  -> BalancerState
+initBalancerState transaction =
+  buildUtxoIndex >>>
+    { transaction, leftoverUtxos: _, changeOutputs: mempty, minFee: zero }
+
+data BalancerStep
+  = PrebalanceTx BalancerState
+  | BalanceChangeAndMinFee BalancerState
+
+runBalancer :: BalancerParams -> BalanceTxM FinalizedTransaction
+runBalancer p = do
   spendableUtxos <- getSpendableUtxos
-  addLovelacesToTransactionOutputs unbalancedTx'
-    >>= ((\tx -> mkBalancerState tx mempty spendableUtxos) >>> prebalanceTx)
+  unbalancedTx <- addLovelacesToTransactionOutputs p.unbalancedTx
+  mainLoop (initBalancerState unbalancedTx spendableUtxos)
   where
   getSpendableUtxos :: BalanceTxM UtxoMap
   getSpendableUtxos =
     asksConstraints Constraints._nonSpendableInputs <#>
       \nonSpendableInputs ->
-        flip Map.filterKeys utxos \oref -> not $
+        flip Map.filterKeys p.utxos \oref -> not $
           Set.member oref nonSpendableInputs
-            || Set.member oref (unbalancedTx' ^. _body' <<< _referenceInputs)
+            || Set.member oref (p.unbalancedTx ^. _body' <<< _referenceInputs)
 
-  -- | Determines which balancing step will be performed next.
-  -- |
-  -- | If the transaction remains unbalanced (i.e. `requiredValue != mempty`)
-  -- | after generation of change, the first balancing step (`prebalanceTx`)
-  -- | is performed, otherwise we proceed to `balanceChangeAndMinFee`.
-  runNextBalancingStep
-    :: UnattachedUnbalancedTx -> UtxoIndex -> BalanceTxM FinalizedTransaction
-  runNextBalancingStep unbalancedTx leftoverUtxos = do
-    let txBody = unbalancedTx ^. _body'
-    inputValue <- except $ getInputValue allUtxos txBody
-    changeOutputs <- makeChange changeAddress inputValue certsFee txBody
-
-    requiredValue <-
-      except $ getRequiredValue certsFee utxos
-        (setTxChangeOutputs changeOutputs unbalancedTx ^. _body')
-
-    { unbalancedTx, changeOutputs, leftoverUtxos } #
-      if requiredValue == mempty then balanceChangeAndMinFee else prebalanceTx
-
-  -- | Selects a combination of unspent transaction outputs from the wallet's
-  -- | utxo set so that the total input value is sufficient to cover all
-  -- | transaction outputs, including generated change and min fee.
-  prebalanceTx :: BalancerState -> BalanceTxM FinalizedTransaction
-  prebalanceTx state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
-    logBalancerState "Pre-balancing (Stage 1)" utxos state
-
-    selectionState <- performCoinSelection
-    let
-      leftoverUtxos' :: UtxoIndex
-      leftoverUtxos' = selectionState ^. _leftoverUtxos
-
-      selectedInputs' :: Set TransactionInput
-      selectedInputs' = selectedInputs selectionState
-
-      unbalancedTxWithInputs :: UnattachedUnbalancedTx
-      unbalancedTxWithInputs =
-        unbalancedTx # _body' <<< _inputs %~ Set.union selectedInputs'
-
-    runNextBalancingStep unbalancedTxWithInputs leftoverUtxos'
+  mainLoop :: BalancerState -> BalanceTxM FinalizedTransaction
+  mainLoop = worker <<< PrebalanceTx
     where
-    performCoinSelection :: BalanceTxM SelectionState
-    performCoinSelection =
+    worker :: BalancerStep -> BalanceTxM FinalizedTransaction
+    worker (PrebalanceTx state) = do
+      logBalancerState "Pre-balancing (Stage 1)" p.allUtxos state
+      prebalanceTx state >>= runNextBalancerStep
+    worker (BalanceChangeAndMinFee state@{ transaction, minFee }) = do
+      logBalancerState "Balancing change and fees (Stage 2)" p.allUtxos state
+      { transaction: balancedTx, minFee: newMinFee } <- evaluateTx state
+      case newMinFee <= minFee of
+        true ->
+          logTransaction "Balanced transaction (Done)" p.allUtxos balancedTx
+            *> finalizeTransaction balancedTx p.allUtxos
+        false ->
+          runNextBalancerStep $ state
+            { transaction = transaction # _body' <<< _fee .~ Coin newMinFee
+            , minFee = newMinFee
+            }
+
+    -- | Determines which balancing step will be performed next.
+    -- |
+    -- | If the transaction remains unbalanced (i.e. `requiredValue != mempty`)
+    -- | after generation of change, the first balancing step `PrebalanceTx`
+    -- | is performed, otherwise we proceed to `BalanceChangeAndMinFee`.
+    runNextBalancerStep :: BalancerState -> BalanceTxM FinalizedTransaction
+    runNextBalancerStep state@{ transaction, leftoverUtxos } = do
+      let txBody = transaction ^. _body'
+      inputValue <- except $ getInputValue p.allUtxos txBody
+      changeOutputs <- makeChange p.changeAddress inputValue p.certsFee txBody
+
+      requiredValue <-
+        except $ getRequiredValue p.certsFee p.allUtxos
+          (setTxChangeOutputs changeOutputs transaction ^. _body')
+
+      worker $ state { changeOutputs = changeOutputs } #
+        if requiredValue == mempty then BalanceChangeAndMinFee else PrebalanceTx
+
+    -- | Selects a combination of unspent transaction outputs from the wallet's
+    -- | utxo set so that the total input value is sufficient to cover all
+    -- | transaction outputs, including generated change and min fee.
+    prebalanceTx :: BalancerState -> BalanceTxM BalancerState
+    prebalanceTx state@{ transaction, changeOutputs, leftoverUtxos } = do
+
+      selectionState <- performCoinSelection
       let
-        txBody :: TxBody
-        txBody = setTxChangeOutputs changeOutputs unbalancedTx ^. _body'
-      in
-        except (getRequiredValue certsFee utxos txBody)
-          >>= performMultiAssetSelection strategy leftoverUtxos
+        selectedInputs' :: Set TransactionInput
+        selectedInputs' = selectedInputs selectionState
 
-  -- | Calculates execution units for each script in the transaction and sets
-  -- | min fee.
-  -- |
-  -- | The transaction must be pre-balanced before evaluating execution units,
-  -- | since this pre-condition is sometimes required for successfull script
-  -- | execution during transaction evaluation.
-  balanceChangeAndMinFee :: BalancerState -> BalanceTxM FinalizedTransaction
-  balanceChangeAndMinFee
-    state@{ unbalancedTx, changeOutputs, leftoverUtxos } = do
-    logBalancerState "Balancing change and fees (Stage 2)" utxos state
-    let
-      prebalancedTx :: PrebalancedTransaction
-      prebalancedTx = wrap $ setTxChangeOutputs changeOutputs unbalancedTx
+        unbalancedTxWithInputs :: UnattachedUnbalancedTx
+        unbalancedTxWithInputs =
+          transaction # _body' <<< _inputs %~ Set.union selectedInputs'
 
-      minFee :: BigInt
-      minFee = unwrap $ unbalancedTx ^. _body' <<< _fee
-
-    balancedTx /\ newMinFee <- evalExUnitsAndMinFee prebalancedTx allUtxos
-
-    case newMinFee <= minFee of
-      true ->
-        finalizeTransaction balancedTx allUtxos
-          <* logTransaction "Balanced transaction (Done)" utxos balancedTx
-      false ->
+      pure $ state
+        { transaction = unbalancedTxWithInputs
+        , leftoverUtxos = selectionState ^. _leftoverUtxos
+        }
+      where
+      performCoinSelection :: BalanceTxM SelectionState
+      performCoinSelection =
         let
-          unbalancedTxWithMinFee :: UnattachedUnbalancedTx
-          unbalancedTxWithMinFee =
-            unbalancedTx # _body' <<< _fee .~ Coin newMinFee
+          txBody :: TxBody
+          txBody = setTxChangeOutputs changeOutputs transaction ^. _body'
         in
-          runNextBalancingStep unbalancedTxWithMinFee leftoverUtxos
+          except (getRequiredValue p.certsFee p.allUtxos txBody)
+            >>= performMultiAssetSelection p.strategy leftoverUtxos
+
+    -- | Calculates execution units for each script in the transaction and sets
+    -- | min fee.
+    -- |
+    -- | The transaction must be pre-balanced before evaluating execution units,
+    -- | since this pre-condition is sometimes required for successfull script
+    -- | execution during transaction evaluation.
+    evaluateTx :: BalancerState -> BalanceTxM BalancerState
+    evaluateTx state@{ transaction, changeOutputs, leftoverUtxos } = do
+      let
+        prebalancedTx :: PrebalancedTransaction
+        prebalancedTx = wrap $ setTxChangeOutputs changeOutputs transaction
+
+      transaction' /\ minFee <- evalExUnitsAndMinFee prebalancedTx p.allUtxos
+      pure $ state { transaction = transaction', minFee = minFee }
 
 -- | For each transaction output, if necessary, adds some number of lovelaces
 -- | to cover the utxo min-ada-value requirement.
@@ -644,17 +667,9 @@ getStakingBalance tx depositLovelacesPerCert =
 -- Helpers
 --------------------------------------------------------------------------------
 
-mkBalancerState
-  :: UnattachedUnbalancedTx
-  -> Array TransactionOutput
-  -> UtxoMap
-  -> BalancerState
-mkBalancerState unbalancedTx changeOutputs =
-  { unbalancedTx, changeOutputs, leftoverUtxos: _ } <<< buildUtxoIndex
-
 logBalancerState :: String -> UtxoMap -> BalancerState -> BalanceTxM Unit
-logBalancerState message utxos { unbalancedTx, changeOutputs } =
-  logTransactionWithChange message utxos (Just changeOutputs) unbalancedTx
+logBalancerState message utxos { transaction, changeOutputs } =
+  logTransactionWithChange message utxos (Just changeOutputs) transaction
 
 logTransaction
   :: String -> UtxoMap -> UnattachedUnbalancedTx -> BalanceTxM Unit
