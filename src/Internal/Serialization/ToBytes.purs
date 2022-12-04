@@ -32,6 +32,8 @@ import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 
 import Untagged.Union (type (|+|))
 
+-- data MyTypes = Transaction |+| TransactionBody
+
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import _toBytes
   :: ( Transaction
@@ -52,6 +54,7 @@ foreign import _toBytes
          |+| Value
          |+| Ed25519Signature
          |+| VRFKeyHash
+         |+| ScriptHash
      -- Add more as needed.
      )
   -> ByteArray
@@ -125,5 +128,26 @@ foreign import _toBytes
 -- instance ToBytes VRFKeyHash where
 --   toBytes' = _toBytes
 
-toBytes :: forall (a :: Type). ToBytes a => a -> CborBytes
-toBytes = CborBytes <<< toBytes'
+toBytes ::
+  ( Transaction
+         |+| TransactionBody
+         |+| TransactionOutput
+         |+| TransactionUnspentOutput
+         |+| TransactionHash
+         |+| DataHash
+         |+| PlutusData
+         |+| TransactionWitnessSet
+         |+| NativeScript
+         |+| ScriptDataHash
+         |+| Redeemers
+         |+| GenesisHash
+         |+| GenesisDelegateHash
+         |+| AuxiliaryDataHash
+         |+| Address
+         |+| Value
+         |+| Ed25519Signature
+         |+| VRFKeyHash
+         |+| ScriptHash
+     -- Add more as needed.
+     ) -> CborBytes
+toBytes = CborBytes <<< _toBytes
