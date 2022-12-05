@@ -6,6 +6,12 @@ both in Plutus and CTL.
 For this discussion, we need to go through an overview of
 both of them.
 
+**Table of contents**
+<!-- toc -->
+
+- [About `Contract` in CTL and Plutus](#about-contract-in-ctl-and-plutus)
+
+<!-- tocstop -->
 
 ## About `Contract` in CTL and Plutus
 

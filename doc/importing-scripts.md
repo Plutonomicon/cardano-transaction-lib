@@ -1,12 +1,14 @@
 # Importing scripts for use with CTL
 
 **Table of Contents**
+<!-- toc -->
 
 - [Importing serialized scripts](#importing-serialized-scripts)
-- [Serializing scripts](#serializing-plutus-scripts)
-  * [PlutusTx](#plutustx)
-  * [Plutarch](#plutarch)
+- [Serializing Plutus scripts](#serializing-plutus-scripts)
+  - [PlutusTx](#plutustx)
+  - [Plutarch](#plutarch)
 
+<!-- tocstop -->
 ## Importing serialized scripts
 
 To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.

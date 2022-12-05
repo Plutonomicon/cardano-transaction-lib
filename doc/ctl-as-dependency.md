@@ -3,13 +3,16 @@
 CTL can be imported as an additional dependency into a Purescript project built with Spago (i.e. by listing the project in your `packages.dhall`). Running CTL contracts requires several [runtime dependencies](./runtime.md) as well.
 
 **Table of Contents**
+<!-- toc -->
 
 - [Caveats](#caveats)
-- [Using CTL's overlays](#using-ctl-s-overlays)
+- [Using CTL's overlays](#using-ctls-overlays)
 - [Upgrading CTL](#upgrading-ctl)
 - [Using CTL from JS](#using-ctl-from-js)
-  + [Bundling](#bundling)
-  + [Wrapping CTL into a JS interface](#wrapping-ctl-into-a-js-interface)
+  - [Bundling](#bundling)
+  - [Wrapping CTL into a JS interface](#wrapping-ctl-into-a-js-interface)
+
+<!-- tocstop -->
 
 ## Caveats
 

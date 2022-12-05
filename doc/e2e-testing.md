@@ -2,21 +2,27 @@
 
 CTL comes with advanced machinery for E2E testing in the browser, which can be used to either run the included examples (in `examples`) or create a custom test suite for E2E testing.
 
+**Table of Contents**
+
+<!-- toc -->
+
 - [Parts Involved](#parts-involved)
 - [How to Run the Included Examples](#how-to-run-the-included-examples)
 - [How Wallets are Used](#how-wallets-are-used)
-  + [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
-  + [How to Use a Different User Wallet](#how-to-use-a-different-user-wallet)
-- [Using a reproducible `chromium` version](#using-a-reproducible--chromium--version)
+  - [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
+  - [How to Use a Different User Wallet](#how-to-use-a-different-user-wallet)
+- [Using a reproducible `chromium` version](#using-a-reproducible-chromium-version)
 - [Configuring E2E test suite](#configuring-e2e-test-suite)
 - [Creating a custom test suite](#creating-a-custom-test-suite)
-  + [How to configure the wallet](#how-to-configure-the-wallet)
-  + [Re-Packing an Extension as a CRX File](#re-packing-an-extension-as-a-crx-file)
-  + [Getting the extension ID](#getting-the-extension-id)
-  + [Using custom unauthorized extensions](#using-custom-unauthorized-extensions)
-  + [Serving the Contract to be tested](#serving-the-contract-to-be-tested)
-  + [Mocking CIP-30 interface](#mocking-cip-30-interface)
-  + [Using CIP-30 mock with Plutip](#using-cip-30-mock-with-plutip)
+  - [How to configure the wallet](#how-to-configure-the-wallet)
+  - [Re-Packing an Extension as a CRX File](#re-packing-an-extension-as-a-crx-file)
+  - [Getting the extension ID](#getting-the-extension-id)
+  - [Using custom unauthorized extensions](#using-custom-unauthorized-extensions)
+  - [Serving the Contract to be tested](#serving-the-contract-to-be-tested)
+  - [Mocking CIP-30 interface](#mocking-cip-30-interface)
+  - [Using CIP-30 mock with Plutip](#using-cip-30-mock-with-plutip)
+
+<!-- tocstop -->
 
 ## Parts Involved
 

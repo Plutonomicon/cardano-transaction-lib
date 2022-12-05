@@ -3,13 +3,15 @@
 In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractEnv` that holds websocket connections, information about server hosts/ports, and other requisite information.
 
 **Table of Contents**
+<!-- toc -->
 
-- [Current services](#current-services)
-- [Using NixOS module](#using-nixos-module)
-- [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
-- [Changing network configurations](#changing-network-configurations)
-- [Wallet requirements](#wallet-requirements)
+  - [Current services](#current-services)
+  - [Using NixOS module](#using-nixos-module)
+  - [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
+  - [Changing network configurations](#changing-network-configurations)
+  - [Wallet requirements](#wallet-requirements)
 
+<!-- tocstop -->
 ### Current services
 
 The services that are currently **required** are:

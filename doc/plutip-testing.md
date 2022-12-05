@@ -3,14 +3,17 @@
 [Plutip](https://github.com/mlabs-haskell/plutip) is a tool to run private Cardano testnets. CTL provides integration with Plutip via a [`plutip-server` binary](https://github.com/mlabs-haskell/plutip/pull/79) that exposes an HTTP interface to control local Cardano clusters.
 
 **Table of Contents**
+<!-- toc -->
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  + [Testing in Aff context](#testing-in-aff-context)
-  + [Testing with Mote](#testing-with-mote)
-  + [Testing with Nix](#testing-with-nix)
+  - [Testing in Aff context](#testing-in-aff-context)
+  - [Testing with Mote](#testing-with-mote)
+  - [Note on SIGINT](#note-on-sigint)
+  - [Testing with Nix](#testing-with-nix)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
 
+<!-- tocstop -->
 ## Architecture
 
 CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:

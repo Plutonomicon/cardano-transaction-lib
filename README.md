@@ -12,11 +12,16 @@
 
 **Table of Contents**
 
+<!-- toc -->
+
 - [Roadmap](#roadmap)
   - [Light wallet support](#light-wallet-support)
 - [Documentation](#documentation)
 - [Architecture](#architecture)
 - [Additional resources/tools:](#additional-resourcestools)
+- [Available support channels info](#available-support-channels-info)
+
+<!-- tocstop -->
 
 ## Roadmap
 
