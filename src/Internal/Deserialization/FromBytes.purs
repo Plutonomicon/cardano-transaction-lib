@@ -79,6 +79,9 @@ instance FromBytes PlutusData where
 instance FromBytes PoolMetadataHash where
   fromBytes' = _fromBytes "PoolMetadataHash" fromBytesErrorHelper
 
+instance FromBytes PublicKey where
+  fromBytes' = _fromBytes "PublicKey" fromBytesErrorHelper
+
 instance FromBytes Redeemers where
   fromBytes' = _fromBytes "Redeemers" fromBytesErrorHelper
 
