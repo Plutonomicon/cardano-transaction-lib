@@ -6,7 +6,7 @@ examples_imports_check() {
   local ix=1;
 
   set -o noglob
-  local excluded_paths=("KeyWallet/Internal/*" "ByUrl.purs")
+  local excluded_paths=("KeyWallet/Internal/*" "ByUrl.purs" "SignData.purs")
   local excluded_paths_=${excluded_paths[@]/#/! -path $examples_path/}
 
   for example_purs in $(find $examples_path -type f -name *.purs ${excluded_paths_[@]}); do
