@@ -148,6 +148,8 @@ getScriptsByHashes =
     <<< map (Map.catMaybes <<< Map.fromFoldable)
     <<< parTraverse (\sh -> Tuple sh <$> ExceptT (getScriptByHash sh))
 
+-- FIXME: This can only confirm transactions with at least one output.
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 isTxConfirmed :: TransactionHash -> QueryM (Either ClientError Boolean)
 isTxConfirmed (TransactionHash txHash) = do
   let endpoint = "/matches/*@" <> byteArrayToHex txHash
