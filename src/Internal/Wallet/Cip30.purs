@@ -284,7 +284,7 @@ foreign import _getUtxos
 foreign import _getCollateral
   :: MaybeFfiHelper
   -> Cip30Connection
-  -> BigNum.StringOrNumber -- Somthing to convert to BigNum
+  -> String -- Somthing to convert to BigNum
   -> Effect (Promise (Maybe (Array String)))
 
 getCip30Collateral
@@ -296,7 +296,7 @@ getCip30Collateral conn amount = do
     \_ -> throwError $ error "Wallet doesn't implement `getCollateral`."
   where
   coinToBigNumberStr coin =
-    BigNum.stringToStringOrNumber <$> BigNum.toString <$>
+    BigNum.toString <$>
       ( BigNum.fromBigInt $
           getLovelace coin
       )

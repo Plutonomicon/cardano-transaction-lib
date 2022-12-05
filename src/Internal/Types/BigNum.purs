@@ -17,9 +17,6 @@ module Ctl.Internal.Types.BigNum
   , fromUInt
   , toUInt
   , zero
-  , stringToStringOrNumber
-  , fromStringOrNumber
-  , StringOrNumber
   ) where
 
 import Prelude
@@ -119,17 +116,6 @@ fromString = _fromString maybeFfiHelper
 
 fromStringUnsafe :: String -> BigNum
 fromStringUnsafe = unsafePartial fromJust <<< fromString
-
-foreign import data StringOrNumber :: Type
-
-foreign import _fromStringOrNumber
-  :: MaybeFfiHelper -> StringOrNumber -> Maybe BigNum
-
-fromStringOrNumber :: StringOrNumber -> Maybe BigNum
-fromStringOrNumber = _fromStringOrNumber maybeFfiHelper
-
-stringToStringOrNumber :: String -> StringOrNumber
-stringToStringOrNumber = unsafeCoerce
 
 foreign import toString :: BigNum -> String
 

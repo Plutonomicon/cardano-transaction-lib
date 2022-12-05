@@ -79,7 +79,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
 import Untagged.Union (asOneOf)
 
@@ -133,7 +132,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> "nami"
     MockLode -> "LodeWallet"
 
-type CollateralParams = { amount :: BigNum.StringOrNumber }
+type CollateralParams = { amount :: String }
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
@@ -173,11 +172,11 @@ mkCip30Mock pKey mSKey = do
           <#> fold
 
   let
-    convertAmount :: BigNum.StringOrNumber -> Effect Value
+    convertAmount :: String -> Effect Value
     convertAmount amount = do
       let
         mAmountCoin = Coin <$>
-          (BigNum.toBigInt =<< BigNum.fromStringOrNumber amount)
+          (BigNum.toBigInt =<< BigNum.fromString amount)
       amountCoin <- case mAmountCoin of
         Nothing -> liftEffect raiseAPIError
         Just x -> pure x
