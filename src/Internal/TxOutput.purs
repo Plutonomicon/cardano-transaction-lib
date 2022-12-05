@@ -32,7 +32,6 @@ import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Tr
 import Data.Maybe (Maybe, fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
-import Untagged.Castable (cast)
 
 -- | A module for helpers of the various transaction output types.
 
@@ -115,7 +114,7 @@ datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 datumToOgmiosDatum :: Datum -> Maybe String
 datumToOgmiosDatum (Datum plutusData) =
   Serialization.convertPlutusData plutusData <#>
-    (cast >>> toBytes >>> unwrap >>> byteArrayToHex)
+    (toBytes >>> unwrap >>> byteArrayToHex)
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
 toOutputDatum d dh =

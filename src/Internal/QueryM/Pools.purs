@@ -36,7 +36,6 @@ import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Exception (error)
 import Record.Builder (build, merge)
-import Untagged.Castable (cast)
 
 getPoolIds :: QueryM (Array PoolPubKeyHash)
 getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
@@ -82,13 +81,13 @@ getValidatorHashDelegationsAndRewards skh = do
   stringRep = scriptHashToBech32Unsafe "script" $ unwrap skh
 
   -- byteHex :: String
-  -- byteHex = byteArrayToHex $ unwrap $ toBytes $ cast $ unwrap skh
+  -- byteHex = byteArrayToHex $ unwrap $ toBytes $ unwrap skh
 
   sh :: ScriptHash
   sh = unwrap skh
 
   byteHex :: String
-  byteHex = byteArrayToHex $ unwrap $ toBytes $ cast sh
+  byteHex = byteArrayToHex $ unwrap $ toBytes sh
 
 -- TODO: batched variant
 getPubKeyHashDelegationsAndRewards
@@ -104,10 +103,10 @@ getPubKeyHashDelegationsAndRewards pkh = do
     ed25519KeyHashToBech32Unsafe "stake_vkh" $ unwrap $ unwrap pkh
 
   -- byteHex :: String
-  -- byteHex = byteArrayToHex $ unwrap $ toBytes $ cast $ unwrap $ unwrap pkh
+  -- byteHex = byteArrayToHex $ unwrap $ toBytes $ unwrap $ unwrap pkh
 
   ed :: Ed25519KeyHash
   ed = unwrap $ unwrap pkh
 
   byteHex :: String
-  byteHex = byteArrayToHex $ unwrap $ toBytes $ cast ed
+  byteHex = byteArrayToHex $ unwrap $ toBytes ed

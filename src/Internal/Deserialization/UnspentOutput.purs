@@ -67,7 +67,6 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt as UInt
-import Untagged.Castable (cast)
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
@@ -80,7 +79,7 @@ convertInput :: TransactionInput -> Maybe T.TransactionInput
 convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
-    { transactionId: T.TransactionHash $ unwrap $ toBytes $ cast
+    { transactionId: T.TransactionHash $ unwrap $ toBytes
         (getTransactionHash input)
     , index
     }
@@ -92,7 +91,7 @@ convertOutput output = do
     address = getAddress output
     mbDataHash =
       getDataHash maybeFfiHelper output <#>
-        cast >>> toBytes >>> unwrap >>> T.DataHash
+        toBytes >>> unwrap >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail
@@ -127,7 +126,7 @@ convertValue value = do
         ( traverse
             ( bitraverse
                 -- scripthash to currency symbol
-                (cast >>> toBytes >>> unwrap >>> T.mkCurrencySymbol)
+                (toBytes >>> unwrap >>> T.mkCurrencySymbol)
                 -- nested assetname to tokenname
                 (traverse (ltraverse (T.assetNameName >>> T.mkTokenName)))
             )

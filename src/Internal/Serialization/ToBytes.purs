@@ -27,6 +27,7 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Untagged.Castable (class Castable)
 import Untagged.Union (type (|+|))
 
 type SerializationData = Address
@@ -55,10 +56,11 @@ type SerializationData = Address
 
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import _toBytes
-  :: SerializationData
-  -> ByteArray
+  :: forall a. a -> ByteArray
 
 toBytes
-  :: SerializationData
+  :: forall a
+   . Castable a SerializationData
+  => a
   -> CborBytes
 toBytes = CborBytes <<< _toBytes

@@ -22,7 +22,6 @@ import Data.Newtype (unwrap)
 import Data.Unit (Unit)
 import Effect.Aff (Aff)
 import Test.Ctl.Utils (assertTrue, errMaybe)
-import Untagged.Castable (cast)
 
 pkhBech32 :: Bech32String
 pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
@@ -43,7 +42,7 @@ suite = do
   let
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
-    pkhBts = toBytes $ cast pkh
+    pkhBts = toBytes pkh
     -- TODO: use fromBytes instead?
     pkh2 = ed25519KeyHashFromBytes $ unwrap pkhBts
 
@@ -73,7 +72,7 @@ suite = do
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
-    scrhBts = toBytes $ cast scrh
+    scrhBts = toBytes scrh
     -- TODO: use fromBytes instead?
     scrhFromBytes = scriptHashFromBytes $ unwrap scrhBts
     scrhFromBech = scriptHashFromBech32 scrhB32

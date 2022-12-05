@@ -48,7 +48,6 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Untagged.Castable (cast)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -112,11 +111,11 @@ suite = do
               datum = PD.Integer (BigInt.fromInt 0)
             datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
               datum
-            let bytes = toBytes $ cast datum'
+            let bytes = toBytes datum'
             byteArrayToHex (unwrap bytes) `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
-        let bytes = toBytes $ cast txo
+        let bytes = toBytes txo
         byteArrayToHex (unwrap bytes) `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $
         serializeTX txFixture1 txBinaryFixture1
@@ -158,13 +157,13 @@ serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
   liftEffect $ do
     cslTX <- TS.convertTransaction $ tx
-    let bytes = toBytes $ cast cslTX
+    let bytes = toBytes cslTX
     byteArrayToHex (unwrap bytes) `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
   cslTX <- liftEffect $ TS.convertTransaction tx
-  let serialized = toBytes $ cast cslTX
+  let serialized = toBytes cslTX
   deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes serialized
   expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
     TD.convertTransaction deserialized

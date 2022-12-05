@@ -88,7 +88,6 @@ import Data.UInt (toString) as UInt
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as Object
-import Untagged.Castable (cast)
 
 --------------------------------------------------------------------------------
 -- Requests
@@ -128,7 +127,7 @@ getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do
   let
     endpoint = "/scripts/" <> rawBytesToHex
-      (wrap $ unwrap $ toBytes $ cast scriptHash)
+      (wrap $ unwrap $ toBytes scriptHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
 

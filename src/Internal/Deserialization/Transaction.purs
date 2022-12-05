@@ -212,7 +212,6 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant)
 import Type.Row (type (+))
-import Untagged.Castable (cast)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
@@ -300,7 +299,7 @@ convertTxBody txBody = do
     , withdrawals
     , update
     , auxiliaryDataHash:
-        T.AuxiliaryDataHash <<< unwrap <<< (toBytes <<< cast) <$>
+        T.AuxiliaryDataHash <<< unwrap <<< toBytes <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
@@ -325,7 +324,7 @@ convertUpdate u = do
   epoch <- map T.Epoch $ cslNumberToUInt "convertUpdate: epoch" e
   ppus <- traverse
     ( bitraverse
-        (pure <<< T.GenesisHash <<< unwrap <<< toBytes <<< cast)
+        (pure <<< T.GenesisHash <<< unwrap <<< toBytes)
         convertProtocolParamUpdate
     )
     paramUpdates
@@ -348,9 +347,9 @@ convertCertificate = _convertCert certConvHelper
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         pure $ T.GenesisKeyDelegation
-          { genesisHash: T.GenesisHash $ unwrap $ toBytes $ cast genesisHash
+          { genesisHash: T.GenesisHash $ unwrap $ toBytes genesisHash
           , genesisDelegateHash: T.GenesisDelegateHash
-              (unwrap $ toBytes $ cast genesisDelegateHash)
+              (unwrap $ toBytes genesisDelegateHash)
           , vrfKeyhash: VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
@@ -386,7 +385,7 @@ convertPoolRegistration params = do
         convertPoolMetadata_
           \url hash -> T.PoolMetadata
             { url: T.URL url
-            , hash: T.PoolMetadataHash $ unwrap $ toBytes $ cast hash
+            , hash: T.PoolMetadataHash $ unwrap $ toBytes hash
             }
     }
 
@@ -661,7 +660,7 @@ convertExUnits nm cslExunits =
       <*> BigNum.toBigInt' (nm <> " steps") steps
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
-convertScriptDataHash = cast >>> toBytes >>> unwrap >>> T.ScriptDataHash
+convertScriptDataHash = toBytes >>> unwrap >>> T.ScriptDataHash
 
 convertProtocolVersion
   :: forall (r :: Row Type)

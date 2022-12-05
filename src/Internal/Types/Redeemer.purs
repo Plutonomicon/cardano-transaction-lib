@@ -17,7 +17,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Untagged.Castable (cast)
 
 newtype Redeemer = Redeemer PlutusData
 
@@ -51,4 +50,4 @@ instance Show RedeemerHash where
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> Maybe RedeemerHash
 redeemerHash =
-  map (wrap <<< unwrap <<< toBytes <<< cast) <<< convertPlutusData <<< unwrap
+  map (wrap <<< unwrap <<< toBytes) <<< convertPlutusData <<< unwrap

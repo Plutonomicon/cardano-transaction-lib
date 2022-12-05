@@ -38,7 +38,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Untagged.Castable (cast)
 
 data ModifyTxError
   = ConvertWitnessesError
@@ -69,7 +68,7 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   , null rs
   , null ds = pure tx
   | otherwise = do
-      scriptDataHash <- ScriptDataHash <<< unwrap <<< toBytes <<< cast
+      scriptDataHash <- ScriptDataHash <<< unwrap <<< toBytes
         <$> hashScriptData costModels rs (unwrap <$> ds)
       pure $ over Transaction
         _

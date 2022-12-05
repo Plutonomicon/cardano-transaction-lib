@@ -34,7 +34,6 @@ import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
-import Untagged.Castable (cast)
 
 newtype CurrencySymbol = CurrencySymbol ByteArray
 
@@ -75,7 +74,7 @@ adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< toBytes <<< cast
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< toBytes
 
 -- | The minting policy hash of a currency symbol.
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
@@ -83,7 +82,7 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ toBytes $ cast h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ toBytes h
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol

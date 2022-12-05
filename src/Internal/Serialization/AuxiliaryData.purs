@@ -38,7 +38,6 @@ import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Untagged.Castable (cast)
 
 foreign import newAuxiliaryData :: Effect AuxiliaryData
 
@@ -80,7 +79,7 @@ foreign import _hashAuxiliaryData
 
 hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
 hashAuxiliaryData =
-  map (wrap <<< unwrap <<< toBytes <<< cast <<< _hashAuxiliaryData) <<<
+  map (wrap <<< unwrap <<< toBytes <<< _hashAuxiliaryData) <<<
     convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData

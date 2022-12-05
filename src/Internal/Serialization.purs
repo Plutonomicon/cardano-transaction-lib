@@ -172,7 +172,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Untagged.Castable (cast)
 import Untagged.Union (UndefinedOr, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
@@ -883,4 +882,4 @@ hashScriptData cms rs ps = do
       (traverse convertPlutusData ps)
 
 serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
-serializeData = map (toBytes <<< cast) <<< convertPlutusData <<< toData
+serializeData = map toBytes <<< convertPlutusData <<< toData

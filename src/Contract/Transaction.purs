@@ -277,7 +277,6 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Untagged.Castable (cast)
 
 -- | Signs a transaction with potential failure.
 signTransaction
@@ -315,7 +314,7 @@ submitE tx = do
   cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
   let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
-  let txCborBytes = Serialization.toBytes $ cast cslTx
+  let txCborBytes = Serialization.toBytes cslTx
   result <- wrapContract $
     QueryM.submitTxOgmios (unwrap txHash) txCborBytes
   pure $ case result of

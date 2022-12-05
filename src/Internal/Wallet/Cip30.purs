@@ -52,7 +52,6 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Untagged.Castable (cast)
 
 type DataSignature =
   { key :: CborBytes
@@ -123,7 +122,7 @@ mkCip30WalletAff walletName enableWallet = do
 txToHex :: Transaction -> Aff String
 txToHex =
   liftEffect
-    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes <<< cast)
+    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
     <<< Serialization.convertTransaction
 
 getNetworkId :: Cip30Connection -> Aff Int

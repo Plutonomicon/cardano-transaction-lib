@@ -34,7 +34,6 @@ import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
-import Untagged.Castable (cast)
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 
@@ -55,7 +54,7 @@ foreign import sha3_256HashHex :: ByteArray -> String
 
 datumHash :: Datum -> Maybe DataHash
 datumHash =
-  map (wrap <<< unwrap <<< toBytes <<< cast <<< hashPlutusData)
+  map (wrap <<< unwrap <<< toBytes <<< hashPlutusData)
     <<< convertPlutusData
     <<<
       unwrap
@@ -64,7 +63,7 @@ datumHash =
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
-  wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< cast <<< _txBody
+  wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript
