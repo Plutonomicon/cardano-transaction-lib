@@ -51,9 +51,9 @@ foreign import sha3_256Hash :: ByteArray -> ByteArray
 
 foreign import sha3_256HashHex :: ByteArray -> String
 
-datumHash :: Datum -> Maybe DataHash
+datumHash :: Datum -> DataHash
 datumHash =
-  map (wrap <<< hashPlutusData) <<< convertPlutusData <<< unwrap
+  wrap <<< hashPlutusData <<< convertPlutusData <<< unwrap
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.

@@ -753,12 +753,9 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
 
-          hash1 <- liftM (error "Couldn't get hash for datums 1") $
-            datumHash datum1
-          hash2 <- liftM (error "Couldn't get hash for datums 2") $
-            datumHash datum2
-          hashes <- liftM (error "Couldn't get hashes for datums [1,2]") $
-            traverse datumHash datums
+          let hash1 = datumHash datum1
+          let hash2 = datumHash datum2
+          let hashes = map datumHash datums
 
           actualDatums1 <- getDatumsByHashes hashes
           actualDatums1 `shouldEqual` Map.fromFoldable
@@ -1380,8 +1377,7 @@ suite = do
                     tn
                     (BigInt.fromInt 50)
 
-            datumLookup <- liftContractM "Unable to create datum lookup" $
-              Lookups.datum datum'
+            let datumLookup = Lookups.datum datum'
 
             let
               lookups0 :: Lookups.ScriptLookups PlutusData

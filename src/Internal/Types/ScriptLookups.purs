@@ -422,10 +422,10 @@ validatorM :: forall (a :: Type). Validator -> Maybe (ScriptLookups a)
 validatorM = pure <<< validator
 
 -- | A script lookups value with a datum.
-datum :: forall (a :: Type). Datum -> Maybe (ScriptLookups a)
+datum :: forall (a :: Type). Datum -> ScriptLookups a
 datum dt =
   Hashing.datumHash dt
-    <#> \dh -> over ScriptLookups _ { datums = singleton dh dt } mempty
+    # \dh -> over ScriptLookups _ { datums = singleton dh dt } mempty
 
 -- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a
@@ -1299,8 +1299,8 @@ processConstraint mpsMap osMap = do
         _cpsToTxBody <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do
-      let mdh = Hashing.datumHash dt
-      if mdh == Just dh then addDatum dt
+      let dh' = Hashing.datumHash dt
+      if dh' == dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustRegisterStakePubKey skh -> runExceptT do
       lift $ addCertificate
@@ -1459,8 +1459,7 @@ processConstraint mpsMap osMap = do
          OutputDatum
   outputDatum dat = case _ of
     DatumInline -> pure $ OutputDatum dat
-    DatumWitness -> OutputDatumHash <$> liftMaybe (CannotHashDatum dat)
-      (Hashing.datumHash dat)
+    DatumWitness -> pure $ OutputDatumHash $ Hashing.datumHash dat
 
 credentialToStakeCredential :: Credential -> StakeCredential
 credentialToStakeCredential cred = case cred of

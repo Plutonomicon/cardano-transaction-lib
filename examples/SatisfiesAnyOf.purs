@@ -40,10 +40,8 @@ wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
 testMustSatisfyAnyOf :: Contract () Unit
 testMustSatisfyAnyOf = do
-  wrongDatumHash <- liftMaybe (error "Cannot get DatumHash") $ Hashing.datumHash
-    wrongDatum
-  correctDatumHash <- liftMaybe (error "Cannot get DatumHash") $
-    Hashing.datumHash unitDatum
+  let wrongDatumHash = Hashing.datumHash wrongDatum
+  let correctDatumHash = Hashing.datumHash unitDatum
   let
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustSatisfyAnyOf

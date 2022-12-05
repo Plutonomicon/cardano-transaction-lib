@@ -552,8 +552,9 @@ instance (FromData a) => FromData (Tree a) where
   fromData x = genericFromData x
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes
-  (hexToByteArrayUnsafe binary)
+fromBytesFromData binary = fromData =<< (Just <<< PDD.convertPlutusData) =<<
+  fromBytes
+    (hexToByteArrayUnsafe binary)
 
 testBinaryFixture
   :: forall a
@@ -568,8 +569,8 @@ testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
-    map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
-      `shouldEqual` Just
+    (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
+      `shouldEqual`
         (hexToByteArrayUnsafe binaryFixture)
 
 -- | Poor man's type level tests

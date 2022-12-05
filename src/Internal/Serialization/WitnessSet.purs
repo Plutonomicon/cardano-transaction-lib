@@ -129,9 +129,7 @@ convertRedeemer (T.Redeemer { tag, index, "data": data_, exUnits }) = do
   newRedeemer tag' index' data' exUnits'
 
 convertPlutusDataEffect :: PD.PlutusData -> Effect PDS.PlutusData
-convertPlutusDataEffect pd = maybe (throw "Failed to convert PlutusData") pure $
-  convertPlutusData
-    pd
+convertPlutusDataEffect pd = pure $ convertPlutusData pd
 
 convertRedeemerTag :: Tag.RedeemerTag -> Effect RedeemerTag
 convertRedeemerTag = _newRedeemerTag <<< case _ of

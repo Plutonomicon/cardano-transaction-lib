@@ -166,7 +166,7 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Traversable (for, for_, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -793,8 +793,7 @@ convertTxOutput
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
-        =<< fromJustEff "convertTxOutput"
-          (convertPlutusData $ unwrap datumValue)
+        =<< pure (convertPlutusData $ unwrap datumValue)
   for_ scriptRef $
     convertScriptRef >>> transactionOutputSetScriptRef txo
   pure txo
@@ -871,9 +870,9 @@ hashScriptData cms rs ps = do
   -- function, the resulting hash will be wrong
   case ps of
     [] -> _hashScriptDataNoDatums rs' cms'
-    _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
-      (traverse convertPlutusData ps)
+    _ -> _hashScriptData rs' cms' =<<
+      pure (map convertPlutusData ps)
 
-serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
-serializeData = map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<<
+serializeData :: forall (a :: Type). ToData a => a -> CborBytes
+serializeData = wrap <<< toBytes <<< asOneOf <<< convertPlutusData <<<
   toData

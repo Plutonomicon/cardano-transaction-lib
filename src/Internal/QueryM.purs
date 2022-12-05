@@ -818,35 +818,35 @@ applyArgs script args =
           \provided host and port. The `ctl-server` packages can be obtained \
           \from `overlays.ctl-server` defined in CTL's flake. Please see \
           \`doc/runtime.md` in the CTL repository for more information"
-    Just config -> case traverse plutusDataToAeson args of
-      Nothing -> pure $ Left $ ClientEncodingError
-        "Failed to convert script args"
-      Just ps -> do
-        let
-          language :: Language
-          language = snd $ unwrap script
+    Just config ->
+      let
+        ps = map plutusDataToAeson args
+      in
+        do
+          let
+            language :: Language
+            language = snd $ unwrap script
 
-          url :: String
-          url = mkHttpUrl config <</>> "apply-args"
+            url :: String
+            url = mkHttpUrl config <</>> "apply-args"
 
-          reqBody :: Aeson
-          reqBody = encodeAeson
-            $ Object.fromFoldable
-                [ "script" /\ scriptToAeson script
-                , "args" /\ encodeAeson ps
-                ]
-        liftAff (postAeson url reqBody)
-          <#> map (PlutusScript <<< flip Tuple language) <<<
-            handleAffjaxResponse
+            reqBody :: Aeson
+            reqBody = encodeAeson
+              $ Object.fromFoldable
+                  [ "script" /\ scriptToAeson script
+                  , "args" /\ encodeAeson ps
+                  ]
+          liftAff (postAeson url reqBody)
+            <#> map (PlutusScript <<< flip Tuple language) <<<
+              handleAffjaxResponse
   where
-  plutusDataToAeson :: PlutusData -> Maybe Aeson
+  plutusDataToAeson :: PlutusData -> Aeson
   plutusDataToAeson =
-    map
-      ( encodeAeson
-          <<< byteArrayToHex
-          <<< Serialization.toBytes
-          <<< asOneOf
-      )
+    ( encodeAeson
+        <<< byteArrayToHex
+        <<< Serialization.toBytes
+        <<< asOneOf
+    )
       <<< Serialization.convertPlutusData
 
 -- Checks response status code and returns `ClientError` in case of failure,

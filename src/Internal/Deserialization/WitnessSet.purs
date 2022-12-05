@@ -66,8 +66,9 @@ convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
   nativeScripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
-  plutusData <- for (getWitnessSetPlutusData maybeFfiHelper ws)
-    convertPlutusList
+  let
+    plutusData = map convertPlutusList
+      (getWitnessSetPlutusData maybeFfiHelper ws)
   plutusScripts <- for (getPlutusScripts maybeFfiHelper ws) convertPlutusScripts
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
@@ -115,8 +116,8 @@ convertPlutusScript plutusScript =
     language <- convertLanguage $ plutusScriptVersion plutusScript
     pure $ curry S.PlutusScript (plutusScriptBytes plutusScript) language
 
-convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
-convertPlutusList = extractPlutusData >>> traverse convertPlutusData
+convertPlutusList :: PlutusList -> Array T.PlutusData
+convertPlutusList = extractPlutusData >>> map convertPlutusData
 
 convertRedeemers :: Redeemers -> Maybe (Array T.Redeemer)
 convertRedeemers = extractRedeemers >>> traverse convertRedeemer
@@ -126,7 +127,7 @@ convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
   index <- BigNum.toBigInt $ getRedeemerIndex redeemer
   exUnits <- convertExUnits $ getExUnits redeemer
-  data_ <- convertPlutusData $ getRedeemerPlutusData redeemer
+  let data_ = convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
     { tag
     , index

@@ -83,7 +83,8 @@ suite = do
             [ PD.Integer (BigInt.fromInt 1)
             , PD.Integer (BigInt.fromInt 2)
             ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #2 - Map" $ do
         let
           datum =
@@ -91,28 +92,30 @@ suite = do
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #3 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #4 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #5 - Bytes" $ do
         let datum = PD.Bytes $ hexToByteArrayUnsafe "00ff"
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test
         "PlutusData #6 - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
         $ do
             let
-              datum = PD.Integer (BigInt.fromInt 0)
-            datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
-              datum
-            let bytes = toBytes (asOneOf datum')
+              datum = convertPlutusData $ PD.Integer (BigInt.fromInt 0)
+            let bytes = toBytes (asOneOf datum)
             byteArrayToHex bytes `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1

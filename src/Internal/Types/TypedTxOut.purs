@@ -175,23 +175,20 @@ mkTypedTxOut
   -> Maybe (TypedTxOut validator datum)
 mkTypedTxOut networkId typedVal dt amount =
   let
-    mDHash = Hashing.datumHash $ Datum $ toData dt
+    dHash = Hashing.datumHash $ Datum $ toData dt
     -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
     -- "validatorAddress" also currently doesn't account for staking.
     address = typedValidatorEnterpriseAddress networkId typedVal
   in
-    case mDHash of
-      Nothing -> Nothing
-      Just dHash ->
-        Just <<< mkTypedTxOut' dt $
-          wrap
-            { address
-            , amount
-            -- TODO: populate properly
-            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-            , datum: OutputDatumHash dHash
-            , scriptRef: Nothing
-            }
+    Just <<< mkTypedTxOut' dt $
+      wrap
+        { address
+        , amount
+        -- TODO: populate properly
+        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
+        , datum: OutputDatumHash dHash
+        , scriptRef: Nothing
+        }
   where
   mkTypedTxOut'
     :: datum -- Data
