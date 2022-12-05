@@ -199,8 +199,8 @@ signData conn address dat = do
     (rawBytesToHex dat)
     conn
   pure $ do
-    let key = signedData.key
-    let signature = rawBytesAsCborBytes signedData.signature
+    key <- hexToCborBytes signedData.key
+    signature <- hexToCborBytes signedData.signature
     pure { key: key, signature: signature }
   where
   fromBase :: Maybe CborBytes
@@ -284,4 +284,4 @@ foreign import _signData
   :: String -- Address
   -> String -- Hex-encoded data
   -> Cip30Connection
-  -> Effect (Promise { key :: CborBytes, signature :: RawBytes })
+  -> Effect (Promise { key :: String, signature :: String })
