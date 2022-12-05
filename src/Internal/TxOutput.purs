@@ -11,10 +11,7 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Address
-  ( addressToOgmiosAddress
-  , ogmiosAddressToAddress
-  )
+import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as Transaction
@@ -35,6 +32,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Tr
 import Data.Maybe (Maybe, fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
+import Untagged.Castable (cast)
 
 -- | A module for helpers of the various transaction output types.
 
@@ -117,7 +115,7 @@ datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 datumToOgmiosDatum :: Datum -> Maybe String
 datumToOgmiosDatum (Datum plutusData) =
   Serialization.convertPlutusData plutusData <#>
-    (toBytes >>> unwrap >>> byteArrayToHex)
+    (cast >>> toBytes >>> unwrap >>> byteArrayToHex)
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
 toOutputDatum d dh =

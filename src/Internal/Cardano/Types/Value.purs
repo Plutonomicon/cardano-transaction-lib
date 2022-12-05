@@ -53,7 +53,14 @@ module Ctl.Internal.Cardano.Types.Value
 
 import Prelude hiding (join)
 
-import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(TypeMismatch), caseAesonObject, encodeAeson', getField)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , encodeAeson'
+  , getField
+  )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Equipartition (class Equipartition, equipartition)
@@ -64,9 +71,20 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, byteLength, hexToByteArray)
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayToHex
+  , byteLength
+  , hexToByteArray
+  )
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
-import Ctl.Internal.Types.TokenName (TokenName, adaToken, getTokenName, mkTokenName, mkTokenNames)
+import Ctl.Internal.Types.TokenName
+  ( TokenName
+  , adaToken
+  , getTokenName
+  , mkTokenName
+  , mkTokenNames
+  )
 import Data.Array (cons, filter)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
@@ -93,7 +111,7 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
-import Untagged.Union (asOneOf)
+import Untagged.Castable (cast)
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
 -- combine similar behaviour without satisfying any useful laws. I wonder
@@ -761,7 +779,7 @@ currencyScriptHash (CurrencySymbol byteArray) =
   unsafePartial fromJust $ scriptHashFromBytes byteArray
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< toBytes <<< asOneOf
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< toBytes <<< cast
 
 -- | The minting policy hash of a currency symbol
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
@@ -772,7 +790,7 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 -- Plutus doesn't use Maybe here.
 -- | The currency symbol of a monetary policy hash
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ toBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ toBytes $ cast h
 
 -- Like `mapEither` that works with 'These'.
 mapThese

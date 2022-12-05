@@ -165,6 +165,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Partial.Unsafe (unsafePartial)
+import Untagged.Castable (cast)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -871,11 +872,13 @@ instance Show PublicKey where
 newtype Ed25519Signature = Ed25519Signature RawBytes
 
 mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
-mkEd25519Signature = map (Ed25519Signature <<< wrap <<< unwrap <<< toBytes) <<<
-  ed25519SignatureFromBech32
+mkEd25519Signature =
+  map (Ed25519Signature <<< wrap <<< unwrap <<< toBytes <<< cast) <<<
+    ed25519SignatureFromBech32
 
 mkFromCslEd25519Signature :: Serialization.Ed25519Signature -> Ed25519Signature
-mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< unwrap <<< toBytes
+mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< unwrap <<< toBytes <<<
+  cast
 
 convertEd25519Signature :: Ed25519Signature -> Serialization.Ed25519Signature
 convertEd25519Signature (Ed25519Signature bs) = unsafePartial

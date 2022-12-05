@@ -8,6 +8,7 @@ module Ctl.Internal.QueryM.Pools
 
 import Prelude
 
+import Contract.Scripts (ScriptHash)
 import Ctl.Internal.Cardano.Types.Transaction
   ( PoolPubKeyHash
   , PoolRegistrationParams
@@ -20,12 +21,13 @@ import Ctl.Internal.QueryM.Ogmios
   , PoolParametersR(PoolParametersR)
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Hash
-  ( ed25519KeyHashToBech32
+  ( Ed25519KeyHash
+  , ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
   , scriptHashToBech32Unsafe
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
@@ -34,6 +36,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Exception (error)
 import Record.Builder (build, merge)
+import Untagged.Castable (cast)
 
 getPoolIds :: QueryM (Array PoolPubKeyHash)
 getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
@@ -78,10 +81,14 @@ getValidatorHashDelegationsAndRewards skh = do
   stringRep :: String
   stringRep = scriptHashToBech32Unsafe "script" $ unwrap skh
 
+  -- byteHex :: String
+  -- byteHex = byteArrayToHex $ unwrap $ toBytes $ cast $ unwrap skh
+
+  sh :: ScriptHash
+  sh = unwrap skh
+
   byteHex :: String
-  byteHex =
-    byteArrayToHex <<< unwrap <<< toBytes <<< unwrap $
-      skh
+  byteHex = byteArrayToHex $ unwrap $ toBytes $ cast sh
 
 -- TODO: batched variant
 getPubKeyHashDelegationsAndRewards
@@ -96,8 +103,11 @@ getPubKeyHashDelegationsAndRewards pkh = do
   stringRep =
     ed25519KeyHashToBech32Unsafe "stake_vkh" $ unwrap $ unwrap pkh
 
+  -- byteHex :: String
+  -- byteHex = byteArrayToHex $ unwrap $ toBytes $ cast $ unwrap $ unwrap pkh
+
+  ed :: Ed25519KeyHash
+  ed = unwrap $ unwrap pkh
+
   byteHex :: String
-  byteHex =
-    byteArrayToHex <<< unwrap <<< toBytes <<< unwrap $
-      unwrap
-        pkh
+  byteHex = byteArrayToHex $ unwrap $ toBytes $ cast ed

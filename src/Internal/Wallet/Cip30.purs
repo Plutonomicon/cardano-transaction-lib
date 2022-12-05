@@ -44,11 +44,7 @@ import Ctl.Internal.Types.CborBytes
   , hexToCborBytes
   , rawBytesAsCborBytes
   )
-import Ctl.Internal.Types.RawBytes
-  ( RawBytes
-  , hexToRawBytes
-  , rawBytesToHex
-  )
+import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -56,6 +52,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
+import Untagged.Castable (cast)
 
 type DataSignature =
   { key :: CborBytes
@@ -126,7 +123,7 @@ mkCip30WalletAff walletName enableWallet = do
 txToHex :: Transaction -> Aff String
 txToHex =
   liftEffect
-    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
+    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes <<< cast)
     <<< Serialization.convertTransaction
 
 getNetworkId :: Cip30Connection -> Aff Int

@@ -24,9 +24,7 @@ import Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
   )
-import Ctl.Internal.Deserialization.WitnessSet
-  ( convertWitnessSet
-  )
+import Ctl.Internal.Deserialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Serialization (convertTransaction) as TS
 import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serialization
 import Ctl.Internal.Serialization.BigInt as SB
@@ -85,6 +83,7 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
+import Untagged.Castable (cast)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -107,7 +106,7 @@ suite = do
           cslPd <-
             errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
               SPD.convertPlutusData ctlPd
-          let pdBytes = Serialization.toBytes cslPd
+          let pdBytes = Serialization.toBytes $ cast cslPd
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
             pdBytes
           ctlPd' <-
@@ -228,7 +227,7 @@ suite = do
           ws1 <- liftEffect $ SW.convertWitnessSet ws0
           ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
           ws0 `shouldEqual` ws2 -- value representation
-          let wsBytes = unwrap $ Serialization.toBytes ws1
+          let wsBytes = unwrap $ Serialization.toBytes $ cast ws1
           wsBytes `shouldEqual` fixture -- byte representation
       test "fixture #1" $ witnessSetRoundTrip witnessSetFixture1
       test "fixture #2" $ witnessSetRoundTrip witnessSetFixture2
@@ -259,7 +258,7 @@ testNativeScript input = do
                 purescript to handle it correctly.
   -}
 
-  let bytes = Serialization.toBytes serialized
+  let bytes = Serialization.toBytes $ cast serialized
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input

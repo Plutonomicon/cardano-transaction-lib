@@ -56,6 +56,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Type.Proxy (Proxy(Proxy))
+import Untagged.Castable (cast)
 
 data WalletMock = MockFlint | MockGero | MockNami | MockLode
 
@@ -157,7 +158,7 @@ mkCip30Mock pKey mSKey = do
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
-        pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$> cslUtxos
+        pure $ (byteArrayToHex <<< unwrap <<< toBytes <<< cast) <$> cslUtxos
     , getCollateral: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -166,7 +167,8 @@ mkCip30Mock pKey mSKey = do
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
           collateralUtxos
-        pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$> cslUnspentOutput
+        pure $ (byteArrayToHex <<< unwrap <<< toBytes <<< cast) <$>
+          cslUnspentOutput
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -174,17 +176,17 @@ mkCip30Mock pKey mSKey = do
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
-        pure $ byteArrayToHex $ unwrap $ toBytes value
+        pure $ byteArrayToHex $ unwrap $ toBytes $ cast value
     , getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< unwrap <<< toBytes) address ]
+          [ (byteArrayToHex <<< unwrap <<< toBytes <<< cast) address ]
     , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
         (unwrap keyWallet).address config.networkId <#>
-          (byteArrayToHex <<< unwrap <<< toBytes)
+          (byteArrayToHex <<< unwrap <<< toBytes <<< cast)
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< unwrap <<< toBytes) address ]
+          [ (byteArrayToHex <<< unwrap <<< toBytes <<< cast) address ]
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
@@ -194,7 +196,7 @@ mkCip30Mock pKey mSKey = do
           $ cborBytesFromByteArray txBytes
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ unwrap $ toBytes cslWitnessSet
+        pure $ byteArrayToHex $ unwrap $ toBytes $ cast cslWitnessSet
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)

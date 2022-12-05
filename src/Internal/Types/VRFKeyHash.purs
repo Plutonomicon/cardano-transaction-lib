@@ -15,19 +15,20 @@ import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Data.Function (on)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
+import Untagged.Castable (cast)
 
 newtype VRFKeyHash = VRFKeyHash Serialization.VRFKeyHash
 
 instance Show VRFKeyHash where
   show (VRFKeyHash kh) =
-    "(VRFKeyHash " <> show (byteArrayToHex $ unwrap $ toBytes kh) <> ")"
+    "(VRFKeyHash " <> show (byteArrayToHex $ unwrap $ toBytes $ cast kh) <> ")"
 
 instance Eq VRFKeyHash where
   eq = eq `on` vrfKeyHashToBytes
 
 instance EncodeAeson VRFKeyHash where
   encodeAeson' (VRFKeyHash kh) =
-    toBytes kh # unwrap >>> byteArrayToHex >>> encodeAeson'
+    toBytes (cast kh) # unwrap >>> byteArrayToHex >>> encodeAeson'
 
 unVRFKeyHash :: VRFKeyHash -> Serialization.VRFKeyHash
 unVRFKeyHash (VRFKeyHash kh) = kh
@@ -36,4 +37,4 @@ vrfKeyHashFromBytes :: ByteArray -> Maybe VRFKeyHash
 vrfKeyHashFromBytes = wrap >>> fromBytes >>> map VRFKeyHash
 
 vrfKeyHashToBytes :: VRFKeyHash -> ByteArray
-vrfKeyHashToBytes (VRFKeyHash kh) = unwrap $ toBytes kh
+vrfKeyHashToBytes (VRFKeyHash kh) = unwrap $ toBytes $ cast kh
