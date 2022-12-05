@@ -128,7 +128,7 @@ checkCip30SignDataResponse address { key, signature } = do
   checkVerification coseSign1 coseKey = do
     publicKey <-
       errMaybe "COSE_Key's x (-2) header must be set to public key bytes"
-        (getCoseKeyHeaderX coseKey >>= (fromBytes <<< unwrap))
+        (getCoseKeyHeaderX coseKey >>= (fromBytes <<< wrap <<< unwrap))
     sigStructBytes <- getSignedData coseSign1
     assertTrue "Signature verification failed"
       =<< verifySignature coseSign1 publicKey sigStructBytes
