@@ -6,6 +6,18 @@ both in Plutus and CTL.
 For this discussion, we need to go through an overview of
 both of them.
 
+**Table of contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [About `Contract` in CTL and Plutus](#about-contract-in-ctl-and-plutus)
+- [Contract comparison](#contract-comparison)
+  - [Signature and submit](#signature-and-submit)
+  - [MustPayTo functions](#mustpayto-functions)
+  - [The `give` contract](#the-give-contract)
+  - [The `grab` contract](#the-grab-contract)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## About `Contract` in CTL and Plutus
 
