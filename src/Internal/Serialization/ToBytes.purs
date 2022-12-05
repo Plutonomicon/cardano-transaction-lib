@@ -12,6 +12,7 @@ import Ctl.Internal.Serialization.Types
   , Ed25519Signature
   , GenesisDelegateHash
   , GenesisHash
+  , Mint
   , NativeScript
   , PlutusData
   , PoolMetadataHash
@@ -37,6 +38,7 @@ type SerializationData = Address
   |+| Ed25519Signature
   |+| GenesisDelegateHash
   |+| GenesisHash
+  |+| Mint
   |+| NativeScript
   |+| PlutusData
   |+| PoolMetadataHash

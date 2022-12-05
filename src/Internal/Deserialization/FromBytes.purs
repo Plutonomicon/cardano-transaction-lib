@@ -10,7 +10,8 @@ import Prelude
 import Ctl.Internal.Deserialization.Error (FromBytesError, fromBytesErrorHelper)
 import Ctl.Internal.Error (E)
 import Ctl.Internal.FfiHelpers (ErrorFfiHelper)
-import Ctl.Internal.Serialization.Hash (VRFKeyHash)
+import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryDataHash
   , DataHash
@@ -22,9 +23,12 @@ import Ctl.Internal.Serialization.Types
   , PlutusData
   , PoolMetadataHash
   , PublicKey
+  , Redeemers
   , ScriptDataHash
   , Transaction
+  , TransactionBody
   , TransactionHash
+  , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
   , Value
@@ -42,11 +46,20 @@ import Type.Row (type (+))
 class FromBytes a where
   fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
+instance FromBytes Address where
+  fromBytes' = _fromBytes "Address" fromBytesErrorHelper
+
 instance FromBytes AuxiliaryDataHash where
   fromBytes' = _fromBytes "AuxiliaryDataHash" fromBytesErrorHelper
 
 instance FromBytes DataHash where
   fromBytes' = _fromBytes "DataHash" fromBytesErrorHelper
+
+instance FromBytes Ed25519KeyHash where
+  fromBytes' = _fromBytes "Ed25519KeyHash" fromBytesErrorHelper
+
+instance FromBytes Ed25519Signature where
+  fromBytes' = _fromBytes "Ed25519Signature" fromBytesErrorHelper
 
 instance FromBytes GenesisDelegateHash where
   fromBytes' = _fromBytes "GenesisDelegateHash" fromBytesErrorHelper
@@ -66,14 +79,29 @@ instance FromBytes PlutusData where
 instance FromBytes PoolMetadataHash where
   fromBytes' = _fromBytes "PoolMetadataHash" fromBytesErrorHelper
 
+instance FromBytes PublicKey where
+  fromBytes' = _fromBytes "PublicKey" fromBytesErrorHelper
+
+instance FromBytes Redeemers where
+  fromBytes' = _fromBytes "Redeemers" fromBytesErrorHelper
+
 instance FromBytes ScriptDataHash where
   fromBytes' = _fromBytes "ScriptDataHash" fromBytesErrorHelper
+
+instance FromBytes ScriptHash where
+  fromBytes' = _fromBytes "ScriptHash" fromBytesErrorHelper
 
 instance FromBytes Transaction where
   fromBytes' = _fromBytes "Transaction" fromBytesErrorHelper
 
+instance FromBytes TransactionBody where
+  fromBytes' = _fromBytes "TransactionBody" fromBytesErrorHelper
+
 instance FromBytes TransactionHash where
   fromBytes' = _fromBytes "TransactionHash" fromBytesErrorHelper
+
+instance FromBytes TransactionOutput where
+  fromBytes' = _fromBytes "TransactionOutput" fromBytesErrorHelper
 
 instance FromBytes TransactionUnspentOutput where
   fromBytes' = _fromBytes "TransactionUnspentOutput" fromBytesErrorHelper
@@ -83,12 +111,6 @@ instance FromBytes TransactionWitnessSet where
 
 instance FromBytes Value where
   fromBytes' = _fromBytes "Value" fromBytesErrorHelper
-
-instance FromBytes PublicKey where
-  fromBytes' = _fromBytes "PublicKey" fromBytesErrorHelper
-
-instance FromBytes Ed25519Signature where
-  fromBytes' = _fromBytes "Ed25519Signature" fromBytesErrorHelper
 
 instance FromBytes VRFKeyHash where
   fromBytes' = _fromBytes "VRFKeyHash" fromBytesErrorHelper
