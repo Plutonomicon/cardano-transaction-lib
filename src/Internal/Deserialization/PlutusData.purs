@@ -29,7 +29,7 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
-import Data.Maybe (Maybe(Just), fromJust)
+import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
@@ -57,12 +57,10 @@ convertPlutusConstr pd = do
 
 convertPlutusMap :: PlutusData -> Maybe T.PlutusData
 convertPlutusMap pd = do
-  entries <- _PlutusData_map maybeFfiHelper pd >>=
-    _unpackPlutusMap containerHelper Tuple >>> traverse
-      \(k /\ v) -> do
-        let k' = convertPlutusData k
-        let v' = convertPlutusData v
-        pure (k' /\ v')
+  entries <- _PlutusData_map maybeFfiHelper pd <#>
+    _unpackPlutusMap containerHelper Tuple >>> map
+      \(k /\ v) -> (convertPlutusData k /\ convertPlutusData v)
+
   pure $ T.Map entries
 
 convertPlutusList :: PlutusData -> Maybe T.PlutusData
@@ -80,8 +78,7 @@ convertPlutusBytes :: PlutusData -> Maybe T.PlutusData
 convertPlutusBytes pd = T.Bytes <$> _PlutusData_bytes maybeFfiHelper pd
 
 deserializeData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
-deserializeData = (fromData <=< (Just <<< convertPlutusData) <=< fromBytes) <<<
-  unwrap
+deserializeData = fromData <=< map convertPlutusData <<< fromBytes <<< unwrap
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData

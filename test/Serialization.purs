@@ -13,13 +13,14 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization (convertTxOutput, serializeData, toBytes)
 import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromString) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.CborBytes (cborBytesToHex)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
@@ -113,10 +114,8 @@ suite = do
       test
         "PlutusData #6 - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
         $ do
-            let
-              datum = convertPlutusData $ PD.Integer (BigInt.fromInt 0)
-            let bytes = toBytes (asOneOf datum)
-            byteArrayToHex bytes `shouldEqual` "00"
+            let bytes = serializeData $ PD.Integer (BigInt.fromInt 0)
+            cborBytesToHex bytes `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes (asOneOf txo)

@@ -185,7 +185,7 @@ import Ctl.Internal.QueryM.ServerConfig
   , mkWsUrl
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Serialization (toBytes) as Serialization
+import Ctl.Internal.Serialization (serializeData, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId(TestnetId, MainnetId)
@@ -196,7 +196,7 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.PlutusData (PlutusData)
@@ -821,33 +821,27 @@ applyArgs script args =
     Just config ->
       let
         ps = map plutusDataToAeson args
+
+        language :: Language
+        language = snd $ unwrap script
+
+        url :: String
+        url = mkHttpUrl config <</>> "apply-args"
+
+        reqBody :: Aeson
+        reqBody = encodeAeson
+          $ Object.fromFoldable
+              [ "script" /\ scriptToAeson script
+              , "args" /\ encodeAeson ps
+              ]
       in
-        do
-          let
-            language :: Language
-            language = snd $ unwrap script
-
-            url :: String
-            url = mkHttpUrl config <</>> "apply-args"
-
-            reqBody :: Aeson
-            reqBody = encodeAeson
-              $ Object.fromFoldable
-                  [ "script" /\ scriptToAeson script
-                  , "args" /\ encodeAeson ps
-                  ]
-          liftAff (postAeson url reqBody)
-            <#> map (PlutusScript <<< flip Tuple language) <<<
-              handleAffjaxResponse
+        liftAff (postAeson url reqBody)
+          <#> map (PlutusScript <<< flip Tuple language) <<<
+            handleAffjaxResponse
   where
   plutusDataToAeson :: PlutusData -> Aeson
   plutusDataToAeson =
-    ( encodeAeson
-        <<< byteArrayToHex
-        <<< Serialization.toBytes
-        <<< asOneOf
-    )
-      <<< Serialization.convertPlutusData
+    encodeAeson <<< cborBytesToHex <<< Serialization.serializeData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.

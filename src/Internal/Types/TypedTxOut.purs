@@ -172,7 +172,7 @@ mkTypedTxOut
   -> TypedValidator validator
   -> datum
   -> Value
-  -> Maybe (TypedTxOut validator datum)
+  -> TypedTxOut validator datum
 mkTypedTxOut networkId typedVal dt amount =
   let
     dHash = Hashing.datumHash $ Datum $ toData dt
@@ -180,12 +180,10 @@ mkTypedTxOut networkId typedVal dt amount =
     -- "validatorAddress" also currently doesn't account for staking.
     address = typedValidatorEnterpriseAddress networkId typedVal
   in
-    Just <<< mkTypedTxOut' dt $
+    mkTypedTxOut' dt $
       wrap
         { address
         , amount
-        -- TODO: populate properly
-        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
         , datum: OutputDatumHash dHash
         , scriptRef: Nothing
         }
@@ -271,8 +269,7 @@ typeTxOut
     void $ checkValidatorAddress networkId typedVal address
     pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd
-    except $
-      note CannotMakeTypedTxOut (mkTypedTxOut networkId typedVal dtOut amount)
+    pure $ mkTypedTxOut networkId typedVal dtOut amount
 
 -- | Create a `TypedTxOutRef` from an existing `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference

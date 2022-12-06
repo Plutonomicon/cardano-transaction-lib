@@ -870,8 +870,7 @@ hashScriptData cms rs ps = do
   -- function, the resulting hash will be wrong
   case ps of
     [] -> _hashScriptDataNoDatums rs' cms'
-    _ -> _hashScriptData rs' cms' =<<
-      pure (map convertPlutusData ps)
+    _ -> _hashScriptData rs' cms' $ map convertPlutusData ps
 
 serializeData :: forall (a :: Type). ToData a => a -> CborBytes
 serializeData = wrap <<< toBytes <<< asOneOf <<< convertPlutusData <<<

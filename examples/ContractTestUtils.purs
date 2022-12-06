@@ -87,7 +87,7 @@ mkAssertions params@(ContractParams p) = do
     liftedM "Failed to get sender address" $ head <$> getWalletAddresses
   receiverAddress <-
     liftedM "Failed to get receiver address" (getReceiverAddress params)
-  let dhash = datumHash $ p.datumToAttach
+  let dhash = datumHash p.datumToAttach
   pure
     $
       [ TestUtils.assertGainAtAddress' (label receiverAddress "Receiver")

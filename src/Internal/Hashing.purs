@@ -31,7 +31,6 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
-import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Untagged.Union (asOneOf)
 

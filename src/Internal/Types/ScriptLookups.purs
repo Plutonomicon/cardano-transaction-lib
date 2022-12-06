@@ -19,7 +19,6 @@ module Ctl.Internal.Types.ScriptLookups
       , DatumWrongHash
       , MintingPolicyHashNotCurrencySymbol
       , MintingPolicyNotFound
-      , MkTypedTxOutFailed
       , ModifyTx
       , OwnPubKeyAndStakeKeyMissing
       , TxOutRefNotFound
@@ -424,8 +423,7 @@ validatorM = pure <<< validator
 -- | A script lookups value with a datum.
 datum :: forall (a :: Type). Datum -> ScriptLookups a
 datum dt =
-  Hashing.datumHash dt
-    # \dh -> over ScriptLookups _ { datums = singleton dh dt } mempty
+  over ScriptLookups _ { datums = singleton (Hashing.datumHash dt) dt } mempty
 
 -- | Add your own `PaymentPubKeyHash` to the lookup.
 ownPaymentPubKeyHash :: forall (a :: Type). PaymentPubKeyHash -> ScriptLookups a
@@ -846,10 +844,10 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
-    let value' = fromPlutusValue value
-    typedTxOut <- except $ mkTypedTxOut networkId inst d value'
-      # note MkTypedTxOutFailed
-    let txOut = typedTxOutTxOut typedTxOut
+    let
+      value' = fromPlutusValue value
+      typedTxOut = mkTypedTxOut networkId inst d value'
+      txOut = typedTxOutTxOut typedTxOut
     -- We are erroring if we don't have a datumhash given the polymorphic datum
     -- in the `OutputConstraint`:
     dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
@@ -911,7 +909,6 @@ data MkUnbalancedTxError
   | DatumWrongHash DataHash Datum
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | MintingPolicyNotFound MintingPolicyHash
-  | MkTypedTxOutFailed
   | ModifyTx ModifyTxError
   | OwnPubKeyAndStakeKeyMissing
   | TxOutRefNotFound TransactionInput
@@ -1240,7 +1237,7 @@ processConstraint mpsMap osMap = do
         -- Array of datums.
         datum' <- for mDatum \(dat /\ datp) -> do
           when (datp == DatumWitness) $ ExceptT $ addDatum dat
-          outputDatum dat datp
+          pure $ outputDatum dat datp
         let
           address = case skh of
             Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
@@ -1257,7 +1254,7 @@ processConstraint mpsMap osMap = do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
-        datum' <- outputDatum dat datp
+        let datum' = outputDatum dat datp
         let
           txOut = TransactionOutput
             { address:
@@ -1453,13 +1450,10 @@ processConstraint mpsMap osMap = do
   outputDatum
     :: Datum
     -> DatumPresence
-    -> ExceptT
-         MkUnbalancedTxError
-         (StateT (ConstraintProcessingState a) (QueryMExtended () Aff))
-         OutputDatum
+    -> OutputDatum
   outputDatum dat = case _ of
-    DatumInline -> pure $ OutputDatum dat
-    DatumWitness -> pure $ OutputDatumHash $ Hashing.datumHash dat
+    DatumInline -> OutputDatum dat
+    DatumWitness -> OutputDatumHash $ Hashing.datumHash dat
 
 credentialToStakeCredential :: Credential -> StakeCredential
 credentialToStakeCredential cred = case cred of

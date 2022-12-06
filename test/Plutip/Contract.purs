@@ -753,9 +753,10 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
 
-          let hash1 = datumHash datum1
-          let hash2 = datumHash datum2
-          let hashes = map datumHash datums
+          let
+            hash1 = datumHash datum1
+            hash2 = datumHash datum2
+            hashes = map datumHash datums
 
           actualDatums1 <- getDatumsByHashes hashes
           actualDatums1 `shouldEqual` Map.fromFoldable

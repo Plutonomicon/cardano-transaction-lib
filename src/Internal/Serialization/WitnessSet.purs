@@ -5,7 +5,6 @@ module Ctl.Internal.Serialization.WitnessSet
   , convertWitnessSet
   , convertRedeemers
   , convertRedeemer
-  , convertPlutusDataEffect
   , convertRedeemerTag
   , convertExUnits
   , convertBootstrap
@@ -110,7 +109,7 @@ convertWitnessSet (T.TransactionWitnessSet tws) = do
     for_ ps (convertPlutusScript >>> addPlutusScript scripts)
     txWitnessSetSetPlutusScripts ws scripts
   for_ tws.plutusData
-    (traverse convertPlutusDataEffect >=> _wsSetPlutusData containerHelper ws)
+    (map convertPlutusData >>> _wsSetPlutusData containerHelper ws)
   for_ tws.redeemers
     (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
   pure ws
@@ -124,12 +123,9 @@ convertRedeemer (T.Redeemer { tag, index, "data": data_, exUnits }) = do
   tag' <- convertRedeemerTag tag
   index' <- maybe (throw "Failed to convert redeemer index") pure $
     BigNum.fromBigInt index
-  data' <- convertPlutusDataEffect data_
+  let data' = convertPlutusData data_
   exUnits' <- convertExUnits exUnits
   newRedeemer tag' index' data' exUnits'
-
-convertPlutusDataEffect :: PD.PlutusData -> Effect PDS.PlutusData
-convertPlutusDataEffect pd = pure $ convertPlutusData pd
 
 convertRedeemerTag :: Tag.RedeemerTag -> Effect RedeemerTag
 convertRedeemerTag = _newRedeemerTag <<< case _ of

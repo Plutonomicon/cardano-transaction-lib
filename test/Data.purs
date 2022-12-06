@@ -552,7 +552,7 @@ instance (FromData a) => FromData (Tree a) where
   fromData x = genericFromData x
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = fromData =<< (Just <<< PDD.convertPlutusData) =<<
+fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<<
   fromBytes
     (hexToByteArrayUnsafe binary)
 

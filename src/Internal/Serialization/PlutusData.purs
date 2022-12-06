@@ -36,7 +36,7 @@ convertPlutusData x = unsafePartial $ fromJust $ case x of
   T.Map mp -> Just $ convertPlutusMap mp
   T.List lst -> Just $ convertPlutusList lst
   T.Integer n -> convertPlutusInteger n
-  T.Bytes b -> pure $ _mkPlutusData_bytes b
+  T.Bytes b -> Just $ _mkPlutusData_bytes b
 
 convertConstr :: BigInt.BigInt -> Array T.PlutusData -> Maybe PlutusData
 convertConstr alt list =
