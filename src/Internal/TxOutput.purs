@@ -106,8 +106,7 @@ ogmiosDatumToDatum :: String -> Maybe Datum
 ogmiosDatumToDatum =
   hexToByteArray
     >=> fromBytes
-    >=> (Deserialization.convertPlutusData >>> Just)
-      >>> map Datum
+    >=> (Deserialization.convertPlutusData >>> Datum >>> Just)
 
 -- | Converts an internal `DataHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DataHash -> String

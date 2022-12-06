@@ -51,7 +51,7 @@ convertPlutusConstr pd = do
   constr <- _PlutusData_constr maybeFfiHelper pd
   let
     data' = convertPlutusData <$>
-      (_unpackPlutusList containerHelper $ _ConstrPlutusData_data constr)
+      _unpackPlutusList containerHelper (_ConstrPlutusData_data constr)
   alt <- BigNum.toBigInt $ _ConstrPlutusData_alternative constr
   pure $ T.Constr alt data'
 

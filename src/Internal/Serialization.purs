@@ -793,7 +793,7 @@ convertTxOutput
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
-        =<< pure (convertPlutusData $ unwrap datumValue)
+        $ convertPlutusData $ unwrap datumValue
   for_ scriptRef $
     convertScriptRef >>> transactionOutputSetScriptRef txo
   pure txo

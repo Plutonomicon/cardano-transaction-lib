@@ -67,8 +67,7 @@ convertWitnessSet ws = do
   nativeScripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
   let
-    plutusData = map convertPlutusList
-      (getWitnessSetPlutusData maybeFfiHelper ws)
+    plutusData = convertPlutusList <$> getWitnessSetPlutusData maybeFfiHelper ws
   plutusScripts <- for (getPlutusScripts maybeFfiHelper ws) convertPlutusScripts
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
