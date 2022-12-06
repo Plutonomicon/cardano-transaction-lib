@@ -14,8 +14,7 @@ import Contract.Time
   , Slot
   , always
   , from
-  , getSlotLength
-  , getSlotReference
+  , getEraSummaries
   , getSystemStart
   , maxSlot
   , mkFiniteInterval
@@ -157,23 +156,19 @@ getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
 
 toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do
-  slotReference <- getSlotReference
-  slotLength <- getSlotLength
+  eraSummaries <- getEraSummaries
   systemStart <- getSystemStart
-  eitherTime <- liftEffect $ slotToPosixTime slotReference slotLength
-    systemStart
-    time
+  eitherTime <- liftEffect $ slotToPosixTime eraSummaries systemStart time
   case eitherTime of
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value
 
 toPosixTimeRange :: Interval Slot -> Contract (Interval POSIXTime)
 toPosixTimeRange range = do
-  slotReference <- getSlotReference
-  slotLength <- getSlotLength
+  eraSummaries <- getEraSummaries
   systemStart <- getSystemStart
   eitherRange <- liftEffect $
-    slotRangeToPosixTimeRange slotReference slotLength systemStart range
+    slotRangeToPosixTimeRange eraSummaries systemStart range
   case eitherRange of
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value

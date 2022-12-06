@@ -365,15 +365,6 @@ getSystemStartAff ogmiosWs logger =
     _.systemStart
     unit
 
-getEraSummariesAff
-  :: OgmiosWebSocket
-  -> (LogLevel -> String -> Effect Unit)
-  -> Aff Ogmios.EraSummaries
-getEraSummariesAff ogmiosWs logger =
-  mkOgmiosRequestAff ogmiosWs logger Ogmios.queryEraSummariesCall
-    _.eraSummaries
-    unit
-
 --------------------------------------------------------------------------------
 -- Ogmios Local State Query Protocol
 --------------------------------------------------------------------------------

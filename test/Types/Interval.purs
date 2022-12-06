@@ -2,9 +2,6 @@ module Test.Ctl.Types.Interval
   ( suite
   , eraSummariesFixture
   , systemStartFixture
-  , slotLengthFixture
-  , slotReferenceFixture
-  , contextFixture
   ) where
 
 import Prelude
@@ -12,13 +9,7 @@ import Prelude
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.Helpers (liftedM)
-import Ctl.Internal.QueryM.Ogmios
-  ( EraSummaries
-  , RelativeTime
-  , SlotLength
-  , SystemStart
-  )
+import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromInt) as BigNum
@@ -42,10 +33,7 @@ import Ctl.Internal.Types.Interval
 import Data.Bifunctor (lmap)
 import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
-import Data.Foldable (maximumBy)
-import Data.Function (on)
 import Data.Maybe (fromJust)
-import Data.Newtype (unwrap)
 import Data.Traversable (traverse_)
 import Effect (Effect)
 import Effect.Exception (error)
@@ -58,13 +46,7 @@ import Test.QuickCheck (Result(Success, Failed), quickCheck, (<?>))
 import Test.QuickCheck.Combinators ((&=&))
 import Test.Spec.Assertions (shouldEqual)
 
-type Context =
-  { slotReference :: { slot :: Slot, time :: RelativeTime }
-  , slotLength :: SlotLength
-  , systemStart :: SystemStart
-  }
-
-suite :: TestPlanM (Context -> Effect Unit) Unit
+suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval" do
     group "EraSumaries related" do
@@ -102,36 +84,12 @@ eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture =
   loadOgmiosFixture "eraSummaries" "bbf8b1d7d2487e750104ec2b5a31fa86"
 
-slotLengthFixture :: Effect SlotLength
-slotLengthFixture = do
-  latestEraSummary <- liftedM (error "Could not get EraSummary") do
-    map unwrap
-      <<< (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot)))
-      <<< unwrap <$> eraSummariesFixture
-  pure $ _.slotLength $ unwrap $ _.parameters $ latestEraSummary
-
-slotReferenceFixture :: Effect { slot :: Slot, time :: RelativeTime }
-slotReferenceFixture = do
-  latestEraSummary <- liftedM (error "Could not get EraSummary") do
-    map unwrap
-      <<< (maximumBy (compare `on` (unwrap >>> _.start >>> unwrap >>> _.slot)))
-      <<< unwrap <$> eraSummariesFixture
-  pure $ (\{ slot, time } -> { slot, time }) $ unwrap $ _.start $
-    latestEraSummary
-
 systemStartFixture :: Effect SystemStart
 systemStartFixture =
   loadOgmiosFixture "systemStart" "ed0caad81f6936e0c122ef6f3c7de5e8"
 
-contextFixture :: Effect Context
-contextFixture = do
-  slotReference <- slotReferenceFixture
-  slotLength <- slotLengthFixture
-  systemStart <- systemStartFixture
-  pure { slotReference, slotLength, systemStart }
-
-testPosixTimeToSlot :: Context -> Effect Unit
-testPosixTimeToSlot ctx = do
+testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit
+testPosixTimeToSlot eraSummaries sysStart = do
   let
     -- Tests currently pass "exactly" for seconds precision, which makes sense
     -- given converting to a Slot will round down to the near slot length
@@ -181,37 +139,35 @@ testPosixTimeToSlot ctx = do
       [ "1603636353000"
       , "1613636755000"
       ]
-  traverse_ (idTest identity) posixTimes
+  traverse_ (idTest eraSummaries sysStart identity) posixTimes
   -- With Milliseconds, we generally round down, provided the aren't at the
   -- end  with non-zero excess:
-  idTest
+  idTest eraSummaries sysStart
     (const $ mkPosixTime "1613636754000")
     (mkPosixTime "1613636754999")
-  idTest
+  idTest eraSummaries sysStart
     (const $ mkPosixTime "1613636754000")
     (mkPosixTime "1613636754500")
-  idTest
+  idTest eraSummaries sysStart
     (const $ mkPosixTime "1613636754000")
     (mkPosixTime "1613636754499")
   where
   idTest
-    :: (POSIXTime -> POSIXTime)
+    :: EraSummaries
+    -> SystemStart
+    -> (POSIXTime -> POSIXTime)
     -> POSIXTime
     -> Effect Unit
-  idTest transf posixTime = do
-    posixTimeToSlot ctx.slotReference ctx.slotLength ctx.systemStart posixTime
-      >>= case _ of
-        Left err -> throwError $ error $ show err
-        Right slot -> do
-          ePosixTime <- slotToPosixTime ctx.slotReference ctx.slotLength
-            ctx.systemStart
-            slot
-          either (throwError <<< error <<< show)
-            (shouldEqual $ transf posixTime)
-            ePosixTime
+  idTest es ss transf posixTime = do
+    posixTimeToSlot es ss posixTime >>= case _ of
+      Left err -> throwError $ error $ show err
+      Right slot -> do
+        ePosixTime <- slotToPosixTime es ss slot
+        either (throwError <<< error <<< show) (shouldEqual $ transf posixTime)
+          ePosixTime
 
-testSlotToPosixTime :: Context -> Effect Unit
-testSlotToPosixTime ctx = do
+testSlotToPosixTime :: EraSummaries -> SystemStart -> Effect Unit
+testSlotToPosixTime eraSummaries sysStart = do
   -- See *Testing far into the future note during hardforks:* for details on
   -- how far into the future we test with slots when a hardfork occurs.
   let
@@ -225,42 +181,40 @@ testSlotToPosixTime ctx = do
       , 232
       , 1
       ]
-  traverse_ idTest slots
+  traverse_ (idTest eraSummaries sysStart) slots
   where
-  idTest :: Slot -> Effect Unit
-  idTest slot = do
-    slotToPosixTime ctx.slotReference ctx.slotLength ctx.systemStart slot >>=
-      case _ of
-        Left err -> throwError $ error $ show err
-        Right posixTime -> do
-          eSlot <- posixTimeToSlot ctx.slotReference ctx.slotLength
-            ctx.systemStart
-            posixTime
-          either (throwError <<< error <<< show) (shouldEqual slot) eSlot
+  idTest :: EraSummaries -> SystemStart -> Slot -> Effect Unit
+  idTest es ss slot = do
+    slotToPosixTime es ss slot >>= case _ of
+      Left err -> throwError $ error $ show err
+      Right posixTime -> do
+        eSlot <- posixTimeToSlot es ss posixTime
+        either (throwError <<< error <<< show) (shouldEqual slot) eSlot
 
   mkSlot :: Int -> Slot
   mkSlot = Slot <<< BigNum.fromInt
 
-testPosixTimeToSlotError :: Context -> Effect Unit
-testPosixTimeToSlotError ctx = do
+testPosixTimeToSlotError :: EraSummaries -> SystemStart -> Effect Unit
+testPosixTimeToSlotError eraSummaries sysStart = do
   let
     posixTime = mkPosixTime "1000"
   -- Some difficulty reproducing all the errors
-  errTest
+  errTest eraSummaries sysStart
     posixTime
     (PosixTimeBeforeSystemStart posixTime)
   where
   errTest
-    :: POSIXTime
+    :: EraSummaries
+    -> SystemStart
+    -> POSIXTime
     -> PosixTimeToSlotError
     -> Effect Unit
-  errTest posixTime expectedErr = do
-    posixTimeToSlot ctx.slotReference ctx.slotLength ctx.systemStart posixTime
-      >>= case _ of
-        Left err -> err `shouldEqual` expectedErr
-        Right _ ->
-          throwError $ error $ "Test should have failed giving: " <> show
-            expectedErr
+  errTest es ss posixTime expectedErr = do
+    posixTimeToSlot es ss posixTime >>= case _ of
+      Left err -> err `shouldEqual` expectedErr
+      Right _ ->
+        throwError $ error $ "Test should have failed giving: " <> show
+          expectedErr
 
 -- All this test can be generalized to use :
 -- forall (a::Type) . Arbitrary a => Ord a => Ring a
@@ -433,8 +387,8 @@ testIntersection = quickCheck test
 -- Helpers
 --------------------------------------------------------------------------------
 
-liftToTest :: Effect Unit -> (Context -> Effect Unit)
-liftToTest = pure
+liftToTest :: Effect Unit -> (EraSummaries -> SystemStart -> Effect Unit)
+liftToTest = pure <<< pure
 
 withMsg :: String -> Result -> Result
 withMsg _ Success = Success

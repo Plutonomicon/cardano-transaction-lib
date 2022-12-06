@@ -3,8 +3,6 @@ module Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
-  , getSlotLength
-  , getSlotReference
   , module Chain
   , module ExportOgmios
   , module Interval
@@ -40,12 +38,9 @@ import Ctl.Internal.QueryM.Ogmios
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , EraSummaries
-  , RelativeTime
-  , SlotLength
   , SystemStart
   )
 import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
-import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -115,7 +110,7 @@ getCurrentEpoch = do
     $ UInt.fromString
     $ BigInt.toString (bigInt :: BigInt.BigInt)
 
--- | Get `EraSummaries` as used for Slot arithemetic. Ogmios only.
+-- | Get `EraSummaries` as used for Slot arithemetic.
 -- | Details can be found https://ogmios.dev/api/ under "eraSummaries" query
 getEraSummaries :: Contract EraSummaries
 getEraSummaries = wrapQueryM EraSummaries.getEraSummaries
@@ -124,11 +119,3 @@ getEraSummaries = wrapQueryM EraSummaries.getEraSummaries
 getSystemStart :: Contract SystemStart
 getSystemStart = do
   asks $ _.ledgerConstants >>> _.systemStart
-
-getSlotLength :: Contract SlotLength
-getSlotLength = do
-  asks $ _.ledgerConstants >>> _.slotLength
-
-getSlotReference :: Contract { slot :: Slot, time :: RelativeTime }
-getSlotReference = do
-  asks $ _.ledgerConstants >>> _.slotReference

@@ -75,6 +75,7 @@ testPlan = do
   Types.Transaction.suite
   Ctl.Data.Interval.suite
   flip mapTest Types.Interval.suite \f -> liftEffect $ join $
-    f <$> Types.Interval.contextFixture
+    f <$> Types.Interval.eraSummariesFixture
+      <*> Types.Interval.systemStartFixture
   E2E.Route.suite
   MustSpendTotal.suite

@@ -4,7 +4,7 @@ import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
-import Contract.Time (getSlotLength, getSlotReference, getSystemStart)
+import Contract.Time (getEraSummaries, getSystemStart)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
@@ -34,10 +34,9 @@ testPlan = do
   skip $ flip mapTest Types.Interval.suite \f -> runContract
     testnetConfig { suppressLogs = true }
     do
-      slotReference <- getSlotReference
-      slotLength <- getSlotLength
-      systemStart <- getSystemStart
-      liftEffect $ f { slotReference, slotLength, systemStart }
+      eraSummaries <- getEraSummaries
+      sysStart <- getSystemStart
+      liftEffect $ f eraSummaries sysStart
   Collateral.suite
   PrivateKey.suite
   Logging.suite

@@ -25,6 +25,7 @@ import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.QueryM (ClientError, QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
+import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
@@ -35,7 +36,11 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, CurrentEpoch) as Ogmios
+import Ctl.Internal.QueryM.Ogmios
+  ( AdditionalUtxoSet
+  , CurrentEpoch
+  , EraSummaries
+  ) as Ogmios
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
@@ -69,6 +74,7 @@ type QueryHandle =
   , submitTx :: Transaction -> Aff (Maybe TransactionHash)
   , getTxByHash :: TransactionHash -> Aff (Maybe Transaction)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
+  , getEraSummaries :: Aff Ogmios.EraSummaries
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -115,6 +121,7 @@ queryHandleForCtlBackend contractEnv backend =
             Serialization.convertTransaction tx
         )
       QueryM.evaluateTxOgmios txBytes additionalUtxos
+  , getEraSummaries: runQueryM' QueryM.getEraSummaries
   }
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a

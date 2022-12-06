@@ -31,8 +31,6 @@ Local `cardano-node` lags behind the global network time, so when using time con
 
 To do anything time-related, it's best to rely on local node chain tip time, instead of using `Date.now()` as a source of truth. This is often a requirement when using `mustValidateIn`, because the node will reject the transaction if it appears too early.
 
-TODO Rethink these Time related questions
-
 ### Q: Time/slot conversion functions return `Nothing`. Why is that?
 
 Time/slot conversion functions depend on `eraSummaries` [Ogmios local state query](https://ogmios.dev/mini-protocols/local-state-query/), that returns era bounds and slotting parameters details, required for proper slot arithmetic. The most common source of the problem is that Ogmios does not return enough epochs into the future.

@@ -1053,10 +1053,11 @@ processConstraint mpsMap osMap c = do
   case c of
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
-      { slotReference, slotLength, systemStart } <- asks _.ledgerConstants
+      { systemStart } <- asks _.ledgerConstants
+      eraSummaries <- liftAff $ queryHandle.getEraSummaries
       runExceptT do
         ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
-          posixTimeRangeToTransactionValidity slotReference slotLength
+          posixTimeRangeToTransactionValidity eraSummaries
             systemStart
             posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
