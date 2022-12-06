@@ -26,7 +26,6 @@ You can edit this file as you like.
   , "either"
   , "encoding"
   , "enums"
-  , "noble-secp256k1"
   , "exceptions"
   , "foldable-traversable"
   , "foreign"
@@ -47,6 +46,7 @@ You can edit this file as you like.
   , "monad-logger"
   , "mote"
   , "newtype"
+  , "noble-secp256k1"
   , "node-buffer"
   , "node-child-process"
   , "node-fs"
@@ -88,6 +88,7 @@ You can edit this file as you like.
   , "uint"
   , "undefined"
   , "unfoldable"
+  , "unsafe-coerce"
   , "untagged-union"
   , "variant"
   ]

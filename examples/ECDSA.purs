@@ -30,6 +30,9 @@ import Ctl.Examples.ECDSA.Script (ecdsaScript)
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
+import Noble.Secp256k1.ECDSA (getECDSAPublicKey, signECDSA)
+import Noble.Secp256k1.Utils (randomPrivateKey, sha256)
+import Unsafe.Coerce (unsafeCoerce)
 
 newtype ECDSARed = ECDSARed
   { msg ∷ ByteArray
@@ -46,10 +49,8 @@ instance ToData ECDSARed where
 
 contract :: Contract () Unit
 contract = do
-  -- prepTest >>= traverse_ awaitTxConfirmed
-  -- testSecpV1 >>= awaitTxConfirmed
   prepTest >>= traverse_ awaitTxConfirmed
-  testSecpV4 >>= awaitTxConfirmed
+  testECDSA >>= awaitTxConfirmed
 
 -- | Prepare the ECDSA test by locking some funds at the validator address if there is none
 prepTest ∷ Contract () (Maybe TransactionHash)
@@ -118,35 +119,23 @@ testVerification ecdsaRed = do
   logInfo' $ ("Submitted ECDSA test verification tx: " <> show txId)
   awaitTxConfirmed txId
   logInfo' "Transaction confirmed."
-
   pure txId
 
 -- | Testing ECDSA verification function on-chain
-testSecpV1 ∷ Contract () TransactionHash
-testSecpV1 = do
+testECDSA ∷ Contract () TransactionHash
+testECDSA = do
+  privateKey <- liftEffect $ randomPrivateKey
+  let
+    publicKey = getECDSAPublicKey privateKey true
+    message = unsafeCoerce privateKey
+  messageHash <- liftAff $ sha256 message
+  signature <- liftAff $ signECDSA messageHash privateKey false
   testVerification $
     -- | TODO: Find the correct format
     ECDSARed
-      { msg: hexToByteArrayUnsafe
-          "16e0bf1f85594a11e75030981c0b670370b3ad83a43f49ae58a2fd6f6513cde9"
-      , sig: hexToByteArrayUnsafe
-          "6fbc0da8a7db783c2e8adb2262339a0cd1ca584307821c65a918b329de6ee131852b89eac6984065f59051aa05ba38a0733b93c0ea9163abb059bd5fd0b66475"
-      , pk: hexToByteArrayUnsafe
-          "048379352db5140c4a39137dd08c69193af732a7ceee3e6ff8cb07e37ce82e035579551734d7d9e4b6853d45c4a7846d5ef570e56f0353f83dad3b478a5f6699"
-      }
-
--- | Testing ECDSA verification function on-chain
-testSecpV4 ∷ Contract () TransactionHash
-testSecpV4 = do
-  testVerification $
-    -- | TODO: Find the correct format
-    ECDSARed
-      { msg: hexToByteArrayUnsafe
-          "16e0bf1f85594a11e75030981c0b670370b3ad83a43f49ae58a2fd6f6513cde9"
-      , sig: hexToByteArrayUnsafe
-          "304402205fb12954b28be6456feb080cfb8467b6f5677f62eb9ad231de7a575f4b68575102202754fb5ef7e0e60e270832e7bb0e2f0dc271012fa9c46c02504aa0e798be6295"
-      , pk: hexToByteArrayUnsafe
-          "0392d7b94bc6a11c335a043ee1ff326b6eacee6230d3685861cd62bce350a172e0"
+      { msg: unsafeCoerce messageHash
+      , sig: unsafeCoerce signature
+      , pk: unsafeCoerce publicKey
       }
 
 getValidator ∷ Maybe Validator

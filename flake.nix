@@ -12,18 +12,9 @@
       flake = false;
     };
 
-    ogmios.url = "github:mlabs-haskell/ogmios/3b229c1795efa30243485730b78ea053992fdc7a";
-
-    plutip.url = "github:mlabs-haskell/plutip/1c9dd05697d7cf55de8ca26f0756a75ed821bdfb";
-    plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
-    plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
-    plutip.inputs.iohk-nix.follows = "bot-plutus-interface/iohk-nix";
-    plutip.inputs.nixpkgs.follows = "bot-plutus-interface/haskell-nix/nixpkgs";
-
-    bot-plutus-interface = {
-      url = "github:mlabs-haskell/bot-plutus-interface?rev=7235aa6fba12b0cf368d9976e1e1b21ba642c038";
-      inputs.cardano-wallet.follows = "cardano-wallet";
-    };
+    # for the purescript project
+    ogmios.url = "github:mlabs-haskell/ogmios/8ab720f896ab9dea2955fe364d242267d3206c5d";
+    plutip.url = "github:mlabs-haskell/plutip/697dfd248b9c80098d0a0d4d0bad986902c93fbc";
 
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
     kupo-nixos.inputs.kupo.follows = "kupo";
@@ -35,7 +26,7 @@
 
     cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/862c6bfcb6110b8fe816e26b3bba105dfb492b24";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
 
     # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
     ogmios-nixos.url = "github:mlabs-haskell/ogmios";
