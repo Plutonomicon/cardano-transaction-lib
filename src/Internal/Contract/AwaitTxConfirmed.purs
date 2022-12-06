@@ -11,7 +11,6 @@ import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.WaitUntilSlot (waitUntilSlot)
--- import Ctl.Internal.QueryM.Kupo (isTxConfirmed) as Kupo
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.BigNum as BigNum
