@@ -160,8 +160,11 @@ runE2ECommand = case _ of
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
     runtime <- readBrowserRuntime Nothing browserOptions
+    extraBrowserArgs <- liftEffect $ readExtraArgs
+      browserOptions.extraBrowserArgs
     runBrowser runtime.tmpDir runtime.chromeUserDataDir runtime.browser
       runtime.wallets
+      extraBrowserArgs
   PackSettings opts -> do
     rt <- readSettingsRuntime opts
     packSettings rt.settingsArchive rt.chromeUserDataDir
@@ -339,17 +342,19 @@ runBrowser
   -> ChromeUserDataDir
   -> Browser
   -> Extensions
+  -> Array BrowserArg
   -> Aff Unit
-runBrowser tmpDir chromeUserDataDir browser extensions = do
+runBrowser tmpDir chromeUserDataDir browser extensions extraBrowserArgs = do
   let
     extPath ext = tmpDir <</>> unExtensionId ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
   void $ spawnAndCollectOutput browser
-    [ "--load-extension=" <> extensionsList
-    , "--user-data-dir=" <> chromeUserDataDir
-    ]
+    ( [ "--load-extension=" <> extensionsList
+      , "--user-data-dir=" <> chromeUserDataDir
+      ] <> extraBrowserArgs
+    )
     defaultSpawnOptions
     defaultErrorReader
 
