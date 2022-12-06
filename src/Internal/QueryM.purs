@@ -30,7 +30,6 @@ module Ctl.Internal.QueryM
   , getLogger
   , getProtocolParametersAff
   , getSystemStartAff
-  , getEraSummariesAff
   , handleAffjaxResponse
   , listeners
   , postAeson

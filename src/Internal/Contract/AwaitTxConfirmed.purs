@@ -11,10 +11,10 @@ import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.WaitUntilSlot (waitUntilSlot)
-import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Either (either)
 import Data.Maybe (maybe)
 import Data.Newtype (unwrap, wrap)
@@ -25,10 +25,10 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 
-awaitTxConfirmed :: TxHash -> Contract Unit
+awaitTxConfirmed :: TransactionHash -> Contract Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
-awaitTxConfirmedWithTimeout :: Seconds -> TxHash -> Contract Unit
+awaitTxConfirmedWithTimeout :: Seconds -> TransactionHash -> Contract Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   -- If timeout is infinity, do not use a timeout at all
   if unwrap timeoutSeconds == infinity then void findTx
@@ -58,7 +58,7 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   delayTime :: Milliseconds
   delayTime = wrap 1000.0
 
-awaitTxConfirmedWithTimeoutSlots :: Int -> TxHash -> Contract Unit
+awaitTxConfirmedWithTimeoutSlots :: Int -> TransactionHash -> Contract Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
   getCurrentSlot >>= addSlots timeoutSlots >>= go
   where
@@ -86,9 +86,9 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =
         void $ addSlots 1 slot >>= waitUntilSlot
         go timeout
 
-isTxConfirmed :: TxHash -> Contract Boolean
+isTxConfirmed :: TransactionHash -> Contract Boolean
 isTxConfirmed txHash = do
   queryHandle <- getQueryHandle
-  liftAff $ queryHandle.isTxConfirmed (wrap txHash)
+  liftAff $ queryHandle.isTxConfirmed txHash
     >>= either (liftEffect <<< throw <<< show) pure
 

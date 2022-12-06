@@ -513,7 +513,7 @@ getTxByHash th = do
 awaitTxConfirmed
   :: TransactionHash
   -> Contract Unit
-awaitTxConfirmed = Contract.awaitTxConfirmed <<< unwrap
+awaitTxConfirmed = Contract.awaitTxConfirmed
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.
@@ -524,8 +524,7 @@ awaitTxConfirmedWithTimeout
   :: Seconds
   -> TransactionHash
   -> Contract Unit
-awaitTxConfirmedWithTimeout timeout =
-  Contract.awaitTxConfirmedWithTimeout timeout <<< unwrap
+awaitTxConfirmedWithTimeout = Contract.awaitTxConfirmedWithTimeout
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
 -- | Throws an exception on timeout.
@@ -536,8 +535,7 @@ awaitTxConfirmedWithTimeoutSlots
   :: Int
   -> TransactionHash
   -> Contract Unit
-awaitTxConfirmedWithTimeoutSlots timeout =
-  Contract.awaitTxConfirmedWithTimeoutSlots timeout <<< unwrap
+awaitTxConfirmedWithTimeoutSlots = Contract.awaitTxConfirmedWithTimeoutSlots
 
 -- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the
