@@ -507,7 +507,8 @@ getTxByHash th = do
 
 -- | Wait until a transaction with given hash is confirmed.
 -- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.
--- | Will fail to confirm if the transaction includes no outputs
+-- | Will fail to confirm if the transaction includes no outputs on the
+-- | CtlBackend
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 awaitTxConfirmed
   :: TransactionHash
@@ -516,7 +517,8 @@ awaitTxConfirmed = Contract.awaitTxConfirmed <<< unwrap
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.
--- | Will fail to confirm if the transaction includes no outputs
+-- | Will fail to confirm if the transaction includes no outputs on the
+-- | CtlBackend
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 awaitTxConfirmedWithTimeout
   :: Seconds
@@ -527,7 +529,8 @@ awaitTxConfirmedWithTimeout timeout =
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
 -- | Throws an exception on timeout.
--- | Will fail to confirm if the transaction includes no outputs
+-- | Will fail to confirm if the transaction includes no outputs on the
+-- | CtlBackend
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 awaitTxConfirmedWithTimeoutSlots
   :: Int
