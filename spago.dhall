@@ -26,6 +26,7 @@ You can edit this file as you like.
   , "either"
   , "encoding"
   , "enums"
+  , "noble-secp256k1"
   , "exceptions"
   , "foldable-traversable"
   , "foreign"

@@ -280,6 +280,20 @@ let additions =
         , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
         , version = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9"
         }
+      , noble-secp256k1 =
+        { dependencies =
+          [ "aff"
+          , "aff-promise"
+          , "effect"
+          , "prelude"
+          , "spec"
+          , "tuples"
+          , "unsafe-coerce"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
+        , version = "e0ea6dcaa7f28cf46dd54aadb198ee860f735182"
+        }
       }
 
 in  (upstream // additions)

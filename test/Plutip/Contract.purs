@@ -76,6 +76,7 @@ import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
+import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.Helpers
   ( buildBalanceSignAndSubmitTx
   , mkCurrencySymbol
@@ -94,9 +95,7 @@ import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
-  ( contract
-  ) as ReferenceInputsAndScripts
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -134,7 +133,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
@@ -159,9 +158,20 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM PlutipTest Unit
 suite = do
-  group "Contract" do
+  only $ group "Contract" do
     flip mapTest AffInterface.suite
       (noWallet <<< wrapContract)
+
+    only $ test "ECDSA" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          ECDSA.contract
 
     NetworkId.suite
 
