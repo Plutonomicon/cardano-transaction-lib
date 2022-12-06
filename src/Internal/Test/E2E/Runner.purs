@@ -344,7 +344,6 @@ runBrowser tmpDir chromeUserDataDir browser extensions extraBrowserArgs = do
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
-  -- how can I use extraBrowserArgs here?
   void $ spawnAndCollectOutput browser
     ( [ "--load-extension=" <> extensionsList
       , "--user-data-dir=" <> chromeUserDataDir
