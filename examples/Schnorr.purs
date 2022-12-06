@@ -1,4 +1,4 @@
-module Ctl.Examples.ECDSA (contract) where
+module Ctl.Examples.Schnorr (contract) where
 
 import Contract.Prelude
 
@@ -12,7 +12,7 @@ import Contract.PlutusData
   , toData
   , unitDatum
   )
-import Contract.Prim.ByteArray (ByteArray)
+import Contract.Prim.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
@@ -29,27 +29,27 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
-import Noble.Secp256k1.ECDSA (getECDSAPublicKey, signECDSA)
-import Noble.Secp256k1.Utils (randomPrivateKey, sha256)
+import Noble.Secp256k1.Schnorr (getSchnorrPublicKey, signSchnorr)
+import Noble.Secp256k1.Utils (randomPrivateKey)
 import Unsafe.Coerce (unsafeCoerce)
 
-newtype ECDSARedemeer = ECDSARedemeer
+newtype SchnorrRedeemer = SchnorrRedeemer
   { msg :: ByteArray
   , sig :: ByteArray
   , pk :: ByteArray
   }
 
-derive instance Generic ECDSARedemeer _
-derive instance Newtype ECDSARedemeer _
+derive instance Generic SchnorrRedeemer _
+derive instance Newtype SchnorrRedeemer _
 
-instance ToData ECDSARedemeer where
-  toData (ECDSARedemeer { msg, sig, pk }) = Constr zero
+instance ToData SchnorrRedeemer where
+  toData (SchnorrRedeemer { msg, sig, pk }) = Constr zero
     [ toData msg, toData sig, toData pk ]
 
 contract :: Contract () Unit
 contract = do
   prepTest >>= traverse_ awaitTxConfirmed
-  testECDSA >>= awaitTxConfirmed
+  testSchnorr >>= awaitTxConfirmed
 
 -- | Prepare the ECDSA test by locking some funds at the validator address if there is none
 prepTest :: Contract () (Maybe TransactionHash)
@@ -80,7 +80,7 @@ prepTest = do
       bsTx <- liftedE $ balanceTx ubTx
       sgTx <- signTransaction bsTx
       txId <- submit sgTx
-      logInfo' $ "Submitted ECDSA test preparation tx: " <> show txId
+      logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
       awaitTxConfirmed txId
       logInfo' "Transaction confirmed."
 
@@ -89,7 +89,7 @@ prepTest = do
     pure Nothing
 
 -- | Attempt to unlock one utxo using an ECDSA signature
-testVerification :: ECDSARedemeer → Contract () TransactionHash
+testVerification :: SchnorrRedeemer → Contract () TransactionHash
 testVerification ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
@@ -121,24 +121,23 @@ testVerification ecdsaRed = do
   pure txId
 
 -- | Testing ECDSA verification function on-chain
-testECDSA :: Contract () TransactionHash
-testECDSA = do
+testSchnorr :: Contract () TransactionHash
+testSchnorr = do
   privateKey <- liftEffect $ randomPrivateKey
   let
-    publicKey = getECDSAPublicKey privateKey true
+    publicKey = getSchnorrPublicKey privateKey
     message = unsafeCoerce privateKey
-  messageHash <- liftAff $ sha256 message
-  signature <- liftAff $ signECDSA messageHash privateKey false
+  signature <- liftAff $ signSchnorr message privateKey
   testVerification $
     -- | TODO: Find the correct format
-    ECDSARedemeer
-      { msg: unsafeCoerce messageHash
+    SchnorrRedeemer
+      { msg: unsafeCoerce message
       , sig: unsafeCoerce signature
       , pk: unsafeCoerce publicKey
       }
 
 getValidator :: Maybe Validator
 getValidator = do
-  decodeTextEnvelope validateECDSA >>= plutusScriptV2FromEnvelope >>> map wrap
+  decodeTextEnvelope validateSchnorr >>= plutusScriptV2FromEnvelope >>> map wrap
 
-foreign import validateECDSA :: String
+foreign import validateSchnorr :: String
