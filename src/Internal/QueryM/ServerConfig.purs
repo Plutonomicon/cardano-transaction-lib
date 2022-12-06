@@ -54,10 +54,10 @@ defaultDatumCacheWsConfig =
 
 defaultKupoServerConfig :: ServerConfig
 defaultKupoServerConfig =
-  { port: UInt.fromInt 4008
+  { port: UInt.fromInt 1442
   , host: "localhost"
   , secure: false
-  , path: Just "kupo"
+  , path: Nothing
   }
 
 mkHttpUrl :: ServerConfig -> Url
