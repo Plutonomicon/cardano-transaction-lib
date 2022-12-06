@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
+- CIP-30 got optional args support on level of `Cip30Mock` and `Cip30Wallet` module. `getWalletAddresses` and `getValue` got `Maybe Paginate` argument, `getCollateral` got amount argument of type `Coin` and `getValue` got amount argument of type `Value`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)
 
 ### Removed
 
