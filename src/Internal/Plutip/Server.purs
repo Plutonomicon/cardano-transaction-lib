@@ -31,6 +31,7 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
   , getLedgerConstants
@@ -41,6 +42,7 @@ import Ctl.Internal.Contract.QueryBackend
   , mkSingletonBackendParams
   )
 import Ctl.Internal.Helpers ((<</>>))
+import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
@@ -76,11 +78,7 @@ import Ctl.Internal.Plutip.UtxoDistribution
   )
 import Ctl.Internal.QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  , Logger
-  , emptyHooks
-  , mkLogger
   )
-import Ctl.Internal.QueryM.Logging (setupLogs)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)

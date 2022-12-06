@@ -5,7 +5,7 @@ module Ctl.Internal.Test.E2E.Feedback.Hooks
 
 import Prelude
 
-import Ctl.Internal.QueryM (Hooks)
+import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(Sign, ConfirmAccess, Success, Failure)
   )

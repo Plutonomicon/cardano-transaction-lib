@@ -3,7 +3,7 @@ module Ctl.Internal.QueryM.Config
   , testnetQueryConfig
   ) where
 
-import Ctl.Internal.QueryM (QueryConfig, emptyHooks)
+import Ctl.Internal.QueryM (QueryConfig)
 import Ctl.Internal.QueryM.ServerConfig
   ( defaultDatumCacheWsConfig
   , defaultKupoServerConfig
@@ -25,7 +25,6 @@ testnetTraceQueryConfig =
   , walletSpec: Nothing
   , customLogger: Nothing
   , suppressLogs: false
-  , hooks: emptyHooks
   }
 
 testnetQueryConfig :: QueryConfig

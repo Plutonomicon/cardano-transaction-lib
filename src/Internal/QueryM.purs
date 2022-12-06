@@ -14,7 +14,6 @@ module Ctl.Internal.QueryM
   , DatumCacheWebSocket
   , DefaultQueryEnv
   , ListenerSet
-  , Logger
   , OgmiosListeners
   , OgmiosWebSocket
   , QueryConfig
@@ -25,7 +24,6 @@ module Ctl.Internal.QueryM
   , QueryRuntime
   , SubmitTxListenerSet
   , WebSocket(WebSocket)
-  , Hooks
   , allowError
   , evaluateTxOgmios
   , getChainTip
@@ -39,7 +37,6 @@ module Ctl.Internal.QueryM
   , mkDatumCacheWebSocketAff
   , mkDatumCacheRequest
   , mkListenerSet
-  , mkLogger
   , defaultMessageListener
   , mkOgmiosRequest
   , mkOgmiosRequestAff
@@ -47,12 +44,9 @@ module Ctl.Internal.QueryM
   , mkQueryRuntime
   , mkRequest
   , mkRequestAff
-  -- TODO Move mkWalletBySpec into Contract once import cycles are resolved
-  , mkWalletBySpec
   , scriptToAeson
   , submitTxOgmios
   , underlyingWebSocket
-  , emptyHooks
   ) where
 
 import Prelude
@@ -90,7 +84,7 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Helpers (logString, logWithLevel)
+import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -103,6 +97,7 @@ import Ctl.Internal.JsWebSocket
   , _wsFinalize
   , _wsSend
   )
+import Ctl.Internal.Logging (Logger, mkLogger)
 import Ctl.Internal.QueryM.DatumCacheWsp
   ( GetTxByHashR
   )
@@ -166,40 +161,16 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
-import Ctl.Internal.Wallet
-  ( Wallet
-  , WalletExtension
-      ( LodeWallet
-      , EternlWallet
-      , FlintWallet
-      , GeroWallet
-      , NamiWallet
-      )
-  , mkKeyWallet
-  , mkWalletAff
-  )
+import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
-import Ctl.Internal.Wallet.KeyFile
-  ( privatePaymentKeyFromFile
-  , privateStakeKeyFromFile
-  )
 import Ctl.Internal.Wallet.Spec
-  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
-  , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , WalletSpec
-      ( UseKeys
-      , ConnectToGero
-      , ConnectToNami
-      , ConnectToFlint
-      , ConnectToEternl
-      , ConnectToLode
-      )
+  ( WalletSpec
+  , mkWalletBySpec
   )
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
-import Data.JSDate (now)
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map as Map
@@ -221,7 +192,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, throw, try)
+import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 
@@ -244,21 +215,6 @@ type ClusterSetup =
       }
   }
 
-type Hooks =
-  { beforeSign :: Maybe (Effect Unit)
-  , beforeInit :: Maybe (Effect Unit)
-  , onSuccess :: Maybe (Effect Unit)
-  , onError :: Maybe (Error -> Effect Unit)
-  }
-
-emptyHooks :: Hooks
-emptyHooks =
-  { beforeSign: Nothing
-  , beforeInit: Nothing
-  , onSuccess: Nothing
-  , onError: Nothing
-  }
-
 -- | `QueryConfig` contains a complete specification on how to initialize a
 -- | `QueryM` environment.
 -- | It includes:
@@ -277,7 +233,6 @@ type QueryConfig =
   , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
-  , hooks :: Hooks
   }
 
 -- | Reusable part of `QueryRuntime` that can be shared between many `QueryM`
@@ -368,7 +323,6 @@ mkQueryRuntime
   :: QueryConfig
   -> Aff QueryRuntime
 mkQueryRuntime config = do
-  for_ config.hooks.beforeInit (void <<< liftEffect <<< try)
   usedTxOuts <- newUsedTxOuts
   datumCacheWsRef <- liftEffect $ Ref.new Nothing
   QueryRuntimeModel datumCacheWs (ogmiosWs /\ pparams) wallet <- sequential $
@@ -392,23 +346,6 @@ mkQueryRuntime config = do
     }
   where
   logger = mkLogger config.logLevel config.customLogger
-
-mkWalletBySpec :: NetworkId -> WalletSpec -> Aff Wallet
-mkWalletBySpec networkId = case _ of
-  UseKeys paymentKeySpec mbStakeKeySpec -> do
-    privatePaymentKey <- case paymentKeySpec of
-      PrivatePaymentKeyFile filePath ->
-        privatePaymentKeyFromFile filePath
-      PrivatePaymentKeyValue key -> pure key
-    mbPrivateStakeKey <- for mbStakeKeySpec case _ of
-      PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
-      PrivateStakeKeyValue key -> pure key
-    pure $ mkKeyWallet networkId privatePaymentKey mbPrivateStakeKey
-  ConnectToNami -> mkWalletAff NamiWallet
-  ConnectToGero -> mkWalletAff GeroWallet
-  ConnectToFlint -> mkWalletAff FlintWallet
-  ConnectToEternl -> mkWalletAff EternlWallet
-  ConnectToLode -> mkWalletAff LodeWallet
 
 getProtocolParametersAff
   :: OgmiosWebSocket
@@ -1007,20 +944,6 @@ mkRequest
 mkRequest listeners' ws jsonWspCall getLs inp = do
   logger <- getLogger
   liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
-
-type Logger = LogLevel -> String -> Effect Unit
-
-mkLogger
-  :: LogLevel
-  -> Maybe (LogLevel -> Message -> Aff Unit)
-  -> Logger
-mkLogger logLevel mbCustomLogger level message =
-  case mbCustomLogger of
-    Nothing -> logString logLevel level message
-    Just logger -> liftEffect do
-      timestamp <- now
-      launchAff_ $ logger logLevel
-        { level, message, tags: Map.empty, timestamp }
 
 getLogger :: QueryM Logger
 getLogger = do

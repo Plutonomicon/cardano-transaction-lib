@@ -12,6 +12,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend
   ( QueryBackend(CtlBackend)
   , defaultBackend
@@ -21,7 +22,7 @@ import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
-import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
+import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)

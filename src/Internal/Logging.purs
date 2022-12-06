@@ -1,20 +1,38 @@
-module Ctl.Internal.QueryM.Logging
+module Ctl.Internal.Logging
   ( setupLogs
+  , mkLogger
+  , Logger
   ) where
 
 import Prelude
 
-import Ctl.Internal.QueryM (Logger, mkLogger)
+import Ctl.Internal.Helpers (logString)
+import Data.JSDate (now)
 import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just))
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for_)
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+
+type Logger = LogLevel -> String -> Effect Unit
+
+mkLogger
+  :: LogLevel
+  -> Maybe (LogLevel -> Message -> Aff Unit)
+  -> Logger
+mkLogger logLevel mbCustomLogger level message =
+  case mbCustomLogger of
+    Nothing -> logString logLevel level message
+    Just logger -> liftEffect do
+      timestamp <- now
+      launchAff_ $ logger logLevel
+        { level, message, tags: Map.empty, timestamp }
 
 -- | Setup internal machinery for log suppression.
 setupLogs

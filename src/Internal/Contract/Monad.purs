@@ -35,6 +35,7 @@ import Control.Parallel
   , sequential
   )
 import Control.Plus (class Plus)
+import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
@@ -46,22 +47,19 @@ import Ctl.Internal.Contract.QueryBackend
   )
 import Ctl.Internal.Helpers (liftM, liftedM, logWithLevel)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
+import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.QueryM
-  ( Hooks
-  , Logger
-  , QueryEnv
+  ( QueryEnv
   , QueryM
   , WebSocket
   , getEraSummariesAff
   , getProtocolParametersAff
   , getSystemStartAff
   , mkDatumCacheWebSocketAff
-  , mkLogger
   , mkOgmiosWebSocketAff
-  , mkWalletBySpec
   , underlyingWebSocket
   )
-import Ctl.Internal.QueryM.Logging (setupLogs)
+-- TOD Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios
   ( ProtocolParameters
   , RelativeTime
@@ -73,7 +71,7 @@ import Ctl.Internal.Serialization.Address (NetworkId, Slot)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet (getNetworkId) as Wallet
-import Ctl.Internal.Wallet.Spec (WalletSpec)
+import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
 import Data.Either (Either(Left, Right))
 import Data.Foldable (maximumBy)
 import Data.Function (on)
@@ -238,7 +236,6 @@ mkContractEnv params = do
     , hooks: params.hooks
     }
 
--- TODO Move CtlServer to a backend? Wouldn't make sense as a 'main' backend though
 buildBackend
   :: Logger
   -> QueryBackends QueryBackendParams
@@ -366,7 +363,6 @@ withContractEnv params action = do
 -- | environment (see `withContractEnv`)
 type ContractParams =
   { backendParams :: QueryBackends QueryBackendParams
-  -- TODO: Move CtlServer to a backend?
   , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
@@ -407,14 +403,12 @@ mkQueryEnv contractEnv ctlBackend =
       , walletSpec: contractEnv.walletSpec
       , customLogger: contractEnv.customLogger
       , suppressLogs: contractEnv.suppressLogs
-      , hooks: contractEnv.hooks
       }
   , runtime:
       { ogmiosWs: ctlBackend.ogmios.ws
       , datumCacheWs: ctlBackend.odc.ws
       , wallet: contractEnv.wallet
       , usedTxOuts: contractEnv.usedTxOuts
-      -- TODO: Make queryM use the new constants
       , pparams: contractEnv.ledgerConstants.pparams
       }
   , extraConfig: {}
