@@ -21,6 +21,7 @@ import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (unwrap)
 import Data.Unit (Unit)
 import Effect.Aff (Aff)
+import Mote (test)
 import Test.Ctl.Utils (assertTrue, errMaybe)
 
 pkhBech32 :: Bech32String
@@ -33,7 +34,7 @@ invalidBech32 :: Bech32String
 invalidBech32 = "addr_vkh1zuctrdcq6ctd29242w8g8444z0q38t2lnv3zzf44fqktx044444"
 
 suite :: TestPlanM (Aff Unit) Unit
-suite = do
+suite = test "Serialization.Hash" do
   assertTrue "ed25519KeyHashFromBech32 returns Nothing on random string"
     (isNothing $ ed25519KeyHashFromBech32 invalidBech32)
 
@@ -43,7 +44,6 @@ suite = do
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
     pkhBts = toBytes pkh
-    -- TODO: use fromBytes instead?
     pkh2 = ed25519KeyHashFromBytes $ unwrap pkhBts
 
   assertTrue
@@ -73,7 +73,6 @@ suite = do
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
     scrhBts = toBytes scrh
-    -- TODO: use fromBytes instead?
     scrhFromBytes = scriptHashFromBytes $ unwrap scrhBts
     scrhFromBech = scriptHashFromBech32 scrhB32
 

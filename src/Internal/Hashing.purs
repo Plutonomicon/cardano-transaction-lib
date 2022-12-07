@@ -56,8 +56,7 @@ datumHash :: Datum -> Maybe DataHash
 datumHash =
   map (wrap <<< unwrap <<< toBytes <<< hashPlutusData)
     <<< convertPlutusData
-    <<<
-      unwrap
+    <<< unwrap
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
