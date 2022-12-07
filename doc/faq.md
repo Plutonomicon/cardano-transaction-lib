@@ -45,6 +45,12 @@ Ensure your transaction's validity range does not go over `SafeZone` slots of th
 
 Haskell's `aeson` library encodes long integers as JSON numbers, which leads to numeric truncation on decoder side if JS `Number` is used. Unfortunately, `purescript-argonaut` does not allow to use another type, because the truncation happens during `JSON.parse` call. `purescript-aeson` is our custom solution that bypasses this limitation by storing numbers as strings. It exposes a very similar API.
 
+## Environment-related
+
+### Q: Why I can't open the browser used for e2e?
+
+If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. By example `e2e-test browser --extra-browser-args="--ozone-platform=wayland"`.
+
 ## Miscellaneous
 
 ### Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?
