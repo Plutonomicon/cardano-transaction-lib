@@ -39,12 +39,14 @@ check-format: check-explicit-exports check-examples-imports check-whitespace
 	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
+	markdown-toc-gen check README.md doc/*.md
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
 	nixpkgs-fmt ${nix-sources}
 	fourmolu -m inplace -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	prettier -w ${js-sources}
+	markdown-toc-gen update README.md doc/*.md
 	make check-explicit-exports
 	make check-examples-imports
 	make check-whitespace
