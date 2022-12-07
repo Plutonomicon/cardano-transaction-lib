@@ -60,7 +60,7 @@ type SerializationData = Address
   |+| Value
   |+| VRFKeyHash
 
--- and more as needed
+-- Add more as needed
 
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
 foreign import _toBytes
