@@ -10,7 +10,11 @@ import Prelude
 import Ctl.Internal.Deserialization.Error (FromBytesError, fromBytesErrorHelper)
 import Ctl.Internal.Error (E)
 import Ctl.Internal.FfiHelpers (ErrorFfiHelper)
-import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , ByronAddress
+  , StakeCredential
+  )
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryDataHash
@@ -52,6 +56,9 @@ instance FromBytes Address where
 instance FromBytes AuxiliaryDataHash where
   fromBytes' = _fromBytes "AuxiliaryDataHash" fromBytesErrorHelper
 
+instance FromBytes ByronAddress where
+  fromBytes' = _fromBytes "ByronAddress" fromBytesErrorHelper
+
 instance FromBytes DataHash where
   fromBytes' = _fromBytes "DataHash" fromBytesErrorHelper
 
@@ -90,6 +97,9 @@ instance FromBytes ScriptDataHash where
 
 instance FromBytes ScriptHash where
   fromBytes' = _fromBytes "ScriptHash" fromBytesErrorHelper
+
+instance FromBytes StakeCredential where
+  fromBytes' = _fromBytes "StakeCredential" fromBytesErrorHelper
 
 instance FromBytes Transaction where
   fromBytes' = _fromBytes "Transaction" fromBytesErrorHelper

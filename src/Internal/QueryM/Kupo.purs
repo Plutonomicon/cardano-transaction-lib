@@ -54,7 +54,6 @@ import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
-  , addressFromBytes
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -176,7 +175,7 @@ instance DecodeAeson KupoTransactionOutput where
     decodeAddress obj =
       getField obj "address" >>= \x ->
         note (TypeMismatch "Expected bech32 or base16 encoded Shelley address")
-          (addressFromBech32 x <|> (addressFromBytes =<< hexToCborBytes x))
+          (addressFromBech32 x <|> (fromBytes =<< hexToCborBytes x))
 
     decodeDatumHash
       :: Object Aeson

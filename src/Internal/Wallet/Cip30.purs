@@ -27,7 +27,6 @@ import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
-  , addressFromBytes
   , baseAddressBytes
   , baseAddressFromAddress
   , enterpriseAddressBytes
@@ -145,7 +144,7 @@ getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
 
 hexStringToAddress :: String -> Maybe Address
 hexStringToAddress =
-  ((addressFromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes)
+  ((fromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes)
 
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
