@@ -11,14 +11,12 @@ module Ctl.Internal.Serialization.Address
   , PointerAddress
   , RewardAddress
   , StakeCredential
-  , addressBytes
   , addressBech32
   , addressNetworkId
   , intToNetworkId
   , keyHashCredential
   , scriptHashCredential
   , withStakeCredential
-  , stakeCredentialToBytes
   , baseAddress
   , baseAddressPaymentCred
   , baseAddressDelegationCred
@@ -46,7 +44,6 @@ module Ctl.Internal.Serialization.Address
   , byronAddressToBase58
   , byronAddressFromBase58
   , byronAddressFromBytes
-  , byronAddressBytes
   , byronProtocolMagic
   , byronAddressAttributes
   , byronAddressNetworkId

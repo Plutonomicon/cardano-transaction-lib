@@ -6,7 +6,6 @@ import Contract.Address (addressWithNetworkTagFromBech32)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
-  , addressBytes
   , addressFromBech32
   , addressFromBytes
   , addressNetworkId
@@ -31,7 +30,6 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressToAddress
   , scriptHashCredential
   , stakeCredentialFromBytes
-  , stakeCredentialToBytes
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   )
@@ -41,6 +39,7 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
@@ -81,7 +80,7 @@ addressFunctionsTest = test "Address tests" $ do
     addressFromBech32 bechstr
   bechstr `shouldEqual` addressBech32 addr1
   addressFromBech32 "randomstuff" `shouldEqual` Nothing
-  let addrBts = addressBytes addr1
+  let addrBts = toBytes addr1
   addr2 <- errMaybe "addressFromBech32 failed on valid bech32" $
     addressFromBytes addrBts
   addr2 `shouldEqual` addr1
@@ -103,8 +102,8 @@ stakeCredentialTests = test "StakeCredential tests" $ do
   let
     pkhCred = keyHashCredential $ pkh
     schCred = scriptHashCredential $ scrh
-    pkhCredBytes = stakeCredentialToBytes pkhCred
-    schCredBytes = stakeCredentialToBytes schCred
+    pkhCredBytes = toBytes pkhCred
+    schCredBytes = toBytes schCred
 
   pkhCred2 <- errMaybe "stakeCredentialFromBytes failed on valid bytes" $
     stakeCredentialFromBytes

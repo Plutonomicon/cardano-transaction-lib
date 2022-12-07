@@ -4,7 +4,11 @@ module Ctl.Internal.Serialization.ToBytes
 
 import Prelude
 
-import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , ByronAddress
+  , StakeCredential
+  )
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryDataHash
@@ -33,6 +37,7 @@ import Untagged.Union (type (|+|))
 
 type SerializationData = Address
   |+| AuxiliaryDataHash
+  |+| ByronAddress
   |+| DataHash
   |+| Ed25519KeyHash
   |+| Ed25519Signature
@@ -45,6 +50,7 @@ type SerializationData = Address
   |+| Redeemers
   |+| ScriptDataHash
   |+| ScriptHash
+  |+| StakeCredential
   |+| Transaction
   |+| TransactionBody
   |+| TransactionHash
