@@ -30,6 +30,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , ConsI
   , NilI
   )
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.BigInt (BigInt)
@@ -178,18 +179,18 @@ suite = do
         plutusDataRoundtripProperty (Proxy :: Proxy EType)
       test "CType: C1 constructor shouldn't accept empty arguments" $
         let
-          pd = Constr (BigInt.fromInt 1) []
+          pd = Constr BigNum.one []
         in
           shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
       test "CType: C1 constructor shouldn't accept more than one argument" $
         let
-          pd = Constr (BigInt.fromInt 1)
-            [ (Constr (BigInt.fromInt 1) []), (Integer $ BigInt.fromInt 0) ]
+          pd = Constr BigNum.one
+            [ (Constr BigNum.one []), (Integer $ BigInt.fromInt 0) ]
         in
           shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
       test "CType: C0 constructor shouldn't accept any arguments" $
         let
-          pd = Constr (BigInt.fromInt 0) [ (Constr (BigInt.fromInt 1) []) ]
+          pd = Constr BigNum.zero [ (Constr BigNum.one []) ]
         in
           shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
       test "FType and FType' toData/fromData are the same" $

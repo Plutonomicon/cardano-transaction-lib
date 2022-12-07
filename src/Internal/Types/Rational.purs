@@ -22,6 +22,7 @@ import Aeson
   )
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.ToData (class ToData)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
@@ -101,11 +102,12 @@ denominatorAsNat = Nat.fromBigInt' <<< denominator
 --------------------------------------------------------------------------------
 
 instance ToData Rational where
-  toData r = Constr zero [ Integer (numerator r), Integer (denominator r) ]
+  toData r =
+    Constr BigNum.zero [ Integer (numerator r), Integer (denominator r) ]
 
 instance FromData Rational where
   fromData (Constr c [ Integer n, Integer d ])
-    | c == zero = reduce n d
+    | c == BigNum.zero = reduce n d
   fromData _ = Nothing
 
 --------------------------------------------------------------------------------

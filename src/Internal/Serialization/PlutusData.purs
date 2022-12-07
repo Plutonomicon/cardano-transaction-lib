@@ -19,7 +19,6 @@ import Ctl.Internal.Serialization.Types
   , PlutusMap
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData as T
 import Data.BigInt as BigInt
@@ -32,17 +31,17 @@ convertPlutusData :: T.PlutusData -> PlutusData
 -- Unsafe fromJust here is correct, because we cover every PlutusData
 -- constructor, and Just will be returned by one of functions
 convertPlutusData x = unsafePartial $ fromJust $ case x of
-  T.Constr alt list -> convertConstr alt list
+  T.Constr alt list -> Just $ convertConstr alt list
   T.Map mp -> Just $ convertPlutusMap mp
   T.List lst -> Just $ convertPlutusList lst
   T.Integer n -> convertPlutusInteger n
   T.Bytes b -> Just $ _mkPlutusData_bytes b
 
-convertConstr :: BigInt.BigInt -> Array T.PlutusData -> Maybe PlutusData
+convertConstr :: BigNum -> Array T.PlutusData -> PlutusData
 convertConstr alt list =
-  map _mkPlutusData_constr $ _mkConstrPlutusData
-    <$> (BigNum.fromBigInt alt)
-    <*> Just (_packPlutusList containerHelper $ map convertPlutusData list)
+  _mkPlutusData_constr $ _mkConstrPlutusData
+    alt
+    (_packPlutusList containerHelper $ map convertPlutusData list)
 
 convertPlutusList :: Array T.PlutusData -> PlutusData
 convertPlutusList x =

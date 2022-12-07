@@ -18,7 +18,7 @@ import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromString) as BN
+import Ctl.Internal.Types.BigNum (fromString, one) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.CborBytes (cborBytesToHex)
 import Ctl.Internal.Types.PlutusData as PD
@@ -80,7 +80,7 @@ suite = do
         pure unit
       test "PlutusData #1 - Constr" $ do
         let
-          datum = PD.Constr (BigInt.fromInt 1)
+          datum = PD.Constr BN.one
             [ PD.Integer (BigInt.fromInt 1)
             , PD.Integer (BigInt.fromInt 2)
             ]

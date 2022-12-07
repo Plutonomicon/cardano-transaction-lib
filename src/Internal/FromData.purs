@@ -2,7 +2,7 @@ module Ctl.Internal.FromData
   ( FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
-      , BigIntToIntFailed
+      , BigNumToIntFailed
       , IndexWantedButGot
       , WantedConstrGot
       )
@@ -32,6 +32,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
@@ -64,7 +65,7 @@ import Type.Proxy (Proxy(Proxy))
 data FromDataError
   = ArgsWantedButGot String Int (Array PlutusData)
   | FromDataFailed String PlutusData
-  | BigIntToIntFailed String BigInt
+  | BigNumToIntFailed String BigNum
   | IndexWantedButGot String Int Int
   | WantedConstrGot String PlutusData
 
@@ -143,7 +144,7 @@ else instance
   FromDataWithSchema t (G.Constructor constr args) where
   fromDataWithSchema _ _ (Constr i pdArgs) = do
     let constrName = reflectSymbol (Proxy :: Proxy constr)
-    gotIx <- note (BigIntToIntFailed constrName i) (BigInt.toInt i)
+    gotIx <- note (BigNumToIntFailed constrName i) (BigNum.toInt i)
     wantedIx <- pure $ natVal (Proxy :: Proxy ix)
     noteB (IndexWantedButGot constrName wantedIx gotIx) (wantedIx == gotIx)
     { head: repArgs, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)
@@ -249,28 +250,28 @@ instance FromData Void where
 
 instance FromData Unit where
   fromData (Constr n [])
-    | n == zero = Just unit
+    | n == BigNum.zero = Just unit
   fromData _ = Nothing
 
 -- NOTE: For the sake of compatibility the following fromDatas have to match
 -- https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-tx/src/PlutusTx/IsData/Instances.hs
 instance FromData Boolean where
   fromData (Constr n [])
-    | n == zero = Just false
-    | n == one = Just true
+    | n == BigNum.zero = Just false
+    | n == BigNum.one = Just true
   fromData _ = Nothing
 
 instance FromData a => FromData (Maybe a) where
   fromData (Constr n [ pd ])
-    | n == zero = maybe Nothing (Just <<< Just) (fromData pd) -- Just is zero-indexed by Plutus
+    | n == BigNum.zero = maybe Nothing (Just <<< Just) (fromData pd) -- Just is zero-indexed by Plutus
   fromData (Constr n [])
-    | n == one = Just Nothing
+    | n == BigNum.one = Just Nothing
   fromData _ = Nothing
 
 instance (FromData a, FromData b) => FromData (Either a b) where
   fromData (Constr n [ pd ])
-    | n == zero = maybe Nothing (Just <<< Left) (fromData pd)
-    | n == one = maybe Nothing (Just <<< Right) (fromData pd)
+    | n == BigNum.zero = maybe Nothing (Just <<< Left) (fromData pd)
+    | n == BigNum.one = maybe Nothing (Just <<< Right) (fromData pd)
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
@@ -301,7 +302,7 @@ instance FromData a => FromData (List a) where
 
 instance (FromData a, FromData b) => FromData (Tuple a b) where
   fromData (Constr n [ a, b ])
-    | n == zero = Tuple <$> fromData a <*> fromData b
+    | n == BigNum.zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing
 
 instance FromData ByteArray where

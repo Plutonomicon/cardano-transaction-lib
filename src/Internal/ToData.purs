@@ -26,7 +26,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , class GetWithLabel
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (toBigIntUnsafe) as BigNum
+import Ctl.Internal.Types.BigNum (fromInt, one, toBigIntUnsafe, zero) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
@@ -147,7 +147,7 @@ instance
   ) =>
   ToDataWithSchema t (G.Constructor constr arg) where
   toDataWithSchema p (G.Constructor args) = Constr
-    (fromInt <<< natVal $ (Proxy :: Proxy index))
+    (BigNum.fromInt <<< natVal $ (Proxy :: Proxy index))
     (toDataArgs p (Proxy :: Proxy constr) args)
 
 -- | ToDataArgs instances for Data.Generic.Rep
@@ -236,21 +236,21 @@ instance ToData Void where
   toData = absurd
 
 instance ToData Unit where
-  toData _ = Constr zero []
+  toData _ = Constr BigNum.zero []
 
 -- NOTE: For the sake of compatibility the following toDatas have to match
 -- https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-tx/src/PlutusTx/IsData/Instances.hs
 instance ToData Boolean where
-  toData false = Constr zero []
-  toData true = Constr one []
+  toData false = Constr BigNum.zero []
+  toData true = Constr BigNum.one []
 
 instance ToData a => ToData (Maybe a) where
-  toData (Just x) = Constr zero [ toData x ] -- Just is zero-indexed by Plutus
-  toData Nothing = Constr one []
+  toData (Just x) = Constr BigNum.zero [ toData x ] -- Just is zero-indexed by Plutus
+  toData Nothing = Constr BigNum.one []
 
 instance (ToData a, ToData b) => ToData (Either a b) where
-  toData (Left e) = Constr zero [ toData e ]
-  toData (Right x) = Constr one [ toData x ]
+  toData (Left e) = Constr BigNum.zero [ toData e ]
+  toData (Right x) = Constr BigNum.one [ toData x ]
 
 instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int where
   toData = toData <<< BigInt.fromInt
@@ -274,7 +274,7 @@ instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
 instance (ToData a, ToData b) => ToData (Tuple a b) where
-  toData (Tuple a b) = Constr zero [ toData a, toData b ]
+  toData (Tuple a b) = Constr BigNum.zero [ toData a, toData b ]
 
 -- Note that nothing prevents the denominator from being zero, we could provide
 -- safety here:

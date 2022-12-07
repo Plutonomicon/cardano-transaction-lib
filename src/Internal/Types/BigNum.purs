@@ -59,6 +59,8 @@ instance DecodeAeson BigNum where
 instance EncodeAeson BigNum where
   encodeAeson' = encodeAeson' <<< toBigIntUnsafe
 
+-- Semiring cannot be implemented, because add and mul returns Maybe BigNum
+
 fromBigInt :: BigInt -> Maybe BigNum
 fromBigInt = fromString <<< BigInt.toString
 

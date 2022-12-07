@@ -52,7 +52,7 @@ convertPlutusConstr pd = do
   let
     data' = convertPlutusData <$>
       _unpackPlutusList containerHelper (_ConstrPlutusData_data constr)
-  alt <- BigNum.toBigInt $ _ConstrPlutusData_alternative constr
+    alt = _ConstrPlutusData_alternative constr
   pure $ T.Constr alt data'
 
 convertPlutusMap :: PlutusData -> Maybe T.PlutusData

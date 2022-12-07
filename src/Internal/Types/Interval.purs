@@ -274,31 +274,31 @@ instance Ord a => MeetSemilattice (Interval a) where
 -- This instance is written to be compatible with plutus.
 instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
   toData (FiniteInterval start end) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData $ lowerBound start
         , toData $ strictUpperBound (end + one)
         ]
     )
   toData (StartAt end) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData $ strictUpperBound (end + one)
         ]
     )
   toData (EndAt start) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData $ lowerBound start
         , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData AlwaysInterval =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData EmptyInterval =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound PosInf true :: LowerBound a)
         , toData (UpperBound NegInf true :: UpperBound a)
         ]
@@ -315,7 +315,7 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
 
 -- This instance is written to be compatible with plutus.
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
-  fromData (Constr index [ lower, upper ]) | index == zero = do
+  fromData (Constr index [ lower, upper ]) | index == BigNum.zero = do
     (LowerBound start startBool) <- fromData lower
     (UpperBound end endBool) <- fromData upper
     case
