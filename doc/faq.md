@@ -7,6 +7,7 @@ This document lists common problems encountered by CTL users and developers.
 - [Bundling-related](#bundling-related)
 - [Time-related](#time-related)
 - [Ecosystem](#ecosystem)
+- [Environment-related](#environment-related)
 - [Miscellaneous](#miscellaneous)
 
 ## Bundling-related
