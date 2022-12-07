@@ -1255,8 +1255,7 @@ processConstraint mpsMap osMap = do
       let amount = fromPlutusValue plutusValue
       runExceptT do
         let datum' = outputDatum dat datp
-        let
-          txOut = TransactionOutput
+            txOut = TransactionOutput
             { address:
                 case mbCredential of
                   Nothing -> validatorHashEnterpriseAddress networkId vlh

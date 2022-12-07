@@ -108,7 +108,7 @@ suite = do
       let
         pdRoundTripTest ctlPd = do
           let cslPd = SPD.convertPlutusData ctlPd
-          let pdBytes = toBytes (asOneOf cslPd)
+              pdBytes = toBytes (asOneOf cslPd)
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
             pdBytes
           let ctlPd' = DPD.convertPlutusData cslPd'
