@@ -40,7 +40,6 @@ module Ctl.Internal.QueryM
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
-  , mkQueryRuntime
   , mkRequest
   , mkRequestAff
   , scriptToAeson
@@ -159,12 +158,11 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
+import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Ctl.Internal.Wallet.Spec
   ( WalletSpec
-  , mkWalletBySpec
   )
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
@@ -176,7 +174,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Traversable (for, for_, traverse_)
+import Data.Traversable (for_, traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -311,40 +309,6 @@ instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
   parallel = wrap <<< parallel <<< unwrap
   sequential :: QueryMExtended r ParAff ~> QueryMExtended r Aff
   sequential = wrap <<< sequential <<< unwrap
-
--- | Used in `mkQueryRuntime` only
-data QueryRuntimeModel = QueryRuntimeModel
-  DatumCacheWebSocket
-  (OgmiosWebSocket /\ Ogmios.ProtocolParameters)
-  (Maybe Wallet)
-
-mkQueryRuntime
-  :: QueryConfig
-  -> Aff QueryRuntime
-mkQueryRuntime config = do
-  usedTxOuts <- newUsedTxOuts
-  datumCacheWsRef <- liftEffect $ Ref.new Nothing
-  QueryRuntimeModel datumCacheWs (ogmiosWs /\ pparams) wallet <- sequential $
-    QueryRuntimeModel
-      <$> parallel
-        ( mkDatumCacheWebSocketAff datumCacheWsRef logger
-            config.datumCacheConfig
-        )
-      <*> parallel do
-        ogmiosWs <-
-          mkOgmiosWebSocketAff datumCacheWsRef logger config.ogmiosConfig
-        pparams <- getProtocolParametersAff ogmiosWs logger
-        pure $ ogmiosWs /\ pparams
-      <*> parallel (for config.walletSpec $ mkWalletBySpec config.networkId)
-  pure
-    { ogmiosWs
-    , datumCacheWs
-    , wallet
-    , usedTxOuts
-    , pparams
-    }
-  where
-  logger = mkLogger config.logLevel config.customLogger
 
 getProtocolParametersAff
   :: OgmiosWebSocket

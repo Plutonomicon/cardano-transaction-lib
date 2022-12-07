@@ -33,8 +33,6 @@ import Effect.Exception (throw)
 
 -- | A generic type to represent a choice of backend with a set of fallback
 -- | backends when an operation is not supported by the default.
--- TODO Should this just be a list?
---      How do operations decide on what backend to use?
 data QueryBackends (backend :: Type) =
   QueryBackends backend (Map QueryBackendLabel backend)
 

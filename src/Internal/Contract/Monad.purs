@@ -12,6 +12,7 @@ module Ctl.Internal.Contract.Monad
   , withContractEnv
   , buildBackend
   , getLedgerConstants
+  , filterLockedUtxos
   ) where
 
 import Prelude
@@ -25,7 +26,7 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, asks)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel
   ( class Parallel
@@ -35,6 +36,7 @@ import Control.Parallel
   , sequential
   )
 import Control.Plus (class Plus)
+import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
@@ -45,7 +47,7 @@ import Ctl.Internal.Contract.QueryBackend
   , defaultBackend
   , lookupBackend
   )
-import Ctl.Internal.Helpers (liftM, logWithLevel)
+import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.QueryM
@@ -58,14 +60,14 @@ import Ctl.Internal.QueryM
   , mkOgmiosWebSocketAff
   , underlyingWebSocket
   )
--- TOD Move/translate these types into Cardano
+-- TODO Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios
   ( ProtocolParameters
   , SystemStart
   ) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
+import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet (getNetworkId) as Wallet
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -228,8 +230,6 @@ buildBackend
 buildBackend logger = parTraverse case _ of
   CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
     datumCacheWsRef <- liftEffect $ Ref.new Nothing
-    -- TODO Check the network in env matches up with the network of odc, ogmios and kupo
-    --      Need to pass in the networkid
     sequential ado
       odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger
         odcConfig
@@ -386,3 +386,15 @@ mkQueryEnv contractEnv ctlBackend =
   , extraConfig: {}
   }
 
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
+
+filterLockedUtxos :: UtxoMap -> Contract UtxoMap
+filterLockedUtxos utxos =
+  withTxRefsCache $
+    flip filterMapWithKeyM utxos
+      (\k _ -> not <$> isTxOutRefUsed (unwrap k))
+
+withTxRefsCache :: forall (a :: Type). ReaderT UsedTxOuts Aff a -> Contract a
+withTxRefsCache = Contract <<< withReaderT _.usedTxOuts

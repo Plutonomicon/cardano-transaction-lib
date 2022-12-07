@@ -1,18 +1,32 @@
-module Ctl.Internal.Contract.Wallet where
+module Ctl.Internal.Contract.Wallet
+  ( getUnusedAddresses
+  , getChangeAddress
+  , getRewardAddresses
+  , getWalletAddresses
+  , signData
+  , getWallet
+  , getNetworkId
+  , ownPubKeyHashes
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeysHashes
+  , withWalletAff
+  , withWallet
+  , getWalletCollateral
+  , getWalletBalance
+  , getWalletUtxos
+  ) where
 
 import Prelude
 
-import Control.Monad.Reader (withReaderT)
-import Control.Monad.Reader.Trans (ReaderT, asks)
+import Control.Monad.Reader.Trans (asks)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
-import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
-import Ctl.Internal.Helpers as Helpers
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -27,11 +41,9 @@ import Ctl.Internal.Types.PubKeyHash
   , StakePubKeyHash
   )
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet
-  ( Cip30Connection
-  , Cip30Wallet
-  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
+  ( Wallet
+  , actionBasedOnWallet
   )
 import Ctl.Internal.Wallet
   ( getChangeAddress
@@ -113,49 +125,23 @@ withWallet act = do
   wallet <- liftedM (error "No wallet set") $ asks _.wallet
   act wallet
 
-callCip30Wallet
-  :: forall (a :: Type)
-   . Cip30Wallet
-  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
-  -> Aff a
-callCip30Wallet wallet act = act wallet wallet.connection
-
--- TODO Move
-filterLockedUtxos :: UtxoMap -> Contract UtxoMap
-filterLockedUtxos utxos =
-  withTxRefsCache $
-    flip Helpers.filterMapWithKeyM utxos
-      (\k _ -> not <$> isTxOutRefUsed (unwrap k))
-
-withTxRefsCache
-  :: forall (m :: Type -> Type) (a :: Type)
-   . ReaderT UsedTxOuts Aff a
-  -> Contract a
-withTxRefsCache = wrap <<< withReaderT _.usedTxOuts
-
 getWalletCollateral :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
-  queryHandle <- getQueryHandle
-  mbCollateralUTxOs <- asks (_.wallet) >>= maybe (pure Nothing)
-    case _ of
-      Nami wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Gero wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Flint wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      KeyWallet kw -> do
-        let addr = (unwrap kw).address
-        utxos <- (liftAff $ queryHandle.utxosAt addr)
-          <#> hush >>> fromMaybe Map.empty
-          >>= filterLockedUtxos
-        pparams <- asks $ _.ledgerConstants >>> _.pparams <#> unwrap
-        let
-          coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
-          maxCollateralInputs = UInt.toInt $
-            pparams.maxCollateralInputs
-        liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoUnit
-          maxCollateralInputs
-          utxos
+  mbCollateralUTxOs <- asks (_.wallet) >>= maybe (pure Nothing) do
+    actionBasedOnWallet _.getCollateral \kw -> do
+      queryHandle <- getQueryHandle
+      let addr = (unwrap kw).address
+      utxos <- (liftAff $ queryHandle.utxosAt addr)
+        <#> hush >>> fromMaybe Map.empty
+        >>= filterLockedUtxos
+      pparams <- asks $ _.ledgerConstants >>> _.pparams <#> unwrap
+      let
+        coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
+        maxCollateralInputs = UInt.toInt $
+          pparams.maxCollateralInputs
+      liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoUnit
+        maxCollateralInputs
+        utxos
   for_ mbCollateralUTxOs \collateralUTxOs -> do
     pparams <- asks $ _.ledgerConstants >>> _.pparams
     let
@@ -174,13 +160,8 @@ getWalletBalance
   :: Contract (Maybe Value)
 getWalletBalance = do
   queryHandle <- getQueryHandle
-  asks _.wallet >>= map join <<< traverse case _ of
-    Nami wallet -> liftAff $ wallet.getBalance wallet.connection
-    Gero wallet -> liftAff $ wallet.getBalance wallet.connection
-    Eternl wallet -> liftAff $ wallet.getBalance wallet.connection
-    Flint wallet -> liftAff $ wallet.getBalance wallet.connection
-    Lode wallet -> liftAff $ wallet.getBalance wallet.connection
-    KeyWallet _ -> do
+  asks _.wallet >>= map join <<< traverse do
+    actionBasedOnWallet _.getBalance \_ -> do
       -- Implement via `utxosAt`
       addresses <- getWalletAddresses
       fold <$> for addresses \address -> do
@@ -191,17 +172,12 @@ getWalletBalance = do
 getWalletUtxos :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
   queryHandle <- getQueryHandle
-  asks _.wallet >>= map join <<< traverse case _ of
-    Nami wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
-    Gero wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
-    Flint wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
-      toUtxoMap
-    Eternl wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
-      toUtxoMap
-    Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
-    KeyWallet _ -> do
-      mbAddress <- getWalletAddresses <#> head
-      map join $ for mbAddress $ map hush <<< liftAff <<< queryHandle.utxosAt
+  asks _.wallet >>= map join <<< traverse do
+    actionBasedOnWallet
+      (\w conn -> w.getUtxos conn <#> map toUtxoMap)
+      \_ -> do
+        mbAddress <- getWalletAddresses <#> head
+        map join $ for mbAddress $ map hush <<< liftAff <<< queryHandle.utxosAt
   where
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map

@@ -27,6 +27,9 @@ import Test.Spec.Assertions (shouldSatisfy)
 -- help verify that the Aff interface for websockets itself works,
 -- not that the data represents expected values, as that would depend on chain
 -- state, and ogmios itself.
+--
+-- note: the only way to run QueryM is via Contract, which implicitly requires
+-- some Ogmios endpoints to be called, and are therefore not included here.
 suite :: TestPlanM (QueryM Unit) Unit
 suite = do
   group "QueryM" do
@@ -56,17 +59,6 @@ testGetChainTip :: QueryM Unit
 testGetChainTip = do
   void getChainTip
 
--- TODO Move this. Or put it in contract tests (maybe it already is)
--- testWaitUntilSlot :: QueryM Unit
--- testWaitUntilSlot = do
---   void $ getChainTip >>= case _ of
---     TipAtGenesis -> throwError $ error "Tip is at genesis"
---     Tip (ChainTip { slot }) -> do
---       waitUntilSlot $ over Slot
---         (fromMaybe (BigNum.fromInt 0) <<< BigNum.add (BigNum.fromInt 10))
---         slot
-
--- Remove eraSummaries from queryM?
 testGetEraSummaries :: QueryM Unit
 testGetEraSummaries = do
   void getEraSummaries

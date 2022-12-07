@@ -10,14 +10,16 @@ import Ctl.Internal.Cardano.Types.Transaction as Transaction
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet
-  ( callCip30Wallet
-  , getWalletAddresses
+  ( getWalletAddresses
   , getWalletUtxos
   , withWallet
   )
 import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Ctl.Internal.Wallet (Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami))
+import Ctl.Internal.Wallet
+  ( Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami)
+  , callCip30Wallet
+  )
 import Data.Array (elem, fromFoldable)
 import Data.Either (hush)
 import Data.Lens ((<>~))

@@ -1,4 +1,7 @@
-module Ctl.Internal.Wallet.Cip30Mock where
+module Ctl.Internal.Wallet.Cip30Mock
+  ( withCip30Mock
+  , WalletMock(MockFlint, MockGero, MockNami, MockLode)
+  ) where
 
 import Prelude
 
@@ -10,7 +13,7 @@ import Control.Promise (Promise, fromAff)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle')
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Serialization
@@ -116,10 +119,11 @@ mkCip30Mock
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Cip30Mock
 mkCip30Mock pKey mSKey = do
   env <- ask
+  queryHandle <- getQueryHandle
   let
     getCollateralUtxos utxos = do
       let
-        pparams = unwrap $ env.ledgerConstants.pparams
+        pparams = unwrap env.ledgerConstants.pparams
         coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
         maxCollateralInputs = UInt.toInt $
           pparams.maxCollateralInputs
@@ -130,7 +134,6 @@ mkCip30Mock pKey mSKey = do
           <#> fold
 
     utxosAt address = liftMaybe (error "No UTxOs at address") <<< hush =<< do
-      let queryHandle = getQueryHandle' env
       queryHandle.utxosAt address
 
     keyWallet = privateKeysToKeyWallet env.networkId pKey mSKey

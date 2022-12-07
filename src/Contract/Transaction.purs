@@ -31,7 +31,6 @@ module Contract.Transaction
   , reindexSpentScriptRedeemers
   , signTransaction
   , submit
-  , submitE
   , withBalancedTx
   , withBalancedTxWithConstraints
   , withBalancedTxs
@@ -40,7 +39,7 @@ module Contract.Transaction
 
 import Prelude
 
-import Aeson (class EncodeAeson, Aeson)
+import Aeson (class EncodeAeson)
 import Contract.Monad
   ( Contract
   , liftContractM
@@ -48,7 +47,6 @@ import Contract.Monad
   , liftedM
   , runContractInEnv
   )
-import Contract.Prelude (undefined)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
@@ -294,14 +292,6 @@ submit
 submit tx = do
   queryHandle <- getQueryHandle
   liftedM "Failed to submit tx" $ liftAff $ queryHandle.submitTx $ unwrap tx
-
--- | Like `submit` except when Ogmios sends a SubmitFail the error is returned
--- | as an Array of Aesons.
-submitE
-  :: BalancedSignedTransaction
-  -> Contract (Either (Array Aeson) TransactionHash)
-submitE = -- TODO
-  undefined
 
 -- | Calculate the minimum transaction fee.
 calculateMinFee

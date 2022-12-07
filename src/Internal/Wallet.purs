@@ -34,11 +34,12 @@ module Ctl.Internal.Wallet
   , getChangeAddress
   , getRewardAddresses
   , getWalletAddresses
-  , actionBasedOnWalletAff
+  , actionBasedOnWallet
   , signData
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
   , ownStakePubKeysHashes
+  , callCip30Wallet
   ) where
 
 import Prelude
@@ -93,6 +94,7 @@ import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
@@ -308,7 +310,7 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
 
 getNetworkId :: Wallet -> Aff NetworkId
 getNetworkId wallet = do
-  actionBasedOnWalletAff
+  actionBasedOnWallet
     (\w -> intToNetworkId <=< _.getNetworkId w)
     (\kw -> pure (unwrap kw).networkId)
     wallet
@@ -321,48 +323,49 @@ getNetworkId wallet = do
 
 getUnusedAddresses :: Wallet -> Aff (Array Address)
 getUnusedAddresses wallet = fold <$> do
-  actionBasedOnWalletAff _.getUnusedAddresses
+  actionBasedOnWallet _.getUnusedAddresses
     (\_ -> pure $ pure [])
     wallet
 
 getChangeAddress :: Wallet -> Aff (Maybe Address)
 getChangeAddress wallet = do
-  actionBasedOnWalletAff _.getChangeAddress
+  actionBasedOnWallet _.getChangeAddress
     (\kw -> pure $ pure (unwrap kw).address)
     wallet
 
 getRewardAddresses :: Wallet -> Aff (Array Address)
 getRewardAddresses wallet = fold <$> do
-  actionBasedOnWalletAff _.getRewardAddresses
+  actionBasedOnWallet _.getRewardAddresses
     (\kw -> pure $ pure $ pure (unwrap kw).address)
     wallet
 
 getWalletAddresses :: Wallet -> Aff (Array Address)
 getWalletAddresses wallet = fold <$> do
-  actionBasedOnWalletAff _.getWalletAddresses
+  actionBasedOnWallet _.getWalletAddresses
     (\kw -> pure $ pure $ Array.singleton (unwrap kw).address)
     wallet
 
 signData :: Address -> RawBytes -> Wallet -> Aff (Maybe DataSignature)
 signData address payload wallet = do
-  actionBasedOnWalletAff
+  actionBasedOnWallet
     (\w conn -> w.signData conn address payload)
     (\kw -> pure <$> (unwrap kw).signData payload)
     wallet
 
-actionBasedOnWalletAff
-  :: forall (a :: Type)
-   . (Cip30Wallet -> Cip30Connection -> Aff a)
-  -> (KeyWallet -> Aff a)
+actionBasedOnWallet
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadAff m
+  => (Cip30Wallet -> Cip30Connection -> Aff a)
+  -> (KeyWallet -> m a)
   -> Wallet
-  -> Aff a
-actionBasedOnWalletAff walletAction keyWalletAction =
+  -> m a
+actionBasedOnWallet walletAction keyWalletAction =
   case _ of
-    Eternl wallet -> callCip30Wallet wallet walletAction
-    Nami wallet -> callCip30Wallet wallet walletAction
-    Gero wallet -> callCip30Wallet wallet walletAction
-    Flint wallet -> callCip30Wallet wallet walletAction
-    Lode wallet -> callCip30Wallet wallet walletAction
+    Eternl wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Nami wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Gero wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Flint wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Lode wallet -> liftAff $ callCip30Wallet wallet walletAction
     KeyWallet kw -> keyWalletAction kw
 
 ownPubKeyHashes :: Wallet -> Aff (Array PubKeyHash)

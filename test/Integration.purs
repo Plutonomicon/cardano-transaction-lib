@@ -42,6 +42,5 @@ testPlan = do
   Logging.suite
   BalanceTx.Time.suite
   where
-  -- TODO Don't use wrapQueryM
   runQueryM' =
     runContract (testnetConfig { suppressLogs = true }) <<< wrapQueryM

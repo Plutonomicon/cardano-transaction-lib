@@ -104,13 +104,10 @@ import Ctl.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Contract.Wallet
-  ( filterLockedUtxos
-  , getWalletCollateral
-  )
 import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract
+import Ctl.Internal.Contract.Wallet (getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressPaymentCred

@@ -1,4 +1,8 @@
-module Ctl.Internal.Contract.QueryHandle where
+module Ctl.Internal.Contract.QueryHandle
+  ( getQueryHandle
+  , QueryHandle
+  , AffE
+  ) where
 
 import Prelude
 
@@ -57,7 +61,8 @@ import Effect.Class (liftEffect)
 import Undefined (undefined)
 import Untagged.Union (asOneOf)
 
--- Why ClientError?
+-- TODO Either move ClientError out of QueryM or make a new error type
+-- and convert from ClientError.
 type AffE (a :: Type) = Aff (Either ClientError a)
 
 type QueryHandle =
@@ -78,17 +83,9 @@ type QueryHandle =
   }
 
 getQueryHandle :: Contract QueryHandle
-getQueryHandle =
-  ask <#> \contractEnv ->
-    case defaultBackend contractEnv.backend of
-      CtlBackend backend ->
-        queryHandleForCtlBackend contractEnv backend
-      BlockfrostBackend backend ->
-        queryHandleForBlockfrostBackend contractEnv backend
-
-getQueryHandle' :: ContractEnv -> QueryHandle
-getQueryHandle' contractEnv =
-  case defaultBackend contractEnv.backend of
+getQueryHandle = do
+  contractEnv <- ask
+  pure case defaultBackend contractEnv.backend of
     CtlBackend backend ->
       queryHandleForCtlBackend contractEnv backend
     BlockfrostBackend backend ->
