@@ -161,6 +161,13 @@ getWalletCollateral = do
           utxos
 
   let
+    {- The following snippet calculates the first n UTxO's that total in
+       value to 5 Ada. This is a workaround for the case where Eternl wallet,
+       in addition to designated collateral UTxO, returns all UTxO's with
+       small enough Ada value that can be used as potential collateral.
+       This results in those UTxO's to be filtered out by the balancer and
+       in certain circumstances fail unexpectedly with a `InsufficientTxInputs` error.
+    -}
     targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
     utxoValue u = (unwrap (unwrap u).output).amount
     sufficientUtxos = mbCollateralUTxOs <#> \colUtxos ->
