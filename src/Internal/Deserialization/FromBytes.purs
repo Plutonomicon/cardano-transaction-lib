@@ -51,79 +51,79 @@ class FromBytes a where
   fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes Address where
-  fromBytes' = _fromBytes "Address" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Address"
 
 instance FromBytes AuxiliaryDataHash where
-  fromBytes' = _fromBytes "AuxiliaryDataHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "AuxiliaryDataHash"
 
 instance FromBytes ByronAddress where
-  fromBytes' = _fromBytes "ByronAddress" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "ByronAddress"
 
 instance FromBytes DataHash where
-  fromBytes' = _fromBytes "DataHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "DataHash"
 
 instance FromBytes Ed25519KeyHash where
-  fromBytes' = _fromBytes "Ed25519KeyHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Ed25519KeyHash"
 
 instance FromBytes Ed25519Signature where
-  fromBytes' = _fromBytes "Ed25519Signature" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Ed25519Signature"
 
 instance FromBytes GenesisDelegateHash where
-  fromBytes' = _fromBytes "GenesisDelegateHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "GenesisDelegateHash"
 
 instance FromBytes GenesisHash where
-  fromBytes' = _fromBytes "GenesisHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "GenesisHash"
 
 instance FromBytes Mint where
-  fromBytes' = _fromBytes "Mint" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Mint"
 
 instance FromBytes NativeScript where
-  fromBytes' = _fromBytes "NativeScript" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "NativeScript"
 
 instance FromBytes PlutusData where
-  fromBytes' = _fromBytes "PlutusData" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "PlutusData"
 
 instance FromBytes PoolMetadataHash where
-  fromBytes' = _fromBytes "PoolMetadataHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "PoolMetadataHash"
 
 instance FromBytes PublicKey where
-  fromBytes' = _fromBytes "PublicKey" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "PublicKey"
 
 instance FromBytes Redeemers where
-  fromBytes' = _fromBytes "Redeemers" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Redeemers"
 
 instance FromBytes ScriptDataHash where
-  fromBytes' = _fromBytes "ScriptDataHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "ScriptDataHash"
 
 instance FromBytes ScriptHash where
-  fromBytes' = _fromBytes "ScriptHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "ScriptHash"
 
 instance FromBytes StakeCredential where
-  fromBytes' = _fromBytes "StakeCredential" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "StakeCredential"
 
 instance FromBytes Transaction where
-  fromBytes' = _fromBytes "Transaction" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Transaction"
 
 instance FromBytes TransactionBody where
-  fromBytes' = _fromBytes "TransactionBody" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "TransactionBody"
 
 instance FromBytes TransactionHash where
-  fromBytes' = _fromBytes "TransactionHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "TransactionHash"
 
 instance FromBytes TransactionOutput where
-  fromBytes' = _fromBytes "TransactionOutput" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "TransactionOutput"
 
 instance FromBytes TransactionUnspentOutput where
-  fromBytes' = _fromBytes "TransactionUnspentOutput" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "TransactionUnspentOutput"
 
 instance FromBytes TransactionWitnessSet where
-  fromBytes' = _fromBytes "TransactionWitnessSet" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "TransactionWitnessSet"
 
 instance FromBytes Value where
-  fromBytes' = _fromBytes "Value" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "Value"
 
 instance FromBytes VRFKeyHash where
-  fromBytes' = _fromBytes "VRFKeyHash" fromBytesErrorHelper
+  fromBytes' = fromBytes'' "VRFKeyHash"
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => CborBytes -> Maybe a
@@ -134,6 +134,13 @@ fromBytesEffect bytes =
   case fromBytes bytes of
     Nothing -> throw "from_bytes() call failed"
     Just a -> pure a
+
+fromBytes''
+  :: forall (r :: Row Type) (a :: Type)
+   . String
+  -> ByteArray
+  -> E (FromBytesError + r) a
+fromBytes'' = flip _fromBytes fromBytesErrorHelper
 
 ---- Foreign imports
 
