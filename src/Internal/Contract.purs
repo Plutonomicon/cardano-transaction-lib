@@ -1,4 +1,4 @@
-module Ctl.Internal.Contract where
+module Ctl.Internal.Contract (getChainTip, getProtocolParameters) where
 
 import Prelude
 
