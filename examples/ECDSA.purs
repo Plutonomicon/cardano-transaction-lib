@@ -3,7 +3,13 @@ module Ctl.Examples.ECDSA (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
-import Contract.Crypto.ECDSA (deriveEcdsaSecp256k1PublicKey, signEcdsaSecp256k1)
+import Contract.Crypto.ECDSA
+  ( ECDSAPublicKey
+  , ECDSASignature
+  , MessageHash
+  , deriveEcdsaSecp256k1PublicKey
+  , signEcdsaSecp256k1
+  )
 import Contract.Crypto.Utils (hashMessageSha256, randomPrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
@@ -14,7 +20,7 @@ import Contract.PlutusData
   , toData
   , unitDatum
   )
-import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
+import Contract.Prim.ByteArray (byteArrayFromIntArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
@@ -31,12 +37,11 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
-import Unsafe.Coerce (unsafeCoerce)
 
 newtype ECDSARedemeer = ECDSARedemeer
-  { msg :: ByteArray
-  , sig :: ByteArray
-  , pk :: ByteArray
+  { msg :: MessageHash
+  , sig :: ECDSASignature
+  , pk :: ECDSAPublicKey
   }
 
 derive instance Generic ECDSARedemeer _
@@ -130,11 +135,10 @@ testECDSA = do
   messageHash <- liftAff $ hashMessageSha256 message
   signature <- liftAff $ signEcdsaSecp256k1 privateKey messageHash
   testVerification $
-    -- | TODO: Find the correct format
     ECDSARedemeer
-      { msg: unsafeCoerce messageHash
-      , sig: unsafeCoerce signature
-      , pk: unsafeCoerce publicKey
+      { msg: messageHash
+      , sig: signature
+      , pk: publicKey
       }
 
 getValidator :: Maybe Validator

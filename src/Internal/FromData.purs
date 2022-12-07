@@ -19,6 +19,7 @@ module Ctl.Internal.FromData
 
 import Prelude
 
+import Contract.Crypto.ECDSA (ECDSAPublicKey)
 import Control.Alternative ((<|>))
 import Ctl.Internal.Helpers (bigIntToUInt)
 import Ctl.Internal.Plutus.Types.DataSchema
@@ -38,6 +39,7 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (uncons)
 import Data.Array as Array
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
@@ -54,6 +56,19 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
+import Noble.Secp256k1.ECDSA
+  ( ECDSASignature
+  , MessageHash
+  , PrivateKey
+  , mkECDSAPublicKey
+  , mkMessageHash
+  , mkPrivateKey
+  )
+import Noble.Secp256k1.Schnorr
+  ( SchnorrPublicKey
+  , SchnorrSignature
+  , mkSchnorrPublicKey
+  )
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
@@ -326,6 +341,29 @@ instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
 
 instance FromData PlutusData where
   fromData = Just
+
+instance FromData Uint8Array where
+  fromData x = (fromData x :: Maybe ByteArray) <#> unwrap
+
+-- Instances for purescript-noble-secp256k1 types
+
+instance FromData PrivateKey where
+  fromData = mkPrivateKey <=< fromData
+
+instance FromData MessageHash where
+  fromData = mkMessageHash <=< fromData
+
+instance FromData ECDSAPublicKey where
+  fromData = mkECDSAPublicKey <=< fromData
+
+instance FromData ECDSASignature where
+  fromData = map wrap <<< fromData
+
+instance FromData SchnorrPublicKey where
+  fromData = mkSchnorrPublicKey <=< fromData
+
+instance FromData SchnorrSignature where
+  fromData = map wrap <<< fromData
 
 fromDataUnfoldable
   :: forall (a :: Type) (t :: Type -> Type)

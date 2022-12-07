@@ -292,7 +292,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
-        , version = "54a271ebeaec24968bc376918b8ad94a03fe8f32"
+        , version = "710c15c48c5afae5e0623664d982a587ff2bd177"
         }
       }
 

@@ -4,7 +4,9 @@ import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
 import Contract.Crypto.Schnorr
-  ( deriveSchnorrSecp256k1PublicKey
+  ( SchnorrPublicKey
+  , SchnorrSignature
+  , deriveSchnorrSecp256k1PublicKey
   , signSchnorrSecp256k1
   )
 import Contract.Crypto.Utils (randomPrivateKey)
@@ -34,12 +36,11 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
-import Unsafe.Coerce (unsafeCoerce)
 
 newtype SchnorrRedeemer = SchnorrRedeemer
   { msg :: ByteArray
-  , sig :: ByteArray
-  , pk :: ByteArray
+  , sig :: SchnorrSignature
+  , pk :: SchnorrPublicKey
   }
 
 derive instance Generic SchnorrRedeemer _
@@ -132,11 +133,10 @@ testSchnorr = do
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
   signature <- liftAff $ signSchnorrSecp256k1 privateKey message
   testVerification $
-    -- | TODO: Find the correct format
     SchnorrRedeemer
-      { msg: unsafeCoerce message
-      , sig: unsafeCoerce signature
-      , pk: unsafeCoerce publicKey
+      { msg: message
+      , sig: signature
+      , pk: publicKey
       }
 
 getValidator :: Maybe Validator
