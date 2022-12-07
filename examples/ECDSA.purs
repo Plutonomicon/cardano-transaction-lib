@@ -3,6 +3,8 @@ module Ctl.Examples.ECDSA (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
+import Contract.Crypto.ECDSA (deriveEcdsaSecp256k1PublicKey, signEcdsaSecp256k1)
+import Contract.Crypto.Utils (hashMessageSha256, randomPrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.PlutusData
@@ -12,7 +14,7 @@ import Contract.PlutusData
   , toData
   , unitDatum
   )
-import Contract.Prim.ByteArray (ByteArray)
+import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
@@ -29,8 +31,6 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
-import Noble.Secp256k1.ECDSA (getECDSAPublicKey, signECDSA)
-import Noble.Secp256k1.Utils (randomPrivateKey, sha256)
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype ECDSARedemeer = ECDSARedemeer
@@ -115,7 +115,7 @@ testVerification ecdsaRed = do
   bsTx <- liftedE $ balanceTx ubTx
   sgTx <- signTransaction bsTx
   txId <- submit sgTx
-  logInfo' $ ("Submitted ECDSA test verification tx: " <> show txId)
+  logInfo' $ "Submitted ECDSA test verification tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' "Transaction confirmed."
   pure txId
@@ -125,10 +125,10 @@ testECDSA :: Contract () TransactionHash
 testECDSA = do
   privateKey <- liftEffect $ randomPrivateKey
   let
-    publicKey = getECDSAPublicKey privateKey true
-    message = unsafeCoerce privateKey
-  messageHash <- liftAff $ sha256 message
-  signature <- liftAff $ signECDSA messageHash privateKey false
+    publicKey = deriveEcdsaSecp256k1PublicKey privateKey
+    message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
+  messageHash <- liftAff $ hashMessageSha256 message
+  signature <- liftAff $ signEcdsaSecp256k1 privateKey messageHash
   testVerification $
     -- | TODO: Find the correct format
     ECDSARedemeer

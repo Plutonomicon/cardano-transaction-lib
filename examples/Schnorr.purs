@@ -3,6 +3,11 @@ module Ctl.Examples.Schnorr (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
+import Contract.Crypto.Schnorr
+  ( deriveSchnorrSecp256k1PublicKey
+  , signSchnorrSecp256k1
+  )
+import Contract.Crypto.Utils (randomPrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.PlutusData
@@ -12,7 +17,7 @@ import Contract.PlutusData
   , toData
   , unitDatum
   )
-import Contract.Prim.ByteArray (ByteArray, hexToByteArrayUnsafe)
+import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
@@ -29,8 +34,6 @@ import Contract.Value as Value
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
-import Noble.Secp256k1.Schnorr (getSchnorrPublicKey, signSchnorr)
-import Noble.Secp256k1.Utils (randomPrivateKey)
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype SchnorrRedeemer = SchnorrRedeemer
@@ -115,7 +118,7 @@ testVerification ecdsaRed = do
   bsTx <- liftedE $ balanceTx ubTx
   sgTx <- signTransaction bsTx
   txId <- submit sgTx
-  logInfo' $ ("Submitted ECDSA test verification tx: " <> show txId)
+  logInfo' $ "Submitted Schnorr test verification tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' "Transaction confirmed."
   pure txId
@@ -125,9 +128,9 @@ testSchnorr :: Contract () TransactionHash
 testSchnorr = do
   privateKey <- liftEffect $ randomPrivateKey
   let
-    publicKey = getSchnorrPublicKey privateKey
-    message = unsafeCoerce privateKey
-  signature <- liftAff $ signSchnorr message privateKey
+    publicKey = deriveSchnorrSecp256k1PublicKey privateKey
+    message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
+  signature <- liftAff $ signSchnorrSecp256k1 privateKey message
   testVerification $
     -- | TODO: Find the correct format
     SchnorrRedeemer
