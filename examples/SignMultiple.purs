@@ -26,11 +26,13 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
+import Contract.Utxos (getWalletUtxos)
+import Contract.Value (leq)
 import Contract.Value as Value
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.BigInt as BigInt
-import Data.Map (Map)
+import Data.Map (Map, filter)
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
@@ -50,6 +52,10 @@ contract = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
     ownStakePubKeysHashes
+
+  -- Early fail if not enough utxos present for 2 transactions
+  unlessM hasSufficientUtxos $ throwContractError
+    "Insufficient Utxos for 2 transactions"
 
   let
     constraints :: Constraints.TxConstraints Void Void
@@ -88,6 +94,19 @@ contract = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     pure txId
+
+  hasSufficientUtxos :: Contract Boolean
+  hasSufficientUtxos = do
+    let
+      -- 4 Ada: enough to cover 2 Ada transfer and fees
+      isUtxoValid u = (Value.lovelaceValueOf $ BigInt.fromInt 4_000_000) `leq`
+        (unwrap (unwrap u).output).amount
+
+    walletValidUtxos <- liftedM "Failed to get wallet Utxos"
+      $ map (filter isUtxoValid)
+      <$> getWalletUtxos
+
+    pure $ length walletValidUtxos >= 2 -- 2 transactions
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
