@@ -140,6 +140,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
 - [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.3
 - [Ogmios-Datum-Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) - commit 862c6bfcb6110b8fe816e26b3bba105dfb492b24
+- [Plutip](https://github.com/mlabs-haskell/plutip) - commit 1c9dd05697d7cf55de8ca26f0756a75ed821bdfb
 
 ## [2.0.0] - 2022-09-12
 
