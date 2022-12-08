@@ -48,9 +48,9 @@ Haskell's `aeson` library encodes long integers as JSON numbers, which leads to 
 
 ## Environment-related
 
-### Q: Why I can't open the browser used for e2e?
+### Q: I use wayland, the E2E browser fails on startup
 
-If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. By example `e2e-test browser --extra-browser-args="--ozone-platform=wayland"`.
+If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. You can use the `--extra-browser-args` argument for this, as in `e2e-test browser --extra-browser-args="--ozone-platform=wayland"` or the `E2E_EXTRA_BROWSER_ARGS` environment variable.
 
 ## Miscellaneous
 
