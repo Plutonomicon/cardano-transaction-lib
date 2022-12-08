@@ -14,9 +14,9 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/8ab720f896ab9dea2955fe364d242267d3206c5d";
-    plutip.url = "github:mlabs-haskell/plutip/e7eda09acdc4776e9aecb947ce577182b77df571";
+    plutip.url = "github:mlabs-haskell/plutip/c5c1bd49852ff982d81a451f880eebe187ff7b9d";
 
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/880a69a03fbfd06a4990ba8873f06907d4cd16a7";
     # Repository with network parameters
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";

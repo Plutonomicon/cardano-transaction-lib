@@ -80,17 +80,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1670009096,
-        "narHash": "sha256-tTHS9/dW1gk3/0j6cLlYeQeRB+bSoTIvfY3wERin1pY=",
+        "lastModified": 1670496765,
+        "narHash": "sha256-5feLJXmLFwTnGEoYmRFcGiViYU1egIlzuKbwlilTa7g=",
         "owner": "mlabs-haskell",
         "repo": "bot-plutus-interface",
-        "rev": "c0a4ae59405d717afa38e44a7e0f6d2ff9242701",
+        "rev": "e80680777a761109eea6d47c8370aa55d318734d",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "bot-plutus-interface",
-        "rev": "c0a4ae59405d717afa38e44a7e0f6d2ff9242701",
+        "rev": "e80680777a761109eea6d47c8370aa55d318734d",
         "type": "github"
       }
     },
@@ -1016,17 +1016,17 @@
         "unstable_nixpkgs": "unstable_nixpkgs"
       },
       "locked": {
-        "lastModified": 1663850553,
-        "narHash": "sha256-yYb9IhvJf2WH1Rv+VtGUeBABAOXn/KuiTJmdMNg9sCU=",
+        "lastModified": 1660314631,
+        "narHash": "sha256-5GxToZTZIPQPBhqrJXU4tAdLIPeBHNiBQY2KTSGJfFg=",
         "owner": "mlabs-haskell",
         "repo": "ogmios-datum-cache",
-        "rev": "ada4d2efdf7c4f308835099d0d30a91c1bd4a565",
+        "rev": "880a69a03fbfd06a4990ba8873f06907d4cd16a7",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "ogmios-datum-cache",
-        "rev": "ada4d2efdf7c4f308835099d0d30a91c1bd4a565",
+        "rev": "880a69a03fbfd06a4990ba8873f06907d4cd16a7",
         "type": "github"
       }
     },
@@ -1091,17 +1091,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1670259012,
-        "narHash": "sha256-ljW14JgdUxrm02Xq5vwl/60LsUHXAdxF651z58Ru15E=",
+        "lastModified": 1670507505,
+        "narHash": "sha256-y/ZnGAVyV0dRYyLhyXDbfYZlsm8WRQbELIARniKb4u0=",
         "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "e7eda09acdc4776e9aecb947ce577182b77df571",
+        "rev": "c5c1bd49852ff982d81a451f880eebe187ff7b9d",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "e7eda09acdc4776e9aecb947ce577182b77df571",
+        "rev": "c5c1bd49852ff982d81a451f880eebe187ff7b9d",
         "type": "github"
       }
     },
