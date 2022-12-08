@@ -27,13 +27,10 @@ import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM (getNetworkId)
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
 import Ctl.Internal.QueryM.Utxos
-  ( getUtxo
-  , getWalletBalance
+  ( getWalletBalance
   , getWalletUtxos
-  , utxosAt
   ) as Utxos
 import Ctl.Internal.Wallet.Cip30 (Paginate)
-import Data.Functor ((<$>))
 import Data.Maybe (Maybe)
 
 -- | This module defines the functionality for requesting utxos via Kupo.

@@ -18,7 +18,7 @@ contract = do
   log "UTxOs:"
   log <<< show =<< getWalletUtxos Nothing Nothing
   log "UTxOs paginated:"
-  log <<< show =<< getWalletUtxos Nothing (Just {limit: 10, page: 1})
+  log <<< show =<< getWalletUtxos Nothing (Just { limit: 10, page: 1 })
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do

@@ -25,7 +25,6 @@ import Ctl.Internal.QueryM
   , getWalletAddresses
   )
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
-import Ctl.Internal.Serialization (convertValue)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
@@ -177,4 +176,4 @@ getWalletCollateral amount = do
 
   common wallet = liftAff do
     callCip30Wallet wallet
-      (\wallet connection -> wallet.getCollateral wallet.connection amount)
+      (\wallet' _connection -> wallet'.getCollateral wallet'.connection amount)

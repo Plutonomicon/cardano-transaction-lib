@@ -26,7 +26,6 @@ import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOupu
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Helpers (fromJustEff)
-import Ctl.Internal.Plutus.Types.Value (valueToCoin)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address

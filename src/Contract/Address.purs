@@ -41,7 +41,7 @@ import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
 import Contract.Prelude (liftM)
-import Contract.Value (Coin, Value, getLovelace)
+import Contract.Value (Coin)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Address
   ( addressPaymentValidatorHash
@@ -54,7 +54,7 @@ import Ctl.Internal.Plutus.Conversion
   , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Ctl.Internal.Plutus.Conversion.Value (fromPlutusCoin, fromPlutusValue)
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusCoin)
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)

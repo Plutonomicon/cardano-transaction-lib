@@ -15,7 +15,6 @@ import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) a
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
-import Ctl.Internal.Cardano.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Deserialization.BigInt as DB
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.NativeScript as NSD
@@ -26,13 +25,11 @@ import Ctl.Internal.Deserialization.UnspentOutput
   , mkTransactionUnspentOutput
   , newTransactionUnspentOutputFromBytes
   )
-import Ctl.Internal.Deserialization.UnspentOutput (convertValue) as UOD
 import Ctl.Internal.Deserialization.WitnessSet
   ( convertWitnessSet
   , deserializeWitnessSet
   )
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertValue)
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.BigInt as SB
@@ -46,7 +43,6 @@ import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
-import Data.Maybe (Maybe(Just))
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap)
 import Effect (Effect)
