@@ -1,6 +1,8 @@
 {
   description = "cardano-transaction-lib";
 
+  nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+
   inputs = {
     iohk-nix.follows = "ogmios/iohk-nix";
     haskell-nix.follows = "ogmios/haskell-nix";
@@ -14,16 +16,7 @@
 
     ogmios.url = "github:mlabs-haskell/ogmios/3b229c1795efa30243485730b78ea053992fdc7a";
 
-    plutip.url = "github:mlabs-haskell/plutip/1c9dd05697d7cf55de8ca26f0756a75ed821bdfb";
-    plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
-    plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
-    plutip.inputs.iohk-nix.follows = "bot-plutus-interface/iohk-nix";
-    plutip.inputs.nixpkgs.follows = "bot-plutus-interface/haskell-nix/nixpkgs";
-
-    bot-plutus-interface = {
-      url = "github:mlabs-haskell/bot-plutus-interface?rev=7235aa6fba12b0cf368d9976e1e1b21ba642c038";
-      inputs.cardano-wallet.follows = "cardano-wallet";
-    };
+    plutip.url = "github:mlabs-haskell/plutip?rev=e7eda09acdc4776e9aecb947ce577182b77df571";
 
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
     kupo-nixos.inputs.kupo.follows = "kupo";
@@ -32,8 +25,6 @@
       url = "github:CardanoSolutions/kupo/v2.2.0";
       flake = false;
     };
-
-    cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/862c6bfcb6110b8fe816e26b3bba105dfb492b24";
 
