@@ -41,3 +41,5 @@ In CTL, alternating between datum storage options can be achieved by specifying 
 [CIP-40](https://cips.cardano.org/cips/cip40/) introduces explicit collateral output. On validation failure, previously the entire collateral was consumed. Now, if excess collateral is supplied, even with native assets, the surplus can be returned on validation failure.
 
 Collateral output is automatically added to transactions in CTL. To trigger a collateral return, the `mustNotBeValid` constraint should be explicitly specified, otherwise a script error would be detected earlier and the transaction will not be sent.
+
+[Usage example](../examples/Lose7Ada.purs) demonstrates how a specifically crafted transaction that uses a failing script leads to collateral loss. There's a check that the amount of Ada lost is exactly `5_000_000` Lovelaces (that is, collateral return is actually being applied).

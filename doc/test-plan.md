@@ -27,23 +27,23 @@ This section outlines the parts of CTL's interface that we aim to guarantee func
 
 CTL's primary user interface is its constraints and lookups API, modeled after that of Plutus. We must ensure then that **all** of this interface is covered by complete examples (see [Acceptance criteria](#acceptance-criteria) below for a definition of an "example"). Each of the following constraints should be covered, along with the lookup that it implies (indicated in parentheses where applicable):
 
-- [x] `mustMintValue` (`mintingPolicy`). Also implies
+- [x] [`mustMintValue`](../test/Plutip/Contract.purs) (`mintingPolicy`). Also implies
   - `mustMintCurrency`
-- [x] `mustPayToScript` (`validator`)
-- [x] `mustPayToScriptAddress`
-- [x] `mustPayToPubKey`
+- [x] [`mustPayToScript`](../test/Plutip/Contract.purs) (`validator`)
+- [x] [`mustPayToScriptAddress`](../test/Plutip/Staking.purs)
+- [x] [`mustPayToPubKey`](../test/Plutip/Contract.purs)
   - **Note**: This invokes the same code as `mustPayToPubKeyAddress`, but does not include a stake key component
-- [x] `mustPayToPubKeyAddress`
-- [x] `mustMintValueWithRedeemer` (`mintingPolicy`). Also implies
+- [x] [`mustPayToPubKeyAddress`](../test/Plutip/Contract.purs)
+- [x] [`mustMintValueWithRedeemer`](../test/Plutip/Contract.purs) (`mintingPolicy`). Also implies
   - `mustMintCurrencyWithRedeemer`
-- [x] `mustSpendScriptOutput`
-- [x] `mustSpendPubKeyOutput`
-- [x] `mustBeSignedBy`
-- [x] `mustHashDatum`
-- [x] `mustIncludeDatum`
-- [x] `mustPayToPubKeyWithDatum`
-- [x] `mustPayToPubKeyAddressWithDatum`
-- [x] `mustProduceAtLeastTotal`. Also implies
+- [x] [`mustSpendScriptOutput`](../examples/AlwaysSucceeds.purs)
+- [x] [`mustSpendPubKeyOutput`](../examples/OneShotMinting.purs)
+- [x] [`mustBeSignedBy`](../examples/BalanceTxConstraints.purs)
+- [x] [`mustHashDatum`](../examples/SatisfiesAnyOf.purs)
+- [x] [`mustIncludeDatum`](../examples/IncludeDatum.purs)
+- [ ] `mustPayToPubKeyWithDatum`
+- [ ] `mustPayToPubKeyAddressWithDatum`
+- [x] [`mustProduceAtLeastTotal`](../test/MustSpendTotal.purs). Also implies
   - [x] `mustProduceAtLeast`
 - [x] `mustSatisfyAnyOf`
 - [x] `mustSpendAtLeastTotal`. Also implies
@@ -78,6 +78,8 @@ In addition, several redeemer combinations in a **single transaction** must be c
 #### Stake operations
 
 New constraints for operations with stake will be added in `v3`.
+
+See [Staking.purs](../test/Plutip/Staking.purs) for code that uses the following constraints.
 
 ##### Stake pools
 
