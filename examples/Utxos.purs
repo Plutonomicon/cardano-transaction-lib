@@ -24,7 +24,7 @@ import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , awaitTxConfirmed
-  , submitTxConstraintsWith
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
@@ -96,7 +96,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp0 <> Lookups.unspentOutputs utxos
 
-  txHash <- submitTxConstraintsWith lookups constraints
+  txHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"
 

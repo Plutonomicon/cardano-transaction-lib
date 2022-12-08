@@ -21,7 +21,7 @@ import Contract.Scripts
   , validatorHash
   )
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
-import Contract.Transaction (awaitTxConfirmed, submitTxConstraintsWith)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
@@ -63,7 +63,7 @@ contract = do
   let
     constraints =
       (mconcat $ fst <$> lcs) :: Constraints.TxConstraints Void Void
-  txHash <- submitTxConstraintsWith
+  txHash <- submitTxFromConstraints
     (Lookups.mintingPolicy mintingPolicy <> lookups)
     constraints
   void $ awaitTxConfirmed txHash
@@ -90,7 +90,7 @@ contractWithMintRedeemers = do
           (Redeemer $ Integer $ BigInt.fromInt 3)
           (Value.singleton cs tokenName one)
       )
-  txHash <- submitTxConstraintsWith
+  txHash <- submitTxFromConstraints
     ( Lookups.mintingPolicy mintingPolicy <> Lookups.mintingPolicy mp <>
         unlockingLookups
     )

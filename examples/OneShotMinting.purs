@@ -37,7 +37,7 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , submitTxConstraintsWithReturningFee
+  , submitTxFromConstraintsReturningFee
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
@@ -111,7 +111,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   let assertions = mkAssertions ownAddress (cs /\ tn /\ one)
   void $ TestUtils.withAssertions assertions do
     { txHash, txFinalFee } <-
-      submitTxConstraintsWithReturningFee lookups constraints
+      submitTxFromConstraintsReturningFee lookups constraints
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"

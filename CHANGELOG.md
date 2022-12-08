@@ -36,7 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-* Add `submitTxConstraintsWith` and `submitTxConstraintsWithReturningFee` in `Contract.Transaction`. `submitTxConstraintsWith` build a transaction that satisfies the constraints, then submit it to the network. It is analog for same function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
+* Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` build a transaction that satisfies the constraints, then submit it to the network. It is analog for `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
 
 ### Changed
 

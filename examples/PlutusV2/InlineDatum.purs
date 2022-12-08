@@ -31,7 +31,7 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , submitTxConstraintsWith
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -77,7 +77,7 @@ payToCheckDatumIsInline vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxConstraintsWith lookups constraints
+  submitTxFromConstraints lookups constraints
 
 spendFromCheckDatumIsInline
   :: ValidatorHash
@@ -109,7 +109,7 @@ spendFromCheckDatumIsInline vhash validator txId = do
     constraints =
       Constraints.mustSpendScriptOutput txInput redeemer
 
-  spendTxId <- submitTxConstraintsWith lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
@@ -134,7 +134,7 @@ payToCheckDatumIsInlineWrong vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxConstraintsWith lookups constraints
+  submitTxFromConstraints lookups constraints
 
 readFromCheckDatumIsInline
   :: ValidatorHash

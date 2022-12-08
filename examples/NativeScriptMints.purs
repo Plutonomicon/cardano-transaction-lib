@@ -17,7 +17,7 @@ import Contract.Scripts
   ( MintingPolicy(NativeMintingPolicy)
   , NativeScript(ScriptPubkey)
   )
-import Contract.Transaction (awaitTxConfirmed, submitTxConstraintsWith)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
@@ -52,7 +52,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- submitTxConstraintsWith lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' "Minted successfully"
@@ -73,7 +73,7 @@ toSelfContract cs tn amount = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxConstraintsWith lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"

@@ -177,7 +177,7 @@ give vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxConstraintsWith lookups constraints
+  submitTxFromConstraints lookups constraints
 ```
 
 
@@ -200,7 +200,7 @@ grab = do
       tx :: TxConstraints Void Void
       tx =
         mconcat [mustSpendScriptOutput oref $ Redeemer $ I 17 | oref <- orefs]
-   ledgerTx <- submitTxConstraintsWith @Void lookups tx
+   ledgerTx <- submitTxFromConstraints @Void lookups tx
    void $ awaitTxConfirmed $ txId ledgerTx
    logInfo @String $ "collected gifts"
 ```
@@ -258,7 +258,7 @@ grab vhash validator txId = do
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
       in
-        void $ submitTxConstraintsWith lookups constraints
+        void $ submitTxFromConstraints lookups constraints
     _ ->
       logInfo' $ "The id "
         <> show txId

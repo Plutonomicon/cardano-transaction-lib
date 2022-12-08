@@ -58,7 +58,7 @@ import Contract.Transaction
   , createAdditionalUtxos
   , signTransaction
   , submit
-  , submitTxConstraintsWith
+  , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
   )
@@ -527,7 +527,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- submitTxConstraintsWith lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -542,7 +542,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- submitTxConstraintsWith lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustProduceAtLeast fail" do
@@ -569,7 +569,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- submitTxConstraintsWith lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -612,7 +612,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- submitTxConstraintsWith lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -627,7 +627,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- submitTxConstraintsWith lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustSpendAtLeast fail" do
@@ -654,7 +654,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- submitTxConstraintsWith lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -742,7 +742,7 @@ suite = do
 
             lookups :: Lookups.ScriptLookups PlutusData
             lookups = mempty
-          submitTxConstraintsWith lookups constraints
+          submitTxFromConstraints lookups constraints
 
       withWallets distribution \alice -> do
         withKeyWallet alice do

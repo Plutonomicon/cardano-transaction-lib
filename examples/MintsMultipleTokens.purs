@@ -22,7 +22,7 @@ import Contract.TextEnvelope
   ( decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed, submitTxConstraintsWith)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
@@ -65,7 +65,7 @@ contract = do
         <> Lookups.mintingPolicy mp2
         <> Lookups.mintingPolicy mp3
 
-  txId <- submitTxConstraintsWith lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' $ "Tx submitted successfully!"

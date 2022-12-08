@@ -12,7 +12,7 @@ import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( awaitTxConfirmedWithTimeout
-  , submitTxConstraintsWith
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
@@ -38,7 +38,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxConstraintsWith lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"

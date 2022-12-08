@@ -15,7 +15,7 @@ import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , submitTxConstraintsWith
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
@@ -55,7 +55,7 @@ mintToken = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  submitTxConstraintsWith lookups constraints
+  submitTxFromConstraints lookups constraints
 
 sendToken :: Contract () TransactionHash
 sendToken = do
@@ -69,7 +69,7 @@ sendToken = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  submitTxConstraintsWith lookups constraints
+  submitTxFromConstraints lookups constraints
 
 tokenValue :: Contract () (MintingPolicy /\ Value)
 tokenValue = do

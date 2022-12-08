@@ -33,8 +33,8 @@ module Contract.Transaction
   , signTransaction
   , submit
   , submitE
-  , submitTxConstraintsWith
-  , submitTxConstraintsWithReturningFee
+  , submitTxFromConstraints
+  , submitTxFromConstraintsReturningFee
   , withBalancedTx
   , withBalancedTxWithConstraints
   , withBalancedTxs
@@ -606,7 +606,7 @@ createAdditionalUtxos tx = do
   pure $ plutusOutputs #
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
 
-submitTxConstraintsWithReturningFee
+submitTxFromConstraintsReturningFee
   :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
        (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
@@ -615,14 +615,14 @@ submitTxConstraintsWithReturningFee
   => ScriptLookups.ScriptLookups validator
   -> TxConstraints redeemer datum
   -> Contract r { txHash :: TransactionHash, txFinalFee :: BigInt }
-submitTxConstraintsWithReturningFee lookups constraints = do
+submitTxFromConstraintsReturningFee lookups constraints = do
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
   balancedTx <- liftedE $ balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
 
-submitTxConstraintsWith
+submitTxFromConstraints
   :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
        (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
@@ -631,5 +631,5 @@ submitTxConstraintsWith
   => ScriptLookups.ScriptLookups validator
   -> TxConstraints redeemer datum
   -> Contract r TransactionHash
-submitTxConstraintsWith lookups constraints =
-  _.txHash <$> submitTxConstraintsWithReturningFee lookups constraints
+submitTxFromConstraints lookups constraints =
+  _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints

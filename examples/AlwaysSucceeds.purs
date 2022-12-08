@@ -27,7 +27,7 @@ import Contract.Transaction
   , _input
   , awaitTxConfirmed
   , lookupTxHash
-  , submitTxConstraintsWith
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
@@ -81,7 +81,7 @@ payToAlwaysSucceeds vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxConstraintsWith lookups constraints
+  submitTxFromConstraints lookups constraints
 
 spendFromAlwaysSucceeds
   :: ValidatorHash
@@ -113,7 +113,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
     constraints :: TxConstraints Unit Unit
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
-  spendTxId <- submitTxConstraintsWith lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 

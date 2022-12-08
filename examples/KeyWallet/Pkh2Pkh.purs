@@ -8,7 +8,7 @@ import Contract.Prelude
 
 import Contract.Log (logInfo')
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (awaitTxConfirmed, submitTxConstraintsWith)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -25,7 +25,7 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxConstraintsWith lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   liftEffect unlock
