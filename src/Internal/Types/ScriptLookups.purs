@@ -1254,16 +1254,16 @@ processConstraint mpsMap osMap = do
       networkId <- getNetworkId
       let amount = fromPlutusValue plutusValue
       runExceptT do
-        let datum' = outputDatum dat datp
-            txOut = TransactionOutput
-            { address:
-                case mbCredential of
-                  Nothing -> validatorHashEnterpriseAddress networkId vlh
-                  Just cred -> baseAddressToAddress $ baseAddress
-                    { network: networkId
-                    , paymentCred: scriptHashCredential (unwrap vlh)
-                    , delegationCred: credentialToStakeCredential cred
-                    }
+        let
+          datum' = outputDatum dat datp
+          txOut = TransactionOutput
+            { address: case mbCredential of
+                Nothing -> validatorHashEnterpriseAddress networkId vlh
+                Just cred -> baseAddressToAddress $ baseAddress
+                  { network: networkId
+                  , paymentCred: scriptHashCredential (unwrap vlh)
+                  , delegationCred: credentialToStakeCredential cred
+                  }
             , amount
             -- TODO: save correct and scriptRef, should be done in
             -- Constraints API upgrade that follows Vasil
