@@ -3,11 +3,15 @@
 -- | successfully or failed, in which case an exception is thrown.
 module Ctl.Internal.Plutip.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
+  , OnSignalRef
   , ManagedProcess(ManagedProcess)
   , spawn
   , stop
   , waitForStop
   , cleanupTmpDir
+  , cleanupOnSigint
+  , cleanupOnSigint'
+  , removeOnSignal
   ) where
 
 import Prelude
@@ -18,6 +22,7 @@ import Data.Either (Either(Left))
 import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.Posix.Signal as Signal
 import Effect (Effect)
 import Effect.AVar (AVar)
 import Effect.AVar (empty, tryPut) as AVar
@@ -33,7 +38,6 @@ import Node.ChildProcess
   , stdout
   )
 import Node.ChildProcess as ChildProcess
-import Node.Process as Process
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 
 -- | Carry along an `AVar` which resolves when the process closes.
@@ -117,16 +121,31 @@ waitForStop (ManagedProcess cmd _ closedAVar) = do
     ChildProcess.Normally 0 -> pure unit
     _ -> throwError $ error $ "Process " <> cmd <> " did not exit cleanly"
 
+foreign import data OnSignalRef :: Type
+
 foreign import _rmdirSync :: FilePath -> Effect Unit
 
-cleanupTmpDir :: ManagedProcess -> FilePath -> FilePath -> Effect Unit
-cleanupTmpDir (ManagedProcess _ child _) workingDir testClusterDir = do
-  ChildProcess.onExit child \_ -> do
+foreign import onSignalImpl :: String -> Effect Unit -> Effect OnSignalRef
+
+foreign import removeOnSignal :: OnSignalRef -> Effect Unit
+
+onSignal :: Signal -> Effect Unit -> Effect OnSignalRef
+onSignal sig = onSignalImpl (Signal.toString sig)
+
+cleanupOnSigint :: FilePath -> FilePath -> Effect OnSignalRef
+cleanupOnSigint workingDir testClusterDir = do
+  sig <- onSignal SIGINT do
     _rmdirSync workingDir
-  -- TODO
-  -- cleanup directories in case of ctrl+c exit,
-  -- code below doesn't work as intended.
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1176
-  Process.onExit \_ -> do
     _rmdirSync testClusterDir
+  pure sig
+
+cleanupOnSigint' :: FilePath -> Effect OnSignalRef
+cleanupOnSigint' workingDir = do
+  sig <- onSignal SIGINT do
+    _rmdirSync workingDir
+  pure sig
+
+cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit
+cleanupTmpDir (ManagedProcess _ child _) workingDir = do
+  ChildProcess.onExit child \_ -> do
     _rmdirSync workingDir

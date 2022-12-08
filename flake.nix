@@ -14,7 +14,7 @@
 
     ogmios.url = "github:mlabs-haskell/ogmios/3b229c1795efa30243485730b78ea053992fdc7a";
 
-    plutip.url = "github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b";
+    plutip.url = "github:mlabs-haskell/plutip/1c9dd05697d7cf55de8ca26f0756a75ed821bdfb";
     plutip.inputs.bot-plutus-interface.follows = "bot-plutus-interface";
     plutip.inputs.haskell-nix.follows = "bot-plutus-interface/haskell-nix";
     plutip.inputs.iohk-nix.follows = "bot-plutus-interface/iohk-nix";
@@ -539,11 +539,6 @@
         };
       };
 
-      hydraJobs = perSystem
-        (system:
-          self.checks.${system}
-            // self.packages.${system}
-            // self.devShells.${system}
-        ) // { vm = self.nixosConfigurations.test.config.system.build.vm; };
+      herculesCI.ciSystems = [ "x86_64-linux" ];
     };
 }
