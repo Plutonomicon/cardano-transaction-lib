@@ -107,8 +107,9 @@ suite = do
     group "CSL <-> CTL PlutusData roundtrip tests" do
       let
         pdRoundTripTest ctlPd = do
-          let cslPd = SPD.convertPlutusData ctlPd
-              pdBytes = toBytes (asOneOf cslPd)
+          let
+            cslPd = SPD.convertPlutusData ctlPd
+            pdBytes = toBytes (asOneOf cslPd)
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
             pdBytes
           let ctlPd' = DPD.convertPlutusData cslPd'
