@@ -41,7 +41,6 @@ import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
-import Ctl.Internal.Undefinable (fromUndefinable)
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet)
@@ -80,7 +79,7 @@ import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
-import Untagged.Union (asOneOf)
+import Untagged.Union (UndefinedOr, asOneOf, uorToMaybe)
 
 data WalletMock = MockFlint | MockGero | MockNami | MockLode
 
@@ -136,10 +135,12 @@ type CollateralParams = { amount :: String }
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
-  , getUtxos :: Fn2 String Paginate (Promise (Nullable.Nullable (Array String)))
+  , getUtxos ::
+      Fn2 (UndefinedOr String) (UndefinedOr Paginate)
+        (Promise (Nullable.Nullable (Array String)))
   , getCollateral :: CollateralParams -> ((Promise (Array String)))
   , getBalance :: Effect (Promise String)
-  , getUsedAddresses :: Paginate -> Promise (Array String)
+  , getUsedAddresses :: (UndefinedOr Paginate) -> Promise (Array String)
   , getUnusedAddresses :: Effect (Promise (Array String))
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
@@ -203,14 +204,14 @@ mkCip30Mock pKey mSKey = do
             TransactionUnspentOutput { input, output }
         let
           amountValue = DSV.convertValue =<< fromBytes =<< hexToByteArray =<<
-            (fromUndefinable amount)
+            (uorToMaybe amount)
         if (not hasEnoughAmount amountValue xUtxos) then pure Nullable.null
         else do
           -- Convert to CSL representation and serialize
           cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
             xUtxos
           page <- liftEffect
-            $ paginateArray (fromUndefinable pagination)
+            $ paginateArray (uorToMaybe pagination)
             $
               (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
           pure $ Nullable.toNullable $ Just page
@@ -240,7 +241,7 @@ mkCip30Mock pKey mSKey = do
     , getUsedAddresses: \pagination -> unsafePerformEffect $ fromAff do
         result <- (unwrap keyWallet).address config.networkId <#> \address ->
           [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
-        liftEffect $ paginateArray (fromUndefinable pagination) result
+        liftEffect $ paginateArray (uorToMaybe pagination) result
     , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
         (unwrap keyWallet).address config.networkId <#>

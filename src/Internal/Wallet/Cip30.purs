@@ -53,7 +53,6 @@ import Ctl.Internal.Types.RawBytes
   , hexToRawBytes
   , rawBytesToHex
   )
-import Ctl.Internal.Undefinable (toUndefinable)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -61,7 +60,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Untagged.Union (asOneOf)
+import Untagged.Union (UndefinedOr, asOneOf, maybeToUor)
 
 type DataSignature =
   { key :: CborBytes
@@ -165,7 +164,7 @@ getRewardAddresses conn = toAffE (_getRewardAddresses conn) <#>
 getWalletAddresses
   :: Cip30Connection -> Maybe Paginate -> Aff (Maybe (Array Address))
 getWalletAddresses conn paginate =
-  Promise.toAffE (_getAddresses conn (toUndefinable paginate)) <#>
+  Promise.toAffE (_getAddresses conn (maybeToUor paginate)) <#>
     traverse hexStringToAddress
 
 hexStringToAddress :: String -> Maybe Address
@@ -202,8 +201,8 @@ getUtxos conn amount paginate = do
     amountHex = byteArrayToHex <$> Serialization.toBytes <$> asOneOf <$>
       amountPlutus
   mArrayStr <- toAffE $
-    _getUtxos maybeFfiHelper conn (toUndefinable amountHex)
-      (toUndefinable paginate)
+    _getUtxos maybeFfiHelper conn (maybeToUor amountHex)
+      (maybeToUor paginate)
   liftEffect $ for mArrayStr $ traverse \str -> do
     liftMaybe (error "Unable to convert UTxO") $
       hexToRawBytes str >>= unwrap >>> fromBytes >>=
@@ -278,8 +277,8 @@ foreign import _getNetworkId
 foreign import _getUtxos
   :: MaybeFfiHelper
   -> Cip30Connection
-  -> String -- Value in hex, can be undefined
-  -> Paginate -- Can be undefined
+  -> (UndefinedOr String) -- Value in hex
+  -> (UndefinedOr Paginate)
   -> Effect (Promise (Maybe (Array String)))
 
 foreign import _getCollateral
@@ -306,7 +305,7 @@ foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 
 foreign import _getAddresses
   :: Cip30Connection
-  -> Paginate
+  -> (UndefinedOr Paginate)
   -> Effect
        ( Promise
            ( Array
