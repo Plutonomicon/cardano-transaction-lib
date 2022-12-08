@@ -22,20 +22,18 @@ import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData as T
 import Data.BigInt as BigInt
-import Data.Maybe (Maybe(Just), fromJust)
+import Data.Maybe (Maybe, fromJust)
 import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
 
 convertPlutusData :: T.PlutusData -> PlutusData
--- Unsafe fromJust here is correct, because we cover every PlutusData
--- constructor, and Just will be returned by one of functions
-convertPlutusData x = unsafePartial $ fromJust $ case x of
-  T.Constr alt list -> Just $ convertConstr alt list
-  T.Map mp -> Just $ convertPlutusMap mp
-  T.List lst -> Just $ convertPlutusList lst
+convertPlutusData x = case x of
+  T.Constr alt list -> convertConstr alt list
+  T.Map mp -> convertPlutusMap mp
+  T.List lst -> convertPlutusList lst
   T.Integer n -> convertPlutusInteger n
-  T.Bytes b -> Just $ _mkPlutusData_bytes b
+  T.Bytes b -> _mkPlutusData_bytes b
 
 convertConstr :: BigNum -> Array T.PlutusData -> PlutusData
 convertConstr alt list =
@@ -56,12 +54,16 @@ convertPlutusMap mp =
   in
     _mkPlutusData_map $ _packMap fst snd entries
 
-convertPlutusInteger :: BigInt.BigInt -> Maybe PlutusData
+convertPlutusInteger :: BigInt.BigInt -> PlutusData
 convertPlutusInteger n =
-  _mkPlutusData_integer <$> convertBigInt n
+  _mkPlutusData_integer $ convertBigInt n
 
-convertBigInt :: BigInt.BigInt -> Maybe BigInt
-convertBigInt n = _bigIntFromString maybeFfiHelper (BigInt.toString n)
+convertBigInt :: BigInt.BigInt -> BigInt
+-- Unsafe is safe here, cuz both BigInt's are dynamic sized,
+-- so range errors are not a concern, and `BigInt.toString` always
+-- returns parsable string
+convertBigInt n = unsafePartial $ fromJust $
+  _bigIntFromString maybeFfiHelper (BigInt.toString n)
 
 packPlutusList :: Array T.PlutusData -> PlutusList
 packPlutusList = (_packPlutusList containerHelper)
