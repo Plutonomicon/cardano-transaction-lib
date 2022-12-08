@@ -115,13 +115,15 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
 import Data.Either (note)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Gen (chooseInt)
 
 newtype Slot = Slot BigNum
 
@@ -397,6 +399,9 @@ derive instance Generic NetworkId _
 
 instance Show NetworkId where
   show = genericShow
+
+instance Arbitrary NetworkId where
+  arbitrary = fromMaybe MainnetId <<< intToNetworkId <$> chooseInt 0 1
 
 paymentKeyHashStakeKeyHashAddress
   :: NetworkId -> Ed25519KeyHash -> Ed25519KeyHash -> BaseAddress

@@ -5,16 +5,17 @@
 -- | The algorithm supports two selection strategies (optimal and minimal) and
 -- | uses priority ordering and round-robin processing to handle the problem
 -- | of over-selection.
-module Ctl.Internal.BalanceTx.CoinSelection
-  ( Asset
+module Ctl.Internal.BalanceTx.CoinSelection {-( Asset
   , SelectionState(SelectionState)
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , UtxoIndex(UtxoIndex)
   , _leftoverUtxos
+  , _utxos
   , buildUtxoIndex
+  , emptyUtxoIndex
   , performMultiAssetSelection
   , selectedInputs
-  ) where
+  )-} where
 
 import Prelude
 
@@ -51,6 +52,7 @@ import Data.BigInt (abs, fromInt, toString) as BigInt
 import Data.Foldable (foldMap) as Foldable
 import Data.Foldable (foldl)
 import Data.Function (applyFlipped)
+import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
 import Data.HashMap (alter, empty, lookup, update) as HashMap
 import Data.Hashable (class Hashable, hash)
@@ -65,6 +67,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable, toUnfoldable) as Set
+import Data.Show.Generic (genericShow)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
@@ -427,7 +430,11 @@ selectRandomWithPriority utxoIndex filters =
 -- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L485
 data Asset = AssetLovelace | Asset AssetClass
 
+derive instance Generic Asset _
 derive instance Eq Asset
+
+instance Show Asset where
+  show = genericShow
 
 instance Hashable Asset where
   hash AssetLovelace = hash (Nothing :: Maybe AssetClass)
@@ -484,7 +491,12 @@ newtype UtxoIndex = UtxoIndex
   -- ^ The complete set of all utxos.
   }
 
+derive instance Generic UtxoIndex _
 derive instance Newtype UtxoIndex _
+derive instance Eq UtxoIndex
+
+instance Show UtxoIndex where
+  show = genericShow
 
 _indexAnyWith :: Lens' UtxoIndex (HashMap Asset UtxoMap)
 _indexAnyWith = _Newtype <<< prop (Proxy :: Proxy "indexAnyWith")
@@ -505,13 +517,13 @@ buildUtxoIndex utxos =
   utxos' :: Array TxUnspentOutput
   utxos' = Map.toUnfoldable utxos
 
-  emptyUtxoIndex :: UtxoIndex
-  emptyUtxoIndex = UtxoIndex
-    { indexAnyWith: HashMap.empty
-    , indexSingletons: HashMap.empty
-    , indexPairs: HashMap.empty
-    , utxos: Map.empty
-    }
+emptyUtxoIndex :: UtxoIndex
+emptyUtxoIndex = UtxoIndex
+  { indexAnyWith: HashMap.empty
+  , indexSingletons: HashMap.empty
+  , indexPairs: HashMap.empty
+  , utxos: Map.empty
+  }
 
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L561

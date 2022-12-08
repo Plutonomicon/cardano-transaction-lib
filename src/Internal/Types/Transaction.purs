@@ -11,13 +11,19 @@ import Prelude
 import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  )
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Gen (chooseInt, vectorOf)
 
 newtype TransactionInput = TransactionInput
   { transactionId :: TransactionHash
@@ -84,6 +90,10 @@ instance FromData TransactionHash where
 -- Plutus actually has this as a zero indexed record
 instance ToData TransactionHash where
   toData (TransactionHash bytes) = Constr zero [ toData bytes ]
+
+instance Arbitrary TransactionHash where
+  arbitrary =
+    wrap <<< byteArrayFromIntArrayUnsafe <$> vectorOf 32 (chooseInt 0 255)
 
 newtype DataHash = DataHash ByteArray
 
