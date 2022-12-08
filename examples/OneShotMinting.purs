@@ -34,15 +34,18 @@ import Contract.Scripts
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
-import Contract.Transaction (TransactionInput, awaitTxConfirmed)
+import Contract.Transaction
+  ( TransactionInput
+  , awaitTxConfirmed
+  , submitTxConstraintsWithReturningFee
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx'
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Data.Array (head)
@@ -108,8 +111,8 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   let assertions = mkAssertions ownAddress (cs /\ tn /\ one)
   void $ TestUtils.withAssertions assertions do
     { txHash, txFinalFee } <-
-      Helpers.buildBalanceSignAndSubmitTx' lookups constraints
-
+      submitTxConstraintsWithReturningFee lookups constraints
+    logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee }

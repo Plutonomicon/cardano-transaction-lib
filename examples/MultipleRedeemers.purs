@@ -21,14 +21,13 @@ import Contract.Scripts
   , validatorHash
   )
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
-import Contract.Transaction (awaitTxConfirmed)
+import Contract.Transaction (awaitTxConfirmed, submitTxConstraintsWith)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   )
 import Ctl.Examples.MintsMultipleTokens
@@ -64,7 +63,7 @@ contract = do
   let
     constraints =
       (mconcat $ fst <$> lcs) :: Constraints.TxConstraints Void Void
-  txHash <- buildBalanceSignAndSubmitTx
+  txHash <- submitTxConstraintsWith
     (Lookups.mintingPolicy mintingPolicy <> lookups)
     constraints
   void $ awaitTxConfirmed txHash
@@ -91,7 +90,7 @@ contractWithMintRedeemers = do
           (Redeemer $ Integer $ BigInt.fromInt 3)
           (Value.singleton cs tokenName one)
       )
-  txHash <- buildBalanceSignAndSubmitTx
+  txHash <- submitTxConstraintsWith
     ( Lookups.mintingPolicy mintingPolicy <> Lookups.mintingPolicy mp <>
         unlockingLookups
     )

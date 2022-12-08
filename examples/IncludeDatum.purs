@@ -25,13 +25,13 @@ import Contract.Transaction
   , _input
   , awaitTxConfirmed
   , lookupTxHash
+  , submitTxConstraintsWith
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
@@ -69,7 +69,7 @@ payToIncludeDatum vhash =
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
   in
-    Helpers.buildBalanceSignAndSubmitTx lookups constraints
+    submitTxConstraintsWith lookups constraints
 
 spendFromIncludeDatum
   :: ValidatorHash
@@ -90,7 +90,7 @@ spendFromIncludeDatum vhash validator txId = do
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustIncludeDatum datum
-  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  spendTxId <- submitTxConstraintsWith lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 

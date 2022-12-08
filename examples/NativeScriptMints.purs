@@ -17,13 +17,12 @@ import Contract.Scripts
   ( MintingPolicy(NativeMintingPolicy)
   , NativeScript(ScriptPubkey)
   )
-import Contract.Transaction (awaitTxConfirmed)
+import Contract.Transaction (awaitTxConfirmed, submitTxConstraintsWith)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   ) as Helpers
@@ -53,7 +52,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txId <- submitTxConstraintsWith lookups constraints
 
   awaitTxConfirmed txId
   logInfo' "Minted successfully"
@@ -74,7 +73,7 @@ toSelfContract cs tn amount = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txId <- submitTxConstraintsWith lookups constraints
 
   awaitTxConfirmed txId
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"
