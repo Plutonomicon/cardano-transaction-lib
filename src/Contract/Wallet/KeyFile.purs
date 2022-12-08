@@ -1,15 +1,14 @@
 -- | Node-only module. Allows to work with Skeys stored in files.
 module Contract.Wallet.KeyFile
   ( mkKeyWalletFromFiles
-  , module Ctl.Internal.Wallet.KeyFile
+  , module Wallet.KeyFile
   ) where
 
 import Prelude
 
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Wallet.Key (KeyWallet) as Wallet
-import Ctl.Internal.Wallet.Key (privateKeysToKeyWallet)
+import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyFromTextEnvelope
@@ -17,6 +16,10 @@ import Ctl.Internal.Wallet.KeyFile
   , privateStakeKeyFromFile
   , privateStakeKeyFromTextEnvelope
   , privateStakeKeyToFile
+  ) as Wallet.KeyFile
+import Ctl.Internal.Wallet.KeyFile
+  ( privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
   )
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
@@ -31,7 +34,7 @@ import Node.Path (FilePath)
 -- |
 -- | **NodeJS only**
 mkKeyWalletFromFiles
-  :: FilePath -> Maybe FilePath -> Contract Wallet.KeyWallet
+  :: FilePath -> Maybe FilePath -> Contract KeyWallet
 mkKeyWalletFromFiles paymentKeyFile mbStakeKeyFile = do
   networkId <- asks _.networkId
   liftAff $ privateKeysToKeyWallet networkId

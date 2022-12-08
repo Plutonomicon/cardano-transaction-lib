@@ -106,7 +106,7 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract
+import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract.Wallet
 import Ctl.Internal.Contract.Wallet (getWalletCollateral)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -154,7 +154,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     srcAddrs <-
       asksConstraints Constraints._srcAddresses
-        >>= maybe (liftContract Contract.getWalletAddresses) pure
+        >>= maybe (liftContract Contract.Wallet.getWalletAddresses) pure
 
     changeAddr <- getChangeAddress
 
@@ -188,7 +188,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   getChangeAddress :: BalanceTxM Address
   getChangeAddress =
     liftMaybe CouldNotGetChangeAddress
-      =<< maybe (liftContract Contract.getChangeAddress) (pure <<< Just)
+      =<< maybe (liftContract Contract.Wallet.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
 
   unbalancedTxWithNetworkId :: BalanceTxM Transaction

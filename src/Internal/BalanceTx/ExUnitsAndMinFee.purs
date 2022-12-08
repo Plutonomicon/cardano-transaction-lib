@@ -41,7 +41,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
+import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.QueryM.Ogmios
@@ -140,7 +140,8 @@ evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   additionalUtxos <-
     fromPlutusUtxoMap networkId
       <$> asksConstraints Constraints._additionalUtxos
-  minFee <- liftContract $ Contract.calculateMinFee finalizedTx additionalUtxos
+  minFee <- liftContract $ Contract.MinFee.calculateMinFee finalizedTx
+    additionalUtxos
   pure $ reindexedUnattachedTxWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,

@@ -3,13 +3,9 @@ module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
   , getNetworkId
-  , getUnusedAddresses
-  , getChangeAddress
-  , getRewardAddresses
-  , getWallet
-  , signData
   , module Contract.Address
   , module Contract.Utxos
+  , module Contract.Wallet
   , module Deserialization.Keys
   , module Wallet
   , module Ctl.Internal.Wallet.Key
@@ -30,10 +26,9 @@ import Ctl.Internal.Contract.Wallet
   , getUnusedAddresses
   , getWallet
   , signData
-  ) as Contract
+  ) as Contract.Wallet
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
-import Ctl.Internal.Serialization.Address (Address, NetworkId)
-import Ctl.Internal.Types.RawBytes (RawBytes)
+import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Wallet
   ( Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
   , WalletExtension
@@ -50,7 +45,6 @@ import Ctl.Internal.Wallet
   , walletToWalletExtension
   ) as Wallet
 import Ctl.Internal.Wallet (Wallet(KeyWallet))
-import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as Wallet
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
@@ -74,24 +68,6 @@ import Data.Maybe (Maybe(Just))
 
 getNetworkId :: Contract NetworkId
 getNetworkId = asks _.networkId
-
-getUnusedAddresses :: Contract (Array Address)
-getUnusedAddresses = Contract.getUnusedAddresses
-
-getChangeAddress :: Contract (Maybe Address)
-getChangeAddress = Contract.getChangeAddress
-
-getRewardAddresses :: Contract (Array Address)
-getRewardAddresses = Contract.getRewardAddresses
-
-signData
-  :: Address
-  -> RawBytes
-  -> Contract (Maybe DataSignature)
-signData address dat = Contract.signData address dat
-
-getWallet :: Contract (Maybe Wallet)
-getWallet = Contract.getWallet
 
 withKeyWallet
   :: forall (a :: Type)
