@@ -309,7 +309,7 @@ withContractEnv params action = do
       | params.suppressLogs = Just $ map liftEffect <<< addLogEntry
       | otherwise = params.customLogger
 
-  contractEnv <- mkContractEnv params <#> _ { customLogger = customLogger }
+  contractEnv <- mkContractEnv params { customLogger = customLogger }
   for_ contractEnv.wallet $ walletNetworkCheck contractEnv.networkId
   eiRes <-
     attempt $ supervise (action contractEnv)
