@@ -13,9 +13,7 @@ import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
   , SelectionStrategy
-  , UtxoIndex
   , _leftoverUtxos
-  , buildUtxoIndex
   , performMultiAssetSelection
   , selectedInputs
   )
@@ -113,6 +111,7 @@ import Ctl.Internal.Cardano.Types.Value
   , getAssetQuantity
   , valueAssets
   ) as Value
+import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
 import Ctl.Internal.Helpers ((??))
 import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
@@ -306,7 +305,7 @@ runBalancer p = do
     -- | after generation of change, the first balancing step `PrebalanceTx`
     -- | is performed, otherwise we proceed to `BalanceChangeAndMinFee`.
     runNextBalancerStep :: BalancerState -> BalanceTxM FinalizedTransaction
-    runNextBalancerStep state@{ transaction, leftoverUtxos } = do
+    runNextBalancerStep state@{ transaction } = do
       let txBody = transaction ^. _body'
       inputValue <- except $ getInputValue p.allUtxos txBody
       changeOutputs <- makeChange p.changeAddress inputValue p.certsFee txBody
@@ -354,7 +353,7 @@ runBalancer p = do
     -- | since this pre-condition is sometimes required for successfull script
     -- | execution during transaction evaluation.
     evaluateTx :: BalancerState -> BalanceTxM BalancerState
-    evaluateTx state@{ transaction, changeOutputs, leftoverUtxos } = do
+    evaluateTx state@{ transaction, changeOutputs } = do
       let
         prebalancedTx :: PrebalancedTransaction
         prebalancedTx = wrap $ setTxChangeOutputs changeOutputs transaction
