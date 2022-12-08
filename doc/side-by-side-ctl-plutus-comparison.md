@@ -41,14 +41,14 @@ newtype Contract w (s :: Row *) e a = Contract { unContract :: Eff (ContractEffs
 ```
 
 The Plutus `Contract` environment is specialized to just two values and is fixed.
-Also, Plutus `Contract` uses a phantom type `s` to contract schema
+Also, Plutus `Contract` uses a phantom type `s` for the contract schema
 and parameters `w` for a writer and `e` for errors.
 In the case of CTL we don't have the contract schema parameter or the writer
-parameter since CTL definition allows performing arbitrary effects, from the
-use of `Aff`. `Aff` allows us to use asynchronous effects, which has a similar
-effect as using `IO` in Haskell, although isn't the same. While most effectful
-actions are defined directly in terms of those provided by `Aff`, logging is
-provided by a configurable logger stored in `ContractEnv`.
+parameter since the definition of CTL allows performing arbitrary effects, from
+the use of `Aff`. `Aff` allows us to use asynchronous effects, which has a
+similar effect as using `IO` in Haskell, although isn't the same. While most
+effectful actions are defined directly in terms of those provided by `Aff`,
+logging is provided by a configurable logger stored in `ContractEnv`.
 
 
 ## Contract comparison
