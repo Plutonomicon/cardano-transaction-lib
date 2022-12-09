@@ -411,7 +411,10 @@ setTxChangeOutputs outputs = _body' <<< _outputs %~ flip append outputs
 makeChange
   :: Address -> Value -> Coin -> TxBody -> BalanceTxM (Array TransactionOutput)
 makeChange changeAddress inputValue certsFee txBody =
-  if excessValue == mempty then pure mempty
+  -- Always generate change when a transaction has no outputs to avoid issues
+  -- with transaction confirmation:
+  -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
+  if excessValue == mempty && (txBody ^. _outputs) /= mempty then pure mempty
   else
     map (mkChangeOutput changeAddress) <$>
       ( assignCoinsToChangeValues changeAddress excessCoin
