@@ -17,6 +17,7 @@ import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.BigInt (fromInt) as BigInt
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.UInt (fromInt) as UInt
+import Data.Time.Duration (Seconds(Seconds))
 import Effect.Aff
   ( Milliseconds(Milliseconds)
   , cancelWith
@@ -86,4 +87,10 @@ config =
   , customLogger: Nothing
   , suppressLogs: true
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.1
+      -- TODO epoch size cannot currently be changed due to 
+      -- https://github.com/mlabs-haskell/plutip/issues/149
+      , epochSize: UInt.fromInt 80
+      }
   }

@@ -11,6 +11,7 @@ import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
@@ -56,6 +57,12 @@ config =
   , suppressLogs: true
   , customLogger: Nothing
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.1
+      -- TODO epoch size cannot currently be changed due to 
+      -- https://github.com/mlabs-haskell/plutip/issues/149
+      , epochSize: UInt.fromInt 80
+      }
   }
 
 privateStakeKey :: PrivateStakeKey

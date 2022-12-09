@@ -86,6 +86,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.Time.Duration (Seconds(Seconds))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith, words) as String
@@ -228,6 +229,10 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.1
+      , epochSize: UInt.fromInt 30
+      }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
