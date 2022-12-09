@@ -52,13 +52,14 @@ import Ctl.Internal.Metadata.ToMetadata
   , toMetadata
   )
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
-import Ctl.Internal.Serialization.Hash (scriptHashFromBytes)
+import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Ctl.Internal.Types.RawBytes (hexToRawBytes, rawBytesToHex)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
-import Ctl.Internal.Types.TokenName (mkTokenName)
+import Ctl.Internal.Types.TokenName (getTokenName, mkTokenName)
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
@@ -142,6 +143,7 @@ instance DecodeAeson Cip25V2 where
       2 -> pure Cip25V2
       _ -> Left $ TypeMismatch "Cip25V2"
 
+-- Why not an instance of ToMetadata?
 metadataEntryToMetadata :: Cip25MetadataEntry -> TransactionMetadatum
 metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata $
   [ "name" /\ anyToMetadata entry.name
@@ -244,9 +246,14 @@ instance ToMetadata Cip25Metadata where
       dataEntries =
         groupEntries entries <#>
           \group ->
-            (toMetadata <<< _.policyId <<< unwrap $ NonEmpty.head group) /\
+            ( toMetadata <<< rawBytesToHex <<< scriptHashToBytes <<< unwrap
+                <<< _.policyId
+                <<< unwrap $ NonEmpty.head group
+            ) /\
               (toMetadata <<< toArray <<< flip map group) \entry ->
-                (unwrap entry).assetName /\ metadataEntryToMetadata entry
+                ( byteArrayToHex $ getTokenName $ unwrap
+                    (unwrap entry).assetName
+                ) /\ metadataEntryToMetadata entry
       versionEntry = [ toMetadata "version" /\ toMetadata Cip25V2 ]
     in
       dataEntries <> versionEntry
@@ -267,8 +274,15 @@ instance FromMetadata Cip25Metadata where
               Just case assets of
                 MetadataMap mp2 ->
                   for (Map.toUnfoldable mp2) \(assetName /\ contents) ->
-                    metadataEntryFromMetadata <$> fromMetadata key
-                      <*> fromMetadata assetName
+                    metadataEntryFromMetadata
+                      <$>
+                        ( map wrap $ scriptHashFromBytes =<< hexToRawBytes =<<
+                            fromMetadata key
+                        )
+                      <*>
+                        ( map wrap $ mkTokenName =<< hexToByteArray =<<
+                            fromMetadata assetName
+                        )
                       <*> pure contents
                 _ -> Nothing
     wrap <$> sequence entries
