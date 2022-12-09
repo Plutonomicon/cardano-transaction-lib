@@ -45,6 +45,7 @@ format:
 	nixpkgs-fmt ${nix-sources}
 	fourmolu -m inplace -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	prettier -w ${js-sources}
+	doctoc README.md doc/*.md --github --notitle
 	make check-explicit-exports
 	make check-examples-imports
 	make check-whitespace
