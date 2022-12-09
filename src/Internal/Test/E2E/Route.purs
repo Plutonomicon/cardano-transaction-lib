@@ -20,10 +20,7 @@ import Contract.Wallet
 import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Internal.Contract.QueryBackend
-  ( QueryBackendParams(CtlBackendParams)
-  , mkSingletonBackendParams
-  )
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
@@ -216,7 +213,7 @@ route configs tests = do
     }
     config =
     config
-      { backendParams = mkSingletonBackendParams $ CtlBackendParams
+      { backendParams = mkCtlBackendParams
           { ogmiosConfig: ogmiosConfig
           , odcConfig: datumCacheConfig
           , kupoConfig: kupoConfig

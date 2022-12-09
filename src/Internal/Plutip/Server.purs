@@ -20,7 +20,6 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Config (QueryBackendParams(CtlBackendParams))
 import Contract.Monad
   ( Contract
   , ContractEnv
@@ -39,7 +38,7 @@ import Ctl.Internal.Contract.Monad
   )
 import Ctl.Internal.Contract.QueryBackend
   ( defaultBackend
-  , mkSingletonBackendParams
+  , mkCtlBackendParams
   )
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
@@ -759,7 +758,7 @@ mkClusterContractEnv
   -> Aff ContractEnv
 mkClusterContractEnv plutipCfg logger customLogger = do
   usedTxOuts <- newUsedTxOuts
-  backend <- buildBackend logger $ mkSingletonBackendParams $ CtlBackendParams
+  backend <- buildBackend logger $ mkCtlBackendParams
     { ogmiosConfig: plutipCfg.ogmiosConfig
     , odcConfig: plutipCfg.ogmiosDatumCacheConfig
     , kupoConfig: plutipCfg.kupoConfig

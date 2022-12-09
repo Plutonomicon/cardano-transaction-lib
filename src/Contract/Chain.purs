@@ -1,10 +1,11 @@
 -- | A module for Chain-related querying.
 module Contract.Chain
-  ( module Chain
-  , module Contract
+  ( getTip
+  , module Chain
   , module Contract.WaitUntilSlot
   ) where
 
+import Contract.Monad (Contract)
 import Ctl.Internal.Contract (getChainTip) as Contract
 import Ctl.Internal.Contract.WaitUntilSlot
   ( currentSlot
@@ -17,3 +18,6 @@ import Ctl.Internal.Types.Chain
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
   ) as Chain
+
+getTip :: Contract Chain.Tip
+getTip = Contract.getChainTip

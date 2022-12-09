@@ -5,7 +5,7 @@ module Contract.Wallet
   , getNetworkId
   , module Contract.Address
   , module Contract.Utxos
-  , module Contract.Wallet
+  , module X
   , module Deserialization.Keys
   , module Wallet
   , module Ctl.Internal.Wallet.Key
@@ -26,7 +26,7 @@ import Ctl.Internal.Contract.Wallet
   , getUnusedAddresses
   , getWallet
   , signData
-  ) as Contract.Wallet
+  ) as X
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Wallet

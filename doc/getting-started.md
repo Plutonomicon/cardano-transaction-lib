@@ -106,7 +106,7 @@ main = Contract.Monad.launchAff_ do
 
 The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ContractParams` should be used instead.
 
-For local development and testing, we provide `Contract.Config.testnetConfig` where all service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
+For local development and testing, we provide `Contract.Config.testnetConfig` where all `CtlBackend` service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
 
 It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ContractParams` with `runContract`.
 
@@ -118,8 +118,9 @@ An example of building a `Contract` via `ContractParams` is as follows:
 main :: Effect Unit
 main = Contract.Monad.launchAff_ do -- we re-export this for you
   let
-    (config :: ContractParams) =
-      { backendParams: mkSingletonBackendParams $ CtlBackendParams
+    config :: ContractParams
+    config =
+      { backendParams: mkCtlBackendParams
         { ogmiosConfig: defaultOgmiosWsConfig
         , odcConfig: defaultDatumCacheWsConfig
         , kupoConfig: defaultKupoServerConfig

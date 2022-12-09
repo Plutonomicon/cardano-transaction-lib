@@ -11,6 +11,8 @@ module Ctl.Internal.Contract.QueryBackend
   , lookupBackend
   , mkBackendParams
   , mkSingletonBackendParams
+  , mkCtlBackendParams
+  , mkBlockfrostBackendParams
   ) where
 
 import Prelude
@@ -51,6 +53,18 @@ instance Traversable QueryBackends where
 mkSingletonBackendParams
   :: QueryBackendParams -> QueryBackends QueryBackendParams
 mkSingletonBackendParams = flip QueryBackends Map.empty
+
+mkCtlBackendParams
+  :: { ogmiosConfig :: ServerConfig
+     , kupoConfig :: ServerConfig
+     , odcConfig :: ServerConfig
+     }
+  -> QueryBackends QueryBackendParams
+mkCtlBackendParams = mkSingletonBackendParams <<< CtlBackendParams
+
+mkBlockfrostBackendParams :: ServerConfig -> QueryBackends QueryBackendParams
+mkBlockfrostBackendParams = mkSingletonBackendParams <<< BlockfrostBackendParams
+  <<< { blockfrostConfig: _ }
 
 mkBackendParams
   :: QueryBackendParams

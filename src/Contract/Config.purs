@@ -24,14 +24,14 @@ module Contract.Config
   , module X
   ) where
 
-import Prelude
-
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad (ContractParams)
 import Ctl.Internal.Contract.QueryBackend
   ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
+  , mkBlockfrostBackendParams
+  , mkCtlBackendParams
   , mkSingletonBackendParams
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -65,7 +65,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 
 testnetConfig :: ContractParams
 testnetConfig =
-  { backendParams: mkSingletonBackendParams $ CtlBackendParams
+  { backendParams: mkCtlBackendParams
       { ogmiosConfig: defaultOgmiosWsConfig
       , odcConfig: defaultDatumCacheWsConfig
       , kupoConfig: defaultKupoServerConfig
