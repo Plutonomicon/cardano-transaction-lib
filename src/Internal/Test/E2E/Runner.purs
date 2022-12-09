@@ -231,7 +231,9 @@ buildPlutipConfig options =
   , hooks: emptyHooks
   , clusterConfig:
       { slotLength: Seconds 0.1
-      , epochSize: UInt.fromInt 30
+      -- TODO epoch size cannot currently be changed due to 
+      -- https://github.com/mlabs-haskell/plutip/issues/149
+      , epochSize: UInt.fromInt 80
       }
   }
 
