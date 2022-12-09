@@ -1,4 +1,7 @@
--- | CTL query layer monad
+-- | CTL query layer monad.
+-- | This module defines an Aff interface for Ogmios Websocket Queries.
+-- | Since WebSockets do not define a mechanism for linking request/response.
+-- | Or for verifying that the connection is live, those concerns are addressed here
 module Ctl.Internal.QueryM
   ( module ExportDispatcher
   , module ExportServerConfig
@@ -280,10 +283,6 @@ import Effect.Ref as Ref
 import Foreign.Object as Object
 import Untagged.Union (asOneOf)
 
--- This module defines an Aff interface for Ogmios Websocket Queries
--- Since WebSockets do not define a mechanism for linking request/response
--- Or for verifying that the connection is live, those concerns are addressed
--- here
 
 -- | Cluster setup contains everything that is needed to run a `Contract` on
 -- | a local cluster: paramters to connect to the services and private keys
@@ -800,7 +799,7 @@ instance Show ClientError where
       <> err
       <> ")"
 
--- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
+-- | Apply `PlutusData` arguments to a `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
   :: PlutusScript

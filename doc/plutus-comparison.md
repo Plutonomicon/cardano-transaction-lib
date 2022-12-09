@@ -127,7 +127,7 @@ As noted above, all scripts and various script newtypes (`Validator`, `MintingPo
 
 #### Applying arguments to parameterized scripts
 
-CTL is currently unable to build full UPLC ASTs on the frontend (although support for this may be added in the future). This means that Plutus' `applyCode`, which is the default method for applying arguments to parameterized scripts, has no direct equivalent in CTL. We do, however, support a workaround for applying arguments to parameterized scripts. `Contract.Scripts.applyArgs` allows you to apply a list of `PlutusData` arguments to any type isomorphic to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
+CTL is currently unable to build full UPLC ASTs on the frontend (although support for this may be added in the future). This means that Plutus' `applyCode`, which is the default method for applying arguments to parameterized scripts, has no direct equivalent in CTL. We do, however, support a workaround for applying arguments to parameterized scripts. `Contract.Scripts.applyArgs` allows you to apply a list of `PlutusData` arguments to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
 
 - `applyArgs` must be effectful, as we use our Haskell server to do the actual script application
 - All of your domain types must have `Contract.PlutusData.ToData` instances (or some other way of converting them to `PlutusData`)

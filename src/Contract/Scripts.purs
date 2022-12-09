@@ -69,7 +69,7 @@ import Ctl.Internal.Types.TypedValidator
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 
--- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
+-- | Apply `PlutusData` arguments to a`PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
   :: forall (r :: Row Type)
