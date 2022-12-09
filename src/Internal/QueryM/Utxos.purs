@@ -30,7 +30,7 @@ import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet
-  ( Wallet(Gero, Nami, Flint, Lode, Eternl, Nufi, KeyWallet)
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, KeyWallet)
   )
 import Data.Array (cons, foldMap, head)
 import Data.Array as Array
@@ -74,7 +74,7 @@ mkUtxoQuery allUtxosAt =
     Flint _ -> cip30UtxosAt
     Eternl _ -> cip30UtxosAt
     Lode _ -> cip30UtxosAt
-    Nufi _ -> cip30UtxosAt
+    NuFi _ -> cip30UtxosAt
     KeyWallet _ -> allUtxosAt
 
   cip30UtxosAt :: QueryM (Maybe UtxoMap)
@@ -114,7 +114,7 @@ getWalletBalance = do
     Eternl wallet -> liftAff $ wallet.getBalance wallet.connection
     Flint wallet -> liftAff $ wallet.getBalance wallet.connection
     Lode wallet -> liftAff $ wallet.getBalance wallet.connection
-    Nufi wallet -> liftAff $ wallet.getBalance wallet.connection
+    NuFi wallet -> liftAff $ wallet.getBalance wallet.connection
     KeyWallet _ -> do
       -- Implement via `utxosAt`
       addresses <- getWalletAddresses
@@ -133,7 +133,7 @@ getWalletUtxos = do
     Eternl wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
       toUtxoMap
     Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
-    Nufi wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
+    NuFi wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     KeyWallet _ -> do
       mbAddress <- getWalletAddresses <#> head
       map join $ for mbAddress utxosAt
@@ -151,7 +151,7 @@ getWalletCollateral = do
       Flint wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Nufi wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      NuFi wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
         networkId <- getNetworkId
         addr <- liftAff $ (unwrap kw).address networkId

@@ -213,14 +213,14 @@ import Ctl.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
   , KeyWallet
-  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl, Nufi)
+  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl, NuFi)
   , WalletExtension
       ( LodeWallet
       , EternlWallet
       , FlintWallet
       , GeroWallet
       , NamiWallet
-      , NufiWallet
+      , NuFiWallet
       )
   , mkKeyWallet
   , mkWalletAff
@@ -241,7 +241,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToEternl
       , ConnectToLode
-      , ConnectToNufi
+      , ConnectToNuFi
       )
   )
 import Data.Array (catMaybes)
@@ -538,7 +538,7 @@ mkWalletBySpec = case _ of
   ConnectToFlint -> mkWalletAff FlintWallet
   ConnectToEternl -> mkWalletAff EternlWallet
   ConnectToLode -> mkWalletAff LodeWallet
-  ConnectToNufi -> mkWalletAff NufiWallet
+  ConnectToNuFi -> mkWalletAff NuFiWallet
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -716,7 +716,7 @@ actionBasedOnWallet walletAction keyWalletAction =
     Gero wallet -> callCip30Wallet wallet walletAction
     Flint wallet -> callCip30Wallet wallet walletAction
     Lode wallet -> callCip30Wallet wallet walletAction
-    Nufi wallet -> callCip30Wallet wallet walletAction
+    NuFi wallet -> callCip30Wallet wallet walletAction
     KeyWallet kw -> pure <$> keyWalletAction kw
 
 signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)

@@ -25,7 +25,7 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
 import Ctl.Internal.Wallet
   ( Wallet
-  , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NufiWallet)
+  , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   , mkWalletAff
   )
 import Ctl.Internal.Wallet.Key
@@ -57,7 +57,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Type.Proxy (Proxy(Proxy))
 import Untagged.Union (asOneOf)
 
-data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNufi
+data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -99,7 +99,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockGero -> mkWalletAff GeroWallet
     MockNami -> mkWalletAff NamiWallet
     MockLode -> mkWalletAff LodeWallet
-    MockNufi -> mkWalletAff NufiWallet
+    MockNuFi -> mkWalletAff NuFiWallet
 
   mockString :: String
   mockString = case mock of
@@ -107,7 +107,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockGero -> "gerowallet"
     MockNami -> "nami"
     MockLode -> "LodeWallet"
-    MockNufi -> "nufi"
+    MockNuFi -> "nufi"
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)

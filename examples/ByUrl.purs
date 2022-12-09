@@ -8,13 +8,13 @@ import Contract.Config
   , mainnetGeroConfig
   , mainnetLodeConfig
   , mainnetNamiConfig
-  , mainnetNufiConfig
+  , mainnetNuFiConfig
   , testnetEternlConfig
   , testnetFlintConfig
   , testnetGeroConfig
   , testnetLodeConfig
   , testnetNamiConfig
-  , testnetNufiConfig
+  , testnetNuFiConfig
   )
 import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
@@ -37,7 +37,7 @@ import Ctl.Examples.TxChaining as TxChaining
 import Ctl.Examples.Utxos as Utxos
 import Ctl.Examples.Wallet as Wallet
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint, MockLode, MockNufi)
+  ( WalletMock(MockNami, MockGero, MockFlint, MockLode, MockNuFi)
   )
 import Data.Map (Map)
 import Data.Map as Map
@@ -57,7 +57,7 @@ wallets = Map.fromFoldable
   , "flint" /\ testnetFlintConfig /\ Nothing
   , "eternl" /\ testnetEternlConfig /\ Nothing
   , "lode" /\ testnetLodeConfig /\ Nothing
-  , "nufi" /\ testnetNufiConfig /\ Nothing
+  , "nufi" /\ testnetNuFiConfig /\ Nothing
   , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
@@ -67,7 +67,7 @@ wallets = Map.fromFoldable
   , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
   , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
   , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
-  , "plutip-nufi-mock" /\ mainnetNufiConfig /\ Just MockNufi
+  , "plutip-nufi-mock" /\ mainnetNuFiConfig /\ Just MockNuFi
   ]
 
 examples :: Map E2ETestName (Contract () Unit)
