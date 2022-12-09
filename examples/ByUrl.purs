@@ -23,6 +23,7 @@ import Ctl.Examples.Datums as Datums
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
 import Ctl.Examples.OneShotMinting as OneShotMinting
+import Ctl.Examples.PaysWithDatum as PaysWithDatum
 import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
@@ -84,4 +85,5 @@ examples = Map.fromFoldable
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
+  , "PaysWithDatum" /\ PaysWithDatum.contract
   ]
