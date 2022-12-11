@@ -36,10 +36,7 @@ import Ctl.Internal.Contract.Monad
   , getLedgerConstants
   , stopContractEnv
   )
-import Ctl.Internal.Contract.QueryBackend
-  ( defaultBackend
-  , mkCtlBackendParams
-  )
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
@@ -763,7 +760,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , odcConfig: plutipCfg.ogmiosDatumCacheConfig
     , kupoConfig: plutipCfg.kupoConfig
     }
-  ledgerConstants <- getLedgerConstants logger $ defaultBackend backend
+  ledgerConstants <- getLedgerConstants logger backend
   pure
     { backend
     , ctlServerConfig: plutipCfg.ctlServerConfig

@@ -28,24 +28,18 @@ import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
-import Control.Parallel
-  ( class Parallel
-  , parTraverse
-  , parTraverse_
-  , parallel
-  , sequential
-  )
+import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Contract.QueryBackend
-  ( CtlBackend
+  ( BlockfrostBackend
+  , CtlBackend
+  , CtlBackendParams
   , QueryBackend(BlockfrostBackend, CtlBackend)
-  , QueryBackendLabel(CtlBackendLabel)
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
-  , QueryBackends
-  , defaultBackend
-  , lookupBackend
+  , getBlockfrostBackend
+  , getCtlBackend
   )
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
@@ -60,11 +54,7 @@ import Ctl.Internal.QueryM
   , mkOgmiosWebSocketAff
   , underlyingWebSocket
   )
--- TODO Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios
-  ( ProtocolParameters
-  , SystemStart
-  ) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
@@ -76,7 +66,7 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
-import Data.Traversable (for_, traverse)
+import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
@@ -163,7 +153,7 @@ runContractInEnv contractEnv =
 --------------------------------------------------------------------------------
 
 type ContractEnv =
-  { backend :: QueryBackends QueryBackend
+  { backend :: QueryBackend
   -- ctlServer is currently used for applyArgs, which is needed for all backends. This will be removed later
   , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
@@ -197,7 +187,7 @@ mkContractEnv params = do
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
       -- Use the default backend to fetch ledger constants
-      ledgerConstants <- getLedgerConstants logger $ defaultBackend backend
+      ledgerConstants <- getLedgerConstants logger backend
       pure $ merge { backend, ledgerConstants }
     b2 <- parallel do
       wallet <- buildWallet
@@ -223,12 +213,15 @@ mkContractEnv params = do
     , hooks: params.hooks
     }
 
-buildBackend
-  :: Logger
-  -> QueryBackends QueryBackendParams
-  -> Aff (QueryBackends QueryBackend)
-buildBackend logger = parTraverse case _ of
-  CtlBackendParams { ogmiosConfig, kupoConfig, odcConfig } -> do
+buildBackend :: Logger -> QueryBackendParams -> Aff QueryBackend
+buildBackend logger = case _ of
+  CtlBackendParams ctlParams blockfrostParams ->
+    flip CtlBackend blockfrostParams <$> buildCtlBackend ctlParams
+  BlockfrostBackendParams blockfrostParams ctlParams ->
+    BlockfrostBackend blockfrostParams <$> traverse buildCtlBackend ctlParams
+  where
+  buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
+  buildCtlBackend { ogmiosConfig, kupoConfig, odcConfig } = do
     datumCacheWsRef <- liftEffect $ Ref.new Nothing
     sequential ado
       odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger
@@ -236,18 +229,16 @@ buildBackend logger = parTraverse case _ of
       ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger
         ogmiosConfig
       in
-        CtlBackend
-          { ogmios:
-              { config: ogmiosConfig
-              , ws: ogmiosWs
-              }
-          , odc:
-              { config: odcConfig
-              , ws: odcWs
-              }
-          , kupoConfig
-          }
-  BlockfrostBackendParams bf -> pure $ BlockfrostBackend bf
+        { ogmios:
+            { config: ogmiosConfig
+            , ws: ogmiosWs
+            }
+        , odc:
+            { config: odcConfig
+            , ws: odcWs
+            }
+        , kupoConfig
+        }
 
 getLedgerConstants
   :: Logger
@@ -257,11 +248,11 @@ getLedgerConstants
        , systemStart :: Ogmios.SystemStart
        }
 getLedgerConstants logger = case _ of
-  CtlBackend { ogmios: { ws } } -> do
+  CtlBackend { ogmios: { ws } } _ -> do
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  BlockfrostBackend _ -> undefined
+  BlockfrostBackend _ _ -> undefined
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.
@@ -279,18 +270,20 @@ walletNetworkCheck envNetworkId wallet = do
 
 -- | Finalizes a `Contract` environment.
 -- | Closes the connections in `ContractEnv`, effectively making it unusable.
-stopContractEnv
-  :: ContractEnv
-  -> Aff Unit
-stopContractEnv contractEnv = do
-  flip parTraverse_ contractEnv.backend case _ of
-    CtlBackend { ogmios, odc } -> do
-      let
-        stopWs :: forall (a :: Type). WebSocket a -> Effect Unit
-        stopWs = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
-      liftEffect $ stopWs odc.ws
-      liftEffect $ stopWs ogmios.ws
-    BlockfrostBackend _ -> undefined
+stopContractEnv :: ContractEnv -> Aff Unit
+stopContractEnv { backend } = liftEffect do
+  traverse_ stopCtlRuntime (getCtlBackend backend)
+  traverse_ stopBlockfrostRuntime (getBlockfrostBackend backend)
+  where
+  stopCtlRuntime :: CtlBackend -> Effect Unit
+  stopCtlRuntime { ogmios, odc } =
+    stopWebSocket odc.ws *> stopWebSocket ogmios.ws
+
+  stopBlockfrostRuntime :: BlockfrostBackend -> Effect Unit
+  stopBlockfrostRuntime = undefined
+
+  stopWebSocket :: forall (a :: Type). WebSocket a -> Effect Unit
+  stopWebSocket = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
@@ -334,7 +327,7 @@ withContractEnv params action = do
 -- | contains multiple contracts that can be run in parallel, reusing the same
 -- | environment (see `withContractEnv`)
 type ContractParams =
-  { backendParams :: QueryBackends QueryBackendParams
+  { backendParams :: QueryBackendParams
   , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
@@ -352,10 +345,9 @@ type ContractParams =
 wrapQueryM :: forall (a :: Type). QueryM a -> Contract a
 wrapQueryM qm = do
   backend <- asks _.backend
-  ctlBackend <- liftM (error "Operation only supported on CTL backend") $
-    lookupBackend CtlBackendLabel backend >>= case _ of
-      CtlBackend b -> Just b
-      _ -> Nothing
+  ctlBackend <-
+    getCtlBackend backend
+      # liftM (error "Operation only supported on CTL backend")
   contractEnv <- ask
   liftAff $ runQueryM contractEnv ctlBackend qm
 

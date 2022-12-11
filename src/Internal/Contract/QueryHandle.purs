@@ -23,7 +23,6 @@ import Ctl.Internal.Contract.QueryBackend
   ( BlockfrostBackend
   , CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
-  , defaultBackend
   )
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.QueryM (ClientError, QueryM)
@@ -83,12 +82,11 @@ type QueryHandle =
   }
 
 getQueryHandle :: Contract QueryHandle
-getQueryHandle = do
-  contractEnv <- ask
-  pure case defaultBackend contractEnv.backend of
-    CtlBackend backend ->
+getQueryHandle = ask <#> \contractEnv ->
+  case contractEnv.backend of
+    CtlBackend backend _ ->
       queryHandleForCtlBackend contractEnv backend
-    BlockfrostBackend backend ->
+    BlockfrostBackend backend _ ->
       queryHandleForBlockfrostBackend contractEnv backend
 
 queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
