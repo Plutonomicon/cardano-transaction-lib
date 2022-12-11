@@ -83,7 +83,7 @@ import Type.Proxy (Proxy(Proxy))
 -- | strategy will help to ensure that a wallet's utxo distribution can evolve
 -- | over time to resemble the typical distribution of payments made by the
 -- | wallet owner.
--- , utxoIndexUniverse|
+-- |
 -- | Specifying `SelectionStrategyMinimal` will cause the selection algorithm to
 -- | only select just enough of each asset from the available utxo set to meet
 -- | the required amount. It is advised to use this strategy only when
