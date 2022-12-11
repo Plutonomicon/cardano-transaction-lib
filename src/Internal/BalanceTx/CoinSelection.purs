@@ -6,12 +6,9 @@
 -- | uses priority ordering and round-robin processing to handle the problem
 -- | of over-selection.
 module Ctl.Internal.BalanceTx.CoinSelection
-  ( Asset
-  , SelectionState(SelectionState)
+  ( SelectionState(SelectionState)
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
-  , UtxoIndex(UtxoIndex)
   , _leftoverUtxos
-  , buildUtxoIndex
   , performMultiAssetSelection
   , selectedInputs
   ) where
@@ -28,47 +25,48 @@ import Ctl.Internal.BalanceTx.Error
   , Expected(Expected)
   , ImpossibleError(Impossible)
   )
-import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass(AssetClass), Coin, Value)
 import Ctl.Internal.Cardano.Types.Value
   ( getAssetQuantity
   , getCurrencySymbol
   , leq
-  , valueAssetClasses
   , valueAssets
   , valueToCoin
   , valueToCoin'
   ) as Value
+import Ctl.Internal.CoinSelection.UtxoIndex
+  ( Asset(Asset, AssetLovelace)
+  , SelectionFilter(SelectAnyWith, SelectPairWith, SelectSingleton)
+  , TxUnspentOutput
+  , UtxoIndex
+  , selectRandomWithFilter
+  , utxoIndexDeleteEntry
+  , utxoIndexUniverse
+  )
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (snoc, uncons) as Array
-import Data.Array ((!!))
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (cons', fromArray, singleton, uncons) as NEArray
 import Data.BigInt (BigInt)
 import Data.BigInt (abs, fromInt, toString) as BigInt
 import Data.Foldable (foldMap) as Foldable
-import Data.Foldable (foldl)
 import Data.Function (applyFlipped)
-import Data.HashMap (HashMap)
-import Data.HashMap (alter, empty, lookup, update) as HashMap
-import Data.Hashable (class Hashable, hash)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view, (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
-import Data.Lens.Setter (over, (%~))
-import Data.Map (Map)
+import Data.Lens.Setter (over)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe, maybe')
+import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
-import Data.Set (fromFoldable, toUnfoldable) as Set
+import Data.Set (fromFoldable) as Set
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Random (randomInt) as Random
+import Effect.Class (class MonadEffect)
 import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
@@ -125,7 +123,7 @@ performMultiAssetSelection strategy utxoIndex requiredValue =
     BalanceInsufficientError (Expected requiredValue) (Actual availableValue)
 
   availableValue :: Value
-  availableValue = balance (utxoIndex ^. _utxos)
+  availableValue = balance (utxoIndexUniverse utxoIndex)
 
   selectors
     :: Array (SelectionState -> m (Maybe SelectionState))
@@ -420,185 +418,8 @@ selectRandomWithPriority utxoIndex filters =
           =<< selectRandomWithFilter utxoIndex filter
 
 --------------------------------------------------------------------------------
--- Asset
---------------------------------------------------------------------------------
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L485
-data Asset = AssetLovelace | Asset AssetClass
-
-derive instance Eq Asset
-
-instance Hashable Asset where
-  hash AssetLovelace = hash (Nothing :: Maybe AssetClass)
-  hash (Asset asset) = hash (Just asset)
-
---------------------------------------------------------------------------------
--- SelectionFilter
---------------------------------------------------------------------------------
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L399
-data SelectionFilter
-  = SelectSingleton Asset
-  | SelectPairWith Asset
-  | SelectAnyWith Asset
-
-type TxUnspentOutput = TransactionInput /\ TransactionOutput
-
---------------------------------------------------------------------------------
--- UtxoIndex
---------------------------------------------------------------------------------
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L537
-data BundleCategory
-  = BundleWithNoAssets
-  | BundleWithOneAsset AssetClass
-  | BundleWithTwoAssets AssetClass AssetClass
-  | BundleWithMultipleAssets (Set AssetClass)
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L546
-categorizeUtxoEntry :: TransactionOutput -> BundleCategory
-categorizeUtxoEntry txOutput = case Set.toUnfoldable bundleAssets of
-  [] -> BundleWithNoAssets
-  [ a ] -> BundleWithOneAsset a
-  [ a, b ] -> BundleWithTwoAssets a b
-  _ -> BundleWithMultipleAssets bundleAssets
-  where
-  bundleAssets :: Set AssetClass
-  bundleAssets = txOutputAssetClasses txOutput
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L176
-newtype UtxoIndex = UtxoIndex
-  { indexAnyWith :: HashMap Asset UtxoMap
-  -- ^ An index of all utxos that contain the given asset.
-  , indexSingletons :: HashMap Asset UtxoMap
-  -- ^ An index of all utxos that contain the given asset and no other assets.
-  , indexPairs :: HashMap Asset UtxoMap
-  -- ^ An index of all utxos that contain the given asset and exactly one
-  -- other asset.
-  , utxos :: UtxoMap
-  -- ^ The complete set of all utxos.
-  }
-
-derive instance Newtype UtxoIndex _
-
-_indexAnyWith :: Lens' UtxoIndex (HashMap Asset UtxoMap)
-_indexAnyWith = _Newtype <<< prop (Proxy :: Proxy "indexAnyWith")
-
-_indexSingletons :: Lens' UtxoIndex (HashMap Asset UtxoMap)
-_indexSingletons = _Newtype <<< prop (Proxy :: Proxy "indexSingletons")
-
-_indexPairs :: Lens' UtxoIndex (HashMap Asset UtxoMap)
-_indexPairs = _Newtype <<< prop (Proxy :: Proxy "indexPairs")
-
-_utxos :: Lens' UtxoIndex UtxoMap
-_utxos = _Newtype <<< prop (Proxy :: Proxy "utxos")
-
-buildUtxoIndex :: UtxoMap -> UtxoIndex
-buildUtxoIndex utxos =
-  foldl (flip utxoIndexInsertEntry) emptyUtxoIndex utxos'
-  where
-  utxos' :: Array TxUnspentOutput
-  utxos' = Map.toUnfoldable utxos
-
-  emptyUtxoIndex :: UtxoIndex
-  emptyUtxoIndex = UtxoIndex
-    { indexAnyWith: HashMap.empty
-    , indexSingletons: HashMap.empty
-    , indexPairs: HashMap.empty
-    , utxos: Map.empty
-    }
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L561
-utxoIndexInsertEntry :: TxUnspentOutput -> UtxoIndex -> UtxoIndex
-utxoIndexInsertEntry (oref /\ out) =
-  (_utxos %~ Map.insert oref out) <<< updateUtxoIndex out insertEntry
-  where
-  insertEntry :: Asset -> HashMap Asset UtxoMap -> HashMap Asset UtxoMap
-  insertEntry =
-    HashMap.alter
-      (Just <<< maybe (Map.singleton oref out) (Map.insert oref out))
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L295
-utxoIndexDeleteEntry :: TxUnspentOutput -> UtxoIndex -> UtxoIndex
-utxoIndexDeleteEntry (inp /\ out) =
-  (_utxos %~ Map.delete inp) <<< updateUtxoIndex out deleteEntry
-  where
-  deleteEntry :: Asset -> HashMap Asset UtxoMap -> HashMap Asset UtxoMap
-  deleteEntry = HashMap.update (Just <<< Map.delete inp)
-
-updateUtxoIndex
-  :: TransactionOutput
-  -> (Asset -> HashMap Asset UtxoMap -> HashMap Asset UtxoMap)
-  -> UtxoIndex
-  -> UtxoIndex
-updateUtxoIndex out manageEntry =
-  case categorizeUtxoEntry out of
-    BundleWithNoAssets ->
-      _indexSingletons %~ manageEntry AssetLovelace
-    BundleWithOneAsset asset ->
-      (_indexPairs %~ manageEntry AssetLovelace)
-        <<< (_indexSingletons %~ manageEntry (Asset asset))
-    BundleWithTwoAssets asset0 asset1 ->
-      (_indexAnyWith %~ manageEntry AssetLovelace)
-        <<< (_indexPairs %~ manageEntry (Asset asset0))
-        <<< (_indexPairs %~ manageEntry (Asset asset1))
-    BundleWithMultipleAssets assets ->
-      (_indexAnyWith %~ flip (foldl (flip (manageEntry <<< Asset))) assets)
-        <<< (_indexAnyWith %~ manageEntry AssetLovelace)
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L418
-selectRandomWithFilter
-  :: forall (m :: Type -> Type)
-   . MonadEffect m
-  => UtxoIndex
-  -> SelectionFilter
-  -> m (Maybe (TxUnspentOutput /\ UtxoIndex))
-selectRandomWithFilter utxoIndex selectionFilter =
-  selectRandomMapMember selectionUtxoMap
-    <#> map (\utxo -> utxo /\ utxoIndexDeleteEntry utxo utxoIndex)
-  where
-  selectionUtxoMap :: UtxoMap
-  selectionUtxoMap =
-    case selectionFilter of
-      SelectSingleton asset ->
-        asset `lookupWith` _indexSingletons
-      SelectPairWith asset ->
-        asset `lookupWith` _indexPairs
-      SelectAnyWith asset ->
-        asset `lookupWith` _indexAnyWith
-    where
-    lookupWith :: Asset -> Lens' UtxoIndex (HashMap Asset UtxoMap) -> UtxoMap
-    lookupWith asset getter =
-      fromMaybe Map.empty $ HashMap.lookup asset (utxoIndex ^. getter)
-
---------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
-
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/3d722b27f6dbd2cf05da497297e60e3b54b1ef6e/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L598
-selectRandomMapMember
-  :: forall (m :: Type -> Type) (k :: Type) (v :: Type)
-   . MonadEffect m
-  => Map k v
-  -> m (Maybe (k /\ v))
-selectRandomMapMember m
-  | Map.isEmpty m = pure Nothing
-  | otherwise = liftEffect do
-      idx <- Random.randomInt zero (Map.size m - one)
-      pure $ Map.toUnfoldable m !! idx
-
-txOutputAssetClasses :: TransactionOutput -> Set AssetClass
-txOutputAssetClasses =
-  Set.fromFoldable <<< Value.valueAssetClasses <<< _.amount <<< unwrap
 
 showAssetClassWithQuantity :: AssetClass -> BigInt -> String
 showAssetClassWithQuantity (AssetClass cs tn) quantity =

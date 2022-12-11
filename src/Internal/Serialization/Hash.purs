@@ -31,12 +31,20 @@ import Ctl.Internal.Serialization.Types (NativeScript)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
-import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Ctl.Internal.Types.RawBytes
+  ( RawBytes
+  , hexToRawBytes
+  , rawBytesFromIntArrayUnsafe
+  , rawBytesToHex
+  )
 import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromJust, maybe)
 import Data.Newtype (unwrap, wrap)
+import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Gen (chooseInt, vectorOf)
 
 -- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
 -- | verification keys
@@ -78,6 +86,11 @@ instance DecodeAeson Ed25519KeyHash where
 
 instance EncodeAeson Ed25519KeyHash where
   encodeAeson' = encodeAeson' <<< rawBytesToHex <<< ed25519KeyHashToBytes
+
+instance Arbitrary Ed25519KeyHash where
+  arbitrary =
+    unsafePartial fromJust <<< ed25519KeyHashFromBytes <<<
+      rawBytesFromIntArrayUnsafe <$> vectorOf 28 (chooseInt 0 255)
 
 foreign import _ed25519KeyHashFromBytesImpl
   :: MaybeFfiHelper
