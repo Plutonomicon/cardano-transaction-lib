@@ -67,6 +67,12 @@ Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `C
 
 ## API differences
 
+### Transaction manipulation API
+
+| Plutus                      | CTL                           |
+| --------------------------- | ----------------------------- |
+| `submitTxConstraintsWith`   | `submitTxFromConstraints`     |
+
 ### Constraints and lookups
 
 CTL has adapted Plutus' Alonzo-era constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
