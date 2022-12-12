@@ -16,9 +16,9 @@ import Ctl.Internal.Plutip.Server
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.TestPlanM as Utils
+import Data.BigInt as BigInt
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.BigInt as BigInt
 import Effect (Effect)
 import Effect.Aff
   ( Aff
@@ -35,7 +35,7 @@ import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
- 
+
 -- Run with `npm run plutip-test`
 main :: Effect Unit
 main = interruptOnSignal SIGINT =<< launchAff do
@@ -54,7 +54,8 @@ testStartPlutipCluster = group "Server" do
     bracket (startPlutipServer config)
       (stopChildProcessWithPort config.port) $ const do
       checkPlutipServer config
-      _startRes <- startPlutipCluster config [[BigInt.fromInt 2_000_000_000]]
+      _startRes <- startPlutipCluster config
+        [ [ BigInt.fromInt 2_000_000_000 ] ]
       stopRes <- stopPlutipCluster config
       stopRes `shouldSatisfy` case _ of
         StopClusterSuccess -> true

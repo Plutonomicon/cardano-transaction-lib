@@ -11,9 +11,9 @@ import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))
-import Data.Time.Duration (Seconds(Seconds))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
 

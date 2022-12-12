@@ -47,10 +47,10 @@ import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe)
-import Data.Time.Duration (Seconds(Seconds))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
+import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 
@@ -69,8 +69,8 @@ type PlutipConfig =
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
-  , clusterConfig :: 
-    { slotLength :: Seconds }
+  , clusterConfig ::
+      { slotLength :: Seconds }
   }
 
 type PostgresConfig =

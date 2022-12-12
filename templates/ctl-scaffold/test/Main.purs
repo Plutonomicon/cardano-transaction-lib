@@ -16,8 +16,8 @@ import Contract.Test.Plutip
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.BigInt (fromInt) as BigInt
 import Data.Posix.Signal (Signal(SIGINT))
-import Data.UInt (fromInt) as UInt
 import Data.Time.Duration (Seconds(Seconds))
+import Data.UInt (fromInt) as UInt
 import Effect.Aff
   ( Milliseconds(Milliseconds)
   , cancelWith
