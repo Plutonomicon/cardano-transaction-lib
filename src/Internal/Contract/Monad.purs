@@ -54,6 +54,7 @@ import Ctl.Internal.QueryM
   , mkOgmiosWebSocketAff
   , underlyingWebSocket
   )
+-- TODO: Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
@@ -192,7 +193,7 @@ mkContractEnv params = do
     b2 <- parallel do
       wallet <- buildWallet
       pure $ merge { wallet }
-    -- compose the sub-builders together
+    -- Compose the sub-builders together
     in b1 >>> b2 >>> merge { usedTxOuts }
 
   pure $ build envBuilder constants
@@ -271,16 +272,12 @@ walletNetworkCheck envNetworkId wallet = do
 -- | Finalizes a `Contract` environment.
 -- | Closes the connections in `ContractEnv`, effectively making it unusable.
 stopContractEnv :: ContractEnv -> Aff Unit
-stopContractEnv { backend } = liftEffect do
-  traverse_ stopCtlRuntime (getCtlBackend backend)
-  traverse_ stopBlockfrostRuntime (getBlockfrostBackend backend)
+stopContractEnv { backend } =
+  liftEffect $ traverse_ stopCtlRuntime (getCtlBackend backend)
   where
   stopCtlRuntime :: CtlBackend -> Effect Unit
   stopCtlRuntime { ogmios, odc } =
     stopWebSocket odc.ws *> stopWebSocket ogmios.ws
-
-  stopBlockfrostRuntime :: BlockfrostBackend -> Effect Unit
-  stopBlockfrostRuntime = undefined
 
   stopWebSocket :: forall (a :: Type). WebSocket a -> Effect Unit
   stopWebSocket = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
