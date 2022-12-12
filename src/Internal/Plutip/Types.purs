@@ -107,8 +107,7 @@ instance EncodeAeson ClusterStartupRequest where
   encodeAeson'
     ( ClusterStartupRequest
         { keysToGenerate, epochSize, slotLength: Seconds slotLength }
-    ) =
-    encodeAeson' { keysToGenerate, epochSize, slotLength }
+    ) = encodeAeson' { keysToGenerate, epochSize, slotLength }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
 
