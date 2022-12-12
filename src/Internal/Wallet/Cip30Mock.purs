@@ -40,7 +40,7 @@ import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray)
+import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet)
@@ -145,7 +145,8 @@ type Cip30Mock =
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
   , signTx :: Fn2 String Boolean (Promise String)
-  , signData :: Fn2 String String (Promise DataSignature)
+  , signData ::
+      Fn2 String String (Promise { key :: String, signature :: String })
   }
 
 -- | By CIP-30 collateral required amount must be not more than 5 ADA
@@ -262,7 +263,9 @@ mkCip30Mock pKey mSKey = do
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)
-        (unwrap keyWallet).signData config.networkId (wrap msgBytes)
+        { key, signature } <- (unwrap keyWallet).signData config.networkId
+          (wrap msgBytes)
+        pure { key: cborBytesToHex key, signature: cborBytesToHex signature }
     }
   where
   keyWallet = privateKeysToKeyWallet pKey mSKey
