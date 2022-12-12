@@ -104,6 +104,8 @@ derive instance Newtype (Contract a) _
 derive newtype instance Functor Contract
 derive newtype instance Apply Contract
 derive newtype instance Applicative Contract
+derive newtype instance Alt Contract
+derive newtype instance Plus Contract
 derive newtype instance Bind Contract
 derive newtype instance Monad Contract
 derive newtype instance MonadEffect Contract
