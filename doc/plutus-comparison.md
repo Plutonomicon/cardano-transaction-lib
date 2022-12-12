@@ -5,18 +5,21 @@ This document outlines the core differences between CTL and Plutus (particularly
 Note that differences between Haskell and Purescript, while also relevant to such a comparison, is beyond the scope of this document unless such differences have a direct bearing on divergences between the two CTL and Plutus.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Core conceptual differences](#core-conceptual-differences)
-  + [Library vs. process](#library-vs-process)
-  + [The `Contract` type](#the--contract--type)
+  - [Library vs. process](#library-vs-process)
+  - [The `Contract` type](#the-contract-type)
 - [API differences](#api-differences)
-  + [Constraints and lookups](#constraints-and-lookups)
+  - [Constraints and lookups](#constraints-and-lookups)
     - [Babbage-era constraints](#babbage-era-constraints)
-  + [Typed scripts](#typed-scripts)
-  + [Working with scripts](#working-with-scripts)
+  - [Typed scripts](#typed-scripts)
+  - [Working with scripts](#working-with-scripts)
     - [Using scripts from the frontend](#using-scripts-from-the-frontend)
     - [Applying arguments to parameterized scripts](#applying-arguments-to-parameterized-scripts)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Core conceptual differences
 
 ### Library vs. process
