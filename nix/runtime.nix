@@ -7,8 +7,8 @@ rec {
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
     # for info on how to switch networks.
     network = {
-      name = "preview";
-      magic = 2; # use `null` for mainnet
+      name = "preprod";
+      magic = 1; # use `null` for mainnet
     };
     # *All* of these values are optional, and shown with their default
     # values. If you need even more customization, you can use `overideAttrs`
@@ -44,8 +44,8 @@ rec {
       controlApiToken = "";
       blockFetcher = {
         firstBlock = {
-          slot = 1345203;
-          id = "8f027f183cc72dc90d4cdb8b5815deaef4b57d5a10f078ebfce87cadf9cae688";
+          slot = 13478367;
+          id = "f576ef654ff68f93b2554cce4d0691d4ce3b0a0e8742e5ba71a55b8b";
         };
         autoStart = true;
         startFromLast = false;

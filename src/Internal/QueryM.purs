@@ -71,6 +71,7 @@ module Ctl.Internal.QueryM
   , withMWallet
   , withQueryRuntime
   , callCip30Wallet
+  , actionBasedOnWallet
   , getNetworkId
   , emptyHooks
   ) where
@@ -92,6 +93,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Contract.Prelude (log)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
@@ -213,12 +215,13 @@ import Ctl.Internal.Wallet
   ( Cip30Connection
   , Cip30Wallet
   , KeyWallet
-  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl)
+  , Wallet(KeyWallet, Lode, Flint, Gero, Nami, Eternl, Yoroi)
   , WalletExtension
       ( LodeWallet
       , EternlWallet
       , FlintWallet
       , GeroWallet
+      , YoroiWallet
       , NamiWallet
       )
   , mkKeyWallet
@@ -239,6 +242,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToNami
       , ConnectToFlint
       , ConnectToEternl
+      , ConnectToYoroi
       , ConnectToLode
       )
   )
@@ -536,6 +540,7 @@ mkWalletBySpec = case _ of
   ConnectToFlint -> mkWalletAff FlintWallet
   ConnectToEternl -> mkWalletAff EternlWallet
   ConnectToLode -> mkWalletAff LodeWallet
+  ConnectToYoroi -> mkWalletAff YoroiWallet
 
 runQueryM :: forall (a :: Type). QueryConfig -> QueryM a -> Aff a
 runQueryM config action = do
@@ -713,6 +718,7 @@ actionBasedOnWallet walletAction keyWalletAction =
     Gero wallet -> callCip30Wallet wallet walletAction
     Flint wallet -> callCip30Wallet wallet walletAction
     Lode wallet -> callCip30Wallet wallet walletAction
+    Yoroi wallet -> callCip30Wallet wallet walletAction
     KeyWallet kw -> pure <$> keyWalletAction kw
 
 signData :: Address -> RawBytes -> QueryM (Maybe DataSignature)
@@ -766,7 +772,7 @@ withMWallet act = asks (_.runtime >>> _.wallet) >>= maybe (pure Nothing)
 callCip30Wallet
   :: forall (a :: Type)
    . Cip30Wallet
-  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
+  -> (Cip30Wallet -> Cip30Connection -> Aff a)
   -> Aff a
 callCip30Wallet wallet act = act wallet wallet.connection
 

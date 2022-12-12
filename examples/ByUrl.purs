@@ -13,6 +13,7 @@ import Contract.Config
   , testnetGeroConfig
   , testnetLodeConfig
   , testnetNamiConfig
+  , testnetYoroiConfig
   )
 import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
@@ -55,6 +56,7 @@ wallets = Map.fromFoldable
   , "flint" /\ testnetFlintConfig /\ Nothing
   , "eternl" /\ testnetEternlConfig /\ Nothing
   , "lode" /\ testnetLodeConfig /\ Nothing
+  , "yoroi" /\ testnetYoroiConfig /\ Nothing
   , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint

@@ -7,8 +7,10 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
-import Control.Alt ((<|>))
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Contract.Prelude (liftEither)
+import Control.Alt (alt, (<|>))
+import Control.Apply (lift2)
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError, try)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Ctl.Internal.Cardano.Types.Transaction
@@ -45,6 +47,7 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Data.Function (on)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -243,6 +246,11 @@ foreign import _getUtxos
   -> Cip30Connection
   -> Effect (Promise (Maybe (Array String)))
 
+foreign import _getCollateralViaExperimental
+  :: MaybeFfiHelper
+  -> Cip30Connection
+  -> Effect (Promise (Maybe (Array String)))
+
 foreign import _getCollateral
   :: MaybeFfiHelper
   -> Cip30Connection
@@ -250,8 +258,13 @@ foreign import _getCollateral
 
 getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
 getCip30Collateral conn =
-  _getCollateral maybeFfiHelper conn `catchError`
-    \_ -> throwError $ error "Wallet doesn't implement `getCollateral`."
+  ( _getCollateralViaExperimental maybeFfiHelper conn
+      `effectAlt` _getCollateral maybeFfiHelper conn
+  ) `catchError` \_ -> throwError $ error
+    "Wallet doesn't implement `getCollateral`."
+  where
+  effectAlt :: forall a. Effect a -> Effect a -> Effect a
+  effectAlt a b = join $ liftEither <$> lift2 alt (try a) (try b)
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 

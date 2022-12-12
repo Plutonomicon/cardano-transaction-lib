@@ -6,6 +6,7 @@ module Contract.Config
   , testnetFlintConfig
   , testnetEternlConfig
   , testnetLodeConfig
+  , testnetYoroiConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
@@ -50,6 +51,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToEternl
       , ConnectToLode
+      , ConnectToYoroi
       )
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
@@ -85,6 +87,9 @@ testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 
 testnetLodeConfig :: ConfigParams ()
 testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
+
+testnetYoroiConfig :: ConfigParams ()
+testnetYoroiConfig = testnetConfig { walletSpec = Just ConnectToYoroi }
 
 mainnetConfig :: ConfigParams ()
 mainnetConfig = testnetConfig { networkId = MainnetId }
