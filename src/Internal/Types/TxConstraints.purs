@@ -337,7 +337,7 @@ mustReferenceOutput
   :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
 mustReferenceOutput = singleton <<< MustReferenceOutput
 
--- | Lock the value with a public key address.
+-- | Lock the value with a public key address. (Base Address)
 mustPayToPubKeyAddress
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
@@ -385,7 +385,7 @@ mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh datum dtp scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
     (Just scriptRef)
 
--- | Lock the value with a public key.
+-- | Lock the value with a public key. (Enterprise Address)
 mustPayToPubKey
   :: forall (i :: Type) (o :: Type)
    . Warn

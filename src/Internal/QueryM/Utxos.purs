@@ -33,7 +33,7 @@ import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet
-  ( Wallet(Gero, Nami, Flint, Lode, Eternl, Yoroi, KeyWallet)
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, Yoroi, NuFi, KeyWallet)
   )
 import Data.Array (cons, foldMap, head)
 import Data.Array as Array
@@ -78,6 +78,7 @@ mkUtxoQuery allUtxosAt =
     Eternl _ -> cip30UtxosAt
     Lode _ -> cip30UtxosAt
     Yoroi _ -> cip30UtxosAt
+    NuFi _ -> cip30UtxosAt
     KeyWallet _ -> allUtxosAt
 
   cip30UtxosAt :: QueryM (Maybe UtxoMap)
@@ -110,22 +111,22 @@ withTxRefsCache = wrap <<< withReaderT (_.runtime >>> _.usedTxOuts)
 
 getWalletBalance
   :: QueryM (Maybe Value)
-getWalletBalance =
-  do
-    asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
-      Nami wallet -> liftAff $ wallet.getBalance wallet.connection
-      Gero wallet -> liftAff $ wallet.getBalance wallet.connection
-      Eternl wallet -> liftAff $ wallet.getBalance wallet.connection
-      Flint wallet -> liftAff $ wallet.getBalance wallet.connection
-      Lode wallet -> liftAff $ wallet.getBalance wallet.connection
-      Yoroi wallet -> liftAff $ wallet.getBalance wallet.connection
-      KeyWallet _ -> do
-        -- Implement via `utxosAt`
-        addresses <- getWalletAddresses
-        fold <$> for addresses \address -> do
-          utxosAt address <#> map
-            -- Combine `Value`s
-            (fold <<< map _.amount <<< map unwrap <<< Map.values)
+getWalletBalance = do
+  asks (_.runtime >>> _.wallet) >>= map join <<< traverse case _ of
+    Nami wallet -> liftAff $ wallet.getBalance wallet.connection
+    Gero wallet -> liftAff $ wallet.getBalance wallet.connection
+    Eternl wallet -> liftAff $ wallet.getBalance wallet.connection
+    Flint wallet -> liftAff $ wallet.getBalance wallet.connection
+    Lode wallet -> liftAff $ wallet.getBalance wallet.connection
+    Yoroi wallet -> liftAff $ wallet.getBalance wallet.connection
+    NuFi wallet -> liftAff $ wallet.getBalance wallet.connection
+    KeyWallet _ -> do
+      -- Implement via `utxosAt`
+      addresses <- getWalletAddresses
+      fold <$> for addresses \address -> do
+        utxosAt address <#> map
+          -- Combine `Value`s
+          (fold <<< map _.amount <<< map unwrap <<< Map.values)
 
 getWalletUtxos :: QueryM (Maybe UtxoMap)
 getWalletUtxos = do
@@ -139,6 +140,7 @@ getWalletUtxos = do
     Lode wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     Yoroi wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map
       toUtxoMap
+    NuFi wallet -> liftAff $ wallet.getUtxos wallet.connection <#> map toUtxoMap
     KeyWallet _ -> do
       mbAddress <- getWalletAddresses <#> head
       map join $ for mbAddress utxosAt
@@ -157,6 +159,7 @@ getWalletCollateral = do
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Yoroi wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      NuFi wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
         networkId <- getNetworkId
         addr <- liftAff $ (unwrap kw).address networkId

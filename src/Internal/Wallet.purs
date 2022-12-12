@@ -1,7 +1,7 @@
 module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, Lode, Eternl, Yoroi, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Lode, Eternl, Yoroi, NuFi, KeyWallet)
   , WalletExtension
       ( NamiWallet
       , LodeWallet
@@ -9,6 +9,7 @@ module Ctl.Internal.Wallet
       , FlintWallet
       , YoroiWallet
       , EternlWallet
+      , NuFiWallet
       )
   , isEternlAvailable
   , isGeroAvailable
@@ -76,6 +77,7 @@ data Wallet
   | Eternl Cip30Wallet
   | Lode Cip30Wallet
   | Yoroi Cip30Wallet
+  | NuFi Cip30Wallet
   | KeyWallet KeyWallet
 
 data WalletExtension
@@ -85,6 +87,7 @@ data WalletExtension
   | EternlWallet
   | YoroiWallet
   | LodeWallet
+  | NuFiWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
@@ -108,6 +111,7 @@ mkWalletAff walletExtension =
       (_enableWallet walletName)
     LodeWallet -> _mkLodeWalletAff
     YoroiWallet -> Yoroi <$> mkCip30WalletAff "Yoroi" (_enableWallet walletName)
+    NuFiWallet -> Yoroi <$> mkCip30WalletAff "NuFi" (_enableWallet walletName)
   where
   walletName = walletExtensionToName walletExtension
 
@@ -220,6 +224,7 @@ cip30Wallet = case _ of
   Eternl c30 -> Just c30
   Lode c30 -> Just c30
   Yoroi c30 -> Just c30
+  NuFi c30 -> Just c30
   KeyWallet _ -> Nothing
 
 walletExtensionToName :: WalletExtension -> String
@@ -230,6 +235,7 @@ walletExtensionToName = case _ of
   EternlWallet -> "eternl"
   LodeWallet -> "LodeWallet"
   YoroiWallet -> "yoroi"
+  NuFiWallet -> "nufi"
 
 walletToWalletExtension :: Wallet -> Maybe WalletExtension
 walletToWalletExtension = case _ of
@@ -239,6 +245,7 @@ walletToWalletExtension = case _ of
   Eternl _ -> Just EternlWallet
   Lode _ -> Just LodeWallet
   Yoroi _ -> Just YoroiWallet
+  NuFi _ -> Just NuFiWallet
   KeyWallet _ -> Nothing
 
 isEnabled :: WalletExtension -> Aff Boolean

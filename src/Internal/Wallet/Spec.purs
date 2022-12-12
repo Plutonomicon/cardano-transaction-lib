@@ -7,6 +7,7 @@ module Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       , ConnectToLode
       , ConnectToYoroi
+      , ConnectToNuFi
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
@@ -33,3 +34,4 @@ data WalletSpec
   | ConnectToEternl
   | ConnectToLode
   | ConnectToYoroi
+  | ConnectToNuFi

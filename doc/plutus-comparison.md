@@ -12,6 +12,7 @@ Note that differences between Haskell and Purescript, while also relevant to suc
   - [Library vs. process](#library-vs-process)
   - [The `Contract` type](#the-contract-type)
 - [API differences](#api-differences)
+  - [Transaction manipulation API](#transaction-manipulation-api)
   - [Constraints and lookups](#constraints-and-lookups)
     - [Babbage-era constraints](#babbage-era-constraints)
   - [Typed scripts](#typed-scripts)
@@ -66,6 +67,12 @@ In contrast to the free-monad approach used by Plutus, CTL's `Contract` has uses
 Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `Contract` actions defined by the library signal failure in various ways (e.g. returning `Either`s, `Maybe`s, or in the case of unrecoverable errors, throwing exceptions). Standardizing our error-handling approach is on our roadmap for future releases, however, most likely with a standardized error type containing polymorphic variants so that users may freely extend existing errors in the `Contract` interface.
 
 ## API differences
+
+### Transaction manipulation API
+
+| Plutus                      | CTL                           |
+| --------------------------- | ----------------------------- |
+| `submitTxConstraintsWith`   | `submitTxFromConstraints`     |
 
 ### Constraints and lookups
 

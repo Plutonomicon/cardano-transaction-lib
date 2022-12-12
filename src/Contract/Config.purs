@@ -7,12 +7,14 @@ module Contract.Config
   , testnetEternlConfig
   , testnetLodeConfig
   , testnetYoroiConfig
+  , testnetNuFiConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
   , mainnetFlintConfig
   , mainnetEternlConfig
   , mainnetLodeConfig
+  , mainnetNuFiConfig
   , module Contract.Address
   , module Contract.Monad
   , module Data.Log.Level
@@ -52,6 +54,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       , ConnectToLode
       , ConnectToYoroi
+      , ConnectToNuFi
       )
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
@@ -91,6 +94,9 @@ testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 testnetYoroiConfig :: ConfigParams ()
 testnetYoroiConfig = testnetConfig { walletSpec = Just ConnectToYoroi }
 
+testnetNuFiConfig :: ConfigParams ()
+testnetNuFiConfig = testnetConfig { walletSpec = Just ConnectToNuFi }
+
 mainnetConfig :: ConfigParams ()
 mainnetConfig = testnetConfig { networkId = MainnetId }
 
@@ -108,3 +114,6 @@ mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
 
 mainnetLodeConfig :: ConfigParams ()
 mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }
+
+mainnetNuFiConfig :: ConfigParams ()
+mainnetNuFiConfig = mainnetConfig { walletSpec = Just ConnectToNuFi }
