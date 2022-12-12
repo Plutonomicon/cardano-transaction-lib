@@ -5,8 +5,7 @@ module Ctl.Internal.QueryM.Config
 
 import Ctl.Internal.QueryM (QueryConfig)
 import Ctl.Internal.QueryM.ServerConfig
-  ( defaultDatumCacheWsConfig
-  , defaultKupoServerConfig
+  ( defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   )
@@ -18,7 +17,6 @@ testnetTraceQueryConfig :: QueryConfig
 testnetTraceQueryConfig =
   { ctlServerConfig: Just defaultServerConfig
   , ogmiosConfig: defaultOgmiosWsConfig
-  , datumCacheConfig: defaultDatumCacheWsConfig
   , kupoConfig: defaultKupoServerConfig
   , networkId: TestnetId
   , logLevel: Trace

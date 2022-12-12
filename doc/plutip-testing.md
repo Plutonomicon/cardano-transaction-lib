@@ -18,8 +18,6 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - `plutip-server` to launch a local `cardano-node` cluster
 - [`ogmios`](https://ogmios.dev/)
 - [`kupo`](https://cardanosolutions.github.io/kupo/)
-- [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
-- PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
 
 If you plan on using CTL's `applyArgs` effect, you must also ensure the following is on your `$PATH`:
 

@@ -298,7 +298,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startPostgres' response
   startOgmios' response
   startKupo' response
-  startOgmiosDatumCache' response
   startMCtlServer'
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
@@ -366,12 +365,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       \(process /\ workdir /\ _) -> do
         liftEffect $ cleanupTmpDir process workdir
         pure unit
-
-  startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
-  startOgmiosDatumCache' response =
-    bracket (startOgmiosDatumCache plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) $ const
-      (pure unit)
 
   startMCtlServer' :: Aff Unit
   startMCtlServer' = case plutipCfg.ctlServerConfig of
@@ -443,7 +436,6 @@ configCheck cfg = do
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.kupoConfig.port /\ "kupo"
-      , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
       , cfg.postgresConfig.port /\ "postgres"
       ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
@@ -711,43 +703,6 @@ stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
       unless isAvailable do
         liftEffect $ throw "retry"
   liftEffect $ removeOnSignal sig
-
-startOgmiosDatumCache
-  :: PlutipConfig
-  -> ClusterStartupParameters
-  -> Aff ManagedProcess
-startOgmiosDatumCache cfg _params = do
-  apiKey <- liftEffect $ uniqueId "token"
-  let
-    arguments :: Array String
-    arguments =
-      [ "--server-api"
-      , apiKey
-      , "--server-port"
-      , UInt.toString cfg.ogmiosDatumCacheConfig.port
-      , "--ogmios-address"
-      , cfg.ogmiosDatumCacheConfig.host
-      , "--ogmios-port"
-      , UInt.toString cfg.ogmiosConfig.port
-      , "--db-port"
-      , UInt.toString cfg.postgresConfig.port
-      , "--db-host"
-      , cfg.postgresConfig.host
-      , "--db-user"
-      , cfg.postgresConfig.user
-      , "--db-name"
-      , cfg.postgresConfig.dbname
-      , "--db-password"
-      , cfg.postgresConfig.password
-      , "--use-latest"
-      , "--from-origin"
-      ]
-  spawn "ogmios-datum-cache" arguments defaultSpawnOptions
-    -- Wait for "Intersection found" string in the output
-    $ Just
-    $ String.indexOf (Pattern "Intersection found")
-        >>> maybe NoOp (const Success)
-
 mkClusterContractEnv
   :: PlutipConfig
   -> Logger
@@ -757,7 +712,6 @@ mkClusterContractEnv plutipCfg logger customLogger = do
   usedTxOuts <- newUsedTxOuts
   backend <- buildBackend logger $ mkCtlBackendParams
     { ogmiosConfig: plutipCfg.ogmiosConfig
-    , odcConfig: plutipCfg.ogmiosDatumCacheConfig
     , kupoConfig: plutipCfg.kupoConfig
     }
   ledgerConstants <- getLedgerConstants logger backend

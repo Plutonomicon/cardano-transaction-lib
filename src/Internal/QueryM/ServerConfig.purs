@@ -1,12 +1,10 @@
 module Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
-  , defaultDatumCacheWsConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
   , mkServerUrl
   , mkWsUrl
   ) where
@@ -44,14 +42,6 @@ defaultOgmiosWsConfig =
   , path: Nothing
   }
 
-defaultDatumCacheWsConfig :: ServerConfig
-defaultDatumCacheWsConfig =
-  { port: UInt.fromInt 9999
-  , host: "localhost"
-  , secure: false
-  , path: Nothing
-  }
-
 defaultKupoServerConfig :: ServerConfig
 defaultKupoServerConfig =
   { port: UInt.fromInt 4008
@@ -65,9 +55,6 @@ mkHttpUrl = mkServerUrl "http"
 
 mkWsUrl :: ServerConfig -> Url
 mkWsUrl = mkServerUrl "ws"
-
-mkOgmiosDatumCacheWsUrl :: ServerConfig -> Url
-mkOgmiosDatumCacheWsUrl cfg = mkWsUrl cfg <</>> "ws"
 
 mkServerUrl :: String -> ServerConfig -> Url
 mkServerUrl protocol cfg =

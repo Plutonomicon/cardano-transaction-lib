@@ -33,12 +33,10 @@ import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Contract.QueryBackend
-  ( BlockfrostBackend
-  , CtlBackend
+  ( CtlBackend
   , CtlBackendParams
   , QueryBackend(BlockfrostBackend, CtlBackend)
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
-  , getBlockfrostBackend
   , getCtlBackend
   )
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
@@ -50,30 +48,29 @@ import Ctl.Internal.QueryM
   , WebSocket
   , getProtocolParametersAff
   , getSystemStartAff
-  , mkDatumCacheWebSocketAff
   , mkOgmiosWebSocketAff
   , underlyingWebSocket
   )
 -- TODO: Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
+import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet (getNetworkId) as Wallet
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
-import Effect.Ref (new) as Ref
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
 import Undefined (undefined)
@@ -224,24 +221,16 @@ buildBackend logger = case _ of
     BlockfrostBackend blockfrostParams <$> traverse buildCtlBackend ctlParams
   where
   buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
-  buildCtlBackend { ogmiosConfig, kupoConfig, odcConfig } = do
-    datumCacheWsRef <- liftEffect $ Ref.new Nothing
-    sequential ado
-      odcWs <- parallel $ mkDatumCacheWebSocketAff datumCacheWsRef logger
-        odcConfig
-      ogmiosWs <- parallel $ mkOgmiosWebSocketAff datumCacheWsRef logger
-        ogmiosConfig
-      in
-        { ogmios:
-            { config: ogmiosConfig
-            , ws: ogmiosWs
-            }
-        , odc:
-            { config: odcConfig
-            , ws: odcWs
-            }
-        , kupoConfig
-        }
+  buildCtlBackend { ogmiosConfig, kupoConfig } = do
+    let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig <<< wrap
+    ogmiosWs <- mkOgmiosWebSocketAff isTxConfirmed logger ogmiosConfig
+    pure
+      { ogmios:
+          { config: ogmiosConfig
+          , ws: ogmiosWs
+          }
+      , kupoConfig
+      }
 
 getLedgerConstants
   :: Logger
@@ -278,8 +267,8 @@ stopContractEnv { backend } =
   liftEffect $ traverse_ stopCtlRuntime (getCtlBackend backend)
   where
   stopCtlRuntime :: CtlBackend -> Effect Unit
-  stopCtlRuntime { ogmios, odc } =
-    stopWebSocket odc.ws *> stopWebSocket ogmios.ws
+  stopCtlRuntime { ogmios } =
+    stopWebSocket ogmios.ws
 
   stopWebSocket :: forall (a :: Type). WebSocket a -> Effect Unit
   stopWebSocket = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
@@ -358,7 +347,6 @@ mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv ()
 mkQueryEnv contractEnv ctlBackend =
   { config:
       { ctlServerConfig: contractEnv.ctlServerConfig
-      , datumCacheConfig: ctlBackend.odc.config
       , ogmiosConfig: ctlBackend.ogmios.config
       , kupoConfig: ctlBackend.kupoConfig
       , networkId: contractEnv.networkId
@@ -369,7 +357,6 @@ mkQueryEnv contractEnv ctlBackend =
       }
   , runtime:
       { ogmiosWs: ctlBackend.ogmios.ws
-      , datumCacheWs: ctlBackend.odc.ws
       , wallet: contractEnv.wallet
       , usedTxOuts: contractEnv.usedTxOuts
       , pparams: contractEnv.ledgerConstants.pparams

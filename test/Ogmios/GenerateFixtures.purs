@@ -43,9 +43,6 @@ import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
 
 -- A simple websocket for testing
--- TODO Generalize websocket constructors using type classes traversing rows
--- to factor mk{Ogmios{DatumCache,},}WebSocket into a single implementation
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/664
 mkWebSocket
   :: forall (a :: Type) (b :: Type)
    . DecodeAeson b

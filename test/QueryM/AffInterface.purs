@@ -10,7 +10,6 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.GetTxByHash (getTxByHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
@@ -46,14 +45,6 @@ suite = do
           Left error -> do
             (Pattern "Server responded with `fault`" `indexOf` show error)
               `shouldSatisfy` isJust
-    group "Ogmios datum cache" do
-      test "Can process GetTxByHash" do
-        testOgmiosGetTxByHash
-
-testOgmiosGetTxByHash :: QueryM Unit
-testOgmiosGetTxByHash = do
-  void $ getTxByHash $ hexToByteArrayUnsafe
-    "f7c47c65216f7057569111d962a74de807de57e79f7efa86b4e454d42c875e4e"
 
 testGetChainTip :: QueryM Unit
 testGetChainTip = do

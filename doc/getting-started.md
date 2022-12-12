@@ -122,7 +122,6 @@ main = Contract.Monad.launchAff_ do -- we re-export this for you
     config =
       { backendParams: mkCtlBackendParams
         { ogmiosConfig: defaultOgmiosWsConfig
-        , odcConfig: defaultDatumCacheWsConfig
         , kupoConfig: defaultKupoServerConfig
         }
       , ctlServerConfig: defaultServerConfig
@@ -147,14 +146,6 @@ customOgmiosWsConfig =
   , host: "localhost"
   , secure: false
   , path: Just "/api/ogmios"
-  }
-
-customDatumCacheWsConfig :: ServerConfig
-customDatumCacheWsConfig =
-  { port: UInt.fromInt 80
-  , host: "localhost"
-  , secure: false
-  , path: Just "/api/ogmios-datum-cache"
   }
 ```
 

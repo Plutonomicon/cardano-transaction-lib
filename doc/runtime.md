@@ -23,9 +23,6 @@ The services that are currently **required** are:
   - Required to query UTxOs and resolve inline datums and reference scripts
   - You **must** use Kupo v2.2.0 or greater with CTL
   - Like Ogmios, Kupo requires a running Cardano node
-- [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
-  - This is required to query for datums, which Ogmios itself does not support
-  - This in turn requires a PostgreSQL DB
 
 Optional services:
 

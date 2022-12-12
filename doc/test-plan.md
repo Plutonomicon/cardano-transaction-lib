@@ -218,8 +218,6 @@ Currently, we require parsing tests for the following data structures, organized
   - [x] `ProtocolParameters`
   - [x] `TxEvaluationR`
   - [x] `SubmitTxR`
-- `ogmios-datum-cache`
-  - [x] `GetTxByHashR`
 - `cardano-serialization-lib`
   - `Transaction`
     - [x] Serialization

@@ -1,6 +1,7 @@
--- | An example of fetching datums from `ogmios-datum-cache`. Helpful to test
--- | out the datum-cache integration
+-- | An example of fetching datums from `Kupo` or `Blockfrost`. Helpful to test
+-- | out the backend integration
 -- |
+-- TODO Rewrite this example or remove it
 -- | To run this example:
 -- |
 -- |   * launch all required services with `nix run .#ctl-runtime`

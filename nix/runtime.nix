@@ -39,19 +39,6 @@ rec {
       password = "ctl";
       db = "ctl-${network.name}";
     };
-    datumCache = {
-      port = 9999;
-      controlApiToken = "";
-      blockFetcher = {
-        firstBlock = {
-          slot = 1345203;
-          id = "8f027f183cc72dc90d4cdb8b5815deaef4b57d5a10f078ebfce87cadf9cae688";
-        };
-        autoStart = true;
-        startFromLast = false;
-        filter = builtins.toJSON { const = true; };
-      };
-    };
     kupo = {
       port = 1442;
       since = "origin";
@@ -200,41 +187,6 @@ rec {
             };
           };
         };
-        ogmios-datum-cache =
-          let
-            filter = inputs.nixpkgs.lib.strings.replaceStrings
-              [ "\"" "\\" ] [ "\\\"" "\\\\" ]
-              datumCache.blockFetcher.filter;
-          in
-          {
-            service = {
-              useHostStore = true;
-              ports = [ (bindPort datumCache.port) ];
-              restart = "on-failure";
-              depends_on = [ "postgres-${network.name}" "ogmios" ];
-              command = [
-                "${pkgs.bash}/bin/sh"
-                "-c"
-                ''
-                  ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache \
-                    --log-level warn \
-                    --use-latest \
-                    --server-api "${toString datumCache.controlApiToken}" \
-                    --server-port ${toString datumCache.port} \
-                    --ogmios-address ogmios \
-                    --ogmios-port ${toString ogmios.port} \
-                    --db-port 5432 \
-                    --db-host postgres-${network.name} \
-                    --db-user "${postgres.user}" \
-                    --db-name "${postgres.db}" \
-                    --db-password "${postgres.password}" \
-                    --block-slot ${toString datumCache.blockFetcher.firstBlock.slot} \
-                    --block-hash "${datumCache.blockFetcher.firstBlock.id}" \
-                    --block-filter "${filter}"
-                ''
-              ];
-            };
-          };
       } // pkgs.lib.optionalAttrs ctlServer.enable {
         ctl-server = {
           service = {

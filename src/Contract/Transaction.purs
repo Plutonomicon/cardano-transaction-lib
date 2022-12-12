@@ -11,8 +11,8 @@ module Contract.Transaction
   , balanceTxsWithConstraints
   , balanceTxM
   , calculateMinFee
+  , getTxMetadata
   , createAdditionalUtxos
-  , getTxByHash
   , getTxFinalFee
   , module BalanceTxError
   , module ExportQueryM
@@ -40,6 +40,7 @@ module Contract.Transaction
 import Prelude
 
 import Aeson (class EncodeAeson)
+import Contract.Metadata (GeneralTransactionMetadata)
 import Contract.Monad
   ( Contract
   , liftContractM
@@ -487,13 +488,12 @@ getTxFinalFee :: BalancedSignedTransaction -> BigInt
 getTxFinalFee =
   unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
 
--- | Get `Transaction` contents by hash
-getTxByHash
-  :: TransactionHash
-  -> Contract (Maybe Transaction)
-getTxByHash th = do
+-- TODO Throw the Either errors?
+-- | Fetch transaction metadata.
+getTxMetadata :: TransactionHash -> Contract (Maybe GeneralTransactionMetadata)
+getTxMetadata th = do
   queryHandle <- getQueryHandle
-  liftAff $ queryHandle.getTxByHash th
+  liftAff $ join <<< hush <$> queryHandle.getTxMetadata th
 
 -- | Wait until a transaction with given hash is confirmed.
 -- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.

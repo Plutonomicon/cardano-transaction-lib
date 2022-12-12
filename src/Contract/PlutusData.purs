@@ -8,7 +8,6 @@ module Contract.PlutusData
   , getDatumsByHashesWithError
   , module DataSchema
   , module Datum
-  , module ExportQueryM
   , module Hashing
   , module IsData
   , module Nat
@@ -68,12 +67,6 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , PNil
   , PSchema
   ) as DataSchema
-import Ctl.Internal.QueryM
-  ( DatumCacheListeners
-  , DatumCacheWebSocket
-  , defaultDatumCacheWsConfig
-  , mkDatumCacheWebSocketAff
-  ) as ExportQueryM
 import Ctl.Internal.Serialization (serializeData) as Serialization
 import Ctl.Internal.ToData
   ( class ToData

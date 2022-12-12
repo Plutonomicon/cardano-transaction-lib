@@ -690,7 +690,8 @@ suite = do
           mkDatumHash :: String -> DataHash
           mkDatumHash = wrap <<< hexToByteArrayUnsafe
         -- Nothing is expected, because we are in an empty chain.
-        -- This test only checks for ability to connect to ODC
+        -- This test only checks for ability to connect to the datum-querying
+        -- backend.
         logInfo' <<< show =<< getDatumByHash
           ( mkDatumHash
               "42be572a6d9a8a2ec0df04f14b0d4fcbe4a7517d74975dfff914514f12316252"
@@ -752,7 +753,7 @@ suite = do
           logInfo' "Running GetDatums submittx"
           txId <- payToTest vhash
           awaitTxConfirmed txId
-          logInfo' "Tx submitted successfully, trying to fetch datum from ODC"
+          logInfo' "Tx submitted successfully, trying to fetch datum"
 
           hash1 <- liftM (error "Couldn't get hash for datums 1") $
             datumHash datum1

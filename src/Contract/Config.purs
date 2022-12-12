@@ -37,7 +37,6 @@ import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
-  , defaultDatumCacheWsConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
@@ -66,7 +65,6 @@ testnetConfig :: ContractParams
 testnetConfig =
   { backendParams: mkCtlBackendParams
       { ogmiosConfig: defaultOgmiosWsConfig
-      , odcConfig: defaultDatumCacheWsConfig
       , kupoConfig: defaultKupoServerConfig
       }
   , ctlServerConfig: Just defaultServerConfig

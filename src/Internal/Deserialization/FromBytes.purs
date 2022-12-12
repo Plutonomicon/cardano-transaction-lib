@@ -15,6 +15,7 @@ import Ctl.Internal.FfiHelpers (ErrorFfiHelper, errorHelper)
 import Ctl.Internal.Serialization.Types
   ( DataHash
   , Ed25519Signature
+  , GeneralTransactionMetadata
   , Mint
   , NativeScript
   , PlutusData
@@ -56,6 +57,9 @@ instance FromBytes TransactionUnspentOutput where
 
 instance FromBytes TransactionWitnessSet where
   fromBytes' = _fromBytesTransactionWitnessSet eh
+
+instance FromBytes GeneralTransactionMetadata where
+  fromBytes' = _fromBytesGeneralTransactionMetadata eh
 
 instance FromBytes NativeScript where
   fromBytes' = _fromBytesNativeScript eh
@@ -132,6 +136,12 @@ foreign import _fromBytesTransactionWitnessSet
    . ErrorFfiHelper r
   -> ByteArray
   -> E r TransactionWitnessSet
+
+foreign import _fromBytesGeneralTransactionMetadata
+  :: forall (r :: Row Type)
+   . ErrorFfiHelper r
+  -> ByteArray
+  -> E r GeneralTransactionMetadata
 
 foreign import _fromBytesNativeScript
   :: forall (r :: Row Type). ErrorFfiHelper r -> ByteArray -> E r NativeScript

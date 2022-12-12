@@ -24,7 +24,6 @@ import Test.Ctl.NativeScript as NativeScript
 import Test.Ctl.Ogmios.Address as Ogmios.Address
 import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
-import Test.Ctl.OgmiosDatumCache as OgmiosDatumCache
 import Test.Ctl.Parser as Parser
 import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
@@ -66,7 +65,6 @@ testPlan = do
   Transaction.suite
   TxOutput.suite
   UsedTxOuts.suite
-  OgmiosDatumCache.suite
   Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite

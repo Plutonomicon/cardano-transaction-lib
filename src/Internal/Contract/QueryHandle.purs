@@ -29,12 +29,12 @@ import Ctl.Internal.QueryM (ClientError, QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
-import Ctl.Internal.QueryM.GetTxByHash (getTxByHash) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getDatumsByHashes
   , getScriptByHash
   , getScriptsByHashes
+  , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
@@ -50,10 +50,11 @@ import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
+import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Either (Either)
 import Data.Map (Map)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -71,12 +72,12 @@ type QueryHandle =
   , getScriptsByHashes :: Array ScriptHash -> AffE (Map ScriptHash ScriptRef)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
+  , getTxMetadata :: TransactionHash -> AffE (Maybe GeneralTransactionMetadata)
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: Aff Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
   -- TODO Capture errors from all backends
   , submitTx :: Transaction -> Aff (Maybe TransactionHash)
-  , getTxByHash :: TransactionHash -> Aff (Maybe Transaction)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: Aff Ogmios.EraSummaries
   }
@@ -96,7 +97,8 @@ queryHandleForCtlBackend contractEnv backend =
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
   , getScriptsByHashes: runQueryM' <<< Kupo.getScriptsByHashes
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
-  , isTxConfirmed: runQueryM' <<< Kupo.isTxConfirmed
+  , isTxConfirmed: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
+  , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
   , utxosAt: runQueryM' <<< Kupo.utxosAt
   , getChainTip: runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
@@ -109,7 +111,6 @@ queryHandleForCtlBackend contractEnv backend =
       case result of
         SubmitTxSuccess a -> pure $ Just $ wrap a
         _ -> pure Nothing
-  , getTxByHash: runQueryM' <<< QueryM.getTxByHash <<< unwrap
   , evaluateTx: \tx additionalUtxos -> runQueryM' do
       txBytes <- liftEffect
         ( wrap <<< Serialization.toBytes <<< asOneOf <$>

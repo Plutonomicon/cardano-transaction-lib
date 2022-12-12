@@ -23,6 +23,9 @@ exports._fromBytesTransactionUnspentOutput = fromBytes(
   "TransactionUnspentOutput"
 );
 exports._fromBytesTransactionWitnessSet = fromBytes("TransactionWitnessSet");
+exports._fromBytesGeneralTransactionMetadata = fromBytes(
+  "GeneralTransactionMetadata"
+);
 exports._fromBytesNativeScript = fromBytes("NativeScript");
 exports._fromBytesMint = fromBytes("Mint");
 exports._fromBytesVRFKeyHash = fromBytes("VRFKeyHash");

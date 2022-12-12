@@ -3,13 +3,17 @@ module Ctl.Internal.QueryM.Kupo
   , getDatumsByHashes
   , getScriptByHash
   , getScriptsByHashes
+  , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
+  , isTxConfirmedAff
   , utxosAt
   ) where
 
 import Prelude
 
+import Ctl.Internal.Deserialization.Transaction (convertGeneralTransactionMetadata)
+import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Aeson
   ( class DecodeAeson
   , Aeson
@@ -53,9 +57,10 @@ import Ctl.Internal.QueryM
   , QueryM
   , handleAffjaxResponse
   )
-import Ctl.Internal.QueryM.ServerConfig (mkHttpUrl)
+import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Serialization.Address
   ( Address
+  , Slot
   , addressBech32
   , addressFromBech32
   , addressFromBytes
@@ -74,9 +79,10 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   )
-import Data.Array (null) as Array
+import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Data.Array (uncons)
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right), note)
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
@@ -90,6 +96,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (toString) as UInt
+import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as Object
@@ -150,11 +157,33 @@ getScriptsByHashes =
 
 -- FIXME: This can only confirm transactions with at least one output.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
-isTxConfirmed :: TransactionHash -> QueryM (Either ClientError Boolean)
-isTxConfirmed (TransactionHash txHash) = do
+isTxConfirmed :: TransactionHash -> QueryM (Either ClientError (Maybe Slot))
+isTxConfirmed th = do
+  config <- asks (_.kupoConfig <<< _.config)
+  liftAff $ isTxConfirmedAff config th
+
+-- Exported due to Ogmios requiring confirmations at a websocket level
+isTxConfirmedAff :: ServerConfig -> TransactionHash -> Aff (Either ClientError (Maybe Slot))
+isTxConfirmedAff config (TransactionHash txHash) = do
   let endpoint = "/matches/*@" <> byteArrayToHex txHash
-  kupoGetRequest endpoint
-    <#> map (not <<< Array.null :: Array Aeson -> _) <<< handleAffjaxResponse
+  kupoGetRequestAff config endpoint
+    <#> handleAffjaxResponse >>> map \utxos ->
+      case uncons ( utxos :: _ { created_at :: { slot_no :: Slot } } ) of
+        Just { head } -> Just head.created_at.slot_no
+        _ -> Nothing
+
+getTxMetadata :: TransactionHash -> QueryM (Either ClientError (Maybe GeneralTransactionMetadata))
+getTxMetadata txHash = runExceptT do
+  ExceptT (isTxConfirmed txHash) >>= case _ of
+    Nothing -> pure Nothing
+    Just slot -> do
+      let endpoint = "/metadata/" <> BigNum.toString (unwrap slot) <> "?transaction_id=" <> byteArrayToHex (unwrap txHash)
+      generalTxMetadatas
+        <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+      case uncons ( generalTxMetadatas :: _ { raw :: String } ) of
+        Just { head, tail: [] } ->
+          pure $ hexToByteArray head.raw >>= (fromBytes >=> convertGeneralTransactionMetadata >>> hush)
+        _ -> pure Nothing
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing
@@ -391,7 +420,12 @@ kupoGetRequest
   :: String -> QueryM (Either Affjax.Error (Affjax.Response String))
 kupoGetRequest endpoint = do
   config <- asks (_.kupoConfig <<< _.config)
-  liftAff $ Affjax.request $ Affjax.defaultRequest
+  liftAff $ kupoGetRequestAff config endpoint
+
+kupoGetRequestAff
+  :: ServerConfig -> String -> Aff (Either Affjax.Error (Affjax.Response String))
+kupoGetRequestAff config endpoint = do
+  Affjax.request $ Affjax.defaultRequest
     { method = Left GET
     , url = mkHttpUrl config <> endpoint
     , responseFormat = Affjax.ResponseFormat.string

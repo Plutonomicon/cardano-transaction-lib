@@ -61,10 +61,9 @@ import Contract.PlutusData (OutputDatum)
 import Contract.Prelude (Effect)
 import Contract.Transaction
   ( ScriptRef
-  , Transaction(Transaction)
   , TransactionHash
   , TransactionOutputWithRefScript
-  , getTxByHash
+  , getTxMetadata
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
@@ -575,16 +574,13 @@ assertTxHasMetadataImpl
   -> a
   -> ContractAssertionM Unit Unit
 assertTxHasMetadataImpl mdLabel txHash expectedMetadata = do
-  Transaction { auxiliaryData } <-
-    assertContractM (CouldNotGetTxByHash txHash) (getTxByHash txHash)
-
   generalMetadata <-
-    assertContractM' (TransactionHasNoMetadata txHash Nothing)
-      (map unwrap <<< _.metadata <<< unwrap =<< auxiliaryData)
+    assertContractM (TransactionHasNoMetadata txHash Nothing)
+      (getTxMetadata txHash)
 
   rawMetadata <-
     assertContractM' (TransactionHasNoMetadata txHash (Just mdLabel))
-      (Map.lookup (metadataLabel (Proxy :: Proxy a)) generalMetadata)
+      (Map.lookup (metadataLabel (Proxy :: Proxy a)) (unwrap generalMetadata))
 
   (metadata :: a) <-
     assertContractM' (CouldNotParseMetadata mdLabel)

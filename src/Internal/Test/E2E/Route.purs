@@ -208,14 +208,12 @@ route configs tests = do
   setClusterOptions
     { ctlServerConfig
     , ogmiosConfig
-    , datumCacheConfig
     , kupoConfig
     }
     config =
     config
       { backendParams = mkCtlBackendParams
           { ogmiosConfig: ogmiosConfig
-          , odcConfig: datumCacheConfig
           , kupoConfig: kupoConfig
           }
       , ctlServerConfig = ctlServerConfig

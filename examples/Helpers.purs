@@ -21,7 +21,6 @@ import Contract.Transaction
   , TransactionHash
   , awaitTxConfirmed
   , balanceTx
-  , getTxByHash
   , getTxFinalFee
   , signTransaction
   , submit
@@ -30,7 +29,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
 import Data.BigInt (BigInt)
-import Effect.Exception (throw)
 
 buildBalanceSignAndSubmitTx'
   :: forall (validator :: Type) (datum :: Type)
@@ -91,10 +89,5 @@ submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   awaitTxConfirmed txId
-  mbTransaction <- getTxByHash txId
-  logInfo' $ "Retrieved tx: " <> show mbTransaction
-  liftEffect $ when (isNothing mbTransaction) do
-    void $ throw "Unable to get Tx contents"
-    when (mbTransaction /= Just (unwrap bsTx)) do
-      throw "Tx contents do not match"
+  logInfo' $ "Confirmed Tx ID: " <> show txId
 

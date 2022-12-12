@@ -28,12 +28,6 @@ config =
       , secure: false
       , path: Nothing
       }
-  , ogmiosDatumCacheConfig:
-      { port: UInt.fromInt 10000
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , ctlServerConfig: Just
       { port: UInt.fromInt 8083
       , host: "127.0.0.1"

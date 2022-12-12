@@ -10,8 +10,6 @@ module Ctl.Internal.QueryM
       , ClientOtherError
       )
   , ClusterSetup
-  , DatumCacheListeners
-  , DatumCacheWebSocket
   , DefaultQueryEnv
   , ListenerSet
   , OgmiosListeners
@@ -24,7 +22,6 @@ module Ctl.Internal.QueryM
   , QueryRuntime
   , SubmitTxListenerSet
   , WebSocket(WebSocket)
-  , allowError
   , evaluateTxOgmios
   , getChainTip
   , getLogger
@@ -33,8 +30,6 @@ module Ctl.Internal.QueryM
   , handleAffjaxResponse
   , listeners
   , postAeson
-  , mkDatumCacheWebSocketAff
-  , mkDatumCacheRequest
   , mkListenerSet
   , defaultMessageListener
   , mkOgmiosRequest
@@ -49,6 +44,7 @@ module Ctl.Internal.QueryM
 
 import Prelude
 
+-- import Ctl.Internal.QueryM.Kupo (isTxConfirmed)
 import Aeson
   ( class DecodeAeson
   , Aeson
@@ -96,10 +92,6 @@ import Ctl.Internal.JsWebSocket
   , _wsSend
   )
 import Ctl.Internal.Logging (Logger, mkLogger)
-import Ctl.Internal.QueryM.DatumCacheWsp
-  ( GetTxByHashR
-  )
-import Ctl.Internal.QueryM.DatumCacheWsp as DcWsp
 import Ctl.Internal.QueryM.Dispatcher
   ( DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
   , Dispatcher
@@ -139,17 +131,14 @@ import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
-  , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
   , defaultServerConfig
   , mkHttpUrl
-  , mkOgmiosDatumCacheWsUrl
   , mkServerUrl
   , mkWsUrl
   ) as ExportServerConfig
 import Ctl.Internal.QueryM.ServerConfig
   ( ServerConfig
-  , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
@@ -171,7 +160,7 @@ import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for_, traverse_)
@@ -189,8 +178,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error, throw)
-import Effect.Ref (Ref)
+import Effect.Exception (Error, error)
 import Effect.Ref as Ref
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
@@ -204,7 +192,6 @@ import Effect.Ref as Ref
 type ClusterSetup =
   { ctlServerConfig :: Maybe ServerConfig
   , ogmiosConfig :: ServerConfig
-  , datumCacheConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , keys ::
       { payment :: PrivatePaymentKey
@@ -222,7 +209,6 @@ type ClusterSetup =
 -- | - optional custom logger
 type QueryConfig =
   { ctlServerConfig :: Maybe ServerConfig
-  , datumCacheConfig :: ServerConfig
   , ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , networkId :: NetworkId
@@ -242,7 +228,6 @@ type QueryConfig =
 -- | - Current protocol parameters
 type QueryRuntime =
   { ogmiosWs :: OgmiosWebSocket
-  , datumCacheWs :: DatumCacheWebSocket
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
   , pparams :: Ogmios.ProtocolParameters
@@ -404,19 +389,6 @@ mempoolSnapshotHasTxAff ogmiosWs logger ms =
     _.mempoolHasTx
 
 --------------------------------------------------------------------------------
--- Datum Cache Queries
---------------------------------------------------------------------------------
-
-checkTxByHashAff :: DatumCacheWebSocket -> Logger -> TxHash -> Aff Boolean
-checkTxByHashAff datumCacheWs logger =
-  mkDatumCacheRequestAff datumCacheWs logger DcWsp.getTxByHashCall _.getTxByHash
-    >>> map (unwrap >>> isJust)
-
-allowError
-  :: forall (a :: Type). (Either Error a -> Effect Unit) -> a -> Effect Unit
-allowError func = func <<< Right
-
---------------------------------------------------------------------------------
 -- Affjax
 --------------------------------------------------------------------------------
 
@@ -496,7 +468,6 @@ scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
 -- failure handling
 data WebSocket listeners = WebSocket JsWebSocket listeners
 type OgmiosWebSocket = WebSocket OgmiosListeners
-type DatumCacheWebSocket = WebSocket DatumCacheListeners
 
 -- getter
 underlyingWebSocket :: forall (a :: Type). WebSocket a -> JsWebSocket
@@ -510,25 +481,15 @@ listeners (WebSocket _ ls) = ls
 -- OgmiosWebSocket Setup and PrimOps
 --------------------------------------------------------------------------------
 
-mkDatumCacheWebSocketAff
-  :: Ref (Maybe DatumCacheWebSocket)
-  -> Logger
-  -> ServerConfig
-  -> Aff DatumCacheWebSocket
-mkDatumCacheWebSocketAff datumCacheWsRef logger serverConfig = do
-  lens <- liftEffect $ mkDatumCacheWebSocketLens logger
-  makeAff $ \continue ->
-    mkServiceWebSocket lens (mkOgmiosDatumCacheWsUrl serverConfig) \res ->
-      res # either (\_ -> continue res)
-        (\ws -> Ref.write (Just ws) datumCacheWsRef *> continue res)
+type IsTxConfirmed = TxHash -> Aff Boolean
 
 mkOgmiosWebSocketAff
-  :: Ref (Maybe DatumCacheWebSocket)
+  :: IsTxConfirmed
   -> Logger
   -> ServerConfig
   -> Aff OgmiosWebSocket
-mkOgmiosWebSocketAff datumCacheWsRef logger serverConfig = do
-  lens <- liftEffect $ mkOgmiosWebSocketLens logger datumCacheWsRef
+mkOgmiosWebSocketAff isTxConfirmed logger serverConfig = do
+  lens <- liftEffect $ mkOgmiosWebSocketLens logger isTxConfirmed
   makeAff $ mkServiceWebSocket lens (mkWsUrl serverConfig)
 
 mkServiceWebSocket
@@ -588,13 +549,13 @@ mkServiceWebSocket lens url continue = do
 -- | the request.
 resendPendingSubmitRequests
   :: OgmiosWebSocket
-  -> Ref (Maybe DatumCacheWebSocket)
+  -> IsTxConfirmed
   -> Logger
   -> (RequestBody -> Effect Unit)
   -> Dispatcher
   -> PendingSubmitTxRequests
   -> Effect Unit
-resendPendingSubmitRequests ogmiosWs odcWs logger sendRequest dispatcher pr = do
+resendPendingSubmitRequests ogmiosWs isTxConfirmed logger sendRequest dispatcher pr = do
   submitTxPendingRequests <- Ref.read pr
   unless (Map.isEmpty submitTxPendingRequests) do
     -- Acquiring a mempool snapshot should never fail and,
@@ -628,11 +589,8 @@ resendPendingSubmitRequests ogmiosWs odcWs logger sendRequest dispatcher pr = do
     retrySubmitTx <-
       if txInMempool then pure false
       else do
-        datumCacheWebSocket <- liftEffect do
-          let err = "handlePendingSubmitRequest: failed to access ODC WebSocket"
-          maybe (throw err) pure =<< Ref.read odcWs
         -- Check if the transaction was included in the block:
-        txConfirmed <- checkTxByHashAff datumCacheWebSocket logger txHash
+        txConfirmed <- isTxConfirmed txHash
         log "Tx confirmed" txConfirmed txHash
         unless txConfirmed $ liftEffect do
           sendRequest requestBody
@@ -651,7 +609,7 @@ resendPendingSubmitRequests ogmiosWs odcWs logger sendRequest dispatcher pr = do
         { "result": { "SubmitSuccess": { "txId": txHash } } }
 
 --------------------------------------------------------------------------------
--- `MkServiceWebSocketLens` for ogmios and ogmios-datum-cache
+-- `MkServiceWebSocketLens` for ogmios
 --------------------------------------------------------------------------------
 
 type MkServiceWebSocketLens (listeners :: Type) =
@@ -662,34 +620,11 @@ type MkServiceWebSocketLens (listeners :: Type) =
   , resendPendingRequests :: JsWebSocket -> Effect Unit
   }
 
-mkDatumCacheWebSocketLens
-  :: Logger -> Effect (MkServiceWebSocketLens DatumCacheListeners)
-mkDatumCacheWebSocketLens logger = do
-  dispatcher <- newDispatcher
-  pendingRequests <- newPendingRequests
-  pure $
-    let
-      datumCacheWebSocket :: JsWebSocket -> DatumCacheWebSocket
-      datumCacheWebSocket ws = WebSocket ws
-        { getTxByHash: mkListenerSet dispatcher pendingRequests
-        }
-
-      resendPendingRequests :: JsWebSocket -> Effect Unit
-      resendPendingRequests ws =
-        Ref.read pendingRequests >>= traverse_ (_wsSend ws (logger Debug))
-    in
-      { serviceName: "ogmios-datum-cache"
-      , dispatcher
-      , logger
-      , typedWebSocket: datumCacheWebSocket
-      , resendPendingRequests
-      }
-
 mkOgmiosWebSocketLens
   :: Logger
-  -> Ref (Maybe DatumCacheWebSocket)
+  -> IsTxConfirmed
   -> Effect (MkServiceWebSocketLens OgmiosListeners)
-mkOgmiosWebSocketLens logger datumCacheWebSocketRef = do
+mkOgmiosWebSocketLens logger isTxConfirmed = do
   dispatcher <- newDispatcher
   pendingRequests <- newPendingRequests
   pendingSubmitTxRequests <- newPendingRequests
@@ -727,7 +662,7 @@ mkOgmiosWebSocketLens logger datumCacheWebSocketRef = do
       resendPendingRequests ws = do
         let sendRequest = _wsSend ws (logger Debug)
         Ref.read pendingRequests >>= traverse_ sendRequest
-        resendPendingSubmitRequests (ogmiosWebSocket ws) datumCacheWebSocketRef
+        resendPendingSubmitRequests (ogmiosWebSocket ws) isTxConfirmed
           logger
           sendRequest
           dispatcher
@@ -758,10 +693,6 @@ type OgmiosListeners =
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
   , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
-  }
-
-type DatumCacheListeners =
-  { getTxByHash :: ListenerSet TxHash GetTxByHashR
   }
 
 -- convenience type for adding additional query types later
@@ -861,31 +792,6 @@ mkOgmiosRequestAff
 mkOgmiosRequestAff ogmiosWs = mkRequestAff
   (listeners ogmiosWs)
   (underlyingWebSocket ogmiosWs)
-
--- | Builds a Datum Cache request action using `QueryM`
-mkDatumCacheRequest
-  :: forall (request :: Type) (response :: Type)
-   . JsonWsp.JsonWspCall request response
-  -> (DatumCacheListeners -> ListenerSet request response)
-  -> request
-  -> QueryM response
-mkDatumCacheRequest jsonWspCall getLs inp = do
-  listeners' <- asks $ listeners <<< _.datumCacheWs <<< _.runtime
-  websocket <- asks $ underlyingWebSocket <<< _.datumCacheWs <<< _.runtime
-  mkRequest listeners' websocket jsonWspCall getLs inp
-
--- | Builds a Datum Cache request action using `Aff`
-mkDatumCacheRequestAff
-  :: forall (request :: Type) (response :: Type)
-   . DatumCacheWebSocket
-  -> Logger
-  -> JsonWsp.JsonWspCall request response
-  -> (DatumCacheListeners -> ListenerSet request response)
-  -> request
-  -> Aff response
-mkDatumCacheRequestAff datumCacheWs = mkRequestAff
-  (listeners datumCacheWs)
-  (underlyingWebSocket datumCacheWs)
 
 mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)

@@ -200,13 +200,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ogmiosDatumCacheConfig:
-      { port: fromMaybe (UInt.fromInt defaultPorts.ogmiosDatumCache)
-          options.ogmiosDatumCachePort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , ctlServerConfig: Just
       { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
           options.ctlServerPort
@@ -269,7 +262,6 @@ testPlan opts@{ tests } rt@{ wallets } =
               CtlBackend backend _ -> pure
                 { ctlServerConfig: env.ctlServerConfig
                 , ogmiosConfig: backend.ogmios.config
-                , datumCacheConfig: backend.odc.config
                 , kupoConfig: backend.kupoConfig
                 , keys:
                     { payment: keyWalletPrivatePaymentKey wallet
@@ -365,7 +357,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "testTimeout")
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
-            <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
             <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
@@ -379,8 +370,6 @@ readPorts testOptions = do
     readPortNumber "PLUTIP" testOptions.plutipPort
   ogmiosPort <-
     readPortNumber "OGMIOS" testOptions.ogmiosPort
-  ogmiosDatumCachePort <-
-    readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
   ctlServerPort <-
     readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   postgresPort <-
@@ -390,7 +379,6 @@ readPorts testOptions = do
   pure
     { plutipPort
     , ogmiosPort
-    , ogmiosDatumCachePort
     , ctlServerPort
     , postgresPort
     , kupoPort

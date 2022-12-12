@@ -13,7 +13,7 @@ module Ctl.Internal.Contract.QueryBackend
 
 import Prelude
 
-import Ctl.Internal.QueryM (DatumCacheWebSocket, OgmiosWebSocket)
+import Ctl.Internal.QueryM (OgmiosWebSocket)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 
@@ -29,10 +29,6 @@ type CtlBackend =
   { ogmios ::
       { config :: ServerConfig
       , ws :: OgmiosWebSocket
-      }
-  , odc ::
-      { config :: ServerConfig
-      , ws :: DatumCacheWebSocket
       }
   , kupoConfig :: ServerConfig
   }
@@ -60,7 +56,6 @@ data QueryBackendParams
 type CtlBackendParams =
   { ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
-  , odcConfig :: ServerConfig
   }
 
 type BlockfrostBackendParams =

@@ -42,7 +42,6 @@ with lib; {
         "network.target"
         "cardano-node.service"
         "ogmios.service"
-        "ogmios-datum-cache.service"
       ];
       serviceConfig = {
         User = cfg.user;
