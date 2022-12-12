@@ -2,7 +2,7 @@
 
 # Milestone 1 - Specification
 
-Refer to this document:
+Please refer to this document:
 
 https://docs.google.com/document/d/1QRFB4bfWFXZGnTA7i6gccgD6o5CEW660/view
 
@@ -10,7 +10,7 @@ https://docs.google.com/document/d/1QRFB4bfWFXZGnTA7i6gccgD6o5CEW660/view
 
 Tests that demonstrate stake validators support are located in [test/Plutip/Staking.purs](./test/Plutip/Staking.purs) and can be run using `npm run staking-test` from the development shell.
 
-It covers:
+The tests cover:
 
 - Registration/Deregistration of stake credentials (pubkeys, plutus and native scripts)
 - Registration/Retirement of a stake pool
@@ -20,32 +20,32 @@ It covers:
 
 # Milestone 3 - Babbage features
 
-For feature overview see our [docs](./doc/babbage-features.md).
+For feature overview see our [Babbage support docs](./doc/babbage-features.md).
 
 The following Plutip tests show support for each of the features:
 
 ## CIP-31 - Reference inputs
 
-`ReferenceInputs`
-`ReferenceInputsAndScripts`
+[`ReferenceInputs`](./test/Plutip/Contract.purs)
+[`ReferenceInputsAndScripts`](./test/Plutip/Contract.purs)
 
 ## CIP-32 - Inline datums
 
-`InlineDatum` - paying & withdrawing ADA to/from a script that uses inline datums
+[`InlineDatum`](./test/Plutip/Contract.purs) - paying & withdrawing ADA to/from a script that uses inline datums
 
 ## CIP-33 - Reference scripts
 
-`ReferenceScripts`
-`ReferenceScripts (with StakeKey, testing mustPayToScriptAddressWithScriptRef)`
-`ReferenceInputsAndScripts`
+[`ReferenceScripts`](./test/Plutip/Contract.purs)
+[`ReferenceScripts (with StakeKey, testing mustPayToScriptAddressWithScriptRef)`](./test/Plutip/Contract.purs)
+[`ReferenceInputsAndScripts`](./test/Plutip/Contract.purs)
 
 ## CIP-40 - Explicit Collateral Output (Collateral Return)
 
-`AlwaysFails Ada Collateral Return`
+[`AlwaysFails Ada Collateral Return`](./test/Plutip/Contract.purs)
 
 # Milestone 4 - Add a chain indexer and update the runtime, internal queries, and docs
 
-Chain indexer of choice is Kupo. It's can be demonstrated by its presence [in the runtime](./nix/runtime.nix) and in the [PureScript codebase](./src/Internal/QueryM/Kupo.purs).
+Chain indexer of choice is Kupo. It's inclusion can be demonstrated by its presence [in the runtime](./nix/runtime.nix) and in the [PureScript codebase](./src/Internal/QueryM/Kupo.purs).
 
 No regressions have been observed in the test suite.
 
@@ -57,6 +57,8 @@ New E2E test suite can be used out-of-the-box after performing the following ste
 2. Starting `ctl-runtime` (`nix run -L .#ctl-scaffold-runtime` in the template directory)
 3. Entering the nix shell and running `npm run e2e-serve` to serve the test contract
 4. Entering another nix shell and running `npm run e2e-test-debug` to see how the contracts are being executed in the browser (use `npm run e2e-test` to run in headless mode with test reporting only). The E2E assets will be downloaded on the first run and put to user data directory.
+
+The entry point to the public interface of the E2E test suite is located in [`Contract.Test.E2E`](./src/Contract/Test/E2E.purs) module.
 
 # Milestone 6 - Integrate CIP-30 mock wallet with Plutip and run e2e tests on CI
 
