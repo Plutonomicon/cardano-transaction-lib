@@ -140,7 +140,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Runtime Dependencies
 
-- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7 
+- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7
 - [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
 - [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.3
 - [Ogmios-Datum-Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) - commit 862c6bfcb6110b8fe816e26b3bba105dfb492b24
