@@ -41,39 +41,39 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] [`mustBeSignedBy`](../examples/BalanceTxConstraints.purs)
 - [x] [`mustHashDatum`](../examples/SatisfiesAnyOf.purs)
 - [x] [`mustIncludeDatum`](../examples/IncludeDatum.purs)
-- [ ] `mustPayToPubKeyWithDatum`
-- [ ] `mustPayToPubKeyAddressWithDatum`
+- [x] [`mustPayToPubKeyWithDatum`](../test/Plutip/Contract.purs)
+- [x] [`mustPayToPubKeyAddressWithDatum`](../test/Plutip/Contract.purs)
 - [x] [`mustProduceAtLeastTotal`](../test/MustSpendTotal.purs). Also implies
-  - [x] `mustProduceAtLeast`
-- [x] `mustSatisfyAnyOf`
-- [x] `mustSpendAtLeastTotal`. Also implies
-  - [x] `mustSpendAtLeast`
-- [x] `mustValidateIn`
+  - [x] [`mustProduceAtLeast`](../test/Plutip/Contract.purs)
+- [x] [`mustSatisfyAnyOf`](../examples/SatisfiesAnyOf.purs)
+- [x] [`mustSpendAtLeastTotal`](../test/MustSpendTotal.purs). Also implies
+  - [x] [`mustSpendAtLeast`](../test/Plutip/Contract.purs)
+- [x] [`mustValidateIn`](../test/BalanceTx/Time.purs)
 
-The following constraints were added for `PlutusV2` features as part of our `v2.0.0` release. They do not have direct correspondances in `plutus-apps`:
+The following constraints were added for `PlutusV2` features as part of our `v2.0.0` release. They do not have direct correspondences in `plutus-apps`:
 
-- [x] `mustMintCurrencyUsingScriptRef`
+- [x] [`mustMintCurrencyUsingScriptRef`](../examples/PlutusV2/ReferenceInputsAndScripts.purs)
 - [x] `mustMintCurrencyWithRedeemerUsingScriptRef`
-- [x] `mustPayToScriptWithScriptRef`
-- [x] `mustPayToScriptAddressWithScriptRef`
-- [x] `mustPayToPubKeyAddressWithDatumAndScriptRef`
-- [x] `mustPayToPubKeyAddressWithScriptRef`
-- [x] `mustPayToPubKeyWithDatumAndScriptRef`
-- [x] `mustPayToPubKeyWithScriptRef`
-- [x] `mustReferenceOutput`
-- [x] `mustSpendScriptOutputUsingScriptRef`
+- [x] [`mustPayToScriptWithScriptRef`](../examples/PlutusV2/ReferenceScripts.purs)
+- [x] [`mustPayToScriptAddressWithScriptRef`](../examples/PlutusV2/ReferenceScripts.purs)
+- [x] [`mustPayToPubKeyAddressWithDatumAndScriptRef`](../examples/Utxos.purs)
+- [x] [`mustPayToPubKeyAddressWithScriptRef`](../examples/PlutusV2/ReferenceInputsAndScripts.purs)
+- [x] [`mustPayToPubKeyWithDatumAndScriptRef`](../examples/Utxos.purs)
+- [x] [`mustPayToPubKeyWithScriptRef`](../examples/PlutusV2/ReferenceInputsAndScripts.purs)
+- [x] [`mustReferenceOutput`](../examples/PlutusV2/ReferenceInputs.purs)
+- [x] [`mustSpendScriptOutputUsingScriptRef`](../examples/PlutusV2/ReferenceInputsAndScripts.purs)
 
 That release also included the following constraints for working with native scripts, which also have no `plutus-apps` analogue:
 
-- [x] `mustPayToNativeScript`
-- [x] `mustPayToNativeScriptAddress`
-- [x] `mustSpendNativeScriptOutput`
+- [x] [`mustPayToNativeScript`](../test/Plutip/Contract.purs)
+- [x] [`mustPayToNativeScriptAddress`](../test/Plutip/Staking.purs)
+- [x] [`mustSpendNativeScriptOutput`](../test/Plutip/Contract.purs)
 
 In addition, several redeemer combinations in a **single transaction** must be covered by tests or examples as well, namely
 
-- [x] Two or more `Mint` redeemers
-- [x] Two or more `Spend` redeemers
-- [x] (At least) One each of a `Spend` and `Mint` redeemer
+- [x] [Two or more `Mint` redeemers](../examples/MintsMultipleTokens.purs)
+- [x] [Two or more `Spend` redeemers](../examples/MultipleRedeemers.purs)
+- [x] [(At least) One each of a `Spend` and `Mint` redeemer](../examples/MultipleRedeemers.purs)
 
 #### Stake operations
 

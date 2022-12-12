@@ -8,7 +8,7 @@ https://docs.google.com/document/d/1QRFB4bfWFXZGnTA7i6gccgD6o5CEW660/view
 
 # Milestone 2 - Stake validators
 
-Tests that demonstrate stake validators support are located in [test/Plutip/Staking.purs](./test/Plutip/Staking.purs) and can be run using `npm run staking-test` from the development shell, with CTL runtime running (`nix run -L .#ctl-runtime`).
+Tests that demonstrate stake validators support are located in [test/Plutip/Staking.purs](./test/Plutip/Staking.purs) and can be run using `npm run staking-test` from the development shell.
 
 It covers:
 
