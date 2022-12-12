@@ -10,6 +10,7 @@ module Ctl.Internal.BalanceTx.CoinSelection
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , _leftoverUtxos
   , performMultiAssetSelection
+  , runRoundRobinM -- Exported for tests
   , selectedInputs
   ) where
 
