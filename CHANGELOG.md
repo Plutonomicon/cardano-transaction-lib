@@ -36,6 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- Support for CIP-49 crypto primitives: SECP256k1 [ECDSA](./src/Contract/Crypto/ECDSA.purs) and [Schnorr](./src/Contract/Crypto/Schnorr.purs) (verification functions, signing and key generation) ([1273](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1273))
+
 ### Changed
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
