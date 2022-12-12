@@ -13,10 +13,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Contract.Hooks (emptyHooks)
-import Ctl.Internal.Contract.QueryBackend
-  ( QueryBackend(CtlBackend)
-  , defaultBackend
-  )
+import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
@@ -268,8 +265,8 @@ testPlan opts@{ tests } rt@{ wallets } =
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
         liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
           \env wallet -> do
-            (clusterSetup :: ClusterSetup) <- case defaultBackend env.backend of
-              CtlBackend backend -> pure
+            (clusterSetup :: ClusterSetup) <- case env.backend of
+              CtlBackend backend _ -> pure
                 { ctlServerConfig: env.ctlServerConfig
                 , ogmiosConfig: backend.ogmios.config
                 , datumCacheConfig: backend.odc.config
