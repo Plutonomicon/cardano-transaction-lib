@@ -247,7 +247,7 @@ convertTxBody txBody = do
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
   let
-    fee = Coin $ (_txBodyFee txBody # BigNum.toBigInt)
+    fee = Coin $ BigNum.toBigInt $ _txBodyFee txBody
     networkId =
       _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
 
@@ -472,8 +472,8 @@ convertProtocolParamUpdate cslPpu = do
   let
     ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
     lbl = (<>) "ProtocolParamUpdate."
-    minfeeA = map (Coin <<< BigNum.toBigInt) ppu.minfeeA
-    minfeeB = map (Coin <<< BigNum.toBigInt) ppu.minfeeB
+    minfeeA = Coin <<< BigNum.toBigInt <$> ppu.minfeeA
+    minfeeB = Coin <<< BigNum.toBigInt <$> ppu.minfeeB
   maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
     ppu.maxBlockBodySize
   maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
