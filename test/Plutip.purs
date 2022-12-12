@@ -34,7 +34,7 @@ import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
-
+ 
 -- Run with `npm run plutip-test`
 main :: Effect Unit
 main = interruptOnSignal SIGINT =<< launchAff do
@@ -53,7 +53,7 @@ testStartPlutipCluster = group "Server" do
     bracket (startPlutipServer config)
       (stopChildProcessWithPort config.port) $ const do
       checkPlutipServer config
-      _startRes <- startPlutipCluster config [ [] ]
+      _startRes <- startPlutipCluster config [[]]
       stopRes <- stopPlutipCluster config
       stopRes `shouldSatisfy` case _ of
         StopClusterSuccess -> true

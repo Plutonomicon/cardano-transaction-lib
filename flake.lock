@@ -4079,11 +4079,11 @@
         "tullia": "tullia_4"
       },
       "locked": {
-        "lastModified": 1670547099,
-        "narHash": "sha256-luBjS9e8C1eysc9aY2Tu8/NwtJnvLXugP6+SO1n0YQM=",
+        "lastModified": 1670806278,
+        "narHash": "sha256-ZoCyp125wze6hGxxvOK6upOXe5FwqFvASdVdeOOPt74=",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "c30af1b58ea60b8ed2468fd61be568a3132b0f41",
+        "rev": "baba389c42455040e0c3288d449f81043b448c3e",
         "type": "github"
       },
       "original": {
@@ -5474,7 +5474,6 @@
       "locked": {
         "lastModified": 1639165170,
         "narHash": "sha256-QsWL/sBDL5GM8IXd/dE/ORiL4RvteEN+aok23tXgAoc=",
-        "ref": "refs/heads/master",
         "rev": "6e95df7be6dd29680f983db07a057fc2f34f81f6",
         "revCount": 7,
         "type": "git",
@@ -7781,11 +7780,11 @@
     },
     "nixpkgs-2205_4": {
       "locked": {
-        "lastModified": 1670544830,
-        "narHash": "sha256-/w81/s9GbtD7iyZ5Lrpng96055zkr3xYRgEeYwA1UOo=",
+        "lastModified": 1670700605,
+        "narHash": "sha256-5dlpATkcyITpdtMflhltuD+A3RNpsVI1Mb+dtKkll6Y=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ee6eb95d9b9cced8913e44c12687bd2f336cc140",
+        "rev": "7b9eeb856cbf976482fa8d1cb295ea03fb3e1277",
         "type": "github"
       },
       "original": {
@@ -7797,11 +7796,11 @@
     },
     "nixpkgs-2211": {
       "locked": {
-        "lastModified": 1670543317,
-        "narHash": "sha256-4mMR56rtxKr+Gwz399jFr4i76SQZxsLWxxyfQlPXRm0=",
+        "lastModified": 1670758616,
+        "narHash": "sha256-4IUXGYkYqDIfi1+hEVcqohYPgBOqS525arJo792ATrQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "7a6a010c3a1d00f8470a5ca888f2f927f1860a19",
+        "rev": "b9aea6cbeb058e4b9ae210b1e69f02081dda33f6",
         "type": "github"
       },
       "original": {
@@ -9361,17 +9360,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1670612099,
-        "narHash": "sha256-R7i8B03C4DAyinhtSe1tiJ0JD77i2aozOL3aXFlaeeo=",
+        "lastModified": 1670806715,
+        "narHash": "sha256-hK71Dng3be3tGaO9uhDj2k57XeQ4hxDWufkaYTD5lQ4=",
         "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "061a6a44e4126853f98314fce6c5b44d998367b6",
+        "rev": "72dc06ad3443b0f74022b2f4a4c355f7af0b47e3",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "061a6a44e4126853f98314fce6c5b44d998367b6",
+        "rev": "72dc06ad3443b0f74022b2f4a4c355f7af0b47e3",
         "type": "github"
       }
     },
