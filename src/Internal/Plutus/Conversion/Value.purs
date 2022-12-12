@@ -2,11 +2,12 @@ module Ctl.Internal.Plutus.Conversion.Value
   ( fromPlutusValue
   , fromPlutusCoin
   , toPlutusValue
+  , toPlutusCoin
   ) where
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value)) as Types
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value), getLovelace) as Types
 import Ctl.Internal.Cardano.Types.Value
   ( NonAdaAsset
   , flattenNonAdaValue
@@ -16,7 +17,7 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.Plutus.Types.AssocMap (lookup) as Plutus.AssocMap
 import Ctl.Internal.Plutus.Types.CurrencySymbol (adaSymbol, getCurrencySymbol) as Plutus
-import Ctl.Internal.Plutus.Types.Value (Coin, Value, getLovelace) as Plutus
+import Ctl.Internal.Plutus.Types.Value (Coin(Coin), Value, getLovelace) as Plutus
 import Ctl.Internal.Plutus.Types.Value
   ( getValue
   , lovelaceValueOf
@@ -64,6 +65,9 @@ fromPlutusValue plutusValue =
 
 fromPlutusCoin :: Plutus.Coin -> Types.Coin
 fromPlutusCoin = Types.Coin <<< Plutus.getLovelace
+
+toPlutusCoin :: Types.Coin -> Plutus.Coin
+toPlutusCoin = Plutus.Coin <<< Types.getLovelace
 
 --------------------------------------------------------------------------------
 -- Types.Value -> Plutus Value

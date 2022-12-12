@@ -35,7 +35,6 @@ import Data.UInt (UInt)
 import Data.UInt (fromInt, fromString, toString) as UInt
 import Partial.Unsafe (unsafePartial)
 import Type.Row (type (+))
-import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data BigNum :: Type
 
