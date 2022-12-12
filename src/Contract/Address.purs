@@ -149,7 +149,7 @@ getWalletAddresses = getWalletAddressesGeneral Nothing
 
 -- | Get all the `Address`es of the browser wallet with pagination.
 getWalletAddressesPaginated
-  :: Paginate -> forall (r :: Row Type). Contract r (Array Address)
+  :: forall (r :: Row Type). Paginate -> Contract r (Array Address)
 getWalletAddressesPaginated paginate = getWalletAddressesGeneral $ Just paginate
 
 getWalletAddressesGeneral
