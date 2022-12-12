@@ -230,11 +230,7 @@ buildPlutipConfig options =
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.1
-      -- TODO epoch size cannot currently be changed due to 
-      -- https://github.com/mlabs-haskell/plutip/issues/149
-      , epochSize: UInt.fromInt 80
-      }
+      { slotLength: Seconds 0.1 }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
