@@ -269,7 +269,10 @@ startPlutipCluster cfg keysToGenerate = do
                 $ stringifyAeson
                 $ encodeAeson
                 $ ClusterStartupRequest
-                    { keysToGenerate }
+                    { epochSize: UInt.fromInt 80
+                    , slotLength: 0.2
+                    , keysToGenerate
+                    }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url

@@ -92,7 +92,10 @@ data InitialUTxOsWithStakeKey =
 type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
-  { keysToGenerate :: InitialUTxODistribution }
+  { epochSize :: UInt
+  , slotLength :: Number
+  , keysToGenerate :: InitialUTxODistribution
+  }
 
 derive newtype instance EncodeAeson ClusterStartupRequest
 
