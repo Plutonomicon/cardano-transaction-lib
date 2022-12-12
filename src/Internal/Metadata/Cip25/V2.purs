@@ -224,6 +224,26 @@ metadataEntryDecodeAeson policyId assetName =
     pure $
       wrap { policyId, assetName, name, image, mediaType, description, files }
 
+-- | Encode the entry's policy id to the string used as the metadata
+-- | key
+encodePolicyIdKey :: Cip25MetadataEntry -> String
+encodePolicyIdKey (Cip25MetadataEntry { policyId }) =
+  rawBytesToHex $ scriptHashToBytes $ unwrap policyId
+
+-- | Decode the CIP25 policy id key
+decodePolicyIdKey :: String -> Maybe MintingPolicyHash
+decodePolicyIdKey = map wrap <<< scriptHashFromBytes <=< hexToRawBytes
+
+-- | Encode the entry's asset name to the string used as the metadata
+-- | key
+encodeAssetNameKey :: Cip25MetadataEntry -> String
+encodeAssetNameKey (Cip25MetadataEntry { assetName }) =
+  byteArrayToHex $ getTokenName $ unwrap assetName
+
+-- | Decode the CIP25 asset name key
+decodeAssetNameKey :: String -> Maybe Cip25TokenName
+decodeAssetNameKey = map wrap <<< mkTokenName <=< hexToByteArray
+
 newtype Cip25Metadata = Cip25Metadata (Array Cip25MetadataEntry)
 
 derive instance Generic Cip25Metadata _
@@ -246,14 +266,10 @@ instance ToMetadata Cip25Metadata where
       dataEntries =
         groupEntries entries <#>
           \group ->
-            ( toMetadata <<< rawBytesToHex <<< scriptHashToBytes <<< unwrap
-                <<< _.policyId
-                <<< unwrap $ NonEmpty.head group
+            ( toMetadata $ encodePolicyIdKey $ NonEmpty.head group
             ) /\
               (toMetadata <<< toArray <<< flip map group) \entry ->
-                ( byteArrayToHex $ getTokenName $ unwrap
-                    (unwrap entry).assetName
-                ) /\ metadataEntryToMetadata entry
+                (encodeAssetNameKey entry) /\ metadataEntryToMetadata entry
       versionEntry = [ toMetadata "version" /\ toMetadata Cip25V2 ]
     in
       dataEntries <> versionEntry
@@ -275,14 +291,8 @@ instance FromMetadata Cip25Metadata where
                 MetadataMap mp2 ->
                   for (Map.toUnfoldable mp2) \(assetName /\ contents) ->
                     metadataEntryFromMetadata
-                      <$>
-                        ( map wrap $ scriptHashFromBytes =<< hexToRawBytes =<<
-                            fromMetadata key
-                        )
-                      <*>
-                        ( map wrap $ mkTokenName =<< hexToByteArray =<<
-                            fromMetadata assetName
-                        )
+                      <$> (decodePolicyIdKey =<< fromMetadata key)
+                      <*> (decodeAssetNameKey =<< fromMetadata assetName)
                       <*> pure contents
                 _ -> Nothing
     wrap <$> sequence entries
@@ -296,9 +306,9 @@ instance ToData Cip25Metadata where
           dataEntries =
             groupEntries entries <#>
               \group ->
-                toData (_.policyId <<< unwrap $ NonEmpty.head group) /\ toData
+                toData (encodePolicyIdKey $ NonEmpty.head group) /\ toData
                   ( (AssocMap.Map <<< toArray <<< flip map group) \entry ->
-                      toData ((unwrap entry).assetName) /\ metadataEntryToData
+                      toData (encodeAssetNameKey entry) /\ metadataEntryToData
                         entry
                   )
           versionEntry = [ toData "version" /\ toData Cip25V2 ]
@@ -316,8 +326,9 @@ instance FromData Cip25Metadata where
                   case assets of
                     Map mp2 ->
                       for mp2 \(assetName /\ contents) ->
-                        metadataEntryFromData <$> fromData policyId
-                          <*> fromData assetName
+                        metadataEntryFromData
+                          <$> (decodePolicyIdKey =<< fromData policyId)
+                          <*> (decodeAssetNameKey =<< fromData assetName)
                           <*> pure contents
                     _ -> Nothing
                 fromDataVersion =
