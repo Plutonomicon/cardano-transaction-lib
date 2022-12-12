@@ -26,7 +26,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , class GetWithLabel
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromInt, one, toBigIntUnsafe, zero) as BigNum
+import Ctl.Internal.Types.BigNum (fromInt, one, toBigInt, zero) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
@@ -259,7 +259,7 @@ instance ToData BigInt where
   toData = Integer
 
 instance ToData BigNum where
-  toData = toData <<< BigNum.toBigIntUnsafe
+  toData = toData <<< BigNum.toBigInt
 
 instance ToData UInt where
   toData = toData <<< uIntToBigInt

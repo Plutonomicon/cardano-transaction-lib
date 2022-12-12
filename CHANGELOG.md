@@ -40,9 +40,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
-- Internal datum conversions are now total, resulting in some datum-related Contract functions dropping the use of `Maybe`, for example `datumHash`, `convertPlutusData` (and related functions) ([#1284](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1284)).
+- Internal datum conversions are now total, resulting in some datum-related Contract functions dropping the use of `Maybe`, for example `datumHash`, `convertPlutusData` (and related functions). The same with `BigNum.toBigInt`. ([#1284](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1284)).
 
 ### Removed
+
+- `BigNum.toBigIntUnsafe` is dropped.  ([#1284](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1284)).
 
 ### Fixed
 

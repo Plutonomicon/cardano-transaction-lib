@@ -102,7 +102,7 @@ suite = do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ BigNum.fromBigInt bigInt
-          >>= BigNum.toBigInt
+          <#> BigNum.toBigInt
         res `shouldEqual` bigInt
     group "CSL <-> CTL PlutusData roundtrip tests" do
       let

@@ -9,8 +9,6 @@ module Ctl.Internal.Types.BigNum
   , mul
   , one
   , toBigInt
-  , toBigInt'
-  , toBigIntUnsafe
   , toInt
   , toInt'
   , toString
@@ -57,26 +55,17 @@ instance DecodeAeson BigNum where
       <<< fromBigInt <=< decodeAeson
 
 instance EncodeAeson BigNum where
-  encodeAeson' = encodeAeson' <<< toBigIntUnsafe
+  encodeAeson' = encodeAeson' <<< toBigInt
 
 -- Semiring cannot be implemented, because add and mul returns Maybe BigNum
 
 fromBigInt :: BigInt -> Maybe BigNum
 fromBigInt = fromString <<< BigInt.toString
 
-toBigInt :: BigNum -> Maybe BigInt
-toBigInt = BigInt.fromString <<< toString
-
-toBigIntUnsafe :: BigNum -> BigInt
-toBigIntUnsafe =
+toBigInt :: BigNum -> BigInt
+toBigInt =
   -- Converting uint64 to an arbitrary length integer should never fail.
-  unsafePartial fromJust <<< toBigInt
-
-toBigInt'
-  :: forall (r :: Row Type). String -> BigNum -> E (FromCslRepError + r) BigInt
-toBigInt' nm bn =
-  noteE (fromCslRepError (nm <> ": CSL.BigNum (" <> show bn <> ") -> BigInt "))
-    $ toBigInt bn
+  unsafePartial fromJust <<< BigInt.fromString <<< toString
 
 toInt :: BigNum -> Maybe Int
 toInt = Int.fromString <<< toString

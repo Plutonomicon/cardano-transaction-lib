@@ -124,9 +124,10 @@ convertRedeemers = extractRedeemers >>> traverse convertRedeemer
 convertRedeemer :: Redeemer -> Maybe T.Redeemer
 convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
-  index <- BigNum.toBigInt $ getRedeemerIndex redeemer
-  exUnits <- convertExUnits $ getExUnits redeemer
-  let data_ = convertPlutusData $ getRedeemerPlutusData redeemer
+  let
+    index = BigNum.toBigInt $ getRedeemerIndex redeemer
+    exUnits = convertExUnits $ getExUnits redeemer
+    data_ = convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
     { tag
     , index
@@ -142,11 +143,13 @@ convertRedeemerTag tag = case getRedeemerTagKind tag of
   3 -> Just Tag.Reward
   _ -> Nothing
 
-convertExUnits :: ExUnits -> Maybe T.ExUnits
-convertExUnits eu = do
-  mem <- BigNum.toBigInt $ getExUnitsMem eu
-  steps <- BigNum.toBigInt $ getExUnitsSteps eu
-  pure { mem, steps }
+convertExUnits :: ExUnits -> T.ExUnits
+convertExUnits eu =
+  let
+    mem = BigNum.toBigInt $ getExUnitsMem eu
+    steps = BigNum.toBigInt $ getExUnitsSteps eu
+  in
+    { mem, steps }
 
 foreign import getVkeywitnesses
   :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Vkeywitnesses

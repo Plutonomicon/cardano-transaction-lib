@@ -113,7 +113,7 @@ convertScriptRef = withScriptRef
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- BigNum.toBigInt $ getCoin value
+  let coin = BigNum.toBigInt $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -141,7 +141,7 @@ convertValue value = do
               map Map.fromFoldable
         )
     -- convert BigNum values, possibly failing
-    traverse (traverse BigNum.toBigInt) multiasset''
+    pure $ map (map BigNum.toBigInt) multiasset''
   pure
     $ T.mkValue (T.Coin coin)
     $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
