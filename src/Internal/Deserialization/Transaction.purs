@@ -480,8 +480,8 @@ convertProtocolParamUpdate cslPpu = do
   maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
     ppu.maxBlockHeaderSize
   let
-    keyDeposit = map (Coin <<< BigNum.toBigInt) ppu.keyDeposit
-    poolDeposit = map (Coin <<< BigNum.toBigInt) ppu.poolDeposit
+    keyDeposit = Coin <<< BigNum.toBigInt <$> ppu.keyDeposit
+    poolDeposit = Coin <<< BigNum.toBigInt <$> ppu.poolDeposit
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
@@ -490,11 +490,9 @@ convertProtocolParamUpdate cslPpu = do
   costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
     ppu.costModels
   let
-    maxTxExUnits = map (convertExUnits (lbl "maxTxExUnits")) ppu.maxTxExUnits
-    maxBlockExUnits = map (convertExUnits (lbl "maxBlockExUnits"))
-      ppu.maxBlockExUnits
-  maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
-    ppu.maxValueSize
+    maxTxExUnits = convertExUnits (lbl "maxTxExUnits") <$> ppu.maxTxExUnits
+    maxBlockExUnits = convertExUnits (lbl "maxBlockExUnits") <$> ppu.maxBlockExUnits
+  maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize")) ppu.maxValueSize
   pure
     { minfeeA
     , minfeeB
