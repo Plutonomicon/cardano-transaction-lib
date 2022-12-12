@@ -28,6 +28,7 @@ import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
   , cip25MetadataFixture2
   , cip25MetadataFixture3
+  , cip25MetadataFixture4
   , cip25MetadataJsonFixture1
   , cip25MetadataJsonFixture2
   , unsafeMkCip25String
@@ -84,6 +85,9 @@ suite = do
     test "MetadataType instance #3" do
       fromGeneralTxMetadata (toGeneralTxMetadata cip25MetadataFixture3)
         `shouldEqual` Just cip25MetadataFixture3
+    test "MetadataType instance #4" do
+      fromGeneralTxMetadata (toGeneralTxMetadata cip25MetadataFixture4)
+        `shouldEqual` Just cip25MetadataFixture4
     test "FromData / ToData instances #1" do
       fromData (toData cip25MetadataFixture1) `shouldEqual`
         Just cip25MetadataFixture1
@@ -93,6 +97,9 @@ suite = do
     test "FromData / ToData instances #3" do
       fromData (toData cip25MetadataFixture3) `shouldEqual`
         Just cip25MetadataFixture3
+    test "FromData / ToData instances #4" do
+      fromData (toData cip25MetadataFixture4) `shouldEqual`
+        Just cip25MetadataFixture4
     test "DecodeJson instance #1" do
       jsonFixture <- liftEffect cip25MetadataJsonFixture1
       decodeAeson jsonFixture `shouldEqual`
