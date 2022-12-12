@@ -1,7 +1,13 @@
-module Test.Ctl.Wallet.Cip30.SignData (suite) where
+module Test.Ctl.Wallet.Cip30.SignData
+  ( suite
+  , COSEKey
+  , COSESign1
+  , checkCip30SignDataResponse
+  ) where
 
 import Prelude
 
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Address
@@ -19,6 +25,7 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray (byteArrayFromIntArrayUnsafe)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes)
+import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Cip30.SignData (signData)
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey
@@ -33,7 +40,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Utils (assertTrue)
+import Test.Ctl.Utils (assertTrue, errMaybe)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt, randomSample, vectorOf)
 
@@ -54,21 +61,22 @@ type TestInput =
   , networkId :: ArbitraryNetworkId
   }
 
+type DeserializedDataSignature =
+  { coseKey :: COSEKey
+  , coseSign1 :: COSESign1
+  }
+
 testCip30SignData :: TestInput -> Aff Unit
 testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
   address <-
     privateKeysToAddress (unwrap privateKey) (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
-  { key, signature } <- liftEffect $ signData privatePaymentKey address payload
+  dataSignature <- liftEffect $ signData privatePaymentKey address payload
+  { coseKey } <- checkCip30SignDataResponse address dataSignature
 
-  coseSign1 <- liftEffect $ fromBytesCoseSign1 signature
-  coseKey <- liftEffect $ fromBytesCoseKey key
-
-  checkCoseSign1ProtectedHeaders coseSign1 address
-  checkCoseKeyHeaders coseKey
-  checkKidHeaders coseSign1 coseKey
-  liftEffect $ checkVerification coseSign1
+  assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
+    (getCoseKeyHeaderX coseKey == Just (bytesFromPublicKey publicPaymentKey))
   where
   privatePaymentKey :: PrivateKey
   privatePaymentKey = unwrap $ unwrap $ privateKey
@@ -76,8 +84,20 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
   publicPaymentKey :: PublicKey
   publicPaymentKey = publicKeyFromPrivateKey privatePaymentKey
 
-  checkCoseSign1ProtectedHeaders :: COSESign1 -> Address -> Aff Unit
-  checkCoseSign1ProtectedHeaders coseSign1 address = do
+checkCip30SignDataResponse
+  :: Address -> DataSignature -> Aff DeserializedDataSignature
+checkCip30SignDataResponse address { key, signature } = do
+  coseSign1 <- liftEffect $ fromBytesCoseSign1 signature
+  coseKey <- liftEffect $ fromBytesCoseKey key
+
+  checkCoseSign1ProtectedHeaders coseSign1
+  checkCoseKeyHeaders coseKey
+  checkKidHeaders coseSign1 coseKey
+  liftEffect $ checkVerification coseSign1 coseKey
+  pure { coseKey, coseSign1 }
+  where
+  checkCoseSign1ProtectedHeaders :: COSESign1 -> Aff Unit
+  checkCoseSign1ProtectedHeaders coseSign1 = do
     assertTrue "COSE_Sign1's alg (1) header must be set to EdDSA (-8)"
       (getCoseSign1ProtectedHeaderAlg coseSign1 == Just (-8))
 
@@ -97,9 +117,6 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
     assertTrue "COSE_Key's crv (-1) header must be set to Ed25519 (6)"
       (getCoseKeyHeaderCrv coseKey == Just (6))
 
-    assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
-      (getCoseKeyHeaderX coseKey == Just (bytesFromPublicKey publicPaymentKey))
-
   checkKidHeaders :: COSESign1 -> COSEKey -> Aff Unit
   checkKidHeaders coseSign1 coseKey =
     assertTrue
@@ -107,11 +124,14 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
       \be set to the same value"
       (getCoseSign1ProtectedHeaderKid coseSign1 == getCoseKeyHeaderKid coseKey)
 
-  checkVerification :: COSESign1 -> Effect Unit
-  checkVerification coseSign1 = do
+  checkVerification :: COSESign1 -> COSEKey -> Effect Unit
+  checkVerification coseSign1 coseKey = do
+    publicKey <-
+      errMaybe "COSE_Key's x (-2) header must be set to public key bytes"
+        (getCoseKeyHeaderX coseKey >>= (fromBytes <<< unwrap))
     sigStructBytes <- getSignedData coseSign1
     assertTrue "Signature verification failed"
-      =<< verifySignature coseSign1 publicPaymentKey sigStructBytes
+      =<< verifySignature coseSign1 publicKey sigStructBytes
 
 --------------------------------------------------------------------------------
 -- Arbitrary

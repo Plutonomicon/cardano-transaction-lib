@@ -31,6 +31,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputs as ReferenceInputsV2
 import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts as ReferenceInputsAndScriptsV2
 import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken as SendsToken
+import Ctl.Examples.SignData as SignData
 import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.TxChaining as TxChaining
 import Ctl.Examples.Utxos as Utxos
@@ -78,6 +79,7 @@ examples = Map.fromFoldable
   , "Pkh2Pkh" /\ Pkh2Pkh.contract
   , "TxChaining" /\ TxChaining.contract
   , "SendsToken" /\ SendsToken.contract
+  , "SignData" /\ SignData.contract
   , "SignMultiple" /\ SignMultiple.contract
   , "MintsMultipleTokens" /\ MintsMultipleTokens.contract
   , "OneShotMinting" /\ OneShotMinting.contract

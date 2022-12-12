@@ -1,6 +1,8 @@
 {
   description = "cardano-transaction-lib";
 
+  nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+
   inputs = {
     iohk-nix.follows = "ogmios/iohk-nix";
     haskell-nix.follows = "ogmios/haskell-nix";
@@ -12,10 +14,8 @@
       flake = false;
     };
 
-    # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    plutip.url = "github:mlabs-haskell/plutip/e7eda09acdc4776e9aecb947ce577182b77df571";
-
+    plutip.url = "github:mlabs-haskell/plutip?rev=72dc06ad3443b0f74022b2f4a4c355f7af0b47e3";
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
     kupo-nixos.inputs.kupo.follows = "kupo";
 
@@ -24,9 +24,7 @@
       flake = false;
     };
 
-    cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
-
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/ada4d2efdf7c4f308835099d0d30a91c1bd4a565";
+    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/862c6bfcb6110b8fe816e26b3bba105dfb492b24";
 
     # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
     ogmios-nixos.url = "github:mlabs-haskell/ogmios";

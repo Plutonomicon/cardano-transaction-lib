@@ -90,6 +90,7 @@ import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith, words) as String
 import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
@@ -155,8 +156,11 @@ runE2ECommand = case _ of
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
     runtime <- readBrowserRuntime Nothing browserOptions
+    extraBrowserArgs <- liftEffect $ readExtraArgs
+      browserOptions.extraBrowserArgs
     runBrowser runtime.tmpDir runtime.chromeUserDataDir runtime.browser
       runtime.wallets
+      extraBrowserArgs
   PackSettings opts -> do
     rt <- readSettingsRuntime opts
     packSettings rt.settingsArchive rt.chromeUserDataDir
@@ -225,6 +229,12 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.1
+      -- TODO epoch size cannot currently be changed due to
+      -- https://github.com/mlabs-haskell/plutip/issues/149
+      , epochSize: UInt.fromInt 80
+      }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
@@ -333,17 +343,19 @@ runBrowser
   -> ChromeUserDataDir
   -> Browser
   -> Extensions
+  -> Array BrowserArg
   -> Aff Unit
-runBrowser tmpDir chromeUserDataDir browser extensions = do
+runBrowser tmpDir chromeUserDataDir browser extensions extraBrowserArgs = do
   let
     extPath ext = tmpDir <</>> unExtensionId ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
   void $ spawnAndCollectOutput browser
-    [ "--load-extension=" <> extensionsList
-    , "--user-data-dir=" <> chromeUserDataDir
-    ]
+    ( [ "--load-extension=" <> extensionsList
+      , "--user-data-dir=" <> chromeUserDataDir
+      ] <> extraBrowserArgs
+    )
     defaultSpawnOptions
     defaultErrorReader
 
