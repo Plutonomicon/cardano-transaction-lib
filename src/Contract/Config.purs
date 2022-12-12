@@ -32,7 +32,6 @@ import Ctl.Internal.Contract.QueryBackend
   ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
   , mkBlockfrostBackendParams
   , mkCtlBackendParams
-  , mkSingletonBackendParams
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig
