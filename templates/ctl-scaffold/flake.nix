@@ -38,6 +38,7 @@
           # CTL's `applyArgs` function
           ctl.overlays.ctl-server
           ctl.overlays.runtime
+          ctl.overlays.spago
         ];
       };
 
