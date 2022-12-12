@@ -33,7 +33,6 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
-import Data.BigInt as BigInt
 import Data.Map as Map
 import Data.Set as Set
 
@@ -52,48 +51,36 @@ instance ToData SchnorrRedeemer where
 
 contract :: Contract () Unit
 contract = do
-  prepTest >>= traverse_ awaitTxConfirmed
+  prepTest >>= awaitTxConfirmed
   testSchnorr >>= awaitTxConfirmed
 
--- | Prepare the ECDSA test by locking some funds at the validator address if there is none
-prepTest :: Contract () (Maybe TransactionHash)
+-- | Prepare the ECDSA test by locking some funds at the validator address
+prepTest :: Contract () TransactionHash
 prepTest = do
   validator <- liftContractM "Caonnot get validator" getValidator
   let
     valHash = validatorHash validator
+    val = Value.lovelaceValueOf one
 
-  netId <- getNetworkId
-  valAddr <- liftContractM "cannot get validator address"
-    (validatorHashEnterpriseAddress netId valHash)
+    lookups :: Lookups.ScriptLookups Void
+    lookups = Lookups.validator validator
 
-  scriptUtxos <- utxosAt valAddr
+    constraints :: Constraints.TxConstraints Void Void
+    constraints = Constraints.mustPayToScript valHash unitDatum
+      Constraints.DatumInline
+      val
+  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  bsTx <- liftedE $ balanceTx ubTx
+  sgTx <- signTransaction bsTx
+  txId <- submit sgTx
+  logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
+  awaitTxConfirmed txId
+  logInfo' "Transaction confirmed."
 
-  if Map.isEmpty scriptUtxos then
-    do
-      let
-        val = Value.lovelaceValueOf (BigInt.fromInt 1)
-
-        lookups :: Lookups.ScriptLookups Void
-        lookups = Lookups.validator validator
-
-        constraints :: Constraints.TxConstraints Void Void
-        constraints = Constraints.mustPayToScript valHash unitDatum
-          Constraints.DatumInline
-          val
-      ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-      bsTx <- liftedE $ balanceTx ubTx
-      sgTx <- signTransaction bsTx
-      txId <- submit sgTx
-      logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
-      awaitTxConfirmed txId
-      logInfo' "Transaction confirmed."
-
-      pure $ Just txId
-  else
-    pure Nothing
+  pure txId
 
 -- | Attempt to unlock one utxo using an ECDSA signature
-testVerification :: SchnorrRedeemer → Contract () TransactionHash
+testVerification :: SchnorrRedeemer -> Contract () TransactionHash
 testVerification ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 

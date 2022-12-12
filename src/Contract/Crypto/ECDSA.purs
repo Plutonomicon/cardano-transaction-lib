@@ -46,7 +46,7 @@ import Noble.Secp256k1.ECDSA
 -- | https://github.com/cardano-foundation/CIPs/blob/master/CIP-0049/README.md
 verifyEcdsaSecp256k1Signature
   :: ECDSAPublicKey -> MessageHash -> ECDSASignature -> Boolean
-verifyEcdsaSecp256k1Signature publicKey messageHash signature = do
+verifyEcdsaSecp256k1Signature publicKey messageHash signature =
   verifyECDSA signature messageHash publicKey
 
 -- | Sign a message hash with a private key, producing a signature compatible

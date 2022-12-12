@@ -25,7 +25,6 @@ import Noble.Secp256k1.Schnorr
   , verifySchnorr
   )
 import Noble.Secp256k1.Schnorr (mkSchnorrPublicKey, unSchnorrPublicKey) as ECDSA
-import Unsafe.Coerce (unsafeCoerce)
 
 -- | Verify arbitrary binary messages signed using the Schnorr signature scheme
 -- | on the SECP256k1 curve.
@@ -34,13 +33,12 @@ import Unsafe.Coerce (unsafeCoerce)
 verifySchnorrSecp256k1Signature
   :: SchnorrPublicKey -> ByteArray -> SchnorrSignature -> Aff Boolean
 verifySchnorrSecp256k1Signature publicKey message signature =
-  verifySchnorr signature (unsafeCoerce message) publicKey
+  verifySchnorr signature (unwrap message) publicKey
 
 -- | Sign a message using Schnorr signature scheme.
-signSchnorrSecp256k1
-  :: PrivateKey -> ByteArray -> Aff SchnorrSignature
-signSchnorrSecp256k1 privateKey message = signSchnorr (unsafeCoerce message)
-  privateKey
+signSchnorrSecp256k1 :: PrivateKey -> ByteArray -> Aff SchnorrSignature
+signSchnorrSecp256k1 privateKey message =
+  signSchnorr (unwrap message) privateKey
 
 deriveSchnorrSecp256k1PublicKey :: PrivateKey -> SchnorrPublicKey
 deriveSchnorrSecp256k1PublicKey = getSchnorrPublicKey
