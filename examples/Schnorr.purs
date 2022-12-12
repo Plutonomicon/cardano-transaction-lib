@@ -51,8 +51,8 @@ instance ToData SchnorrRedeemer where
 
 contract :: Contract () Unit
 contract = do
-  prepTest >>= awaitTxConfirmed
-  testSchnorr >>= awaitTxConfirmed
+  void prepTest
+  void testSchnorr
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract () TransactionHash
@@ -75,7 +75,7 @@ prepTest = do
   txId <- submit sgTx
   logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
   awaitTxConfirmed txId
-  logInfo' "Transaction confirmed."
+  logInfo' $ "Transaction confirmed: " <> show txId
 
   pure txId
 
@@ -108,7 +108,7 @@ testVerification ecdsaRed = do
   txId <- submit sgTx
   logInfo' $ "Submitted Schnorr test verification tx: " <> show txId
   awaitTxConfirmed txId
-  logInfo' "Transaction confirmed."
+  logInfo' $ "Transaction confirmed: " <> show txId
   pure txId
 
 -- | Testing ECDSA verification function on-chain
