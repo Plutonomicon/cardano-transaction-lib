@@ -16,6 +16,8 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`](#q-im-getting-uncomputable-slot-arithmetic-transactions-validity-bounds-go-beyond-the-foreseeable-end-of-the-current-era-pasthorizon)
 - [Ecosystem](#ecosystem)
   - [Q: Why `aeson` and not `argonaut`?](#q-why-aeson-and-not-argonaut)
+- [Environment-related](#environment-related)
+  - [Q: I use wayland, the E2E browser fails on startup](#q-i-use-wayland-the-e2e-browser-fails-on-startup)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
   - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
