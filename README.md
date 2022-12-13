@@ -68,7 +68,7 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
    - This has been solved using Ogmios & Kupo
    - We will support an alternative BlockFrost backend as well in the future
 3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
-   - `ogmios-datum-cache` solves this problem
+   - `Kupo` solves this problem
 4. How do we submit the transaction?
    - This is done via browser-based light wallet integration in the browser based on CIP-30
 5. How closely should we follow Plutus' `Contract` API?

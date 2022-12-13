@@ -96,7 +96,6 @@ type ClusterPortsOptions_ (r :: Row Type) =
   ( plutipPort :: Maybe UInt
   , ogmiosPort :: Maybe UInt
   , ctlServerPort :: Maybe UInt
-  , postgresPort :: Maybe UInt
   , kupoPort :: Maybe UInt
   | r
   )
@@ -333,13 +332,11 @@ defaultPorts
      , kupo :: Int
      , ogmios :: Int
      , plutip :: Int
-     , postgres :: Int
      }
 defaultPorts =
   { plutip: 8087
   , ogmios: 1345
   , ctlServer: 8088
-  , postgres: 5438
   , kupo: 1443
   }
 
@@ -369,14 +366,6 @@ clusterPortsOptionsParser = ado
         showPort "CTL_SERVER" defaultPorts.ctlServer
     , metavar "PORT"
     ]
-  postgresPort <- option (Just <$> uintParser) $ fold
-    [ long "postgres-port"
-    , help "Postgres port for use with local Plutip cluster"
-    , value Nothing
-    , showDefaultWith $ const $
-        showPort "POSTGRES" defaultPorts.postgres
-    , metavar "PORT"
-    ]
   kupoPort <- option (Just <$> uintParser) $ fold
     [ long "kupo-port"
     , help "Kupo port for use with local Plutip cluster"
@@ -389,7 +378,6 @@ clusterPortsOptionsParser = ado
     { plutipPort
     , ogmiosPort
     , ctlServerPort
-    , postgresPort
     , kupoPort
     }
   where

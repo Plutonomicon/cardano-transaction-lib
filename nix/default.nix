@@ -128,9 +128,7 @@ let
               lists.optional withRuntime (
                 [
                   pkgs.ogmios
-                  pkgs.ogmios-datum-cache
                   pkgs.plutip-server
-                  pkgs.postgresql
                   pkgs.kupo
                 ]
                 # this package will be soon put into its own overlay, so we'll
@@ -242,7 +240,7 @@ let
   # the following required `buildInputs` available in your own package set:
   #
   #  - `ogmios`
-  #  - `ogmios-datum-cache`
+  #  - `kupo`
   #  - `plutip-server`
   #
   # If you require `ctl-server` to be present in `PATH` (e.g. because your
@@ -263,9 +261,7 @@ let
     runPursTest (
       args // {
         buildInputs = with pkgs; [
-          postgresql
           ogmios
-          ogmios-datum-cache
           plutip-server
           kupo
         ]
@@ -345,9 +341,8 @@ let
         buildInputs = with pkgs; [
           project
           nodeModules
-          postgresql
           ogmios
-          ogmios-datum-cache
+          kupo
           plutip-server
           chromium
           python38 # To serve bundled CTL
@@ -370,9 +365,7 @@ let
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
-        export OGMIOS_DATUM_CACHE_PORT=10005
         export CTL_SERVER_PORT=8088
-        export POSTGRES_PORT=5438
         export E2E_SKIP_JQUERY_DOWNLOAD=true
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 

@@ -23,8 +23,6 @@
 
   # services
 
-  services.postgresql.enable = true;
-
   services.cardano-node = {
     enable = true;
     systemdSocketActivation = true;
@@ -36,15 +34,6 @@
     enable = true;
     host = "0.0.0.0";
     nodeSocket = "/var/run/cardano-node/node.socket";
-  };
-
-  services.ogmios-datum-cache = {
-    enable = true;
-    host = "0.0.0.0";
-    useLatest = true;
-    blockSlot = 5854109;
-    blockHash = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
-    blockFilter = builtins.toJSON { const = true; };
   };
 
   services.ctl-server.enable = true;

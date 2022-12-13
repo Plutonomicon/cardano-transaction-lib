@@ -40,13 +40,6 @@ config =
       , secure: false
       , path: Nothing
       }
-  , postgresConfig:
-      { host: "127.0.0.1"
-      , port: UInt.fromInt 5433
-      , user: "ctxlib"
-      , password: "ctxlib"
-      , dbname: "ctxlib"
-      }
   , suppressLogs: true
   , customLogger: Nothing
   , hooks: emptyHooks

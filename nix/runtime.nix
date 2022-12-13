@@ -12,8 +12,7 @@ rec {
     };
     # *All* of these values are optional, and shown with their default
     # values. If you need even more customization, you can use `overideAttrs`
-    # to change the values after calling `buildCtlRuntime` (e.g. a secrets
-    # volume for the `postgres` service)
+    # to change the values after calling `buildCtlRuntime`
     node = {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
@@ -28,16 +27,6 @@ rec {
     ctlServer = {
       enable = true;
       port = 8081;
-    };
-    postgres = {
-      # User-facing port on host machine.
-      # Can be set to null in order to not bind postgres port to host.
-      # Postgres will always be accessible via `postgres:5432` from
-      # containers.
-      port = 5432;
-      user = "ctl";
-      password = "ctl";
-      db = "ctl-${network.name}";
     };
     kupo = {
       port = 1442;
@@ -171,20 +160,6 @@ rec {
                   --node-config /config/cardano-node/config.json
               ''
             ];
-          };
-        };
-        "postgres-${network.name}" = {
-          service = {
-            image = "postgres:13";
-            ports =
-              if postgres.port == null
-              then [ ]
-              else [ "${toString postgres.port}:5432" ];
-            environment = {
-              POSTGRES_USER = "${postgres.user}";
-              POSTGRES_PASSWORD = "${postgres.password}";
-              POSTGRES_DB = "${postgres.db}";
-            };
           };
         };
       } // pkgs.lib.optionalAttrs ctlServer.enable {

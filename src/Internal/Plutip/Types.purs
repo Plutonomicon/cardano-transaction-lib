@@ -6,7 +6,6 @@ module Ctl.Internal.Plutip.Types
   , InitialUTxODistribution
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
-  , PostgresConfig
   , ClusterStartupRequest(ClusterStartupRequest)
   , PrivateKeyResponse(PrivateKeyResponse)
   , ClusterStartupFailureReason
@@ -62,19 +61,9 @@ type PlutipConfig =
   -- Set this to `Nothing` to avoid spawning `ctl-server`
   , ctlServerConfig :: Maybe ServerConfig
   , kupoConfig :: ServerConfig
-  -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
-  , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
-  }
-
-type PostgresConfig =
-  { host :: String
-  , port :: UInt
-  , user :: String
-  , password :: String
-  , dbname :: String
   }
 
 type FilePath = String

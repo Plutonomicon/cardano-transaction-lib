@@ -125,7 +125,6 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | E2E+Plutip: Plutip port number                                         | `--plutip-port`             | `PLUTIP_PORT`              |
 | E2E+Plutip: Ogmios port number                                         | `--ogmios-port`             | `OGMIOS_PORT`              |
 | E2E+Plutip: CTL server port                                            | `--ctl-server-port`         | `CTL_SERVER_PORT`          |
-| E2E+Plutip: Postgres port                                              | `--postgres-port`           | `POSTGRES_PORT`            |
 | E2E+Plutip: Kupo port                                                  | `--kupo-port`               | `KUPO_PORT`                |
 
 The default configuration can be found in `test/e2e.env`.

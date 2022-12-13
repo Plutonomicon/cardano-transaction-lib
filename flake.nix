@@ -35,11 +35,8 @@
 
     cardano-wallet.url = "github:mlabs-haskell/cardano-wallet?rev=9d34b2633ace6aa32c1556d33c8c2df63dbc8f5b";
 
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/862c6bfcb6110b8fe816e26b3bba105dfb492b24";
-
-    # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
+    # ogmios nixos module (remove and replace with the above after merging and updating)
     ogmios-nixos.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache-nixos.url = "github:mlabs-haskell/ogmios-datum-cache/marton/nixos-module";
 
     cardano-node.follows = "ogmios-nixos/cardano-node";
     # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
@@ -300,8 +297,6 @@
               {
                 plutip-server =
                   inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-                ogmios-datum-cache =
-                  inputs.ogmios-datum-cache.defaultPackage.${system};
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.defaultPackage.${system};
                 buildCtlRuntime = buildCtlRuntime final;
@@ -525,11 +520,6 @@
           {
             services.ogmios.package =
               inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
-          }
-          inputs.ogmios-datum-cache-nixos.nixosModules.ogmios-datum-cache
-          {
-            services.ogmios-datum-cache.package =
-              inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache";
           }
           self.nixosModules.ctl-server
           ./nix/test-nixos-configuration.nix

@@ -22,7 +22,6 @@ import Ctl.Internal.Plutip.Types
   , InitialUTxOs
   , InitialUTxOsWithStakeKey
   , PlutipConfig
-  , PostgresConfig
   , UtxoAmount
   ) as X
 import Ctl.Internal.Plutip.Types (PlutipConfig)

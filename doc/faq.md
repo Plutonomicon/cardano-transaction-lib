@@ -51,21 +51,6 @@ Haskell's `aeson` library encodes long integers as JSON numbers, which leads to 
 
 This is because the node hasn't fully synced. The protocol parameter name changed from `coinsPerUtxoWord` to `coinsPerUtxoByte` in Babbage. CTL only supports the latest era, but Ogmios returns different protocol parameters format depending on current era of a local node.
 
-### Q: Why do I get an error from `foreign.js` when running Plutip tests locally?
-
-The most likely reason for this is that spawning the external processes from `Contract.Test.Plutip` fails. Make sure that all of the required services are on your `$PATH` (see more [here](./runtime.md); you can also set `shell.withRuntime = true;` to ensure that these are always added to your shell environment when running `nix develop`). Also, check your logs closely. You might see something like:
-
-```
-/home/me/ctl-project/output/Effect.Aff/foreign.js:532
-                throw util.fromLeft(step);
-                ^
-
-Error: Command failed: initdb /tmp/nix-shell.2AQ4vD/nix-shell.6SMFfq/6s0mchkxl6w9m3m7/postgres/data
-initdb: error: invalid locale settings; check LANG and LC_* environment variables
-```
-
-The last line is the the most important part. Postgres will fail if your locale is not configured correctly. We _could_ try to do this in the `shellHook` when creating the project `devShell`, but dealing with locales is non-trivial and could cause more issues than it solves. You can find more information online regarding this error and how to potentially solve it, for example [here](https://stackoverflow.com/questions/41956994/initdb-bin-invalid-locale-settings-check-lang-and-lc-environment-variables) and [here](https://askubuntu.com/questions/114759/warning-setlocale-lc-all-cannot-change-locale).
-
 ### How can I write my own Nix derivations using the project returned by `purescriptProject`?
 
 If the different derivation builders that `purescriptProject` gives you out-of-the-box (e.g. `runPursTest`, `bundlePursProject`, etc...) are not sufficient, you can access the compiled project (all of the original `src` argument plus the `output` directory that `purs` produces) and the generated `node_modules` using the `compiled` and `nodeModules` attributes, respectively. These can be used to write your own derivations without needing to recompile the entire project (that is, the generated output can be shared between all of your Nix components). For example:

@@ -58,7 +58,6 @@ import Ctl.Internal.Plutip.Types
   , InitialUTxODistribution
   , InitialUTxOs
   , PlutipConfig
-  , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
@@ -295,7 +294,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
   startPlutipServer'
   ourKey /\ response <- startPlutipCluster'
-  startPostgres' response
   startOgmios' response
   startKupo' response
   startMCtlServer'
@@ -343,14 +341,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (startPlutipCluster plutipCfg distrArray)
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
-
-  startPostgres' :: ClusterStartupParameters -> Aff Unit
-  startPostgres' response =
-    bracket (startPostgresServer plutipCfg.postgresConfig response)
-      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.postgresConfig.port)
-      \(process /\ workingDir /\ _) -> do
-        liftEffect $ cleanupTmpDir process workingDir
-        void $ configurePostgresServer plutipCfg.postgresConfig
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
@@ -436,7 +426,6 @@ configCheck cfg = do
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.kupoConfig.port /\ "kupo"
-      , cfg.postgresConfig.port /\ "postgres"
       ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
@@ -607,81 +596,6 @@ checkPlutipServer cfg = do
         ([ \_ _ -> pure true ])
     $ const
     $ stopPlutipCluster cfg
-
-startPostgresServer
-  :: PostgresConfig
-  -> ClusterStartupParameters
-  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
-startPostgresServer pgConfig params = do
-  tmpDir <- liftEffect tmpdir
-  randomStr <- liftEffect $ uniqueId ""
-  let
-    workingDir = tmpDir <</>> randomStr
-    databaseDir = workingDir <</>> "postgres/data"
-    postgresSocket = workingDir <</>> "postgres"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
-  sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
-  waitForStop =<< spawn "initdb"
-    [ "--locale=C", "--encoding=UTF-8", databaseDir ]
-    defaultSpawnOptions
-    Nothing
-  pgChildProcess <- spawn "postgres"
-    [ "-D"
-    , databaseDir
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-h"
-    , pgConfig.host
-    , "-k"
-    , postgresSocket
-    ]
-    defaultSpawnOptions
-    Nothing
-  pure (pgChildProcess /\ workingDir /\ sig)
-
-configurePostgresServer
-  :: PostgresConfig -> Aff Unit
-configurePostgresServer pgConfig = do
-  defaultRecovering $ waitForStop =<< spawn "psql"
-    [ "-h"
-    , pgConfig.host
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-d"
-    , "postgres"
-    , "-c"
-    , "\\q"
-    ]
-    defaultSpawnOptions
-    Nothing
-  waitForStop =<< spawn "psql"
-    [ "-h"
-    , pgConfig.host
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-d"
-    , "postgres"
-    , "-c"
-    , "CREATE ROLE " <> pgConfig.user
-        <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
-        <> pgConfig.password
-        <> "';"
-    ]
-    defaultSpawnOptions
-    Nothing
-  waitForStop =<< spawn "createdb"
-    [ "-h"
-    , pgConfig.host
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-U"
-    , pgConfig.user
-    , "-O"
-    , pgConfig.user
-    , pgConfig.dbname
-    ]
-    defaultSpawnOptions
-    Nothing
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit

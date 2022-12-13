@@ -207,13 +207,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , postgresConfig:
-      { host: "127.0.0.1"
-      , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
-      , user: "ctxlib"
-      , password: "ctxlib"
-      , dbname: "ctxlib"
-      }
   , kupoConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt defaultPorts.kupo) options.kupoPort
@@ -358,7 +351,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "ctlServerPort")
-            <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
         )
@@ -372,15 +364,12 @@ readPorts testOptions = do
     readPortNumber "OGMIOS" testOptions.ogmiosPort
   ctlServerPort <-
     readPortNumber "CTL_SERVER" testOptions.ctlServerPort
-  postgresPort <-
-    readPortNumber "POSTGRES" testOptions.postgresPort
   kupoPort <-
     readPortNumber "KUPO" testOptions.kupoPort
   pure
     { plutipPort
     , ogmiosPort
     , ctlServerPort
-    , postgresPort
     , kupoPort
     }
   where

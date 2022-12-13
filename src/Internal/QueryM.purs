@@ -44,7 +44,6 @@ module Ctl.Internal.QueryM
 
 import Prelude
 
--- import Ctl.Internal.QueryM.Kupo (isTxConfirmed)
 import Aeson
   ( class DecodeAeson
   , Aeson
