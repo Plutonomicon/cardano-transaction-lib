@@ -181,9 +181,9 @@ getWalletCollateral = do
        `InsufficientTxInputs` error.
        The snippet (`sufficientUtxos`) below prevents this by taking the first
        N UTxO's returned by `getCollateral`, such that their total Ada value
-       is greater than or equal to 3 Ada.
+       is greater than or equal to 5 Ada.
     -}
-    targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 3_000_000
+    targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
     utxoValue u = (unwrap (unwrap u).output).amount
     sufficientUtxos = mbCollateralUTxOs <#> \colUtxos ->
       foldl

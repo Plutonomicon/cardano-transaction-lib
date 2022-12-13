@@ -44,8 +44,8 @@ rec {
       controlApiToken = "";
       blockFetcher = {
         firstBlock = {
-          slot = 13478367;
-          id = "f576ef654ff68f93b2554cce4d0691d4ce3b0a0e8742e5ba71a55b8b";
+          slot = 1345203;
+          id = "8f027f183cc72dc90d4cdb8b5815deaef4b57d5a10f078ebfce87cadf9cae688";
         };
         autoStart = true;
         startFromLast = false;
