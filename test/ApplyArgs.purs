@@ -15,8 +15,18 @@ import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Server (stopChildProcessWithPort)
-import Ctl.Internal.Plutip.Spawn (ManagedProcess, NewOutputAction(NoOp, Success), spawn)
-import Ctl.Internal.QueryM (ClientError(ClientEncodingError), handleAffjaxResponse, mkHttpUrl, postAeson, scriptToAeson)
+import Ctl.Internal.Plutip.Spawn
+  ( ManagedProcess
+  , NewOutputAction(NoOp, Success)
+  , spawn
+  )
+import Ctl.Internal.QueryM
+  ( ClientError(ClientEncodingError)
+  , handleAffjaxResponse
+  , mkHttpUrl
+  , postAeson
+  , scriptToAeson
+  )
 import Ctl.Internal.Serialization (toBytes) as Serialization
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
@@ -96,7 +106,7 @@ applyArgsOld a = liftAff <<< applyArgsAux a
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
--- | 
+-- |
 -- | Spawns the ctl server that does argument application on haskell side
 applyArgsAux
   :: PlutusScript

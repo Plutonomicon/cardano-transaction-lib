@@ -3,7 +3,7 @@
 -- | wrappers over `ScriptHash`.
 module Contract.Scripts
   ( module ApplyArgs
-  , module ExportQueryM -- TODO: Does this need to be exported? 
+  , module ExportQueryM -- TODO: Does this need to be exported?
   , module ExportScripts
   , module Hash
   , module NativeScript
@@ -12,7 +12,7 @@ module Contract.Scripts
   , module X
   ) where
 
-import Ctl.Internal.ApplyArgs (ApplyArgsError(..), applyArgs) as ApplyArgs
+import Ctl.Internal.ApplyArgs (ApplyArgsError(ApplyArgsError), applyArgs) as ApplyArgs
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey

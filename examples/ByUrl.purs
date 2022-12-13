@@ -36,12 +36,12 @@ import Ctl.Examples.Wallet as Wallet
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint, MockLode)
   )
-import Test.Ctl.ApplyArgs as ApplyArgs
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import Test.Ctl.ApplyArgs as ApplyArgs
 
 main :: Effect Unit
 main = do
