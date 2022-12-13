@@ -8,7 +8,9 @@ exports._getUtxos = maybe => conn => () =>
 const getCollateral = conn =>
   conn.getCollateral !== undefined
     ? conn.getCollateral
-    : conn.experimental.getCollateral;
+    : // This should be removed once Nami implements `getCollateral` outside of
+      // `experimental`.
+      conn.experimental.getCollateral;
 
 exports._getCollateral = maybe => conn => () =>
   getCollateral(conn)().then(utxos =>
