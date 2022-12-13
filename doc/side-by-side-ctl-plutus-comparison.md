@@ -24,7 +24,7 @@ The current definition of `Contract` in CTL is :
 
 ```PureScript
 type ContractEnv =
-  { -- Internal type holding holding connections to backend services, ledger
+  { -- Internal type holding connections to backend services, ledger
     -- constants which are fixed during contract evaluation, and user defined
     -- values like the choice of wallet and logger.
   }
