@@ -17,7 +17,10 @@ import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction (TransactionInput)
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.OneShotMinting (mkContractWithAssertions, mkOneShotMintingPolicy)
+import Ctl.Examples.OneShotMinting
+  ( mkContractWithAssertions
+  , mkOneShotMintingPolicy
+  )
 import Effect.Exception (error)
 
 main :: Effect Unit

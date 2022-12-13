@@ -12,6 +12,7 @@ module Contract.Scripts
   , module X
   ) where
 
+import Ctl.Internal.ApplyArgs (ApplyArgsError(..), applyArgs) as ApplyArgs
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -59,4 +60,3 @@ import Ctl.Internal.Types.TypedValidator
   , typedValidatorHash
   , typedValidatorScript
   ) as TypedValidator
-import Ctl.Internal.ApplyArgs (applyArgs, ApplyArgsError(..)) as ApplyArgs

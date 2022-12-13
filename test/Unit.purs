@@ -7,6 +7,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
+import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
@@ -38,7 +39,6 @@ import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
-import Test.Ctl.ApplyArgs as ApplyArgs
 
 -- Run with `spago test --main Test.Ctl.Unit`
 main :: Effect Unit
