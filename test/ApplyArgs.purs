@@ -1,4 +1,4 @@
-module Test.ApplyArgs (main) where
+module Test.Ctl.ApplyArgs (suite, main) where
 
 import Contract.Prelude
 
@@ -12,10 +12,10 @@ import Contract.Transaction (plutusV1Script)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.IncludeDatum (only42Script)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Ctl.Internal.ApplyArgs (applyArgsWithErrors)
+import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
-import Data.Array (zipWith)
 import Data.BigInt (fromInt)
+import Data.List.Lazy (replicate)
 import Mote (group, test)
 
 contractApply ∷ Array PlutusData → Contract () Validator → Contract () Unit
@@ -25,7 +25,7 @@ contractApply params loadScript = do
   log $ show script
   eapplied1 <- Scripts.applyArgs script params
   log $ show eapplied1
-  let mapplied2 = applyArgsWithErrors script params
+  let mapplied2 = applyArgs script params
   log $ show mapplied2
   applied1 <- either throwContractError pure eapplied1
   applied2 <- either (throwContractError) pure mapplied2
@@ -36,7 +36,7 @@ contractApply params loadScript = do
 
 contractInvalidApply :: PlutusScript -> Array PlutusData -> Contract () Unit
 contractInvalidApply script param  = do 
-  case applyArgsWithErrors script param of 
+  case applyArgs script param of 
     Left _ -> pure unit
     _ -> throwContractError "Accident"
 
@@ -57,12 +57,13 @@ suite =
       [n 4, n 5],
       [un],
       [n 7, List [un, bytes]],
-      [bytes],
+      [bytes, longBytes],
       [Map [(n 5 /\ n 7), (bytes /\ n 8)]]
     ]
     n k = toData (fromInt k)
     un = toData unit
     bytes = Bytes $ hexToByteArrayUnsafe "4d5f" 
+    longBytes = Bytes $ hexToByteArrayUnsafe $ foldl (\x y -> x <> y) ""  $ replicate 65 "4d" 
 
 main ∷ Effect Unit
 main = do 
