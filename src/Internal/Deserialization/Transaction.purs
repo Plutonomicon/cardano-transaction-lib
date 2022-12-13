@@ -261,7 +261,7 @@ convertTxBody txBody = do
     (map <<< map) (M.fromFoldable <<< map (lmap T.RewardAddress))
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
-        (pure <<< BigNum.toBigInt >>> Coin)
+        (BigNum.toBigInt >>> Coin >>> pure)
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
