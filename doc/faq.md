@@ -28,7 +28,7 @@ Error: Remote host not found
 URL: https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20220224/packages.dhall
 ```
 
-means that CTL overlay hasn't been properly applied. Add `cardano-transaction-lib.overlays.spago`.
+means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago`.
 
 ## Common Contract execution problems
 
