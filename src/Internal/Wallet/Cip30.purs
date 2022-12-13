@@ -8,10 +8,8 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
-import Contract.Prelude (liftEither)
-import Control.Alt (alt, (<|>))
-import Control.Apply (lift2)
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError, try)
+import Control.Alt ((<|>))
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
 import Ctl.Internal.Cardano.Types.Transaction
@@ -156,17 +154,8 @@ hexStringToAddress =
 -- | Returns `Nothing` if no collateral is available.
 getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
 getCollateral conn = do
-  mbUtxoStrs <- toAffE $ getCip30Collateral
+  mbUtxoStrs <- toAffE $ _getCollateral maybeFfiHelper conn
   liftEffect $ (for mbUtxoStrs $ traverse txOutputFromHexString)
-  where
-  getCip30Collateral =
-    ( _getCollateral maybeFfiHelper conn
-        `effectAlt` _getCollateralViaExperimental maybeFfiHelper conn
-    ) `catchError` \_ -> throwError $ error
-      "Wallet doesn't implement `getCollateral`."
-
-  effectAlt :: forall a. Effect a -> Effect a -> Effect a
-  effectAlt a b = join $ liftEither <$> lift2 alt (try a) (try b)
 
 getCollateralYoroi
   :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
@@ -271,16 +260,6 @@ foreign import _getCollateralYoroi
   :: MaybeFfiHelper
   -> Cip30Connection
   -> Effect (Promise (Maybe (Array String)))
-
--- getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
--- getCip30Collateral conn =
---   ( _getCollateral maybeFfiHelper conn
---       `effectAlt` _getCollateralViaExperimental maybeFfiHelper conn
---   ) `catchError` \_ -> throwError $ error
---     "Wallet doesn't implement `getCollateral`."
---   where
---   effectAlt :: forall a. Effect a -> Effect a -> Effect a
---   effectAlt a b = join $ liftEither <$> lift2 alt (try a) (try b)
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 

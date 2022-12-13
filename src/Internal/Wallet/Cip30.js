@@ -5,6 +5,16 @@ exports._getNetworkId = conn => () => conn.getNetworkId();
 exports._getUtxos = maybe => conn => () =>
   conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
 
+const getCollateral = conn =>
+  conn.getCollateral !== undefined
+    ? conn.getCollateral
+    : conn.experimental.getCollateral;
+
+exports._getCollateral = maybe => conn => () =>
+  getCollateral(conn)().then(utxos =>
+    utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
+  );
+
 exports._getCollateralViaExperimental = maybe => conn => () =>
   conn.experimental
     .getCollateral()
