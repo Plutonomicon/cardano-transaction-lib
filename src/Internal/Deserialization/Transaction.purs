@@ -500,6 +500,11 @@ convertProtocolParamUpdate cslPpu = do
     ppu.maxBlockExUnits
   maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
     ppu.maxValueSize
+  collateralPercentage <- traverse
+    (cslNumberToUInt (lbl "collateralPercentage"))
+    ppu.collateralPercentage
+  maxCollateralInputs <- traverse (cslNumberToUInt (lbl "maxCollateralInputs"))
+    ppu.maxCollateralInputs
   pure
     { minfeeA
     , minfeeB
@@ -521,6 +526,8 @@ convertProtocolParamUpdate cslPpu = do
     , maxTxExUnits
     , maxBlockExUnits
     , maxValueSize
+    , collateralPercentage
+    , maxCollateralInputs
     }
 
 convertNonce :: Csl.Nonce -> T.Nonce
@@ -706,6 +713,8 @@ foreign import _unpackProtocolParamUpdate
      , maxTxExUnits :: Maybe Csl.ExUnits
      , maxBlockExUnits :: Maybe Csl.ExUnits
      , maxValueSize :: Maybe Number
+     , collateralPercentage :: Maybe Number
+     , maxCollateralInputs :: Maybe Number
      }
 
 foreign import _unpackCostModels

@@ -321,6 +321,8 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , maxBlockExUnits: Just
             { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
         , maxValueSize: Just $ UInt.fromInt 1
+        , collateralPercentage: Just $ UInt.fromInt 1
+        , maxCollateralInputs: Just $ UInt.fromInt 1
         }
     ]
 

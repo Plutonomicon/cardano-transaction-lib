@@ -19,6 +19,7 @@ module Ctl.Internal.Serialization
 
 import Prelude
 
+import Contract.Metadata (TransactionMetadatum(..))
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
@@ -470,6 +471,16 @@ foreign import ppuSetMaxValueSize
   -> Int
   -> Effect Unit
 
+foreign import ppuSetCollateralPercentage
+  :: ProtocolParamUpdate
+  -> Int
+  -> Effect Unit
+
+foreign import ppuSetMaxCollateralInputs
+  :: ProtocolParamUpdate
+  -> Int
+  -> Effect Unit
+
 foreign import newProposedProtocolParameterUpdates
   :: ContainerHelper
   -> Array (GenesisHash /\ ProtocolParamUpdate)
@@ -580,6 +591,8 @@ convertProtocolParamUpdate
   , maxTxExUnits
   , maxBlockExUnits
   , maxValueSize
+  , collateralPercentage
+  , maxCollateralInputs
   } = do
   ppu <- newProtocolParamUpdate
   for_ minfeeA $ ppuSetMinfeeA ppu
@@ -627,6 +640,8 @@ convertProtocolParamUpdate
   for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
   for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
+  for_ collateralPercentage $ UInt.toInt >>> ppuSetCollateralPercentage ppu
+  for_ maxCollateralInputs $ UInt.toInt >>> ppuSetMaxCollateralInputs ppu
   pure ppu
 
 mkUnitInterval
