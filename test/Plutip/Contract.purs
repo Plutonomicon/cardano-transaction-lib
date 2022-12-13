@@ -28,7 +28,7 @@ import Contract.PlutusData
   , Redeemer(Redeemer)
   , getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashesWithError
+  , getDatumsByHashesWithErrors
   )
 import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
@@ -702,7 +702,7 @@ suite = do
           , mkDatumHash
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
-        logInfo' <<< show =<< getDatumsByHashesWithError
+        logInfo' <<< show =<< getDatumsByHashesWithErrors
           [ mkDatumHash
               "777093fe6dfffdb3bd2033ad71745f5e2319589e36be4bc9c8cca65ac2bfeb8f"
           , mkDatumHash
@@ -763,17 +763,17 @@ suite = do
             traverse datumHash datums
 
           actualDatums1 <- getDatumsByHashes hashes
-          actualDatums1 `shouldEqual` Just
+          actualDatums1 `shouldEqual`
             ( Map.fromFoldable
                 [ hash1 /\ datum1
                 , hash2 /\ datum2
                 ]
             )
-          actualDatums2 <- getDatumsByHashesWithError hashes
-          actualDatums2 `shouldEqual` Right
+          actualDatums2 <- getDatumsByHashesWithErrors hashes
+          actualDatums2 `shouldEqual`
             ( Map.fromFoldable
-                [ hash1 /\ datum1
-                , hash2 /\ datum2
+                [ hash1 /\ Right datum1
+                , hash2 /\ Right datum2
                 ]
             )
 

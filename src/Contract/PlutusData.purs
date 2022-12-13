@@ -5,7 +5,7 @@
 module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
-  , getDatumsByHashesWithError
+  , getDatumsByHashesWithErrors
   , module DataSchema
   , module Datum
   , module Hashing
@@ -23,6 +23,7 @@ module Contract.PlutusData
 import Prelude
 
 import Contract.Monad (Contract)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
 import Ctl.Internal.FromData
@@ -96,10 +97,11 @@ import Ctl.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Data.Bifunctor (lmap)
-import Data.Either (Either, hush)
+import Data.Either (Either(Left, Right), hush)
 import Data.Map (Map)
-import Data.Maybe (Maybe)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Tuple (Tuple(Tuple))
 import Effect.Aff.Class (liftAff)
 
 -- | Retrieve the full resolved datum associated to a given datum hash.
@@ -110,19 +112,19 @@ getDatumByHash dataHash = do
 
 -- | Retrieve full resolved datums associated with given datum hashes.
 -- | The resulting `Map` will only contain datums that have been successfully
--- | resolved. This function returns `Nothing` in case of an error during
--- | response processing (bad HTTP code or response parsing error).
-getDatumsByHashes :: Array DataHash -> Contract (Maybe (Map DataHash Datum))
-getDatumsByHashes hashes = do
-  queryHandle <- getQueryHandle
-  liftAff $ hush <$> queryHandle.getDatumsByHashes hashes
+-- | resolved.
+getDatumsByHashes :: Array DataHash -> Contract (Map DataHash Datum)
+getDatumsByHashes hashes =
+  Map.mapMaybe hush <$> getDatumsByHashesWithErrors hashes
 
 -- | Retrieve full resolved datums associated with given datum hashes.
--- | The resulting `Map` will only contain datums that have been successfully
--- | resolved.
-getDatumsByHashesWithError
-  :: Array DataHash -> Contract (Either String (Map DataHash Datum))
-getDatumsByHashesWithError hashes = do
+-- | Errors are returned per datum.
+getDatumsByHashesWithErrors
+  :: Array DataHash -> Contract (Map DataHash (Either String Datum))
+getDatumsByHashesWithErrors hashes = do
   queryHandle <- getQueryHandle
-  liftAff $ lmap show <$> queryHandle.getDatumsByHashes hashes
-
+  liftAff $ Map.fromFoldable <$> flip parTraverse hashes
+    \dh -> queryHandle.getDatumByHash dh <#> Tuple dh <<< case _ of
+      Right (Just datum) -> Right datum
+      Right Nothing -> Left "Datum not found"
+      Left err -> Left $ show err

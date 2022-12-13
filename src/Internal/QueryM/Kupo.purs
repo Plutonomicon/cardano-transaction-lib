@@ -1,6 +1,5 @@
 module Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
-  , getDatumsByHashes
   , getScriptByHash
   , getScriptsByHashes
   , getTxMetadata
@@ -136,13 +135,6 @@ getDatumByHash (DataHash dataHashBytes) = do
   let endpoint = "/datums/" <> byteArrayToHex dataHashBytes
   kupoGetRequest endpoint
     <#> map unwrapKupoDatum <<< handleAffjaxResponse
-
-getDatumsByHashes
-  :: Array DataHash -> QueryM (Either ClientError (Map DataHash Datum))
-getDatumsByHashes =
-  runExceptT
-    <<< map (Map.catMaybes <<< Map.fromFoldable)
-    <<< parTraverse (\dh -> Tuple dh <$> ExceptT (getDatumByHash dh))
 
 getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do

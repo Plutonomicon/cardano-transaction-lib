@@ -31,7 +31,6 @@ import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
-  , getDatumsByHashes
   , getScriptByHash
   , getScriptsByHashes
   , getTxMetadata
@@ -67,7 +66,6 @@ type AffE (a :: Type) = Aff (Either ClientError a)
 
 type QueryHandle =
   { getDatumByHash :: DataHash -> AffE (Maybe Datum)
-  , getDatumsByHashes :: Array DataHash -> AffE (Map DataHash Datum)
   , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
   , getScriptsByHashes :: Array ScriptHash -> AffE (Map ScriptHash ScriptRef)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
@@ -93,7 +91,6 @@ getQueryHandle = ask <#> \contractEnv ->
 queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
 queryHandleForCtlBackend contractEnv backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
-  , getDatumsByHashes: runQueryM' <<< Kupo.getDatumsByHashes
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
   , getScriptsByHashes: runQueryM' <<< Kupo.getScriptsByHashes
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref

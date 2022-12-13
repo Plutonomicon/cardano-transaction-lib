@@ -186,7 +186,6 @@ mkContractEnv params = do
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
-      -- Use the default backend to fetch ledger constants
       ledgerConstants <- getLedgerConstants logger backend
       pure $ merge { backend, ledgerConstants }
     b2 <- parallel do
@@ -232,6 +231,7 @@ buildBackend logger = case _ of
       , kupoConfig
       }
 
+-- | Query for the ledger constants, ideally using the main backend
 getLedgerConstants
   :: Logger
   -> QueryBackend
