@@ -16,7 +16,7 @@
 
     ogmios.url = "github:mlabs-haskell/ogmios/3b229c1795efa30243485730b78ea053992fdc7a";
 
-    plutip.url = "github:mlabs-haskell/plutip?rev=de8a2a29cd9f5f36e700c5eea3291073a9857024";
+    plutip.url = "github:mlabs-haskell/plutip?rev=1a25bf1e7dab83c9d5344592fcf5b7ac13225569";
 
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
     kupo-nixos.inputs.kupo.follows = "kupo";
