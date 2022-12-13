@@ -67,7 +67,6 @@ run-ci-actions:
 	nix build -L .#hydraJobs.x86_64-linux.ctl-staking-test
 	nix build -L .#hydraJobs.x86_64-linux.examples-imports-check
 
-
 clean:
 	@ rm -rf dist-newstyle || true
 	@ rm -r .psc-ide-port || true
