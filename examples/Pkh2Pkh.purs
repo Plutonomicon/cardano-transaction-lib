@@ -10,10 +10,12 @@ import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (awaitTxConfirmedWithTimeout)
+import Contract.Transaction
+  ( awaitTxConfirmedWithTimeout
+  , submitTxFromConstraints
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.Array (head)
 import Data.BigInt as BigInt
 
@@ -36,7 +38,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"
