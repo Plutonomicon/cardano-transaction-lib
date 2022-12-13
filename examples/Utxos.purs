@@ -24,6 +24,7 @@ import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , awaitTxConfirmed
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
@@ -31,8 +32,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
@@ -96,7 +96,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp0 <> Lookups.unspentOutputs utxos
 
-  txHash <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"
 

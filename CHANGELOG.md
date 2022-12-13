@@ -11,11 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - [Changed](#changed)
   - [Removed](#removed)
   - [Fixed](#fixed)
+  - [Runtime-Dependencies](#runtime-dependencies)
 - [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Removed](#removed-1)
   - [Fixed](#fixed-1)
+  - [Runtime-Dependencies](#runtime-dependencies-1)
 - [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-2)
   - [Changed](#changed-2)
@@ -35,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ## [Unreleased]
 
 ### Added
+- NuFi wallet support ([#1265](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1265))
+
+* Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` build a transaction that satisfies the constraints, then submit it to the network. It is analog for `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
 
 ### Changed
 
@@ -47,6 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Added missing `stakePoolTargetNum` ("`nOpt`") protocol parameter (see [CIP-9](https://cips.cardano.org/cips/cip9/)) ([#571](https://github.com/Plutonomicon/cardano-transaction-lib/issues/571))
 - CIP-30 `signData` response handling ([#1289](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1289))
+
+### Runtime Dependencies
 
 ## [3.0.0] - 2022-11-21
 
@@ -129,6 +136,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Fix wallet extension error terminating the whole test suite ([#1209](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1209))
 - Now we can process multiple time constraints ([#1124](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1124))
 - E2E test suite didn't apply settings archive CLI option properly ([#1254](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1254))
+
+### Runtime Dependencies
+
+- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7 
+- [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
+- [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.3
+- [Ogmios-Datum-Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) - commit 862c6bfcb6110b8fe816e26b3bba105dfb492b24
+- [Plutip](https://github.com/mlabs-haskell/plutip) - commit 1c9dd05697d7cf55de8ca26f0756a75ed821bdfb
 
 ## [2.0.0] - 2022-09-12
 
