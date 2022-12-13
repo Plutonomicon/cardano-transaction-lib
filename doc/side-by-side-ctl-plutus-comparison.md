@@ -12,7 +12,6 @@ both of them.
 
 - [About `Contract` in CTL and Plutus](#about-contract-in-ctl-and-plutus)
 - [Contract comparison](#contract-comparison)
-  - [Signature and submit](#signature-and-submit)
   - [MustPayTo functions](#mustpayto-functions)
   - [The `give` contract](#the-give-contract)
   - [The `grab` contract](#the-grab-contract)
