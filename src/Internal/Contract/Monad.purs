@@ -51,9 +51,9 @@ import Ctl.Internal.QueryM
   , mkOgmiosWebSocketAff
   , underlyingWebSocket
   )
+import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
-import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)

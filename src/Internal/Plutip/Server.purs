@@ -617,6 +617,7 @@ stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
       unless isAvailable do
         liftEffect $ throw "retry"
   liftEffect $ removeOnSignal sig
+
 mkClusterContractEnv
   :: PlutipConfig
   -> Logger

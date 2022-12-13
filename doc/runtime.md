@@ -10,6 +10,7 @@ In order to run CTL's `Contract` effects, several services are required. These c
   - [Using NixOS module](#using-nixos-module)
   - [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
   - [Changing network configurations](#changing-network-configurations)
+- [Blockfrost Backend](#blockfrost-backend)
 - [Wallet requirements](#wallet-requirements)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->

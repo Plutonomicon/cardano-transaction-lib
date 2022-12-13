@@ -12,8 +12,6 @@ module Ctl.Internal.QueryM.Kupo
 
 import Prelude
 
-import Ctl.Internal.Deserialization.Transaction (convertGeneralTransactionMetadata)
-import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Aeson
   ( class DecodeAeson
   , Aeson
@@ -52,6 +50,9 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
+import Ctl.Internal.Deserialization.Transaction
+  ( convertGeneralTransactionMetadata
+  )
 import Ctl.Internal.QueryM
   ( ClientError(ClientOtherError)
   , QueryM
@@ -66,6 +67,7 @@ import Ctl.Internal.Serialization.Address
   , addressFromBytes
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
@@ -163,26 +165,33 @@ isTxConfirmed th = do
   liftAff $ isTxConfirmedAff config th
 
 -- Exported due to Ogmios requiring confirmations at a websocket level
-isTxConfirmedAff :: ServerConfig -> TransactionHash -> Aff (Either ClientError (Maybe Slot))
+isTxConfirmedAff
+  :: ServerConfig -> TransactionHash -> Aff (Either ClientError (Maybe Slot))
 isTxConfirmedAff config (TransactionHash txHash) = do
   let endpoint = "/matches/*@" <> byteArrayToHex txHash
   kupoGetRequestAff config endpoint
     <#> handleAffjaxResponse >>> map \utxos ->
-      case uncons ( utxos :: _ { created_at :: { slot_no :: Slot } } ) of
+      case uncons (utxos :: _ { created_at :: { slot_no :: Slot } }) of
         Just { head } -> Just head.created_at.slot_no
         _ -> Nothing
 
-getTxMetadata :: TransactionHash -> QueryM (Either ClientError (Maybe GeneralTransactionMetadata))
+getTxMetadata
+  :: TransactionHash
+  -> QueryM (Either ClientError (Maybe GeneralTransactionMetadata))
 getTxMetadata txHash = runExceptT do
   ExceptT (isTxConfirmed txHash) >>= case _ of
     Nothing -> pure Nothing
     Just slot -> do
-      let endpoint = "/metadata/" <> BigNum.toString (unwrap slot) <> "?transaction_id=" <> byteArrayToHex (unwrap txHash)
-      generalTxMetadatas
-        <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
-      case uncons ( generalTxMetadatas :: _ { raw :: String } ) of
+      let
+        endpoint = "/metadata/" <> BigNum.toString (unwrap slot)
+          <> "?transaction_id="
+          <> byteArrayToHex (unwrap txHash)
+      generalTxMetadatas <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest
+        endpoint
+      case uncons (generalTxMetadatas :: _ { raw :: String }) of
         Just { head, tail: [] } ->
-          pure $ hexToByteArray head.raw >>= (fromBytes >=> convertGeneralTransactionMetadata >>> hush)
+          pure $ hexToByteArray head.raw >>=
+            (fromBytes >=> convertGeneralTransactionMetadata >>> hush)
         _ -> pure Nothing
 
 --------------------------------------------------------------------------------
@@ -423,7 +432,9 @@ kupoGetRequest endpoint = do
   liftAff $ kupoGetRequestAff config endpoint
 
 kupoGetRequestAff
-  :: ServerConfig -> String -> Aff (Either Affjax.Error (Affjax.Response String))
+  :: ServerConfig
+  -> String
+  -> Aff (Either Affjax.Error (Affjax.Response String))
 kupoGetRequestAff config endpoint = do
   Affjax.request $ Affjax.defaultRequest
     { method = Left GET

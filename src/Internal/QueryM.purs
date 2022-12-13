@@ -554,7 +554,13 @@ resendPendingSubmitRequests
   -> Dispatcher
   -> PendingSubmitTxRequests
   -> Effect Unit
-resendPendingSubmitRequests ogmiosWs isTxConfirmed logger sendRequest dispatcher pr = do
+resendPendingSubmitRequests
+  ogmiosWs
+  isTxConfirmed
+  logger
+  sendRequest
+  dispatcher
+  pr = do
   submitTxPendingRequests <- Ref.read pr
   unless (Map.isEmpty submitTxPendingRequests) do
     -- Acquiring a mempool snapshot should never fail and,
