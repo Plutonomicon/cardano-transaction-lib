@@ -6,6 +6,7 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
+import Mote (skip)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
@@ -47,7 +48,7 @@ main = launchAff_ do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
-  ApplyArgs.suite
+  skip ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite
   Base64.suite

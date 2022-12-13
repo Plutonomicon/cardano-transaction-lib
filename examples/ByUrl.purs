@@ -36,6 +36,7 @@ import Ctl.Examples.Wallet as Wallet
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint, MockLode)
   )
+import Test.Ctl.ApplyArgs as ApplyArgs
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
@@ -84,4 +85,5 @@ examples = Map.fromFoldable
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
+  -- , "ApplyArgs" /\ ApplyArgs.contract
   ]

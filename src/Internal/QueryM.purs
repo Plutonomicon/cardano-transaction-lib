@@ -192,7 +192,6 @@ import Ctl.Internal.Serialization.Address
   , baseAddressFromAddress
   , stakeCredentialToKeyHash
   )
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain

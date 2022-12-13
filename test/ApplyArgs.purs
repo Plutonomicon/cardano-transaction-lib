@@ -1,4 +1,4 @@
-module Test.Ctl.ApplyArgs (suite, main) where
+module Test.Ctl.ApplyArgs (suite, main, contract) where
 
 import Contract.Prelude
 
@@ -31,6 +31,9 @@ import Foreign.Object as Object
 import Mote (group, test)
 import Node.ChildProcess (defaultSpawnOptions)
 import Untagged.Union (asOneOf)
+
+contract ∷ Contract () Unit
+contract = liftEffect main
 
 contractApply ∷ Array PlutusData → Contract () Validator → Contract () Unit
 contractApply params loadScript = do
