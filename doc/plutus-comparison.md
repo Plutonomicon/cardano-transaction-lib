@@ -5,18 +5,22 @@ This document outlines the core differences between CTL and Plutus (particularly
 Note that differences between Haskell and Purescript, while also relevant to such a comparison, is beyond the scope of this document unless such differences have a direct bearing on divergences between the two CTL and Plutus.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Core conceptual differences](#core-conceptual-differences)
-  + [Library vs. process](#library-vs-process)
-  + [The `Contract` type](#the--contract--type)
+  - [Library vs. process](#library-vs-process)
+  - [The `Contract` type](#the-contract-type)
 - [API differences](#api-differences)
-  + [Constraints and lookups](#constraints-and-lookups)
+  - [Transaction manipulation API](#transaction-manipulation-api)
+  - [Constraints and lookups](#constraints-and-lookups)
     - [Babbage-era constraints](#babbage-era-constraints)
-  + [Typed scripts](#typed-scripts)
-  + [Working with scripts](#working-with-scripts)
+  - [Typed scripts](#typed-scripts)
+  - [Working with scripts](#working-with-scripts)
     - [Using scripts from the frontend](#using-scripts-from-the-frontend)
     - [Applying arguments to parameterized scripts](#applying-arguments-to-parameterized-scripts)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Core conceptual differences
 
 ### Library vs. process
@@ -63,6 +67,12 @@ In contrast to the free-monad approach used by Plutus, CTL's `Contract` has uses
 Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `Contract` actions defined by the library signal failure in various ways (e.g. returning `Either`s, `Maybe`s, or in the case of unrecoverable errors, throwing exceptions). Standardizing our error-handling approach is on our roadmap for future releases, however, most likely with a standardized error type containing polymorphic variants so that users may freely extend existing errors in the `Contract` interface.
 
 ## API differences
+
+### Transaction manipulation API
+
+| Plutus                      | CTL                           |
+| --------------------------- | ----------------------------- |
+| `submitTxConstraintsWith`   | `submitTxFromConstraints`     |
 
 ### Constraints and lookups
 
