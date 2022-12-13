@@ -30,6 +30,19 @@ This is probably because npm is used directly. This is something users have repo
 
 You can prevent `npm` from ever installing to local `node_modules` by enabling the `packageLockOnly` flag in the `shell` argument to `purescriptProject`. When enabled, `npm i` will always act as if the `--package-lock-only` flag has been passed. This is not enabled by default, but we recommend enabling it.
 
+### Q: I see `spago: Error: Remote host not found`, why?
+
+An error like this one:
+
+```
+spago:
+Error: Remote host not found
+
+URL: https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20220224/packages.dhall
+```
+
+means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago`.
+
 ## Common Contract execution problems
 
 ### Q: What are the common reasons behind InsufficientTxInputs error?
