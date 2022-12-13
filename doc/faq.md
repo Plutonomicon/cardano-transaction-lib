@@ -3,12 +3,25 @@
 This document lists common problems encountered by CTL users and developers.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Bundling-related](#bundling-related)
+  - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
+- [Common Contract execution problems](#common-contract-execution-problems)
+  - [Q: What are the common reasons behind InsufficientTxInputs error?](#q-what-are-the-common-reasons-behind-insufficienttxinputs-error)
 - [Time-related](#time-related)
+  - [Q: Time-related functions behave strangely, what's the reason?](#q-time-related-functions-behave-strangely-whats-the-reason)
+  - [Q: Time/slot conversion functions return `Nothing`. Why is that?](#q-timeslot-conversion-functions-return-nothing-why-is-that)
+  - [Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`](#q-im-getting-uncomputable-slot-arithmetic-transactions-validity-bounds-go-beyond-the-foreseeable-end-of-the-current-era-pasthorizon)
 - [Ecosystem](#ecosystem)
+  - [Q: Why `aeson` and not `argonaut`?](#q-why-aeson-and-not-argonaut)
 - [Miscellaneous](#miscellaneous)
+  - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
+  - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
+  - [How can I write my own Nix derivations using the project returned by `purescriptProject`?](#how-can-i-write-my-own-nix-derivations-using-the-project-returned-by-purescriptproject)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Bundling-related
 
 ### Q: `lib.something` is not a function, why?
@@ -16,6 +29,19 @@ This document lists common problems encountered by CTL users and developers.
 This is probably because npm is used directly. This is something users have reported when using `npm install` instead of having Nix manage the node dependencies (done automatically with `nix develop`, but if you have `node_modules` present in the working directory it will shadow the ones from the Nix store).
 
 You can prevent `npm` from ever installing to local `node_modules` by enabling the `packageLockOnly` flag in the `shell` argument to `purescriptProject`. When enabled, `npm i` will always act as if the `--package-lock-only` flag has been passed. This is not enabled by default, but we recommend enabling it.
+
+### Q: I see `spago: Error: Remote host not found`, why?
+
+An error like this one:
+
+```
+spago:
+Error: Remote host not found
+
+URL: https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20220224/packages.dhall
+```
+
+means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago`.
 
 ## Common Contract execution problems
 
