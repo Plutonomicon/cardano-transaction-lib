@@ -474,7 +474,7 @@ startPlutipCluster
 startPlutipCluster cfg keysToGenerate = do
   let
     url = mkServerEndpointUrl cfg "start"
-    -- TODO epoch size cannot currently be changed due to 
+    -- TODO epoch size cannot currently be changed due to
     -- https://github.com/mlabs-haskell/plutip/issues/149
     epochSize = UInt.fromInt 80
   res <- do

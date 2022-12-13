@@ -54,8 +54,7 @@ testStartPlutipCluster = group "Server" do
     bracket (startPlutipServer config)
       (stopChildProcessWithPort config.port) $ const do
       checkPlutipServer config
-      _startRes <- startPlutipCluster config
-        [ [ BigInt.fromInt 2_000_000_000 ] ]
+      _startRes <- startPlutipCluster config [ [] ]
       stopRes <- stopPlutipCluster config
       stopRes `shouldSatisfy` case _ of
         StopClusterSuccess -> true
