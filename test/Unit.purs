@@ -9,7 +9,7 @@ import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
-import Test.Ctl.CoinSelection.UtxoIndex as UtxoIndex
+import Test.Ctl.CoinSelection as CoinSelection
 import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
 import Test.Ctl.Deserialization as Deserialization
@@ -80,4 +80,4 @@ testPlan = do
       <*> Types.Interval.systemStartFixture
   E2E.Route.suite
   MustSpendTotal.suite
-  UtxoIndex.suite
+  CoinSelection.suite

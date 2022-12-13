@@ -535,6 +535,9 @@ derive instance Generic AssetClass _
 derive instance Eq AssetClass
 derive instance Ord AssetClass
 
+instance Arbitrary AssetClass where
+  arbitrary = AssetClass <$> arbitrary <*> arbitrary
+
 instance Show AssetClass where
   show = genericShow
 

@@ -54,6 +54,7 @@ import Data.BigInt (BigInt)
 import Data.BigInt (abs, fromInt, toString) as BigInt
 import Data.Foldable (foldMap) as Foldable
 import Data.Function (applyFlipped)
+import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view, (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -64,9 +65,12 @@ import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable) as Set
+import Data.Show.Generic (genericShow)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Gen (elements) as Arbitrary
 import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
@@ -95,6 +99,11 @@ import Type.Proxy (Proxy(Proxy))
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L325
 data SelectionStrategy = SelectionStrategyOptimal | SelectionStrategyMinimal
+
+instance Arbitrary SelectionStrategy where
+  arbitrary =
+    Arbitrary.elements $
+      NEArray.cons' SelectionStrategyOptimal [ SelectionStrategyMinimal ]
 
 -- | Performs a coin selection using the specified selection strategy.
 -- |
@@ -150,7 +159,12 @@ newtype SelectionState = SelectionState
   , selectedUtxos :: UtxoMap
   }
 
+derive instance Generic SelectionState _
 derive instance Newtype SelectionState _
+derive instance Eq SelectionState
+
+instance Show SelectionState where
+  show = genericShow
 
 _leftoverUtxos :: Lens' SelectionState UtxoIndex
 _leftoverUtxos = _Newtype <<< prop (Proxy :: Proxy "leftoverUtxos")
