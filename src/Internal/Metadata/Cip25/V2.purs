@@ -143,7 +143,10 @@ instance DecodeAeson Cip25V2 where
       2 -> pure Cip25V2
       _ -> Left $ TypeMismatch "Cip25V2"
 
--- Why not an instance of ToMetadata?
+-- Note: this is not an instance of `ToMetadata` to prevent confusion
+-- between `Cip25Metadata` and `Cip25MetadataEntry` (the users do not
+-- need to deal with data-representations of a single entry, because
+-- the standard only specifies the encoding for Cip25Metadata).
 metadataEntryToMetadata :: Cip25MetadataEntry -> TransactionMetadatum
 metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata $
   [ "name" /\ anyToMetadata entry.name
