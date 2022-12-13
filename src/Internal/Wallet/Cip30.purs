@@ -3,6 +3,7 @@ module Ctl.Internal.Wallet.Cip30
   , Cip30Wallet
   , DataSignature
   , mkCip30WalletAff
+  , getCollateralYoroi
   ) where
 
 import Prelude
@@ -47,7 +48,6 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import Data.Function (on)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -152,28 +152,39 @@ hexStringToAddress =
   ((addressFromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes)
 
 -- | Get collateral using CIP-30 `getCollateral` method.
--- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
--- | is available.
+-- | Throws on `Promise` rejection by wallet or conversion failure.
+-- | Returns `Nothing` if no collateral is available.
 getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
 getCollateral conn = do
-  mbUtxoStrs <- toAffE $ getCip30Collateral conn
-  let
-    (mbUtxoBytes :: Maybe (Array RawBytes)) =
-      join $ map (traverse hexToRawBytes) mbUtxoStrs
-  -- de-serialize UTxOs
-  liftEffect $ for mbUtxoBytes \collateralUtxos -> do
-    for collateralUtxos \bytes -> do
-      maybe (throw "Unable to convert UTxO") pure =<<
-        Deserialization.UnspentOuput.convertUnspentOutput
-          <$> fromBytesEffect (unwrap bytes)
+  mbUtxoStrs <- toAffE $ getCip30Collateral
+  liftEffect $ (for mbUtxoStrs $ traverse txOutputFromHexString)
+  where
+  getCip30Collateral =
+    ( _getCollateral maybeFfiHelper conn
+        `effectAlt` _getCollateralViaExperimental maybeFfiHelper conn
+    ) `catchError` \_ -> throwError $ error
+      "Wallet doesn't implement `getCollateral`."
+
+  effectAlt :: forall a. Effect a -> Effect a -> Effect a
+  effectAlt a b = join $ liftEither <$> lift2 alt (try a) (try b)
+
+getCollateralYoroi
+  :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+getCollateralYoroi conn = do
+  mbUtxoStrs <- toAffE $ _getCollateralYoroi maybeFfiHelper conn
+  liftEffect $ (for mbUtxoStrs $ traverse txOutputFromHexString)
+
+-- | Converts a hexadecimal string to a `TransactionUnspentOutput`,
+-- | lifting any conversion failures into an error in the `Effect` monad.
+txOutputFromHexString :: String -> Effect TransactionUnspentOutput
+txOutputFromHexString str = maybe (throw "Unable to convert UTxO") pure $
+  hexToRawBytes str >>= unwrap >>> fromBytes >>=
+    Deserialization.UnspentOuput.convertUnspentOutput
 
 getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
   mArrayStr <- toAffE $ _getUtxos maybeFfiHelper conn
-  liftEffect $ for mArrayStr $ traverse \str -> do
-    liftMaybe (error "Unable to convert UTxO") $
-      hexToRawBytes str >>= unwrap >>> fromBytes >>=
-        Deserialization.UnspentOuput.convertUnspentOutput
+  liftEffect $ (for mArrayStr $ traverse txOutputFromHexString)
 
 signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
 signTx conn tx = do
@@ -256,15 +267,20 @@ foreign import _getCollateral
   -> Cip30Connection
   -> Effect (Promise (Maybe (Array String)))
 
-getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
-getCip30Collateral conn =
-  ( _getCollateralViaExperimental maybeFfiHelper conn
-      `effectAlt` _getCollateral maybeFfiHelper conn
-  ) `catchError` \_ -> throwError $ error
-    "Wallet doesn't implement `getCollateral`."
-  where
-  effectAlt :: forall a. Effect a -> Effect a -> Effect a
-  effectAlt a b = join $ liftEither <$> lift2 alt (try a) (try b)
+foreign import _getCollateralYoroi
+  :: MaybeFfiHelper
+  -> Cip30Connection
+  -> Effect (Promise (Maybe (Array String)))
+
+-- getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
+-- getCip30Collateral conn =
+--   ( _getCollateral maybeFfiHelper conn
+--       `effectAlt` _getCollateralViaExperimental maybeFfiHelper conn
+--   ) `catchError` \_ -> throwError $ error
+--     "Wallet doesn't implement `getCollateral`."
+--   where
+--   effectAlt :: forall a. Effect a -> Effect a -> Effect a
+--   effectAlt a b = join $ liftEither <$> lift2 alt (try a) (try b)
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 

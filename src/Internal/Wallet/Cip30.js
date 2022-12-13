@@ -14,7 +14,16 @@ exports._getCollateralViaExperimental = maybe => conn => () =>
 
 exports._getCollateral = maybe => conn => () =>
   conn
-    .getCollateral(5000000)
+    .getCollateral()
+    .then(utxos =>
+      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
+    );
+
+// Yoroi wallet requires an explicit amount as argument to `getCollateral` and
+// needs it in the form of `getCollateral(amount)`.
+exports._getCollateralYoroi = maybe => conn => () =>
+  conn
+    .getCollateral(3000000)
     .then(utxos =>
       utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
     );
@@ -22,8 +31,6 @@ exports._getCollateral = maybe => conn => () =>
 exports._getBalance = conn => () => conn.getBalance();
 
 exports._getAddresses = conn => () => conn.getUsedAddresses();
-
-//.catch(e => {console.log(e);return Promise.reject(e)});
 
 exports._getUnusedAddresses = conn => () => conn.getUnusedAddresses();
 

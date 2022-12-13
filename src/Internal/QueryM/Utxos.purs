@@ -10,7 +10,6 @@ module Ctl.Internal.QueryM.Utxos
 
 import Prelude
 
-import Contract.Prelude (log)
 import Control.Monad.Reader (withReaderT)
 import Control.Monad.Reader.Trans (ReaderT, asks)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
@@ -22,11 +21,9 @@ import Ctl.Internal.Cardano.Types.Value (geq, lovelaceValueOf) as Value
 import Ctl.Internal.Helpers as Helpers
 import Ctl.Internal.QueryM
   ( QueryM
-  , actionBasedOnWallet
   , callCip30Wallet
   , getNetworkId
   , getWalletAddresses
-  , withMWallet
   )
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
 import Ctl.Internal.Serialization.Address (Address)
@@ -35,6 +32,7 @@ import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed)
 import Ctl.Internal.Wallet
   ( Wallet(Gero, Nami, Flint, Lode, Eternl, Yoroi, NuFi, KeyWallet)
   )
+import Ctl.Internal.Wallet.Cip30 (getCollateralYoroi)
 import Data.Array (cons, foldMap, head)
 import Data.Array as Array
 import Data.BigInt as BigInt
@@ -158,7 +156,7 @@ getWalletCollateral = do
       Flint wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Lode wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       Eternl wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
-      Yoroi wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
+      Yoroi wallet -> liftAff $ getCollateralYoroi wallet.connection
       NuFi wallet -> liftAff $ callCip30Wallet wallet _.getCollateral
       KeyWallet kw -> do
         networkId <- getNetworkId
@@ -198,7 +196,6 @@ getWalletCollateral = do
 
   for_ sufficientUtxos \collateralUTxOs -> do
     pparams <- asks $ _.runtime >>> _.pparams
-    liftEffect $ log $ show pparams
     let
       tooManyCollateralUTxOs =
         UInt.fromInt (Array.length collateralUTxOs) >
