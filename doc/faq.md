@@ -83,21 +83,21 @@ We are aware of two error messages that can be show to you if you are using wayl
 <details>
   <summary>You can get something like this if you try to open the e2e browser</summary>
 
-    10 silly lifecycle cardano-transaction-lib@3.0.0~e2e-browser: Args: [
-    10 silly lifecycle   '-c',
-    10 silly lifecycle   "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'"
-    10 silly lifecycle ]
-    11 silly lifecycle cardano-transaction-lib@3.0.0~e2e-browser: Returned: code: 1  signal: null
-    12 info lifecycle cardano-transaction-lib@3.0.0~e2e-browser: Failed to exec e2e-browser script
-    13 verbose stack Error: cardano-transaction-lib@3.0.0 e2e-browser: `source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'`
-    13 verbose stack Exit status 1
-    13 verbose stack     at EventEmitter.<anonymous> (/nix/store/lrvrir70n3966jybpjqw91smhcwlyn00-nodejs-14.20.0/lib/node_modules/npm/node_modules/npm-lifecycle/index.js:332:16)
-    13 verbose stack     at EventEmitter.emit (events.js:400:28)
-    13 verbose stack     at ChildProcess.<anonymous> (/nix/store/lrvrir70n3966jybpjqw91smhcwlyn00-nodejs-14.20.0/lib/node_modules/npm/node_modules/npm-lifecycle/lib/spawn.js:55:14)
-    13 verbose stack     at ChildProcess.emit (events.js:400:28)
-    13 verbose stack     at maybeClose (internal/child_process.js:1088:16)
-    13 verbose stack     at Process.ChildProcess._handle.onexit (internal/child_process.js:296:5)
-    14 verbose pkgid cardano-transaction-lib@3.0.0
+    cardano-transaction-lib@3.0.0~e2e-browser: Args: [
+      '-c',
+      "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'"
+    ]
+    cardano-transaction-lib@3.0.0~e2e-browser: Returned: code: 1  signal: null
+    cardano-transaction-lib@3.0.0~e2e-browser: Failed to exec e2e-browser script
+    Error: cardano-transaction-lib@3.0.0 e2e-browser: `source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'`
+    Exit status 1
+        at EventEmitter.<anonymous> (/nix/store/lrvrir70n3966jybpjqw91smhcwlyn00-nodejs-14.20.0/lib/node_modules/npm/node_modules/npm-lifecycle/index.js:332:16)
+        at EventEmitter.emit (events.js:400:28)
+        at ChildProcess.<anonymous> (/nix/store/lrvrir70n3966jybpjqw91smhcwlyn00-nodejs-14.20.0/lib/node_modules/npm/node_modules/npm-lifecycle/lib/spawn.js:55:14)
+        at ChildProcess.emit (events.js:400:28)
+        at maybeClose (internal/child_process.js:1088:16)
+        at Process.ChildProcess._handle.onexit (internal/child_process.js:296:5)
+    pkgid cardano-transaction-lib@3.0.0
 </details>
 
 <details>
@@ -107,8 +107,8 @@ We are aware of two error messages that can be show to you if you are using wayl
     ✗ plutip:http://localhost:4008/?plutip-nami-mock:OneShotMinting:
 
       Error: Failed to launch the browser process!
-    [76104:76104:1207/234245.704016:ERROR:ozone_platform_x11.cc(238)] Missing X server or $DISPLAY
-    [76104:76104:1207/234245.704036:ERROR:env.cc(255)] The platform failed to initialize.  Exiting.
+    Missing X server or $DISPLAY
+    The platform failed to initialize.  Exiting.
 </details>
 
 If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. You can use the `--extra-browser-args` argument for this, as in `e2e-test browser --extra-browser-args="--ozone-platform=wayland"` or the `E2E_EXTRA_BROWSER_ARGS` environment variable.
