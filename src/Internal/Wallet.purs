@@ -101,17 +101,17 @@ foreign import _name :: String -> Effect String
 foreign import _icon :: String -> Effect String
 
 mkWalletAff :: WalletExtension -> Aff Wallet
-mkWalletAff walletExtension =
+mkWalletAff walletExtension = do
   case walletExtension of
-    NamiWallet -> Nami <$> mkCip30WalletAff "Nami" (_enableWallet walletName)
-    GeroWallet -> Gero <$> mkCip30WalletAff "Gero" (_enableWallet walletName)
-    EternlWallet -> Eternl <$> mkCip30WalletAff "Eternl"
+    NamiWallet -> Nami <$> mkCip30WalletAff (_enableWallet walletName)
+    GeroWallet -> Gero <$> mkCip30WalletAff (_enableWallet walletName)
+    EternlWallet -> Eternl <$> mkCip30WalletAff
       (_enableWallet walletName)
-    FlintWallet -> Flint <$> mkCip30WalletAff "Flint"
+    FlintWallet -> Flint <$> mkCip30WalletAff
       (_enableWallet walletName)
     LodeWallet -> _mkLodeWalletAff
-    YoroiWallet -> Yoroi <$> mkCip30WalletAff "Yoroi" (_enableWallet walletName)
-    NuFiWallet -> Yoroi <$> mkCip30WalletAff "NuFi" (_enableWallet walletName)
+    YoroiWallet -> Yoroi <$> mkCip30WalletAff (_enableWallet walletName)
+    NuFiWallet -> NuFi <$> mkCip30WalletAff (_enableWallet walletName)
   where
   walletName = walletExtensionToName walletExtension
 
@@ -202,7 +202,7 @@ _mkLodeWalletAff = do
   retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
     $ liftEffect (isWalletAvailable LodeWallet)
   catchError
-    (Lode <$> mkCip30WalletAff "Lode" (_enableWallet "LodeWallet"))
+    (Lode <$> mkCip30WalletAff (_enableWallet "LodeWallet"))
     ( \e -> throwError <<< error $ (show e) <>
         " Note: LodeWallet is injected asynchronously and may be unreliable."
     )

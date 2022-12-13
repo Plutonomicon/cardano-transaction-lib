@@ -93,16 +93,12 @@ type Cip30Wallet =
   }
 
 mkCip30WalletAff
-  :: String
-  -- ^ Name of the wallet for error messages
-  -> Effect (Promise Cip30Connection)
+  :: Effect (Promise Cip30Connection)
   -- ^ A function to get wallet connection
   -> Aff Cip30Wallet
-mkCip30WalletAff walletName enableWallet = do
+mkCip30WalletAff enableWallet = do
   wallet <- toAffE enableWallet
   -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral wallet) do
-    liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
     , getNetworkId
@@ -242,11 +238,6 @@ foreign import _getNetworkId
   -> Effect (Promise Int)
 
 foreign import _getUtxos
-  :: MaybeFfiHelper
-  -> Cip30Connection
-  -> Effect (Promise (Maybe (Array String)))
-
-foreign import _getCollateralViaExperimental
   :: MaybeFfiHelper
   -> Cip30Connection
   -> Effect (Promise (Maybe (Array String)))

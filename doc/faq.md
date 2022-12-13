@@ -8,6 +8,7 @@ This document lists common problems encountered by CTL users and developers.
 
 - [Bundling-related](#bundling-related)
   - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
+  - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
   - [Q: What are the common reasons behind InsufficientTxInputs error?](#q-what-are-the-common-reasons-behind-insufficienttxinputs-error)
 - [Time-related](#time-related)

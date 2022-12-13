@@ -5,29 +5,15 @@ exports._getNetworkId = conn => () => conn.getNetworkId();
 exports._getUtxos = maybe => conn => () =>
   conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
 
-const getCollateral = conn =>
+const myGetCollateral = conn =>
   conn.getCollateral !== undefined
     ? conn.getCollateral
     : conn.experimental.getCollateral;
 
 exports._getCollateral = maybe => conn => () =>
-  getCollateral(conn)().then(utxos =>
+  myGetCollateral(conn)().then(utxos =>
     utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
   );
-
-exports._getCollateralViaExperimental = maybe => conn => () =>
-  conn.experimental
-    .getCollateral()
-    .then(utxos =>
-      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
-    );
-
-exports._getCollateral = maybe => conn => () =>
-  conn
-    .getCollateral()
-    .then(utxos =>
-      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
-    );
 
 // Yoroi wallet requires an explicit amount as argument to `getCollateral` and
 // needs it in the form of `getCollateral(amount)`.
