@@ -19,7 +19,6 @@ module Ctl.Internal.Serialization
 
 import Prelude
 
-import Contract.Metadata (TransactionMetadatum(..))
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
