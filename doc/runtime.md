@@ -26,12 +26,6 @@ The services that are currently **required** are:
   - This is required to query for datums, which Ogmios itself does not support
   - This in turn requires a PostgreSQL DB
 
-Optional services:
-
-- [Our Haskell server](../server/README.md)
-  - We hope to deprecate this in the future, but we use it at the moment to apply arguments to Plutus scripts, which is hard to implement on front-end.
-  - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
-
 ### Using NixOS module
 
 `ctl-server` and its dependencies can be configured and started via NixOS modules. See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and [../nix/ctl-server-nixos-module.nix](../nix/ctl-server-nixos-module.nix) for module options.

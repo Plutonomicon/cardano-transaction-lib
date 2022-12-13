@@ -124,8 +124,7 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 |------------------------------------------------------------------------|-----------------------------|----------------------------|
 | E2E+Plutip: Plutip port number                                         | `--plutip-port`             | `PLUTIP_PORT`              |
 | E2E+Plutip: Ogmios port number                                         | `--ogmios-port`             | `OGMIOS_PORT`              |
-| E2E+Plutip: ODC port number                                            | `--ogmios-datum-cache-port` | `OGMIOS_DATUM_CACHE_PORT`  |
-| E2E+Plutip: CTL server port                                            | `--ctl-server-port`         | `CTL_SERVER_PORT`          |
+| E2E+Plutip: ODC port number                                            | `--ogmios-datum-cache-port` | `OGMIOS_DATUM_CACHE_PORT`  |          |
 | E2E+Plutip: Postgres port                                              | `--postgres-port`           | `POSTGRES_PORT`            |
 | E2E+Plutip: Kupo port                                                  | `--kupo-port`               | `KUPO_PORT`                |
 
