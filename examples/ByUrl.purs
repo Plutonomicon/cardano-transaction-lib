@@ -85,5 +85,5 @@ examples = Map.fromFoldable
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
-  , "ApplyArgs" /\ ApplyArgs.contract
+  -- , "ApplyArgs" /\ ApplyArgs.contract
   ]
