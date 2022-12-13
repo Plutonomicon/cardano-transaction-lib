@@ -65,7 +65,6 @@ import Ctl.Internal.QueryM
   , WebSocket
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , liftQueryM
   , mkDatumCacheWebSocketAff
   , mkHttpUrl
@@ -241,7 +240,6 @@ asksConfig f = do
 type ConfigParams (r :: Row Type) =
   { ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
-  , ctlServerConfig :: Maybe ServerConfig
   , kupoConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
@@ -294,8 +292,7 @@ mkContractEnv
   -> Aff (ContractEnv r)
 mkContractEnv
   params@
-    { ctlServerConfig
-    , ogmiosConfig
+    { ogmiosConfig
     , datumCacheConfig
     , kupoConfig
     , networkId
@@ -307,8 +304,7 @@ mkContractEnv
     } = do
   let
     config =
-      { ctlServerConfig
-      , ogmiosConfig
+      { ogmiosConfig
       , datumCacheConfig
       , kupoConfig
       , networkId
@@ -349,8 +345,7 @@ withContractEnv
   -> Aff a
 withContractEnv
   params@
-    { ctlServerConfig
-    , ogmiosConfig
+    { ogmiosConfig
     , datumCacheConfig
     , kupoConfig
     , networkId
@@ -366,8 +361,7 @@ withContractEnv
   let
     config :: QueryConfig
     config =
-      { ctlServerConfig
-      , ogmiosConfig
+      { ogmiosConfig
       , datumCacheConfig
       , kupoConfig
       , networkId

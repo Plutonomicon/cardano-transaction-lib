@@ -16,21 +16,10 @@ import Contract.Prelude
 import Contract.Address (Address, getWalletAddresses)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractM
-  , liftedE
-  , liftedM
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftContractM, liftedM, runContract, throwContractError)
 import Contract.PlutusData (PlutusData, toData)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(PlutusMintingPolicy)
-  , PlutusScript
-  , applyArgs
-  )
+import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript, applyArgs, ApplyArgsError)
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
@@ -40,11 +29,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx'
-  , mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx', mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
@@ -125,16 +110,16 @@ oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV1FromEnvelope envelope
-  mkOneShotMintingPolicy script txInput
+  either throwContractError pure $ mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Contract () PlutusScript
+  -> Either ApplyArgsError PlutusScript
 mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
   in
-    liftedE $ applyArgs unappliedMintingPolicy mintingPolicyArgs
+    applyArgs unappliedMintingPolicy mintingPolicyArgs
 

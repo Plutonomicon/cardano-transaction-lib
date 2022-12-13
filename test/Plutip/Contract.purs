@@ -4,70 +4,27 @@ module Test.Ctl.Plutip.Contract
 
 import Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  , StakePubKeyHash
-  , getWalletAddresses
-  , getWalletCollateral
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
-  )
-import Contract.BalanceTxConstraints
-  ( BalanceTxConstraintsBuilder
-  , mustUseAdditionalUtxos
-  ) as BalanceTxConstraints
+import Contract.Address (PaymentPubKeyHash(PaymentPubKeyHash), PubKeyHash(PubKeyHash), StakePubKeyHash, getWalletAddresses, getWalletCollateral, ownPaymentPubKeysHashes, ownStakePubKeysHashes)
+import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder, mustUseAdditionalUtxos) as BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
-import Contract.PlutusData
-  ( Datum(Datum)
-  , PlutusData(Bytes, Integer, List)
-  , Redeemer(Redeemer)
-  , getDatumByHash
-  , getDatumsByHashes
-  , getDatumsByHashesWithErrors
-  )
-import Contract.Prelude (liftM, mconcat)
+import Contract.Monad (Contract, liftContractM, liftedE, liftedM, throwContractError, wrapContract)
+import Contract.PlutusData (Datum(Datum), PlutusData(Bytes, Integer, List), Redeemer(Redeemer), getDatumByHash, getDatumsByHashes, getDatumsByHashesWithErrors)
+import Contract.Prelude (either, liftM, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( ValidatorHash
-  , applyArgs
-  , mintingPolicyHash
-  , validatorHash
-  )
-import Contract.Test.Plutip
-  ( InitialUTxOs
-  , InitialUTxOsWithStakeKey
-  , PlutipTest
-  , noWallet
-  , withStakeKey
-  , withWallets
-  )
+import Contract.Scripts (ValidatorHash, applyArgs, mintingPolicyHash, validatorHash)
+import Contract.Test.Plutip (InitialUTxOs, InitialUTxOsWithStakeKey, PlutipTest, noWallet, withStakeKey, withWallets)
 import Contract.Time (getEraSummaries)
-import Contract.Transaction
-  ( DataHash
-  , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
-  , ScriptRef(PlutusScriptRef, NativeScriptRef)
-  , TransactionHash
-  , awaitTxConfirmed
-  , balanceTx
-  , balanceTxWithConstraints
-  , createAdditionalUtxos
-  , signTransaction
-  , submit
-  , withBalancedTx
-  , withBalancedTxs
-  )
+import Contract.Transaction (DataHash, NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll), ScriptRef(PlutusScriptRef, NativeScriptRef), TransactionHash, awaitTxConfirmed, balanceTx, balanceTxWithConstraints, createAdditionalUtxos, signTransaction, submit, withBalancedTx, withBalancedTxs)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
-import Control.Monad.Error.Class (try)
+import Control.Monad.Error.Class (throwError, try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
@@ -76,52 +33,30 @@ import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
-import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
-  , mkTokenName
-  , mustPayToPubKeyStakeAddress
-  )
+import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, mkCurrencySymbol, mkTokenName, mustPayToPubKeyStakeAddress)
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
-import Ctl.Examples.MintsMultipleTokens
-  ( mintingPolicyRdmrInt1
-  , mintingPolicyRdmrInt2
-  , mintingPolicyRdmrInt3
-  )
+import Ctl.Examples.MintsMultipleTokens (mintingPolicyRdmrInt1, mintingPolicyRdmrInt2, mintingPolicyRdmrInt3)
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
-  ( contract
-  ) as ReferenceInputsAndScripts
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
-import Ctl.Internal.Plutus.Types.Transaction
-  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  )
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  , _input
-  , lookupTxHash
-  )
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript(TransactionOutputWithRefScript))
+import Ctl.Internal.Plutus.Types.TransactionUnspentOutput (TransactionUnspentOutput(TransactionUnspentOutput), _input, lookupTxHash)
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Wallet
-  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet)
-  )
-import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
-  , withCip30Mock
-  )
+import Ctl.Internal.Wallet (WalletExtension(NamiWallet, GeroWallet, FlintWallet))
+import Ctl.Internal.Wallet.Cip30Mock (WalletMock(MockNami, MockGero, MockFlint), withCip30Mock)
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
 import Data.Either (Either(Right), isLeft)
@@ -138,19 +73,7 @@ import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.AffInterface as AffInterface
-import Test.Ctl.Fixtures
-  ( cip25MetadataFixture1
-  , fullyAppliedScriptFixture
-  , nativeScriptFixture1
-  , nativeScriptFixture2
-  , nativeScriptFixture3
-  , nativeScriptFixture4
-  , nativeScriptFixture5
-  , nativeScriptFixture6
-  , nativeScriptFixture7
-  , partiallyAppliedScriptFixture
-  , unappliedScriptFixture
-  )
+import Test.Ctl.Fixtures (cip25MetadataFixture1, fullyAppliedScriptFixture, nativeScriptFixture1, nativeScriptFixture2, nativeScriptFixture3, nativeScriptFixture4, nativeScriptFixture5, nativeScriptFixture6, nativeScriptFixture7, partiallyAppliedScriptFixture, unappliedScriptFixture)
 import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
@@ -1429,13 +1352,13 @@ suite = do
     group "applyArgs" do
       test "returns the same script when called without args" do
         withWallets unit \_ -> do
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+          result <- either throwContractError pure $ applyArgs (unwrap unappliedScriptFixture) mempty
           result `shouldEqual` (unwrap unappliedScriptFixture)
 
       test "returns the correct partially applied Plutus script" do
         withWallets unit \_ -> do
           let args = [ Integer (BigInt.fromInt 32) ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- either throwContractError pure $ applyArgs (unwrap unappliedScriptFixture) args
           result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
       test "returns the correct fully applied Plutus script" do
@@ -1444,7 +1367,7 @@ suite = do
             liftContractM "Could not create ByteArray"
               (byteArrayFromAscii "test")
           let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- either throwContractError pure $ applyArgs (unwrap unappliedScriptFixture) args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
     group "CIP-30 mock" do

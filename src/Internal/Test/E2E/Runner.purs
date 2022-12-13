@@ -202,13 +202,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig: Just
-      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
-          options.ctlServerPort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
@@ -262,8 +255,7 @@ testPlan opts@{ tests } rt@{ wallets } =
           \env wallet -> do
             let
               (clusterSetup :: ClusterSetup) =
-                { ctlServerConfig: (unwrap env).config.ctlServerConfig
-                , ogmiosConfig: (unwrap env).config.ogmiosConfig
+                { ogmiosConfig: (unwrap env).config.ogmiosConfig
                 , datumCacheConfig: (unwrap env).config.datumCacheConfig
                 , kupoConfig: (unwrap env).config.kupoConfig
                 , keys:

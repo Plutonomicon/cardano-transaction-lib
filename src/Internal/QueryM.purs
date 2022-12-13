@@ -27,7 +27,6 @@ module Ctl.Internal.QueryM
   , WebSocket(WebSocket)
   , Hooks
   , allowError
-  , applyArgs
   , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
@@ -172,7 +171,6 @@ import Ctl.Internal.QueryM.ServerConfig
   , ServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkServerUrl
@@ -289,8 +287,7 @@ import Untagged.Union (asOneOf)
 -- | a local cluster: paramters to connect to the services and private keys
 -- | that are pre-funded with Ada on that cluster
 type ClusterSetup =
-  { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: ServerConfig
+  { ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , keys ::
@@ -323,8 +320,7 @@ emptyHooks =
 -- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: ServerConfig
+  { ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , networkId :: NetworkId
@@ -799,55 +795,6 @@ instance Show ClientError where
     "(ClientOtherError "
       <> err
       <> ")"
-
--- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
--- | returning an updated script with the provided arguments applied
-applyArgs
-  :: PlutusScript
-  -> Array PlutusData
-  -> QueryM (Either ClientError PlutusScript)
-applyArgs script args =
-  asks (_.ctlServerConfig <<< _.config) >>= case _ of
-    Nothing -> pure
-      $ Left
-      $
-        ClientOtherError
-          "The `ctl-server` service is required to call `applyArgs`. Please \
-          \provide a `Just` value in `ConfigParams.ctlServerConfig` and make \
-          \sure that the `ctl-server` service is running and available at the \
-          \provided host and port. The `ctl-server` packages can be obtained \
-          \from `overlays.ctl-server` defined in CTL's flake. Please see \
-          \`doc/runtime.md` in the CTL repository for more information"
-    Just config -> case traverse plutusDataToAeson args of
-      Nothing -> pure $ Left $ ClientEncodingError
-        "Failed to convert script args"
-      Just ps -> do
-        let
-          language :: Language
-          language = snd $ unwrap script
-
-          url :: String
-          url = mkHttpUrl config <</>> "apply-args"
-
-          reqBody :: Aeson
-          reqBody = encodeAeson
-            $ Object.fromFoldable
-                [ "script" /\ scriptToAeson script
-                , "args" /\ encodeAeson ps
-                ]
-        liftAff (postAeson url reqBody)
-          <#> map (PlutusScript <<< flip Tuple language) <<<
-            handleAffjaxResponse
-  where
-  plutusDataToAeson :: PlutusData -> Maybe Aeson
-  plutusDataToAeson =
-    map
-      ( encodeAeson
-          <<< byteArrayToHex
-          <<< Serialization.toBytes
-          <<< asOneOf
-      )
-      <<< Serialization.convertPlutusData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
