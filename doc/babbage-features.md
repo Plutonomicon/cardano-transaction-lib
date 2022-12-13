@@ -2,6 +2,16 @@
 
 This document is a reference/explainer for the new CTL APIs introduced for Babbage support.
 
+**Table of contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Reference Inputs](#reference-inputs)
+- [Reference Scripts](#reference-scripts)
+- [Inline Data](#inline-data)
+- [Collateral Output](#collateral-output)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Reference Inputs
 
 [Reference inputs](https://cips.cardano.org/cips/cip31/#referenceinputs) allow looking at an output without spending it in Plutus scripts.

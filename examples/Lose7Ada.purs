@@ -28,13 +28,13 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
@@ -70,7 +70,7 @@ payToAlwaysFails vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 spendFromAlwaysFails
   :: ValidatorHash
@@ -100,7 +100,7 @@ spendFromAlwaysFails vhash validator txId = do
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustNotBeValid
 
-  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints
   logInfo' $ "Tx ID: " <> show spendTxId
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."

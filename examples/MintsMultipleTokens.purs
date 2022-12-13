@@ -22,13 +22,12 @@ import Contract.TextEnvelope
   ( decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   )
-import Contract.Transaction (awaitTxConfirmed)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Data.BigInt (fromInt) as BigInt
@@ -66,7 +65,7 @@ contract = do
         <> Lookups.mintingPolicy mp2
         <> Lookups.mintingPolicy mp3
 
-  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' $ "Tx submitted successfully!"

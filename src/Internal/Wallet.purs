@@ -1,13 +1,14 @@
 module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, KeyWallet)
   , WalletExtension
       ( NamiWallet
       , LodeWallet
       , GeroWallet
       , FlintWallet
       , EternlWallet
+      , NuFiWallet
       )
   , isEternlAvailable
   , isGeroAvailable
@@ -106,6 +107,7 @@ data Wallet
   | Flint Cip30Wallet
   | Eternl Cip30Wallet
   | Lode Cip30Wallet
+  | NuFi Cip30Wallet
   | KeyWallet KeyWallet
 
 data WalletExtension
@@ -114,6 +116,7 @@ data WalletExtension
   | FlintWallet
   | EternlWallet
   | LodeWallet
+  | NuFiWallet
 
 mkKeyWallet :: NetworkId -> PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet network payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
@@ -138,6 +141,7 @@ mkWalletAff walletExtension =
     FlintWallet -> Flint <$> mkCip30WalletAff "Flint"
       (_enableWallet walletName)
     LodeWallet -> _mkLodeWalletAff
+    NuFiWallet -> NuFi <$> mkCip30WalletAff "NuFi" (_enableWallet walletName)
   where
   walletName = walletExtensionToName walletExtension
 
@@ -249,6 +253,7 @@ cip30Wallet = case _ of
   Flint c30 -> Just c30
   Eternl c30 -> Just c30
   Lode c30 -> Just c30
+  NuFi c30 -> Just c30
   KeyWallet _ -> Nothing
 
 walletExtensionToName :: WalletExtension -> String
@@ -258,6 +263,7 @@ walletExtensionToName = case _ of
   FlintWallet -> "flint"
   EternlWallet -> "eternl"
   LodeWallet -> "LodeWallet"
+  NuFiWallet -> "nufi"
 
 walletToWalletExtension :: Wallet -> Maybe WalletExtension
 walletToWalletExtension = case _ of
@@ -266,6 +272,7 @@ walletToWalletExtension = case _ of
   Flint _ -> Just FlintWallet
   Eternl _ -> Just EternlWallet
   Lode _ -> Just LodeWallet
+  NuFi _ -> Just NuFiWallet
   KeyWallet _ -> Nothing
 
 isEnabled :: WalletExtension -> Aff Boolean
@@ -366,6 +373,7 @@ actionBasedOnWallet walletAction keyWalletAction =
     Gero wallet -> liftAff $ callCip30Wallet wallet walletAction
     Flint wallet -> liftAff $ callCip30Wallet wallet walletAction
     Lode wallet -> liftAff $ callCip30Wallet wallet walletAction
+    NuFi wallet -> liftAff $ callCip30Wallet wallet walletAction
     KeyWallet kw -> keyWalletAction kw
 
 ownPubKeyHashes :: Wallet -> Aff (Array PubKeyHash)

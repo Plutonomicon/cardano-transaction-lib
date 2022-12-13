@@ -31,13 +31,13 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Exception (error)
@@ -77,7 +77,7 @@ payToCheckDatumIsInline vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 spendFromCheckDatumIsInline
   :: ValidatorHash
@@ -109,7 +109,7 @@ spendFromCheckDatumIsInline vhash validator txId = do
     constraints =
       Constraints.mustSpendScriptOutput txInput redeemer
 
-  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
@@ -134,7 +134,7 @@ payToCheckDatumIsInlineWrong vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 readFromCheckDatumIsInline
   :: ValidatorHash

@@ -20,6 +20,7 @@ import Contract.Transaction
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
   , mkTxUnspentOut
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -29,7 +30,6 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
@@ -85,7 +85,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract Unit
 spendFromAlwaysSucceeds vhash txId = do
@@ -110,7 +110,7 @@ spendFromAlwaysSucceeds vhash txId = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
   where

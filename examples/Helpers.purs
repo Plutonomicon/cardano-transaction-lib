@@ -1,7 +1,5 @@
 module Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , buildBalanceSignAndSubmitTx'
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   , submitAndLog
@@ -11,53 +9,17 @@ import Contract.Prelude
 
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE)
-import Contract.PlutusData (class IsData)
+import Contract.Monad (Contract, liftContractM)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
-import Contract.Scripts (class ValidatorTypes, MintingPolicy)
+import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( BalancedSignedTransaction
-  , TransactionHash
   , awaitTxConfirmed
-  , balanceTx
-  , getTxFinalFee
-  , signTransaction
   , submit
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
-import Data.BigInt (BigInt)
-
-buildBalanceSignAndSubmitTx'
-  :: forall (validator :: Type) (datum :: Type)
-       (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => Lookups.ScriptLookups validator
-  -> Constraints.TxConstraints redeemer datum
-  -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
-buildBalanceSignAndSubmitTx' lookups constraints = do
-  unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTx unbalancedTx
-  balancedSignedTx <- signTransaction balancedTx
-  txHash <- submit balancedSignedTx
-  logInfo' $ "Tx ID: " <> show txHash
-  pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
-
-buildBalanceSignAndSubmitTx
-  :: forall (validator :: Type) (datum :: Type)
-       (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => Lookups.ScriptLookups validator
-  -> Constraints.TxConstraints redeemer datum
-  -> Contract TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints =
-  _.txHash <$> buildBalanceSignAndSubmitTx' lookups constraints
 
 mkCurrencySymbol
   :: Contract MintingPolicy

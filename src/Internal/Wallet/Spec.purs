@@ -6,6 +6,7 @@ module Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToEternl
       , ConnectToLode
+      , ConnectToNuFi
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
@@ -23,6 +24,7 @@ import Ctl.Internal.Wallet
       , FlintWallet
       , EternlWallet
       , LodeWallet
+      , NuFiWallet
       )
   , mkKeyWallet
   , mkWalletAff
@@ -53,6 +55,7 @@ data WalletSpec
   | ConnectToFlint
   | ConnectToEternl
   | ConnectToLode
+  | ConnectToNuFi
 
 mkWalletBySpec :: NetworkId -> WalletSpec -> Aff Wallet
 mkWalletBySpec networkId = case _ of
@@ -70,4 +73,4 @@ mkWalletBySpec networkId = case _ of
   ConnectToFlint -> mkWalletAff FlintWallet
   ConnectToEternl -> mkWalletAff EternlWallet
   ConnectToLode -> mkWalletAff LodeWallet
-
+  ConnectToNuFi -> mkWalletAff NuFiWallet

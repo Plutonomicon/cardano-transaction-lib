@@ -12,11 +12,17 @@
 
 **Table of Contents**
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
 - [Roadmap](#roadmap)
   - [Light wallet support](#light-wallet-support)
 - [Documentation](#documentation)
 - [Architecture](#architecture)
 - [Additional resources/tools:](#additional-resourcestools)
+- [Available support channels info](#available-support-channels-info)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Roadmap
 
@@ -37,6 +43,7 @@ Support is planned for the following light wallets:
 - [x] [Flint](https://flint-wallet.com/)
 - [x] [Lode](https://lodewallet.io/)
 - [x] [Eternl (formerly CCvault)](https://eternl.io/)
+- [x] [NuFi](https://nu.fi/)
 - [ ] [Lace](https://www.lace.io/)
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)

@@ -4,20 +4,25 @@ This document outlines CTL's test plan, i.e. a formalized description of testing
 
 **Table of Contents**
 
-* [User interactions](#user-interactions)
-  + [Constraints/lookups](#constraints-lookups)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [User interactions](#user-interactions)
+  - [Constraints/lookups](#constraintslookups)
     - [Stake operations](#stake-operations)
-      * [Stake pools](#stake-pools)
-      * [Stake credential registration](#stake-credential-registration)
-      * [Delegation](#delegation)
-      * [Rewards withdrawal](#rewards-withdrawal)
-      * [Stake credential deregistration](#stake-credential-deregistration)
-  + [Other functionality](#other-functionality)
-* [Acceptance criteria](#acceptance-criteria)
-  + [Example contracts as tests](#example-contracts-as-tests)
+      - [Stake pools](#stake-pools)
+      - [Stake credential registration](#stake-credential-registration)
+      - [Delegation](#delegation)
+      - [Rewards withdrawal](#rewards-withdrawal)
+      - [Stake credential deregistration](#stake-credential-deregistration)
+  - [Other functionality](#other-functionality)
+- [Acceptance criteria](#acceptance-criteria)
+  - [Example contracts as tests](#example-contracts-as-tests)
     - [Test environments](#test-environments)
-  + [Unit and integration testing](#unit-and-integration-testing)
+  - [Unit and integration testing](#unit-and-integration-testing)
     - [Required parsing tests](#required-parsing-tests)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## User interactions
 

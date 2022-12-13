@@ -12,14 +12,17 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Transaction (TransactionHash, awaitTxConfirmed)
+import Contract.Transaction
+  ( TransactionHash
+  , awaitTxConfirmed
+  , submitTxFromConstraints
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value as Value
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   ) as Helpers
@@ -52,7 +55,7 @@ mintToken = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 sendToken :: Contract TransactionHash
 sendToken = do
@@ -66,7 +69,7 @@ sendToken = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 tokenValue :: Contract (MintingPolicy /\ Value)
 tokenValue = do

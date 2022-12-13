@@ -17,7 +17,7 @@ import Ctl.Internal.Contract.Wallet
 import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Wallet
-  ( Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami)
+  ( Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami, NuFi)
   , callCip30Wallet
   )
 import Data.Array (elem, fromFoldable)
@@ -53,6 +53,7 @@ signTransaction tx = do
       walletWaitForInputs txInputs
       liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
     Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
+    NuFi nufi -> liftAff $ callCip30Wallet nufi \w -> flip w.signTx tx
     KeyWallet kw -> liftAff do
       witnessSet <- (unwrap kw).signTx tx
       pure $ Just (tx # _witnessSet <>~ witnessSet)

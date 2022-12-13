@@ -6,12 +6,14 @@ module Contract.Config
   , testnetFlintConfig
   , testnetEternlConfig
   , testnetLodeConfig
+  , testnetNuFiConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
   , mainnetFlintConfig
   , mainnetEternlConfig
   , mainnetLodeConfig
+  , mainnetNuFiConfig
   , module Contract.Address
   , module Ctl.Internal.Contract.Monad
   , module Ctl.Internal.Contract.QueryBackend
@@ -55,6 +57,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToEternl
       , ConnectToLode
+      , ConnectToNuFi
       )
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
@@ -91,6 +94,9 @@ testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 testnetLodeConfig :: ContractParams
 testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 
+testnetNuFiConfig :: ContractParams
+testnetNuFiConfig = testnetConfig { walletSpec = Just ConnectToNuFi }
+
 mainnetConfig :: ContractParams
 mainnetConfig = testnetConfig { networkId = MainnetId }
 
@@ -108,3 +114,6 @@ mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
 
 mainnetLodeConfig :: ContractParams
 mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }
+
+mainnetNuFiConfig :: ContractParams
+mainnetNuFiConfig = mainnetConfig { walletSpec = Just ConnectToNuFi }

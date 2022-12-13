@@ -42,6 +42,7 @@ import Contract.Transaction
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , mkTxUnspentOut
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -52,7 +53,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value as Value
-import Ctl.Examples.Helpers (buildBalanceSignAndSubmitTx, mkTokenName) as Helpers
+import Ctl.Examples.Helpers (mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
   ( alwaysMintsPolicyScriptV2
   , alwaysMintsPolicyV2
@@ -114,7 +115,7 @@ payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 
 spendFromAlwaysSucceeds
   :: ValidatorHash
@@ -158,7 +159,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = Lookups.unspentOutputs scriptAddressUtxos
 
-  spendTxId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values and minted tokens."
   where
@@ -205,5 +206,5 @@ mintAlwaysMintsV2ToTheScript tokenName validator sum = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txHash <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txHash <- submitTxFromConstraints lookups constraints
   void $ awaitTxConfirmed txHash
