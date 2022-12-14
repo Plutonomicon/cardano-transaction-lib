@@ -46,7 +46,7 @@ import Ctl.Internal.Wallet
   , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   , mkWalletAff
   )
-import Ctl.Internal.Wallet.Cip30 (DataSignature, Paginate)
+import Ctl.Internal.Wallet.Cip30 (Paginate)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey
