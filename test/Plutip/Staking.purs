@@ -76,6 +76,7 @@ import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -92,7 +93,8 @@ import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.Plutip.Common (config) as Common
+import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.Ctl.Plutip.Utils (submitAndLog)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
@@ -690,3 +692,5 @@ suite = do
               liftedM "Unable to get rewards"
                 $ getPubKeyHashDelegationsAndRewards aliceStakePkh
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
+  where
+  config = Common.config { clusterConfig = { slotLength: Seconds 0.05 } }
