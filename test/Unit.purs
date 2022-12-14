@@ -48,7 +48,7 @@ main = launchAff_ do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
-  skip ApplyArgs.suite
+  ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite
   Base64.suite
