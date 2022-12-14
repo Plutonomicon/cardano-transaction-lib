@@ -368,6 +368,20 @@ let additions =
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
         , version = "bb02f3b31a1ebbec2c8a2e1241f98eff1645e2ca"
         }
+      , noble-secp256k1 =
+        { dependencies =
+          [ "aff"
+          , "aff-promise"
+          , "effect"
+          , "prelude"
+          , "spec"
+          , "tuples"
+          , "unsafe-coerce"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
+        , version = "710c15c48c5afae5e0623664d982a587ff2bd177"
+        }
       }
 
 in  (upstream // additions)
