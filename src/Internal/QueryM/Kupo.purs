@@ -49,13 +49,12 @@ import Ctl.Internal.QueryM
   , handleAffjaxResponse
   )
 import Ctl.Internal.QueryM.ServerConfig (mkHttpUrl)
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
   )
-import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
@@ -125,8 +124,7 @@ getDatumByHash (DataHash dataHashBytes) = do
 getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do
   let
-    endpoint = "/scripts/" <> rawBytesToHex
-      (wrap $ unwrap $ toBytes scriptHash)
+    endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
 

@@ -8,7 +8,6 @@ module Ctl.Internal.QueryM.Pools
 
 import Prelude
 
-import Contract.Scripts (ScriptHash)
 import Ctl.Internal.Cardano.Types.Transaction
   ( PoolPubKeyHash
   , PoolRegistrationParams
@@ -22,12 +21,12 @@ import Ctl.Internal.QueryM.Ogmios
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
-  ( Ed25519KeyHash
-  , ed25519KeyHashToBech32
+  ( ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
+  , ed25519KeyHashToBytes
   , scriptHashToBech32Unsafe
+  , scriptHashToBytes
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
@@ -81,7 +80,7 @@ getValidatorHashDelegationsAndRewards skh = do
   stringRep = scriptHashToBech32Unsafe "script" $ unwrap skh
 
   byteHex :: String
-  byteHex = byteArrayToHex $ unwrap $ toBytes (unwrap skh :: ScriptHash)
+  byteHex = byteArrayToHex $ unwrap $ scriptHashToBytes $ unwrap skh
 
 -- TODO: batched variant
 getPubKeyHashDelegationsAndRewards
@@ -97,5 +96,6 @@ getPubKeyHashDelegationsAndRewards pkh = do
     ed25519KeyHashToBech32Unsafe "stake_vkh" $ unwrap $ unwrap pkh
 
   byteHex :: String
-  byteHex = byteArrayToHex $ unwrap $ toBytes
-    (unwrap $ unwrap pkh :: Ed25519KeyHash)
+  byteHex = byteArrayToHex $ unwrap $ ed25519KeyHashToBytes
+    $ unwrap
+    $ unwrap pkh

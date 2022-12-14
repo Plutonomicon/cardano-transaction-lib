@@ -23,8 +23,11 @@ import Control.Monad.Gen as Gen
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
-import Ctl.Internal.Serialization.ToBytes (toBytes)
+import Ctl.Internal.Serialization.Hash
+  ( ScriptHash
+  , scriptHashFromBytes
+  , scriptHashToBytes
+  )
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
@@ -74,7 +77,7 @@ adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
-scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< toBytes
+scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
 
 -- | The minting policy hash of a currency symbol.
 currencyMPSHash :: CurrencySymbol -> MintingPolicyHash
@@ -82,7 +85,8 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ toBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ scriptHashToBytes
+  h
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol

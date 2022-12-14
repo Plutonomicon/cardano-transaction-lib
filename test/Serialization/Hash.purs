@@ -1,16 +1,7 @@
 module Test.Ctl.Serialization.Hash (suite) where
 
 import Control.Bind (bind, discard)
-import Ctl.Internal.Serialization.Hash
-  ( ed25519KeyHashFromBech32
-  , ed25519KeyHashFromBytes
-  , ed25519KeyHashToBech32
-  , ed25519KeyHashToBech32Unsafe
-  , scriptHashFromBech32
-  , scriptHashFromBytes
-  , scriptHashToBech32
-  , scriptHashToBech32Unsafe
-  )
+import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32, ed25519KeyHashFromBytes, ed25519KeyHashToBech32, ed25519KeyHashToBech32Unsafe, ed25519KeyHashToBytes, scriptHashFromBech32, scriptHashFromBytes, scriptHashToBech32, scriptHashToBech32Unsafe, scriptHashToBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
@@ -43,7 +34,7 @@ suite = test "Serialization.Hash" do
   let
     pkhB32 = ed25519KeyHashToBech32Unsafe "addr_vkh" pkh
     mPkhB32 = ed25519KeyHashToBech32 "addr_vkh" pkh
-    pkhBts = toBytes pkh
+    pkhBts = ed25519KeyHashToBytes pkh
     pkh2 = ed25519KeyHashFromBytes $ unwrap pkhBts
 
   assertTrue
@@ -72,7 +63,7 @@ suite = test "Serialization.Hash" do
   let
     scrhB32 = scriptHashToBech32Unsafe "stake_vkh" scrh
     mScrhB32 = scriptHashToBech32 "stake_vkh" scrh
-    scrhBts = toBytes scrh
+    scrhBts = scriptHashToBytes scrh
     scrhFromBytes = scriptHashFromBytes $ unwrap scrhBts
     scrhFromBech = scriptHashFromBech32 scrhB32
 

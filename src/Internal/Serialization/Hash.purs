@@ -6,11 +6,13 @@ module Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBytes
   , ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
+  , ed25519KeyHashToBytes
   , nativeScriptHash
   , scriptHashFromBech32
   , scriptHashFromBytes
   , scriptHashToBech32
   , scriptHashToBech32Unsafe
+  , scriptHashToBytes
   ) where
 
 import Prelude
@@ -31,10 +33,12 @@ import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
+import Ctl.Internal.Types.RawBytes (RawBytes, rawBytesToHex)
 import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Newtype (unwrap, wrap)
 
 -- We can't use ToBytes class here, because of cyclic dependencies
 -- | Encodes the hash to `CborBytes`
@@ -79,24 +83,24 @@ foreign import _scriptHashFromBech32Impl
 foreign import data Ed25519KeyHash :: Type
 
 instance Eq Ed25519KeyHash where
-  eq = eq `on` hashToBytes
+  eq = eq `on` ed25519KeyHashToBytes
 
 instance Ord Ed25519KeyHash where
-  compare = compare `on` hashToBytes
+  compare = compare `on` ed25519KeyHashToBytes
 
 instance Show Ed25519KeyHash where
-  show edkh = "(Ed25519KeyHash " <> byteArrayToHex (hashToBytes edkh)
+  show edkh = "(Ed25519KeyHash " <> rawBytesToHex (ed25519KeyHashToBytes edkh)
     <> ")"
 
 instance ToData Ed25519KeyHash where
-  toData = toData <<< hashToBytes
+  toData = toData <<< unwrap <<< ed25519KeyHashToBytes
 
 instance FromData Ed25519KeyHash where
   fromData (Bytes kh) = ed25519KeyHashFromBytes kh
   fromData _ = Nothing
 
 instance ToMetadata Ed25519KeyHash where
-  toMetadata = toMetadata <<< hashToBytes
+  toMetadata = toMetadata <<< ed25519KeyHashToBytes
 
 instance FromMetadata Ed25519KeyHash where
   fromMetadata (Metadata.Bytes kh) = ed25519KeyHashFromBytes kh
@@ -113,13 +117,16 @@ instance DecodeAeson Ed25519KeyHash where
     )
 
 instance EncodeAeson Ed25519KeyHash where
-  encodeAeson' = encodeAeson' <<< byteArrayToHex <<< hashToBytes
+  encodeAeson' = encodeAeson' <<< rawBytesToHex <<< ed25519KeyHashToBytes
 
 -- | Convert ed25519KeyHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)
 -- | More on prefixes: https://cips.cardano.org/cips/cip5
 ed25519KeyHashToBech32Unsafe ∷ String → Ed25519KeyHash → Bech32String
 ed25519KeyHashToBech32Unsafe = hashToBech32Unsafe
+
+ed25519KeyHashToBytes :: Ed25519KeyHash -> RawBytes
+ed25519KeyHashToBytes = wrap <<< hashToBytes
 
 scriptHashToBech32Unsafe ∷ String → ScriptHash → Bech32String
 scriptHashToBech32Unsafe = hashToBech32Unsafe
@@ -140,23 +147,23 @@ ed25519KeyHashToBech32 = _ed25519KeyHashToBech32Impl maybeFfiHelper
 foreign import data ScriptHash :: Type
 
 instance Eq ScriptHash where
-  eq = eq `on` hashToBytes
+  eq = eq `on` scriptHashToBytes
 
 instance Ord ScriptHash where
-  compare = compare `on` hashToBytes
+  compare = compare `on` scriptHashToBytes
 
 instance Show ScriptHash where
-  show edkh = "(ScriptHash " <> byteArrayToHex (hashToBytes edkh) <> ")"
+  show edkh = "(ScriptHash " <> rawBytesToHex (scriptHashToBytes edkh) <> ")"
 
 instance ToData ScriptHash where
-  toData = toData <<< hashToBytes
+  toData = toData <<< unwrap <<< scriptHashToBytes
 
 instance FromData ScriptHash where
   fromData (Bytes bytes) = scriptHashFromBytes bytes
   fromData _ = Nothing
 
 instance ToMetadata ScriptHash where
-  toMetadata = toMetadata <<< hashToBytes
+  toMetadata = toMetadata <<< scriptHashToBytes
 
 instance FromMetadata ScriptHash where
   fromMetadata (Metadata.Bytes bytes) = scriptHashFromBytes bytes
@@ -169,11 +176,14 @@ instance DecodeAeson ScriptHash where
       caseAesonString Nothing (Just <=< scriptHashFromBytes <=< hexToByteArray)
 
 instance EncodeAeson ScriptHash where
-  encodeAeson' sh = encodeAeson' $ hashToBytes sh
+  encodeAeson' sh = encodeAeson' $ scriptHashToBytes sh
 
 _ed25519KeyHashToBech32Impl
   ∷ MaybeFfiHelper → String → Ed25519KeyHash → Maybe Bech32String
 _ed25519KeyHashToBech32Impl = hashToBech32Impl
+
+scriptHashToBytes :: ScriptHash -> RawBytes
+scriptHashToBytes = wrap <<< hashToBytes
 
 _scriptHashToBech32Impl
   ∷ MaybeFfiHelper → String → ScriptHash → Maybe Bech32String
