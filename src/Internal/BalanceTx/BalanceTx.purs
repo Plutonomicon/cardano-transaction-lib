@@ -6,6 +6,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
+import Control.Comonad.Env (asks)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
@@ -103,11 +104,13 @@ import Ctl.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
+import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
 import Ctl.Internal.QueryM (getChangeAddress, getWalletAddresses) as QueryM
 import Ctl.Internal.QueryM.Utxos
   ( filterLockedUtxos
   , getWalletCollateral
+  , getWalletUtxos
   , utxosAt
   )
 import Ctl.Internal.Serialization.Address
@@ -119,6 +122,8 @@ import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
+import Ctl.Internal.Wallet (Wallet(Eternl))
+import Data.Array (elem, partition)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (toArray) as NEArray
@@ -128,7 +133,7 @@ import Data.Foldable (fold, foldMap, foldl, foldr, sum)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (tag)
-import Data.Map (empty, filterKeys, lookup, toUnfoldable, union) as Map
+import Data.Map (empty, filterKeys, isSubmap, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -136,6 +141,7 @@ import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
+import Undefined (undefined)
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
@@ -158,9 +164,22 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM $ parTraverse utxosAt srcAddrs <#>
-      traverse (note CouldNotGetUtxos)
-        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+    mWallet <- asks (_.config >>> _.wallet)
+
+    utxos <- liftEitherQueryM
+      case mWallet of
+        Just (Eternl _) -> do
+          walletAddresses <- QueryM.getWalletAddresses
+          let
+            { yes: inWalletAdresses, no: outWalletAdresses } = partition
+              (\addr -> elem addr walletAddresses)
+              srcAddrs
+          eitherInUtxos <- parallelUtxosAt inWalletAdresses
+          walletUtxos <- getWalletUtxos
+          undefined
+        -- if getWalletUtxos  `Map.isSubmap` 
+
+        _ -> parallelUtxosAt srcAddrs
 
     unbalancedCollTx <-
       case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -189,6 +208,11 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
     liftMaybe CouldNotGetChangeAddress
       =<< maybe (liftQueryM QueryM.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
+
+  parallelUtxosAt :: Array Address -> QueryM (Either BalanceTxError UtxoMap)
+  parallelUtxosAt adresses = parTraverse utxosAt adresses
+    <#> traverse (note CouldNotGetUtxos)
+      >>> map (foldr Map.union Map.empty)
 
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
   unbalancedTxWithNetworkId = do
