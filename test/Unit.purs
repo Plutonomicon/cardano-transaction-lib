@@ -6,7 +6,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
-import Mote (skip)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
