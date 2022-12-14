@@ -70,9 +70,7 @@ type PlutipConfig =
   , suppressLogs :: Boolean
   , hooks :: Hooks
   , clusterConfig ::
-      { slotLength :: Seconds
-      , epochSize :: UInt
-      }
+      { slotLength :: Seconds }
   }
 
 type PostgresConfig =
