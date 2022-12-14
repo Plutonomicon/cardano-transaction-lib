@@ -67,7 +67,6 @@ import Data.Lens.Record (prop)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap, wrap)
-import Data.Nullable as Nullable
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
@@ -79,7 +78,8 @@ import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
-import Untagged.Union (UndefinedOr, asOneOf, uorToMaybe)
+import Untagged.Union (UndefinedOr, OneOf, asOneOf, uorToMaybe)
+import Unsafe.Coerce (unsafeCoerce)
 
 data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
 
@@ -139,7 +139,7 @@ type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
   , getUtxos ::
       Fn2 (UndefinedOr String) (UndefinedOr Paginate)
-        (Promise (Nullable.Nullable (Array String)))
+        (Promise (NullOr (Array String)))
   , getCollateral :: CollateralParams -> ((Promise (Array String)))
   , getBalance :: Effect (Promise String)
   , getUsedAddresses :: (UndefinedOr Paginate) -> Promise (Array String)
@@ -208,7 +208,7 @@ mkCip30Mock pKey mSKey = do
         let
           amountValue = DSV.convertValue =<< fromBytes =<< hexToByteArray =<<
             (uorToMaybe amount)
-        if (not hasEnoughAmount amountValue xUtxos) then pure Nullable.null
+        if (not hasEnoughAmount amountValue xUtxos) then pure $ maybeToNullOr Nothing
         else do
           -- Convert to CSL representation and serialize
           cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
@@ -217,7 +217,7 @@ mkCip30Mock pKey mSKey = do
             $ paginateArray (uorToMaybe pagination)
             $
               (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
-          pure $ Nullable.toNullable $ Just page
+          pure $ maybeToNullOr $ Just page
     , getCollateral: \{ amount } -> unsafePerformEffect $ fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -305,3 +305,17 @@ hasEnoughAmount (Just amountRequired) values = geq sumAmount amountRequired
   utxoAmount (TransactionUnspentOutput { output }) = outputAmount output
   outputAmount (TransactionOutput { amount }) = amount
   sumAmount = fold $ map utxoAmount values
+
+-- Support NullOr
+
+foreign import data Null :: Type
+
+foreign import null :: Null
+
+type NullOr x = OneOf Null x
+
+maybeToNullOr :: forall a. Maybe a -> NullOr a
+-- asOneOf does not work here, see:
+-- https://github.com/rowtype-yoga/purescript-untagged-union/issues/29#issuecomment-1351561487
+maybeToNullOr (Just x) = unsafeCoerce x
+maybeToNullOr Nothing = asOneOf null

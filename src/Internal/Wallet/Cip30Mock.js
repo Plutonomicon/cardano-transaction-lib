@@ -73,3 +73,5 @@ exports.injectCip30Mock = walletName => mock => () => {
     }
   };
 };
+
+exports.null = null;
