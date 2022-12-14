@@ -45,14 +45,14 @@ import Untagged.Union (asOneOf)
 contract ∷ Contract () Unit
 contract = liftEffect main
 
-contractApply ∷ Array PlutusData → Contract () Validator → Contract () Unit
+contractApply :: Array PlutusData -> Contract () Validator -> Contract () Unit
 contractApply params loadScript = do
   Validator script <- loadScript
   let escr1 = applyArgs script params
   escr2 <- applyArgsOld script params
   applied1 <- either throwContractError pure escr1
   applied2 <- either throwContractError pure escr2
-  when (not (applied1 == applied2)) $
+  unless (applied1 == applied2) $
     throwContractError "Applying script result wrong"
 
 contractInvalidApply :: PlutusScript -> Array PlutusData -> Contract () Unit

@@ -3,7 +3,6 @@
 -- | wrappers over `ScriptHash`.
 module Contract.Scripts
   ( module ApplyArgs
-  , module ExportQueryM -- TODO: Does this need to be exported?
   , module ExportScripts
   , module Hash
   , module NativeScript
@@ -24,13 +23,6 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   ) as NativeScript
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
-import Ctl.Internal.QueryM
-  ( ClientError
-      ( ClientHttpError
-      , ClientDecodeJsonError
-      , ClientEncodingError
-      )
-  ) as ExportQueryM
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , nativeScriptStakeValidatorHash
