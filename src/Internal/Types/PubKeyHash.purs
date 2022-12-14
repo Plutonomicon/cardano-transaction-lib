@@ -43,7 +43,6 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 
-
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
 derive instance Generic PubKeyHash _
