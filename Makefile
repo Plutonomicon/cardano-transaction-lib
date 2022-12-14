@@ -54,15 +54,15 @@ query-preview-testnet-tip:
 	  --testnet-magic 2
 
 run-ci-actions:
-	nix build -L .#hydraJobs.x86_64-linux.formatting-check
-	nix build -L .#hydraJobs.x86_64-linux.template-deps-json
-	nix build -L .#hydraJobs.x86_64-linux.template-dhall-diff
-	nix build -L .#hydraJobs.x86_64-linux.template-version
-	nix build -L .#hydraJobs.x86_64-linux.ctl-unit-test
-	nix build -L .#hydraJobs.x86_64-linux.ctl-e2e-test
-	nix build -L .#hydraJobs.x86_64-linux.ctl-plutip-test
-	nix build -L .#hydraJobs.x86_64-linux.ctl-staking-test
-	nix build -L .#hydraJobs.x86_64-linux.examples-imports-check
+	nix build -L .#checks.x86_64-linux.formatting-check
+	nix build -L .#checks.x86_64-linux.template-deps-json
+	nix build -L .#checks.x86_64-linux.template-dhall-diff
+	nix build -L .#checks.x86_64-linux.template-version
+	nix build -L .#checks.x86_64-linux.ctl-unit-test
+	nix build -L .#checks.x86_64-linux.ctl-e2e-test
+	nix build -L .#checks.x86_64-linux.ctl-plutip-test
+	nix build -L .#checks.x86_64-linux.ctl-staking-test
+	nix build -L .#checks.x86_64-linux.examples-imports-check
 
 
 clean:

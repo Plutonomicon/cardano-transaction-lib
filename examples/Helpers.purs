@@ -52,4 +52,3 @@ submitAndLog bsTx = do
   logInfo' $ "Tx ID: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Confirmed Tx ID: " <> show txId
-
