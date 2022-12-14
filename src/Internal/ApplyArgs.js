@@ -32,7 +32,7 @@ exports.apply_params_to_script = left => right => args => script => {
       return left("Error applying argument to script: ".concat(e.toString()));
     }
   } catch (e1) {
-    return left("Error serializing arguments");
+    return left("Error serializing arguments: ".concat(e1.toString()));
   }
   return right(lib.PlutusScript.new_with_version(appliedScript, version));
 };
