@@ -4,6 +4,8 @@
 module Contract.Scripts
   ( applyArgs
   , applyArgsM
+  , getScriptByHash
+  , getScriptsByHashes
   , module ExportQueryM
   , module ExportScripts
   , module Hash
@@ -16,6 +18,7 @@ module Contract.Scripts
 import Prelude
 
 import Contract.Monad (Contract)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -26,8 +29,11 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as NativeScript
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Contract.ApplyArgs (applyArgs) as Contract
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
+import Ctl.Internal.QueryM (ClientError)
 import Ctl.Internal.QueryM
   ( ClientError
       ( ClientHttpError
@@ -41,6 +47,7 @@ import Ctl.Internal.Scripts
   , plutusScriptStakeValidatorHash
   , validatorHash
   ) as ExportScripts
+import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Scripts
@@ -67,14 +74,33 @@ import Ctl.Internal.Types.TypedValidator
   , typedValidatorScript
   ) as TypedValidator
 import Data.Either (Either, hush)
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe)
+import Data.Tuple (Tuple(Tuple))
+import Effect.Aff.Class (liftAff)
+
+-- | Retrieve a `ScriptRef` given the hash
+getScriptByHash :: ScriptHash -> Contract (Either ClientError (Maybe ScriptRef))
+getScriptByHash hash = do
+  queryHandle <- getQueryHandle
+  liftAff $ queryHandle.getScriptByHash hash
+
+-- | Retrieve `ScriptRef`s given their hashes
+getScriptsByHashes
+  :: Array ScriptHash
+  -> Contract (Map ScriptHash (Either ClientError (Maybe ScriptRef)))
+getScriptsByHashes hashes = do
+  queryHandle <- getQueryHandle
+  liftAff $ Map.fromFoldable <$> flip parTraverse hashes
+    \sh -> queryHandle.getScriptByHash sh <#> Tuple sh
 
 -- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
 -- | returning an updated script with the provided arguments applied
 applyArgs
   :: PlutusScript
   -> Array PlutusData
-  -> Contract (Either ExportQueryM.ClientError PlutusScript)
+  -> Contract (Either ClientError PlutusScript)
 applyArgs = Contract.applyArgs
 
 -- | Same as `applyArgs` with arguments hushed.

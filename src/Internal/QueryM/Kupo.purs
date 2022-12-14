@@ -1,7 +1,6 @@
 module Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getScriptByHash
-  , getScriptsByHashes
   , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
@@ -141,13 +140,6 @@ getScriptByHash scriptHash = do
   let endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
-
-getScriptsByHashes
-  :: Array ScriptHash -> QueryM (Either ClientError (Map ScriptHash ScriptRef))
-getScriptsByHashes =
-  runExceptT
-    <<< map (Map.catMaybes <<< Map.fromFoldable)
-    <<< parTraverse (\sh -> Tuple sh <$> ExceptT (getScriptByHash sh))
 
 -- FIXME: This can only confirm transactions with at least one output.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293

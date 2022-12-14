@@ -32,7 +32,6 @@ import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getScriptByHash
-  , getScriptsByHashes
   , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
@@ -52,7 +51,6 @@ import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either)
-import Data.Map (Map)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -67,10 +65,9 @@ type AffE (a :: Type) = Aff (Either ClientError a)
 type QueryHandle =
   { getDatumByHash :: DataHash -> AffE (Maybe Datum)
   , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
-  , getScriptsByHashes :: Array ScriptHash -> AffE (Map ScriptHash ScriptRef)
+  , getTxMetadata :: TransactionHash -> AffE (Maybe GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
-  , getTxMetadata :: TransactionHash -> AffE (Maybe GeneralTransactionMetadata)
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: Aff Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
@@ -92,7 +89,6 @@ queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
 queryHandleForCtlBackend contractEnv backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
-  , getScriptsByHashes: runQueryM' <<< Kupo.getScriptsByHashes
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
   , isTxConfirmed: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
   , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
