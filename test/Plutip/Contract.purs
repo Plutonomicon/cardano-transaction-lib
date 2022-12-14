@@ -58,6 +58,7 @@ import Contract.Transaction
   , createAdditionalUtxos
   , signTransaction
   , submit
+  , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
   )
@@ -77,8 +78,7 @@ import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
@@ -116,10 +116,10 @@ import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet
-  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet)
+  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   )
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
+  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi)
   , withCip30Mock
   )
 import Data.Array (head, (!!))
@@ -527,7 +527,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -542,7 +542,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustProduceAtLeast fail" do
@@ -569,7 +569,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -612,7 +612,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -627,7 +627,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustSpendAtLeast fail" do
@@ -654,7 +654,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -742,7 +742,7 @@ suite = do
 
             lookups :: Lookups.ScriptLookups PlutusData
             lookups = mempty
-          buildBalanceSignAndSubmitTx lookups constraints
+          submitTxFromConstraints lookups constraints
 
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -1463,6 +1463,8 @@ suite = do
           try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
             shouldSatisfy
             isLeft
+          try (liftEffect $ isWalletAvailable NuFiWallet) >>= flip shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockNami do
             (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
@@ -1473,10 +1475,16 @@ suite = do
             (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
           try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
             isLeft
+
           withCip30Mock alice MockFlint do
             (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
           try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
             shouldSatisfy
+            isLeft
+
+          withCip30Mock alice MockNuFi do
+            (liftEffect $ isWalletAvailable NuFiWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable NuFiWallet) >>= flip shouldSatisfy
             isLeft
 
       test "Collateral selection" do

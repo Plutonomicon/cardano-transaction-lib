@@ -1,8 +1,18 @@
 module Test.Ctl.Serialization.Hash (suite) where
 
 import Control.Bind (bind, discard)
-import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32, ed25519KeyHashFromBytes, ed25519KeyHashToBech32, ed25519KeyHashToBech32Unsafe, ed25519KeyHashToBytes, scriptHashFromBech32, scriptHashFromBytes, scriptHashToBech32, scriptHashToBech32Unsafe, scriptHashToBytes)
-import Ctl.Internal.Serialization.ToBytes (toBytes)
+import Ctl.Internal.Serialization.Hash
+  ( ed25519KeyHashFromBech32
+  , ed25519KeyHashFromBytes
+  , ed25519KeyHashToBech32
+  , ed25519KeyHashToBech32Unsafe
+  , ed25519KeyHashToBytes
+  , scriptHashFromBech32
+  , scriptHashFromBytes
+  , scriptHashToBech32
+  , scriptHashToBech32Unsafe
+  , scriptHashToBytes
+  )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)

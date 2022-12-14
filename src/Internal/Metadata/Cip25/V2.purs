@@ -52,13 +52,14 @@ import Ctl.Internal.Metadata.ToMetadata
   , toMetadata
   )
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
-import Ctl.Internal.Serialization.Hash (scriptHashFromBytes)
+import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (hexToByteArray)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
+import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
-import Ctl.Internal.Types.TokenName (mkTokenName)
+import Ctl.Internal.Types.TokenName (getTokenName, mkTokenName)
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
@@ -142,6 +143,10 @@ instance DecodeAeson Cip25V2 where
       2 -> pure Cip25V2
       _ -> Left $ TypeMismatch "Cip25V2"
 
+-- Note: this is not an instance of `ToMetadata` to prevent confusion
+-- between `Cip25Metadata` and `Cip25MetadataEntry` (the users do not
+-- need to deal with data-representations of a single entry, because
+-- the standard only specifies the encoding for Cip25Metadata).
 metadataEntryToMetadata :: Cip25MetadataEntry -> TransactionMetadatum
 metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata $
   [ "name" /\ anyToMetadata entry.name
@@ -222,6 +227,26 @@ metadataEntryDecodeAeson policyId assetName =
     pure $
       wrap { policyId, assetName, name, image, mediaType, description, files }
 
+-- | Encode the entry's policy id to the string used as the metadata
+-- | key
+encodePolicyIdKey :: Cip25MetadataEntry -> String
+encodePolicyIdKey (Cip25MetadataEntry { policyId }) =
+  rawBytesToHex $ scriptHashToBytes $ unwrap policyId
+
+-- | Decode the CIP25 policy id key
+decodePolicyIdKey :: String -> Maybe MintingPolicyHash
+decodePolicyIdKey = map wrap <<< scriptHashFromBytes <=< hexToByteArray
+
+-- | Encode the entry's asset name to the string used as the metadata
+-- | key
+encodeAssetNameKey :: Cip25MetadataEntry -> String
+encodeAssetNameKey (Cip25MetadataEntry { assetName }) =
+  byteArrayToHex $ getTokenName $ unwrap assetName
+
+-- | Decode the CIP25 asset name key
+decodeAssetNameKey :: String -> Maybe Cip25TokenName
+decodeAssetNameKey = map wrap <<< mkTokenName <=< hexToByteArray
+
 newtype Cip25Metadata = Cip25Metadata (Array Cip25MetadataEntry)
 
 derive instance Generic Cip25Metadata _
@@ -244,9 +269,10 @@ instance ToMetadata Cip25Metadata where
       dataEntries =
         groupEntries entries <#>
           \group ->
-            (toMetadata <<< _.policyId <<< unwrap $ NonEmpty.head group) /\
+            ( toMetadata $ encodePolicyIdKey $ NonEmpty.head group
+            ) /\
               (toMetadata <<< toArray <<< flip map group) \entry ->
-                (unwrap entry).assetName /\ metadataEntryToMetadata entry
+                (encodeAssetNameKey entry) /\ metadataEntryToMetadata entry
       versionEntry = [ toMetadata "version" /\ toMetadata Cip25V2 ]
     in
       dataEntries <> versionEntry
@@ -267,8 +293,9 @@ instance FromMetadata Cip25Metadata where
               Just case assets of
                 MetadataMap mp2 ->
                   for (Map.toUnfoldable mp2) \(assetName /\ contents) ->
-                    metadataEntryFromMetadata <$> fromMetadata key
-                      <*> fromMetadata assetName
+                    metadataEntryFromMetadata
+                      <$> (decodePolicyIdKey =<< fromMetadata key)
+                      <*> (decodeAssetNameKey =<< fromMetadata assetName)
                       <*> pure contents
                 _ -> Nothing
     wrap <$> sequence entries
@@ -282,9 +309,9 @@ instance ToData Cip25Metadata where
           dataEntries =
             groupEntries entries <#>
               \group ->
-                toData (_.policyId <<< unwrap $ NonEmpty.head group) /\ toData
+                toData (encodePolicyIdKey $ NonEmpty.head group) /\ toData
                   ( (AssocMap.Map <<< toArray <<< flip map group) \entry ->
-                      toData ((unwrap entry).assetName) /\ metadataEntryToData
+                      toData (encodeAssetNameKey entry) /\ metadataEntryToData
                         entry
                   )
           versionEntry = [ toData "version" /\ toData Cip25V2 ]
@@ -302,8 +329,9 @@ instance FromData Cip25Metadata where
                   case assets of
                     Map mp2 ->
                       for mp2 \(assetName /\ contents) ->
-                        metadataEntryFromData <$> fromData policyId
-                          <*> fromData assetName
+                        metadataEntryFromData
+                          <$> (decodePolicyIdKey =<< fromData policyId)
+                          <*> (decodeAssetNameKey =<< fromData assetName)
                           <*> pure contents
                     _ -> Nothing
                 fromDataVersion =
