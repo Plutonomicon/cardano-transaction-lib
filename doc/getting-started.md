@@ -32,7 +32,7 @@ Nix caches improve build speeds by allowing to download pre-built dependencies i
 
 Follow [these instructions](https://github.com/input-output-hk/cardano-ledger#nix-cache) to add the IOG caches.
 
-Then, add `https://public-plutonomicon.cachix.org` and `public-plutonomicon.cachix.org-1:3AKJMhCLn32gri1drGuaZmFrmnue+KkKrhhubQk/CWc=` to `substituters` and `trusted-public-keys`, respectively, or run `cachix use public-plutonomicon` if you use [Cachix](cachix.org).
+Then, add `https://public-plutonomicon.cachix.org` and `public-plutonomicon.cachix.org-1:3AKJMhCLn32gri1drGuaZmFrmnue+KkKrhhubQk/CWc=` to `substituters` and `trusted-public-keys`, respectively, or run `cachix use public-plutonomicon` if you use [Cachix](https://cachix.org).
 
 ### Setting up a new project
 
