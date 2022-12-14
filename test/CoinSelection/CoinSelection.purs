@@ -17,11 +17,13 @@ import Ctl.Internal.Cardano.Types.Value
   , NonAdaAsset
   , Value
   , mkCoin
+  , mkCurrencySymbol
   , mkSingletonNonAdaAsset
   , mkValue
   )
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
+import Ctl.Internal.Hashing (blake2b224Hash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
@@ -50,7 +52,6 @@ import Test.Ctl.CoinSelection.Arbitrary
   , ArbitraryUtxoIndex
   )
 import Test.Ctl.CoinSelection.UtxoIndex (suite) as UtxoIndex
-import Test.Ctl.Fixtures (currencySymbol1) as Fixtures
 import Test.QuickCheck (class Testable, Result, assertEquals)
 import Test.QuickCheck (test) as QuickCheck
 import Test.QuickCheck.Arbitrary (arbitrary)
@@ -64,7 +65,7 @@ suite =
     UtxoIndex.suite
     group "performMultiAssetSelection" do
       performMultiAssetSelection_unitTests
-      test "prop_performMultiAssetSelection_empty" do
+      test "Performs a selection with zero outputs" do
         quickCheck prop_performMultiAssetSelection_empty
 
 --------------------------------------------------------------------------------
@@ -83,8 +84,9 @@ prop_performMultiAssetSelection_empty strategy utxoIndex =
 
 performMultiAssetSelection_unitTests :: TestPlanM (Aff Unit) Unit
 performMultiAssetSelection_unitTests =
-  for_ selFixtures \{ testLabel, strategy, inpFixture, outFixture } ->
-    test testLabel $ liftEffect $ (unwrap :: CoinSelectionTestM _ -> _) do
+  for_ selFixtures \{ testLabel, strategy, inpFixture, outFixture } -> do
+    let testLabel' = testLabel <> showSelStrategy strategy
+    test testLabel' $ liftEffect $ (unwrap :: CoinSelectionTestM _ -> _) do
       td <- liftEffect $
         selTestDataFromFixtures (inpFixture strategy) (outFixture strategy)
       selectedUtxos <-
@@ -93,6 +95,12 @@ performMultiAssetSelection_unitTests =
       liftEffect $
         td.selectedValue `shouldEqual`
           foldMap (_.amount <<< unwrap) (Map.values selectedUtxos)
+
+showSelStrategy :: SelectionStrategy -> String
+showSelStrategy strategy =
+  case strategy of
+    SelectionStrategyOptimal -> " (optimal strategy)"
+    SelectionStrategyMinimal -> " (minimal strategy)"
 
 --------------------------------------------------------------------------------
 -- Fixtures
@@ -106,9 +114,14 @@ instance Show AssetFixture where
   show = genericShow
 
 assetClassFromFixture :: AssetFixture -> CurrencySymbol /\ TokenName
-assetClassFromFixture =
-  Tuple Fixtures.currencySymbol1 <<< tokenNameFromAscii <<< show
+assetClassFromFixture asset =
+  currencySymbolFromAscii (show asset) /\ tokenNameFromAscii (show asset)
   where
+  currencySymbolFromAscii :: String -> CurrencySymbol
+  currencySymbolFromAscii str =
+    unsafePartial fromJust $
+      mkCurrencySymbol =<< map blake2b224Hash (byteArrayFromAscii str)
+
   tokenNameFromAscii :: String -> TokenName
   tokenNameFromAscii =
     unsafePartial fromJust <<< (mkTokenName <=< byteArrayFromAscii)
@@ -187,6 +200,26 @@ selOutputFixture0 strategy =
     SelectionStrategyMinimal ->
       [ 40 /\ [ AssetA /\ 5 ], 60 /\ mempty ]
 
+selInputFixture1 :: SelectionStrategy -> SelInputFixture
+selInputFixture1 strategy =
+  { strategy
+  , requiredValue: 100 /\ [ AssetA /\ 5 ]
+  , utxos:
+      [ 100 /\ [ AssetA /\ 5 ]
+      -- ^ singleton for AssetA - covers the output asset quantity,
+      -- but the selection can still be improved
+      , 50 /\ [ AssetA /\ 5, AssetB /\ 1 ]
+      -- ^ pair for AssetA and AssetB - should not be considered to
+      -- improve the selection for AssetA
+      , 50 /\ [ AssetA /\ 4, AssetB /\ 1, AssetC /\ 1 ]
+      -- ^ bundle containing multiple assets including AssetA - should not be
+      -- considered to improve the selection for AssetA
+      ]
+  }
+
+selOutputFixture1 :: SelectionStrategy -> SelOutputFixture
+selOutputFixture1 _ = [ 100 /\ [ AssetA /\ 5 ] ]
+
 --------------------------------------------------------------------------------
 
 type SelectionTest =
@@ -196,19 +229,24 @@ type SelectionTest =
   , outFixture :: SelectionStrategy -> SelOutputFixture
   }
 
+selTestsForBothStrategies
+  :: (SelectionStrategy -> SelInputFixture)
+  -> (SelectionStrategy -> SelOutputFixture)
+  -> String
+  -> Array SelectionTest
+selTestsForBothStrategies inpFixture outFixture testLabel =
+  [ mkTest SelectionStrategyOptimal, mkTest SelectionStrategyMinimal ]
+  where
+  mkTest :: SelectionStrategy -> SelectionTest
+  mkTest strategy = { testLabel, strategy, inpFixture, outFixture }
+
 selFixtures :: Array SelectionTest
 selFixtures =
-  [ { testLabel: "Selects only singletons (optimal strategy)"
-    , strategy: SelectionStrategyOptimal
-    , inpFixture: selInputFixture0
-    , outFixture: selOutputFixture0
-    }
-  , { testLabel: "Selects only singletons (minimal strategy)"
-    , strategy: SelectionStrategyMinimal
-    , inpFixture: selInputFixture0
-    , outFixture: selOutputFixture0
-    }
-  ]
+  selTestsForBothStrategies selInputFixture0 selOutputFixture0
+    "Selects only from the 'singletons' subset if possible"
+    <>
+      selTestsForBothStrategies selInputFixture1 selOutputFixture1
+        "Selects only from the 'singletons' subset to improve selection"
 
 --------------------------------------------------------------------------------
 -- CoinSelectionTestM
