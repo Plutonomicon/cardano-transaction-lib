@@ -11,7 +11,7 @@ import Contract.Crypto.Schnorr
   )
 import Contract.Crypto.Utils (randomPrivateKey)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE)
+import Contract.Monad (Contract, liftContractM)
 import Contract.PlutusData
   ( class ToData
   , PlutusData(Constr)
@@ -26,9 +26,7 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , balanceTx
-  , signTransaction
-  , submit
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
@@ -69,10 +67,7 @@ prepTest = do
     constraints = Constraints.mustPayToScript valHash unitDatum
       Constraints.DatumInline
       val
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceTx ubTx
-  sgTx <- signTransaction bsTx
-  txId <- submit sgTx
+  txId <- submitTxFromConstraints lookups constraints
   logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
@@ -102,10 +97,7 @@ testVerification ecdsaRed = do
 
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustSpendScriptOutput txIn red
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- liftedE $ balanceTx ubTx
-  sgTx <- signTransaction bsTx
-  txId <- submit sgTx
+  txId <- submitTxFromConstraints lookups constraints
   logInfo' $ "Submitted Schnorr test verification tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
