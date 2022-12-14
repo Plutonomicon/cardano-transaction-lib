@@ -107,9 +107,8 @@ We are aware of two error messages that can be show to you if you are using wayl
     ✗ plutip:http://localhost:4008/?plutip-nami-mock:OneShotMinting:
 
       Error: Failed to launch the browser process!
-    Missing X server or $DISPLAY
-    The platform failed to initialize.  Exiting.
-</details>
+    [76104:76104:1207/234245.704016:ERROR:ozone_platform_x11.cc(238)] Missing X server or $DISPLAY
+    [76104:76104:1207/234245.704036:ERROR:env.cc(255)] The platform failed to initialize.  Exiting.</details>
 
 If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. You can use the `--extra-browser-args` argument for this, as in `e2e-test browser --extra-browser-args="--ozone-platform=wayland"` or the `E2E_EXTRA_BROWSER_ARGS` environment variable.
 
