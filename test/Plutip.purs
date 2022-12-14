@@ -16,7 +16,6 @@ import Ctl.Internal.Plutip.Server
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.TestPlanM as Utils
-import Data.BigInt as BigInt
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -54,8 +53,7 @@ testStartPlutipCluster = group "Server" do
     bracket (startPlutipServer config)
       (stopChildProcessWithPort config.port) $ const do
       checkPlutipServer config
-      _startRes <- startPlutipCluster config
-        [ [ BigInt.fromInt 2_000_000_000 ] ]
+      _startRes <- startPlutipCluster config [ [] ]
       stopRes <- stopPlutipCluster config
       stopRes `shouldSatisfy` case _ of
         StopClusterSuccess -> true
