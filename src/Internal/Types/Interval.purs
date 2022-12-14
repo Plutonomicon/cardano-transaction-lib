@@ -69,23 +69,27 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
+  , JsonDecodeError(..)
   , aesonNull
   , decodeAeson
   , encodeAeson
-  , encodeAeson'
   , getField
   , isNull
+  , partialFiniteNumber
+  , (.:)
   )
-import Aeson.Decode ((</$\>), (</*\>))
-import Aeson.Decode as Decode
-import Aeson.Encode ((>$<), (>/\<))
-import Aeson.Encode as Encode
-import Control.Lazy (defer)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
-import Ctl.Internal.Helpers (liftEither, liftM, mkErrorRecord, showWithParens)
+import Ctl.Internal.Helpers
+  ( contentsProp
+  , encodeTagged'
+  , liftEither
+  , liftM
+  , mkErrorRecord
+  , showWithParens
+  , tagProp
+  )
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -112,11 +116,12 @@ import Ctl.Internal.Types.BigNum
   , zero
   ) as BigNum
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
+import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
-import Data.Either (Either(Right), note)
+import Data.Either (Either(..), note)
 import Data.Generic.Rep (class Generic)
 import Data.JSDate (getTime, parse)
 import Data.Lattice
@@ -126,11 +131,11 @@ import Data.Lattice
   , class MeetSemilattice
   )
 import Data.List (List(Nil), (:))
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
+import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
@@ -339,7 +344,7 @@ instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
   fromData _ = Nothing
 
 instance (EncodeAeson a, Ord a, Semiring a) => EncodeAeson (Interval a) where
-  encodeAeson' = encodeAeson' <<< intervalToHaskInterval
+  encodeAeson = encodeAeson <<< intervalToHaskInterval
 
 instance (DecodeAeson a, Ord a, Ring a) => DecodeAeson (Interval a) where
   decodeAeson a = do
@@ -630,23 +635,23 @@ slotToPosixTimeErrorStr :: String
 slotToPosixTimeErrorStr = "slotToPosixTimeError"
 
 instance EncodeAeson SlotToPosixTimeError where
-  encodeAeson' (CannotFindSlotInEraSummaries slot) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (CannotFindSlotInEraSummaries slot) =
+    encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
       "cannotFindSlotInEraSummaries"
       [ slot ]
-  encodeAeson' (StartingSlotGreaterThanSlot slot) = do
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (StartingSlotGreaterThanSlot slot) = do
+    encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
       "startingSlotGreaterThanSlot"
       [ slot ]
-  encodeAeson' (EndTimeLessThanTime absTime) = do
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (EndTimeLessThanTime absTime) = do
+    encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
-      [ absTime ]
-  encodeAeson' CannotGetBigIntFromNumber = do
-    encodeAeson' $ mkErrorRecord
+      [ unsafePartial partialFiniteNumber absTime ]
+  encodeAeson CannotGetBigIntFromNumber = do
+    encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
       "cannotGetBigIntFromNumber"
       aesonNull
@@ -867,33 +872,33 @@ posixTimeToSlotErrorStr :: String
 posixTimeToSlotErrorStr = "posixTimeToSlotError"
 
 instance EncodeAeson PosixTimeToSlotError where
-  encodeAeson' (CannotFindTimeInEraSummaries absTime) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (CannotFindTimeInEraSummaries absTime) =
+    encodeAeson $ mkErrorRecord
       posixTimeToSlotErrorStr
       "cannotFindTimeInEraSummaries"
       [ absTime ]
-  encodeAeson' (PosixTimeBeforeSystemStart posixTime) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (PosixTimeBeforeSystemStart posixTime) =
+    encodeAeson $ mkErrorRecord
       posixTimeToSlotErrorStr
       "posixTimeBeforeSystemStart"
       [ posixTime ]
-  encodeAeson' (StartTimeGreaterThanTime absTime) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (StartTimeGreaterThanTime absTime) =
+    encodeAeson $ mkErrorRecord
       posixTimeToSlotErrorStr
       "startTimeGreaterThanTime"
       [ absTime ]
-  encodeAeson' (EndSlotLessThanSlotOrModNonZero slot modTime) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (EndSlotLessThanSlotOrModNonZero slot modTime) =
+    encodeAeson $ mkErrorRecord
       posixTimeToSlotErrorStr
       "endSlotLessThanSlotOrModNonZero"
       [ encodeAeson slot, encodeAeson modTime ]
-  encodeAeson' CannotGetBigIntFromNumber' =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson CannotGetBigIntFromNumber' =
+    encodeAeson $ mkErrorRecord
       posixTimeToSlotErrorStr
       "cannotGetBigIntFromNumber'"
       aesonNull
-  encodeAeson' CannotGetBigNumFromBigInt' =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson CannotGetBigNumFromBigInt' =
+    encodeAeson $ mkErrorRecord
       posixTimeToSlotErrorStr
       "cannotGetBigNumFromBigInt'"
       aesonNull
@@ -1144,76 +1149,50 @@ derive instance Functor HaskInterval
 derive instance Newtype (HaskInterval a) _
 
 instance (EncodeAeson a) => EncodeAeson (HaskInterval a) where
-  encodeAeson' = encodeAeson' <<<
-    defer
-      ( const $ Encode.encode $ unwrap >$<
-          ( Encode.record
-              { ivFrom: Encode.value :: _ (LowerBound a)
-              , ivTo: Encode.value :: _ (UpperBound a)
-              }
-          )
-      )
+  encodeAeson = encodeAeson <<< unwrap
 
 instance (DecodeAeson a) => DecodeAeson (HaskInterval a) where
-  decodeAeson = defer $ const $ Decode.decode $
-    HaskInterval <$> Decode.record "Interval"
-      { ivFrom: Decode.value :: _ (LowerBound a)
-      , ivTo: Decode.value :: _ (UpperBound a)
-      }
+  decodeAeson a = lmap (Named "Interval") $ HaskInterval <$> decodeAeson a
 
 instance (EncodeAeson a) => EncodeAeson (LowerBound a) where
-  encodeAeson' = encodeAeson' <<<
-    defer
-      ( const $ Encode.encode $ (case _ of LowerBound a b -> (a /\ b)) >$<
-          (Encode.tuple (Encode.value >/\< Encode.value))
-      )
+  encodeAeson (LowerBound a b) = encodeAeson (a /\ b)
 
 instance (DecodeAeson a) => DecodeAeson (LowerBound a) where
-  decodeAeson = defer $ const $ Decode.decode
-    $ Decode.tuple
-    $ LowerBound </$\> Decode.value </*\> Decode.value
+  decodeAeson a = uncurry LowerBound <$> decodeAeson a
 
 instance (EncodeAeson a) => EncodeAeson (UpperBound a) where
-  encodeAeson' = encodeAeson' <<<
-    defer
-      ( const $ Encode.encode $ (case _ of UpperBound a b -> (a /\ b)) >$<
-          (Encode.tuple (Encode.value >/\< Encode.value))
-      )
+  encodeAeson (UpperBound a b) = encodeAeson (a /\ b)
 
 instance (DecodeAeson a) => DecodeAeson (UpperBound a) where
-  decodeAeson = defer $ const $ Decode.decode
-    $ Decode.tuple
-    $ UpperBound </$\> Decode.value </*\> Decode.value
+  decodeAeson a = uncurry UpperBound <$> decodeAeson a
 
 instance (EncodeAeson a) => EncodeAeson (Extended a) where
-  encodeAeson' = encodeAeson' <<<
-    defer
-      ( const $ case _ of
-          NegInf -> encodeAeson { tag: "NegInf" }
-          Finite a -> Encode.encodeTagged "Finite" a Encode.value
-          PosInf -> encodeAeson { tag: "PosInf" }
-      )
+  encodeAeson = case _ of
+    NegInf -> encodeAeson { tag: "NegInf" }
+    Finite a -> encodeTagged' "Finite" a
+    PosInf -> encodeAeson { tag: "PosInf" }
 
 instance (DecodeAeson a) => DecodeAeson (Extended a) where
-  decodeAeson = defer $ const $ Decode.decode
-    $ Decode.sumType "Extended"
-    $ Map.fromFoldable
-        [ "NegInf" /\ pure NegInf
-        , "Finite" /\ Decode.content (Finite <$> Decode.value)
-        , "PosInf" /\ pure PosInf
-        ]
+  decodeAeson a = lmap (Named "Extended") do
+    obj <- decodeAeson a
+    tag <- obj .: tagProp
+    case tag of
+      "NegInf" -> pure NegInf
+      "PosInf" -> pure PosInf
+      "Finite" -> Finite <$> obj .: contentsProp
+      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
 
 toOnChainPosixTimeRangeErrorStr :: String
 toOnChainPosixTimeRangeErrorStr = "ToOnChainPosixTimeRangeError"
 
 instance EncodeAeson ToOnChainPosixTimeRangeError where
-  encodeAeson' (PosixTimeToSlotError' err) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (PosixTimeToSlotError' err) =
+    encodeAeson $ mkErrorRecord
       toOnChainPosixTimeRangeErrorStr
       "posixTimeToSlotError'"
       [ err ]
-  encodeAeson' (SlotToPosixTimeError' err) =
-    encodeAeson' $ mkErrorRecord
+  encodeAeson (SlotToPosixTimeError' err) =
+    encodeAeson $ mkErrorRecord
       toOnChainPosixTimeRangeErrorStr
       "slotToPosixTimeError'"
       [ err ]

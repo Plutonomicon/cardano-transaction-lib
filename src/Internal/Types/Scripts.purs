@@ -23,7 +23,7 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   , fromString
   , getField
   , toStringifiedNumbersJson
@@ -61,7 +61,7 @@ instance DecodeAeson Language where
         other
 
 instance EncodeAeson Language where
-  encodeAeson' = encodeAeson' <<< case _ of
+  encodeAeson = encodeAeson <<< case _ of
     PlutusV1 -> "PlutusV1"
     PlutusV2 -> "PlutusV2"
 
@@ -116,10 +116,10 @@ instance DecodeAeson MintingPolicy where
       decodeAesonHelper "getNativeMintingPolicy" NativeMintingPolicy aes
 
 instance EncodeAeson MintingPolicy where
-  encodeAeson' (NativeMintingPolicy nscript) =
-    encodeAeson' { "getNativeMintingPolicy": nscript }
-  encodeAeson' (PlutusMintingPolicy script) = do
-    encodeAeson' { "getPlutusMintingPolicy": script }
+  encodeAeson (NativeMintingPolicy nscript) =
+    encodeAeson { "getNativeMintingPolicy": nscript }
+  encodeAeson (PlutusMintingPolicy script) = do
+    encodeAeson { "getPlutusMintingPolicy": script }
 
 instance Show MintingPolicy where
   show = genericShow
@@ -135,8 +135,8 @@ instance DecodeAeson Validator where
   decodeAeson = decodeAesonHelper "getValidator" Validator
 
 instance EncodeAeson Validator where
-  encodeAeson' (Validator script) =
-    encodeAeson' { "getValidator": script }
+  encodeAeson (Validator script) =
+    encodeAeson { "getValidator": script }
 
 instance Show Validator where
   show = genericShow
@@ -164,8 +164,8 @@ instance DecodeAeson PlutusScriptStakeValidator where
   decodeAeson = decodeAesonHelper "getStakeValidator" PlutusScriptStakeValidator
 
 instance EncodeAeson PlutusScriptStakeValidator where
-  encodeAeson' (PlutusScriptStakeValidator script) =
-    encodeAeson' { "getStakeValidator": script }
+  encodeAeson (PlutusScriptStakeValidator script) =
+    encodeAeson { "getStakeValidator": script }
 
 instance Show PlutusScriptStakeValidator where
   show = genericShow
@@ -188,8 +188,8 @@ instance DecodeAeson MintingPolicyHash where
   decodeAeson = decodeAesonHelper "getMintingPolicyHash" MintingPolicyHash
 
 instance EncodeAeson MintingPolicyHash where
-  encodeAeson' (MintingPolicyHash hash) =
-    encodeAeson' { "getMintingPolicyHash": hash }
+  encodeAeson (MintingPolicyHash hash) =
+    encodeAeson { "getMintingPolicyHash": hash }
 
 instance Show MintingPolicyHash where
   show = genericShow
@@ -223,8 +223,8 @@ instance DecodeAeson StakeValidatorHash where
   decodeAeson = decodeAesonHelper "getStakeValidatorHash" StakeValidatorHash
 
 instance EncodeAeson StakeValidatorHash where
-  encodeAeson' (StakeValidatorHash hash) =
-    encodeAeson' { "getStakeValidatorHash": hash }
+  encodeAeson (StakeValidatorHash hash) =
+    encodeAeson { "getStakeValidatorHash": hash }
 
 instance Show StakeValidatorHash where
   show = genericShow

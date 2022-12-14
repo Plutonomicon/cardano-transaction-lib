@@ -34,7 +34,6 @@ import Aeson
   , caseAesonObject
   , decodeAeson
   , encodeAeson
-  , encodeAeson'
   , getField
   )
 import Control.Apply (lift3)
@@ -84,7 +83,7 @@ instance DecodeAeson Value where
     (flip getField "getValue" >=> decodeAeson >>> map Value)
 
 instance EncodeAeson Value where
-  encodeAeson' (Value mph) = encodeAeson' $ encodeAeson
+  encodeAeson (Value mph) = encodeAeson $ encodeAeson
     { "getValue": encodeAeson mph }
 
 arbitrarySingletonValue :: Gen Value

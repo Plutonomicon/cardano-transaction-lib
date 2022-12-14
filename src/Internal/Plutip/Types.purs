@@ -30,7 +30,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -175,7 +175,7 @@ instance Show StopClusterRequest where
   show = genericShow
 
 instance EncodeAeson StopClusterRequest where
-  encodeAeson' _ = encodeAeson' ([] :: Array Int)
+  encodeAeson _ = encodeAeson ([] :: Array Int)
 
 data StopClusterResponse = StopClusterSuccess | StopClusterFailure ErrorMessage
 

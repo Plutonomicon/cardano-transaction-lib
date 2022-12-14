@@ -41,7 +41,8 @@
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
     "ws": "8.4.0",
-    "xhr2": "0.2.1"
+    "xhr2": "0.2.1",
+    "@khavryliuk/json-bigint": " 1.0.0"
   },
   "devDependencies": {
     "buffer": "6.0.3",

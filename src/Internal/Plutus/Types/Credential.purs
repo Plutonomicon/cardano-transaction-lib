@@ -5,13 +5,16 @@ module Ctl.Internal.Plutus.Types.Credential
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
-import Aeson.Decode ((</$\>), (</*\>))
-import Aeson.Decode as Decode
-import Aeson.Encode ((>/\<))
-import Aeson.Encode as Encode
-import Control.Lazy (defer)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(..)
+  , decodeAeson
+  , (.:)
+  )
+import Contract.Prelude (type (/\))
 import Ctl.Internal.FromData (class FromData, genericFromData)
+import Ctl.Internal.Helpers (contentsProp, encodeTagged', tagProp)
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -29,8 +32,10 @@ import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
 import Ctl.Internal.Types.Scripts (ValidatorHash)
+import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Bifunctor (lmap)
+import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
-import Data.Map as Map
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\))
 
@@ -68,23 +73,18 @@ instance
 
 -- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson Credential where
-  encodeAeson' = encodeAeson' <<<
-    ( defer $ const $ case _ of
-        PubKeyCredential a -> Encode.encodeTagged "PubKeyCredential" a
-          Encode.value
-        ScriptCredential a -> Encode.encodeTagged "ScriptCredential" a
-          Encode.value
-    )
+  encodeAeson = case _ of
+    PubKeyCredential a -> encodeTagged' "PubKeyCredential" a
+    ScriptCredential a -> encodeTagged' "ScriptCredential" a
 
 instance DecodeAeson Credential where
-  decodeAeson = defer $ const $ Decode.decode
-    $ Decode.sumType "Credential"
-    $ Map.fromFoldable
-        [ "PubKeyCredential" /\ Decode.content
-            (PubKeyCredential <$> Decode.value)
-        , "ScriptCredential" /\ Decode.content
-            (ScriptCredential <$> Decode.value)
-        ]
+  decodeAeson a = lmap (Named "Credential") do
+    obj <- decodeAeson a
+    tag <- obj .: tagProp
+    case tag of
+      "PubKeyCredential" -> PubKeyCredential <$> obj .: contentsProp
+      "ScriptCredential" -> ScriptCredential <$> obj .: contentsProp
+      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
 
 instance ToData Credential where
   toData = genericToData
@@ -136,25 +136,20 @@ instance FromData StakingCredential where
 
 -- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson StakingCredential where
-  encodeAeson' = encodeAeson' <<< defer
-    ( const $ case _ of
-        StakingHash a -> Encode.encodeTagged "StakingHash" a Encode.value
-        StakingPtr ptr -> Encode.encodeTagged "StakingPtr"
-          (ptr.slot /\ ptr.txIx /\ ptr.certIx)
-          (Encode.tuple (Encode.value >/\< Encode.value >/\< Encode.value))
-    )
+  encodeAeson = case _ of
+    StakingHash a -> encodeTagged' "StakingHash" a
+    StakingPtr ptr -> encodeTagged' "StakingPtr"
+      (ptr.slot /\ ptr.txIx /\ ptr.certIx)
 
 instance DecodeAeson StakingCredential where
-  decodeAeson = defer $ const $ Decode.decode
-    $ Decode.sumType "StakingCredential"
-    $ Map.fromFoldable
-        [ "StakingHash" /\ Decode.content (StakingHash <$> Decode.value)
-        , "StakingPtr" /\ Decode.content
-            ( Decode.tuple $ toStakingPtr </$\> Decode.value </*\> Decode.value
-                </*\> Decode.value
-            )
-        ]
+  decodeAeson a = lmap (Named "StakingCredential") do
+    obj <- decodeAeson a
+    tag <- obj .: tagProp
+    case tag of
+      "StakingHash" -> StakingHash <$> obj .: contentsProp
+      "StakingPtr" -> toStakingPtr <$> obj .: contentsProp
+      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
     where
     toStakingPtr
-      :: Slot -> TransactionIndex -> CertificateIndex -> StakingCredential
-    toStakingPtr slot txIx certIx = StakingPtr { slot, txIx, certIx }
+      :: (Slot /\ TransactionIndex /\ CertificateIndex) -> StakingCredential
+    toStakingPtr (slot /\ txIx /\ certIx) = StakingPtr { slot, txIx, certIx }
