@@ -39,10 +39,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 - NuFi wallet support ([#1265](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1265))
 
+* Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` builds a transaction that satisfies the constraints, then submits it to the network. It is analog for `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
+
 ### Changed
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
+- CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309 "CTL's CIP25 metadata encoding is considered invalid by Blockfrost #1309")).
 - CIP-30 got optional args support on level of `Cip30Mock` and `Cip30Wallet` module API is changed to support them. `getWalletAddresses` got version `getWalletAddressesPaginated`. `getValue` got `Maybe Paginate` argument. `getCollateral` got amount argument of type `Coin` and `getValue` got amount argument of type `Value`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)
 
 ### Removed

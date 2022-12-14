@@ -59,6 +59,7 @@ import Contract.Transaction
   , createAdditionalUtxos
   , signTransaction
   , submit
+  , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
   )
@@ -78,8 +79,7 @@ import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
@@ -529,7 +529,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -544,7 +544,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustProduceAtLeast fail" do
@@ -571,7 +571,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -614,7 +614,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -629,7 +629,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustSpendAtLeast fail" do
@@ -656,7 +656,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -744,7 +744,7 @@ suite = do
 
             lookups :: Lookups.ScriptLookups PlutusData
             lookups = mempty
-          buildBalanceSignAndSubmitTx lookups constraints
+          submitTxFromConstraints lookups constraints
 
       withWallets distribution \alice -> do
         withKeyWallet alice do
