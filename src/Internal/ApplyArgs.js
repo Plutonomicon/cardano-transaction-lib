@@ -1,13 +1,14 @@
 /* global BROWSER_RUNTIME */
 
 let lib;
+let apply_args;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-browser");
+  apply_args = require("apply-args-browser");
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
+  apply_args = require("apply-args-nodejs");
 }
-
-const uplc = require("uplc");
 
 /**
  * @param {} left
@@ -24,7 +25,7 @@ exports.apply_params_to_script = left => right => args => script => {
     let argsBytes = args.to_bytes(); // cbor
 
     try {
-      appliedScript = uplc.apply_params_to_script_no_panic(
+      appliedScript = apply_args.apply_params_to_script_no_panic(
         argsBytes,
         scriptBytes
       );
