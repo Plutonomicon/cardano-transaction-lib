@@ -348,8 +348,8 @@ convertCertificate = _convertCert certConvHelper
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         pure $ T.GenesisKeyDelegation
           { genesisHash: T.GenesisHash $ unwrap $ toBytes genesisHash
-          , genesisDelegateHash: T.GenesisDelegateHash
-              (unwrap $ toBytes genesisDelegateHash)
+          , genesisDelegateHash: T.GenesisDelegateHash $ unwrap
+              $ toBytes genesisDelegateHash
           , vrfKeyhash: VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do

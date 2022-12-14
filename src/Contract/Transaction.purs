@@ -311,7 +311,7 @@ submitE
    . BalancedSignedTransaction
   -> Contract r (Either (Array Aeson) TransactionHash)
 submitE tx = do
-  cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
+  cslTx <- liftEffect $ Serialization.convertTransaction $ unwrap tx
   let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
   let txCborBytes = Serialization.toBytes cslTx

@@ -537,7 +537,7 @@ convertUpdate :: T.Update -> Effect Update
 convertUpdate { proposedProtocolParameterUpdates, epoch } = do
   ppUpdates <- convertProposedProtocolParameterUpdates
     proposedProtocolParameterUpdates
-  newUpdate ppUpdates (UInt.toInt $ unwrap epoch)
+  newUpdate ppUpdates $ UInt.toInt $ unwrap epoch
 
 convertProposedProtocolParameterUpdates
   :: T.ProposedProtocolParameterUpdates
@@ -547,8 +547,8 @@ convertProposedProtocolParameterUpdates ppus =
     for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
       Tuple
         <$>
-          ( fromJustEff "Failed to convert genesis hash" $ fromBytes
-              (wrap $ unwrap genesisHash)
+          ( fromJustEff "Failed to convert genesis hash" $ fromBytes $ wrap
+              $ unwrap genesisHash
           )
         <*>
           convertProtocolParamUpdate ppu
@@ -723,8 +723,8 @@ convertMoveInstantaneousReward (T.ToStakeCreds { pot, amounts }) =
 convertPoolMetadata :: T.PoolMetadata -> Effect PoolMetadata
 convertPoolMetadata
   (T.PoolMetadata { url: T.URL url, hash: T.PoolMetadataHash hash }) =
-  ( (fromJustEff "Failed to convert script data hash" <<< fromBytes <<< wrap)
-      >=> (newPoolMetadata url)
+  ( fromJustEff "Failed to convert script data hash" <<< fromBytes <<< wrap
+      >=> newPoolMetadata url
   ) hash
 
 convertRelays :: Array T.Relay -> Effect Relays
@@ -779,7 +779,7 @@ convertTxInputs fInputs = do
 
 convertTxInput :: T.TransactionInput -> Effect TransactionInput
 convertTxInput (T.TransactionInput { transactionId, index }) = do
-  tx_hash <- fromBytesEffect (wrap $ unwrap transactionId)
+  tx_hash <- fromBytesEffect $ wrap $ unwrap transactionId
   newTransactionInput tx_hash index
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs

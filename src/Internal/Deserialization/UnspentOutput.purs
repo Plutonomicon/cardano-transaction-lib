@@ -79,8 +79,8 @@ convertInput :: TransactionInput -> Maybe T.TransactionInput
 convertInput input = do
   index <- UInt.fromInt' $ getTransactionIndex input
   pure $ T.TransactionInput
-    { transactionId: T.TransactionHash $ unwrap $ toBytes
-        (getTransactionHash input)
+    { transactionId: T.TransactionHash $ unwrap $ toBytes $
+        getTransactionHash input
     , index
     }
 

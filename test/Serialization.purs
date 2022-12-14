@@ -108,7 +108,7 @@ suite = do
         "PlutusData #6 - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
         $ do
             let
-              datum = PD.Integer (BigInt.fromInt 0)
+              datum = PD.Integer $ BigInt.fromInt 0
             datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
               datum
             let bytes = toBytes datum'

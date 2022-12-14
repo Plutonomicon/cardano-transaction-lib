@@ -87,4 +87,4 @@ fromBytesError = Left <<< inj _fromBytesError
 fromBytesErrorHelper
   :: forall (r :: Row Type)
    . ErrorFfiHelper (FromBytesError + r)
-fromBytesErrorHelper = errorHelper (inj _fromBytesError)
+fromBytesErrorHelper = errorHelper $ inj _fromBytesError

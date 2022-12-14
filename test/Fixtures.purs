@@ -569,7 +569,7 @@ txFixture4 =
             , PoolRegistration
                 { operator: wrap ed25519KeyHash1
                 , vrfKeyhash: unsafePartial $ VRFKeyHash $ fromJust $
-                    (fromBytes <<< wrap) =<<
+                    fromBytes <<< wrap =<<
                       hexToByteArray
                         "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
                 , pledge: bigNumOne
@@ -611,7 +611,7 @@ txFixture4 =
                     $ hexToByteArrayUnsafe
                         "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
                 , vrfKeyhash: unsafePartial $ VRFKeyHash $ fromJust $
-                    (fromBytes <<< wrap) =<<
+                    fromBytes <<< wrap =<<
                       hexToByteArray
                         "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
                 }

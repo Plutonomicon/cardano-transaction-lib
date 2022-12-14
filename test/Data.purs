@@ -567,7 +567,7 @@ testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
-    map toBytes (PDS.convertPlutusData (toData value))
+    map toBytes (PDS.convertPlutusData $ toData value)
       `shouldEqual` Just
         (wrap $ hexToByteArrayUnsafe binaryFixture)
 

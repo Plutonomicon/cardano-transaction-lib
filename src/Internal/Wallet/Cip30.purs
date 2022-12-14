@@ -143,8 +143,7 @@ getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
   traverse hexStringToAddress
 
 hexStringToAddress :: String -> Maybe Address
-hexStringToAddress =
-  ((fromBytes <<< rawBytesAsCborBytes) <=< hexToRawBytes)
+hexStringToAddress = fromBytes <<< rawBytesAsCborBytes <=< hexToRawBytes
 
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral

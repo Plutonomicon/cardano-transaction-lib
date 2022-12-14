@@ -178,14 +178,14 @@ mkCip30Mock pKey mSKey = do
         pure $ byteArrayToHex $ unwrap $ toBytes value
     , getUsedAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< unwrap <<< toBytes) address ]
+          [ byteArrayToHex $ unwrap $ toBytes address ]
     , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
         (unwrap keyWallet).address config.networkId <#>
-          (byteArrayToHex <<< unwrap <<< toBytes)
+          byteArrayToHex <<< unwrap <<< toBytes
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< unwrap <<< toBytes) address ]
+          [ byteArrayToHex $ unwrap $ toBytes address ]
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
@@ -197,8 +197,8 @@ mkCip30Mock pKey mSKey = do
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
         pure $ byteArrayToHex $ unwrap $ toBytes cslWitnessSet
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
-        msgBytes <- liftMaybe (error "Unable to convert CBOR")
-          (hexToByteArray msg)
+        msgBytes <- liftMaybe (error "Unable to convert CBOR") $
+          hexToByteArray msg
         { key, signature } <- (unwrap keyWallet).signData config.networkId
           (wrap msgBytes)
         pure { key: cborBytesToHex key, signature: cborBytesToHex signature }
