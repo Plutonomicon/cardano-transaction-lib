@@ -7,8 +7,8 @@ rec {
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
     # for info on how to switch networks.
     network = {
-      name = "preprod";
-      magic = 1; # use `null` for mainnet
+      name = "preview";
+      magic = 2; # use `null` for mainnet
     };
     # *All* of these values are optional, and shown with their default
     # values. If you need even more customization, you can use `overideAttrs`
