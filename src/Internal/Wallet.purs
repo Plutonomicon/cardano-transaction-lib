@@ -316,11 +316,10 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
     )
 
 getNetworkId :: Wallet -> Aff NetworkId
-getNetworkId wallet = do
+getNetworkId =
   actionBasedOnWallet
     (\w -> intToNetworkId <=< _.getNetworkId w)
-    (\kw -> pure (unwrap kw).networkId)
-    wallet
+    \kw -> pure (unwrap kw).networkId
   where
   intToNetworkId :: Int -> Aff NetworkId
   intToNetworkId = case _ of
@@ -330,15 +329,12 @@ getNetworkId wallet = do
 
 getUnusedAddresses :: Wallet -> Aff (Array Address)
 getUnusedAddresses wallet = fold <$> do
-  actionBasedOnWallet _.getUnusedAddresses
-    (\_ -> pure $ pure [])
-    wallet
+  actionBasedOnWallet _.getUnusedAddresses mempty wallet
 
 getChangeAddress :: Wallet -> Aff (Maybe Address)
-getChangeAddress wallet = do
+getChangeAddress =
   actionBasedOnWallet _.getChangeAddress
-    (\kw -> pure $ pure (unwrap kw).address)
-    wallet
+    \kw -> pure $ pure (unwrap kw).address
 
 getRewardAddresses :: Wallet -> Aff (Array Address)
 getRewardAddresses wallet = fold <$> do
@@ -353,11 +349,10 @@ getWalletAddresses wallet = fold <$> do
     wallet
 
 signData :: Address -> RawBytes -> Wallet -> Aff (Maybe DataSignature)
-signData address payload wallet = do
+signData address payload =
   actionBasedOnWallet
     (\w conn -> w.signData conn address payload)
-    (\kw -> pure <$> (unwrap kw).signData payload)
-    wallet
+    \kw -> pure <$> (unwrap kw).signData payload
 
 actionBasedOnWallet
   :: forall (m :: Type -> Type) (a :: Type)
@@ -395,7 +390,6 @@ ownStakePubKeysHashes wallet = do
   addresses <- getWalletAddresses wallet
   pure $ addressToMStakePubKeyHash <$> addresses
   where
-
   addressToMStakePubKeyHash :: Address -> Maybe StakePubKeyHash
   addressToMStakePubKeyHash address = do
     baseAddress <- baseAddressFromAddress address

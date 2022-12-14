@@ -4,7 +4,7 @@ import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
-import Control.Monad.Reader.Trans (asks)
+import Contract.ProtocolParameters (getProtocolParameters)
 import Ctl.Internal.BalanceTx.Collateral.Select
   ( maxCandidateUtxos
   , minRequiredCollateral
@@ -85,12 +85,12 @@ withParams test =
   where
   getMaxCollateralInputs :: Contract Int
   getMaxCollateralInputs =
-    asks $ _.ledgerConstants >>> _.pparams <#>
+    getProtocolParameters <#>
       UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
   getCoinsPerUtxoUnit :: Contract CoinsPerUtxoUnit
   getCoinsPerUtxoUnit =
-    asks (_.ledgerConstants >>> _.pparams) <#> unwrap >>>
+    getProtocolParameters <#> unwrap >>>
       _.coinsPerUtxoUnit
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.

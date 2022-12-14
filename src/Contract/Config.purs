@@ -32,7 +32,9 @@ import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad (ContractParams)
 import Ctl.Internal.Contract.QueryBackend
   ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
-  , mkBlockfrostBackendParams
+  -- TODO Export once the following is stable
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1118
+  -- , mkBlockfrostBackendParams
   , mkCtlBackendParams
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)

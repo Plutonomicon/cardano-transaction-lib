@@ -25,6 +25,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Cardano.Types.Value (geq, lovelaceValueOf) as Value
+import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
@@ -86,7 +87,7 @@ signData :: Address -> RawBytes -> Contract (Maybe DataSignature)
 signData address payload = withWalletAff (Aff.signData address payload)
 
 getWallet :: Contract (Maybe Wallet)
-getWallet = asks (_.wallet)
+getWallet = asks _.wallet
 
 getNetworkId :: Contract NetworkId
 getNetworkId = asks _.networkId
@@ -124,25 +125,21 @@ withWalletAff act = withWallet (liftAff <<< act)
 withWallet
   :: forall (a :: Type). (Wallet -> Contract a) -> Contract a
 withWallet act = do
-  wallet <- liftedM (error "No wallet set") $ asks _.wallet
+  wallet <- liftedM (error "No wallet set") getWallet
   act wallet
 
 getWalletCollateral :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
-  mbCollateralUTxOs <- asks (_.wallet) >>= maybe (pure Nothing) do
+  { maxCollateralInputs, coinsPerUtxoUnit } <- unwrap <$> getProtocolParameters
+  mbCollateralUTxOs <- getWallet >>= maybe (pure Nothing) do
     actionBasedOnWallet _.getCollateral \kw -> do
       queryHandle <- getQueryHandle
       let addr = (unwrap kw).address
       utxos <- (liftAff $ queryHandle.utxosAt addr)
         <#> hush >>> fromMaybe Map.empty
         >>= filterLockedUtxos
-      pparams <- asks $ _.ledgerConstants >>> _.pparams <#> unwrap
-      let
-        coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
-        maxCollateralInputs = UInt.toInt $
-          pparams.maxCollateralInputs
       liftEffect $ (unwrap kw).selectCollateral coinsPerUtxoUnit
-        maxCollateralInputs
+        (UInt.toInt maxCollateralInputs)
         utxos
 
   let
@@ -168,11 +165,10 @@ getWalletCollateral = do
         colUtxos
 
   for_ sufficientUtxos \collateralUTxOs -> do
-    pparams <- asks $ _.ledgerConstants >>> _.pparams
     let
       tooManyCollateralUTxOs =
         UInt.fromInt (Array.length collateralUTxOs) >
-          (unwrap pparams).maxCollateralInputs
+          maxCollateralInputs
     when tooManyCollateralUTxOs do
       liftEffect $ throw tooManyCollateralUTxOsError
   pure sufficientUtxos
@@ -185,7 +181,7 @@ getWalletBalance
   :: Contract (Maybe Value)
 getWalletBalance = do
   queryHandle <- getQueryHandle
-  asks _.wallet >>= map join <<< traverse do
+  getWallet >>= map join <<< traverse do
     actionBasedOnWallet _.getBalance \_ -> do
       -- Implement via `utxosAt`
       addresses <- getWalletAddresses
@@ -197,7 +193,7 @@ getWalletBalance = do
 getWalletUtxos :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
   queryHandle <- getQueryHandle
-  asks _.wallet >>= map join <<< traverse do
+  getWallet >>= map join <<< traverse do
     actionBasedOnWallet
       (\w conn -> w.getUtxos conn <#> map toUtxoMap)
       \_ -> do

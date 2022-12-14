@@ -74,8 +74,8 @@ withKeyWallet
    . Wallet.KeyWallet
   -> Contract a
   -> Contract a
-withKeyWallet wallet action = do
-  local _ { wallet = Just $ KeyWallet wallet } action
+withKeyWallet wallet =
+  local _ { wallet = Just $ KeyWallet wallet }
 
 mkKeyWalletFromPrivateKeys
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Wallet.KeyWallet

@@ -117,5 +117,5 @@ getEraSummaries = wrapQueryM EraSummaries.getEraSummaries
 
 -- | Get the current system start time.
 getSystemStart :: Contract SystemStart
-getSystemStart = do
+getSystemStart =
   asks $ _.ledgerConstants >>> _.systemStart

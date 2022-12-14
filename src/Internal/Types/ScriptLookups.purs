@@ -101,6 +101,7 @@ import Ctl.Internal.Cardano.Types.Value
   , negation
   , split
   )
+import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, wrapQueryM)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Hashing (datumHash) as Hashing
@@ -640,8 +641,7 @@ runConstraintsM
   -> TxConstraints redeemer datum
   -> Contract (Either MkUnbalancedTxError (ConstraintProcessingState validator))
 runConstraintsM lookups txConstraints = do
-  costModels <- asks $ _.ledgerConstants >>> _.pparams >>> unwrap >>>
-    _.costModels
+  { costModels } <- unwrap <$> getProtocolParameters
   let
     initCps :: ConstraintProcessingState validator
     initCps =
@@ -813,7 +813,7 @@ addOwnInput
   -> InputConstraint redeemer
   -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 addOwnInput _pd (InputConstraint { txOutRef }) = do
-  networkId <- asks _.networkId
+  networkId <- getNetworkId
   runExceptT do
     ScriptLookups { txOutputs, typedValidator } <- use _lookups
     -- Convert to Cardano type
@@ -839,7 +839,7 @@ addOwnOutput
   -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
 addOwnOutput (OutputConstraint { datum: d, value }) = do
   queryHandle <- lift $ getQueryHandle
-  networkId <- asks _.networkId
+  networkId <- getNetworkId
   runExceptT do
     ScriptLookups { typedValidator } <- use _lookups
     inst <- liftM TypedValidatorMissing typedValidator
@@ -1377,7 +1377,7 @@ processConstraint mpsMap osMap c = do
         poolKeyHash
       attachToCps attachNativeScript (unwrap stakeValidator)
     MustWithdrawStakePubKey spkh -> runExceptT do
-      networkId <- asks _.networkId
+      networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards
         spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
@@ -1389,7 +1389,7 @@ processConstraint mpsMap osMap c = do
         Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = plutusScriptStakeValidatorHash stakeValidator
-      networkId <- asks _.networkId
+      networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ wrapQueryM $
         getValidatorHashDelegationsAndRewards hash
       let
@@ -1412,7 +1412,7 @@ processConstraint mpsMap osMap c = do
       _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = nativeScriptStakeValidatorHash stakeValidator
-      networkId <- asks _.networkId
+      networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ wrapQueryM $
         getValidatorHashDelegationsAndRewards hash
       let

@@ -44,13 +44,11 @@ import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
   , OnSignalRef
-  , cleanupOnSigint
   , cleanupOnSigint'
   , cleanupTmpDir
   , removeOnSignal
   , spawn
   , stop
-  , waitForStop
   )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
@@ -74,7 +72,6 @@ import Ctl.Internal.Plutip.UtxoDistribution
 import Ctl.Internal.QueryM
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   )
-import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
@@ -113,7 +110,7 @@ import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath, dirname)
+import Node.Path (FilePath)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -372,7 +369,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     -> Aff wallets
   mkWallets' env ourKey response = do
     runContractInEnv
-      ((_ { customLogger = Just (\_ _ -> pure unit) }) env)
+      env { customLogger = Just (\_ _ -> pure unit) }
       do
         wallets <-
           liftContractM
@@ -656,14 +653,6 @@ startCtlServer serverPort = do
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
-
-defaultRecovering :: forall (a :: Type). Aff a -> Aff a
-defaultRecovering f =
-  recovering retryPolicy ([ \_ _ -> pure true ]) $ const f
-  where
-  retryPolicy :: RetryPolicy
-  retryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
-    constantDelay (Milliseconds 100.0)
 
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do

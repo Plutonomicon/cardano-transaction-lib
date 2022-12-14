@@ -10,7 +10,6 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Logger.Class as Logger
-import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
@@ -104,6 +103,7 @@ import Ctl.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
+import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract.Wallet
@@ -143,7 +143,7 @@ balanceTxWithConstraints
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder = do
-  pparams <- asks $ _.ledgerConstants >>> _.pparams
+  pparams <- getProtocolParameters
   queryHandle <- getQueryHandle
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do

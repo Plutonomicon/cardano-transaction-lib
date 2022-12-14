@@ -180,11 +180,11 @@ getTxMetadata txHash = runExceptT do
           <> byteArrayToHex (unwrap txHash)
       generalTxMetadatas <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest
         endpoint
-      case uncons (generalTxMetadatas :: _ { raw :: String }) of
+      pure case uncons (generalTxMetadatas :: _ { raw :: String }) of
         Just { head, tail: [] } ->
-          pure $ hexToByteArray head.raw >>=
+          hexToByteArray head.raw >>=
             (fromBytes >=> convertGeneralTransactionMetadata >>> hush)
-        _ -> pure Nothing
+        _ -> Nothing
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing

@@ -2,7 +2,6 @@ module Ctl.Internal.Contract.MinFee (calculateMinFee) where
 
 import Prelude
 
-import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , UtxoMap
@@ -14,6 +13,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin)
+import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses, getWalletCollateral)
@@ -45,7 +45,7 @@ import Effect.Aff.Class (liftAff)
 calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
-  pparams <- asks $ _.ledgerConstants >>> _.pparams
+  pparams <- getProtocolParameters
   calculateMinFeeCsl pparams selfSigners tx
 
 getSelfSigners :: Transaction -> UtxoMap -> Contract (Set Ed25519KeyHash)

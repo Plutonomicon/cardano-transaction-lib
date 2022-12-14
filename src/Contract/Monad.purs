@@ -22,6 +22,7 @@ import Ctl.Internal.Contract.Monad
   ( Contract(Contract)
   , ContractEnv
   , ContractParams
+  , ParContract(ParContract)
   , runContract
   , runContractInEnv
   , withContractEnv
