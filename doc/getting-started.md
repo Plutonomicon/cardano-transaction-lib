@@ -30,7 +30,9 @@ This guide will help you get started writing contracts with CTL. Please also see
 
 Nix caches improve build speeds by allowing to download pre-built dependencies instead of compiling them from source.
 
-Follow [these instructions](https://github.com/input-output-hk/cardano-ledger#nix-cache) to add the caches.
+Follow [these instructions](https://github.com/input-output-hk/cardano-ledger#nix-cache) to add the IOG caches.
+
+Then, add `https://public-plutonomicon.cachix.org` and `public-plutonomicon.cachix.org-1:3AKJMhCLn32gri1drGuaZmFrmnue+KkKrhhubQk/CWc=` to `substituters` and `trusted-public-keys`, respectively, or run `cachix use public-plutonomicon` if you use [Cachix](cachix.org).
 
 ### Setting up a new project
 
