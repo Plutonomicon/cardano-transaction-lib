@@ -1,6 +1,6 @@
 -- | A module that implements crypto primitives that match CIP-49 SECP256k1
 -- | Schnorr spec.
-module Contract.Crypto.Schnorr
+module Contract.Crypto.SECP256k1.Schnorr
   ( module X
   , verifySchnorrSecp256k1Signature
   , signSchnorrSecp256k1
@@ -11,12 +11,12 @@ module Contract.Crypto.Schnorr
 
 import Prelude
 
+import Contract.Crypto.SECP256k1 (SECP256k1PrivateKey)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
-import Noble.Secp256k1.ECDSA (PrivateKey)
-import Noble.Secp256k1.Schnorr (PrivateKey, SchnorrPublicKey, SchnorrSignature) as X
+import Noble.Secp256k1.Schnorr (SchnorrPublicKey, SchnorrSignature) as X
 import Noble.Secp256k1.Schnorr
   ( SchnorrPublicKey
   , SchnorrSignature
@@ -36,12 +36,12 @@ verifySchnorrSecp256k1Signature publicKey message signature =
   verifySchnorr signature (unwrap message) publicKey
 
 -- | Sign a message using Schnorr signature scheme.
-signSchnorrSecp256k1 :: PrivateKey -> ByteArray -> Aff SchnorrSignature
+signSchnorrSecp256k1 :: SECP256k1PrivateKey -> ByteArray -> Aff SchnorrSignature
 signSchnorrSecp256k1 privateKey message =
-  signSchnorr (unwrap message) privateKey
+  signSchnorr (unwrap message) (unwrap privateKey)
 
-deriveSchnorrSecp256k1PublicKey :: PrivateKey -> SchnorrPublicKey
-deriveSchnorrSecp256k1PublicKey = getSchnorrPublicKey
+deriveSchnorrSecp256k1PublicKey :: SECP256k1PrivateKey -> SchnorrPublicKey
+deriveSchnorrSecp256k1PublicKey = unwrap >>> getSchnorrPublicKey
 
 -- | Construct a public key from its byte representation.
 mkSchnorrPublicKey

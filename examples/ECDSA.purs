@@ -3,14 +3,14 @@ module Ctl.Examples.ECDSA (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
-import Contract.Crypto.ECDSA
+import Contract.Crypto.SECP256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature
   , MessageHash
   , deriveEcdsaSecp256k1PublicKey
   , signEcdsaSecp256k1
   )
-import Contract.Crypto.Utils (hashMessageSha256, randomPrivateKey)
+import Contract.Crypto.SECP256k1.Utils (hashMessageSha256, randomPrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
 import Contract.PlutusData

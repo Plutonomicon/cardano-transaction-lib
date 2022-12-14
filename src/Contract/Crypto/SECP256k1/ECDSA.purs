@@ -1,6 +1,6 @@
 -- | A module that implements crypto primitives that match CIP-49 SECP256k1
 -- | ECDSA spec.
-module Contract.Crypto.ECDSA
+module Contract.Crypto.SECP256k1.ECDSA
   ( verifyEcdsaSecp256k1Signature
   , signEcdsaSecp256k1
   , deriveEcdsaSecp256k1PublicKey
@@ -13,21 +13,16 @@ module Contract.Crypto.ECDSA
 
 import Prelude
 
+import Contract.Crypto.SECP256k1 (SECP256k1PrivateKey)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
+import Noble.Secp256k1.ECDSA (ECDSAPublicKey, ECDSASignature, MessageHash) as X
 import Noble.Secp256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature
   , MessageHash
-  , PrivateKey
-  ) as X
-import Noble.Secp256k1.ECDSA
-  ( ECDSAPublicKey
-  , ECDSASignature
-  , MessageHash
-  , PrivateKey
   , signECDSA
   , verifyECDSA
   )
@@ -51,14 +46,14 @@ verifyEcdsaSecp256k1Signature publicKey messageHash signature =
 
 -- | Sign a message hash with a private key, producing a signature compatible
 -- | with `verifyEcdsaSecp256k1Signature`.
-signEcdsaSecp256k1 :: PrivateKey -> MessageHash -> Aff ECDSASignature
+signEcdsaSecp256k1 :: SECP256k1PrivateKey -> MessageHash -> Aff ECDSASignature
 signEcdsaSecp256k1 privateKey messageHash =
-  signECDSA messageHash privateKey false
+  signECDSA messageHash (unwrap privateKey) false
 
 -- | Derive a public key from a private key. Uses `SECP256K1_EC_COMPRESSED`
 -- | format (compatible with CIP-49).
-deriveEcdsaSecp256k1PublicKey :: PrivateKey -> ECDSAPublicKey
-deriveEcdsaSecp256k1PublicKey = flip ECDSA.getECDSAPublicKey true
+deriveEcdsaSecp256k1PublicKey :: SECP256k1PrivateKey -> ECDSAPublicKey
+deriveEcdsaSecp256k1PublicKey = unwrap >>> flip ECDSA.getECDSAPublicKey true
 
 -- | Construct a public key from its byte representation.
 mkECDSAPublicKey :: ByteArray -> Maybe ECDSAPublicKey

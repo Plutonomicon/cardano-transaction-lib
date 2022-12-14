@@ -3,13 +3,13 @@ module Ctl.Examples.Schnorr (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
-import Contract.Crypto.Schnorr
+import Contract.Crypto.SECP256k1.Schnorr
   ( SchnorrPublicKey
   , SchnorrSignature
   , deriveSchnorrSecp256k1PublicKey
   , signSchnorrSecp256k1
   )
-import Contract.Crypto.Utils (randomPrivateKey)
+import Contract.Crypto.SECP256k1.Utils (randomPrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
 import Contract.PlutusData
