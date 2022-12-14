@@ -8,13 +8,12 @@ import Contract.Prelude
 
 import Contract.Log (logInfo')
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction (awaitTxConfirmed)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -37,6 +36,6 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- Helpers.buildBalanceSignAndSubmitTx lookups constraints
+  txId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txId
   liftEffect unlock

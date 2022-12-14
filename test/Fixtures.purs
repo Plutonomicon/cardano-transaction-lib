@@ -14,6 +14,7 @@ module Test.Ctl.Fixtures
   , cip25MetadataFixture1
   , cip25MetadataFixture2
   , cip25MetadataFixture3
+  , cip25MetadataFixture4
   , cip25MetadataJsonFixture1
   , cip25MetadataJsonFixture2
   , cip25MetadataJsonFixture3
@@ -257,13 +258,18 @@ currencySymbol1 = unsafePartial $ fromJust $ mkCurrencySymbol $
   hexToByteArrayUnsafe
     "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
 
+tokenNameFromString :: String -> TokenName
+tokenNameFromString s = unsafePartial $ fromJust $ mkTokenName $
+  hexToByteArrayUnsafe s
+
 tokenName1 :: TokenName
-tokenName1 = unsafePartial $ fromJust $ mkTokenName $
-  hexToByteArrayUnsafe "4974657374546f6b656e"
+tokenName1 = tokenNameFromString "4974657374546f6b656e"
 
 tokenName2 :: TokenName
-tokenName2 = unsafePartial $ fromJust $ mkTokenName $
-  hexToByteArrayUnsafe "54657374546f6b656e32"
+tokenName2 = tokenNameFromString "54657374546f6b656e32"
+
+tokenName4 :: TokenName
+tokenName4 = tokenNameFromString "abcdef"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -1252,13 +1258,23 @@ plutusDataFixture8Bytes' = hexToByteArrayUnsafe
   \206f6620736b7920581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e\
   \182d"
 
+scriptHashFromString :: String -> ScriptHash
+scriptHashFromString s = unsafePartial $ fromJust $ scriptHashFromBytes $
+  hexToRawBytesUnsafe s
+
 scriptHash1 :: ScriptHash
-scriptHash1 = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToRawBytesUnsafe
-    "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+scriptHash1 = scriptHashFromString
+  "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+
+scriptHash4 :: ScriptHash
+scriptHash4 = scriptHashFromString
+  "1e4409ba69fb38887c23d15a766476384085b66a755530934938abfe"
 
 policyId :: MintingPolicyHash
 policyId = MintingPolicyHash scriptHash1
+
+policyId4 :: MintingPolicyHash
+policyId4 = MintingPolicyHash scriptHash4
 
 cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
 cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
@@ -1326,34 +1342,47 @@ cip25MetadataFixture3 = Cip25Metadata
       }
   ]
 
+cip25MetadataFixture4 :: Cip25Metadata
+cip25MetadataFixture4 = Cip25Metadata
+  [ Cip25MetadataEntry
+      { policyId: policyId4
+      , assetName: Cip25TokenName tokenName4
+      , name: unsafeMkCip25String "Allium"
+      , image: "ipfs://k2cwuee3arxg398hwxx6c0iferxitu126xntuzg8t765oo020h5y6npn"
+      , mediaType: Nothing
+      , description: Just "From pixabay"
+      , files: []
+      }
+  ]
+
 unsafeMkCip25String :: String -> Cip25String
 unsafeMkCip25String str = unsafePartial $ fromJust $ mkCip25String str
 
+readJsonFixtureFile :: String -> Effect Aeson
+readJsonFixtureFile path =
+  readTextFile UTF8 path >>=
+    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+
 cip25MetadataJsonFixture1 :: Effect Aeson
 cip25MetadataJsonFixture1 =
-  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture1.json" >>=
-    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+  readJsonFixtureFile "test/Fixtures/cip25MetadataJsonFixture1.json"
 
 cip25MetadataJsonFixture2 :: Effect Aeson
 cip25MetadataJsonFixture2 =
-  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture2.json" >>=
-    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+  readJsonFixtureFile "test/Fixtures/cip25MetadataJsonFixture2.json"
 
 cip25MetadataJsonFixture3 :: Effect Aeson
 cip25MetadataJsonFixture3 =
-  readTextFile UTF8 "test/Fixtures/cip25MetadataJsonFixture3.json" >>=
-    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+  readJsonFixtureFile "test/Fixtures/cip25MetadataJsonFixture3.json"
 
 ogmiosEvaluateTxValidRespFixture :: Effect Aeson
 ogmiosEvaluateTxValidRespFixture =
-  readTextFile UTF8 "test/Fixtures/OgmiosEvaluateTxValidRespFixture.json" >>=
-    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+  readJsonFixtureFile "test/Fixtures/OgmiosEvaluateTxValidRespFixture.json"
 
 ogmiosEvaluateTxInvalidPointerFormatFixture :: Effect Aeson
 ogmiosEvaluateTxInvalidPointerFormatFixture =
-  readTextFile UTF8
-    "test/Fixtures/OgmiosEvaluateTxInvalidPointerFormatFixture.json" >>=
-    pure <<< fromRight aesonNull <<< parseJsonStringToAeson
+  readJsonFixtureFile
+    "test/Fixtures/OgmiosEvaluateTxInvalidPointerFormatFixture.json"
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer
