@@ -33,11 +33,11 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.Unfoldable (replicateA)
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Test.Ctl.CoinSelection.Arbitrary (ArbitraryMap)
 import Test.QuickCheck (Result, (<?>), (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt)
 import Test.Spec.QuickCheck (quickCheck)
-import Test.Ctl.CoinSelection.ArbitraryHelpers (ArbitraryMap)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do

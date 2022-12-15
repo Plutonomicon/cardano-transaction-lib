@@ -535,14 +535,14 @@ derive instance Generic AssetClass _
 derive instance Eq AssetClass
 derive instance Ord AssetClass
 
+instance Arbitrary AssetClass where
+  arbitrary = AssetClass <$> arbitrary <*> arbitrary
+
 instance Show AssetClass where
   show = genericShow
 
 instance Hashable AssetClass where
   hash (AssetClass cs tn) = hash (cs /\ tn)
-
-instance Arbitrary AssetClass where
-  arbitrary = AssetClass <$> arbitrary <*> arbitrary
 
 assetToValue :: AssetClass -> BigInt -> Value
 assetToValue (AssetClass cs tn) quantity =

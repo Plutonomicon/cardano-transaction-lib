@@ -1,18 +1,24 @@
-module Test.Ctl.CoinSelection.UtxoIndex
-  ( suite
-  ) where
+module Test.Ctl.CoinSelection.UtxoIndex (suite) where
 
 import Prelude
 
 import Ctl.Internal.CoinSelection.UtxoIndex
-  ( UtxoIndex
+  ( SelectionFilter
+  , UtxoIndex
   , UtxoIndexInvariantStatus(InvariantHolds)
   )
-import Ctl.Internal.CoinSelection.UtxoIndex as UtxoIndex
+import Ctl.Internal.CoinSelection.UtxoIndex
+  ( buildUtxoIndex
+  , checkUtxoIndexInvariants
+  , emptyUtxoIndex
+  , selectRandomWithFilter
+  , utxoIndexDeleteEntry
+  , utxoIndexDisjoint
+  , utxoIndexInsertEntry
+  , utxoIndexPartition
+  ) as UtxoIndex
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Transaction
-  ( TransactionInput(TransactionInput)
-  )
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
@@ -20,7 +26,7 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Unsafe (unsafePerformEffect)
 import Mote (group, test)
-import Test.Ctl.CoinSelection.ArbitraryHelpers
+import Test.Ctl.CoinSelection.Arbitrary
   ( ArbitraryTxUnspentOut
   , ArbitraryUtxoIndex
   , ArbitraryUtxoMap
@@ -49,9 +55,11 @@ suite =
       quickCheck prop_utxoIndexDeleteEntry_invariant
 
     group "SelectRandom" do
-      test "prop_selectRandom_invariant" $ quickCheck
-        prop_selectRandom_invariant
-      test "prop_selectRandom_empty" $ quickCheck prop_selectRandom_empty
+      test "prop_selectRandom_invariant" do
+        quickCheck prop_selectRandom_invariant
+
+      test "prop_selectRandom_empty" do
+        quickCheck prop_selectRandom_empty
 
 prop_buildUtxoIndex_invariant :: ArbitraryUtxoMap -> QuickCheck.Result
 prop_buildUtxoIndex_invariant =
@@ -76,7 +84,7 @@ prop_utxoIndexDeleteEntry_invariant entry utxoIndex =
     UtxoIndex.utxoIndexDeleteEntry (unwrap entry) (unwrap utxoIndex)
 
 prop_selectRandom_invariant
-  :: ArbitraryUtxoIndex -> UtxoIndex.SelectionFilter -> QuickCheck.Result
+  :: ArbitraryUtxoIndex -> SelectionFilter -> QuickCheck.Result
 prop_selectRandom_invariant index f =
   let
     result = unsafePerformEffect $ UtxoIndex.selectRandomWithFilter
@@ -87,7 +95,7 @@ prop_selectRandom_invariant index f =
   in
     check result
 
-prop_selectRandom_empty :: UtxoIndex.SelectionFilter -> QuickCheck.Result
+prop_selectRandom_empty :: SelectionFilter -> QuickCheck.Result
 prop_selectRandom_empty f =
   let
     result = unsafePerformEffect $ UtxoIndex.selectRandomWithFilter

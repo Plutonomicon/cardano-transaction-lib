@@ -1,21 +1,16 @@
-module Test.Ctl.CoinSelection.ArbitraryHelpers where
+module Test.Ctl.CoinSelection.Arbitrary where
 
 import Prelude
 
 import Control.Apply (lift2)
-import Ctl.Internal.BalanceTx.CoinSelection as CoinSelection
+import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, fromIndexFiltered)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   )
-import Data.Map.Gen (genMap)
-import Data.Map (Map)
 import Ctl.Internal.Cardano.Types.Value (Value)
-import Ctl.Internal.CoinSelection.UtxoIndex
-  ( TxUnspentOutput
-  , UtxoIndex
-  )
-import Ctl.Internal.CoinSelection.UtxoIndex as UtxoIndex
+import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
+import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId(MainnetId)
@@ -28,15 +23,20 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Data.Generic.Rep (class Generic)
+import Data.Map (Map)
 import Data.Map.Gen (genMap) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple.Nested (type (/\))
 import Data.UInt (fromInt) as UInt
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen)
+
+--------------------------------------------------------------------------------
+-- ArbitraryUtxoIndex
+--------------------------------------------------------------------------------
 
 newtype ArbitraryUtxoIndex = ArbitraryUtxoIndex UtxoIndex
 
@@ -47,16 +47,9 @@ instance Arbitrary ArbitraryUtxoIndex where
     (arbitrary :: Gen ArbitraryUtxoMap)
       <#> wrap <<< UtxoIndex.buildUtxoIndex <<< unwrap
 
-newtype ArbitrarySelectionState = ArbitrarySelectionState
-  CoinSelection.SelectionState
-
-derive instance Newtype ArbitrarySelectionState _
-
-instance Arbitrary ArbitrarySelectionState where
-  arbitrary = ArbitrarySelectionState <$>
-    lift2 CoinSelection.fromIndexFiltered
-      (arbitrary :: Gen (TransactionInput -> Boolean))
-      (unwrap <$> (arbitrary :: Gen ArbitraryUtxoIndex))
+--------------------------------------------------------------------------------
+-- ArbitraryUtxoMap
+--------------------------------------------------------------------------------
 
 newtype ArbitraryUtxoMap = ArbitraryUtxoMap UtxoMap
 
@@ -68,6 +61,10 @@ instance Show ArbitraryUtxoMap where
 
 instance Arbitrary ArbitraryUtxoMap where
   arbitrary = wrap <$> Map.genMap genTransactionInput genTransactionOutput
+
+--------------------------------------------------------------------------------
+-- ArbitraryTxUnspentOut
+--------------------------------------------------------------------------------
 
 newtype ArbitraryTxUnspentOut =
   ArbitraryTxUnspentOut (TransactionInput /\ TransactionOutput)
@@ -83,6 +80,10 @@ genTransactionInput = unwrap <$> (arbitrary :: Gen ArbitraryTransactionInput)
 genTransactionOutput :: Gen TransactionOutput
 genTransactionOutput = unwrap <$> (arbitrary :: Gen ArbitraryTransactionOutput)
 
+--------------------------------------------------------------------------------
+-- ArbitraryTransactionInput
+--------------------------------------------------------------------------------
+
 newtype ArbitraryTransactionInput =
   ArbitraryTransactionInput TransactionInput
 
@@ -97,6 +98,10 @@ instance Arbitrary ArbitraryTransactionInput where
         { transactionId
         , index: UInt.fromInt index
         }
+
+--------------------------------------------------------------------------------
+-- ArbitraryTransactionOutput
+--------------------------------------------------------------------------------
 
 newtype ArbitraryTransactionOutput =
   ArbitraryTransactionOutput TransactionOutput
@@ -115,15 +120,9 @@ instance Arbitrary ArbitraryTransactionOutput where
         , scriptRef: Nothing
         }
 
-newtype ArbitraryTxUnspentOutput = ArbitraryTxUnspentOutput TxUnspentOutput
-
-derive instance Newtype ArbitraryTxUnspentOutput _
-
-instance Arbitrary ArbitraryTxUnspentOutput where
-  arbitrary = ArbitraryTxUnspentOutput <$> lift2 (/\) in_ out
-    where
-    in_ = unwrap <$> (arbitrary :: Gen ArbitraryTransactionInput)
-    out = unwrap <$> (arbitrary :: Gen ArbitraryTransactionOutput)
+--------------------------------------------------------------------------------
+-- ArbitraryAddress
+--------------------------------------------------------------------------------
 
 newtype ArbitraryAddress = ArbitraryAddress Address
 
@@ -134,10 +133,27 @@ instance Arbitrary ArbitraryAddress where
     wrap <<< baseAddressToAddress <$>
       lift2 (paymentKeyHashStakeKeyHashAddress MainnetId) arbitrary arbitrary
 
+--------------------------------------------------------------------------------
+-- ArbitrarySelectionState
+--------------------------------------------------------------------------------
 
-newtype ArbitraryMap k v = ArbitraryMap (Map k v)
+newtype ArbitrarySelectionState = ArbitrarySelectionState SelectionState
+
+derive instance Newtype ArbitrarySelectionState _
+
+instance Arbitrary ArbitrarySelectionState where
+  arbitrary = ArbitrarySelectionState <$>
+    lift2 fromIndexFiltered
+      (arbitrary :: Gen (TransactionInput -> Boolean))
+      (unwrap <$> (arbitrary :: Gen ArbitraryUtxoIndex))
+
+--------------------------------------------------------------------------------
+-- ArbitraryMap
+--------------------------------------------------------------------------------
+
+newtype ArbitraryMap (k :: Type) (v :: Type) = ArbitraryMap (Map k v)
 
 derive instance Newtype (ArbitraryMap k v) _
 
 instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (ArbitraryMap k v) where
-  arbitrary = ArbitraryMap <$> genMap arbitrary arbitrary
+  arbitrary = ArbitraryMap <$> Map.genMap arbitrary arbitrary

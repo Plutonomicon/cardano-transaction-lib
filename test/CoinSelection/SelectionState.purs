@@ -18,24 +18,25 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Unsafe (unsafePerformEffect)
 import Mote (group, test)
-import Test.Ctl.CoinSelection.ArbitraryHelpers
+import Test.Ctl.CoinSelection.Arbitrary
   ( ArbitrarySelectionState
-  , ArbitraryTxUnspentOutput
+  , ArbitraryTxUnspentOut
   , ArbitraryUtxoIndex
   )
 import Test.Spec.QuickCheck (quickCheck)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  group "Generation" do
-    test "Arbitrary is valid" $ quickCheck prop_arbitrary_isValid
-  group "Construction" do
-    test "prop_mkSelectionState_isValid" $ quickCheck
-      prop_mkSelectionState_isValid
-  group "Modification" do
-    test "prop_select_isValid" $ quickCheck prop_select_isValid
-    test "prop_selectRandomWithPriority" $ quickCheck
-      prop_selectRandomWithPriority
+  group "SelectionState" do
+    group "Generation" do
+      test "Arbitrary is valid" $ quickCheck prop_arbitrary_isValid
+    group "Construction" do
+      test "prop_mkSelectionState_isValid" $ quickCheck
+        prop_mkSelectionState_isValid
+    group "Modification" do
+      test "prop_select_isValid" $ quickCheck prop_select_isValid
+      test "prop_selectRandomWithPriority" $ quickCheck
+        prop_selectRandomWithPriority
 
 -- Tests
 
@@ -48,9 +49,9 @@ prop_mkSelectionState_isValid = isValidSelection
   <<< unwrap
 
 prop_select_isValid
-  :: ArbitraryTxUnspentOutput -> ArbitrarySelectionState -> Boolean
-prop_select_isValid u s = isValidSelection $
-  CoinSelection.selectUtxo (unwrap u) (unwrap s)
+  :: ArbitraryTxUnspentOut -> ArbitrarySelectionState -> Boolean
+prop_select_isValid u s =
+  isValidSelection $ CoinSelection.selectUtxo (unwrap u) (unwrap s)
 
 prop_selectRandomWithPriority
   :: ArbitraryUtxoIndex -> UtxoIndex.Asset -> UtxoIndex.Asset -> Boolean

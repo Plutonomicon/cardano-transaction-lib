@@ -1,5 +1,7 @@
 module Ctl.Internal.Hashing
-  ( blake2b256Hash
+  ( blake2b224Hash
+  , blake2b224HashHex
+  , blake2b256Hash
   , blake2b256HashHex
   , datumHash
   , plutusScriptHash
@@ -34,6 +36,10 @@ import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Untagged.Union (asOneOf)
+
+foreign import blake2b224Hash :: ByteArray -> ByteArray
+
+foreign import blake2b224HashHex :: ByteArray -> String
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 
