@@ -21,8 +21,12 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
-import Data.UInt (UInt)
-import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Data.UInt (UInt, toInt)
+import Test.QuickCheck.Arbitrary
+  ( class Arbitrary
+  , class Coarbitrary
+  , coarbitrary
+  )
 import Test.QuickCheck.Gen (chooseInt, vectorOf)
 
 newtype TransactionInput = TransactionInput
@@ -62,6 +66,10 @@ instance ToData TransactionInput where
   toData (TransactionInput { transactionId, index }) =
     Constr zero [ toData transactionId, toData index ]
 
+instance Coarbitrary TransactionInput where
+  coarbitrary (TransactionInput input) generator =
+    coarbitrary (toInt input.index) $ coarbitrary input.transactionId generator
+
 -- | 32-bytes blake2b256 hash of a tx body.
 -- | NOTE. Plutus docs might incorrectly state that it uses
 -- |       SHA256 for this purposes.
@@ -94,6 +102,9 @@ instance ToData TransactionHash where
 instance Arbitrary TransactionHash where
   arbitrary =
     wrap <<< byteArrayFromIntArrayUnsafe <$> vectorOf 32 (chooseInt 0 255)
+
+instance Coarbitrary TransactionHash where
+  coarbitrary (TransactionHash bytes) generator = coarbitrary bytes generator
 
 newtype DataHash = DataHash ByteArray
 
