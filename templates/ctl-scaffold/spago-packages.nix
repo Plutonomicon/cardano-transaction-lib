@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "fc35733e483c21e55e5acabacb1d9e192f91a032";
+        version = "bb02f3b31a1ebbec2c8a2e1241f98eff1645e2ca";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "fc35733e483c21e55e5acabacb1d9e192f91a032";
-          sha256 = "19zmsg8x65qc0lnl94llnr1r9v87xv3b7amz9kgpjq4d50idwb6n";
+          rev = "bb02f3b31a1ebbec2c8a2e1241f98eff1645e2ca";
+          sha256 = "0w74zq177qcvx09xq2vb3ln2fakl3d0n68ll31g3xbmsabrh6jdh";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -792,6 +792,18 @@ let
           url = "https://github.com/purescript/purescript-newtype.git";
           rev = "7b292fcd2ac7c4a25d7a7a8d3387d0ee7de89b13";
           sha256 = "1fgzbxslckva2psn0sia30hfakx8xchz3wx2kkh3w8rr4nn2py8v";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "noble-secp256k1" = pkgs.stdenv.mkDerivation {
+        name = "noble-secp256k1";
+        version = "710c15c48c5afae5e0623664d982a587ff2bd177";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git";
+          rev = "710c15c48c5afae5e0623664d982a587ff2bd177";
+          sha256 = "014wapsgg6xa76i3f368aag4kps644g8qqqha9xbgyxmrhxsln6q";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
