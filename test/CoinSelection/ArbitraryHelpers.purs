@@ -8,6 +8,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   )
+import Data.Map.Gen (genMap)
+import Data.Map (Map)
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.CoinSelection.UtxoIndex
   ( TxUnspentOutput
@@ -132,3 +134,10 @@ instance Arbitrary ArbitraryAddress where
     wrap <<< baseAddressToAddress <$>
       lift2 (paymentKeyHashStakeKeyHashAddress MainnetId) arbitrary arbitrary
 
+
+newtype ArbitraryMap k v = ArbitraryMap (Map k v)
+
+derive instance Newtype (ArbitraryMap k v) _
+
+instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (ArbitraryMap k v) where
+  arbitrary = ArbitraryMap <$> genMap arbitrary arbitrary

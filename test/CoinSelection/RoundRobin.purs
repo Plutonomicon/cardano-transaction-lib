@@ -22,7 +22,6 @@ import Data.List
   )
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Map.Gen (genMap)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.NonEmpty (NonEmpty)
@@ -38,6 +37,7 @@ import Test.QuickCheck (Result, (<?>), (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt)
 import Test.Spec.QuickCheck (quickCheck)
+import Test.Ctl.CoinSelection.ArbitraryHelpers (ArbitraryMap)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -205,12 +205,3 @@ runMockRoundRobin initialState = runRoundRobin initialState processors
   remainingLifetime :: k -> MockRoundRobinState k n -> n
   remainingLifetime k =
     fromMaybe zero <<< Map.lookup k <<< _.processorLifetimes <<< unwrap
-
--- Arbitrary instances
-
-newtype ArbitraryMap k v = ArbitraryMap (Map k v)
-
-derive instance Newtype (ArbitraryMap k v) _
-
-instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (ArbitraryMap k v) where
-  arbitrary = ArbitraryMap <$> genMap arbitrary arbitrary
