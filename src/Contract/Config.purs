@@ -36,7 +36,6 @@ import Ctl.Internal.QueryM.ServerConfig
   , defaultDatumCacheWsConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   )
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
@@ -63,7 +62,6 @@ testnetConfig :: ConfigParams ()
 testnetConfig =
   { ogmiosConfig: defaultOgmiosWsConfig
   , datumCacheConfig: defaultDatumCacheWsConfig
-  , ctlServerConfig: Just defaultServerConfig
   , kupoConfig: defaultKupoServerConfig
   , networkId: TestnetId
   , extraConfig: {}

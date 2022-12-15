@@ -22,7 +22,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
-  , encodeAeson'
+  , encodeAeson
   )
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.FromData (class FromData)
@@ -117,7 +117,7 @@ instance DecodeAeson Ed25519KeyHash where
     )
 
 instance EncodeAeson Ed25519KeyHash where
-  encodeAeson' = encodeAeson' <<< rawBytesToHex <<< ed25519KeyHashToBytes
+  encodeAeson = encodeAeson <<< rawBytesToHex <<< ed25519KeyHashToBytes
 
 -- | Convert ed25519KeyHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)
@@ -176,7 +176,7 @@ instance DecodeAeson ScriptHash where
       caseAesonString Nothing (Just <=< scriptHashFromBytes <=< hexToByteArray)
 
 instance EncodeAeson ScriptHash where
-  encodeAeson' sh = encodeAeson' $ scriptHashToBytes sh
+  encodeAeson sh = encodeAeson $ scriptHashToBytes sh
 
 _ed25519KeyHashToBech32Impl
   ∷ MaybeFfiHelper → String → Ed25519KeyHash → Maybe Bech32String
@@ -213,4 +213,4 @@ instance Eq VRFKeyHash where
   eq = eq `on` show
 
 instance EncodeAeson VRFKeyHash where
-  encodeAeson' = hashToBytes >>> byteArrayToHex >>> encodeAeson'
+  encodeAeson = hashToBytes >>> byteArrayToHex >>> encodeAeson

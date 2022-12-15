@@ -16,7 +16,7 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   , getField
   )
 import Control.Monad.Gen as Gen
@@ -53,7 +53,7 @@ instance DecodeAeson CurrencySymbol where
     (flip getField "unCurrencySymbol" >=> decodeAeson >>> map CurrencySymbol)
 
 instance EncodeAeson CurrencySymbol where
-  encodeAeson' (CurrencySymbol mph) = encodeAeson' { "unCurrencySymbol": mph }
+  encodeAeson (CurrencySymbol mph) = encodeAeson { "unCurrencySymbol": mph }
 
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"

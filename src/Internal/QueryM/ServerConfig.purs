@@ -4,7 +4,6 @@ module Ctl.Internal.QueryM.ServerConfig
   , defaultDatumCacheWsConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkServerUrl
@@ -26,14 +25,6 @@ type ServerConfig =
   , host :: Host
   , secure :: Boolean
   , path :: Maybe String
-  }
-
-defaultServerConfig :: ServerConfig
-defaultServerConfig =
-  { port: UInt.fromInt 8081
-  , host: "localhost"
-  , secure: false
-  , path: Nothing
   }
 
 defaultOgmiosWsConfig :: ServerConfig

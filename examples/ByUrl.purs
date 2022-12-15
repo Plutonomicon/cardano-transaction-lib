@@ -26,6 +26,7 @@ import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
 import Ctl.Examples.OneShotMinting as OneShotMinting
+import Ctl.Examples.PaysWithDatum as PaysWithDatum
 import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
@@ -46,6 +47,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import Test.Ctl.ApplyArgs as ApplyArgs
 
 main :: Effect Unit
 main = do
@@ -92,6 +94,8 @@ examples = Map.fromFoldable
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
+  , "ApplyArgs" /\ ApplyArgs.contract
   , "Schnorr" /\ Schnorr.contract
   , "ECDSA" /\ ECDSA.contract
+  , "PaysWithDatum" /\ PaysWithDatum.contract
   ]

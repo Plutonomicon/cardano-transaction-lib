@@ -58,7 +58,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , encodeAeson'
+  , encodeAeson
   , getField
   )
 import Control.Alt ((<|>))
@@ -227,7 +227,7 @@ instance DecodeAeson CurrencySymbol where
     )
 
 instance EncodeAeson CurrencySymbol where
-  encodeAeson' (CurrencySymbol ba) = encodeAeson'
+  encodeAeson (CurrencySymbol ba) = encodeAeson
     { "unCurrencySymbol": byteArrayToHex ba }
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
@@ -289,7 +289,7 @@ instance Split NonAdaAsset where
     npos /\ pos = mapThese splitIntl mp
 
 instance EncodeAeson NonAdaAsset where
-  encodeAeson' (NonAdaAsset m) = encodeAeson' $ encodeMap $ encodeMap <$> m
+  encodeAeson (NonAdaAsset m) = encodeAeson $ encodeMap $ encodeMap <$> m
 
 instance Equipartition NonAdaAsset where
   equipartition nonAdaAssets numParts =
@@ -436,7 +436,7 @@ instance Split Value where
       <> bimap (Value mempty) (Value mempty) (split nonAdaAsset)
 
 instance EncodeAeson Value where
-  encodeAeson' (Value coin nonAdaAsset) = encodeAeson'
+  encodeAeson (Value coin nonAdaAsset) = encodeAeson
     { coin
     , nonAdaAsset
     }

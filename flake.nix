@@ -122,7 +122,7 @@
             filter = path: ftype:
               !(pkgs.lib.hasSuffix ".md" path)
               && !(ftype == "directory" && builtins.elem
-                (baseNameOf path) [ "server" "doc" ]
+                (baseNameOf path) [ "doc" ]
               );
           };
           ogmiosFixtures = buildOgmiosFixtures pkgs;
@@ -137,7 +137,6 @@
               packages = with pkgs; [
                 arion
                 fd
-                haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
@@ -170,16 +169,12 @@
             ctl-e2e-test = project.runE2ETest {
               name = "ctl-e2e-test";
               testMain = "Test.Ctl.E2E";
-              # After updating `PlutipConfig` this can be set for now:
-              # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
               buildInputs = [ inputs.kupo-nixos.defaultPackage.${pkgs.system} ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
               testMain = "Test.Ctl.Plutip";
-              # After updating `PlutipConfig` this can be set for now:
-              # withCtlServer = false;
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
             ctl-staking-test = project.runPlutipTest {
@@ -201,19 +196,13 @@
             };
           };
         };
-
-      hsProjectFor = pkgs: import ./server/nix {
-        inherit inputs pkgs CHaP;
-        inherit (pkgs) system;
-        src = ./server;
-      };
     in
     {
       overlay = builtins.trace
         (
           "warning: `cardano-transaction-lib.overlay` is deprecated and will be"
           + " removed in the next release. Please use"
-          + " `cardano-transaction-lib.overlays.{runtime, purescript, ctl-server}`"
+          + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
           + " directly instead"
         )
         nixpkgs.lib.composeManyExtensions
@@ -244,43 +233,7 @@
             });
           };
         };
-        # This is separate from the `runtime` overlay below because it is
-        # optional (it's only required if using CTL's `applyArgs` effect).
-        # Including it by default in the `overlays.runtime` also requires that
-        # `prev` include `haskell-nix.overlay` and `iohk-nix.overlays.crypto`;
-        # this is not ideal to force upon all users
-        ctl-server = nixpkgs.lib.composeManyExtensions [
-          (
-            final: prev:
-              # if `haskell-nix.overlay` has not been applied, we cannot use the
-              # package set to build the `hsProjectFor`. We don't want to always
-              # add haskell.nix's overlay or use the `ctl-server` from our own
-              # `outputs.packages` because this might lead to conflicts with the
-              # `hackage.nix` version being used (this might also happen with the
-              # Ogmios and Plutip packages, but at least we have direct control over
-              # our own haskell.nix project)
-              #
-              # We can check for the necessary attribute and then apply the
-              # overlay if necessary
-              nixpkgs.lib.optionalAttrs (!(prev ? haskell-nix))
-                (haskell-nix.overlay final prev)
-
-          )
-          (
-            final: prev:
-              # Similarly, we need to make sure that `libsodium-vrf` is available
-              # for the Haskell server
-              nixpkgs.lib.optionalAttrs (!(prev ? libsodium-vrf))
-                (iohk-nix.overlays.crypto final prev)
-          )
-          (
-            final: prev: {
-              ctl-server =
-                (hsProjectFor final).hsPkgs.ctl-server.components.exes.ctl-server;
-            }
-          )
-        ];
-        runtime = nixpkgs.lib.composeManyExtensions [
+        runtime =
           (
             final: prev:
               let
@@ -297,40 +250,17 @@
                 launchCtlRuntime = launchCtlRuntime final;
                 inherit cardano-configurations;
               }
-          )
-          (
-            final: prev: nixpkgs.lib.optionalAttrs (!(prev ? ctl-server))
-              (
-                builtins.trace
-                  (
-                    "Warning: `ctl-server` has moved to `overlays.ctl-server`"
-                    + " and will be removed from `overlays.runtime` soon"
-                  )
-                  (self.overlays.ctl-server final prev)
-              )
-          )
-
-        ];
+          );
       };
-
-      # flake from haskell.nix project
-      hsFlake = perSystem (system: (hsProjectFor (nixpkgsFor system)).flake { });
 
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
         default = (psProjectFor (nixpkgsFor system)).devShell;
-        # It might be a good idea to keep this as a separate shell; if you're
-        # working on the PS frontend, it doesn't make a lot of sense to pull
-        # in all of the Haskell dependencies
-        #
-        # This can be used with `nix develop .#hsDevShell
-        hsDevShell = self.hsFlake.${system}.devShell;
       });
 
       packages = perSystem (system:
-        self.hsFlake.${system}.packages
-        // (psProjectFor (nixpkgsFor system)).packages
+        (psProjectFor (nixpkgsFor system)).packages
       );
 
       apps = perSystem (system:
@@ -338,7 +268,6 @@
           pkgs = nixpkgsFor system;
         in
         (psProjectFor pkgs).apps // {
-          inherit (self.hsFlake.${system}.apps) "ctl-server:exe:ctl-server";
           ctl-runtime = pkgs.launchCtlRuntime { };
           default = self.apps.${system}.ctl-runtime;
           vm = {
@@ -358,13 +287,11 @@
 
         in
         (psProjectFor pkgs).checks
-        // self.hsFlake.${system}.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
             {
               nativeBuildInputs = with pkgs; [
                 easy-ps.purs-tidy
-                haskellPackages.fourmolu
                 nixpkgs-fmt
                 nodePackages.prettier
                 nodePackages.eslint
@@ -500,15 +427,6 @@
         };
       };
 
-      nixosModules.ctl-server = { pkgs, lib, ... }: {
-        imports = [ ./nix/ctl-server-nixos-module.nix ];
-        nixpkgs.overlays = [
-          (_: _: {
-            ctl-server = self.packages.${pkgs.system}."ctl-server:exe:ctl-server";
-          })
-        ];
-      };
-
       nixosConfigurations.test = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
@@ -523,7 +441,6 @@
             services.ogmios-datum-cache.package =
               inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache";
           }
-          self.nixosModules.ctl-server
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {

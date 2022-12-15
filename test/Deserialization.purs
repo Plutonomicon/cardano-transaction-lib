@@ -3,13 +3,13 @@ module Test.Ctl.Deserialization (suite) where
 import Prelude
 
 import Contract.Address (ByteArray)
-import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
-import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
-import Ctl.Internal.Cardano.TextEnvelope
+import Contract.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType(Other)
   , decodeTextEnvelope
   )
+import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
+import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput

@@ -136,7 +136,6 @@ main = Contract.Monad.launchAff_ do -- we re-export this for you
     (config :: ConfigParams (apiKey :: String)) =
       { ogmiosConfig: defaultOgmiosWsConfig
       , datumCacheConfig: defaultDatumCacheWsConfig
-      , ctlServerConfig: defaultServerConfig
       , networkId: TestnetId
       , logLevel: Trace
       , extraConfig: { apiKey: "foo" }

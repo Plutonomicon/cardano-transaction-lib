@@ -21,7 +21,7 @@ module Ctl.Internal.Types.BigNum
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson')
+import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
 import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
 import Ctl.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
 import Ctl.Internal.Error (E, noteE)
@@ -57,7 +57,7 @@ instance DecodeAeson BigNum where
       <<< fromBigInt <=< decodeAeson
 
 instance EncodeAeson BigNum where
-  encodeAeson' = encodeAeson' <<< toBigIntUnsafe
+  encodeAeson = encodeAeson <<< toBigIntUnsafe
 
 fromBigInt :: BigInt -> Maybe BigNum
 fromBigInt = fromString <<< BigInt.toString
