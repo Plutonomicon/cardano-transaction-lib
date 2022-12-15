@@ -4,20 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and we follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-**Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[Unreleased]](#-unreleased-)
+- [[v4.0.0]](#v400)
   - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
   - [Fixed](#fixed)
-  - [Runtime-Dependencies](#runtime-dependencies)
+  - [Runtime Dependencies](#runtime-dependencies)
 - [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Removed](#removed-1)
   - [Fixed](#fixed-1)
-  - [Runtime-Dependencies](#runtime-dependencies-1)
+  - [Runtime Dependencies](#runtime-dependencies-1)
 - [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-2)
   - [Changed](#changed-2)
@@ -34,20 +35,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - [Fixed](#fixed-5)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
-## [Unreleased]
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## [v4.0.0] - 2022-12-15
 
 ### Added
+
 - NuFi wallet support ([#1265](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1265))
-
-* Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` builds a transaction that satisfies the constraints, then submits it to the network. It is analog for `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
-
+- Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` builds a transaction that satisfies the constraints, then submits it to the network. It is analogous to `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
 - Support for CIP-49 crypto primitives: SECP256k1 [ECDSA](./src/Contract/Crypto/Secp256k1/ECDSA.purs) and [Schnorr](./src/Contract/Crypto/Secp256k1/Schnorr.purs) (verification functions, signing and key generation) ([1273](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1273))
 
 ### Changed
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
-- CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309 "CTL's CIP25 metadata encoding is considered invalid by Blockfrost #1309")).
+- CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309)).
 
 ### Removed
 
@@ -60,7 +62,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Runtime Dependencies
 
-TBD
+- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7
+- [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
+- [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.4
+- [Ogmios-Datum-Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) - commit 862c6bfcb6110b8fe816e26b3bba105dfb492b24
+- [Plutip](https://github.com/mlabs-haskell/plutip) - commit 8d1795d9ac3f9c6f31381104b25c71576eeba009
 
 ## [3.0.0] - 2022-11-21
 
