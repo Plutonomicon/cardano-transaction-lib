@@ -1,8 +1,8 @@
-module Test.Ctl.ApplyArgs (main, suite) where
+module Test.Ctl.ApplyArgs (main, suite, contract) where
 
 import Contract.Prelude
 
-import Contract.Monad (launchAff_)
+import Contract.Monad (Contract, launchAff_)
 import Contract.PlutusData (PlutusData(List, Map, Bytes, Constr), toData)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.TextEnvelope
@@ -24,6 +24,10 @@ foreign import scripts :: Object String
 
 main ∷ Effect Unit
 main = launchAff_ $ interpret $ suite
+
+contract :: Contract () Unit
+contract = do
+  liftAff $ interpret $ suite
 
 suite ∷ TestPlanM (Aff Unit) Unit
 suite = group "Applying params to scripts test" $ do
