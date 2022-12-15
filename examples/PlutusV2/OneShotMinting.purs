@@ -17,7 +17,6 @@ import Contract.Monad
   , launchAff_
   , liftContractE
   , runContract
-  , throwContractError
   )
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
