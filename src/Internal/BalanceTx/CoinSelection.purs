@@ -9,6 +9,7 @@ module Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState(SelectionState)
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , _leftoverUtxos
+  , mkSelectionState
   , performMultiAssetSelection
   , selectedInputs
   ) where

@@ -6,6 +6,7 @@ import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
+  , mkSelectionState
   , performMultiAssetSelection
   )
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
@@ -80,12 +81,8 @@ suite =
 prop_performMultiAssetSelection_empty
   :: SelectionStrategy -> ArbitraryUtxoIndex -> CoinSelectionTestM Result
 prop_performMultiAssetSelection_empty strategy utxoIndex =
-  assertEquals targetSelState <$>
+  assertEquals (mkSelectionState $ unwrap utxoIndex) <$>
     performMultiAssetSelection strategy (unwrap utxoIndex) mempty
-  where
-  targetSelState :: SelectionState
-  targetSelState =
-    wrap { leftoverUtxos: unwrap utxoIndex, selectedUtxos: Map.empty }
 
 runSelectionTestWithFixture
   :: (SelectionStrategy -> SelFixture) -> String -> TestPlanM (Aff Unit) Unit
