@@ -28,7 +28,7 @@ The services that are currently **required** are:
 
 ### Using NixOS module
 
-`ctl-server` and its dependencies can be configured and started via NixOS modules. See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and [../nix/ctl-server-nixos-module.nix](../nix/ctl-server-nixos-module.nix) for module options.
+See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and TODO for module options.
 
 ### Using CTL's `runtime` overlay
 
