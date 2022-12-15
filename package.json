@@ -15,6 +15,7 @@
     "unit-test": "spago run --main Test.Ctl.Unit",
     "plutip-test": "spago run --main Test.Ctl.Plutip",
     "staking-test": "spago run --main Test.Ctl.Plutip.Staking",
+    "e2e-serve": "spago bundle-module -m Ctl.Examples.ByUrl --to output.js && BROWSER_RUNTIME=1 webpack-dev-server --progress",
     "e2e-test": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run'",
     "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run --no-headless'",
     "e2e-browser": "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'",
@@ -26,6 +27,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "apply-args-browser": "0.0.1",
+    "apply-args-nodejs": "0.0.1",
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
     "@emurgo/cardano-serialization-lib-browser": "^11.1.1-alpha.1",

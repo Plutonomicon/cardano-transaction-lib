@@ -96,7 +96,6 @@ type ClusterPortsOptions_ (r :: Row Type) =
   ( plutipPort :: Maybe UInt
   , ogmiosPort :: Maybe UInt
   , ogmiosDatumCachePort :: Maybe UInt
-  , ctlServerPort :: Maybe UInt
   , postgresPort :: Maybe UInt
   , kupoPort :: Maybe UInt
   | r
@@ -330,8 +329,7 @@ uintParser = eitherReader \str ->
   note "Unable to parse unsigned integer" $ UInt.fromString str
 
 defaultPorts
-  :: { ctlServer :: Int
-     , kupo :: Int
+  :: { kupo :: Int
      , ogmios :: Int
      , ogmiosDatumCache :: Int
      , plutip :: Int
@@ -341,7 +339,6 @@ defaultPorts =
   { plutip: 8087
   , ogmios: 1345
   , ogmiosDatumCache: 10005
-  , ctlServer: 8088
   , postgres: 5438
   , kupo: 1443
   }
@@ -372,14 +369,6 @@ clusterPortsOptionsParser = ado
         showPort "OGMIOS_DATUM_CACHE" defaultPorts.ogmiosDatumCache
     , metavar "PORT"
     ]
-  ctlServerPort <- option (Just <$> uintParser) $ fold
-    [ long "ctl-server-port"
-    , help "ctl-server port for use with local Plutip cluster"
-    , value Nothing
-    , showDefaultWith $ const $
-        showPort "CTL_SERVER" defaultPorts.ctlServer
-    , metavar "PORT"
-    ]
   postgresPort <- option (Just <$> uintParser) $ fold
     [ long "postgres-port"
     , help "Postgres port for use with local Plutip cluster"
@@ -400,7 +389,6 @@ clusterPortsOptionsParser = ado
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
-    , ctlServerPort
     , postgresPort
     , kupoPort
     }

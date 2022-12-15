@@ -20,7 +20,14 @@ import Contract.BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
+import Contract.Monad
+  ( Contract
+  , liftContractE
+  , liftContractM
+  , liftedE
+  , liftedM
+  , wrapContract
+  )
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -1429,13 +1436,17 @@ suite = do
     group "applyArgs" do
       test "returns the same script when called without args" do
         withWallets unit \_ -> do
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            mempty
           result `shouldEqual` (unwrap unappliedScriptFixture)
 
       test "returns the correct partially applied Plutus script" do
         withWallets unit \_ -> do
           let args = [ Integer (BigInt.fromInt 32) ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            args
           result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
       test "returns the correct fully applied Plutus script" do
@@ -1444,7 +1455,9 @@ suite = do
             liftContractM "Could not create ByteArray"
               (byteArrayFromAscii "test")
           let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
     group "CIP-30 mock" do

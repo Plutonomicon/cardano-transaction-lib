@@ -19,15 +19,16 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
+  , liftContractE
   , liftContractM
-  , liftedE
   , liftedM
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
-  ( MintingPolicy(PlutusMintingPolicy)
+  ( ApplyArgsError
+  , MintingPolicy(PlutusMintingPolicy)
   , PlutusScript
   , applyArgs
   )
@@ -128,16 +129,16 @@ oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV1FromEnvelope envelope
-  mkOneShotMintingPolicy script txInput
+  liftContractE $ mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Contract () PlutusScript
+  -> Either ApplyArgsError PlutusScript
 mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
   in
-    liftedE $ applyArgs unappliedMintingPolicy mintingPolicyArgs
+    applyArgs unappliedMintingPolicy mintingPolicyArgs
 
