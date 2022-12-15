@@ -48,7 +48,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309 "CTL's CIP25 metadata encoding is considered invalid by Blockfrost #1309")).
 
 ### Removed
-- Ctl haskell server, ability to apply scripts replaced by `Contract.Scripts.applyArgs`
+
+- `ctl-server`, a haskell binary that was providing ability to apply arguments to parametrized scripts, was replaced by an implementation that uses WASM library (`Contract.Scripts.applyArgs`) ([#483](https://github.com/Plutonomicon/cardano-transaction-lib/issues/483))
 
 ### Fixed
 
