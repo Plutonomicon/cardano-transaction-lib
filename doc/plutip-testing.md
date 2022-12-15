@@ -3,14 +3,18 @@
 [Plutip](https://github.com/mlabs-haskell/plutip) is a tool to run private Cardano testnets. CTL provides integration with Plutip via a [`plutip-server` binary](https://github.com/mlabs-haskell/plutip/pull/79) that exposes an HTTP interface to control local Cardano clusters.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  + [Testing in Aff context](#testing-in-aff-context)
-  + [Testing with Mote](#testing-with-mote)
-  + [Testing with Nix](#testing-with-nix)
+  - [Testing in Aff context](#testing-in-aff-context)
+  - [Testing with Mote](#testing-with-mote)
+  - [Note on SIGINT](#note-on-sigint)
+  - [Testing with Nix](#testing-with-nix)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Architecture
 
 CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
@@ -136,6 +140,22 @@ suite = testPlutipContracts config do
   test "Test 3" do
     noWallet do
       ...
+```
+
+### Note on SIGINT
+
+Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, node's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel. To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let node shut down gracefully when no more events are to be processed.
+
+```purescript
+...
+import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Data.Posix.Signal (Signal(SIGINT))
+import Effect.Aff (cancelWith, effectCanceler, launchAff)
+
+main :: Effect Unit
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    ... test suite in Aff ...
 ```
 
 ### Testing with Nix

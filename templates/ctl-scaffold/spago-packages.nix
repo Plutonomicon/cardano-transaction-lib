@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "a01a9409af204df835e97150bcdefe543910f2f9";
+        version = "fc35733e483c21e55e5acabacb1d9e192f91a032";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "a01a9409af204df835e97150bcdefe543910f2f9";
-          sha256 = "0srm8d8jp01d9asiahfmkjf3c4h0kfxqklxgxqr6j1w52nymv5n0";
+          rev = "fc35733e483c21e55e5acabacb1d9e192f91a032";
+          sha256 = "19zmsg8x65qc0lnl94llnr1r9v87xv3b7amz9kgpjq4d50idwb6n";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1368,18 +1368,6 @@ let
           url = "https://github.com/bodil/purescript-test-unit.git";
           rev = "56d06897b621df5d2f619433d19ababb5bb8ebd1";
           sha256 = "0qz903phxkgrn7qdz1xi49bydkf5cbxssyb4xk029zi4lshb35mw";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "text-encoding" = pkgs.stdenv.mkDerivation {
-        name = "text-encoding";
-        version = "v1.0.0";
-        src = pkgs.fetchgit {
-          url = "https://github.com/AlexaDeWit/purescript-text-encoding.git";
-          rev = "609ea0916f6817971d4a6c11b991b59715aaa096";
-          sha256 = "1r6ihj6m6ahp1cjf4i25pq9a00r2mvgrd8794xiapzsaigljz42c";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

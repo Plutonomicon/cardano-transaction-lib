@@ -35,7 +35,7 @@ import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.String.CodePoints (drop, take)
-import Data.TextEncoding (encodeUtf8)
+import Data.TextEncoder (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
 
