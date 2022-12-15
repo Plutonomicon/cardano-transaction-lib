@@ -41,7 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 * Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` builds a transaction that satisfies the constraints, then submits it to the network. It is analog for `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
 
-- Support for CIP-49 crypto primitives: SECP256k1 [ECDSA](./src/Contract/Crypto/SECP256k1/ECDSA.purs) and [Schnorr](./src/Contract/Crypto/SECP256k1/Schnorr.purs) (verification functions, signing and key generation) ([1273](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1273))
+- Support for CIP-49 crypto primitives: SECP256k1 [ECDSA](./src/Contract/Crypto/Secp256k1/ECDSA.purs) and [Schnorr](./src/Contract/Crypto/Secp256k1/Schnorr.purs) (verification functions, signing and key generation) ([1273](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1273))
 
 ### Changed
 
