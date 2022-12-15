@@ -30,7 +30,7 @@ contract :: Contract () Unit
 contract = do
   liftAff $ interpret suite
 
-suite ∷ TestPlanM (Aff Unit) Unit
+suite :: TestPlanM (Aff Unit) Unit
 suite = group "Applying params to scripts test" $ do
   traverse_ (uncurry $ testCase v1) $ Tuple <$> v1ScriptPaths <*> params
   traverse_ (uncurry $ testCase v2) $ Tuple <$> v2ScriptPaths <*> params
