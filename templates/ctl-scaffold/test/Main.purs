@@ -88,5 +88,10 @@ config =
   , suppressLogs: true
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.05 }
+      { slotLength: Seconds 0.1
+      -- Adjust the max transaction size. Useful for debugging with traces
+      , maxTxSize: UInt.fromInt 16384
+      -- When set to True increase the ex-Units to 10e6.
+      , increasedExUnits: false
+      }
   }

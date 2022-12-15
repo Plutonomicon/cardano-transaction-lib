@@ -693,4 +693,10 @@ suite = do
                 $ getPubKeyHashDelegationsAndRewards aliceStakePkh
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
   where
-  config = Common.config { clusterConfig = { slotLength: Seconds 0.05 } }
+  config = Common.config
+    { clusterConfig =
+        { slotLength: Seconds 0.05
+        , maxTxSize: UInt.fromInt 16384
+        , increasedExUnits: false
+        }
+    }

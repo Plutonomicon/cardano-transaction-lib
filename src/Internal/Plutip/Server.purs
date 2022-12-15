@@ -489,7 +489,10 @@ startPlutipCluster cfg keysToGenerate = do
                     { keysToGenerate
                     , slotLength: cfg.clusterConfig.slotLength
                     , epochSize
+                    , maxTxSize: cfg.clusterConfig.maxTxSize
+                    , increasedExUnits: cfg.clusterConfig.increasedExUnits
                     }
+
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url

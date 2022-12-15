@@ -70,7 +70,12 @@ type PlutipConfig =
   , suppressLogs :: Boolean
   , hooks :: Hooks
   , clusterConfig ::
-      { slotLength :: Seconds }
+      { slotLength :: Seconds
+      -- Adjust the max transaction size. Useful for debugging with traces
+      , maxTxSize :: UInt
+      -- When set to True increase the ex-Units to 10e6.
+      , increasedExUnits :: Boolean
+      }
   }
 
 type PostgresConfig =
@@ -99,13 +104,21 @@ newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution
   , epochSize :: UInt
   , slotLength :: Seconds
+  , maxTxSize :: UInt
+  , increasedExUnits :: Boolean
   }
 
 instance EncodeAeson ClusterStartupRequest where
   encodeAeson'
     ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength }
-    ) = encodeAeson' { keysToGenerate, epochSize, slotLength }
+        { keysToGenerate
+        , epochSize
+        , slotLength: Seconds slotLength
+        , maxTxSize
+        , increasedExUnits
+        }
+    ) = encodeAeson'
+    { keysToGenerate, epochSize, slotLength, maxTxSize, increasedExUnits }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
 
