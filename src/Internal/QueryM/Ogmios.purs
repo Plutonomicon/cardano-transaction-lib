@@ -530,6 +530,7 @@ derive newtype instance DecodeAeson RelativeTime
 
 instance EncodeAeson RelativeTime where
   encodeAeson (RelativeTime rt) =
+    -- We assume the numbers are finite
     encodeAeson $ unsafePartial partialFiniteNumber rt
 
 instance Show RelativeTime where
@@ -608,6 +609,7 @@ derive newtype instance Eq SlotLength
 derive newtype instance DecodeAeson SlotLength
 instance EncodeAeson SlotLength where
   encodeAeson (SlotLength sl) =
+    -- We assume the numbers are finite
     encodeAeson $ unsafePartial partialFiniteNumber sl
 
 instance Show SlotLength where
