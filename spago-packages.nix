@@ -785,6 +785,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "noble-secp256k1" = pkgs.stdenv.mkDerivation {
+        name = "noble-secp256k1";
+        version = "710c15c48c5afae5e0623664d982a587ff2bd177";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git";
+          rev = "710c15c48c5afae5e0623664d982a587ff2bd177";
+          sha256 = "014wapsgg6xa76i3f368aag4kps644g8qqqha9xbgyxmrhxsln6q";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "node-buffer" = pkgs.stdenv.mkDerivation {
         name = "node-buffer";
         version = "v7.0.1";

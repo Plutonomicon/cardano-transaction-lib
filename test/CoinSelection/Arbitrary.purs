@@ -3,6 +3,7 @@ module Test.Ctl.CoinSelection.Arbitrary where
 import Prelude
 
 import Control.Apply (lift2)
+import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, fromIndexFiltered)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
@@ -22,6 +23,7 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Data.Generic.Rep (class Generic)
+import Data.Map (Map)
 import Data.Map.Gen (genMap) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -131,3 +133,27 @@ instance Arbitrary ArbitraryAddress where
     wrap <<< baseAddressToAddress <$>
       lift2 (paymentKeyHashStakeKeyHashAddress MainnetId) arbitrary arbitrary
 
+--------------------------------------------------------------------------------
+-- ArbitrarySelectionState
+--------------------------------------------------------------------------------
+
+newtype ArbitrarySelectionState = ArbitrarySelectionState SelectionState
+
+derive instance Newtype ArbitrarySelectionState _
+
+instance Arbitrary ArbitrarySelectionState where
+  arbitrary = ArbitrarySelectionState <$>
+    lift2 fromIndexFiltered
+      (arbitrary :: Gen (TransactionInput -> Boolean))
+      (unwrap <$> (arbitrary :: Gen ArbitraryUtxoIndex))
+
+--------------------------------------------------------------------------------
+-- ArbitraryMap
+--------------------------------------------------------------------------------
+
+newtype ArbitraryMap (k :: Type) (v :: Type) = ArbitraryMap (Map k v)
+
+derive instance Newtype (ArbitraryMap k v) _
+
+instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (ArbitraryMap k v) where
+  arbitrary = ArbitraryMap <$> Map.genMap arbitrary arbitrary

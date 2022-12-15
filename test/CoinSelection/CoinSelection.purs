@@ -4,8 +4,7 @@ import Prelude
 
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.BalanceTx.CoinSelection
-  ( SelectionState
-  , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
+  ( SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , mkSelectionState
   , performMultiAssetSelection
   )
@@ -33,9 +32,9 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
-import Data.Map (empty, fromFoldable, values) as Map
+import Data.Map (fromFoldable, values) as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
@@ -52,6 +51,8 @@ import Test.Ctl.CoinSelection.Arbitrary
   , ArbitraryTransactionInput
   , ArbitraryUtxoIndex
   )
+import Test.Ctl.CoinSelection.RoundRobin (suite) as RoundRobin
+import Test.Ctl.CoinSelection.SelectionState (suite) as SelectionState
 import Test.Ctl.CoinSelection.UtxoIndex (suite) as UtxoIndex
 import Test.QuickCheck (class Testable, Result, assertEquals)
 import Test.QuickCheck (test) as QuickCheck
@@ -63,6 +64,8 @@ import Test.Spec.QuickCheck (quickCheck)
 suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "CoinSelection" do
+    RoundRobin.suite
+    SelectionState.suite
     UtxoIndex.suite
     group "performMultiAssetSelection" do
       test "Performs a selection with zero outputs" do

@@ -12,9 +12,12 @@ module Ctl.Internal.CoinSelection.UtxoIndex
   , checkUtxoIndexInvariants
   , emptyUtxoIndex
   , selectRandomWithFilter
+  , utxoIndexPartition
   , utxoIndexDeleteEntry
   , utxoIndexInsertEntry
   , utxoIndexUniverse
+  , utxoIndexDisjoint
+  , valueHasAsset
   ) where
 
 import Prelude
@@ -23,19 +26,23 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , UtxoMap
   )
-import Ctl.Internal.Cardano.Types.Value (AssetClass)
+import Ctl.Internal.Cardano.Types.Value (AssetClass, Value)
 import Ctl.Internal.Cardano.Types.Value
   ( getAssetQuantity
   , valueAssetClasses
   , valueAssets
+  , valueToCoin'
   ) as Value
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (all, foldl) as Array
 import Data.Array ((!!))
+import Data.Array.NonEmpty (cons')
+import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (all, length) as Foldable
 import Data.Foldable (foldl)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.HashMap (HashMap)
 import Data.HashMap (alter, empty, lookup, toArrayBy, update) as HashMap
@@ -45,11 +52,13 @@ import Data.Lens.Getter (view, (^.))
 import Data.Lens.Iso (Iso', iso)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter ((%~))
+import Data.List (List)
 import Data.Map (Map)
 import Data.Map
   ( delete
   , empty
   , insert
+  , intersection
   , isEmpty
   , lookup
   , singleton
@@ -65,6 +74,8 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Random (randomInt) as Random
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (oneOf)
 import Type.Proxy (Proxy(Proxy))
 
 -- | A utxo set that is indexed by asset identifier.
@@ -112,6 +123,21 @@ instance Hashable Asset where
   hash AssetLovelace = hash (Nothing :: Maybe AssetClass)
   hash (Asset asset) = hash (Just asset)
 
+instance Arbitrary Asset where
+  arbitrary = oneOf $ cons' (pure AssetLovelace) [ Asset <$> arbitrary ]
+
+-- | Indicates whether or not a given bundle includes a given asset.
+-- |
+-- | Both ada and non-ada assets can be queried.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/9d73b57e23392e25148cfc8db560cb8f656cb56a/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L526
+valueHasAsset :: Value -> Asset -> Boolean
+valueHasAsset amount AssetLovelace =
+  (Value.valueToCoin' amount) > (BigInt.fromInt 0)
+valueHasAsset amount (Asset asset) =
+  Value.getAssetQuantity asset amount >= one
+
 --------------------------------------------------------------------------------
 -- Builders
 --------------------------------------------------------------------------------
@@ -129,6 +155,26 @@ emptyUtxoIndex = UtxoIndex
 buildUtxoIndex :: UtxoMap -> UtxoIndex
 buildUtxoIndex =
   Array.foldl (flip utxoIndexInsertEntry) emptyUtxoIndex <<< Map.toUnfoldable
+
+-- | Partition `UtxoIndex`
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/9d73b57e23392e25148cfc8db560cb8f656cb56a/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L344
+utxoIndexPartition
+  :: (TransactionInput -> Boolean) -> UtxoIndex -> (UtxoIndex /\ UtxoIndex)
+utxoIndexPartition predicate =
+  bimap buildUtxoIndex buildUtxoIndex <<< partitionMapOnKeys predicate
+    <<< utxoIndexUniverse
+
+partitionMapOnKeys
+  :: forall k v. Ord k => (k -> Boolean) -> Map k v -> Map k v /\ Map k v
+partitionMapOnKeys p m =
+  foldl select (Map.empty /\ Map.empty) (Map.toUnfoldable m :: List (k /\ v))
+  where
+  select :: (Map k v /\ Map k v) -> (k /\ v) -> (Map k v /\ Map k v)
+  select (yes /\ no) (k /\ v) =
+    if p k then (Map.insert k v yes) /\ no
+    else yes /\ (Map.insert k v no)
 
 --------------------------------------------------------------------------------
 -- Modifiers
@@ -195,6 +241,17 @@ categorizeUtxoEntry txOutput = case Set.toUnfoldable bundleAssets of
   bundleAssets = txOutputAssetClasses txOutput
 
 --------------------------------------------------------------------------------
+-- Set operations
+--------------------------------------------------------------------------------
+
+-- | Indicates whether a pair of UTxO indices are disjoint.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/9d73b57e23392e25148cfc8db560cb8f656cb56a/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L390
+utxoIndexDisjoint :: UtxoIndex -> UtxoIndex -> Boolean
+utxoIndexDisjoint x y = Map.isEmpty $ on Map.intersection utxoIndexUniverse x y
+
+--------------------------------------------------------------------------------
 -- Selection
 --------------------------------------------------------------------------------
 
@@ -206,6 +263,11 @@ data SelectionFilter
   = SelectSingleton Asset
   | SelectPairWith Asset
   | SelectAnyWith Asset
+
+instance Arbitrary SelectionFilter where
+  arbitrary = oneOf $
+    cons' (SelectSingleton <$> arbitrary)
+      [ (SelectPairWith <$> arbitrary), (SelectAnyWith <$> arbitrary) ]
 
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L418

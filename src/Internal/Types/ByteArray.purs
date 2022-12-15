@@ -32,7 +32,12 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.String.CodeUnits (toCharArray)
 import Data.Traversable (for)
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Arbitrary
+  ( class Arbitrary
+  , class Coarbitrary
+  , arbitrary
+  , coarbitrary
+  )
 
 newtype ByteArray = ByteArray Uint8Array
 
@@ -117,6 +122,10 @@ foreign import subarray :: Int -> Int -> ByteArray -> ByteArray
 
 instance Arbitrary ByteArray where
   arbitrary = byteArrayFromIntArrayUnsafe <$> arbitrary
+
+instance Coarbitrary ByteArray where
+  coarbitrary bytes generator = coarbitrary (byteArrayToIntArray bytes)
+    generator
 
 -- | Convert characters in range `0-255` into a `ByteArray`.
 -- | Fails with `Nothing` if there are characters out of this range in a string.

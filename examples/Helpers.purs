@@ -60,4 +60,3 @@ submitAndLog bsTx = do
     void $ throw "Unable to get Tx contents"
     when (mbTransaction /= Just (unwrap bsTx)) do
       throw "Tx contents do not match"
-
