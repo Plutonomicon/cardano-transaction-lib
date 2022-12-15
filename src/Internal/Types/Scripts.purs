@@ -118,7 +118,7 @@ instance DecodeAeson MintingPolicy where
 instance EncodeAeson MintingPolicy where
   encodeAeson (NativeMintingPolicy nscript) =
     encodeAeson { "getNativeMintingPolicy": nscript }
-  encodeAeson (PlutusMintingPolicy script) = do
+  encodeAeson (PlutusMintingPolicy script) =
     encodeAeson { "getPlutusMintingPolicy": script }
 
 instance Show MintingPolicy where

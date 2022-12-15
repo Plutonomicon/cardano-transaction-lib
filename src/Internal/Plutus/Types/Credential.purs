@@ -8,7 +8,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(AtKey, Named, UnexpectedValue)
   , decodeAeson
   , (.:)
   )
@@ -34,7 +34,7 @@ import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
 import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..))
+import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\))

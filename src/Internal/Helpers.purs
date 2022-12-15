@@ -235,7 +235,7 @@ showWithParens
 showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"
 
 -- | If `k` is encoded as string, `encodeMap` encodes `Map` as `Object`,
--- | else as an `Array`` of `Aeson /\ Aeson` pairs
+-- | else as an `Array` of `Aeson /\ Aeson` pairs
 encodeMap
   :: forall (k :: Type) (v :: Type)
    . EncodeAeson k
