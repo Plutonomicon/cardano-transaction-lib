@@ -355,7 +355,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
-            <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
@@ -370,8 +369,6 @@ readPorts testOptions = do
     readPortNumber "OGMIOS" testOptions.ogmiosPort
   ogmiosDatumCachePort <-
     readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
-  ctlServerPort <-
-    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   postgresPort <-
     readPortNumber "POSTGRES" testOptions.postgresPort
   kupoPort <-
@@ -380,7 +377,6 @@ readPorts testOptions = do
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
-    , ctlServerPort
     , postgresPort
     , kupoPort
     }

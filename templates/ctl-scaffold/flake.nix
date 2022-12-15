@@ -32,11 +32,6 @@
         inherit system;
         overlays = [
           ctl.overlays.purescript
-          # This one is optional. If you set `ctl-server.enable = true;`
-          # in the runtime config as in our nix/runtime.nix, you must enable this
-          # overlay. `ctl-server` itself is **only** required when using
-          # CTL's `applyArgs` function
-          ctl.overlays.ctl-server
           ctl.overlays.runtime
           ctl.overlays.spago
         ];

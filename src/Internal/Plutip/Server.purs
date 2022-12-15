@@ -534,12 +534,10 @@ stopPlutipCluster cfg = do
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startOgmios cfg params = do
-  -- We wait for any output, because CTL-server tries to connect to Ogmios
-  -- repeatedly, and we can just wait for CTL-server to connect, instead of
-  -- waiting for Ogmios first.
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
-    $ pure Success
+    $ String.indexOf (Pattern "networkParameters")
+        >>> maybe NoOp (const Success)
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
