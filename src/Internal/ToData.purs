@@ -14,6 +14,7 @@ module Ctl.Internal.ToData
 
 import Prelude
 
+import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Ctl.Internal.Helpers (uIntToBigInt)
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -33,6 +34,7 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (cons, sortWith)
 import Data.Array as Array
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt, fromInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -47,6 +49,19 @@ import Data.Symbol (class IsSymbol)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.UInt (UInt)
+import Noble.Secp256k1.ECDSA
+  ( ECDSAPublicKey
+  , ECDSASignature
+  , MessageHash
+  , unECDSAPublicKey
+  , unMessageHash
+  , unPrivateKey
+  )
+import Noble.Secp256k1.Schnorr
+  ( SchnorrPublicKey
+  , SchnorrSignature
+  , unSchnorrPublicKey
+  )
 import Prim.Row as Row
 import Prim.TypeError (class Fail, Text)
 import Record as Record
@@ -295,6 +310,29 @@ instance ToData String where
 
 instance ToData PlutusData where
   toData = identity
+
+instance ToData Uint8Array where
+  toData = toData <<< ByteArray
+
+-- Instances for purescript-noble-secp256k1 types
+
+instance ToData Secp256k1PrivateKey where
+  toData = unwrap >>> unPrivateKey >>> ByteArray >>> toData
+
+instance ToData MessageHash where
+  toData = unMessageHash >>> ByteArray >>> toData
+
+instance ToData ECDSAPublicKey where
+  toData = unECDSAPublicKey >>> ByteArray >>> toData
+
+instance ToData ECDSASignature where
+  toData = unwrap >>> ByteArray >>> toData
+
+instance ToData SchnorrPublicKey where
+  toData = unSchnorrPublicKey >>> ByteArray >>> toData
+
+instance ToData SchnorrSignature where
+  toData = unwrap >>> ByteArray >>> toData
 
 foldableToPlutusData
   :: forall (a :: Type) (t :: Type -> Type)

@@ -41,10 +41,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 * Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` builds a transaction that satisfies the constraints, then submits it to the network. It is analog for `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
 
+- Support for CIP-49 crypto primitives: SECP256k1 [ECDSA](./src/Contract/Crypto/Secp256k1/ECDSA.purs) and [Schnorr](./src/Contract/Crypto/Secp256k1/Schnorr.purs) (verification functions, signing and key generation) ([1273](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1273))
+
 ### Changed
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
+- CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309 "CTL's CIP25 metadata encoding is considered invalid by Blockfrost #1309")).
 
 ### Removed
 
@@ -54,6 +57,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - CIP-30 `signData` response handling ([#1289](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1289))
 
 ### Runtime Dependencies
+
+TBD
 
 ## [3.0.0] - 2022-11-21
 
@@ -91,6 +96,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `mustSendChangeToAddress` balancer constraint, allowing to explicitly set the address to send all generated change to ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
 - `mustUseUtxosAtAddress` and `mustUseUtxosAtAddresses` balancer constraints, allowing to specify addresses that should be treated like utxos sources during balancing ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
 - Add ability to provide extra browser CLI arguments in E2E test suite ([#1253](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1253))
+- The configuration option for plutip clusters: slot length can be adjusted using `clusterConfig` field of `PlutipConfig`. epoch size must currently remain at `80` however due to ([#1272](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1272))
 
 ### Changed
 
@@ -139,7 +145,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Runtime Dependencies
 
-- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7 
+- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7
 - [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
 - [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.3
 - [Ogmios-Datum-Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) - commit 862c6bfcb6110b8fe816e26b3bba105dfb492b24
