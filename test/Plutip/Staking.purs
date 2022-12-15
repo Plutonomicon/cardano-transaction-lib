@@ -36,6 +36,7 @@ import Contract.Staking
   , getValidatorHashDelegationsAndRewards
   )
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
+import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getCurrentEpoch)
 import Contract.Transaction
   ( Epoch(Epoch)
@@ -74,11 +75,19 @@ import Data.BigInt as BigInt
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
+import Data.Posix.Signal (Signal(SIGINT))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), delay, launchAff_)
+import Effect.Aff
+  ( Aff
+  , Milliseconds(Milliseconds)
+  , cancelWith
+  , delay
+  , effectCanceler
+  , launchAff
+  )
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 import Mote (group, test)
@@ -89,10 +98,11 @@ import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
 main :: Effect Unit
-main = launchAff_ do
-  interpretWithConfig
-    defaultConfig { timeout = Just $ Milliseconds 450_000.0, exit = true }
-    suite
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    interpretWithConfig
+      defaultConfig { timeout = Just $ Milliseconds 450_000.0, exit = true }
+      suite
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
