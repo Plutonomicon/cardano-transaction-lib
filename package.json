@@ -15,6 +15,7 @@
     "unit-test": "spago run --main Test.Ctl.Unit",
     "plutip-test": "spago run --main Test.Ctl.Plutip",
     "staking-test": "spago run --main Test.Ctl.Plutip.Staking",
+    "e2e-serve": "spago bundle-module -m Ctl.Examples.ByUrl --to output.js && BROWSER_RUNTIME=1 webpack-dev-server --progress",
     "e2e-test": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run'",
     "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run --no-headless'",
     "e2e-browser": "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'",
