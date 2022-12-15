@@ -9,6 +9,8 @@ import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
+import Test.Ctl.CoinSelection.RoundRobin as RoundRobin
+import Test.Ctl.CoinSelection.SelectionState as SelectionState
 import Test.Ctl.CoinSelection.UtxoIndex as UtxoIndex
 import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
@@ -81,3 +83,5 @@ testPlan = do
   E2E.Route.suite
   MustSpendTotal.suite
   UtxoIndex.suite
+  SelectionState.suite
+  RoundRobin.suite

@@ -10,7 +10,13 @@ module Ctl.Internal.BalanceTx.CoinSelection
   , SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , _leftoverUtxos
   , performMultiAssetSelection
+  , runRoundRobinM -- Exported for tests
   , selectedInputs
+  , selectUtxo
+  , selectRandomWithPriority
+  , empty
+  , mkSelectionState
+  , fromIndexFiltered
   ) where
 
 import Prelude
@@ -40,8 +46,10 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , SelectionFilter(SelectAnyWith, SelectPairWith, SelectSingleton)
   , TxUnspentOutput
   , UtxoIndex
+  , emptyUtxoIndex
   , selectRandomWithFilter
   , utxoIndexDeleteEntry
+  , utxoIndexPartition
   , utxoIndexUniverse
   )
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
@@ -164,6 +172,20 @@ _selectedUtxos = _Newtype <<< prop (Proxy :: Proxy "selectedUtxos")
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L192
 mkSelectionState :: UtxoIndex -> SelectionState
 mkSelectionState = wrap <<< { leftoverUtxos: _, selectedUtxos: Map.empty }
+
+-- | A completely empty selection with no selected or leftover UTxOs.
+-- |
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/9d73b57e23392e25148cfc8db560cb8f656cb56a/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L183
+empty :: SelectionState
+empty = mkSelectionState emptyUtxoIndex
+
+fromIndexFiltered
+  :: (TransactionInput -> Boolean) -> UtxoIndex -> SelectionState
+fromIndexFiltered predicate index = SelectionState
+  { leftoverUtxos: no, selectedUtxos: utxoIndexUniverse yes }
+  where
+  yes /\ no = utxoIndexPartition predicate index
 
 -- | Moves a single utxo entry from the leftover set to the selected set.
 -- |
@@ -436,4 +458,3 @@ showAssetClassWithQuantity (AssetClass cs tn) quantity =
   displayQuantity :: String
   displayQuantity =
     "quantity: " <> BigInt.toString quantity <> "))"
-
