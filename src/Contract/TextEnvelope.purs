@@ -3,7 +3,8 @@ module Contract.TextEnvelope
   ) where
 
 import Ctl.Internal.Cardano.TextEnvelope
-  ( TextEnvelopeType
+  ( TextEnvelope
+  , TextEnvelopeType
       ( PlutusScriptV1
       , PlutusScriptV2
       , PaymentSigningKeyShelleyed25519
