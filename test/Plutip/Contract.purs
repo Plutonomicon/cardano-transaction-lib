@@ -84,6 +84,7 @@ import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
+import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
@@ -105,6 +106,7 @@ import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceIn
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
@@ -1605,6 +1607,27 @@ suite = do
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
               (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
+  group "Plutus Crypto" do
+    test "ECDSA" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          ECDSA.contract
+    test "Schnorr" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          Schnorr.contract
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do

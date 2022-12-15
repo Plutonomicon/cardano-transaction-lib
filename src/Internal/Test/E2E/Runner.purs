@@ -89,7 +89,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith, words) as String
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
@@ -221,6 +221,8 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.05 }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
