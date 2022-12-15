@@ -42,7 +42,7 @@ format:
 	@purs-tidy format-in-place ${ps-sources}
 	nixpkgs-fmt ${nix-sources}
 	prettier -w ${js-sources}
-	doctoc README.md doc/*.md --github --notitle
+	doctoc CHANGELOG.md README.md doc/*.md --github --notitle
 	make check-explicit-exports
 	make check-examples-imports
 	make check-whitespace
