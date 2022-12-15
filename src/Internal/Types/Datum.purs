@@ -6,17 +6,13 @@ module Ctl.Internal.Types.Datum
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, encodeAeson')
-import Aeson.Decode as Decode
-import Aeson.Encode ((>$<))
-import Aeson.Encode as Encode
-import Control.Lazy (defer)
+import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Transaction (DataHash(DataHash)) as X
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 
 -- | Define data types mirroring Plutus `Datum`, like `Datum` itself and
@@ -34,11 +30,10 @@ derive newtype instance Ord Datum
 derive newtype instance ToData Datum
 
 instance EncodeAeson Datum where
-  encodeAeson' = encodeAeson' <<<
-    defer (const $ Encode.encode $ unwrap >$< Encode.value)
+  encodeAeson = encodeAeson <<< unwrap
 
 instance DecodeAeson Datum where
-  decodeAeson = defer $ const $ Decode.decode $ Datum <$> Decode.value
+  decodeAeson = map wrap <<< decodeAeson
 
 instance Show Datum where
   show = genericShow
