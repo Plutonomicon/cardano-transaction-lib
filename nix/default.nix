@@ -353,7 +353,6 @@ let
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
         export OGMIOS_DATUM_CACHE_PORT=10005
-        export CTL_SERVER_PORT=8088
         export POSTGRES_PORT=5438
         export E2E_SKIP_JQUERY_DOWNLOAD=true
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
