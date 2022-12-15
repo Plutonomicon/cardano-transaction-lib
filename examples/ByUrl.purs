@@ -44,6 +44,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import Test.Ctl.ApplyArgs as ApplyArgs
 
 main :: Effect Unit
 main = do
@@ -90,4 +91,5 @@ examples = Map.fromFoldable
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
+  , "ApplyArgs" /\ ApplyArgs.contract
   ]

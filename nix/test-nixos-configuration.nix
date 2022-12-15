@@ -46,6 +46,4 @@
     blockHash = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
     blockFilter = builtins.toJSON { const = true; };
   };
-
-  services.ctl-server.enable = true;
 }

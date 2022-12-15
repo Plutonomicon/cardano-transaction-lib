@@ -26,7 +26,6 @@ import Contract.Monad
   , liftContractM
   , liftedE
   , liftedM
-  , throwContractError
   , wrapContract
   )
 import Contract.PlutusData
@@ -37,7 +36,7 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (either, liftM, mconcat)
+import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
@@ -76,7 +75,7 @@ import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
-import Control.Monad.Error.Class (throwError, try)
+import Control.Monad.Error.Class (try)
 import Control.Monad.Reader (asks)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
