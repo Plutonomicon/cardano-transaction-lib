@@ -31,7 +31,7 @@ The services that are currently **required** are:
 
 ### Using NixOS module
 
-See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and TODO for module options.
+CTL's dependencies can be configured and started via NixOS modules. See [nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example.
 
 ### Using CTL's `runtime` overlay
 
