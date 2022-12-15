@@ -86,7 +86,7 @@ instance DecodeAeson NativeScript where
         <$> (flip getField "n" =<< aesonContents)
         <*> (flip getField "nativeScripts" =<< aesonContents)
 
-      _ -> Left $ TypeMismatch ("Unknown tag" <> tag)
+      _ -> Left $ TypeMismatch ("Unknown tag: " <> tag)
 
 instance EncodeAeson NativeScript where
   encodeAeson = case _ of

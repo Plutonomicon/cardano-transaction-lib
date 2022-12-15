@@ -649,6 +649,7 @@ instance EncodeAeson SlotToPosixTimeError where
     encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
+      -- We assume the numbers are finite
       [ unsafePartial partialFiniteNumber absTime ]
   encodeAeson CannotGetBigIntFromNumber = do
     encodeAeson $ mkErrorRecord

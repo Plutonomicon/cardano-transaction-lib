@@ -597,8 +597,10 @@ instance Show MoveInstantaneousReward where
 instance EncodeAeson MoveInstantaneousReward where
   encodeAeson = case _ of
     ToOtherPot r -> encodeTagged' "ToOtherPot" r
+      -- We assume the numbers are finite
       { pot = unsafePartial partialFiniteNumber r.pot }
     ToStakeCreds r -> encodeTagged' "ToStakeCreds" r
+      -- We assume the numbers are finite
       { pot = unsafePartial partialFiniteNumber r.pot }
 
 type PoolRegistrationParams =
