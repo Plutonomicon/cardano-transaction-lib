@@ -73,7 +73,8 @@ instance DecodeAeson NativeScript where
   decodeAeson = caseAesonObject errExpectedObject $ \obj -> do
     tag <- obj .: tagProp
     let
-      aesonContents :: forall a. DecodeAeson a => Either JsonDecodeError a
+      aesonContents
+        :: forall (a :: Type). DecodeAeson a => Either JsonDecodeError a
       aesonContents = obj .: contentsProp
     case tag of
       "ScriptPubkey" -> ScriptPubkey <$> aesonContents
@@ -85,7 +86,7 @@ instance DecodeAeson NativeScript where
         <$> (flip getField "n" =<< aesonContents)
         <*> (flip getField "nativeScripts" =<< aesonContents)
 
-      _ -> Left $ TypeMismatch ("Unknown tag" <> tag) -- todo
+      _ -> Left $ TypeMismatch ("Unknown tag" <> tag)
 
 instance EncodeAeson NativeScript where
   encodeAeson = case _ of

@@ -71,7 +71,6 @@ instance
         :+ PNil
     )
 
--- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson Credential where
   encodeAeson = case _ of
     PubKeyCredential a -> encodeTagged' "PubKeyCredential" a
@@ -134,7 +133,6 @@ instance ToData StakingCredential where
 instance FromData StakingCredential where
   fromData = genericFromData
 
--- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson StakingCredential where
   encodeAeson = case _ of
     StakingHash a -> encodeTagged' "StakingHash" a

@@ -57,7 +57,6 @@ derive newtype instance ToMetadata PubKeyHash
 instance Show PubKeyHash where
   show = genericShow
 
--- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson PubKeyHash where
   encodeAeson x = encodeAeson { getPubKeyHash: unwrap x }
 
