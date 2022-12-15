@@ -203,15 +203,13 @@ route configs tests = do
   setClusterOptions
     :: forall (r :: Row Type). ClusterSetup -> ConfigParams r -> ConfigParams r
   setClusterOptions
-    { ctlServerConfig
-    , ogmiosConfig
+    { ogmiosConfig
     , datumCacheConfig
     , kupoConfig
     }
     config =
     config
-      { ctlServerConfig = ctlServerConfig
-      , ogmiosConfig = ogmiosConfig
+      { ogmiosConfig = ogmiosConfig
       , datumCacheConfig = datumCacheConfig
       , kupoConfig = kupoConfig
       }

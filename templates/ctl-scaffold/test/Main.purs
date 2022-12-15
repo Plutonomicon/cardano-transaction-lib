@@ -4,27 +4,51 @@ module Test.Scaffold.Main (main) where
 
 import Contract.Prelude
 
-import Contract.Config as Contract.Config
-import Contract.Monad as Contract.Monad
-import Contract.Test.Plutip as Contract.Test.Plutip
-import Contract.Wallet as Contract.Wallet
-import Data.BigInt as BigInt
-import Data.UInt as UInt
-import Scaffold as Scaffold
+import Contract.Config (emptyHooks)
+import Contract.Test.Mote (TestPlanM, interpretWithConfig)
+import Contract.Test.Plutip
+  ( InitialUTxOs
+  , PlutipConfig
+  , PlutipTest
+  , testPlutipContracts
+  , withWallets
+  )
+import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Data.BigInt (fromInt) as BigInt
+import Data.Posix.Signal (Signal(SIGINT))
+import Data.Time.Duration (Seconds(Seconds))
+import Data.UInt (fromInt) as UInt
+import Effect.Aff
+  ( Milliseconds(Milliseconds)
+  , cancelWith
+  , effectCanceler
+  , launchAff
+  )
+import Mote (test)
+import Scaffold (contract)
+import Test.Spec.Runner (defaultConfig)
 
+-- Run with `npm run test`
 main :: Effect Unit
-main = Contract.Monad.launchAff_ $ do
-  let
-    distribution :: Contract.Test.Plutip.InitialUTxOs
-    distribution =
-      [ BigInt.fromInt 5_000_000
-      , BigInt.fromInt 2_000_000_000
-      ]
-  Contract.Test.Plutip.runPlutipContract config distribution \alice ->
-    Contract.Wallet.withKeyWallet alice $ do
-      Scaffold.contract
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    interpretWithConfig
+      defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true } $
+      testPlutipContracts config suite
 
-config :: Contract.Test.Plutip.PlutipConfig
+suite :: TestPlanM PlutipTest Unit
+suite = do
+  test "Print PubKey" do
+    let
+      distribution :: InitialUTxOs
+      distribution =
+        [ BigInt.fromInt 5_000_000
+        , BigInt.fromInt 2_000_000_000
+        ]
+    withWallets distribution \_ -> do
+      contract
+
+config :: PlutipConfig
 config =
   { host: "127.0.0.1"
   , port: UInt.fromInt 8082
@@ -37,12 +61,6 @@ config =
       }
   , ogmiosDatumCacheConfig:
       { port: UInt.fromInt 10000
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , ctlServerConfig: Just
-      { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
       , path: Nothing
@@ -62,5 +80,7 @@ config =
       }
   , customLogger: Nothing
   , suppressLogs: true
-  , hooks: Contract.Config.emptyHooks
+  , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.05 }
   }

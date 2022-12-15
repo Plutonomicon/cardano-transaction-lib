@@ -46,15 +46,13 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
   , awaitTxConfirmed
+  , submitTxFromConstraints
   )
 import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
-import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mustPayToPubKeyStakeAddressWithDatum
-  )
+import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithDatum)
 import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
 
@@ -95,7 +93,7 @@ contract = do
     lookups = mempty
 
   void $ TestUtils.withAssertions assertions do
-    txHash <- buildBalanceSignAndSubmitTx lookups constraints
+    txHash <- submitTxFromConstraints lookups constraints
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { address, txHash, datum, datumHash }

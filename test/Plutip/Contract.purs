@@ -20,7 +20,14 @@ import Contract.BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
+import Contract.Monad
+  ( Contract
+  , liftContractE
+  , liftContractM
+  , liftedE
+  , liftedM
+  , wrapContract
+  )
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -58,6 +65,7 @@ import Contract.Transaction
   , createAdditionalUtxos
   , signTransaction
   , submit
+  , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
   )
@@ -76,9 +84,9 @@ import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
+import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   )
@@ -95,12 +103,11 @@ import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
-  ( contract
-  ) as ReferenceInputsAndScripts
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
+import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
@@ -117,10 +124,10 @@ import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet
-  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet)
+  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   )
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint)
+  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi)
   , withCip30Mock
   )
 import Data.Array (head, (!!))
@@ -528,7 +535,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -543,7 +550,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustProduceAtLeast fail" do
@@ -570,7 +577,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -613,7 +620,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending same amount
@@ -628,7 +635,7 @@ suite = do
               $ BigInt.fromInt 100
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          txHash' <- buildBalanceSignAndSubmitTx lookups' constraints'
+          txHash' <- submitTxFromConstraints lookups' constraints'
           void $ awaitTxConfirmed txHash'
 
     test "mustSpendAtLeast fail" do
@@ -655,7 +662,7 @@ suite = do
             lookups :: Lookups.ScriptLookups Void
             lookups = Lookups.mintingPolicy mp
 
-          txHash <- buildBalanceSignAndSubmitTx lookups constraints
+          txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
 
           -- Spending more than minted amount
@@ -743,7 +750,7 @@ suite = do
 
             lookups :: Lookups.ScriptLookups PlutusData
             lookups = mempty
-          buildBalanceSignAndSubmitTx lookups constraints
+          submitTxFromConstraints lookups constraints
 
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -1440,13 +1447,17 @@ suite = do
     group "applyArgs" do
       test "returns the same script when called without args" do
         withWallets unit \_ -> do
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            mempty
           result `shouldEqual` (unwrap unappliedScriptFixture)
 
       test "returns the correct partially applied Plutus script" do
         withWallets unit \_ -> do
           let args = [ Integer (BigInt.fromInt 32) ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            args
           result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
       test "returns the correct fully applied Plutus script" do
@@ -1455,7 +1466,9 @@ suite = do
             liftContractM "Could not create ByteArray"
               (byteArrayFromAscii "test")
           let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
     group "CIP-30 mock" do
@@ -1474,6 +1487,8 @@ suite = do
           try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
             shouldSatisfy
             isLeft
+          try (liftEffect $ isWalletAvailable NuFiWallet) >>= flip shouldSatisfy
+            isLeft
 
           withCip30Mock alice MockNami do
             (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
@@ -1484,10 +1499,16 @@ suite = do
             (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
           try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
             isLeft
+
           withCip30Mock alice MockFlint do
             (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
           try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
             shouldSatisfy
+            isLeft
+
+          withCip30Mock alice MockNuFi do
+            (liftEffect $ isWalletAvailable NuFiWallet) >>= shouldEqual true
+          try (liftEffect $ isWalletAvailable NuFiWallet) >>= flip shouldSatisfy
             isLeft
 
       test "Collateral selection" do
@@ -1597,6 +1618,27 @@ suite = do
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
               (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
+  group "Plutus Crypto" do
+    test "ECDSA" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          ECDSA.contract
+    test "Schnorr" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          Schnorr.contract
 
 signMultipleContract :: forall (r :: Row Type). Contract r Unit
 signMultipleContract = do

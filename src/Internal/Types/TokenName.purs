@@ -15,7 +15,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , encodeAeson'
+  , encodeAeson
   , getField
   )
 import Contract.Prim.ByteArray (hexToByteArray)
@@ -35,7 +35,7 @@ import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.String.CodePoints (drop, take)
-import Data.TextEncoding (encodeUtf8)
+import Data.TextEncoder (encodeUtf8)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple.Nested (type (/\))
 
@@ -78,7 +78,7 @@ instance DecodeAeson TokenName where
     tkFromStr = TokenName <<< wrap <<< wrap <<< encodeUtf8
 
 instance EncodeAeson TokenName where
-  encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
+  encodeAeson = encodeAeson <<< { "unTokenName": _ } <<< fromTokenName
     (\ba -> "\x0" <> "0x" <> byteArrayToHex ba)
     ( \s -> case take 1 s of
         "\x0" -> "\x0\x0" <> s

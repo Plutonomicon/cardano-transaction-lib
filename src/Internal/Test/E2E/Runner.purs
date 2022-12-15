@@ -89,7 +89,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith, words) as String
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
@@ -155,8 +155,11 @@ runE2ECommand = case _ of
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
     runtime <- readBrowserRuntime Nothing browserOptions
+    extraBrowserArgs <- liftEffect $ readExtraArgs
+      browserOptions.extraBrowserArgs
     runBrowser runtime.tmpDir runtime.chromeUserDataDir runtime.browser
       runtime.wallets
+      extraBrowserArgs
   PackSettings opts -> do
     rt <- readSettingsRuntime opts
     packSettings rt.settingsArchive rt.chromeUserDataDir
@@ -202,13 +205,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig: Just
-      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
-          options.ctlServerPort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
@@ -225,6 +221,8 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.05 }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
@@ -262,8 +260,7 @@ testPlan opts@{ tests } rt@{ wallets } =
           \env wallet -> do
             let
               (clusterSetup :: ClusterSetup) =
-                { ctlServerConfig: (unwrap env).config.ctlServerConfig
-                , ogmiosConfig: (unwrap env).config.ogmiosConfig
+                { ogmiosConfig: (unwrap env).config.ogmiosConfig
                 , datumCacheConfig: (unwrap env).config.datumCacheConfig
                 , kupoConfig: (unwrap env).config.kupoConfig
                 , keys:
@@ -333,17 +330,19 @@ runBrowser
   -> ChromeUserDataDir
   -> Browser
   -> Extensions
+  -> Array BrowserArg
   -> Aff Unit
-runBrowser tmpDir chromeUserDataDir browser extensions = do
+runBrowser tmpDir chromeUserDataDir browser extensions extraBrowserArgs = do
   let
     extPath ext = tmpDir <</>> unExtensionId ext.extensionId
 
     extensionsList :: String
     extensionsList = intercalate "," $ map extPath $ Map.values extensions
   void $ spawnAndCollectOutput browser
-    [ "--load-extension=" <> extensionsList
-    , "--user-data-dir=" <> chromeUserDataDir
-    ]
+    ( [ "--load-extension=" <> extensionsList
+      , "--user-data-dir=" <> chromeUserDataDir
+      ] <> extraBrowserArgs
+    )
     defaultSpawnOptions
     defaultErrorReader
 
@@ -358,7 +357,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
-            <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
@@ -373,8 +371,6 @@ readPorts testOptions = do
     readPortNumber "OGMIOS" testOptions.ogmiosPort
   ogmiosDatumCachePort <-
     readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
-  ctlServerPort <-
-    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   postgresPort <-
     readPortNumber "POSTGRES" testOptions.postgresPort
   kupoPort <-
@@ -383,7 +379,6 @@ readPorts testOptions = do
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
-    , ctlServerPort
     , postgresPort
     , kupoPort
     }

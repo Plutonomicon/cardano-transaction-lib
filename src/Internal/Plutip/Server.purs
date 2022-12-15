@@ -36,7 +36,11 @@ import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
+  , OnSignalRef
+  , cleanupOnSigint
+  , cleanupOnSigint'
   , cleanupTmpDir
+  , removeOnSignal
   , spawn
   , stop
   , waitForStop
@@ -147,6 +151,7 @@ withPlutipContractEnv plutipCfg distr cont = do
 -- |       Namely, brackets are run for each of the following groups and tests.
 -- |       If you wish to only set up Plutip once, ensure all tests are wrapped
 -- |       in a single group.
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
   -> TestPlanM PlutipTest Unit
@@ -294,7 +299,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startOgmios' response
   startKupo' response
   startOgmiosDatumCache' response
-  startMCtlServer'
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure
@@ -342,13 +346,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
 
   startPostgres' :: ClusterStartupParameters -> Aff Unit
   startPostgres' response =
-    bracket (startPostgresServer plutipCfg.postgresConfig)
-      (stopChildProcessWithPort plutipCfg.postgresConfig.port <<< fst)
-      \(process /\ workingDir) -> do
-        let
-          testClusterDir = (dirname <<< dirname) response.nodeConfigPath
-        liftEffect $ cleanupTmpDir process workingDir testClusterDir
-        configurePostgresServer plutipCfg.postgresConfig
+    bracket (startPostgresServer plutipCfg.postgresConfig response)
+      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.postgresConfig.port)
+      \(process /\ workingDir /\ _) -> do
+        liftEffect $ cleanupTmpDir process workingDir
+        void $ configurePostgresServer plutipCfg.postgresConfig
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
@@ -359,23 +361,16 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startKupo' :: ClusterStartupParameters -> Aff Unit
   startKupo' response =
     bracket (startKupo plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.kupoConfig.port)
-      (const $ pure unit)
+      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
+      \(process /\ workdir /\ _) -> do
+        liftEffect $ cleanupTmpDir process workdir
+        pure unit
 
   startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
   startOgmiosDatumCache' response =
     bracket (startOgmiosDatumCache plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) $ const
       (pure unit)
-
-  startMCtlServer' :: Aff Unit
-  startMCtlServer' = case plutipCfg.ctlServerConfig of
-    Nothing -> pure unit
-    Just config ->
-      bracket
-        (startCtlServer config.port)
-        (stopChildProcessWithPort config.port)
-        $ const (pure unit)
 
   mkWallets'
     :: ContractEnv ()
@@ -444,7 +439,7 @@ configCheck cfg = do
       , cfg.kupoConfig.port /\ "kupo"
       , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
       , cfg.postgresConfig.port /\ "postgres"
-      ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
+      ]
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
@@ -467,7 +462,11 @@ startPlutipCluster
   -> InitialUTxODistribution
   -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
 startPlutipCluster cfg keysToGenerate = do
-  let url = mkServerEndpointUrl cfg "start"
+  let
+    url = mkServerEndpointUrl cfg "start"
+    -- TODO epoch size cannot currently be changed due to
+    -- https://github.com/mlabs-haskell/plutip/issues/149
+    epochSize = UInt.fromInt 80
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -476,7 +475,11 @@ startPlutipCluster cfg keysToGenerate = do
                 $ RequestBody.String
                 $ stringifyAeson
                 $ encodeAeson
-                $ ClusterStartupRequest { keysToGenerate }
+                $ ClusterStartupRequest
+                    { keysToGenerate
+                    , slotLength: cfg.clusterConfig.slotLength
+                    , epochSize
+                    }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -539,12 +542,10 @@ stopPlutipCluster cfg = do
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startOgmios cfg params = do
-  -- We wait for any output, because CTL-server tries to connect to Ogmios
-  -- repeatedly, and we can just wait for CTL-server to connect, instead of
-  -- waiting for Ogmios first.
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
-    $ pure Success
+    $ String.indexOf (Pattern "networkParameters")
+        >>> maybe NoOp (const Success)
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -558,18 +559,20 @@ startOgmios cfg params = do
     , params.nodeConfigPath
     ]
 
-startKupo :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
+startKupo
+  :: PlutipConfig
+  -> ClusterStartupParameters
+  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
-    workdir = tmpDir <> "/kupo-db"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+    workdir = tmpDir <</>> "kupo-db"
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  liftEffect $ cleanupTmpDir childProcess workdir testClusterDir
-  pure childProcess
+  sig <- liftEffect $ cleanupOnSigint' workdir
+  pure (childProcess /\ workdir /\ sig)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
   spawnKupoProcess workdir =
@@ -614,15 +617,22 @@ checkPlutipServer cfg = do
     $ stopPlutipCluster cfg
 
 startPostgresServer
-  :: PostgresConfig -> Aff (ManagedProcess /\ String)
-startPostgresServer pgConfig = do
+  :: PostgresConfig
+  -> ClusterStartupParameters
+  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
+startPostgresServer pgConfig params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workingDir = tmpDir <</>> randomStr
     databaseDir = workingDir <</>> "postgres/data"
     postgresSocket = workingDir <</>> "postgres"
-  waitForStop =<< spawn "initdb" [ databaseDir ] defaultSpawnOptions Nothing
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
+  sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
+  waitForStop =<< spawn "initdb"
+    [ "--locale=C", "--encoding=UTF-8", databaseDir ]
+    defaultSpawnOptions
+    Nothing
   pgChildProcess <- spawn "postgres"
     [ "-D"
     , databaseDir
@@ -635,7 +645,7 @@ startPostgresServer pgConfig = do
     ]
     defaultSpawnOptions
     Nothing
-  pure (pgChildProcess /\ workingDir)
+  pure (pgChildProcess /\ workingDir /\ sig)
 
 configurePostgresServer
   :: PostgresConfig -> Aff Unit
@@ -690,6 +700,17 @@ stopChildProcessWithPort port childProcess = do
       isAvailable <- isPortAvailable port
       unless isAvailable do
         liftEffect $ throw "retry"
+
+stopChildProcessWithPortAndRemoveOnSignal
+  :: UInt -> (ManagedProcess /\ String /\ OnSignalRef) -> Aff Unit
+stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
+  stop $ childProcess
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
+  liftEffect $ removeOnSignal sig
 
 startOgmiosDatumCache
   :: PlutipConfig
@@ -754,8 +775,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
   pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
     { config:
-        { ctlServerConfig: plutipCfg.ctlServerConfig
-        , ogmiosConfig: plutipCfg.ogmiosConfig
+        { ogmiosConfig: plutipCfg.ogmiosConfig
         , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
         , kupoConfig: plutipCfg.kupoConfig
         , networkId: MainnetId
@@ -774,15 +794,6 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         }
     , extraConfig: {}
     }
-
-startCtlServer :: UInt -> Aff ManagedProcess
-startCtlServer serverPort = do
-  let ctlServerArgs = [ "--port", UInt.toString serverPort ]
-  spawn "ctl-server" ctlServerArgs defaultSpawnOptions
-    -- Wait for "CTL server starting on port" string in the output
-    $ Just
-    $ String.indexOf (Pattern "CTL server starting on port")
-        >>> maybe NoOp (const Success)
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $

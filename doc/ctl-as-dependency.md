@@ -3,13 +3,17 @@
 CTL can be imported as an additional dependency into a Purescript project built with Spago (i.e. by listing the project in your `packages.dhall`). Running CTL contracts requires several [runtime dependencies](./runtime.md) as well.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Caveats](#caveats)
-- [Using CTL's overlays](#using-ctl-s-overlays)
+- [Using CTL's overlays](#using-ctls-overlays)
 - [Upgrading CTL](#upgrading-ctl)
 - [Using CTL from JS](#using-ctl-from-js)
-  + [Bundling](#bundling)
-  + [Wrapping CTL into a JS interface](#wrapping-ctl-into-a-js-interface)
+  - [Bundling](#bundling)
+  - [Wrapping CTL into a JS interface](#wrapping-ctl-into-a-js-interface)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Caveats
 
@@ -23,7 +27,7 @@ The following caveats alway applies when using CTL from your project:
 CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of your own project to use the same setup as we do, e.g. the same packages and PS builders:
 
 - `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), run CTL contracts on a private testnet using Plutip (`runPlutipTest`), or build Pursuit documentation (`buildSearchablePursDocs` and `launchSearchablePursDocs`)
-- `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, `ogmios-datum-cache`, `plutip-server`, and our own `ctl-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
+- `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, `ogmios-datum-cache` and `plutip-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
 
 We've split the overlays into two components to allow users to more easily choose which parts of CTL's Nix infrastructure they would like to directly consume. For example, some users do not require a pre-packaged runtime and would prefer to build it themselves with more control over its components (e.g. by directly using `ogmios` from their own `inputs`). Such users might still like to use our `purescript` overlay -- splitting the `overlays` allows us to support this. `overlays.runtime` also contains several haskell.nix packages which may cause issues with `hackage.nix` versions in your own project.
 

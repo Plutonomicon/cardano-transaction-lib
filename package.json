@@ -1,6 +1,6 @@
 {
   "name": "cardano-transaction-lib",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "",
   "repository": {
     "type": "git",
@@ -15,6 +15,7 @@
     "unit-test": "spago run --main Test.Ctl.Unit",
     "plutip-test": "spago run --main Test.Ctl.Plutip",
     "staking-test": "spago run --main Test.Ctl.Plutip.Staking",
+    "e2e-serve": "spago bundle-module -m Ctl.Examples.ByUrl --to output.js && BROWSER_RUNTIME=1 webpack-dev-server --progress",
     "e2e-test": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run'",
     "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.Ctl.E2E -a 'e2e-test run --no-headless'",
     "e2e-browser": "source ./test/e2e.env && spago run --main Test.Ctl.E2E -a 'e2e-test browser'",
@@ -26,10 +27,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "apply-args-browser": "0.0.1",
+    "apply-args-nodejs": "0.0.1",
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
     "@emurgo/cardano-serialization-lib-browser": "^11.1.1-alpha.1",
     "@emurgo/cardano-serialization-lib-nodejs": "11.1.1-alpha.1",
+    "@noble/secp256k1": "^1.7.0",
     "base64-js": "^1.5.1",
     "big-integer": "1.6.51",
     "blakejs": "1.2.1",
@@ -40,10 +44,12 @@
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
     "ws": "8.4.0",
-    "xhr2": "0.2.1"
+    "xhr2": "0.2.1",
+    "@mlabs-haskell/json-bigint": " 1.0.0"
   },
   "devDependencies": {
     "buffer": "6.0.3",
+    "doctoc": "^2.2.1",
     "html-webpack-plugin": "5.5.0",
     "webpack": "5.67.0",
     "webpack-cli": "4.10",

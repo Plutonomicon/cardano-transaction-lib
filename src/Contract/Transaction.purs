@@ -33,6 +33,8 @@ module Contract.Transaction
   , signTransaction
   , submit
   , submitE
+  , submitTxFromConstraints
+  , submitTxFromConstraintsReturningFee
   , withBalancedTx
   , withBalancedTxWithConstraints
   , withBalancedTxs
@@ -51,6 +53,10 @@ import Contract.Monad
   , runContractInEnv
   , wrapContract
   )
+import Contract.PlutusData (class IsData)
+import Contract.ScriptLookups (mkUnbalancedTx)
+import Contract.Scripts (class ValidatorTypes)
+import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
@@ -227,7 +233,7 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotConvertPaymentPubKeyHash
       , CannotSatisfyAny
       )
-  , mkUnbalancedTx
+  , ScriptLookups
   ) as ScriptLookups
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Scripts
@@ -324,7 +330,7 @@ submitE tx = do
     SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json
 
--- | Query the Haskell server for the minimum transaction fee.
+-- | Query for the minimum transaction fee.
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
@@ -599,3 +605,31 @@ createAdditionalUtxos tx = do
 
   pure $ plutusOutputs #
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
+
+submitTxFromConstraintsReturningFee
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups.ScriptLookups validator
+  -> TxConstraints redeemer datum
+  -> Contract r { txHash :: TransactionHash, txFinalFee :: BigInt }
+submitTxFromConstraintsReturningFee lookups constraints = do
+  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
+  balancedTx <- liftedE $ balanceTx unbalancedTx
+  balancedSignedTx <- signTransaction balancedTx
+  txHash <- submit balancedSignedTx
+  pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
+
+submitTxFromConstraints
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups.ScriptLookups validator
+  -> TxConstraints redeemer datum
+  -> Contract r TransactionHash
+submitTxFromConstraints lookups constraints =
+  _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints

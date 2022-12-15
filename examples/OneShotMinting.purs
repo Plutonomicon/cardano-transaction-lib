@@ -19,30 +19,34 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
+  , liftContractE
   , liftContractM
-  , liftedE
   , liftedM
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
-  ( MintingPolicy(PlutusMintingPolicy)
+  ( ApplyArgsError
+  , MintingPolicy(PlutusMintingPolicy)
   , PlutusScript
   , applyArgs
   )
 import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
 import Contract.Test.Utils as TestUtils
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
-import Contract.Transaction (TransactionInput, awaitTxConfirmed)
+import Contract.Transaction
+  ( TransactionInput
+  , awaitTxConfirmed
+  , submitTxFromConstraintsReturningFee
+  )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers
-  ( buildBalanceSignAndSubmitTx'
-  , mkCurrencySymbol
+  ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
 import Data.Array (head)
@@ -108,8 +112,8 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   let assertions = mkAssertions ownAddress (cs /\ tn /\ one)
   void $ TestUtils.withAssertions assertions do
     { txHash, txFinalFee } <-
-      Helpers.buildBalanceSignAndSubmitTx' lookups constraints
-
+      submitTxFromConstraintsReturningFee lookups constraints
+    logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee }
@@ -125,16 +129,16 @@ oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV1FromEnvelope envelope
-  mkOneShotMintingPolicy script txInput
+  liftContractE $ mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Contract () PlutusScript
+  -> Either ApplyArgsError PlutusScript
 mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData
     mintingPolicyArgs = Array.singleton (toData oref)
   in
-    liftedE $ applyArgs unappliedMintingPolicy mintingPolicyArgs
+    applyArgs unappliedMintingPolicy mintingPolicyArgs
 
