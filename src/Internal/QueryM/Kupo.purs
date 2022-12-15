@@ -87,7 +87,7 @@ import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Map (Map)
-import Data.Map (catMaybes, fromFoldable, lookup) as Map
+import Data.Map (fromFoldable, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
