@@ -146,7 +146,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "736b0c5521f3808b02af50f15a3dee29b2d9b601"
+        , version = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5"
         }
       , bignumber =
         { dependencies =

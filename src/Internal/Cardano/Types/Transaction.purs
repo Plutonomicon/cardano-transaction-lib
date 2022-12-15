@@ -313,10 +313,7 @@ instance Monoid TxBody where
 
 instance EncodeAeson TxBody where
   encodeAeson (TxBody r) = encodeAeson $ r
-    { inputs = r.inputs
-    , withdrawals = encodeMap <$> r.withdrawals
-    , referenceInputs = r.referenceInputs
-    }
+    { withdrawals = encodeMap <$> r.withdrawals }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
