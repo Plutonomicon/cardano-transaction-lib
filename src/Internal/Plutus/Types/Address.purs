@@ -17,7 +17,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , encodeAeson'
+  , encodeAeson
   , (.:)
   )
 import Ctl.Internal.FromData (class FromData, genericFromData)
@@ -115,7 +115,7 @@ instance DecodeAeson Address where
       pure $ Address { addressCredential, addressStakingCredential }
 
 instance EncodeAeson Address where
-  encodeAeson' (Address addr) = encodeAeson' addr
+  encodeAeson (Address addr) = encodeAeson addr
 
 --------------------------------------------------------------------------------
 -- Useful functions

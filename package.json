@@ -1,6 +1,6 @@
 {
   "name": "cardano-transaction-lib",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "",
   "repository": {
     "type": "git",
@@ -44,7 +44,8 @@
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
     "ws": "8.4.0",
-    "xhr2": "0.2.1"
+    "xhr2": "0.2.1",
+    "@mlabs-haskell/json-bigint": " 1.0.0"
   },
   "devDependencies": {
     "buffer": "6.0.3",

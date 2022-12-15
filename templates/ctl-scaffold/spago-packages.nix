@@ -7,23 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "8e9d42980e824450c18c397295573160d1ce8424";
+        version = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "8e9d42980e824450c18c397295573160d1ce8424";
-          sha256 = "0cz6wvrld468sc1i98wv7zsqxsp99lhianb4pxmsqfcz353a6sc9";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "aeson-helpers" = pkgs.stdenv.mkDerivation {
-        name = "aeson-helpers";
-        version = "44d0dae060cf78babd4534320192b58c16a6f45b";
-        src = pkgs.fetchgit {
-          url = "https://github.com/mlabs-haskell/purescript-bridge-aeson-helpers.git";
-          rev = "44d0dae060cf78babd4534320192b58c16a6f45b";
-          sha256 = "1fgvaqvd9145zz5xw3fsa5vm75kp6bxcwa2nzq1dx2367h3a0zl0";
+          rev = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5";
+          sha256 = "1rzpf861gy86k9f3iydd3d02f78dh9fv22cbw650lyn5zjm0l3an";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -209,13 +197,25 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "bignumber" = pkgs.stdenv.mkDerivation {
+        name = "bignumber";
+        version = "58c51448be23c05caf51cde45bb3b09cc7169447";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-bignumber";
+          rev = "58c51448be23c05caf51cde45bb3b09cc7169447";
+          sha256 = "1q0zyq0ni2vcr99bnxn37ah6f1h3z9mhda4f0549x925mzm25d04";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "bb02f3b31a1ebbec2c8a2e1241f98eff1645e2ca";
+        version = "27f997461fda4a6f7eb52f1165a91d7d453fb990";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "bb02f3b31a1ebbec2c8a2e1241f98eff1645e2ca";
-          sha256 = "0w74zq177qcvx09xq2vb3ln2fakl3d0n68ll31g3xbmsabrh6jdh";
+          rev = "27f997461fda4a6f7eb52f1165a91d7d453fb990";
+          sha256 = "0zfsbh2f8dah9d3z3avlhrgkcpc37378vxwj6cpmyls60ryc3m0k";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
