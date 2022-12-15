@@ -14,7 +14,7 @@ module Ctl.Internal.ToData
 
 import Prelude
 
-import Contract.Crypto.SECP256k1 (SECP256k1PrivateKey)
+import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Ctl.Internal.Helpers (uIntToBigInt)
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -316,7 +316,7 @@ instance ToData Uint8Array where
 
 -- Instances for purescript-noble-secp256k1 types
 
-instance ToData SECP256k1PrivateKey where
+instance ToData Secp256k1PrivateKey where
   toData = unwrap >>> unPrivateKey >>> ByteArray >>> toData
 
 instance ToData MessageHash where

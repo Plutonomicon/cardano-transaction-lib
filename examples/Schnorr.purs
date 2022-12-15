@@ -3,13 +3,13 @@ module Ctl.Examples.Schnorr (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
-import Contract.Crypto.SECP256k1.Schnorr
+import Contract.Crypto.Secp256k1.Schnorr
   ( SchnorrPublicKey
   , SchnorrSignature
   , deriveSchnorrSecp256k1PublicKey
   , signSchnorrSecp256k1
   )
-import Contract.Crypto.SECP256k1.Utils (randomPrivateKey)
+import Contract.Crypto.Secp256k1.Utils (randomSecp256k1PrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
 import Contract.PlutusData
@@ -106,7 +106,7 @@ testVerification ecdsaRed = do
 -- | Testing ECDSA verification function on-chain
 testSchnorr :: Contract () TransactionHash
 testSchnorr = do
-  privateKey <- liftEffect $ randomPrivateKey
+  privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
     publicKey = deriveSchnorrSecp256k1PublicKey privateKey
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]

@@ -1,6 +1,6 @@
 -- | A module that implements crypto primitives that match CIP-49 SECP256k1
 -- | Schnorr spec.
-module Contract.Crypto.SECP256k1.Schnorr
+module Contract.Crypto.Secp256k1.Schnorr
   ( module X
   , verifySchnorrSecp256k1Signature
   , signSchnorrSecp256k1
@@ -11,7 +11,7 @@ module Contract.Crypto.SECP256k1.Schnorr
 
 import Prelude
 
-import Contract.Crypto.SECP256k1 (SECP256k1PrivateKey)
+import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
@@ -27,7 +27,7 @@ import Noble.Secp256k1.Schnorr
 import Noble.Secp256k1.Schnorr (mkSchnorrPublicKey, unSchnorrPublicKey) as ECDSA
 
 -- | Verify arbitrary binary messages signed using the Schnorr signature scheme
--- | on the SECP256k1 curve.
+-- | on the Secp256k1 curve.
 -- | Matches CIP-49 spec:
 -- | https://github.com/cardano-foundation/CIPs/blob/master/CIP-0049/README.md
 verifySchnorrSecp256k1Signature
@@ -36,11 +36,11 @@ verifySchnorrSecp256k1Signature publicKey message signature =
   verifySchnorr signature (unwrap message) publicKey
 
 -- | Sign a message using Schnorr signature scheme.
-signSchnorrSecp256k1 :: SECP256k1PrivateKey -> ByteArray -> Aff SchnorrSignature
+signSchnorrSecp256k1 :: Secp256k1PrivateKey -> ByteArray -> Aff SchnorrSignature
 signSchnorrSecp256k1 privateKey message =
   signSchnorr (unwrap message) (unwrap privateKey)
 
-deriveSchnorrSecp256k1PublicKey :: SECP256k1PrivateKey -> SchnorrPublicKey
+deriveSchnorrSecp256k1PublicKey :: Secp256k1PrivateKey -> SchnorrPublicKey
 deriveSchnorrSecp256k1PublicKey = unwrap >>> getSchnorrPublicKey
 
 -- | Construct a public key from its byte representation.

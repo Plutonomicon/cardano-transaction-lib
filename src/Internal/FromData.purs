@@ -19,8 +19,8 @@ module Ctl.Internal.FromData
 
 import Prelude
 
-import Contract.Crypto.SECP256k1 (SECP256k1PrivateKey)
-import Contract.Crypto.SECP256k1.ECDSA (ECDSAPublicKey)
+import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
+import Contract.Crypto.Secp256k1.ECDSA (ECDSAPublicKey)
 import Control.Alternative ((<|>))
 import Ctl.Internal.Helpers (bigIntToUInt)
 import Ctl.Internal.Plutus.Types.DataSchema
@@ -347,7 +347,7 @@ instance FromData Uint8Array where
 
 -- Instances for purescript-noble-secp256k1 types
 
-instance FromData SECP256k1PrivateKey where
+instance FromData Secp256k1PrivateKey where
   fromData = map wrap <<< mkPrivateKey <=< fromData
 
 instance FromData MessageHash where

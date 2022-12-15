@@ -3,14 +3,17 @@ module Ctl.Examples.ECDSA (contract) where
 import Contract.Prelude
 
 import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
-import Contract.Crypto.SECP256k1.ECDSA
+import Contract.Crypto.Secp256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature
   , MessageHash
   , deriveEcdsaSecp256k1PublicKey
   , signEcdsaSecp256k1
   )
-import Contract.Crypto.SECP256k1.Utils (hashMessageSha256, randomPrivateKey)
+import Contract.Crypto.Secp256k1.Utils
+  ( hashMessageSha256
+  , randomSecp256k1PrivateKey
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
 import Contract.PlutusData
@@ -108,7 +111,7 @@ testVerification ecdsaRed = do
 -- | Testing ECDSA verification function on-chain
 testECDSA :: Contract () TransactionHash
 testECDSA = do
-  privateKey <- liftEffect $ randomPrivateKey
+  privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
     publicKey = deriveEcdsaSecp256k1PublicKey privateKey
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
