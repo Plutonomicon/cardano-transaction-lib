@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "cardano-transaction-lib"
   , "effect"
   , "mote"
+  , "noble-secp256k1"
   , "ordered-collections"
   , "posix-types"
   , "prelude"
