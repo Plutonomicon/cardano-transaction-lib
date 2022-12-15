@@ -12,7 +12,13 @@ module Ctl.Examples.PlutusV2.OneShotMinting
 import Contract.Prelude
 
 import Contract.Config (ConfigParams, testnetNamiConfig)
-import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
+import Contract.Monad
+  ( Contract
+  , launchAff_
+  , liftContractE
+  , runContract
+  , throwContractError
+  )
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction (TransactionInput)
@@ -46,6 +52,6 @@ oneShotMintingPolicyScriptV2 txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV2FromEnvelope envelope
-  either throwContractError pure $
+  liftContractE $
     mkOneShotMintingPolicy script txInput
 

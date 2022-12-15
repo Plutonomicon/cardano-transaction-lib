@@ -2,8 +2,7 @@
 -- | over `PlutusScript`. Corresponding hashes are also included as newtype
 -- | wrappers over `ScriptHash`.
 module Contract.Scripts
-  ( module ApplyArgs
-  , module ExportScripts
+  ( module ExportScripts
   , module Hash
   , module NativeScript
   , module TypedValidator
@@ -11,7 +10,7 @@ module Contract.Scripts
   , module X
   ) where
 
-import Ctl.Internal.ApplyArgs (ApplyArgsError(ApplyArgsError), applyArgs) as ApplyArgs
+import Ctl.Internal.ApplyArgs (ApplyArgsError(ApplyArgsError), applyArgs) as X
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey

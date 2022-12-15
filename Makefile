@@ -6,7 +6,6 @@ SHELL := bash
 
 ps-sources := $(shell fd -epurs -Etmp)
 nix-sources := $(shell fd -enix --exclude='spago*' -Etmp)
-hs-sources := $(shell fd . './server/src' './server/exe' -ehs -Etmp)
 js-sources := $(shell fd -ejs -Etmp)
 ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript modules in examples/
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
@@ -37,14 +36,12 @@ check-whitespace:
 check-format: check-explicit-exports check-examples-imports check-whitespace
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
-	@fourmolu -m check -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	@prettier --loglevel warn -c ${js-sources}
 	@eslint --quiet ${js-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
 	nixpkgs-fmt ${nix-sources}
-	fourmolu -m inplace -o -XTypeApplications -o -XImportQualifiedPost ${hs-sources}
 	prettier -w ${js-sources}
 	make check-explicit-exports
 	make check-examples-imports
@@ -58,7 +55,6 @@ query-testnet-tip:
 	  --testnet-magic 1097911063
 
 clean:
-	@ rm -rf dist-newstyle || true
 	@ rm -r .psc-ide-port || true
 	@ rm -rf .psci_modules || true
 	@ rm -rf .spago || true

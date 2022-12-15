@@ -22,6 +22,7 @@ import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
+  , liftContractE
   , liftContractM
   , liftedE
   , liftedM
@@ -1434,7 +1435,7 @@ suite = do
     group "applyArgs" do
       test "returns the same script when called without args" do
         withWallets unit \_ -> do
-          result <- either throwContractError pure $ applyArgs
+          result <- liftContractE $ applyArgs
             (unwrap unappliedScriptFixture)
             mempty
           result `shouldEqual` (unwrap unappliedScriptFixture)
@@ -1442,7 +1443,7 @@ suite = do
       test "returns the correct partially applied Plutus script" do
         withWallets unit \_ -> do
           let args = [ Integer (BigInt.fromInt 32) ]
-          result <- either throwContractError pure $ applyArgs
+          result <- liftContractE $ applyArgs
             (unwrap unappliedScriptFixture)
             args
           result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
@@ -1453,7 +1454,7 @@ suite = do
             liftContractM "Could not create ByteArray"
               (byteArrayFromAscii "test")
           let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-          result <- either throwContractError pure $ applyArgs
+          result <- liftContractE $ applyArgs
             (unwrap unappliedScriptFixture)
             args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)

@@ -19,6 +19,7 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
+  , liftContractE
   , liftContractM
   , liftedM
   , runContract
@@ -126,7 +127,7 @@ oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV1FromEnvelope envelope
-  either throwContractError pure $ mkOneShotMintingPolicy script txInput
+  liftContractE $ mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
   :: PlutusScript
