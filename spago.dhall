@@ -46,6 +46,7 @@ You can edit this file as you like.
   , "monad-logger"
   , "mote"
   , "newtype"
+  , "noble-secp256k1"
   , "node-buffer"
   , "node-child-process"
   , "node-fs"
