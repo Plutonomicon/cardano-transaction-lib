@@ -26,6 +26,7 @@ import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
 import Ctl.Examples.OneShotMinting as OneShotMinting
+import Ctl.Examples.PaysWithDatum as PaysWithDatum
 import Ctl.Examples.Pkh2Pkh as Pkh2Pkh
 import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
@@ -96,4 +97,5 @@ examples = Map.fromFoldable
   , "ApplyArgs" /\ ApplyArgs.contract
   , "Schnorr" /\ Schnorr.contract
   , "ECDSA" /\ ECDSA.contract
+  , "PaysWithDatum" /\ PaysWithDatum.contract
   ]

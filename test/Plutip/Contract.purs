@@ -99,6 +99,7 @@ import Ctl.Examples.MintsMultipleTokens
   )
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
+import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
@@ -1162,6 +1163,16 @@ suite = do
           ]
       withWallets distribution \alice ->
         withKeyWallet alice OneShotMintingV2.contract
+
+    test "PaysWithDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice PaysWithDatum.contract
 
     test "Examples.ContractTestUtils" do
       let
