@@ -18,8 +18,8 @@ import Data.Show.Generic (genericShow)
 import Prelude (class Show)
 
 foreign import apply_params_to_script
-  :: (forall x. x -> Either x CSL.PlutusScript)
-  -> (forall x. x -> Either String x)
+  :: (forall (x :: Type). x -> Either x CSL.PlutusScript)
+  -> (forall (x :: Type). x -> Either String x)
   -> CSL.PlutusData
   -> CSL.PlutusScript
   -> Either String CSL.PlutusScript
