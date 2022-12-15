@@ -23,7 +23,7 @@ import Test.Spec.Assertions (shouldEqual)
 
 foreign import scripts :: Object String
 
-main ∷ Effect Unit
+main :: Effect Unit
 main = launchAff_ $ interpret $ suite
 
 contract :: Contract () Unit
