@@ -14,7 +14,7 @@
 
     # for the purescript project
     ogmios.url = "github:mlabs-haskell/ogmios/8ab720f896ab9dea2955fe364d242267d3206c5d";
-    plutip.url = "github:mlabs-haskell/plutip/c5c1bd49852ff982d81a451f880eebe187ff7b9d";
+    plutip.url = "github:mlabs-haskell/plutip/8d1795d9ac3f9c6f31381104b25c71576eeba009";
 
     ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/880a69a03fbfd06a4990ba8873f06907d4cd16a7";
     # Repository with network parameters
