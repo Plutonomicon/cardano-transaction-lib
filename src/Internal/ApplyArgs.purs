@@ -45,5 +45,4 @@ applyArgs script paramsList = left ApplyArgsError do
     S.convertPlutusData (List paramsList)
   appliedScript <- apply_params_to_script_either params
     (S.convertPlutusScript script)
-  note "Error converting back applied script" $ D.convertPlutusScript $
-    appliedScript
+  Right $ D.convertPlutusScript appliedScript

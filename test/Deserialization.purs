@@ -264,7 +264,8 @@ testNativeScript input = do
 
   let bytes = Serialization.toBytes (asOneOf serialized)
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
-  res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
+  let
+    res' = NSD.convertNativeScript res
   res' `shouldEqual` input
 
 txRoundtrip :: T.Transaction -> Aff Unit

@@ -68,20 +68,22 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
-import Data.UInt as UInt
+import Data.UInt (UInt)
 import Untagged.Union (asOneOf)
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
 convertUnspentOutput tuo = do
-  input <- convertInput $ getInput tuo
+  let
+    input = convertInput $ getInput tuo
   output <- convertOutput $ getOutput tuo
   pure $ T.TransactionUnspentOutput { input, output }
 
-convertInput :: TransactionInput -> Maybe T.TransactionInput
+convertInput :: TransactionInput -> T.TransactionInput
 convertInput input = do
-  index <- UInt.fromInt' $ getTransactionIndex input
-  pure $ T.TransactionInput
+  let
+    index = getTransactionIndex input
+  T.TransactionInput
     { transactionId: T.TransactionHash $ toBytes
         (asOneOf $ getTransactionHash input)
     , index
@@ -102,14 +104,15 @@ convertOutput output = do
       datumValue
     Nothing, Just datumHash -> pure $ OutputDatumHash datumHash
     Nothing, Nothing -> pure NoOutputDatum
-  scriptRef <- getScriptRef maybeFfiHelper output # traverse convertScriptRef
+  let
+    scriptRef = getScriptRef maybeFfiHelper output <#> convertScriptRef
   pure $ T.TransactionOutput
     { address, amount, datum, scriptRef }
 
-convertScriptRef :: ScriptRef -> Maybe T.ScriptRef
+convertScriptRef :: ScriptRef -> T.ScriptRef
 convertScriptRef = withScriptRef
-  (convertNativeScript >>> map T.NativeScriptRef)
-  (convertPlutusScript >>> map T.PlutusScriptRef)
+  (convertNativeScript >>> T.NativeScriptRef)
+  (convertPlutusScript >>> T.PlutusScriptRef)
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
@@ -149,7 +152,7 @@ convertValue value = do
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
 foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput
 foreign import getTransactionHash :: TransactionInput -> TransactionHash
-foreign import getTransactionIndex :: TransactionInput -> Int
+foreign import getTransactionIndex :: TransactionInput -> UInt
 foreign import getAddress :: TransactionOutput -> Address
 foreign import getPlutusData
   :: MaybeFfiHelper -> TransactionOutput -> Maybe PlutusData

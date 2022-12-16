@@ -35,6 +35,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 
+-- TODO In the other PR
 convertPlutusData :: PlutusData -> Maybe T.PlutusData
 convertPlutusData pd =
   convertPlutusConstr pd

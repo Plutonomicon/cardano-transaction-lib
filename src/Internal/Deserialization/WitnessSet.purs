@@ -53,7 +53,6 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData (PlutusData) as T
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
-import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple (curry)
@@ -64,11 +63,12 @@ deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
 
 convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
-  nativeScripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
+  let
+    nativeScripts = getNativeScripts maybeFfiHelper ws <#> convertNativeScripts
+    plutusScripts = getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
   plutusData <- for (getWitnessSetPlutusData maybeFfiHelper ws)
     convertPlutusList
-  plutusScripts <- for (getPlutusScripts maybeFfiHelper ws) convertPlutusScripts
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     , nativeScripts
@@ -93,9 +93,9 @@ convertVkeyWitness witness =
 convertVkey :: Vkey -> T.Vkey
 convertVkey = T.Vkey <<< T.mkFromCslPubKey <<< vkeyPublicKey
 
-convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
+convertNativeScripts :: NativeScripts -> Array T.NativeScript
 convertNativeScripts nativeScripts =
-  for (extractNativeScripts nativeScripts) convertNativeScript
+  extractNativeScripts nativeScripts <#> convertNativeScript
 
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
@@ -105,15 +105,15 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   , attributes: getBootstrapAttributes bootstrap
   }
 
-convertPlutusScripts :: PlutusScripts -> Maybe (Array S.PlutusScript)
+convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
 convertPlutusScripts plutusScripts =
-  for (extractPlutusScripts plutusScripts) convertPlutusScript
+  extractPlutusScripts plutusScripts <#> convertPlutusScript
 
-convertPlutusScript :: PlutusScript -> Maybe S.PlutusScript
-convertPlutusScript plutusScript =
-  hush do
-    language <- convertLanguage $ plutusScriptVersion plutusScript
-    pure $ curry S.PlutusScript (plutusScriptBytes plutusScript) language
+convertPlutusScript :: PlutusScript -> S.PlutusScript
+convertPlutusScript plutusScript = do
+  let
+    language = convertLanguage $ plutusScriptVersion plutusScript
+  curry S.PlutusScript (plutusScriptBytes plutusScript) language
 
 convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
 convertPlutusList = extractPlutusData >>> traverse convertPlutusData
