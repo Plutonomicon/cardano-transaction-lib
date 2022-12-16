@@ -11,6 +11,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
+import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.CoinSelection as CoinSelection
@@ -55,6 +56,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
+  ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite
   Base64.suite

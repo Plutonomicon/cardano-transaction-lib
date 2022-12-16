@@ -20,7 +20,14 @@ import Contract.BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM, wrapContract)
+import Contract.Monad
+  ( Contract
+  , liftContractE
+  , liftContractM
+  , liftedE
+  , liftedM
+  , wrapContract
+  )
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -92,6 +99,7 @@ import Ctl.Examples.MintsMultipleTokens
   )
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
+import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
@@ -1156,6 +1164,16 @@ suite = do
       withWallets distribution \alice ->
         withKeyWallet alice OneShotMintingV2.contract
 
+    test "PaysWithDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice PaysWithDatum.contract
+
     test "Examples.ContractTestUtils" do
       let
         initialUtxos :: InitialUTxOs
@@ -1429,13 +1447,17 @@ suite = do
     group "applyArgs" do
       test "returns the same script when called without args" do
         withWallets unit \_ -> do
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) mempty
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            mempty
           result `shouldEqual` (unwrap unappliedScriptFixture)
 
       test "returns the correct partially applied Plutus script" do
         withWallets unit \_ -> do
           let args = [ Integer (BigInt.fromInt 32) ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            args
           result `shouldEqual` (unwrap partiallyAppliedScriptFixture)
 
       test "returns the correct fully applied Plutus script" do
@@ -1444,7 +1466,9 @@ suite = do
             liftContractM "Could not create ByteArray"
               (byteArrayFromAscii "test")
           let args = [ Integer (BigInt.fromInt 32), Bytes bytes ]
-          result <- liftedE $ applyArgs (unwrap unappliedScriptFixture) args
+          result <- liftContractE $ applyArgs
+            (unwrap unappliedScriptFixture)
+            args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
     group "CIP-30 mock" do

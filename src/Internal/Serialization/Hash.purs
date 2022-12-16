@@ -21,7 +21,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
-  , encodeAeson'
+  , encodeAeson
   )
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.FromData (class FromData)
@@ -85,7 +85,7 @@ instance DecodeAeson Ed25519KeyHash where
     )
 
 instance EncodeAeson Ed25519KeyHash where
-  encodeAeson' = encodeAeson' <<< rawBytesToHex <<< ed25519KeyHashToBytes
+  encodeAeson = encodeAeson <<< rawBytesToHex <<< ed25519KeyHashToBytes
 
 instance Arbitrary Ed25519KeyHash where
   arbitrary =
@@ -163,7 +163,7 @@ instance DecodeAeson ScriptHash where
       caseAesonString Nothing (Just <=< scriptHashFromBytes <=< hexToRawBytes)
 
 instance EncodeAeson ScriptHash where
-  encodeAeson' sh = encodeAeson' $ scriptHashToBytes sh
+  encodeAeson sh = encodeAeson $ scriptHashToBytes sh
 
 foreign import _scriptHashFromBytesImpl
   :: MaybeFfiHelper

@@ -21,7 +21,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , caseAesonString
-  , encodeAeson'
+  , encodeAeson
   , toStringifiedNumbersJson
   )
 import Data.ArrayBuffer.Types (Uint8Array)
@@ -77,7 +77,7 @@ instance DecodeAeson ByteArray where
     unexpectedValueError = UnexpectedValue $ toStringifiedNumbersJson j
 
 instance EncodeAeson ByteArray where
-  encodeAeson' ba = encodeAeson' (byteArrayToHex ba)
+  encodeAeson ba = encodeAeson (byteArrayToHex ba)
 
 foreign import ord_ :: (Int -> Int -> Int) -> ByteArray -> ByteArray -> Int
 

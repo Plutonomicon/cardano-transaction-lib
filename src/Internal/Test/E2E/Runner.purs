@@ -205,13 +205,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig: Just
-      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
-          options.ctlServerPort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
@@ -267,8 +260,7 @@ testPlan opts@{ tests } rt@{ wallets } =
           \env wallet -> do
             let
               (clusterSetup :: ClusterSetup) =
-                { ctlServerConfig: (unwrap env).config.ctlServerConfig
-                , ogmiosConfig: (unwrap env).config.ogmiosConfig
+                { ogmiosConfig: (unwrap env).config.ogmiosConfig
                 , datumCacheConfig: (unwrap env).config.datumCacheConfig
                 , kupoConfig: (unwrap env).config.kupoConfig
                 , keys:
@@ -365,7 +357,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
-            <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
@@ -380,8 +371,6 @@ readPorts testOptions = do
     readPortNumber "OGMIOS" testOptions.ogmiosPort
   ogmiosDatumCachePort <-
     readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
-  ctlServerPort <-
-    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   postgresPort <-
     readPortNumber "POSTGRES" testOptions.postgresPort
   kupoPort <-
@@ -390,7 +379,6 @@ readPorts testOptions = do
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
-    , ctlServerPort
     , postgresPort
     , kupoPort
     }

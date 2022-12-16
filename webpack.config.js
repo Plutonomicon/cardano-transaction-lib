@@ -71,6 +71,8 @@ module.exports = {
       os: false,
       path: false,
       fs: false,
+      readline: false,
+      child_process: false,
     },
     alias: {
       // You should update this path to the location of your compiled scripts,

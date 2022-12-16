@@ -15,7 +15,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , encodeAeson'
+  , encodeAeson
   , getField
   )
 import Contract.Prim.ByteArray (hexToByteArray)
@@ -86,7 +86,7 @@ instance DecodeAeson TokenName where
     tkFromStr = TokenName <<< wrap <<< wrap <<< encodeUtf8
 
 instance EncodeAeson TokenName where
-  encodeAeson' = encodeAeson' <<< { "unTokenName": _ } <<< fromTokenName
+  encodeAeson = encodeAeson <<< { "unTokenName": _ } <<< fromTokenName
     (\ba -> "\x0" <> "0x" <> byteArrayToHex ba)
     ( \s -> case take 1 s of
         "\x0" -> "\x0\x0" <> s

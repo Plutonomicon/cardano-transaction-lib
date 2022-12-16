@@ -18,11 +18,9 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   , (.:)
   )
-import Aeson.Decode as Decode
-import Aeson.Encode as Encode
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
@@ -44,8 +42,6 @@ import Ctl.Internal.ToData (class ToData)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Record (get)
-import Type.Proxy (Proxy(Proxy))
 
 newtype PubKeyHash = PubKeyHash Ed25519KeyHash
 
@@ -61,18 +57,13 @@ derive newtype instance ToMetadata PubKeyHash
 instance Show PubKeyHash where
   show = genericShow
 
--- NOTE: mlabs-haskell/purescript-bridge generated and applied here
 instance EncodeAeson PubKeyHash where
-  encodeAeson' x = encodeAeson' $ Encode.encode
-    (Encode.record { getPubKeyHash: Encode.value :: _ (Ed25519KeyHash) })
-    { getPubKeyHash: unwrap x }
+  encodeAeson x = encodeAeson { getPubKeyHash: unwrap x }
 
 instance DecodeAeson PubKeyHash where
-  decodeAeson = map (wrap <<< get (Proxy :: Proxy "getPubKeyHash")) <<<
-    Decode.decode
-      ( Decode.record "getPubKeyHash "
-          { getPubKeyHash: Decode.value :: _ (Ed25519KeyHash) }
-      )
+  decodeAeson a = do
+    obj <- decodeAeson a
+    wrap <$> obj .: "getPubKeyHash"
 
 ed25519EnterpriseAddress
   :: forall (n :: Type)
@@ -122,7 +113,7 @@ derive newtype instance Ord PaymentPubKeyHash
 derive newtype instance ToData PaymentPubKeyHash
 
 instance EncodeAeson PaymentPubKeyHash where
-  encodeAeson' (PaymentPubKeyHash pkh) = encodeAeson'
+  encodeAeson (PaymentPubKeyHash pkh) = encodeAeson
     { "unPaymentPubKeyHash": pkh }
 
 instance DecodeAeson PaymentPubKeyHash where

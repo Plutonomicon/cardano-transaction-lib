@@ -5,7 +5,7 @@ You can edit this file as you like.
 { name = "cardano-transaction-lib"
 , dependencies =
   [ "aeson"
-  , "aeson-helpers"
+  , "argonaut-codecs"
   , "aff"
   , "aff-promise"
   , "aff-retry"
@@ -18,7 +18,6 @@ You can edit this file as you like.
   , "bigints"
   , "checked-exceptions"
   , "console"
-  , "contravariant"
   , "control"
   , "datetime"
   , "debug"
