@@ -41,14 +41,11 @@ import Contract.Transaction
   , submitTxFromConstraintsReturningFee
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
+import Contract.Utxos (getWalletUtxos, utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
@@ -88,8 +85,11 @@ mkContractWithAssertions
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
 
-  ownAddress <- liftedM "Failed to get own address" $ head <$>
-    getWalletAddresses
+  walletUtxos <- liftedM "Failed to get wallet Utxos" getWalletUtxos
+  utxo <-
+    liftContractM "Utxo set is empty"
+      (snd <$> Array.head (Map.toUnfoldable walletUtxos :: Array _))
+  let ownAddress = (unwrap (unwrap utxo).output).address
   utxos <- utxosAt ownAddress
   oref <-
     liftContractM "Utxo set is empty"

@@ -35,8 +35,10 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
+import Data.Array (filter, head)
 import Data.Map as Map
-import Data.Set as Set
+import Effect.Aff (error)
 
 newtype ECDSARedemeer = ECDSARedemeer
   { msg :: MessageHash
@@ -53,8 +55,8 @@ instance ToData ECDSARedemeer where
 
 contract :: Contract () Unit
 contract = do
-  void prepTest
-  void testECDSA
+  txHash <- prepTest
+  void $ testECDSA txHash
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract () TransactionHash
@@ -80,8 +82,9 @@ prepTest = do
   pure txId
 
 -- | Attempt to unlock one utxo using an ECDSA signature
-testVerification :: ECDSARedemeer -> Contract () TransactionHash
-testVerification ecdsaRed = do
+testVerification
+  :: TransactionHash -> ECDSARedemeer -> Contract () TransactionHash
+testVerification txHash ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
@@ -90,11 +93,11 @@ testVerification ecdsaRed = do
   netId <- getNetworkId
   valAddr <- liftContractM "cannot get validator address"
     (validatorHashEnterpriseAddress netId valHash)
-
   scriptUtxos <- utxosAt valAddr
-  txIn <- liftContractM "No UTxOs found at validator address"
-    $ Set.findMin
-    $ Map.keys scriptUtxos
+  (txIn /\ _) <- liftMaybe (error $ "cannot find transaction: " <> show txHash)
+    $ head
+    $ filter (\(input /\ _) -> (unwrap input).transactionId == txHash)
+    $ Map.toUnfoldable scriptUtxos
   let
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.validator validator
@@ -109,15 +112,15 @@ testVerification ecdsaRed = do
   pure txId
 
 -- | Testing ECDSA verification function on-chain
-testECDSA :: Contract () TransactionHash
-testECDSA = do
+testECDSA :: TransactionHash -> Contract () TransactionHash
+testECDSA txHash = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
     publicKey = deriveEcdsaSecp256k1PublicKey privateKey
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
   messageHash <- liftAff $ hashMessageSha256 message
   signature <- liftAff $ signEcdsaSecp256k1 privateKey messageHash
-  testVerification $
+  testVerification txHash $
     ECDSARedemeer
       { msg: messageHash
       , sig: signature

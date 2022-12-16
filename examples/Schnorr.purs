@@ -31,8 +31,10 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Control.Monad.Error.Class (liftMaybe)
+import Data.Array (filter, head)
 import Data.Map as Map
-import Data.Set as Set
+import Effect.Aff (error)
 
 newtype SchnorrRedeemer = SchnorrRedeemer
   { msg :: ByteArray
@@ -49,8 +51,8 @@ instance ToData SchnorrRedeemer where
 
 contract :: Contract () Unit
 contract = do
-  void prepTest
-  void testSchnorr
+  txHash <- prepTest
+  void $ testSchnorr txHash
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract () TransactionHash
@@ -67,16 +69,17 @@ prepTest = do
     constraints = Constraints.mustPayToScript valHash unitDatum
       Constraints.DatumInline
       val
-  txId <- submitTxFromConstraints lookups constraints
-  logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
-  awaitTxConfirmed txId
-  logInfo' $ "Transaction confirmed: " <> show txId
+  txHash <- submitTxFromConstraints lookups constraints
+  logInfo' $ "Submitted Schnorr test preparation tx: " <> show txHash
+  awaitTxConfirmed txHash
+  logInfo' $ "Transaction confirmed: " <> show txHash
 
-  pure txId
+  pure txHash
 
 -- | Attempt to unlock one utxo using an ECDSA signature
-testVerification :: SchnorrRedeemer -> Contract () TransactionHash
-testVerification ecdsaRed = do
+testVerification
+  :: TransactionHash -> SchnorrRedeemer -> Contract () TransactionHash
+testVerification txHash ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
@@ -87,9 +90,10 @@ testVerification ecdsaRed = do
     (validatorHashEnterpriseAddress netId valHash)
 
   scriptUtxos <- utxosAt valAddr
-  txIn <- liftContractM "No UTxOs found at validator address"
-    $ Set.findMin
-    $ Map.keys scriptUtxos
+  (txIn /\ _) <- liftMaybe (error $ "cannot find transaction: " <> show txHash)
+    $ head
+    $ filter (\(input /\ _) -> (unwrap input).transactionId == txHash)
+    $ Map.toUnfoldable scriptUtxos
   let
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.validator validator
@@ -97,21 +101,23 @@ testVerification ecdsaRed = do
 
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustSpendScriptOutput txIn red
+  -- logInfo' "waiting 20 secs"
+  -- liftAff $ delay $ wrap 20000.0
   txId <- submitTxFromConstraints lookups constraints
-  logInfo' $ "Submitted Schnorr test verification tx: " <> show txId
+  logInfo' $ "Submitted Schnorr test verification tx: " <> show txHash
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
   pure txId
 
 -- | Testing ECDSA verification function on-chain
-testSchnorr :: Contract () TransactionHash
-testSchnorr = do
+testSchnorr :: TransactionHash -> Contract () TransactionHash
+testSchnorr txHash = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
     publicKey = deriveSchnorrSecp256k1PublicKey privateKey
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
   signature <- liftAff $ signSchnorrSecp256k1 privateKey message
-  testVerification $
+  testVerification txHash $
     SchnorrRedeemer
       { msg: message
       , sig: signature
