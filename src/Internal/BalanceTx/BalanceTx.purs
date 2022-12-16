@@ -124,7 +124,6 @@ import Ctl.Internal.QueryM.Utxos
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -150,12 +149,10 @@ import Data.Log.Tag (fromArray, tag) as TagSet
 import Data.Map (empty, filterKeys, lookup, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
-import Debug (spy, traceM)
 import Effect.Class (liftEffect)
 import Partial.Unsafe (unsafePartial)
 
