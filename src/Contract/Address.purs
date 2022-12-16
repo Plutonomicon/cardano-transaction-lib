@@ -133,7 +133,7 @@ getWalletAddress
   :: forall (r :: Row Type)
    . Warn
        ( Text
-           "This function returns only one `Adress` even in case multiple `Adress`es are available. Use `getWalletAdresses` instead"
+           "This function returns only one `Address` even in case multiple `Address`es are available. Use `getWalletAddresses` instead"
        )
   => Contract r (Maybe Address)
 getWalletAddress = head <$> getWalletAddresses
