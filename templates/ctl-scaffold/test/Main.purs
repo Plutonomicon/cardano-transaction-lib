@@ -9,6 +9,7 @@ import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , PlutipConfig
+  , ClusterConfig(ClusterConfig)
   , PlutipTest
   , testPlutipContracts
   , withWallets
@@ -87,7 +88,9 @@ config =
   , customLogger: Nothing
   , suppressLogs: true
   , hooks: emptyHooks
-  , clusterConfig:
+  -- ClusterConfig allows for fine tuning of the cluster. If you would like to
+  -- simply use the recommended default parameters use DefaultClusterConfig
+  , clusterConfig: ClusterConfig
       { slotLength: Seconds 0.1
       -- Adjust the max transaction size. Useful for debugging with traces
       , maxTxSize: UInt.fromInt 16384

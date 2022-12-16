@@ -7,13 +7,12 @@ import Prelude
 
 import Contract.Config (emptyHooks)
 import Contract.Wallet (privateKeyFromBytes)
-import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Ctl.Internal.Plutip.Types (PlutipConfig, ClusterConfig(DefaultClusterConfig))
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
-import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
 
@@ -57,13 +56,7 @@ config =
   , suppressLogs: true
   , customLogger: Nothing
   , hooks: emptyHooks
-  , clusterConfig:
-      { slotLength: Seconds 0.1
-      -- Adjust the max transaction size. Useful for debugging with traces
-      , maxTxSize: UInt.fromInt 16384
-      -- When set to True increase the ex-Units to 10e6.
-      , increasedExUnits: false
-      }
+  , clusterConfig: DefaultClusterConfig
   }
 
 privateStakeKey :: PrivateStakeKey

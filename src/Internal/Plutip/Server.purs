@@ -47,10 +47,11 @@ import Ctl.Internal.Plutip.Spawn
   )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequestWithConfig)
+  , ClusterStartupRequest(ClusterStartupRequest,ClusterStartupRequestWithConfig)
   , InitialUTxODistribution
   , InitialUTxOs
   , PlutipConfig
+  , ClusterConfig (ClusterConfig, DefaultClusterConfig)
   , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
@@ -473,10 +474,18 @@ startPlutipCluster
   -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
 startPlutipCluster cfg keysToGenerate = do
   let
+    startUpRequest = case cfg.clusterConfig of
+         DefaultClusterConfig -> ClusterStartupRequest { keysToGenerate }
+         ClusterConfig config -> ClusterStartupRequestWithConfig
+                    { keysToGenerate
+                    , slotLength: config.slotLength
+                    -- TODO epoch size cannot currently be changed due to
+                    -- https://github.com/mlabs-haskell/plutip/issues/149
+                    , epochSize: UInt.fromInt 80
+                    , maxTxSize: config.maxTxSize
+                    , increasedExUnits: config.increasedExUnits
+                    }
     url = mkServerEndpointUrl cfg "start"
-    -- TODO epoch size cannot currently be changed due to
-    -- https://github.com/mlabs-haskell/plutip/issues/149
-    epochSize = UInt.fromInt 80
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -485,14 +494,7 @@ startPlutipCluster cfg keysToGenerate = do
                 $ RequestBody.String
                 $ stringifyAeson
                 $ encodeAeson
-                $ ClusterStartupRequestWithConfig
-                    { keysToGenerate
-                    , slotLength: cfg.clusterConfig.slotLength
-                    , epochSize
-                    , maxTxSize: cfg.clusterConfig.maxTxSize
-                    , increasedExUnits: cfg.clusterConfig.increasedExUnits
-                    }
-
+                $ startUpRequest
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url

@@ -15,7 +15,7 @@ import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
-import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Ctl.Internal.Plutip.Types (PlutipConfig, ClusterConfig(DefaultClusterConfig))
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
 import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
@@ -228,11 +228,7 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
-  , clusterConfig:
-      { slotLength: Seconds 0.1
-      , maxTxSize: UInt.fromInt 16384
-      , increasedExUnits: false
-      }
+  , clusterConfig: DefaultClusterConfig
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and

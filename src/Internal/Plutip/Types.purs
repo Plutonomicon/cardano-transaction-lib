@@ -6,6 +6,7 @@ module Ctl.Internal.Plutip.Types
   , InitialUTxODistribution
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
+  , ClusterConfig (DefaultClusterConfig, ClusterConfig)
   , PostgresConfig
   , ClusterStartupRequest
       ( ClusterStartupRequest
@@ -38,7 +39,6 @@ import Aeson
   , (.:)
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.QueryM (Hooks)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Types (PrivateKey)
@@ -73,14 +73,18 @@ type PlutipConfig =
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
-  , clusterConfig ::
-      { slotLength :: Seconds
+  , clusterConfig :: ClusterConfig
+  }
+
+data ClusterConfig =
+     DefaultClusterConfig
+   | ClusterConfig
+       { slotLength :: Seconds
       -- Adjust the max transaction size. Useful for debugging with traces
       , maxTxSize :: UInt
       -- When set to True increase the ex-Units to 10e6.
       , increasedExUnits :: Boolean
       }
-  }
 
 type PostgresConfig =
   { host :: String

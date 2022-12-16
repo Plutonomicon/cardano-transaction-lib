@@ -45,6 +45,7 @@ import Contract.Transaction
   , signTransaction
   , vrfKeyHashFromBytes
   )
+import Ctl.Internal.Plutip.Types (PlutipConfig, ClusterConfig(ClusterConfig))
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
   , mustDelegateStakeNativeScript
@@ -694,7 +695,7 @@ suite = do
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
   where
   config = Common.config
-    { clusterConfig =
+    { clusterConfig = ClusterConfig
         { slotLength: Seconds 0.05
         , maxTxSize: UInt.fromInt 16384
         , increasedExUnits: false
