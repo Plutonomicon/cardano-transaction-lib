@@ -47,7 +47,7 @@ import Ctl.Internal.Plutip.Spawn
   )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest)
+  , ClusterStartupRequest(ClusterStartupRequestWithConfig)
   , InitialUTxODistribution
   , InitialUTxOs
   , PlutipConfig
@@ -485,7 +485,7 @@ startPlutipCluster cfg keysToGenerate = do
                 $ RequestBody.String
                 $ stringifyAeson
                 $ encodeAeson
-                $ ClusterStartupRequest
+                $ ClusterStartupRequestWithConfig
                     { keysToGenerate
                     , slotLength: cfg.clusterConfig.slotLength
                     , epochSize

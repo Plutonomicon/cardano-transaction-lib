@@ -7,7 +7,10 @@ module Ctl.Internal.Plutip.Types
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
   , PostgresConfig
-  , ClusterStartupRequest(ClusterStartupRequest)
+  , ClusterStartupRequest
+      ( ClusterStartupRequest
+      , ClusterStartupRequestWithConfig
+      )
   , PrivateKeyResponse(PrivateKeyResponse)
   , ClusterStartupFailureReason
       ( ClusterIsRunningAlready
@@ -35,6 +38,7 @@ import Aeson
   , (.:)
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
+import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.QueryM (Hooks)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Types (PrivateKey)
@@ -100,25 +104,37 @@ data InitialUTxOsWithStakeKey =
 
 type InitialUTxODistribution = Array InitialUTxOs
 
-newtype ClusterStartupRequest = ClusterStartupRequest
-  { keysToGenerate :: InitialUTxODistribution
-  , epochSize :: UInt
-  , slotLength :: Seconds
-  , maxTxSize :: UInt
-  , increasedExUnits :: Boolean
-  }
+data ClusterStartupRequest
+  = ClusterStartupRequest { keysToGenerate :: InitialUTxODistribution }
+  | ClusterStartupRequestWithConfig
+      { keysToGenerate :: InitialUTxODistribution
+      , epochSize :: UInt
+      , slotLength :: Seconds
+      , maxTxSize :: UInt
+      , increasedExUnits :: Boolean
+      }
 
 instance EncodeAeson ClusterStartupRequest where
-  encodeAeson'
-    ( ClusterStartupRequest
-        { keysToGenerate
-        , epochSize
-        , slotLength: Seconds slotLength
-        , maxTxSize
-        , increasedExUnits
-        }
-    ) = encodeAeson'
-    { keysToGenerate, epochSize, slotLength, maxTxSize, increasedExUnits }
+  encodeAeson' = case _ of
+    ClusterStartupRequest { keysToGenerate } -> encodeAeson'
+      { tag: "StartClusterRequest"
+      , keysToGenerate
+      }
+    ClusterStartupRequestWithConfig
+      { keysToGenerate
+      , epochSize
+      , slotLength: Seconds slotLength
+      , maxTxSize
+      , increasedExUnits
+      }
+    -> encodeAeson'
+      { tag: "StartClusterRequestWithConfig"
+      , keysToGenerate
+      , epochSize
+      , slotLength
+      , maxTxSize
+      , increasedExUnits
+      }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
 
