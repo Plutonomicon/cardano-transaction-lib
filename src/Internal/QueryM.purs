@@ -131,7 +131,6 @@ import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkServerUrl
   , mkWsUrl
@@ -189,8 +188,7 @@ import Effect.Ref as Ref
 -- | a local cluster: paramters to connect to the services and private keys
 -- | that are pre-funded with Ada on that cluster
 type ClusterSetup =
-  { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: ServerConfig
+  { ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , keys ::
       { payment :: PrivatePaymentKey
@@ -207,8 +205,7 @@ type ClusterSetup =
 -- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: ServerConfig
+  { ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel

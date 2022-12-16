@@ -206,8 +206,7 @@ route configs tests = do
   setClusterOptions
     :: ClusterSetup -> ContractParams -> ContractParams
   setClusterOptions
-    { ctlServerConfig
-    , ogmiosConfig
+    { ogmiosConfig
     , kupoConfig
     }
     config =
@@ -216,7 +215,6 @@ route configs tests = do
           { ogmiosConfig: ogmiosConfig
           , kupoConfig: kupoConfig
           }
-      , ctlServerConfig = ctlServerConfig
       }
 
 foreign import _queryString :: Effect String

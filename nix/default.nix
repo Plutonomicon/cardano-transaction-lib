@@ -131,9 +131,6 @@ let
                   pkgs.plutip-server
                   pkgs.kupo
                 ]
-                # this package will be soon put into its own overlay, so we'll
-                # check this now for future compat
-                ++ lists.optional (pkgs ? ctl-server) pkgs.ctl-server
               )
             )
           ];
@@ -243,21 +240,8 @@ let
   #  - `kupo`
   #  - `plutip-server`
   #
-  # If you require `ctl-server` to be present in `PATH` (e.g. because your
-  # contract will call the `applyArgs` endpoint), please ensure the following:
-  #
-  #  - `ctl-server` is present in the package set you create your project with
-  #  - The `withCtlServer` option is set to to `true` (currently the default)
-  #
   runPlutipTest =
-    {
-      # If `ctl-server` should be included in the `buildInputs`. If you rely on
-      # the `applyArgs` endpoint, make sure this is set to `true` and that
-      # `ctl-server` is in the package set you initialize `purescriptProject`
-      # with!
-      withCtlServer ? true
-    , ...
-    }@args:
+    args:
     runPursTest (
       args // {
         buildInputs = with pkgs; [
@@ -265,7 +249,6 @@ let
           plutip-server
           kupo
         ]
-        ++ (pkgs.lib.lists.optional withCtlServer pkgs.ctl-server)
         ++ (args.buildInputs or [ ]);
       }
     );
@@ -349,8 +332,7 @@ let
           # Utils needed by E2E test code
           which # used to check for browser availability
           gnutar # used unpack settings archive within E2E test code
-        ] ++ [ pkgs.ctl-server ]
-        ++ (args.buildInputs or [ ]);
+        ] ++ (args.buildInputs or [ ]);
         NODE_PATH = "${nodeModules}/lib/node_modules";
       } // env)
       ''
@@ -365,7 +347,6 @@ let
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
-        export CTL_SERVER_PORT=8088
         export E2E_SKIP_JQUERY_DOWNLOAD=true
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 

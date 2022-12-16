@@ -21,7 +21,8 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: I use wayland, the E2E browser fails on startup](#q-i-use-wayland-the-e2e-browser-fails-on-startup)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
-  - [How can I write my own Nix derivations using the project returned by `purescriptProject`?](#how-can-i-write-my-own-nix-derivations-using-the-project-returned-by-purescriptproject)
+  - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
+  - [Q: How can I write my own Nix derivations using the project returned by `purescriptProject`?](#q-how-can-i-write-my-own-nix-derivations-using-the-project-returned-by-purescriptproject)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Bundling-related

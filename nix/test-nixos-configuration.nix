@@ -8,8 +8,6 @@
     forwardPorts = [
       { from = "host"; host.port = 2222; guest.port = 22; }
       { from = "host"; host.port = 1337; guest.port = 1337; }
-      { from = "host"; host.port = 8081; guest.port = 8081; }
-      { from = "host"; host.port = 9999; guest.port = 9999; }
     ];
   };
 
@@ -35,6 +33,4 @@
     host = "0.0.0.0";
     nodeSocket = "/var/run/cardano-node/node.socket";
   };
-
-  services.ctl-server.enable = true;
 }

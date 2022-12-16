@@ -2,9 +2,7 @@
 -- | over `PlutusScript`. Corresponding hashes are also included as newtype
 -- | wrappers over `ScriptHash`.
 module Contract.Scripts
-  ( applyArgs
-  , applyArgsM
-  , getScriptByHash
+  ( getScriptByHash
   , getScriptsByHashes
   , module ExportQueryM
   , module ExportScripts
@@ -19,6 +17,7 @@ import Prelude
 
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.ApplyArgs (ApplyArgsError(ApplyArgsError), applyArgs) as X
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -30,7 +29,6 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   ) as NativeScript
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Contract.ApplyArgs (applyArgs) as Contract
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
 import Ctl.Internal.QueryM (ClientError)
@@ -49,7 +47,6 @@ import Ctl.Internal.Scripts
   ) as ExportScripts
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
-import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
@@ -60,7 +57,6 @@ import Ctl.Internal.Types.Scripts
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
   ) as TypesScripts
-import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.TypedValidator
   ( class DatumType
   , class RedeemerType
@@ -73,7 +69,7 @@ import Ctl.Internal.Types.TypedValidator
   , typedValidatorHash
   , typedValidatorScript
   ) as TypedValidator
-import Data.Either (Either, hush)
+import Data.Either (Either)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe)
@@ -94,18 +90,3 @@ getScriptsByHashes hashes = do
   queryHandle <- getQueryHandle
   liftAff $ Map.fromFoldable <$> flip parTraverse hashes
     \sh -> queryHandle.getScriptByHash sh <#> Tuple sh
-
--- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
--- | returning an updated script with the provided arguments applied
-applyArgs
-  :: PlutusScript
-  -> Array PlutusData
-  -> Contract (Either ClientError PlutusScript)
-applyArgs = Contract.applyArgs
-
--- | Same as `applyArgs` with arguments hushed.
-applyArgsM
-  :: PlutusScript
-  -> Array PlutusData
-  -> Contract (Maybe PlutusScript)
-applyArgsM a = map hush <<< applyArgs a

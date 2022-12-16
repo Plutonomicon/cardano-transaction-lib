@@ -3,7 +3,6 @@ module Ctl.Internal.QueryM.ServerConfig
   , ServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkServerUrl
   , mkWsUrl
@@ -24,14 +23,6 @@ type ServerConfig =
   , host :: Host
   , secure :: Boolean
   , path :: Maybe String
-  }
-
-defaultServerConfig :: ServerConfig
-defaultServerConfig =
-  { port: UInt.fromInt 8081
-  , host: "localhost"
-  , secure: false
-  , path: Nothing
   }
 
 defaultOgmiosWsConfig :: ServerConfig

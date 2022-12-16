@@ -43,7 +43,6 @@ import Ctl.Internal.QueryM.ServerConfig
   , ServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   )
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
@@ -72,7 +71,6 @@ testnetConfig =
       { ogmiosConfig: defaultOgmiosWsConfig
       , kupoConfig: defaultKupoServerConfig
       }
-  , ctlServerConfig: Just defaultServerConfig
   , networkId: TestnetId
   , walletSpec: Nothing
   , logLevel: Trace

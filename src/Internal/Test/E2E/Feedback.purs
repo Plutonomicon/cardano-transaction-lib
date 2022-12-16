@@ -17,7 +17,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   , (.:)
   )
 import Control.Alt ((<|>))
@@ -38,10 +38,10 @@ instance Show BrowserEvent where
   show = genericShow
 
 instance EncodeAeson BrowserEvent where
-  encodeAeson' ConfirmAccess = encodeAeson' "ConfirmAccess"
-  encodeAeson' Sign = encodeAeson' "Sign"
-  encodeAeson' Success = encodeAeson' "Success"
-  encodeAeson' (Failure str) = encodeAeson' { tag: "Failure", error: str }
+  encodeAeson ConfirmAccess = encodeAeson "ConfirmAccess"
+  encodeAeson Sign = encodeAeson "Sign"
+  encodeAeson Success = encodeAeson "Success"
+  encodeAeson (Failure str) = encodeAeson { tag: "Failure", error: str }
 
 instance DecodeAeson BrowserEvent where
   decodeAeson aeson =

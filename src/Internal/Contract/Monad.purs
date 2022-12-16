@@ -54,7 +54,6 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet)
@@ -154,8 +153,6 @@ runContractInEnv contractEnv =
 
 type ContractEnv =
   { backend :: QueryBackend
-  -- ctlServer is currently used for applyArgs, which is needed for all backends. This will be removed later
-  , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -203,8 +200,7 @@ mkContractEnv params = do
   buildWallet = traverse (mkWalletBySpec params.networkId) params.walletSpec
 
   constants =
-    { ctlServerConfig: params.ctlServerConfig
-    , networkId: params.networkId
+    { networkId: params.networkId
     , logLevel: params.logLevel
     , walletSpec: params.walletSpec
     , customLogger: params.customLogger
@@ -316,7 +312,6 @@ withContractEnv params action = do
 -- | environment (see `withContractEnv`)
 type ContractParams =
   { backendParams :: QueryBackendParams
-  , ctlServerConfig :: Maybe ServerConfig
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -346,8 +341,7 @@ runQueryM contractEnv ctlBackend =
 mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv ()
 mkQueryEnv contractEnv ctlBackend =
   { config:
-      { ctlServerConfig: contractEnv.ctlServerConfig
-      , ogmiosConfig: ctlBackend.ogmios.config
+      { ogmiosConfig: ctlBackend.ogmios.config
       , kupoConfig: ctlBackend.kupoConfig
       , networkId: contractEnv.networkId
       , logLevel: contractEnv.logLevel

@@ -91,7 +91,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith, words) as String
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
@@ -200,13 +200,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig: Just
-      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
-          options.ctlServerPort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , kupoConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt defaultPorts.kupo) options.kupoPort
@@ -216,6 +209,8 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.05 }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
@@ -253,8 +248,7 @@ testPlan opts@{ tests } rt@{ wallets } =
           \env wallet -> do
             (clusterSetup :: ClusterSetup) <- case env.backend of
               CtlBackend backend _ -> pure
-                { ctlServerConfig: env.ctlServerConfig
-                , ogmiosConfig: backend.ogmios.config
+                { ogmiosConfig: backend.ogmios.config
                 , kupoConfig: backend.kupoConfig
                 , keys:
                     { payment: keyWalletPrivatePaymentKey wallet
@@ -350,7 +344,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "testTimeout")
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
-            <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
         )
@@ -362,14 +355,11 @@ readPorts testOptions = do
     readPortNumber "PLUTIP" testOptions.plutipPort
   ogmiosPort <-
     readPortNumber "OGMIOS" testOptions.ogmiosPort
-  ctlServerPort <-
-    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   kupoPort <-
     readPortNumber "KUPO" testOptions.kupoPort
   pure
     { plutipPort
     , ogmiosPort
-    , ctlServerPort
     , kupoPort
     }
   where

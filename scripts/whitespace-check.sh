@@ -15,16 +15,6 @@ doc/
 examples/
 fixtures/scripts/
 scripts/
-server/*.md
-server/*.nix
-server/*.yaml
-server/Makefile
-server/cabal.project
-server/ctl-server.cabal
-server/nix/
-server/exe/
-server/src/
-server/test/
 src/
 templates/ctl-scaffold/*.md
 templates/ctl-scaffold/*.nix

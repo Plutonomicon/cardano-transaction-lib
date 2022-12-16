@@ -85,12 +85,12 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson
-  , encodeAeson'
   , getField
   , getFieldOptional
   , getFieldOptional'
   , isNull
   , isString
+  , partialFiniteNumber
   , stringifyAeson
   , toString
   , (.:)
@@ -445,8 +445,8 @@ instance DecodeAeson EraSummary where
     pure $ wrap { start, end, parameters }
 
 instance EncodeAeson EraSummary where
-  encodeAeson' (EraSummary { start, end, parameters }) =
-    encodeAeson'
+  encodeAeson (EraSummary { start, end, parameters }) =
+    encodeAeson
       { "start": start
       , "end": end
       , "parameters": parameters
@@ -479,8 +479,8 @@ instance DecodeAeson EraSummaryTime where
     pure $ wrap { time, slot, epoch }
 
 instance EncodeAeson EraSummaryTime where
-  encodeAeson' (EraSummaryTime { time, slot, epoch }) =
-    encodeAeson'
+  encodeAeson (EraSummaryTime { time, slot, epoch }) =
+    encodeAeson
       { "time": time
       , "slot": slot
       , "epoch": epoch
@@ -495,7 +495,11 @@ derive instance Newtype RelativeTime _
 derive newtype instance Eq RelativeTime
 derive newtype instance Ord RelativeTime
 derive newtype instance DecodeAeson RelativeTime
-derive newtype instance EncodeAeson RelativeTime
+
+instance EncodeAeson RelativeTime where
+  encodeAeson (RelativeTime rt) =
+    -- We assume the numbers are finite
+    encodeAeson $ unsafePartial partialFiniteNumber rt
 
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
@@ -545,8 +549,8 @@ slotLengthFactor :: Number
 slotLengthFactor = 1e3
 
 instance EncodeAeson EraSummaryParameters where
-  encodeAeson' (EraSummaryParameters { epochLength, slotLength, safeZone }) =
-    encodeAeson'
+  encodeAeson (EraSummaryParameters { epochLength, slotLength, safeZone }) =
+    encodeAeson
       { "epochLength": epochLength
       , "slotLength": slotLength
       , "safeZone": safeZone
@@ -571,7 +575,10 @@ derive instance Generic SlotLength _
 derive instance Newtype SlotLength _
 derive newtype instance Eq SlotLength
 derive newtype instance DecodeAeson SlotLength
-derive newtype instance EncodeAeson SlotLength
+instance EncodeAeson SlotLength where
+  encodeAeson (SlotLength sl) =
+    -- We assume the numbers are finite
+    encodeAeson $ unsafePartial partialFiniteNumber sl
 
 instance Show SlotLength where
   show (SlotLength sl) = showWithParens "SlotLength" sl
@@ -1351,8 +1358,8 @@ derive newtype instance Show AdditionalUtxoSet
 type OgmiosUtxoMap = Map OgmiosTxOutRef OgmiosTxOut
 
 instance EncodeAeson AdditionalUtxoSet where
-  encodeAeson' (AdditionalUtxoSet m) =
-    encodeAeson' $ encode <$> utxos
+  encodeAeson (AdditionalUtxoSet m) =
+    encodeAeson $ encode <$> utxos
 
     where
     utxos :: Array (OgmiosTxOutRef /\ OgmiosTxOut)

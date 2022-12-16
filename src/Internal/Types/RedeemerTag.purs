@@ -5,7 +5,7 @@ module Ctl.Internal.Types.RedeemerTag
 
 import Prelude
 
-import Aeson (class EncodeAeson, encodeAeson')
+import Aeson (class EncodeAeson)
 import Ctl.Internal.Helpers (encodeTagged')
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -30,8 +30,8 @@ instance Show RedeemerTag where
   show = genericShow
 
 instance EncodeAeson RedeemerTag where
-  encodeAeson' = case _ of
-    Spend -> encodeAeson' $ encodeTagged' "Spend" {}
-    Mint -> encodeAeson' $ encodeTagged' "Mint" {}
-    Cert -> encodeAeson' $ encodeTagged' "Cert" {}
-    Reward -> encodeAeson' $ encodeTagged' "Reward" {}
+  encodeAeson = case _ of
+    Spend -> encodeTagged' "Spend" {}
+    Mint -> encodeTagged' "Mint" {}
+    Cert -> encodeTagged' "Cert" {}
+    Reward -> encodeTagged' "Reward" {}

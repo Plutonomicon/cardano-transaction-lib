@@ -4,11 +4,15 @@ import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
+import Contract.Test.Mote (TestPlanM, interpretWithConfig)
+import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getEraSummaries, getSystemStart)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
+import Data.Maybe (Maybe(Just))
+import Data.Posix.Signal (Signal(SIGINT))
+import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
+import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
 import Mote (skip)
 import Mote.Monad (mapTest)
@@ -18,11 +22,15 @@ import Test.Ctl.Logging as Logging
 import Test.Ctl.PrivateKey as PrivateKey
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Ctl.Types.Interval as Types.Interval
+import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Integration`
 main :: Effect Unit
-main = launchAff_ do
-  interpret testPlan
+main = interruptOnSignal SIGINT =<< launchAff do
+  flip cancelWith (effectCanceler (exitCode 1)) do
+    interpretWithConfig
+      defaultConfig { timeout = Just $ Milliseconds 450_000.0, exit = true }
+      testPlan
 
 -- Requires external services listed in README.md
 testPlan :: TestPlanM (Aff Unit) Unit

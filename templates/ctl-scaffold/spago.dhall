@@ -7,6 +7,7 @@ You can edit this file as you like.
   [ "aff"
   , "bigints"
   , "cardano-transaction-lib"
+  , "datetime"
   , "effect"
   , "mote"
   , "ordered-collections"

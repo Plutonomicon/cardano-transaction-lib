@@ -95,7 +95,6 @@ type TestOptions = Record
 type ClusterPortsOptions_ (r :: Row Type) =
   ( plutipPort :: Maybe UInt
   , ogmiosPort :: Maybe UInt
-  , ctlServerPort :: Maybe UInt
   , kupoPort :: Maybe UInt
   | r
   )
@@ -328,15 +327,13 @@ uintParser = eitherReader \str ->
   note "Unable to parse unsigned integer" $ UInt.fromString str
 
 defaultPorts
-  :: { ctlServer :: Int
-     , kupo :: Int
+  :: { kupo :: Int
      , ogmios :: Int
      , plutip :: Int
      }
 defaultPorts =
   { plutip: 8087
   , ogmios: 1345
-  , ctlServer: 8088
   , kupo: 1443
   }
 
@@ -358,14 +355,6 @@ clusterPortsOptionsParser = ado
         showPort "OGMIOS" defaultPorts.ogmios
     , metavar "PORT"
     ]
-  ctlServerPort <- option (Just <$> uintParser) $ fold
-    [ long "ctl-server-port"
-    , help "ctl-server port for use with local Plutip cluster"
-    , value Nothing
-    , showDefaultWith $ const $
-        showPort "CTL_SERVER" defaultPorts.ctlServer
-    , metavar "PORT"
-    ]
   kupoPort <- option (Just <$> uintParser) $ fold
     [ long "kupo-port"
     , help "Kupo port for use with local Plutip cluster"
@@ -377,7 +366,6 @@ clusterPortsOptionsParser = ado
   in
     { plutipPort
     , ogmiosPort
-    , ctlServerPort
     , kupoPort
     }
   where
