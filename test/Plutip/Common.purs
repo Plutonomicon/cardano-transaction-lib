@@ -7,7 +7,10 @@ import Prelude
 
 import Contract.Config (emptyHooks)
 import Contract.Wallet (privateKeyFromBytes)
-import Ctl.Internal.Plutip.Types (PlutipConfig, ClusterConfig(DefaultClusterConfig))
+import Ctl.Internal.Plutip.Types
+  ( ClusterConfig(DefaultClusterConfig)
+  , PlutipConfig
+  )
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))

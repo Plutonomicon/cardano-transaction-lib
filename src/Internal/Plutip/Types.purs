@@ -6,7 +6,7 @@ module Ctl.Internal.Plutip.Types
   , InitialUTxODistribution
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
-  , ClusterConfig (DefaultClusterConfig, ClusterConfig)
+  , ClusterConfig(DefaultClusterConfig, ClusterConfig)
   , PostgresConfig
   , ClusterStartupRequest
       ( ClusterStartupRequest
@@ -76,10 +76,10 @@ type PlutipConfig =
   , clusterConfig :: ClusterConfig
   }
 
-data ClusterConfig =
-     DefaultClusterConfig
-   | ClusterConfig
-       { slotLength :: Seconds
+data ClusterConfig
+  = DefaultClusterConfig
+  | ClusterConfig
+      { slotLength :: Seconds
       -- Adjust the max transaction size. Useful for debugging with traces
       , maxTxSize :: UInt
       -- When set to True increase the ex-Units to 10e6.

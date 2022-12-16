@@ -7,9 +7,9 @@ import Contract.Prelude
 import Contract.Config (emptyHooks)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
-  ( InitialUTxOs
+  ( ClusterConfig(ClusterConfig)
+  , InitialUTxOs
   , PlutipConfig
-  , ClusterConfig(ClusterConfig)
   , PlutipTest
   , testPlutipContracts
   , withWallets

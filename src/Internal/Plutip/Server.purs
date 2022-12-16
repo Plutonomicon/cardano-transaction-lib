@@ -46,12 +46,15 @@ import Ctl.Internal.Plutip.Spawn
   , waitForStop
   )
 import Ctl.Internal.Plutip.Types
-  ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest,ClusterStartupRequestWithConfig)
+  ( ClusterConfig(ClusterConfig, DefaultClusterConfig)
+  , ClusterStartupParameters
+  , ClusterStartupRequest
+      ( ClusterStartupRequest
+      , ClusterStartupRequestWithConfig
+      )
   , InitialUTxODistribution
   , InitialUTxOs
   , PlutipConfig
-  , ClusterConfig (ClusterConfig, DefaultClusterConfig)
   , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
@@ -475,16 +478,16 @@ startPlutipCluster
 startPlutipCluster cfg keysToGenerate = do
   let
     startUpRequest = case cfg.clusterConfig of
-         DefaultClusterConfig -> ClusterStartupRequest { keysToGenerate }
-         ClusterConfig config -> ClusterStartupRequestWithConfig
-                    { keysToGenerate
-                    , slotLength: config.slotLength
-                    -- TODO epoch size cannot currently be changed due to
-                    -- https://github.com/mlabs-haskell/plutip/issues/149
-                    , epochSize: UInt.fromInt 80
-                    , maxTxSize: config.maxTxSize
-                    , increasedExUnits: config.increasedExUnits
-                    }
+      DefaultClusterConfig -> ClusterStartupRequest { keysToGenerate }
+      ClusterConfig config -> ClusterStartupRequestWithConfig
+        { keysToGenerate
+        , slotLength: config.slotLength
+        -- TODO epoch size cannot currently be changed due to
+        -- https://github.com/mlabs-haskell/plutip/issues/149
+        , epochSize: UInt.fromInt 80
+        , maxTxSize: config.maxTxSize
+        , increasedExUnits: config.increasedExUnits
+        }
     url = mkServerEndpointUrl cfg "start"
   res <- do
     response <- liftAff

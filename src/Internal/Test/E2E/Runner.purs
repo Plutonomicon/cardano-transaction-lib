@@ -15,7 +15,10 @@ import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
-import Ctl.Internal.Plutip.Types (PlutipConfig, ClusterConfig(DefaultClusterConfig))
+import Ctl.Internal.Plutip.Types
+  ( ClusterConfig(DefaultClusterConfig)
+  , PlutipConfig
+  )
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
 import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)

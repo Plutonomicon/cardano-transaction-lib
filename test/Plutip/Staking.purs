@@ -45,7 +45,6 @@ import Contract.Transaction
   , signTransaction
   , vrfKeyHashFromBytes
   )
-import Ctl.Internal.Plutip.Types (PlutipConfig, ClusterConfig(ClusterConfig))
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
   , mustDelegateStakeNativeScript
@@ -69,6 +68,7 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
+import Ctl.Internal.Plutip.Types (ClusterConfig(ClusterConfig), PlutipConfig)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head)
 import Data.Array as Array
