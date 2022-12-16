@@ -177,22 +177,11 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
         Just (Eternl _) -> do
           walletAddresses <- QueryM.getWalletAddresses
           let
-            { yes: inWalletAdresses, no: outWalletAdresses } = partition
+            { yes: inWalletAddresses, no: outWalletAddresses } = partition
               (\addr -> elem addr walletAddresses)
               srcAddrs
-          utxosAtWallet <- parallelUtxosAt inWalletAdresses
-          filteredWalletUtxos <-
-            maybe (Map.empty)
-              ( Map.filter
-                  (\txout -> elem (_.address (unwrap txout)) inWalletAdresses)
-              ) <$> getWalletUtxos
-          let
-            inWalletUtxos =
-              case Map.isSubmap filteredWalletUtxos <$> utxosAtWallet of
-                Left e -> Left e
-                Right false -> Left CouldNotGetUtxos
-                Right true -> Right $ filteredWalletUtxos
-          outWalletUtxos <- parallelUtxosAt outWalletAdresses
+          inWalletUtxos <- getWalletUtxosAt inWalletAddresses
+          outWalletUtxos <- parallelUtxosAt outWalletAddresses
           pure $ Map.union <$> inWalletUtxos <*> outWalletUtxos
         _ -> parallelUtxosAt srcAddrs
 
@@ -223,6 +212,19 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
     liftMaybe CouldNotGetChangeAddress
       =<< maybe (liftQueryM QueryM.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
+
+  getWalletUtxosAt :: Array Address -> QueryM (Either BalanceTxError UtxoMap)
+  getWalletUtxosAt inWalletAddresses = do
+    filteredWalletUtxos <-
+      maybe (Map.empty)
+        ( Map.filter
+            (\txout -> elem (_.address (unwrap txout)) inWalletAddresses)
+        ) <$> getWalletUtxos
+    utxosAtWalletAddresses <- parallelUtxosAt inWalletAddresses
+    pure $ case Map.isSubmap filteredWalletUtxos <$> utxosAtWalletAddresses of
+      Left e -> Left e
+      Right false -> Left CouldNotGetUtxos
+      Right true -> Right $ filteredWalletUtxos
 
   parallelUtxosAt :: Array Address -> QueryM (Either BalanceTxError UtxoMap)
   parallelUtxosAt adresses = parTraverse utxosAt adresses
