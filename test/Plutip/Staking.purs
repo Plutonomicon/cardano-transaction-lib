@@ -68,7 +68,7 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
-import Ctl.Internal.Plutip.Types (ClusterConfig(ClusterConfig), PlutipConfig)
+import Ctl.Internal.Plutip.Types (ClusterConfig(ClusterConfig))
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head)
 import Data.Array as Array
