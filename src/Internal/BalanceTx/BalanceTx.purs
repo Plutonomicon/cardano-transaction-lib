@@ -155,6 +155,7 @@ import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Debug (spy, traceM)
 import Effect.Class (liftEffect)
 import Partial.Unsafe (unsafePartial)
 
@@ -286,18 +287,31 @@ runBalancer p = do
     worker (PrebalanceTx state) = do
       logBalancerState "Pre-balancing (Stage 1)" p.allUtxos state
       prebalanceTx state >>= runNextBalancerStep
-    worker (BalanceChangeAndMinFee state@{ transaction, minFee }) = do
-      logBalancerState "Balancing change and fees (Stage 2)" p.allUtxos state
-      { transaction: balancedTx, minFee: newMinFee } <- evaluateTx state
-      case newMinFee <= minFee of
-        true ->
-          logTransaction "Balanced transaction (Done)" p.allUtxos balancedTx
-            *> finalizeTransaction balancedTx p.allUtxos
-        false ->
-          runNextBalancerStep $ state
-            { transaction = transaction # _body' <<< _fee .~ Coin newMinFee
-            , minFee = newMinFee
-            }
+    worker (BalanceChangeAndMinFee s@{ transaction, minFee, leftoverUtxos }) =
+      do
+        logBalancerState "Balancing change and fees (Stage 2)" p.allUtxos s
+        { transaction: balancedTx, minFee: newMinFee } <- evaluateTx s
+        case newMinFee <= minFee of
+          true ->
+            if (Set.isEmpty $ balancedTx ^. _body' <<< _inputs) then do
+              selectionState <-
+                performMultiAssetSelection p.strategy leftoverUtxos
+                  (lovelaceValueOf one)
+              runNextBalancerStep $ s
+                { transaction =
+                    balancedTx # _body' <<< _inputs %~
+                      Set.union (selectedInputs selectionState)
+                , leftoverUtxos =
+                    selectionState ^. _leftoverUtxos
+                }
+            else
+              logTransaction "Balanced transaction (Done)" p.allUtxos balancedTx
+                *> finalizeTransaction balancedTx p.allUtxos
+          false ->
+            runNextBalancerStep $ s
+              { transaction = transaction # _body' <<< _fee .~ Coin newMinFee
+              , minFee = newMinFee
+              }
 
     -- | Determines which balancing step will be performed next.
     -- |
@@ -321,20 +335,13 @@ runBalancer p = do
     -- | utxo set so that the total input value is sufficient to cover all
     -- | transaction outputs, including generated change and min fee.
     prebalanceTx :: BalancerState -> BalanceTxM BalancerState
-    prebalanceTx state@{ transaction, changeOutputs, leftoverUtxos } = do
-
-      selectionState <- performCoinSelection
-      let
-        selectedInputs' :: Set TransactionInput
-        selectedInputs' = selectedInputs selectionState
-
-        unbalancedTxWithInputs :: UnattachedUnbalancedTx
-        unbalancedTxWithInputs =
-          transaction # _body' <<< _inputs %~ Set.union selectedInputs'
-
-      pure $ state
-        { transaction = unbalancedTxWithInputs
-        , leftoverUtxos = selectionState ^. _leftoverUtxos
+    prebalanceTx state@{ transaction, changeOutputs, leftoverUtxos } =
+      performCoinSelection <#> \selectionState -> state
+        { transaction =
+            transaction # _body' <<< _inputs %~
+              Set.union (selectedInputs selectionState)
+        , leftoverUtxos =
+            selectionState ^. _leftoverUtxos
         }
       where
       performCoinSelection :: BalanceTxM SelectionState
