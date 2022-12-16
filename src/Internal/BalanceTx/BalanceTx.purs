@@ -141,7 +141,7 @@ import Data.Array.NonEmpty
   ) as NEArray
 import Data.BigInt (BigInt)
 import Data.Either (Either, note)
-import Data.Foldable (fold, foldMap, foldr, length, sum)
+import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
@@ -153,7 +153,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
-import Data.Tuple (fst, snd)
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Partial.Unsafe (unsafePartial)
@@ -538,7 +538,9 @@ makeChangeForCoin weights excess =
 -- |     the amount of ada is insufficient to cover them all.
 -- |
 -- |   - continues dropping empty change maps from the start of the list until
--- |     it is possible to assign a minimum ada value to all remaining entries.
+-- |     it is possible to assign a minimum ada value to all remaining entries,
+-- |     or until only one entry remains (in which case it assigns a minimum
+-- |     ada value, even if the amount of ada is insufficient to cover it).
 -- |
 -- |   - assigns the minimum ada quantity to all non-empty change `Value`s, even
 -- |     if `adaAvailable` is insufficient, does not fail.
@@ -551,48 +553,51 @@ assignCoinsToChangeValues
   -> NonEmptyArray (Value /\ BigInt)
   -> BalanceTxM (Array Value)
 assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
-  flip worker pairsAtStart =<< adaRequiredAtStart
+  changeValuesAtStart <#> \changeValues ->
+    worker (adaRequiredAtStart changeValues) changeValues
   where
-  worker
-    :: BigInt
-    -> NonEmptyArray (Value /\ BigInt)
-    -> BalanceTxM (Array Value)
+  worker :: BigInt -> NonEmptyArray ChangeValue -> Array Value
   worker adaRequired = NEArray.uncons >>> case _ of
-    { head: pair, tail: [] } | noTokens pair && adaAvailable < adaRequired ->
-      pure mempty
+    { head: x, tail: xs }
+      | not (null xs) && adaAvailable < adaRequired && noTokens x ->
+          worker (adaRequired - x.minCoin) (fromArrayUnsafe xs)
 
-    { head: pair, tail: pairs } | noTokens pair && adaAvailable < adaRequired ->
-      minCoinFor (fst pair) >>= \minCoin ->
-        worker (adaRequired - minCoin) (fromArrayUnsafe pairs)
-
-    { head, tail } -> do
+    { head: x, tail: xs } ->
       let
-        pairs :: NonEmptyArray (Value /\ BigInt)
-        pairs = NEArray.cons' head tail
+        changeValues :: NonEmptyArray ChangeValue
+        changeValues = NEArray.cons' x xs
 
         adaRemaining :: BigInt
         adaRemaining = max zero (adaAvailable - adaRequired)
 
         changeValuesForOutputCoins :: NonEmptyArray Value
         changeValuesForOutputCoins =
-          makeChangeForCoin (snd <$> pairs) adaRemaining
+          makeChangeForCoin (_.outputAda <$> changeValues) adaRemaining
 
-      changeValuesWithMinCoins <- traverse (assignMinimumCoin <<< fst) pairs
-      pure $ NEArray.toArray $
-        NEArray.zipWith (<>) changeValuesWithMinCoins changeValuesForOutputCoins
+        changeValuesWithMinCoins :: NonEmptyArray Value
+        changeValuesWithMinCoins = assignMinCoin <$> changeValues
+      in
+        NEArray.toArray $
+          NEArray.zipWith append changeValuesWithMinCoins
+            changeValuesForOutputCoins
     where
-    assignMinimumCoin :: Value -> BalanceTxM Value
-    assignMinimumCoin value@(Value _ assets) =
-      flip mkValue assets <<< wrap <$> minCoinFor value
+    noTokens :: ChangeValue -> Boolean
+    noTokens = null <<< Value.valueAssets <<< _.value
+
+    assignMinCoin :: ChangeValue -> Value
+    assignMinCoin { value: (Value _ assets), minCoin } =
+      mkValue (wrap minCoin) assets
 
     fromArrayUnsafe :: forall (a :: Type). Array a -> NonEmptyArray a
     fromArrayUnsafe = unsafePartial fromJust <<< NEArray.fromArray
 
-    noTokens :: Value /\ BigInt -> Boolean
-    noTokens = Array.null <<< Value.valueAssets <<< fst
+  adaRequiredAtStart :: NonEmptyArray ChangeValue -> BigInt
+  adaRequiredAtStart = sum <<< map _.minCoin
 
-  adaRequiredAtStart :: BalanceTxM BigInt
-  adaRequiredAtStart = sum <$> traverse (minCoinFor <<< fst) pairsAtStart
+  changeValuesAtStart :: BalanceTxM (NonEmptyArray ChangeValue)
+  changeValuesAtStart =
+    for pairsAtStart \(value /\ outputAda) ->
+      { value, outputAda, minCoin: _ } <$> minCoinFor value
 
   minCoinFor :: Value -> BalanceTxM BigInt
   minCoinFor value = do
@@ -600,6 +605,8 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
     coinsPerUtxoUnit <- askCoinsPerUtxoUnit
     ExceptT $ liftEffect $ utxoMinAdaValue coinsPerUtxoUnit txOutput
       <#> note UtxoMinAdaValueCalculationFailed
+
+type ChangeValue = { value :: Value, outputAda :: BigInt, minCoin :: BigInt }
 
 newtype AssetCount = AssetCount Value
 
