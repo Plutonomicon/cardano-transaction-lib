@@ -151,13 +151,11 @@ isTxConfirmed th = do
 -- Exported due to Ogmios requiring confirmations at a websocket level
 isTxConfirmedAff
   :: ServerConfig -> TransactionHash -> Aff (Either ClientError (Maybe Slot))
-isTxConfirmedAff config (TransactionHash txHash) = do
+isTxConfirmedAff config (TransactionHash txHash) = runExceptT do
   let endpoint = "/matches/*@" <> byteArrayToHex txHash
-  kupoGetRequestAff config endpoint
-    <#> handleAffjaxResponse >>> map \utxos ->
-      case uncons (utxos :: _ { created_at :: { slot_no :: Slot } }) of
-        Just { head } -> Just head.created_at.slot_no
-        _ -> Nothing
+  utxos <- ExceptT $ handleAffjaxResponse <$> kupoGetRequestAff config endpoint
+  -- Take the first utxo's slot to give the transactions slot
+  pure $ uncons utxos <#> _.head >>> unwrapKupoUtxoSlot
 
 getTxMetadata
   :: TransactionHash
@@ -170,13 +168,10 @@ getTxMetadata txHash = runExceptT do
         endpoint = "/metadata/" <> BigNum.toString (unwrap slot)
           <> "?transaction_id="
           <> byteArrayToHex (unwrap txHash)
-      generalTxMetadatas <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest
+      metadata <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest
         endpoint
-      pure case uncons (generalTxMetadatas :: _ { raw :: String }) of
-        Just { head, tail: [] } ->
-          hexToByteArray head.raw >>=
-            (fromBytes >=> convertGeneralTransactionMetadata >>> hush)
-        _ -> Nothing
+      -- `KupoMetadata` will fail parsing if there is more than one response
+      pure $ unwrapKupoMetadata metadata
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing
@@ -404,6 +399,54 @@ instance DecodeAeson KupoScriptRef where
               TypeMismatch "decodeNativeScript: from_bytes() call failed"
           flip note (convertNativeScript nativeScript) $
             TypeMismatch "decodeNativeScript: failed to convert native script"
+
+-------------------------------------------------------------------------------
+-- `isTxConfirmed` response parsing
+-------------------------------------------------------------------------------
+
+newtype KupoUtxoSlot = KupoUtxoSlot Slot
+
+derive instance Generic KupoUtxoSlot _
+derive instance Eq KupoUtxoSlot
+
+instance Show KupoUtxoSlot where
+  show = genericShow
+
+instance DecodeAeson KupoUtxoSlot where
+  decodeAeson = decodeAeson >>> map (slot >>> KupoUtxoSlot)
+    where
+    slot :: { created_at :: { slot_no :: Slot } } -> Slot
+    slot = _.created_at.slot_no
+
+unwrapKupoUtxoSlot :: KupoUtxoSlot -> Slot
+unwrapKupoUtxoSlot (KupoUtxoSlot slot) = slot
+
+--------------------------------------------------------------------------------
+-- `getTxMetadata` reponse parsing
+--------------------------------------------------------------------------------
+
+newtype KupoMetadata = KupoMetadata (Maybe GeneralTransactionMetadata)
+
+derive instance Generic KupoMetadata _
+derive instance Eq KupoMetadata
+
+instance Show KupoMetadata where
+  show = genericShow
+
+instance DecodeAeson KupoMetadata where
+  decodeAeson = decodeAeson >=> case _ of
+    [ { raw } :: { raw :: String } ] -> do
+      ba <- flip note (hexToByteArray raw) $
+        TypeMismatch "Hexadecimal String"
+      metadata <- flip note (fromBytes ba) $
+        TypeMismatch "Hexadecimal encoded Metadata"
+      -- Conversion should always succeed, so use it as the `Just`
+      pure $ KupoMetadata $ hush $ convertGeneralTransactionMetadata metadata
+    [] -> Right $ KupoMetadata Nothing
+    _ -> Left $ TypeMismatch "Singleton or Empty Array"
+
+unwrapKupoMetadata :: KupoMetadata -> Maybe GeneralTransactionMetadata
+unwrapKupoMetadata (KupoMetadata mbMetadata) = mbMetadata
 
 --------------------------------------------------------------------------------
 -- Helpers

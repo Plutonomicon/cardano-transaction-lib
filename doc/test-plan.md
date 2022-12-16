@@ -120,12 +120,14 @@ In addition to the constraints/lookups listed above, there are several other cri
   - [x] `balanceTx`
   - [x] `signTransaction`
   - [x] `submit`
-  - [x] `getTxByHash`
   - [x] `awaitTxConfirmed` (implies `awaitTxConfirmedWithTimeout`)
+  - [ ] `getTxMetadata`
 - `Contract.Scripts.*`
   - [x] `validatorHash`
   - [x] `mintingPolicy`
   - [x] `applyArgs`
+  - [ ] `getScriptByHash`
+  - [ ] `getScriptsByHashes`
 - `Contract.Hashing.*`
   - [x] `datumHash`
   - [x] `plutusScriptHash`
@@ -233,5 +235,11 @@ Currently, we require parsing tests for the following data structures, organized
   - `TransactionWitnessSet`
     - [x] Serialization
     - [x] Deserialization
-
-TODO: Kupo and Blockfrost
+- Kupo
+  - [ ] `KupoUtxoMap`
+  - [ ] `KupoDatum`
+  - [ ] `KupoScriptRef`
+  - [ ] `KupoUtxoSlot`
+  - [ ] `KupoMetadata`
+- Blockfrost
+  - TODO
