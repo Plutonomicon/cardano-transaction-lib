@@ -21,14 +21,6 @@ rec {
       tag = "1.35.4";
     };
     ogmios = { port = 1337; };
-    # If you don't need to use `applyArgs` (i.e. you're not using parameterized
-    # scripts), you can disable CTL's server entirely in the runtime using
-    # `{ ctlServer.enable = false; }`. Currently we default to enabling it
-    # by default for backwards compatibility
-    ctlServer = {
-      enable = true;
-      port = 8081;
-    };
     postgres = {
       # User-facing port on host machine.
       # Can be set to null in order to not bind postgres port to host.
@@ -235,20 +227,6 @@ rec {
               ];
             };
           };
-      } // pkgs.lib.optionalAttrs ctlServer.enable {
-        ctl-server = {
-          service = {
-            useHostStore = true;
-            ports = [ (bindPort ctlServer.port) ];
-            command = [
-              "${pkgs.bash}/bin/sh"
-              "-c"
-              ''
-                ${pkgs.ctl-server}/bin/ctl-server --port ${toString ctlServer.port}
-              ''
-            ];
-          };
-        };
       };
     in
     {

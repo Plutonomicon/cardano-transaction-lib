@@ -7,7 +7,7 @@ module Ctl.Internal.Types.VRFKeyHash
 
 import Prelude
 
-import Aeson (class EncodeAeson, encodeAeson')
+import Aeson (class EncodeAeson, encodeAeson)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types as Serialization
@@ -26,8 +26,8 @@ instance Eq VRFKeyHash where
   eq = eq `on` vrfKeyHashToBytes
 
 instance EncodeAeson VRFKeyHash where
-  encodeAeson' (VRFKeyHash kh) =
-    asOneOf kh # toBytes >>> byteArrayToHex >>> encodeAeson'
+  encodeAeson (VRFKeyHash kh) =
+    asOneOf kh # toBytes >>> byteArrayToHex >>> encodeAeson
 
 unVRFKeyHash :: VRFKeyHash -> Serialization.VRFKeyHash
 unVRFKeyHash (VRFKeyHash kh) = kh

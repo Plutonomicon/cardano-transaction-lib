@@ -7,23 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "8e9d42980e824450c18c397295573160d1ce8424";
+        version = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "8e9d42980e824450c18c397295573160d1ce8424";
-          sha256 = "0cz6wvrld468sc1i98wv7zsqxsp99lhianb4pxmsqfcz353a6sc9";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "aeson-helpers" = pkgs.stdenv.mkDerivation {
-        name = "aeson-helpers";
-        version = "44d0dae060cf78babd4534320192b58c16a6f45b";
-        src = pkgs.fetchgit {
-          url = "https://github.com/mlabs-haskell/purescript-bridge-aeson-helpers.git";
-          rev = "44d0dae060cf78babd4534320192b58c16a6f45b";
-          sha256 = "1fgvaqvd9145zz5xw3fsa5vm75kp6bxcwa2nzq1dx2367h3a0zl0";
+          rev = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5";
+          sha256 = "1rzpf861gy86k9f3iydd3d02f78dh9fv22cbw650lyn5zjm0l3an";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -209,13 +197,25 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "bignumber" = pkgs.stdenv.mkDerivation {
+        name = "bignumber";
+        version = "58c51448be23c05caf51cde45bb3b09cc7169447";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-bignumber";
+          rev = "58c51448be23c05caf51cde45bb3b09cc7169447";
+          sha256 = "1q0zyq0ni2vcr99bnxn37ah6f1h3z9mhda4f0549x925mzm25d04";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "fc35733e483c21e55e5acabacb1d9e192f91a032";
+        version = "27f997461fda4a6f7eb52f1165a91d7d453fb990";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "fc35733e483c21e55e5acabacb1d9e192f91a032";
-          sha256 = "19zmsg8x65qc0lnl94llnr1r9v87xv3b7amz9kgpjq4d50idwb6n";
+          rev = "27f997461fda4a6f7eb52f1165a91d7d453fb990";
+          sha256 = "0zfsbh2f8dah9d3z3avlhrgkcpc37378vxwj6cpmyls60ryc3m0k";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -792,6 +792,18 @@ let
           url = "https://github.com/purescript/purescript-newtype.git";
           rev = "7b292fcd2ac7c4a25d7a7a8d3387d0ee7de89b13";
           sha256 = "1fgzbxslckva2psn0sia30hfakx8xchz3wx2kkh3w8rr4nn2py8v";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "noble-secp256k1" = pkgs.stdenv.mkDerivation {
+        name = "noble-secp256k1";
+        version = "710c15c48c5afae5e0623664d982a587ff2bd177";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git";
+          rev = "710c15c48c5afae5e0623664d982a587ff2bd177";
+          sha256 = "014wapsgg6xa76i3f368aag4kps644g8qqqha9xbgyxmrhxsln6q";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
