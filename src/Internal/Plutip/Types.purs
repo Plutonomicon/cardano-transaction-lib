@@ -82,8 +82,8 @@ data ClusterConfig
       { slotLength :: Seconds
       -- Adjust the max transaction size. Useful for debugging with traces
       , maxTxSize :: UInt
-      -- When set to True increase the ex-Units to 10e6.
-      , increasedExUnits :: Boolean
+      -- Factor by which to increase the Max ex-units of a cluster
+      , increasedExUnits :: UInt
       }
 
 type PostgresConfig =
@@ -115,7 +115,7 @@ data ClusterStartupRequest
       , epochSize :: UInt
       , slotLength :: Seconds
       , maxTxSize :: UInt
-      , increasedExUnits :: Boolean
+      , increasedExUnits :: UInt
       }
 
 instance EncodeAeson ClusterStartupRequest where

@@ -15,7 +15,7 @@
     };
 
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    plutip.url = "github:mlabs-haskell/plutip/d5b9ce2095487351946d0543e7f137bab4ca64d7";
+    plutip.url = "github:mlabs-haskell/plutip/cdf6623a11947a991d7e322ac6eb7e9959874987";
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
     kupo-nixos.inputs.kupo.follows = "kupo";
 

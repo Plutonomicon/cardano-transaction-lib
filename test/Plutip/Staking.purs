@@ -698,6 +698,6 @@ suite = do
     { clusterConfig = ClusterConfig
         { slotLength: Seconds 0.05
         , maxTxSize: UInt.fromInt 16384
-        , increasedExUnits: false
+        , increasedExUnits: UInt.fromInt 1
         }
     }
