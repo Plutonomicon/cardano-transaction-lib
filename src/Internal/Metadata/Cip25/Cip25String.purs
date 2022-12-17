@@ -32,7 +32,7 @@ import Data.Array as Array
 import Data.Either (hush, note)
 import Data.Foldable (fold, foldMap)
 import Data.Maybe (Maybe(Nothing, Just), isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodePoints as String
 import Data.TextDecoder (decodeUtf8)
 import Data.TextEncoder (encodeUtf8)
@@ -50,6 +50,8 @@ derive newtype instance FromMetadata Cip25String
 derive newtype instance ToData Cip25String
 derive newtype instance FromData Cip25String
 derive newtype instance EncodeAeson Cip25String
+
+derive instance newtypeCip25String :: Newtype Cip25String _
 
 instance Show Cip25String where
   show (Cip25String str) = "(unsafePartial (fromJust (mkCip25String "
@@ -142,5 +144,8 @@ toMetadataString str = case toCip25Strings str of
 fromMetadataString :: TransactionMetadatum -> Maybe String
 fromMetadataString datum = do
   fromCip25Strings <$> (Array.singleton <$> fromMetadata datum) <|> do
-    bytes :: Array ByteArray <- fromMetadata datum
+    strings :: Array Cip25String <- fromMetadata datum
+    let
+      bytes :: Array ByteArray
+      bytes = map (wrap <<< encodeUtf8 <<< unwrap) strings
     hush $ decodeUtf8 $ unwrap $ fold bytes
