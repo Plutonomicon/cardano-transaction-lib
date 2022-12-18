@@ -29,7 +29,7 @@ cd "$(dirname "$0")"
 main() {
     if [[ -z "${1-}" ]]; then
         CTL_REVISION=""
-        echo "CTL revision not provided, using HEAD ($CTL_REVISION)"
+        echo "CTL revision not provided, using current working directory"
     else
         CTL_REVISION="$1"
         echo "Using CTL revision $CTL_REVISION"

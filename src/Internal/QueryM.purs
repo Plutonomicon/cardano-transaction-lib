@@ -27,7 +27,6 @@ module Ctl.Internal.QueryM
   , WebSocket(WebSocket)
   , Hooks
   , allowError
-  , applyArgs
   , evaluateTxOgmios
   , getChainTip
   , getDatumByHash
@@ -112,7 +111,7 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Helpers (liftM, logString, logWithLevel, (<</>>))
+import Ctl.Internal.Helpers (liftM, logString, logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
   , Url
@@ -172,7 +171,6 @@ import Ctl.Internal.QueryM.ServerConfig
   , ServerConfig
   , defaultDatumCacheWsConfig
   , defaultOgmiosWsConfig
-  , defaultServerConfig
   , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkServerUrl
@@ -180,12 +178,10 @@ import Ctl.Internal.QueryM.ServerConfig
   ) as ExportServerConfig
 import Ctl.Internal.QueryM.ServerConfig
   ( ServerConfig
-  , mkHttpUrl
   , mkOgmiosDatumCacheWsUrl
   , mkWsUrl
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Serialization (serializeData, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId(TestnetId, MainnetId)
@@ -194,19 +190,17 @@ import Ctl.Internal.Serialization.Address
   , baseAddressFromAddress
   , stakeCredentialToKeyHash
   )
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , PubKeyHash
   , StakePubKeyHash
   )
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Types.Scripts (Language, PlutusScript(PlutusScript))
+import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, newUsedTxOuts)
 import Ctl.Internal.Wallet
@@ -259,7 +253,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.MediaType.Common (applicationJSON)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for, for_, traverse, traverse_)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff
@@ -279,8 +273,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import Foreign.Object as Object
-import Untagged.Union (asOneOf)
 
 -- This module defines an Aff interface for Ogmios Websocket Queries
 -- Since WebSockets do not define a mechanism for linking request/response
@@ -291,8 +283,7 @@ import Untagged.Union (asOneOf)
 -- | a local cluster: paramters to connect to the services and private keys
 -- | that are pre-funded with Ada on that cluster
 type ClusterSetup =
-  { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: ServerConfig
+  { ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , keys ::
@@ -325,8 +316,7 @@ emptyHooks =
 -- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { ctlServerConfig :: Maybe ServerConfig
-  , ogmiosConfig :: ServerConfig
+  { ogmiosConfig :: ServerConfig
   , datumCacheConfig :: ServerConfig
   , kupoConfig :: ServerConfig
   , networkId :: NetworkId
@@ -803,49 +793,6 @@ instance Show ClientError where
     "(ClientOtherError "
       <> err
       <> ")"
-
--- | Apply `PlutusData` arguments to any type isomorphic to `PlutusScript`,
--- | returning an updated script with the provided arguments applied
-applyArgs
-  :: PlutusScript
-  -> Array PlutusData
-  -> QueryM (Either ClientError PlutusScript)
-applyArgs script args =
-  asks (_.ctlServerConfig <<< _.config) >>= case _ of
-    Nothing -> pure
-      $ Left
-      $
-        ClientOtherError
-          "The `ctl-server` service is required to call `applyArgs`. Please \
-          \provide a `Just` value in `ConfigParams.ctlServerConfig` and make \
-          \sure that the `ctl-server` service is running and available at the \
-          \provided host and port. The `ctl-server` packages can be obtained \
-          \from `overlays.ctl-server` defined in CTL's flake. Please see \
-          \`doc/runtime.md` in the CTL repository for more information"
-    Just config ->
-      let
-        ps = map plutusDataToAeson args
-
-        language :: Language
-        language = snd $ unwrap script
-
-        url :: String
-        url = mkHttpUrl config <</>> "apply-args"
-
-        reqBody :: Aeson
-        reqBody = encodeAeson
-          $ Object.fromFoldable
-              [ "script" /\ scriptToAeson script
-              , "args" /\ encodeAeson ps
-              ]
-      in
-        liftAff (postAeson url reqBody)
-          <#> map (PlutusScript <<< flip Tuple language) <<<
-            handleAffjaxResponse
-  where
-  plutusDataToAeson :: PlutusData -> Aeson
-  plutusDataToAeson =
-    encodeAeson <<< cborBytesToHex <<< Serialization.serializeData
 
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
