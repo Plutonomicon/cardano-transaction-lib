@@ -22,7 +22,6 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Control.Monad.Error.Class (liftMaybe)
 import Data.BigInt as BigInt
 import Effect.Exception (error)
 

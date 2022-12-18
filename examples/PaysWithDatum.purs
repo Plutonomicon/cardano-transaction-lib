@@ -20,7 +20,6 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftContractM
   , liftedM
   , runContract
   )

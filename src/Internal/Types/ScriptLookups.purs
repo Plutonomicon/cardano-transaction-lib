@@ -55,7 +55,7 @@ import Prelude hiding (join)
 
 import Aeson (class EncodeAeson)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)

@@ -36,7 +36,7 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (liftM, mconcat)
+import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
@@ -141,7 +141,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
+import Effect.Exception (throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
