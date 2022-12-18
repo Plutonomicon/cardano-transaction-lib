@@ -39,6 +39,7 @@ You can edit this file as you like.
   , "js-date"
   , "lattice"
   , "lists"
+  , "literals"
   , "math"
   , "maybe"
   , "medea"

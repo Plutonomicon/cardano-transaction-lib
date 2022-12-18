@@ -1,5 +1,6 @@
 /* eslint-disable no-global-assign */
 
+// Classes are our implementation detail - CIP-30 only requires object fields
 class PaginateError {
   constructor(maxSize) {
     this.maxSize = maxSize;
@@ -10,17 +11,26 @@ exports.raisePaginateError = maxSize => () => {
   throw new PaginateError(maxSize);
 };
 
-class APIError {}
+const InvalidRequestCode = -1;
 
-exports.raiseAPIError = function () {
-  throw new APIError();
+class APIError {
+  constructor(code, info) {
+    this.code = code;
+    this.info = info;
+  }
+}
+
+exports.raiseInvalidRequestError = info => () => {
+  throw new APIError(InvalidRequestCode, info);
 };
 
-exports._catchPaginateError = maybeffi => action => () => {
+exports._catchPaginateError = eitherpaginateerrorffi => action => () => {
   try {
-    return maybeffi.just(action());
-  } catch (PaginateError) {
-    return maybeffi.nothing;
+    return eitherpaginateerrorffi.right(action());
+  } catch (error) {
+    if (error instanceof PaginateError) {
+      return eitherpaginateerrorffi.left(error.maxSize);
+    }
   }
 };
 
@@ -73,5 +83,3 @@ exports.injectCip30Mock = walletName => mock => () => {
     }
   };
 };
-
-exports.null = null;

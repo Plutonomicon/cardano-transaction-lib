@@ -56,6 +56,7 @@ import Ctl.Internal.Wallet.Key
 import Data.Array (length)
 import Data.Array as Array
 import Data.BigInt as BigInt
+import Data.Either (Either(Right, Left))
 import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
@@ -76,12 +77,22 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
+import Literals.Null (Null, null)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
-import Untagged.Union (UndefinedOr, OneOf, asOneOf, uorToMaybe)
 import Unsafe.Coerce (unsafeCoerce)
+import Untagged.Union (OneOf, UndefinedOr, asOneOf, uorToMaybe)
 
 data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
+
+data PaginateError = PaginateError Int
+
+derive instance Eq PaginateError
+
+instance Show PaginateError where
+  show (PaginateError maxPages) = "PaginateError " <> show maxPages
+
+data InvalidRequestError = InvalidRequestError String
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -182,7 +193,7 @@ mkCip30Mock pKey mSKey = do
         mAmountCoin = Coin <$>
           (BigNum.toBigInt =<< BigNum.fromString amount)
       amountCoin <- case mAmountCoin of
-        Nothing -> liftEffect raiseAPIError
+        Nothing -> liftEffect $ raiseInvalidRequestError "amount param has incorrect format"
         Just x -> pure x
       pure $ coinToValue amountCoin
 
@@ -208,7 +219,8 @@ mkCip30Mock pKey mSKey = do
         let
           amountValue = DSV.convertValue =<< fromBytes =<< hexToByteArray =<<
             (uorToMaybe amount)
-        if (not hasEnoughAmount amountValue xUtxos) then pure $ maybeToNullOr Nothing
+        if (not hasEnoughAmount amountValue xUtxos) then pure $ maybeToNullOr
+          Nothing
         else do
           -- Convert to CSL representation and serialize
           cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
@@ -224,10 +236,11 @@ mkCip30Mock pKey mSKey = do
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         collateralUtxos <- getCollateralUtxos utxos
         amountValue <- liftEffect $ convertAmount amount
-        if gt amountValue maxCollateralAmount then liftEffect raiseAPIError
+        if gt amountValue maxCollateralAmount then liftEffect $
+          raiseInvalidRequestError "Amount value is bigger than allowed 5 ADA"
         else pure unit
         if (not $ hasEnoughAmount (Just amountValue) collateralUtxos) then
-          liftEffect raiseAPIError
+          liftEffect $ raiseInvalidRequestError "Cannot find collateral to match required amount"
         else do
           cslUnspentOutput <- liftEffect $ traverse
             convertTransactionUnspentOutput
@@ -279,13 +292,24 @@ foreign import injectCip30Mock :: String -> Cip30Mock -> Effect (Effect Unit)
 
 foreign import raisePaginateError :: forall a. Int -> Effect a
 
+type EitherErrorFfi error errorParam return =
+  { right :: return -> Either error return
+  , left :: errorParam -> Either error return
+  }
+
+eitherPaginateErrorFfi :: forall a. EitherErrorFfi PaginateError Int a
+eitherPaginateErrorFfi = { right: Right, left: \x -> Left $ PaginateError x }
+
 foreign import _catchPaginateError
-  :: forall a. MaybeFfiHelper -> Effect a -> Effect (Maybe a)
+  :: forall a
+   . EitherErrorFfi PaginateError Int a
+  -> Effect a
+  -> Effect (Either PaginateError a)
 
-catchPaginateError :: forall a. Effect a -> Effect (Maybe a)
-catchPaginateError = _catchPaginateError maybeFfiHelper
+catchPaginateError :: forall a. Effect a -> Effect (Either PaginateError a)
+catchPaginateError = _catchPaginateError eitherPaginateErrorFfi
 
-foreign import raiseAPIError :: forall a. Effect a
+foreign import raiseInvalidRequestError :: String -> forall a. Effect a
 
 paginateArray :: forall a. Maybe Paginate -> Array a -> Effect (Array a)
 paginateArray (Just { page, limit }) xs =
@@ -307,10 +331,6 @@ hasEnoughAmount (Just amountRequired) values = geq sumAmount amountRequired
   sumAmount = fold $ map utxoAmount values
 
 -- Support NullOr
-
-foreign import data Null :: Type
-
-foreign import null :: Null
 
 type NullOr x = OneOf Null x
 

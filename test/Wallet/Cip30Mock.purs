@@ -5,7 +5,12 @@ module Test.Ctl.Wallet.Cip30Mock
 import Prelude
 
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Wallet.Cip30Mock (catchPaginateError, paginateArray)
+import Ctl.Internal.Wallet.Cip30Mock
+  ( PaginateError(PaginateError)
+  , catchPaginateError
+  , paginateArray
+  )
+import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -39,4 +44,4 @@ testPagination = do
     result <- liftEffect $ catchPaginateError $ paginateArray
       (Just { limit: 3, page: 2 })
       [ 1, 2, 3 ]
-    result `shouldEqual` Nothing
+    result `shouldEqual` (Left $ PaginateError 1)
