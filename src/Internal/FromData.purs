@@ -33,7 +33,6 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , class GetWithLabel
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
@@ -43,7 +42,6 @@ import Data.Array (uncons)
 import Data.Array as Array
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)

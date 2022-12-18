@@ -33,7 +33,7 @@ module Ctl.Internal.Types.TypedTxOut
 import Prelude
 
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
@@ -56,7 +56,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TypedValidator (class DatumType, TypedValidator)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 

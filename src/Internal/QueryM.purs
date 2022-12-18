@@ -191,7 +191,7 @@ import Ctl.Internal.Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.PubKeyHash

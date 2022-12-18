@@ -21,7 +21,6 @@ import Ctl.Internal.Types.BigNum
   ( fromBigInt
   , maxValue
   , toBigInt
-  , toBigInt
   ) as BigNum
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)

@@ -490,8 +490,8 @@ convertProtocolParamUpdate cslPpu = do
   costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
     ppu.costModels
   let
-    maxTxExUnits = convertExUnits (lbl "maxTxExUnits") <$> ppu.maxTxExUnits
-    maxBlockExUnits = convertExUnits (lbl "maxBlockExUnits") <$>
+    maxTxExUnits = convertExUnits <$> ppu.maxTxExUnits
+    maxBlockExUnits = convertExUnits <$>
       ppu.maxBlockExUnits
   maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
     ppu.maxValueSize
@@ -631,18 +631,16 @@ cslIntToUInt nm nb = cslErr (nm <> ": Int (" <> show nb <> ") -> UInt") $
 
 cslRatioToRational
   :: forall (r :: Row Type)
-   . String
-  -> { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
+   . { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
   -> Ratio BigInt
-cslRatioToRational err { numerator, denominator } =
+cslRatioToRational { numerator, denominator } =
   reduce (BigNum.toBigInt numerator) (BigNum.toBigInt denominator)
 
 convertExUnits
   :: forall (r :: Row Type)
-   . String
-  -> Csl.ExUnits
+   . Csl.ExUnits
   -> T.ExUnits
-convertExUnits nm cslExunits =
+convertExUnits cslExunits =
   let
     { mem, steps } = _unpackExUnits cslExunits
   in

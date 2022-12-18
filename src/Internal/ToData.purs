@@ -35,7 +35,7 @@ import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.ArrayBuffer.Types (Uint8Array)
-import Data.BigInt (BigInt, fromInt)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)

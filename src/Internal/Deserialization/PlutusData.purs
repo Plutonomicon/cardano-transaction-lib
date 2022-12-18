@@ -23,7 +23,6 @@ import Ctl.Internal.Serialization.Types
   , PlutusMap
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData
@@ -31,7 +30,6 @@ import Ctl.Internal.Types.PlutusData
   ) as T
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap)
-import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)

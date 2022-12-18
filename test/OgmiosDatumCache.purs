@@ -21,7 +21,7 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Mote (group, skip, test)
-import Test.Ctl.Utils (errEither, errMaybe, readAeson)
+import Test.Ctl.Utils (errEither, readAeson)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

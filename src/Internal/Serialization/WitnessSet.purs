@@ -70,7 +70,6 @@ import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.PlutusData (PlutusData) as PD
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Data.Maybe (maybe)
 import Data.Traversable (for_, traverse, traverse_)
