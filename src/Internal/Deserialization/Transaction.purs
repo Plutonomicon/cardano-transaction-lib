@@ -491,8 +491,10 @@ convertProtocolParamUpdate cslPpu = do
     ppu.costModels
   let
     maxTxExUnits = convertExUnits (lbl "maxTxExUnits") <$> ppu.maxTxExUnits
-    maxBlockExUnits = convertExUnits (lbl "maxBlockExUnits") <$> ppu.maxBlockExUnits
-  maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize")) ppu.maxValueSize
+    maxBlockExUnits = convertExUnits (lbl "maxBlockExUnits") <$>
+      ppu.maxBlockExUnits
+  maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
+    ppu.maxValueSize
   pure
     { minfeeA
     , minfeeB

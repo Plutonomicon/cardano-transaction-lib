@@ -41,8 +41,7 @@ instance Show ApplyArgsError where
 applyArgs
   :: PlutusScript -> Array PlutusData -> Either ApplyArgsError PlutusScript
 applyArgs script paramsList = left ApplyArgsError do
-  params <- note "Error converting to serialized PlutusData" $
-    S.convertPlutusData (List paramsList)
+  let params = S.convertPlutusData (List paramsList)
   appliedScript <- apply_params_to_script_either params
     (S.convertPlutusScript script)
   note "Error converting back applied script" $ D.convertPlutusScript $

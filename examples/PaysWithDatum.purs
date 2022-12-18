@@ -77,10 +77,10 @@ contract = do
   skh <- join <<< head <$> ownStakePubKeysHashes
   address <- liftedM "Could not get own address" (head <$> getWalletAddresses)
 
-  let datum = Datum $ Integer $ BigInt.fromInt 42
-  datumHash <- liftContractM "Could not compute datum hash" (datumHash datum)
-
   let
+    datum = Datum $ Integer $ BigInt.fromInt 42
+    datumHash' = datumHash datum
+
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
 
@@ -96,7 +96,7 @@ contract = do
     txHash <- submitTxFromConstraints lookups constraints
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
-    pure { address, txHash, datum, datumHash }
+    pure { address, txHash, datum, datumHash: datumHash' }
 
 assertions :: Array (ContractBasicAssertion () ContractResult Unit)
 assertions =
