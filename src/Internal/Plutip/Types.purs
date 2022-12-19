@@ -32,7 +32,8 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
+  , partialFiniteNumber
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -55,6 +56,7 @@ import Data.String as String
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
+import Partial.Unsafe (unsafePartial)
 
 type PlutipConfig =
   { host :: String
@@ -63,8 +65,6 @@ type PlutipConfig =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , ogmiosDatumCacheConfig :: ServerConfig
-  -- Set this to `Nothing` to avoid spawning `ctl-server`
-  , ctlServerConfig :: Maybe ServerConfig
   , kupoConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
@@ -124,7 +124,7 @@ newtype ClusterStartupRequest =
     }
 
 instance EncodeAeson ClusterStartupRequest where
-  encodeAeson'
+  encodeAeson
     ( ClusterStartupRequest
         { keysToGenerate
         , epochSize
@@ -137,10 +137,10 @@ instance EncodeAeson ClusterStartupRequest where
 
     let
       sl = case slotLength of
-        Just (Seconds n) -> Just n
+        Just (Seconds n) -> Just $ unsafePartial partialFiniteNumber n
         Nothing -> Nothing
     in
-      encodeAeson'
+      encodeAeson
         { keysToGenerate
         , epochSize
         , slotLength: sl
@@ -227,7 +227,7 @@ instance Show StopClusterRequest where
   show = genericShow
 
 instance EncodeAeson StopClusterRequest where
-  encodeAeson' _ = encodeAeson' ([] :: Array Int)
+  encodeAeson _ = encodeAeson ([] :: Array Int)
 
 data StopClusterResponse = StopClusterSuccess | StopClusterFailure ErrorMessage
 

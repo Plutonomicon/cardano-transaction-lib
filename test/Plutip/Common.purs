@@ -14,7 +14,7 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Log.Level (LogLevel(Trace))
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.UInt (fromInt) as UInt
 import Partial.Unsafe (unsafePartial)
@@ -33,12 +33,6 @@ config =
       }
   , ogmiosDatumCacheConfig:
       { port: UInt.fromInt 10000
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , ctlServerConfig: Just
-      { port: UInt.fromInt 8083
       , host: "127.0.0.1"
       , secure: false
       , path: Nothing

@@ -11,7 +11,7 @@ module Ctl.Internal.Types.UnbalancedTransaction
 
 import Prelude
 
-import Aeson (class EncodeAeson, encodeAeson')
+import Aeson (class EncodeAeson, encodeAeson)
 import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey
   , RequiredSigner(RequiredSigner)
@@ -51,9 +51,9 @@ derive instance Eq ScriptDatum
 derive instance Generic ScriptDatum _
 
 instance EncodeAeson ScriptDatum where
-  encodeAeson' = case _ of
-    ScriptDatum r -> encodeAeson' $ encodeTagged' "ScriptDatum" r
-    ScriptDatumHash r -> encodeAeson' $ encodeTagged' "ScriptDatumHash" r
+  encodeAeson = case _ of
+    ScriptDatum r -> encodeTagged' "ScriptDatum" r
+    ScriptDatumHash r -> encodeTagged' "ScriptDatumHash" r
 
 instance Show ScriptDatum where
   show = genericShow
@@ -81,7 +81,7 @@ instance Show UnbalancedTx where
   show = genericShow
 
 instance EncodeAeson UnbalancedTx where
-  encodeAeson' (UnbalancedTx r) = encodeAeson' $ r
+  encodeAeson (UnbalancedTx r) = encodeAeson $ r
     { utxoIndex = encodeMap r.utxoIndex
     }
 

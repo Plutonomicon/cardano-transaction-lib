@@ -11,7 +11,6 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , caseAesonObject
-  , encodeAeson'
   , fromString
   , toStringifiedNumbersJson
   , (.:)
@@ -61,10 +60,10 @@ instance FromData OutputDatum where
   fromData = genericFromData
 
 instance EncodeAeson OutputDatum where
-  encodeAeson' = case _ of
-    NoOutputDatum -> encodeAeson' $ encodeTagged' "NoOutputDatum" {}
-    OutputDatumHash r -> encodeAeson' $ encodeTagged' "OutputDatumHash" r
-    OutputDatum r -> encodeAeson' $ encodeTagged' "OutputDatum" r
+  encodeAeson = case _ of
+    NoOutputDatum -> encodeTagged' "NoOutputDatum" {}
+    OutputDatumHash r -> encodeTagged' "OutputDatumHash" r
+    OutputDatum r -> encodeTagged' "OutputDatum" r
 
 instance DecodeAeson OutputDatum where
   decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $

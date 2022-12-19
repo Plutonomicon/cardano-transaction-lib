@@ -25,10 +25,6 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
 - PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
 
-If you plan on using CTL's `applyArgs` effect, you must also ensure the following is on your `$PATH`:
-
-- `ctl-server`: a server-side part of CTL itself
-
 All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.
 
 The services are NOT run by `docker-compose` as is the case with `launchCtlRuntime`: they are started and stopped on each CTL `Contract` execution by CTL.
@@ -171,12 +167,6 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
   some-plutip-test = project.runPlutipTest {
     name = "some-plutip-test";
     testMain = "Test.MyProject.Plutip";
-    # If you don't need `ctl-server`, you can set the following
-    # to `false`. Make sure to leave it as `true` (the default)
-    # if you are calling `applyArgs` in your contracts. This
-    # must match your `PlutipConfig` -- if `ctlServerConfig` is
-    # `Nothing`, `ctl-server` will not be spawned
-    withCtlServer = false;
     # The rest of the arguments are passed through to `runPursTest`:
     env = { SOME_ENV_VAR = "${some-value}"; };
   };
