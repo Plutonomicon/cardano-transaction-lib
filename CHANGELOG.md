@@ -96,7 +96,6 @@ TBD
 - `mustSendChangeToAddress` balancer constraint, allowing to explicitly set the address to send all generated change to ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
 - `mustUseUtxosAtAddress` and `mustUseUtxosAtAddresses` balancer constraints, allowing to specify addresses that should be treated like utxos sources during balancing ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
 - Add ability to provide extra browser CLI arguments in E2E test suite ([#1253](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1253))
-- The configuration option for plutip clusters: slot length, maxTxSize and increased ex-units can be adjusted using `clusterConfig` field of `PlutipConfig`. epoch size must currently remain at `80` however due to ([#1272](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1272))
 
 ### Changed
 
