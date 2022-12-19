@@ -1,4 +1,4 @@
-# CTL SECP256k1 Support
+# CTL Secp256k1 Support
 
 This document is a reference/explainer for the new CTL features introduced with the Chang Hardfork.
 
