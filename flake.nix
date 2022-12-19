@@ -4,10 +4,7 @@
   nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 
   inputs = {
-    iohk-nix.follows = "ogmios/iohk-nix";
-    haskell-nix.follows = "ogmios/haskell-nix";
     nixpkgs.follows = "ogmios/nixpkgs";
-    CHaP.follows = "ogmios/CHaP";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -50,10 +47,7 @@
   outputs =
     { self
     , nixpkgs
-    , haskell-nix
-    , iohk-nix
     , cardano-configurations
-    , CHaP
     , ...
     }@inputs:
     let
@@ -72,7 +66,6 @@
             ogmios-fixtures = inputs.ogmios;
           })
         ];
-        inherit (haskell-nix) config;
         inherit system;
       };
 
