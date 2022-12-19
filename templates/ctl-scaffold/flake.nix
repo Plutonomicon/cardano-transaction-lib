@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "fc35733e483c21e55e5acabacb1d9e192f91a032";
+      rev = "27f997461fda4a6f7eb52f1165a91d7d453fb990";
     };
     # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
@@ -32,11 +32,6 @@
         inherit system;
         overlays = [
           ctl.overlays.purescript
-          # This one is optional. If you set `ctl-server.enable = true;`
-          # in the runtime config as in our nix/runtime.nix, you must enable this
-          # overlay. `ctl-server` itself is **only** required when using
-          # CTL's `applyArgs` function
-          ctl.overlays.ctl-server
           ctl.overlays.runtime
           ctl.overlays.spago
         ];

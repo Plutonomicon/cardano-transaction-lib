@@ -299,7 +299,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startOgmios' response
   startKupo' response
   startOgmiosDatumCache' response
-  startMCtlServer'
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure
@@ -373,15 +372,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) $ const
       (pure unit)
 
-  startMCtlServer' :: Aff Unit
-  startMCtlServer' = case plutipCfg.ctlServerConfig of
-    Nothing -> pure unit
-    Just config ->
-      bracket
-        (startCtlServer config.port)
-        (stopChildProcessWithPort config.port)
-        $ const (pure unit)
-
   mkWallets'
     :: ContractEnv ()
     -> PrivatePaymentKey
@@ -449,7 +439,7 @@ configCheck cfg = do
       , cfg.kupoConfig.port /\ "kupo"
       , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
       , cfg.postgresConfig.port /\ "postgres"
-      ] <> foldMap (pure <<< (_ /\ "ctl-server") <<< _.port) cfg.ctlServerConfig
+      ]
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
@@ -472,7 +462,11 @@ startPlutipCluster
   -> InitialUTxODistribution
   -> Aff (PrivatePaymentKey /\ ClusterStartupParameters)
 startPlutipCluster cfg keysToGenerate = do
-  let url = mkServerEndpointUrl cfg "start"
+  let
+    url = mkServerEndpointUrl cfg "start"
+    -- TODO epoch size cannot currently be changed due to
+    -- https://github.com/mlabs-haskell/plutip/issues/149
+    epochSize = UInt.fromInt 80
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -481,7 +475,11 @@ startPlutipCluster cfg keysToGenerate = do
                 $ RequestBody.String
                 $ stringifyAeson
                 $ encodeAeson
-                $ ClusterStartupRequest { keysToGenerate }
+                $ ClusterStartupRequest
+                    { keysToGenerate
+                    , slotLength: cfg.clusterConfig.slotLength
+                    , epochSize
+                    }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
             , url = url
@@ -544,12 +542,10 @@ stopPlutipCluster cfg = do
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startOgmios cfg params = do
-  -- We wait for any output, because CTL-server tries to connect to Ogmios
-  -- repeatedly, and we can just wait for CTL-server to connect, instead of
-  -- waiting for Ogmios first.
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
-    $ pure Success
+    $ String.indexOf (Pattern "networkParameters")
+        >>> maybe NoOp (const Success)
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -779,8 +775,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
   pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
   pure $ ContractEnv
     { config:
-        { ctlServerConfig: plutipCfg.ctlServerConfig
-        , ogmiosConfig: plutipCfg.ogmiosConfig
+        { ogmiosConfig: plutipCfg.ogmiosConfig
         , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
         , kupoConfig: plutipCfg.kupoConfig
         , networkId: MainnetId
@@ -799,15 +794,6 @@ mkClusterContractEnv plutipCfg logger customLogger = do
         }
     , extraConfig: {}
     }
-
-startCtlServer :: UInt -> Aff ManagedProcess
-startCtlServer serverPort = do
-  let ctlServerArgs = [ "--port", UInt.toString serverPort ]
-  spawn "ctl-server" ctlServerArgs defaultSpawnOptions
-    -- Wait for "CTL server starting on port" string in the output
-    $ Just
-    $ String.indexOf (Pattern "CTL server starting on port")
-        >>> maybe NoOp (const Success)
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $

@@ -17,7 +17,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   )
 import Control.Alternative ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -45,7 +45,7 @@ instance Show Int where
   show = _intToStr
 
 instance EncodeAeson Int where
-  encodeAeson' = encodeAeson' <<< toBigInt
+  encodeAeson = encodeAeson <<< toBigInt
 
 instance DecodeAeson Int where
   decodeAeson aeson =

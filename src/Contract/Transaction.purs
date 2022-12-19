@@ -330,7 +330,7 @@ submitE tx = do
     SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json
 
--- | Query the Haskell server for the minimum transaction fee.
+-- | Query for the minimum transaction fee.
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
