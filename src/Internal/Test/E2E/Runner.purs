@@ -16,8 +16,8 @@ import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types
-  ( ClusterConfig(DefaultClusterConfig)
-  , PlutipConfig
+  ( PlutipConfig
+  , defaultClusterConfig
   )
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
 import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
@@ -231,7 +231,7 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
-  , clusterConfig: DefaultClusterConfig
+  , clusterConfig: defaultClusterConfig
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and

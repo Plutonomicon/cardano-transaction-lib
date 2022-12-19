@@ -68,7 +68,6 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
-import Ctl.Internal.Plutip.Types (ClusterConfig(ClusterConfig))
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head)
 import Data.Array as Array
@@ -695,9 +694,10 @@ suite = do
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
   where
   config = Common.config
-    { clusterConfig = ClusterConfig
-        { slotLength: Seconds 0.05
-        , maxTxSize: UInt.fromInt 16384
-        , increasedExUnits: UInt.fromInt 1
+    { clusterConfig =
+        { slotLength: Just $ Seconds 0.05
+        , maxTxSize: Nothing
+        , increasedExUnits: Nothing
+        , noCollateral: false
         }
     }

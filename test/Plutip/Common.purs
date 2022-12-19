@@ -8,8 +8,8 @@ import Prelude
 import Contract.Config (emptyHooks)
 import Contract.Wallet (privateKeyFromBytes)
 import Ctl.Internal.Plutip.Types
-  ( ClusterConfig(DefaultClusterConfig)
-  , PlutipConfig
+  ( PlutipConfig
+  , defaultClusterConfig
   )
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
@@ -59,7 +59,7 @@ config =
   , suppressLogs: true
   , customLogger: Nothing
   , hooks: emptyHooks
-  , clusterConfig: DefaultClusterConfig
+  , clusterConfig: defaultClusterConfig
   }
 
 privateStakeKey :: PrivateStakeKey

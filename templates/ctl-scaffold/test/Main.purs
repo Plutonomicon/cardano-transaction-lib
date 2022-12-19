@@ -7,8 +7,7 @@ import Contract.Prelude
 import Contract.Config (emptyHooks)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
-  ( ClusterConfig(ClusterConfig)
-  , InitialUTxOs
+  ( InitialUTxOs
   , PlutipConfig
   , PlutipTest
   , testPlutipContracts
@@ -16,6 +15,7 @@ import Contract.Test.Plutip
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.BigInt (fromInt) as BigInt
+import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (fromInt) as UInt
@@ -89,12 +89,14 @@ config =
   , suppressLogs: true
   , hooks: emptyHooks
   -- ClusterConfig allows for fine tuning of the cluster. If you would like to
-  -- simply use the recommended default parameters use DefaultClusterConfig
-  , clusterConfig: ClusterConfig
-      { slotLength: Seconds 0.1
+  -- simply use the recommended default parameters use defaultClusterConfig
+  , clusterConfig:
+      { slotLength: Just $ Seconds 0.1
       -- Adjust the max transaction size. Useful for debugging with traces
-      , maxTxSize: UInt.fromInt 16384
+      , maxTxSize: Just $ UInt.fromInt 16384
       -- Factor by with which to increase the standard maximum ex-Units
-      , increasedExUnits: UInt.fromInt 1
+      , increasedExUnits: Just $ UInt.fromInt 1
+      -- Remove the constraints on collateral. Useful for debugging with traces
+      , noCollateral: false
       }
   }
