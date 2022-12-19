@@ -29,12 +29,12 @@ The two functions are:
 
 **1. A verification function for [ECDSA](https://en.bitcoin.it/wiki/Elliptic_Curve_Digital_Signature_Algorithm) signatures.**
 
-[ECDSA usage example](../examples/PlutusV2/ECDSA.purs)\
+[ECDSA usage example](../examples/ECDSA.purs)
 
 [ECDSA source code](../src/Contract/Crypto/Secp256k1/ECDSA.purs)
 
 **2. A verification function for [Schnorr](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki) signatures.**
 
-[Schnorr usage example](../examples/PlutusV2/Schnorr.purs)
+[Schnorr usage example](../examples/Schnorr.purs)
 
 [Schnorr source code](../src/Contract/Crypto/Secp256k1/Schnorr.purs)
