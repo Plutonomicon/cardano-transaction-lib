@@ -50,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
 - Internal datum conversions are now total, resulting in some datum-related Contract functions dropping the use of `Maybe`, for example `datumHash`, `convertPlutusData` and their related functions. ([#1284](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1284)).
-- CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309 "CTL's CIP25 metadata encoding is considered invalid by Blockfrost #1309")).
+- CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309)).
 - `purescript-aeson` package has been updated:
   - the performance has generally been improved
   - `encodeAeson'` is now `encodeAeson` (and it returns just `Aeson` instead of an `AesonEncoder`)
