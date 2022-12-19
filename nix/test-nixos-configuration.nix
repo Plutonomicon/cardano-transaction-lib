@@ -38,6 +38,15 @@
     nodeSocket = "/var/run/cardano-node/node.socket";
   };
 
+  services.kupo = {
+    enable = true;
+    host = "0.0.0.0";
+    user = "kupo";
+    group = "kupo";
+    nodeConfig = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
+    nodeSocket = "/var/run/cardano-node/node.socket";
+  };
+
   services.ogmios-datum-cache = {
     enable = true;
     host = "0.0.0.0";
