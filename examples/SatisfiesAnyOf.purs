@@ -23,7 +23,6 @@ import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Data.BigInt as BigInt
-import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
