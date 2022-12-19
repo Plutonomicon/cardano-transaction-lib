@@ -15,5 +15,5 @@ Examples of the above are loacated in:
 # Milestone 2 - Documentation
 
 - Release notes - can be found in [CHANGELOG](./CHANGELOG.md)
-- Tutorials - 
+- Explainer Article - can be founf in [Secp256k1-support](./doc/Secp256k1-support.md)
 - Examples - can be located in the [examples/](./examples/) directory.
