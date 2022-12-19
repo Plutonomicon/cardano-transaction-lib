@@ -16,7 +16,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(UnexpectedValue)
   , caseAesonObject
-  , encodeAeson'
+  , encodeAeson
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -50,7 +50,7 @@ type RationalRep a =
   }
 
 instance EncodeAeson Rational where
-  encodeAeson' r = encodeAeson'
+  encodeAeson r = encodeAeson
     ( { "numerator": numerator r
       , "denominator": denominator r
       }

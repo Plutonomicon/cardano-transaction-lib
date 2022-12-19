@@ -30,7 +30,8 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
+  , partialFiniteNumber
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -50,8 +51,10 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String as String
+import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
+import Partial.Unsafe (unsafePartial)
 
 type PlutipConfig =
   { host :: String
@@ -60,14 +63,14 @@ type PlutipConfig =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , ogmiosDatumCacheConfig :: ServerConfig
-  -- Set this to `Nothing` to avoid spawning `ctl-server`
-  , ctlServerConfig :: Maybe ServerConfig
   , kupoConfig :: ServerConfig
   -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
   , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
+  , clusterConfig ::
+      { slotLength :: Seconds }
   }
 
 type PostgresConfig =
@@ -93,9 +96,20 @@ data InitialUTxOsWithStakeKey =
 type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
-  { keysToGenerate :: InitialUTxODistribution }
+  { keysToGenerate :: InitialUTxODistribution
+  , epochSize :: UInt
+  , slotLength :: Seconds
+  }
 
-derive newtype instance EncodeAeson ClusterStartupRequest
+instance EncodeAeson ClusterStartupRequest where
+  encodeAeson
+    ( ClusterStartupRequest
+        { keysToGenerate, epochSize, slotLength: Seconds slotLength }
+    ) = encodeAeson
+    { keysToGenerate
+    , epochSize
+    , slotLength: unsafePartial partialFiniteNumber slotLength
+    }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
 
@@ -175,7 +189,7 @@ instance Show StopClusterRequest where
   show = genericShow
 
 instance EncodeAeson StopClusterRequest where
-  encodeAeson' _ = encodeAeson' ([] :: Array Int)
+  encodeAeson _ = encodeAeson ([] :: Array Int)
 
 data StopClusterResponse = StopClusterSuccess | StopClusterFailure ErrorMessage
 

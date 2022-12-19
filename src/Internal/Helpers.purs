@@ -9,6 +9,10 @@ module Ctl.Internal.Helpers
   , appendRightMap
   , bigIntToUInt
   , concatPaths
+  , contentsProp
+  , encodeMap
+  , encodeTagged
+  , encodeTagged'
   , filterMapM
   , filterMapWithKeyM
   , fromJustEff
@@ -23,20 +27,19 @@ module Ctl.Internal.Helpers
   , mkErrorRecord
   , notImplemented
   , showWithParens
+  , tagProp
   , uIntToBigInt
-  , encodeMap
-  , encodeSet
-  , encodeTagged'
   ) where
 
 import Prelude
 
-import Aeson (class EncodeAeson, Aeson, encodeAeson)
-import Aeson.Encode (dictionary, encodeTagged)
+import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array (union)
+import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
+import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
@@ -44,17 +47,15 @@ import Data.List.Lazy as LL
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Map (Map)
+import Data.Map (Map, toUnfoldable)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
-import Data.Newtype (unwrap)
-import Data.Op (Op(Op))
-import Data.Set (Set)
-import Data.Set (toUnfoldable) as Set
 import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
+import Data.Traversable (traverse)
 import Data.Tuple (snd, uncurry)
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -62,6 +63,7 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
+import Foreign.Object as Obj
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 
@@ -232,23 +234,41 @@ showWithParens
   -> String
 showWithParens ctorName x = "(" <> ctorName <> " (" <> show x <> "))"
 
--- | A wrapper around the `dictionary` function from `Aeson.Encode`
--- | that uses `encodeAeson` for encoding keys and values.
+-- | If `k` is encoded as string, `encodeMap` encodes `Map` as `Object`,
+-- | else as an `Array` of `Aeson /\ Aeson` pairs
 encodeMap
   :: forall (k :: Type) (v :: Type)
    . EncodeAeson k
   => EncodeAeson v
   => Map k v
   -> Aeson
-encodeMap = unwrap $ dictionary (Op encodeAeson) (Op encodeAeson)
+encodeMap m =
+  case traverse (ltraverse toString) pairs of
+    Just pairs' -> encodeAeson $ Obj.fromFoldable pairs'
+    Nothing -> encodeAeson pairs
+  where
+  pairs :: Array (Aeson /\ Aeson)
+  pairs = map (bimap encodeAeson encodeAeson) $ toUnfoldable m
 
--- | A wrapper around `encodeTagged` function from `Aeson.Encode` that uses
+tagProp :: String
+tagProp = "tag"
+
+contentsProp :: String
+contentsProp = "contents"
+
+-- | Args: tag value encoder
+-- | Encodes `value` using `encoder` as `{ "tag": *encoded tag*, "contents": *encoded value* }`
+encodeTagged :: forall a. String -> a -> (a -> Aeson) -> Aeson
+encodeTagged tag a encoder =
+  encodeAeson $ Obj.fromFoldable
+    [ tagProp /\ encodeAeson tag
+    , contentsProp /\ encoder a
+    ]
+
+-- | A wrapper around `encodeTagged` function that uses
 -- | `encodeAeson` for encoding the passed value
 encodeTagged' :: forall (a :: Type). EncodeAeson a => String -> a -> Aeson
-encodeTagged' str x = encodeTagged str x (Op encodeAeson)
-
-encodeSet :: forall (a :: Type). EncodeAeson a => Set a -> Aeson
-encodeSet set = encodeAeson (Set.toUnfoldable set :: Array a)
+encodeTagged' str x = encodeTagged str x encodeAeson
 
 -- | Concat two strings with "/" in the middle, but stripping multiple slashes.
 -- No slash if second string empty.

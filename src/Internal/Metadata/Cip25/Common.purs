@@ -15,7 +15,7 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   , (.:)
   )
 import Ctl.Internal.FromData (class FromData, fromData)
@@ -66,7 +66,7 @@ instance DecodeAeson Cip25TokenName where
     <=< decodeAeson
 
 instance EncodeAeson Cip25TokenName where
-  encodeAeson' = encodeAeson' <<< getTokenName <<< unwrap
+  encodeAeson = encodeAeson <<< getTokenName <<< unwrap
 
 -- | `files_details` in CDDL
 -- |
@@ -130,7 +130,7 @@ instance DecodeAeson Cip25MetadataFile where
       pure $ wrap { name, mediaType, src }
 
 instance EncodeAeson Cip25MetadataFile where
-  encodeAeson' (Cip25MetadataFile { name, mediaType, src }) = encodeAeson'
+  encodeAeson (Cip25MetadataFile { name, mediaType, src }) = encodeAeson
     { name
     , mediaType
     , src

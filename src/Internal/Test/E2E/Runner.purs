@@ -89,7 +89,7 @@ import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
 import Data.String.Utils (startsWith, words) as String
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
@@ -205,13 +205,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ctlServerConfig: Just
-      { port: fromMaybe (UInt.fromInt defaultPorts.ctlServer)
-          options.ctlServerPort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
   , postgresConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
@@ -228,6 +221,8 @@ buildPlutipConfig options =
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
+  , clusterConfig:
+      { slotLength: Seconds 0.05 }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
@@ -265,8 +260,7 @@ testPlan opts@{ tests } rt@{ wallets } =
           \env wallet -> do
             let
               (clusterSetup :: ClusterSetup) =
-                { ctlServerConfig: (unwrap env).config.ctlServerConfig
-                , ogmiosConfig: (unwrap env).config.ogmiosConfig
+                { ogmiosConfig: (unwrap env).config.ogmiosConfig
                 , datumCacheConfig: (unwrap env).config.datumCacheConfig
                 , kupoConfig: (unwrap env).config.kupoConfig
                 , keys:
@@ -363,7 +357,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
-            <<< delete (Proxy :: Proxy "ctlServerPort")
             <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
@@ -378,8 +371,6 @@ readPorts testOptions = do
     readPortNumber "OGMIOS" testOptions.ogmiosPort
   ogmiosDatumCachePort <-
     readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
-  ctlServerPort <-
-    readPortNumber "CTL_SERVER" testOptions.ctlServerPort
   postgresPort <-
     readPortNumber "POSTGRES" testOptions.postgresPort
   kupoPort <-
@@ -388,7 +379,6 @@ readPorts testOptions = do
     { plutipPort
     , ogmiosPort
     , ogmiosDatumCachePort
-    , ctlServerPort
     , postgresPort
     , kupoPort
     }

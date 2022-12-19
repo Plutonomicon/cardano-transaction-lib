@@ -2,6 +2,7 @@ module Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
+  , mustPayToPubKeyStakeAddressWithDatum
   , submitAndLog
   ) where
 
@@ -9,24 +10,20 @@ import Contract.Prelude
 
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE)
+import Contract.Monad (Contract, liftContractM)
+import Contract.PlutusData (Datum)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx) as Lookups
 import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( BalancedSignedTransaction
-  , TransactionHash
   , awaitTxConfirmed
-  , balanceTx
   , getTxByHash
-  , getTxFinalFee
-  , signTransaction
   , submit
   )
+import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
-import Data.BigInt (BigInt)
 import Effect.Exception (throw)
 
 mkCurrencySymbol
@@ -54,6 +51,19 @@ mustPayToPubKeyStakeAddress pkh Nothing =
 mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
 
+mustPayToPubKeyStakeAddressWithDatum
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> Maybe StakePubKeyHash
+  -> Datum
+  -> DatumPresence
+  -> Value
+  -> Constraints.TxConstraints i o
+mustPayToPubKeyStakeAddressWithDatum pkh Nothing datum dtp =
+  Constraints.mustPayToPubKeyWithDatum pkh datum dtp
+mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) datum dtp =
+  Constraints.mustPayToPubKeyAddressWithDatum pkh skh datum dtp
+
 submitAndLog
   :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
 submitAndLog bsTx = do
@@ -66,4 +76,3 @@ submitAndLog bsTx = do
     void $ throw "Unable to get Tx contents"
     when (mbTransaction /= Just (unwrap bsTx)) do
       throw "Tx contents do not match"
-

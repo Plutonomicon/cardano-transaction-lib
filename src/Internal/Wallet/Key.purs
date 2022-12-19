@@ -15,7 +15,7 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
   )
 import Contract.Prelude (class Newtype)
 import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
@@ -89,7 +89,7 @@ instance Show PrivatePaymentKey where
   show _ = "(PrivatePaymentKey <hidden>)"
 
 instance EncodeAeson PrivatePaymentKey where
-  encodeAeson' (PrivatePaymentKey pk) = encodeAeson' (privateKeyToBech32 pk)
+  encodeAeson (PrivatePaymentKey pk) = encodeAeson (privateKeyToBech32 pk)
 
 instance DecodeAeson PrivatePaymentKey where
   decodeAeson aeson =
@@ -106,7 +106,7 @@ instance Show PrivateStakeKey where
   show _ = "(PrivateStakeKey <hidden>)"
 
 instance EncodeAeson PrivateStakeKey where
-  encodeAeson' (PrivateStakeKey pk) = encodeAeson' (privateKeyToBech32 pk)
+  encodeAeson (PrivateStakeKey pk) = encodeAeson (privateKeyToBech32 pk)
 
 instance DecodeAeson PrivateStakeKey where
   decodeAeson aeson =

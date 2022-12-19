@@ -98,12 +98,11 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , encodeAeson
-  , encodeAeson'
   )
-import Aeson.Encode (encodeTagged)
 import Control.Alt ((<|>))
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Serialization.Types (Bip32PublicKey)
 import Ctl.Internal.ToData (class ToData, toData)
@@ -117,10 +116,8 @@ import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Op (Op(Op))
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
-import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
 
 newtype Slot = Slot BigNum
@@ -147,7 +144,7 @@ derive instance Newtype BlockId _
 derive instance Generic BlockId _
 
 instance EncodeAeson BlockId where
-  encodeAeson' (BlockId id) = encodeAeson' (UInt.toNumber id)
+  encodeAeson (BlockId id) = encodeAeson id
 
 instance Show BlockId where
   show = genericShow
@@ -192,7 +189,7 @@ instance Show Address where
   show a = "(Address " <> addressBech32 a <> ")"
 
 instance EncodeAeson Address where
-  encodeAeson' = encodeAeson' <<< addressBech32
+  encodeAeson = encodeAeson <<< addressBech32
 
 showVia
   :: forall (a :: Type) (b :: Type). Show b => String -> (a -> b) -> a -> String
@@ -294,7 +291,7 @@ instance ToData RewardAddress where
   toData = toData <<< rewardAddressBytes
 
 instance EncodeAeson RewardAddress where
-  encodeAeson' = encodeAeson' <<< rewardAddressBech32
+  encodeAeson = encodeAeson <<< rewardAddressBech32
 
 instance DecodeAeson RewardAddress where
   decodeAeson = decodeAeson >=>
@@ -320,8 +317,8 @@ instance ToData StakeCredential where
   toData = toData <<< unwrap <<< stakeCredentialToBytes
 
 instance EncodeAeson StakeCredential where
-  encodeAeson' = withStakeCredential
-    { onKeyHash: encodeAeson', onScriptHash: encodeAeson' }
+  encodeAeson = withStakeCredential
+    { onKeyHash: encodeAeson, onScriptHash: encodeAeson }
 
 foreign import _addressFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe Address
@@ -383,9 +380,9 @@ data NetworkId
   | MainnetId
 
 instance EncodeAeson NetworkId where
-  encodeAeson' = case _ of
-    TestnetId -> encodeAeson' $ encodeTagged "TestnetId" {} (Op encodeAeson)
-    MainnetId -> encodeAeson' $ encodeTagged "MainnetId" {} (Op encodeAeson)
+  encodeAeson = case _ of
+    TestnetId -> encodeTagged' "TestnetId" {}
+    MainnetId -> encodeTagged' "MainnetId" {}
 
 networkIdtoInt :: NetworkId -> Int
 networkIdtoInt = case _ of
