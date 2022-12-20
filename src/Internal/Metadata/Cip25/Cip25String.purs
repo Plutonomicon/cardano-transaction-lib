@@ -129,10 +129,8 @@ toDataString str = case toCip25Strings str of
   strings -> toData $ toData <$> strings
 
 fromDataString :: PlutusData -> Maybe String
-fromDataString datum = do
-  (fromCip25Strings <$> (Array.singleton <$> fromData datum)) <|> do
-    bytes :: Array ByteArray <- fromData datum
-    hush $ decodeUtf8 $ unwrap $ fold bytes
+fromDataString datum = fromCip25Strings <$>
+  ((Array.singleton <$> fromData datum) <|> fromData datum)
 
 toMetadataString :: String -> TransactionMetadatum
 toMetadataString str = case toCip25Strings str of
@@ -140,6 +138,5 @@ toMetadataString str = case toCip25Strings str of
   strings -> toMetadata $ toMetadata <$> strings
 
 fromMetadataString :: TransactionMetadatum -> Maybe String
-fromMetadataString datum =
-  fromCip25Strings <$>
-    (Array.singleton <$> fromMetadata datum <|> fromMetadata datum)
+fromMetadataString datum = fromCip25Strings <$>
+  ((Array.singleton <$> fromMetadata datum) <|> fromMetadata datum)
