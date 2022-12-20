@@ -52,6 +52,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Removed
 
 ### Fixed
+- CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))
 
 ### Runtime Dependencies
 
@@ -84,7 +85,6 @@ TBD
 
 - Added missing `stakePoolTargetNum` ("`nOpt`") protocol parameter (see [CIP-9](https://cips.cardano.org/cips/cip9/)) ([#571](https://github.com/Plutonomicon/cardano-transaction-lib/issues/571))
 - CIP-30 `signData` response handling ([#1289](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1289))
-- CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))
 
 ### Runtime Dependencies
 
