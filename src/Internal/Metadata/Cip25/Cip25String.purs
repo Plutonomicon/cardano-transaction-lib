@@ -140,7 +140,6 @@ toMetadataString str = case toCip25Strings str of
   strings -> toMetadata $ toMetadata <$> strings
 
 fromMetadataString :: TransactionMetadatum -> Maybe String
-fromMetadataString datum = do
-  fromCip25Strings <$> (Array.singleton <$> fromMetadata datum) <|> do
-    strings :: Array Cip25String <- fromMetadata datum
-    pure $ foldMap (\(Cip25String s) -> s) strings
+fromMetadataString datum =
+  fromCip25Strings <$>
+    (Array.singleton <$> fromMetadata datum <|> fromMetadata datum)
