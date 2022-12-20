@@ -78,7 +78,7 @@ import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Contract.Numeric.BigNum (BigNum)
-import Contract.Numeric.BigNum (fromBigInt, fromInt) as BigNum
+import Contract.Numeric.BigNum (fromBigInt, fromInt, one, zero) as BigNum
 import Contract.Transaction
   ( PoolPubKeyHash(PoolPubKeyHash)
   , vrfKeyHashFromBytes
@@ -323,6 +323,8 @@ proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
         , maxBlockExUnits: Just
             { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
         , maxValueSize: Just $ UInt.fromInt 1
+        , collateralPercentage: Just $ UInt.fromInt 140
+        , maxCollateralInputs: Just $ UInt.fromInt 10
         }
     ]
 
@@ -814,7 +816,7 @@ txBinaryFixture4 =
   \611f3c6b758f655820fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05\
   \f37096820682010182068201a18200581c1730b1b700d616d51555538e83d67f13c113ad5f9b\
   \22212703482cb30105a1581de01730b1b700d616d51555538e83d67f13c113ad5f9b22212703\
-  \482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65b4\
+  \482cb3010682a1581c5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65b6\
   \000101010219271003192710041903e8050106010701080109d81e8201010ad81e8201010bd8\
   \1e8201010e8201011001110112a20098a61a0003236119032c01011903e819023b00011903e8\
   \195e7104011903e818201a0001ca761928eb041959d818641959d818641959d818641959d818\
@@ -841,12 +843,12 @@ txBinaryFixture4 =
   \0c660004001a00014fab18201a0003236119032c010119a0de18201a00033d7618201979f418\
   \20197fb8182019a95d1820197df718201995aa18201b00000004a817c8001b00000004a817c8\
   \001a009063b91903fd0a1b00000004a817c800001b00000004a817c8001382d81e820101d81e\
-  \8201011482010115820101160101075820000000000000000000000000000000000000000000\
-  \000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685128f1e78ad0c\
-  \4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e935acc35ec2e6\
-  \f96c650fd3bfba3e96550504d533610f01108258390030fb3b8539951e26f034910a5a37f22c\
-  \b99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d5\
-  \336100111a004c4b40a0f5f6"
+  \8201011482010115820101160117188c18180a01075820000000000000000000000000000000\
+  \000000000000000000000000000000000008187c09a1581c1d6445ddeda578117f393848e685\
+  \128f1e78ad0c4e48129c5964dc2ea14a4974657374546f6b656e010e81581c1c12f03c1ef2e9\
+  \35acc35ec2e6f96c650fd3bfba3e96550504d533610f01108258390030fb3b8539951e26f034\
+  \910a5a37f22cb99d94d1d409f69ddbaea9711c12f03c1ef2e935acc35ec2e6f96c650fd3bfba\
+  \3e96550504d5336100111a004c4b40a0f5f6"
 
 txBinaryFixture5 :: String
 txBinaryFixture5 =
@@ -1252,7 +1254,7 @@ plutusDataFixture3 = PD.Bytes
   )
 
 plutusDataFixture4 :: PD.PlutusData
-plutusDataFixture4 = PD.Constr (BigInt.fromInt 1)
+plutusDataFixture4 = PD.Constr BigNum.one
   [ plutusDataFixture2, plutusDataFixture3 ]
 
 plutusDataFixture5 :: PD.PlutusData
@@ -1275,7 +1277,7 @@ plutusDataFixture7 = PD.List
   ]
 
 plutusDataFixture8 :: PD.PlutusData
-plutusDataFixture8 = PD.Constr (BigInt.fromInt 0)
+plutusDataFixture8 = PD.Constr BigNum.zero
   [ PD.Bytes
       ( hexToByteArrayUnsafe
           "da13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e"

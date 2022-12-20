@@ -13,13 +13,14 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization (convertTxOutput, serializeData, toBytes)
 import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromString) as BN
+import Ctl.Internal.Types.BigNum (fromString, one) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.CborBytes (cborBytesToHex)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
@@ -78,11 +79,12 @@ suite = do
         pure unit
       test "PlutusData #1 - Constr" $ do
         let
-          datum = PD.Constr (BigInt.fromInt 1)
+          datum = PD.Constr BN.one
             [ PD.Integer (BigInt.fromInt 1)
             , PD.Integer (BigInt.fromInt 2)
             ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #2 - Map" $ do
         let
           datum =
@@ -90,29 +92,29 @@ suite = do
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #3 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #4 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #5 - Bytes" $ do
         let datum = PD.Bytes $ hexToByteArrayUnsafe "00ff"
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test
         "PlutusData #6 - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
         $ do
-            let
-              datum = PD.Integer $ BigInt.fromInt 0
-            datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
-              datum
-            let bytes = toBytes datum'
-            byteArrayToHex (unwrap bytes) `shouldEqual` "00"
+            let bytes = serializeData $ PD.Integer (BigInt.fromInt 0)
+            cborBytesToHex bytes `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes txo

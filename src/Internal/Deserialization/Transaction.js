@@ -180,6 +180,8 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
     maxTxExUnits: optional(ppu.max_tx_ex_units()),
     maxBlockExUnits: optional(ppu.max_block_ex_units()),
     maxValueSize: optional(ppu.max_value_size()),
+    collateralPercentage: optional(ppu.collateral_percentage()),
+    maxCollateralInputs: optional(ppu.max_collateral_inputs()),
   };
 };
 

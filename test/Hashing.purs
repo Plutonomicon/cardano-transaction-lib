@@ -23,7 +23,7 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
 import Ctl.Internal.Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
 import Ctl.Internal.Types.Transaction (DataHash)
 import Data.BigInt (fromInt)
-import Data.Maybe (Maybe(Just), fromJust)
+import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Mote (group, test)
@@ -52,13 +52,13 @@ suite =
 
     test "blake2b256 hash of Plutus data" do
       Hashing.datumHash (wrap plutusDataFixture7)
-        `shouldEqual` Just datumHashFixture
+        `shouldEqual` datumHashFixture
     test
       "blake2b256 hash of Plutus data - Integer 0 (regression to \
       \https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
       do
         Hashing.datumHash (wrap $ Integer (fromInt 0))
-          `shouldEqual` Just zeroIntDatumHashFixture
+          `shouldEqual` zeroIntDatumHashFixture
 
     test "sha256 hash of an arbitrary byte array" do
       Hashing.sha256Hash inputDataFixture

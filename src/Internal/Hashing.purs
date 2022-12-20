@@ -32,7 +32,6 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
-import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
@@ -52,9 +51,9 @@ foreign import sha3_256Hash :: ByteArray -> ByteArray
 
 foreign import sha3_256HashHex :: ByteArray -> String
 
-datumHash :: Datum -> Maybe DataHash
+datumHash :: Datum -> DataHash
 datumHash =
-  map (wrap <<< unwrap <<< toBytes <<< hashPlutusData)
+  wrap <<< unwrap <<< toBytes <<< hashPlutusData
     <<< convertPlutusData
     <<< unwrap
 

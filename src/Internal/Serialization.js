@@ -335,6 +335,10 @@ exports.ppuSetMaxBlockExUnits = setter("max_block_ex_units");
 
 exports.ppuSetMaxValueSize = setter("max_value_size");
 
+exports.ppuSetCollateralPercentage = setter("collateral_percentage");
+
+exports.ppuSetMaxCollateralInputs = setter("max_collateral_inputs");
+
 exports.newProtocolParamUpdate = () => lib.ProtocolParamUpdate.new();
 
 exports.newProposedProtocolParameterUpdates = containerHelper => kvs => () =>

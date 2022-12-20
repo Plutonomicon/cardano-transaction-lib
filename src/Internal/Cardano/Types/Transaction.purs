@@ -398,6 +398,8 @@ type ProtocolParamUpdate =
   , maxTxExUnits :: Maybe ExUnits
   , maxBlockExUnits :: Maybe ExUnits
   , maxValueSize :: Maybe UInt
+  , collateralPercentage :: Maybe UInt
+  , maxCollateralInputs :: Maybe UInt
   }
 
 type ExUnitPrices =

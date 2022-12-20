@@ -166,7 +166,7 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, for_, traverse, traverse_)
+import Data.Traversable (for, for_, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -463,6 +463,16 @@ foreign import ppuSetMaxValueSize
   -> Int
   -> Effect Unit
 
+foreign import ppuSetCollateralPercentage
+  :: ProtocolParamUpdate
+  -> Int
+  -> Effect Unit
+
+foreign import ppuSetMaxCollateralInputs
+  :: ProtocolParamUpdate
+  -> Int
+  -> Effect Unit
+
 foreign import newProposedProtocolParameterUpdates
   :: ContainerHelper
   -> Array (GenesisHash /\ ProtocolParamUpdate)
@@ -576,6 +586,8 @@ convertProtocolParamUpdate
   , maxTxExUnits
   , maxBlockExUnits
   , maxValueSize
+  , collateralPercentage
+  , maxCollateralInputs
   } = do
   ppu <- newProtocolParamUpdate
   for_ minfeeA $ ppuSetMinfeeA ppu
@@ -623,6 +635,8 @@ convertProtocolParamUpdate
   for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
   for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
   for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
+  for_ collateralPercentage $ UInt.toInt >>> ppuSetCollateralPercentage ppu
+  for_ maxCollateralInputs $ UInt.toInt >>> ppuSetMaxCollateralInputs ppu
   pure ppu
 
 mkUnitInterval
@@ -800,8 +814,8 @@ convertTxOutput
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
-        =<< fromJustEff "convertTxOutput"
-          (convertPlutusData $ unwrap datumValue)
+        $ convertPlutusData
+        $ unwrap datumValue
   for_ scriptRef $
     convertScriptRef >>> transactionOutputSetScriptRef txo
   pure txo
@@ -878,8 +892,7 @@ hashScriptData cms rs ps = do
   -- function, the resulting hash will be wrong
   case ps of
     [] -> _hashScriptDataNoDatums rs' cms'
-    _ -> _hashScriptData rs' cms' =<< fromJustEff "failed to convert datums"
-      (traverse convertPlutusData ps)
+    _ -> _hashScriptData rs' cms' $ map convertPlutusData ps
 
-serializeData :: forall (a :: Type). ToData a => a -> Maybe CborBytes
-serializeData = map toBytes <<< convertPlutusData <<< toData
+serializeData :: forall (a :: Type). ToData a => a -> CborBytes
+serializeData = toBytes <<< convertPlutusData <<< toData

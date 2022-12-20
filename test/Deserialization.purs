@@ -97,20 +97,15 @@ suite = do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ BigNum.fromBigInt bigInt
-          >>= BigNum.toBigInt
+          <#> BigNum.toBigInt
         res `shouldEqual` bigInt
     group "CSL <-> CTL PlutusData roundtrip tests" do
       let
         pdRoundTripTest ctlPd = do
-          cslPd <-
-            errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
-              SPD.convertPlutusData ctlPd
-          let pdBytes = Serialization.toBytes cslPd
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-            pdBytes
-          ctlPd' <-
-            errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
-              DPD.convertPlutusData cslPd'
+            $ Serialization.toBytes
+            $ SPD.convertPlutusData ctlPd
+          let ctlPd' = DPD.convertPlutusData cslPd'
           ctlPd' `shouldEqual` ctlPd
       test "fixture #1" $ pdRoundTripTest plutusDataFixture1
       test "fixture #2" $ pdRoundTripTest plutusDataFixture2
@@ -125,17 +120,11 @@ suite = do
         $ do
             cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
               $ wrap plutusDataFixture8Bytes
-            ctlPd' <-
-              errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
-                $
-                  DPD.convertPlutusData cslPd'
+            let ctlPd' = DPD.convertPlutusData cslPd'
             ctlPd' `shouldEqual` plutusDataFixture8
             cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
               $ wrap plutusDataFixture8Bytes'
-            ctlPdWp' <-
-              errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
-                $
-                  DPD.convertPlutusData cslPdWp'
+            let ctlPdWp' = DPD.convertPlutusData cslPdWp'
             ctlPdWp' `shouldEqual` plutusDataFixture8
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
