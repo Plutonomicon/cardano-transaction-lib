@@ -183,7 +183,7 @@ import Ctl.Internal.Serialization.Types
   , Withdrawals
   ) as Csl
 import Ctl.Internal.Types.BigNum (BigNum) as Csl
-import Ctl.Internal.Types.BigNum (toBigInt') as BigNum
+import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int (Int) as Csl
@@ -246,9 +246,8 @@ convertTxBody txBody = do
   outputs <-
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
-  fee <-
-    Coin <$> (_txBodyFee txBody # BigNum.toBigInt' "Tx fee")
   let
+    fee = Coin $ BigNum.toBigInt $ _txBodyFee txBody
     networkId =
       _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
 
@@ -262,7 +261,7 @@ convertTxBody txBody = do
     (map <<< map) (M.fromFoldable <<< map (lmap T.RewardAddress))
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
-        (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
+        (BigNum.toBigInt >>> Coin >>> pure)
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
@@ -287,9 +286,9 @@ convertTxBody txBody = do
     _txBodyCollateralReturn maybeFfiHelper txBody #
       traverse (convertOutput >>> cslErr "TransactionOutput")
 
-  totalCollateral <-
-    _txBodyTotalCollateral maybeFfiHelper txBody # traverse
-      (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
+  let
+    totalCollateral = _txBodyTotalCollateral maybeFfiHelper txBody <#>
+      (BigNum.toBigInt >>> Coin)
 
   pure $ T.TxBody
     { inputs
@@ -473,20 +472,16 @@ convertProtocolParamUpdate cslPpu = do
   let
     ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
     lbl = (<>) "ProtocolParamUpdate."
-
-  minfeeA <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeA"))
-    ppu.minfeeA
-  minfeeB <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeB"))
-    ppu.minfeeB
+    minfeeA = Coin <<< BigNum.toBigInt <$> ppu.minfeeA
+    minfeeB = Coin <<< BigNum.toBigInt <$> ppu.minfeeB
   maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
     ppu.maxBlockBodySize
   maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
   maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
     ppu.maxBlockHeaderSize
-  keyDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "keyDeposit"))
-    ppu.keyDeposit
-  poolDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "poolDeposit"))
-    ppu.poolDeposit
+  let
+    keyDeposit = Coin <<< BigNum.toBigInt <$> ppu.keyDeposit
+    poolDeposit = Coin <<< BigNum.toBigInt <$> ppu.poolDeposit
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
@@ -494,12 +489,17 @@ convertProtocolParamUpdate cslPpu = do
     ppu.protocolVersion
   costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
     ppu.costModels
-  maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
-    ppu.maxTxExUnits
-  maxBlockExUnits <- traverse (convertExUnits (lbl "maxBlockExUnits"))
-    ppu.maxBlockExUnits
+  let
+    maxTxExUnits = convertExUnits <$> ppu.maxTxExUnits
+    maxBlockExUnits = convertExUnits <$>
+      ppu.maxBlockExUnits
   maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
     ppu.maxValueSize
+  collateralPercentage <- traverse
+    (cslNumberToUInt (lbl "collateralPercentage"))
+    ppu.collateralPercentage
+  maxCollateralInputs <- traverse (cslNumberToUInt (lbl "maxCollateralInputs"))
+    ppu.maxCollateralInputs
   pure
     { minfeeA
     , minfeeB
@@ -521,6 +521,8 @@ convertProtocolParamUpdate cslPpu = do
     , maxTxExUnits
     , maxBlockExUnits
     , maxValueSize
+    , collateralPercentage
+    , maxCollateralInputs
     }
 
 convertNonce :: Csl.Nonce -> T.Nonce
@@ -574,9 +576,7 @@ convertGeneralTransactionMetadata =
       -- convert tuple type
       traverse
         ( bitraverse
-            ( map TransactionMetadatumLabel <<< BigNum.toBigInt'
-                "MetadatumLabel: "
-            )
+            (pure <<< TransactionMetadatumLabel <<< BigNum.toBigInt)
             (convertMetadatum "GeneralTransactionMetadata: ")
         )
     -- fold to map and and wrap
@@ -638,25 +638,20 @@ cslIntToUInt nm nb = cslErr (nm <> ": Int (" <> show nb <> ") -> UInt") $
 
 cslRatioToRational
   :: forall (r :: Row Type)
-   . String
-  -> { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
-  -> E (FromCslRepError + r) (Ratio BigInt)
-cslRatioToRational err { numerator, denominator } = reduce
-  <$> BigNum.toBigInt' (err <> " cslRatioToRational") numerator
-  <*> BigNum.toBigInt' (err <> " cslRatioToRational") denominator
+   . { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
+  -> Ratio BigInt
+cslRatioToRational { numerator, denominator } =
+  reduce (BigNum.toBigInt numerator) (BigNum.toBigInt denominator)
 
 convertExUnits
   :: forall (r :: Row Type)
-   . String
-  -> Csl.ExUnits
-  -> E (FromCslRepError + r) T.ExUnits
-convertExUnits nm cslExunits =
+   . Csl.ExUnits
+  -> T.ExUnits
+convertExUnits cslExunits =
   let
     { mem, steps } = _unpackExUnits cslExunits
   in
-    { mem: _, steps: _ }
-      <$> BigNum.toBigInt' (nm <> " mem") mem
-      <*> BigNum.toBigInt' (nm <> " steps") steps
+    { mem: _, steps: _ } (BigNum.toBigInt mem) (BigNum.toBigInt steps)
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
 convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
@@ -706,6 +701,8 @@ foreign import _unpackProtocolParamUpdate
      , maxTxExUnits :: Maybe Csl.ExUnits
      , maxBlockExUnits :: Maybe Csl.ExUnits
      , maxValueSize :: Maybe Number
+     , collateralPercentage :: Maybe Number
+     , maxCollateralInputs :: Maybe Number
      }
 
 foreign import _unpackCostModels

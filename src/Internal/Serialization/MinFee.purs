@@ -39,14 +39,12 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
   let tx = addFakeSignatures selfSigners txNoSigs
   cslTx <- liftEffect $ Serialization.convertTransaction tx
   minFee <- liftMaybe (error "Unable to calculate min_fee") $
-    BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
+    BigNum.toBigInt <$> _minFee maybeFfiHelper cslTx
       (BigNum.fromUInt pparams.txFeeFixed)
       (BigNum.fromUInt pparams.txFeePerByte)
   let exUnitPrices = pparams.prices
   exUnitPricesCsl <- liftEffect $ Serialization.convertExUnitPrices exUnitPrices
-  minScriptFee <-
-    liftMaybe (error "Unable to calculate min_script_fee") $
-      BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
+  let minScriptFee = BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
   pure $ wrap $ minFee + minScriptFee
 
 -- | Adds fake signatures for each expected signature of a transaction.

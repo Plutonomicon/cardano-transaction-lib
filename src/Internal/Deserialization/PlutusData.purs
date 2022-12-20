@@ -23,20 +23,21 @@ import Ctl.Internal.Serialization.Types
   , PlutusMap
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap)
-import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
+import Partial.Unsafe (unsafePartial)
 
-convertPlutusData :: PlutusData -> Maybe T.PlutusData
-convertPlutusData pd =
+convertPlutusData :: PlutusData -> T.PlutusData
+-- Unsafe fromJust here is correct, because we cover every PlutusData
+-- constructor, and Just will be returned by one of functions
+convertPlutusData pd = unsafePartial $ fromJust $
   convertPlutusConstr pd
     <|> convertPlutusMap pd
     <|> convertPlutusList pd
@@ -46,27 +47,26 @@ convertPlutusData pd =
 convertPlutusConstr :: PlutusData -> Maybe T.PlutusData
 convertPlutusConstr pd = do
   constr <- _PlutusData_constr maybeFfiHelper pd
-  data' <- traverse convertPlutusData
-    $ _unpackPlutusList containerHelper
-    $ _ConstrPlutusData_data constr
-  alt <- BigNum.toBigInt $ _ConstrPlutusData_alternative constr
+  let
+    data' = convertPlutusData <$>
+      _unpackPlutusList containerHelper (_ConstrPlutusData_data constr)
+    alt = _ConstrPlutusData_alternative constr
   pure $ T.Constr alt data'
 
 convertPlutusMap :: PlutusData -> Maybe T.PlutusData
 convertPlutusMap pd = do
-  entries <- _PlutusData_map maybeFfiHelper pd >>=
-    _unpackPlutusMap containerHelper Tuple >>> traverse
-      \(k /\ v) -> do
-        k' <- convertPlutusData k
-        v' <- convertPlutusData v
-        pure (k' /\ v')
+  entries <- _PlutusData_map maybeFfiHelper pd <#>
+    _unpackPlutusMap containerHelper Tuple >>> map
+      \(k /\ v) -> (convertPlutusData k /\ convertPlutusData v)
+
   pure $ T.Map entries
 
 convertPlutusList :: PlutusData -> Maybe T.PlutusData
 convertPlutusList pd = T.List <$> do
-  _PlutusData_list maybeFfiHelper pd >>=
-    _unpackPlutusList containerHelper >>>
-      traverse convertPlutusData
+  _PlutusData_list maybeFfiHelper pd <#>
+    ( _unpackPlutusList containerHelper >>>
+        map convertPlutusData
+    )
 
 convertPlutusInteger :: PlutusData -> Maybe T.PlutusData
 convertPlutusInteger pd = T.Integer <$> do
@@ -76,7 +76,7 @@ convertPlutusBytes :: PlutusData -> Maybe T.PlutusData
 convertPlutusBytes pd = T.Bytes <$> _PlutusData_bytes maybeFfiHelper pd
 
 deserializeData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
-deserializeData = (fromData <=< convertPlutusData <=< fromBytes) <<< unwrap
+deserializeData = fromData <=< map convertPlutusData <<< fromBytes <<< unwrap
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData
