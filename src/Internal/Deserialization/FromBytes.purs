@@ -51,79 +51,79 @@ class FromBytes a where
   fromBytes' :: forall (r :: Row Type). ByteArray -> E (FromBytesError + r) a
 
 instance FromBytes Address where
-  fromBytes' = fromBytes'' "Address"
+  fromBytes' = fromBytesImpl "Address"
 
 instance FromBytes AuxiliaryDataHash where
-  fromBytes' = fromBytes'' "AuxiliaryDataHash"
+  fromBytes' = fromBytesImpl "AuxiliaryDataHash"
 
 instance FromBytes ByronAddress where
-  fromBytes' = fromBytes'' "ByronAddress"
+  fromBytes' = fromBytesImpl "ByronAddress"
 
 instance FromBytes DataHash where
-  fromBytes' = fromBytes'' "DataHash"
+  fromBytes' = fromBytesImpl "DataHash"
 
 instance FromBytes Ed25519KeyHash where
-  fromBytes' = fromBytes'' "Ed25519KeyHash"
+  fromBytes' = fromBytesImpl "Ed25519KeyHash"
 
 instance FromBytes Ed25519Signature where
-  fromBytes' = fromBytes'' "Ed25519Signature"
+  fromBytes' = fromBytesImpl "Ed25519Signature"
 
 instance FromBytes GenesisDelegateHash where
-  fromBytes' = fromBytes'' "GenesisDelegateHash"
+  fromBytes' = fromBytesImpl "GenesisDelegateHash"
 
 instance FromBytes GenesisHash where
-  fromBytes' = fromBytes'' "GenesisHash"
+  fromBytes' = fromBytesImpl "GenesisHash"
 
 instance FromBytes Mint where
-  fromBytes' = fromBytes'' "Mint"
+  fromBytes' = fromBytesImpl "Mint"
 
 instance FromBytes NativeScript where
-  fromBytes' = fromBytes'' "NativeScript"
+  fromBytes' = fromBytesImpl "NativeScript"
 
 instance FromBytes PlutusData where
-  fromBytes' = fromBytes'' "PlutusData"
+  fromBytes' = fromBytesImpl "PlutusData"
 
 instance FromBytes PoolMetadataHash where
-  fromBytes' = fromBytes'' "PoolMetadataHash"
+  fromBytes' = fromBytesImpl "PoolMetadataHash"
 
 instance FromBytes PublicKey where
-  fromBytes' = fromBytes'' "PublicKey"
+  fromBytes' = fromBytesImpl "PublicKey"
 
 instance FromBytes Redeemers where
-  fromBytes' = fromBytes'' "Redeemers"
+  fromBytes' = fromBytesImpl "Redeemers"
 
 instance FromBytes ScriptDataHash where
-  fromBytes' = fromBytes'' "ScriptDataHash"
+  fromBytes' = fromBytesImpl "ScriptDataHash"
 
 instance FromBytes ScriptHash where
-  fromBytes' = fromBytes'' "ScriptHash"
+  fromBytes' = fromBytesImpl "ScriptHash"
 
 instance FromBytes StakeCredential where
-  fromBytes' = fromBytes'' "StakeCredential"
+  fromBytes' = fromBytesImpl "StakeCredential"
 
 instance FromBytes Transaction where
-  fromBytes' = fromBytes'' "Transaction"
+  fromBytes' = fromBytesImpl "Transaction"
 
 instance FromBytes TransactionBody where
-  fromBytes' = fromBytes'' "TransactionBody"
+  fromBytes' = fromBytesImpl "TransactionBody"
 
 instance FromBytes TransactionHash where
-  fromBytes' = fromBytes'' "TransactionHash"
+  fromBytes' = fromBytesImpl "TransactionHash"
 
 instance FromBytes TransactionOutput where
-  fromBytes' = fromBytes'' "TransactionOutput"
+  fromBytes' = fromBytesImpl "TransactionOutput"
 
 instance FromBytes TransactionUnspentOutput where
-  fromBytes' = fromBytes'' "TransactionUnspentOutput"
+  fromBytes' = fromBytesImpl "TransactionUnspentOutput"
 
 instance FromBytes TransactionWitnessSet where
-  fromBytes' = fromBytes'' "TransactionWitnessSet"
+  fromBytes' = fromBytesImpl "TransactionWitnessSet"
 
 instance FromBytes Value where
-  fromBytes' = fromBytes'' "Value"
+  fromBytes' = fromBytesImpl "Value"
 
 instance FromBytes VRFKeyHash where
-  fromBytes' = fromBytes'' "VRFKeyHash"
+  fromBytes' = fromBytesImpl "VRFKeyHash"
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => CborBytes -> Maybe a
@@ -135,18 +135,18 @@ fromBytesEffect bytes =
     Nothing -> throw "from_bytes() call failed"
     Just a -> pure a
 
-fromBytes''
+fromBytesImpl
   :: forall (r :: Row Type) (a :: Type)
    . String
   -> ByteArray
   -> E (FromBytesError + r) a
-fromBytes'' = flip _fromBytes fromBytesErrorHelper
+fromBytesImpl = _fromBytes fromBytesErrorHelper
 
 ---- Foreign imports
 
 foreign import _fromBytes
   :: forall (r :: Row Type) (a :: Type)
-   . String
-  -> ErrorFfiHelper r
+   . ErrorFfiHelper r
+  -> String
   -> ByteArray
   -> E r a

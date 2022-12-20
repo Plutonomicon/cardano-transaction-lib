@@ -35,7 +35,7 @@ import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Untagged.Castable (class Castable)
 import Untagged.Union (type (|+|))
 
-type SerializationData = Address
+type SerializableData = Address
   |+| AuxiliaryDataHash
   |+| ByronAddress
   |+| DataHash
@@ -68,7 +68,7 @@ foreign import _toBytes
 
 toBytes
   :: forall a
-   . Castable a SerializationData
+   . Castable a SerializableData
   => a
   -> CborBytes
 toBytes = CborBytes <<< _toBytes
