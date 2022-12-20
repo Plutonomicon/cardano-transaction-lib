@@ -48,11 +48,7 @@ import Ctl.Internal.Metadata.Helpers
   , lookupMetadata
   )
 import Ctl.Internal.Metadata.MetadataType (class MetadataType)
-import Ctl.Internal.Metadata.ToMetadata
-  ( class ToMetadata
-  , anyToMetadata
-  , toMetadata
-  )
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
