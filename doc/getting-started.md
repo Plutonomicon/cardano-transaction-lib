@@ -7,6 +7,7 @@ This guide will help you get started writing contracts with CTL. Please also see
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Prerequisites](#prerequisites)
+  - [Setting up Nix caches](#setting-up-nix-caches)
   - [Setting up a new project](#setting-up-a-new-project)
   - [Other prerequisites](#other-prerequisites)
 - [Importing CTL modules](#importing-ctl-modules)
@@ -24,6 +25,14 @@ This guide will help you get started writing contracts with CTL. Please also see
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Prerequisites
+
+### Setting up Nix caches
+
+Nix caches improve build speeds by allowing to download pre-built dependencies instead of compiling them from source.
+
+Follow [these instructions](https://github.com/input-output-hk/cardano-ledger#nix-cache) to add the IOG caches.
+
+Then, add `https://public-plutonomicon.cachix.org` and `public-plutonomicon.cachix.org-1:3AKJMhCLn32gri1drGuaZmFrmnue+KkKrhhubQk/CWc=` to `substituters` and `trusted-public-keys`, respectively, or run `cachix use public-plutonomicon` if you use [Cachix](https://cachix.org).
 
 ### Setting up a new project
 
@@ -127,7 +136,6 @@ main = Contract.Monad.launchAff_ do -- we re-export this for you
     (config :: ConfigParams (apiKey :: String)) =
       { ogmiosConfig: defaultOgmiosWsConfig
       , datumCacheConfig: defaultDatumCacheWsConfig
-      , ctlServerConfig: defaultServerConfig
       , networkId: TestnetId
       , logLevel: Trace
       , extraConfig: { apiKey: "foo" }

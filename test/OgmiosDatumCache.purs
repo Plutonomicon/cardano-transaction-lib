@@ -14,7 +14,6 @@ import Ctl.Internal.Types.Datum (Datum(Datum))
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Data.Either (Either(Left, Right))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
@@ -22,7 +21,7 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Mote (group, skip, test)
-import Test.Ctl.Utils (errEither, errMaybe, readAeson)
+import Test.Ctl.Utils (errEither, readAeson)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -51,7 +50,7 @@ getDatumsByHashesHashingTest
 getDatumsByHashesHashingTest = do
   datums <- Map.toUnfoldable <<< unwrap <$> readGetDatumsByHashesSample
   for_ (datums :: Array _) \(hash /\ datum) -> do
-    (datumHash <$> datum) `shouldEqual` Right (Just hash)
+    (datumHash <$> datum) `shouldEqual` Right (hash)
 
 readPlutusDataSamples
   :: forall (m :: Type -> Type)
@@ -80,5 +79,5 @@ plutusDataHashingTest = do
   plutusDataSamples <- readPlutusDataSamples
   let elems = plutusDataSamples
   for_ elems \{ hash, plutusData } -> do
-    hash' <- errMaybe "Couldn't hash the datum" <<< datumHash $ Datum plutusData
+    let hash' = datumHash $ Datum plutusData
     hash `shouldEqual` unwrap hash'

@@ -6,9 +6,11 @@
     memorySize = 8192;
     diskSize = 100000;
     forwardPorts = [
+      # SSH
       { from = "host"; host.port = 2222; guest.port = 22; }
+      # Ogmios
       { from = "host"; host.port = 1337; guest.port = 1337; }
-      { from = "host"; host.port = 8081; guest.port = 8081; }
+      # Ogmios Datum Cache
       { from = "host"; host.port = 9999; guest.port = 9999; }
     ];
   };
@@ -46,6 +48,4 @@
     blockHash = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
     blockFilter = builtins.toJSON { const = true; };
   };
-
-  services.ctl-server.enable = true;
 }

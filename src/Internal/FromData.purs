@@ -2,7 +2,7 @@ module Ctl.Internal.FromData
   ( FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
-      , BigIntToIntFailed
+      , BigNumToIntFailed
       , IndexWantedButGot
       , WantedConstrGot
       )
@@ -19,6 +19,8 @@ module Ctl.Internal.FromData
 
 import Prelude
 
+import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
+import Contract.Crypto.Secp256k1.ECDSA (ECDSAPublicKey)
 import Control.Alternative ((<|>))
 import Ctl.Internal.Helpers (bigIntToUInt)
 import Ctl.Internal.Plutus.Types.DataSchema
@@ -31,15 +33,15 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , class GetWithLabel
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (uncons)
 import Data.Array as Array
+import Data.ArrayBuffer.Types (Uint8Array)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)
@@ -54,6 +56,18 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
+import Noble.Secp256k1.ECDSA
+  ( ECDSASignature
+  , MessageHash
+  , mkECDSAPublicKey
+  , mkMessageHash
+  , mkPrivateKey
+  )
+import Noble.Secp256k1.Schnorr
+  ( SchnorrPublicKey
+  , SchnorrSignature
+  , mkSchnorrPublicKey
+  )
 import Prim.Row as Row
 import Prim.RowList as RL
 import Prim.TypeError (class Fail, Text)
@@ -64,7 +78,7 @@ import Type.Proxy (Proxy(Proxy))
 data FromDataError
   = ArgsWantedButGot String Int (Array PlutusData)
   | FromDataFailed String PlutusData
-  | BigIntToIntFailed String BigInt
+  | BigNumToIntFailed String BigNum
   | IndexWantedButGot String Int Int
   | WantedConstrGot String PlutusData
 
@@ -143,7 +157,7 @@ else instance
   FromDataWithSchema t (G.Constructor constr args) where
   fromDataWithSchema _ _ (Constr i pdArgs) = do
     let constrName = reflectSymbol (Proxy :: Proxy constr)
-    gotIx <- note (BigIntToIntFailed constrName i) (BigInt.toInt i)
+    gotIx <- note (BigNumToIntFailed constrName i) (BigNum.toInt i)
     wantedIx <- pure $ natVal (Proxy :: Proxy ix)
     noteB (IndexWantedButGot constrName wantedIx gotIx) (wantedIx == gotIx)
     { head: repArgs, tail: pdArgs' } <- fromDataArgs (Proxy :: Proxy t)
@@ -249,28 +263,28 @@ instance FromData Void where
 
 instance FromData Unit where
   fromData (Constr n [])
-    | n == zero = Just unit
+    | n == BigNum.zero = Just unit
   fromData _ = Nothing
 
 -- NOTE: For the sake of compatibility the following fromDatas have to match
 -- https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-tx/src/PlutusTx/IsData/Instances.hs
 instance FromData Boolean where
   fromData (Constr n [])
-    | n == zero = Just false
-    | n == one = Just true
+    | n == BigNum.zero = Just false
+    | n == BigNum.one = Just true
   fromData _ = Nothing
 
 instance FromData a => FromData (Maybe a) where
   fromData (Constr n [ pd ])
-    | n == zero = maybe Nothing (Just <<< Just) (fromData pd) -- Just is zero-indexed by Plutus
+    | n == BigNum.zero = maybe Nothing (Just <<< Just) (fromData pd) -- Just is zero-indexed by Plutus
   fromData (Constr n [])
-    | n == one = Just Nothing
+    | n == BigNum.one = Just Nothing
   fromData _ = Nothing
 
 instance (FromData a, FromData b) => FromData (Either a b) where
   fromData (Constr n [ pd ])
-    | n == zero = maybe Nothing (Just <<< Left) (fromData pd)
-    | n == one = maybe Nothing (Just <<< Right) (fromData pd)
+    | n == BigNum.zero = maybe Nothing (Just <<< Left) (fromData pd)
+    | n == BigNum.one = maybe Nothing (Just <<< Right) (fromData pd)
   fromData _ = Nothing
 
 instance Fail (Text "Int is not supported, use BigInt instead") => FromData Int where
@@ -301,7 +315,7 @@ instance FromData a => FromData (List a) where
 
 instance (FromData a, FromData b) => FromData (Tuple a b) where
   fromData (Constr n [ a, b ])
-    | n == zero = Tuple <$> fromData a <*> fromData b
+    | n == BigNum.zero = Tuple <$> fromData a <*> fromData b
   fromData _ = Nothing
 
 instance FromData ByteArray where
@@ -326,6 +340,29 @@ instance (Ord a, EuclideanRing a, FromData a) => FromData (Ratio a) where
 
 instance FromData PlutusData where
   fromData = Just
+
+instance FromData Uint8Array where
+  fromData x = (fromData x :: Maybe ByteArray) <#> unwrap
+
+-- Instances for purescript-noble-secp256k1 types
+
+instance FromData Secp256k1PrivateKey where
+  fromData = map wrap <<< mkPrivateKey <=< fromData
+
+instance FromData MessageHash where
+  fromData = mkMessageHash <=< fromData
+
+instance FromData ECDSAPublicKey where
+  fromData = mkECDSAPublicKey <=< fromData
+
+instance FromData ECDSASignature where
+  fromData = map wrap <<< fromData
+
+instance FromData SchnorrPublicKey where
+  fromData = mkSchnorrPublicKey <=< fromData
+
+instance FromData SchnorrSignature where
+  fromData = map wrap <<< fromData
 
 fromDataUnfoldable
   :: forall (a :: Type) (t :: Type -> Type)

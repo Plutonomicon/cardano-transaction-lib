@@ -24,10 +24,6 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue) as DSV
-import Ctl.Internal.FfiHelpers
-  ( MaybeFfiHelper
-  , maybeFfiHelper
-  )
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (QueryM, runQueryMInRuntime)
 import Ctl.Internal.QueryM.Utxos (utxosAt)
@@ -56,8 +52,7 @@ import Ctl.Internal.Wallet.Key
 import Data.Array (length)
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Either (Either(Right, Left))
-import Data.Either (hush)
+import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Int (ceil, toNumber)
@@ -80,7 +75,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Literals.Null (Null, null)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
-import Unsafe.Coerce (unsafeCoerce)
+import Untagged.Castable (class Castable)
 import Untagged.Union (OneOf, UndefinedOr, asOneOf, uorToMaybe)
 
 data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
@@ -191,12 +186,11 @@ mkCip30Mock pKey mSKey = do
     convertAmount amount = do
       let
         mAmountCoin = Coin <$>
-          (BigNum.toBigInt =<< BigNum.fromString amount)
+          (BigNum.toBigInt <$> BigNum.fromString amount)
       amountCoin <- case mAmountCoin of
         Nothing -> liftEffect $ raiseInvalidRequestError "amount param has incorrect format"
         Just x -> pure x
       pure $ coinToValue amountCoin
-
   pure $
     { getNetworkId: fromAff $ pure $
         case config.networkId of
@@ -334,8 +328,6 @@ hasEnoughAmount (Just amountRequired) values = geq sumAmount amountRequired
 
 type NullOr x = OneOf Null x
 
-maybeToNullOr :: forall a. Maybe a -> NullOr a
--- asOneOf does not work here, see:
--- https://github.com/rowtype-yoga/purescript-untagged-union/issues/29#issuecomment-1351561487
-maybeToNullOr (Just x) = unsafeCoerce x
+maybeToNullOr :: forall a. Castable a (OneOf Null a) => Maybe a -> NullOr a
+maybeToNullOr (Just x) = asOneOf x
 maybeToNullOr Nothing = asOneOf null

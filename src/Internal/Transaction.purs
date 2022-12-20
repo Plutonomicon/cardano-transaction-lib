@@ -87,13 +87,7 @@ attachDatums
   :: Array Datum -> Transaction -> ExceptT ModifyTxError Effect Transaction
 attachDatums [] tx = liftEither $ Right tx
 attachDatums datums tx@(Transaction { witnessSet: ws }) = do
-  ds <- traverse
-    ( liftEither
-        <<< note ConvertDatumError
-        <<< Serialization.PlutusData.convertPlutusData
-        <<< unwrap
-    )
-    datums
+  let ds = map (Serialization.PlutusData.convertPlutusData <<< unwrap) datums
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusData ds)
 
