@@ -2,37 +2,50 @@
 
 [![Hercules-ci][herc badge]][herc link]
 [![Cachix Cache][cachix badge]][cachix link]
+[![PureScript code documentation][docs badge]][docs link]
 
 [herc badge]: https://img.shields.io/badge/ci--by--hercules-green.svg
 [herc link]: https://hercules-ci.com/github/Plutonomicon/cardano-transaction-lib
 [cachix badge]: https://img.shields.io/badge/cachix-public_plutonomicon-blue.svg
 [cachix link]: https://public-plutonomicon.cachix.org
+[docs badge]: https://img.shields.io/badge/docs-PureScript%20code%20documentation-%2377F
+[docs link]: https://plutonomicon.github.io/cardano-transaction-lib/
 
-**cardano-transaction-lib** (CTL) is a Purescript library for building smart contract transactions on Cardano. It aims to port the functionality and interface of Plutus off-chain code to the browser environment.
+**cardano-transaction-lib** (CTL) is a Purescript library for building smart contract transactions on Cardano. It aims to port the functionality and interface of Plutus off-chain code to the browser environment and NodeJS.
 
 **Table of Contents**
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Roadmap](#roadmap)
-  - [Light wallet support](#light-wallet-support)
 - [Documentation](#documentation)
+  - [Light wallet support](#light-wallet-support)
+- [Roadmap](#roadmap)
 - [Architecture](#architecture)
 - [Additional resources/tools:](#additional-resourcestools)
 - [Available support channels info](#available-support-channels-info)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Roadmap
+## Documentation
 
-- [x] **Stage 1** Build a simple transaction in the browser that works with at least one light wallet (Nami)
-- [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
-- [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
-- [x] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary)
-  - [x] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (**DONE** - see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators (**DONE**), and support CIP workflows on the public testnet (**In progress**)
-- [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server (**DONE**)
+Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:
+
+- [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
+- [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
+- [CTL's runtime dependencies](./doc/runtime.md)
+- [Getting started writing CTL contracts](./doc/getting-started.md)
+- [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
+- [Testing contracts with Plutip](./doc/plutip-testing.md)
+- [End-to-end testing with headless browsers](./doc/e2e-testing.md)
+- [CIP-25 NFT standard support](./doc/cip-25-nfts.md)
+- [Transaction balancing](./doc/balancing.md)
+- [Transaction chaining](./doc/tx-chaining.md)
+- [Ada staking support](./doc/staking.md)
+- [FAQs](./doc/faq.md)
+- [Development workflows for CTL](./doc/development.md)
+
+You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
 
 ### Light wallet support
 
@@ -48,20 +61,15 @@ Support is planned for the following light wallets:
 - [ ] [Typhon](https://typhonwallet.io/)
 - [ ] [Yoroi](https://yoroi-wallet.com/)
 
-## Documentation
+## Roadmap
 
-Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:
-
-- [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
-- [FAQs](./doc/faq.md)
-- [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
-- [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
-- [Getting started writing CTL contracts](./doc/getting-started.md)
-- [CTL's runtime dependencies](./doc/runtime.md)
-- [Developing on CTL](./doc/development.md)
-- [Testing contracts with Plutip](./doc/plutip-testing.md)
-
-You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
+- [x] **Stage 1** Build a simple transaction in the browser that works with at least one light wallet (Nami)
+- [x] **Stage 2** Once we can construct a simple user-to-user transaction, we will try to use the library to submit the tx with nami
+- [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
+- [x] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary)
+  - [x] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API
+- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (**DONE** - see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators (**DONE**), and support CIP workflows on the public testnet (**In progress**)
+- [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server (**DONE**)
 
 ## Architecture
 
@@ -71,16 +79,15 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
    - This is handled by `cardano-serialization-lib`, a Rust library available as WASM
 2. How do we query the chain?
    - This has been solved using Ogmios & Kupo
-   - We will support an alternative BlockFrost backend as well in the future
+   - We [will support](https://cardano.ideascale.com/c/idea/420791) an alternative [BlockFrost](https://blockfrost.io/) backend as well in the future
 3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
    - `ogmios-datum-cache` solves this problem
-4. How do we submit the transaction?
+4. How do we get wallet data?
    - This is done via browser-based light wallet integration in the browser based on CIP-30
 5. How closely should we follow Plutus' `Contract` API?
    - CTL's `Contract` model is **significantly** less restrictive than Plutus' and allows for arbitrary effects within the `Contract` monad
-   - Certain features cannot be directly translated into Purescript from Haskell due to differences between the two languages (e.g. CTL's `DatumType` and `RedeemerType` are type class with fundeps, as Purescript lacks any notion of type families/type-level functions)
-6. A lingering concern remains around storage solutions, if needed
-   - This can be in memory, in various browser storage solutions, or a decentralized DB like Fluree
+   - Certain features cannot be directly translated into Purescript from Haskell due to differences between the two languages
+   - Some of the Plutus conventions do not make sense for us, due to differences between on-chain and off-chain
 
 ## Additional resources/tools:
 
