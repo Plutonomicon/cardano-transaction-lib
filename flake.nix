@@ -48,7 +48,6 @@
     { self
     , nixpkgs
     , cardano-configurations
-    , kupo
     , ...
     }@inputs:
     let
