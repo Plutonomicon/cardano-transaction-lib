@@ -6,7 +6,7 @@
     memorySize = 8192;
     diskSize = 100000;
     forwardPorts = [
-      # TODO What is this port for? SSH?
+      # SSH
       { from = "host"; host.port = 2222; guest.port = 22; }
       # Ogmios
       { from = "host"; host.port = 1337; guest.port = 1337; }
