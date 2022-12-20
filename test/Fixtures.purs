@@ -78,7 +78,7 @@ import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Contract.Numeric.BigNum (BigNum)
-import Contract.Numeric.BigNum (fromBigInt, fromInt) as BigNum
+import Contract.Numeric.BigNum (fromBigInt, fromInt, one, zero) as BigNum
 import Contract.Transaction
   ( PoolPubKeyHash(PoolPubKeyHash)
   , vrfKeyHashFromBytes
@@ -1258,7 +1258,7 @@ plutusDataFixture3 = PD.Bytes
   )
 
 plutusDataFixture4 :: PD.PlutusData
-plutusDataFixture4 = PD.Constr (BigInt.fromInt 1)
+plutusDataFixture4 = PD.Constr BigNum.one
   [ plutusDataFixture2, plutusDataFixture3 ]
 
 plutusDataFixture5 :: PD.PlutusData
@@ -1281,7 +1281,7 @@ plutusDataFixture7 = PD.List
   ]
 
 plutusDataFixture8 :: PD.PlutusData
-plutusDataFixture8 = PD.Constr (BigInt.fromInt 0)
+plutusDataFixture8 = PD.Constr BigNum.zero
   [ PD.Bytes
       ( hexToByteArrayUnsafe
           "da13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e"

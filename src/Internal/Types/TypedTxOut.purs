@@ -33,7 +33,7 @@ module Ctl.Internal.Types.TypedTxOut
 import Prelude
 
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
@@ -56,7 +56,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TypedValidator (class DatumType, TypedValidator)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 
@@ -172,26 +172,21 @@ mkTypedTxOut
   -> TypedValidator validator
   -> datum
   -> Value
-  -> Maybe (TypedTxOut validator datum)
+  -> TypedTxOut validator datum
 mkTypedTxOut networkId typedVal dt amount =
   let
-    mDHash = Hashing.datumHash $ Datum $ toData dt
+    dHash = Hashing.datumHash $ Datum $ toData dt
     -- FIX ME: This is hardcoded to enterprise address, it seems like Plutus'
     -- "validatorAddress" also currently doesn't account for staking.
     address = typedValidatorEnterpriseAddress networkId typedVal
   in
-    case mDHash of
-      Nothing -> Nothing
-      Just dHash ->
-        Just <<< mkTypedTxOut' dt $
-          wrap
-            { address
-            , amount
-            -- TODO: populate properly
-            -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/691
-            , datum: OutputDatumHash dHash
-            , scriptRef: Nothing
-            }
+    mkTypedTxOut' dt $
+      wrap
+        { address
+        , amount
+        , datum: OutputDatumHash dHash
+        , scriptRef: Nothing
+        }
   where
   mkTypedTxOut'
     :: datum -- Data
@@ -274,8 +269,7 @@ typeTxOut
     void $ checkValidatorAddress networkId typedVal address
     pd <- ExceptT $ getDatumByHash dHash <#> note (CannotQueryDatum dHash)
     dtOut <- ExceptT $ checkDatum typedVal pd
-    except $
-      note CannotMakeTypedTxOut (mkTypedTxOut networkId typedVal dtOut amount)
+    pure $ mkTypedTxOut networkId typedVal dtOut amount
 
 -- | Create a `TypedTxOutRef` from an existing `TransactionInput`
 -- | by checking the types of its parts. To do this we need to cross-reference

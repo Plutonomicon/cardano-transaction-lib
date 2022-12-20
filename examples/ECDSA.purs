@@ -16,6 +16,7 @@ import Contract.Crypto.Secp256k1.Utils
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( class ToData
   , PlutusData(Constr)
@@ -48,7 +49,7 @@ derive instance Generic ECDSARedemeer _
 derive instance Newtype ECDSARedemeer _
 
 instance ToData ECDSARedemeer where
-  toData (ECDSARedemeer { msg, sig, pk }) = Constr zero
+  toData (ECDSARedemeer { msg, sig, pk }) = Constr BigNum.zero
     [ toData msg, toData sig, toData pk ]
 
 contract :: Contract () Unit

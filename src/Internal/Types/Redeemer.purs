@@ -14,7 +14,6 @@ import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Untagged.Union (asOneOf)
@@ -49,6 +48,6 @@ instance Show RedeemerHash where
 
 -- | Converts Plutus-style `Redeemer` to internal (non-CSL) `RedeemerHash`.
 -- | This is a duplicate of `datumHash`.
-redeemerHash :: Redeemer -> Maybe RedeemerHash
+redeemerHash :: Redeemer -> RedeemerHash
 redeemerHash =
-  map (wrap <<< toBytes <<< asOneOf) <<< convertPlutusData <<< unwrap
+  wrap <<< toBytes <<< asOneOf <<< convertPlutusData <<< unwrap

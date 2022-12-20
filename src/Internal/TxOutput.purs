@@ -31,7 +31,7 @@ import Ctl.Internal.Types.OutputDatum
   , outputDatumDatum
   )
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
-import Data.Maybe (Maybe, fromMaybe, isNothing)
+import Data.Maybe (Maybe(Just), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Untagged.Union (asOneOf)
@@ -90,7 +90,7 @@ transactionOutputToOgmiosTxOut
   { address: addressToOgmiosAddress address
   , value
   , datumHash: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
-  , datum: datumToOgmiosDatum =<< outputDatumDatum datum
+  , datum: datumToOgmiosDatum <$> outputDatumDatum datum
   , script: scriptRef
   }
 
@@ -106,17 +106,16 @@ ogmiosDatumToDatum :: String -> Maybe Datum
 ogmiosDatumToDatum =
   hexToByteArray
     >=> fromBytes
-    >=> Deserialization.convertPlutusData
-      >>> map Datum
+    >=> (Deserialization.convertPlutusData >>> Datum >>> Just)
 
 -- | Converts an internal `DataHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DataHash -> String
 datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 
 -- | Converts an internal `Datum` to an Ogmios datum `String`
-datumToOgmiosDatum :: Datum -> Maybe String
+datumToOgmiosDatum :: Datum -> String
 datumToOgmiosDatum (Datum plutusData) =
-  Serialization.convertPlutusData plutusData <#>
+  Serialization.convertPlutusData plutusData #
     (asOneOf >>> toBytes >>> byteArrayToHex)
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum

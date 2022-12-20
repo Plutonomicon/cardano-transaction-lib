@@ -226,7 +226,6 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotConvertPOSIXTimeRange
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
       , TypedTxOutHasNoDatumHash
       , CannotHashMintingPolicy
       , CannotHashValidator
