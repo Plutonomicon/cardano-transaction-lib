@@ -22,9 +22,7 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Control.Monad.Error.Class (liftMaybe)
 import Data.BigInt as BigInt
-import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -40,11 +38,10 @@ wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
 testMustSatisfyAnyOf :: Contract () Unit
 testMustSatisfyAnyOf = do
-  wrongDatumHash <- liftMaybe (error "Cannot get DatumHash") $ Hashing.datumHash
-    wrongDatum
-  correctDatumHash <- liftMaybe (error "Cannot get DatumHash") $
-    Hashing.datumHash unitDatum
   let
+    wrongDatumHash = Hashing.datumHash wrongDatum
+    correctDatumHash = Hashing.datumHash unitDatum
+
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustSatisfyAnyOf
       [ Constraints.mustHashDatum wrongDatumHash unitDatum
