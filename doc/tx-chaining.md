@@ -6,4 +6,4 @@ Transaction chaining on Cardano is the ability to send transactions that depend 
 
 In case the transactions come from multiple actors, some off-chain data delivery mechanism should be used - it's up to the application developers to implement it.
 
-The only piece of data that is actually needed is the additional UTxOs that the CTL query layer is not (yet) aware of. `mustUseAdditionalUtxos` [balancer constraint](./balancing.md) can be used for that, as shown in the [transaction chaining example](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/examples/TxChaining.purs).
+The only piece of data that is actually needed is the additional UTxOs that the CTL query layer is not (yet) aware of. `mustUseAdditionalUtxos` [balancer constraint](./balancing.md) can be used for that, as shown in the [transaction chaining example](../examples/TxChaining.purs).

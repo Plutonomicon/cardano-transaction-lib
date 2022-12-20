@@ -14,7 +14,7 @@ Transaction balancing in Cardano is the process of finding a set of inputs and o
 
 ## Balancer constraints
 
-CTL allows to tweak the default balancer behavior by letting the user impose constraints on the UTxO set that is used in the process (`balanceTxWithConstraints`):
+CTL allows tweaking the default balancer behavior by letting the user impose constraints on the UTxO set that is used in the process (`balanceTxWithConstraints`):
 
 - providing additional UTxOs to use: `mustUseUtxosAtAddresses` / `mustUseUtxosAtAddress` / `mustUseAdditionalUtxos`
 - overriding change address: `mustSendChangeToAddress`
