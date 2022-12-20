@@ -36,7 +36,11 @@ import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
+import Ctl.Internal.Types.CborBytes
+  ( cborBytesFromByteArray
+  , cborBytesToHex
+  , hexToCborBytes
+  )
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
@@ -188,7 +192,8 @@ mkCip30Mock pKey mSKey = do
         mAmountCoin = Coin <$>
           (BigNum.toBigInt <$> BigNum.fromString amount)
       amountCoin <- case mAmountCoin of
-        Nothing -> liftEffect $ raiseInvalidRequestError "amount param has incorrect format"
+        Nothing -> liftEffect $ raiseInvalidRequestError
+          "amount param has incorrect format"
         Just x -> pure x
       pure $ coinToValue amountCoin
   pure $
@@ -211,7 +216,7 @@ mkCip30Mock pKey mSKey = do
           xUtxos = Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
             TransactionUnspentOutput { input, output }
         let
-          amountValue = DSV.convertValue =<< fromBytes =<< hexToByteArray =<<
+          amountValue = DSV.convertValue =<< fromBytes =<< hexToCborBytes =<<
             (uorToMaybe amount)
         if (not hasEnoughAmount amountValue xUtxos) then pure $ maybeToNullOr
           Nothing
@@ -222,7 +227,7 @@ mkCip30Mock pKey mSKey = do
           page <- liftEffect
             $ paginateArray (uorToMaybe pagination)
             $
-              (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
+              (cborBytesToHex <<< toBytes) <$> cslUtxos
           pure $ maybeToNullOr $ Just page
     , getCollateral: \{ amount } -> unsafePerformEffect $ fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
@@ -234,12 +239,13 @@ mkCip30Mock pKey mSKey = do
           raiseInvalidRequestError "Amount value is bigger than allowed 5 ADA"
         else pure unit
         if (not $ hasEnoughAmount (Just amountValue) collateralUtxos) then
-          liftEffect $ raiseInvalidRequestError "Cannot find collateral to match required amount"
+          liftEffect $ raiseInvalidRequestError
+            "Cannot find collateral to match required amount"
         else do
           cslUnspentOutput <- liftEffect $ traverse
             convertTransactionUnspentOutput
             collateralUtxos
-          pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
+          pure $ (cborBytesToHex <<< toBytes) <$> cslUnspentOutput
     , getBalance: fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
         utxos <- liftMaybe (error "No UTxOs at address") =<<
@@ -247,31 +253,31 @@ mkCip30Mock pKey mSKey = do
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
-        pure $ byteArrayToHex $ toBytes $ asOneOf value
+        pure $ cborBytesToHex $ toBytes value
     , getUsedAddresses: \pagination -> unsafePerformEffect $ fromAff do
         result <- (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+          [ (cborBytesToHex <<< toBytes) address ]
         liftEffect $ paginateArray (uorToMaybe pagination) result
     , getUnusedAddresses: fromAff $ pure []
     , getChangeAddress: fromAff do
         (unwrap keyWallet).address config.networkId <#>
-          (byteArrayToHex <<< toBytes <<< asOneOf)
+          byteArrayToHex <<< unwrap <<< toBytes
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (byteArrayToHex <<< toBytes <<< asOneOf) address ]
+          [ (cborBytesToHex <<< toBytes) address ]
     , signTx: mkFn2 \str _partialSign -> unsafePerformEffect $ fromAff do
-        txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
+        txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToCborBytes
           str
         tx <- liftMaybe (error "Failed to decode Transaction CBOR")
           $ hush
           $ deserializeTransaction
-          $ cborBytesFromByteArray txBytes
+          $ txBytes
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
+        pure $ cborBytesToHex $ toBytes cslWitnessSet
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
-        msgBytes <- liftMaybe (error "Unable to convert CBOR")
-          (hexToByteArray msg)
+        msgBytes <- liftMaybe (error "Unable to convert CBOR") $
+          hexToByteArray msg
         { key, signature } <- (unwrap keyWallet).signData config.networkId
           (wrap msgBytes)
         pure { key: cborBytesToHex key, signature: cborBytesToHex signature }

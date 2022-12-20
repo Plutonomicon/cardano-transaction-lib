@@ -29,7 +29,6 @@ import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
 import Data.Maybe (Maybe, fromJust)
-import Data.Newtype (unwrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
@@ -76,7 +75,7 @@ convertPlutusBytes :: PlutusData -> Maybe T.PlutusData
 convertPlutusBytes pd = T.Bytes <$> _PlutusData_bytes maybeFfiHelper pd
 
 deserializeData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
-deserializeData = fromData <=< map convertPlutusData <<< fromBytes <<< unwrap
+deserializeData = fromData <<< convertPlutusData <=< fromBytes
 
 foreign import _PlutusData_constr
   :: MaybeFfiHelper -> PlutusData -> Maybe ConstrPlutusData

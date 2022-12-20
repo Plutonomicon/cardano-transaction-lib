@@ -164,7 +164,6 @@ import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
@@ -682,7 +681,7 @@ instance DecodeAeson PoolParametersR where
       vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
         vrfKeyhashHex
       vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
-        vrfKeyhashBytes
+        (wrap vrfKeyhashBytes)
       pledge <- objParams .: "pledge"
       cost <- objParams .: "cost"
       margin <- decodeUnitInterval =<< objParams .: "margin"
@@ -1580,7 +1579,7 @@ parseScript outer =
           pubKeyHashHex = unsafePartial fromJust $ toString aeson
 
         ScriptPubkey <$> note pubKeyHashTypeMismatch
-          (ed25519KeyHashFromBytes =<< hexToRawBytes pubKeyHashHex)
+          (ed25519KeyHashFromBytes =<< hexToByteArray pubKeyHashHex)
 
     | otherwise = aeson # aesonObject \obj -> do
         let

@@ -25,7 +25,7 @@ import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -49,7 +49,6 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -68,14 +67,14 @@ suite = do
         let
           pkBytes = bytesFromPublicKey $ convertPubKey pk
           (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> fromBytes
-            (unwrap pkBytes)
+            (wrap $ unwrap pkBytes)
 
         pk'' `shouldSatisfy` isJust
       test "newTransactionHash" do
         let
           txString =
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
-          txBytes = hexToByteArrayUnsafe txString
+          txBytes = wrap $ hexToByteArrayUnsafe txString
         _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
       test "PlutusData #1 - Constr" $ do
@@ -118,8 +117,8 @@ suite = do
             cborBytesToHex bytes `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
-        let bytes = toBytes (asOneOf txo)
-        byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
+        let bytes = toBytes txo
+        byteArrayToHex (unwrap bytes) `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $
         serializeTX txFixture1 txBinaryFixture1
       test "Transaction serialization #2 - tokens" $
@@ -160,15 +159,14 @@ serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
   liftEffect $ do
     cslTX <- TS.convertTransaction $ tx
-    let bytes = toBytes (asOneOf cslTX)
-    byteArrayToHex bytes `shouldEqual` fixture
+    let bytes = toBytes cslTX
+    byteArrayToHex (unwrap bytes) `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
   cslTX <- liftEffect $ TS.convertTransaction tx
-  let serialized = toBytes (asOneOf cslTX)
-  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
-    serialized
+  let serialized = toBytes cslTX
+  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes serialized
   expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
     TD.convertTransaction deserialized
   tx `shouldEqual` expected

@@ -11,12 +11,11 @@ import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Untagged.Union (asOneOf)
 
 newtype Redeemer = Redeemer PlutusData
 
@@ -50,4 +49,4 @@ instance Show RedeemerHash where
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> RedeemerHash
 redeemerHash =
-  wrap <<< toBytes <<< asOneOf <<< convertPlutusData <<< unwrap
+  wrap <<< unwrap <<< toBytes <<< convertPlutusData <<< unwrap
