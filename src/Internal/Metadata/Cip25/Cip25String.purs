@@ -143,4 +143,4 @@ fromMetadataString :: TransactionMetadatum -> Maybe String
 fromMetadataString datum = do
   fromCip25Strings <$> (Array.singleton <$> fromMetadata datum) <|> do
     strings :: Array Cip25String <- fromMetadata datum
-    foldMap (\(Cip25String s) -> s) strings
+    pure $ foldMap (\(Cip25String s) -> s) strings
