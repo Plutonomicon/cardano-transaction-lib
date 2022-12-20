@@ -143,7 +143,4 @@ fromMetadataString :: TransactionMetadatum -> Maybe String
 fromMetadataString datum = do
   fromCip25Strings <$> (Array.singleton <$> fromMetadata datum) <|> do
     strings :: Array Cip25String <- fromMetadata datum
-    let
-      bytes :: Array ByteArray
-      bytes = map (\(Cip25String s) -> wrap $ encodeUtf8 s) strings
-    hush $ decodeUtf8 $ unwrap $ fold bytes
+    foldMap (\(Cip25String s) -> s) strings
