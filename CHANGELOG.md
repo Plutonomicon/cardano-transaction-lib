@@ -48,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 ### Changed
+- The configuration option for plutip clusters: slot length, maximum transaction size and maximum execution units can now all be adjusted using `clusterConfig` field of `PlutipConfig`. The need for collateral can also be removed for debugging purposes by setting the `noCollateral` flag to true.
 
 ### Removed
 
@@ -64,6 +65,7 @@ TBD
 - NuFi wallet support ([#1265](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1265))
 - Add `submitTxFromConstraints` and `submitTxFromConstraintsReturningFee` in `Contract.Transaction`. `submitTxFromConstraints` builds a transaction that satisfies the constraints, then submits it to the network. It is analogous to `submitTxConstraintsWith` function in Plutus and replaces `Helpers.buildBalanceSignAndSubmitTx`.
 - Support for CIP-49 crypto primitives: SECP256k1 [ECDSA](./src/Contract/Crypto/Secp256k1/ECDSA.purs) and [Schnorr](./src/Contract/Crypto/Secp256k1/Schnorr.purs) (verification functions, signing and key generation) ([1273](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1273))
+- The configuration option for plutip clusters: slot length can be adjusted using `clusterConfig` field of `PlutipConfig`. epoch size must currently remain unchanged however due to ([#1272](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1272))
 
 ### Changed
 
@@ -164,6 +166,7 @@ TBD
 - `Contract.Address` re-exports from `Contract.Scripts` ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `Contract.Address.ownPubKeyHash` and `ownPubKeyHashes` - these are not needed, use `ownPaymentPubKeyHash` / `ownPaymentPubKeyHashes` ([#1211](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1211))
 - `mustBalanceTxWithAddress` and `mustBalanceTxWithAddresses` balancer constraints - use a combination of `mustUseUtxosAtAddresses` and `mustSendChangeToAddress` to get the same behaviour ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
+
 ### Fixed
 
 - Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
