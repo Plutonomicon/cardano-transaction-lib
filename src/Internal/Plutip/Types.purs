@@ -50,7 +50,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.Time.Duration (Seconds(Seconds))
@@ -136,9 +136,7 @@ instance EncodeAeson ClusterStartupRequest where
     ) =
 
     let
-      sl = case slotLength of
-        Just (Seconds n) -> Just $ unsafePartial partialFiniteNumber n
-        Nothing -> Nothing
+      sl = (unsafePartial partialFiniteNumber <<< unwrap) <$> slotLength
     in
       encodeAeson
         { keysToGenerate
