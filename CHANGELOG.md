@@ -43,7 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Unrealeased
+## Unreleased
 
 ### Added
 
