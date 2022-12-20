@@ -85,7 +85,6 @@ import Data.Traversable (for)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Untagged.Union (asOneOf)
 
 evalTxExecutionUnits
   :: Transaction
@@ -93,9 +92,7 @@ evalTxExecutionUnits
   -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx unattachedTx = do
   txBytes <- liftEffect
-    ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-        Serialization.convertTransaction tx
-    )
+    $ Serialization.toBytes <$> Serialization.convertTransaction tx
   additionalUtxos <- getOgmiosAdditionalUtxoSet
   evalResult <-
     unwrap <$> liftQueryM (QueryM.evaluateTxOgmios txBytes additionalUtxos)

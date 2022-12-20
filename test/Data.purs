@@ -57,7 +57,6 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
 import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
-import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip
   :: forall (a :: Type). ToData a => FromData a => a -> Either JsonDecodeError a
@@ -553,9 +552,8 @@ instance (FromData a) => FromData (Tree a) where
   fromData x = genericFromData x
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<<
-  fromBytes
-    (hexToByteArrayUnsafe binary)
+fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes
+  (wrap $ hexToByteArrayUnsafe binary)
 
 testBinaryFixture
   :: forall a
@@ -570,9 +568,8 @@ testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
-    (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
-      `shouldEqual`
-        (hexToByteArrayUnsafe binaryFixture)
+    toBytes (PDS.convertPlutusData $ toData value)
+      `shouldEqual` wrap (hexToByteArrayUnsafe binaryFixture)
 
 -- | Poor man's type level tests
 tests :: Array String

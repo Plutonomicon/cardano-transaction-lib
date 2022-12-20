@@ -23,7 +23,8 @@ import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
 import Ctl.Internal.Serialization.Types
-  ( PlutusData
+  ( DataHash
+  , PlutusData
   , PlutusScript
   , Transaction
   ) as Serialization
@@ -32,13 +33,13 @@ import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.Newtype (unwrap, wrap)
-import Untagged.Union (asOneOf)
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 
 foreign import blake2b256HashHex :: ByteArray -> String
 
-foreign import hashPlutusData :: Serialization.PlutusData -> ByteArray
+foreign import hashPlutusData
+  :: Serialization.PlutusData -> Serialization.DataHash
 
 foreign import hashPlutusScript :: Serialization.PlutusScript -> ScriptHash
 
@@ -52,13 +53,15 @@ foreign import sha3_256HashHex :: ByteArray -> String
 
 datumHash :: Datum -> DataHash
 datumHash =
-  wrap <<< hashPlutusData <<< convertPlutusData <<< unwrap
+  wrap <<< unwrap <<< toBytes <<< hashPlutusData
+    <<< convertPlutusData
+    <<< unwrap
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
-  wrap <<< blake2b256Hash <<< toBytes <<< asOneOf <<< _txBody
+  wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript
