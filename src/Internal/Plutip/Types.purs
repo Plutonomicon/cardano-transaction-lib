@@ -77,7 +77,7 @@ type PlutipConfig =
 type ClusterConfig =
   { slotLength :: Maybe Seconds
   -- | Adjust the max transaction size. Useful for debugging with traces
-  -- Collateral is automatically adjusted proportionally to allow fo the increase
+  -- Collateral is automatically adjusted proportionally to allow for the increase
   , maxTxSize :: Maybe UInt
   -- | Increase execution units to the maxbound limit.
   , raiseExUnitsToMax :: Boolean
