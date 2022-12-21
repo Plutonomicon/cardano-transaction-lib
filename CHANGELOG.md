@@ -48,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `blake2b224Hash` and `blake2b224HashHex` functions for computing blake2b-224 hashes of arbitrary byte arrays ([#1323](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1323))
 
 ### Changed
+- `Balancer` no longer selects UTxOs which use PlutusV2 features when the transaction contains PlutusV1 scripts ([#1349](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1349))
 
 ### Removed
 

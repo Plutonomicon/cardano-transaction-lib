@@ -3,6 +3,7 @@
 -- | that may be returned from Ogmios when calculating ex units.
 module Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
+  , InvalidInContext(InvalidInContext)
   , BalanceTxError
       ( BalanceInsufficientError
       , CouldNotConvertScriptOutputToTxInput
@@ -68,7 +69,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
-  = BalanceInsufficientError Expected Actual
+  = BalanceInsufficientError Expected Actual InvalidInContext
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetChangeAddress
   | CouldNotGetCollateral
@@ -95,6 +96,14 @@ derive instance Generic Actual _
 derive instance Newtype Actual _
 
 instance Show Actual where
+  show = genericShow
+
+newtype InvalidInContext = InvalidInContext Value
+
+derive instance Generic InvalidInContext _
+derive instance Newtype InvalidInContext _
+
+instance Show InvalidInContext where
   show = genericShow
 
 newtype Expected = Expected Value

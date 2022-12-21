@@ -6,7 +6,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (trace) as Logger
 import Control.Parallel (parTraverse)
@@ -51,7 +51,9 @@ import Ctl.Internal.BalanceTx.Error
       , CouldNotGetUtxos
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
+      , BalanceInsufficientError
       )
+  , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   ( evalExUnitsAndMinFee
@@ -90,8 +92,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _mint
   , _networkId
   , _outputs
+  , _plutusScripts
   , _referenceInputs
   , _withdrawals
+  , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Value
   ( AssetClass
@@ -122,8 +126,12 @@ import Ctl.Internal.QueryM.Utxos
   , utxosAt
   )
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
+import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1)
+  , PlutusScript(PlutusScript)
+  )
 import Ctl.Internal.Types.UnbalancedTransaction (_utxoIndex)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -146,7 +154,7 @@ import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (TagSet)
 import Data.Log.Tag (fromArray, tag) as TagSet
-import Data.Map (empty, filterKeys, lookup, union) as Map
+import Data.Map (empty, insert, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set as Set
@@ -265,17 +273,67 @@ data BalancerStep
 
 runBalancer :: BalancerParams -> BalanceTxM FinalizedTransaction
 runBalancer p = do
-  spendableUtxos <- getSpendableUtxos
+  utxos <- partitionAndFilterUtxos
   unbalancedTx <- addLovelacesToTransactionOutputs p.unbalancedTx
-  mainLoop (initBalancerState unbalancedTx spendableUtxos)
+  addInvalidInContext (foldMap (_.amount <<< unwrap) utxos.invalidInContext) do
+    mainLoop (initBalancerState unbalancedTx utxos.spendable)
   where
-  getSpendableUtxos :: BalanceTxM UtxoMap
-  getSpendableUtxos =
+  addInvalidInContext
+    :: forall (a :: Type). Value -> BalanceTxM a -> BalanceTxM a
+  addInvalidInContext invalidInContext m = catchError m $ throwError <<<
+    case _ of
+      BalanceInsufficientError e a (InvalidInContext v) ->
+        BalanceInsufficientError e a (InvalidInContext (v <> invalidInContext))
+      e -> e
+
+  -- We check if the transaction uses a plutusv1 script, so that we can filter
+  -- out utxos which use plutusv2 features if so.
+  txHasPlutusV1 :: Boolean
+  txHasPlutusV1 = do
+    case p.unbalancedTx ^. _transaction' ^. _witnessSet ^. _plutusScripts of
+      Just scripts -> flip Array.any scripts case _ of
+        PlutusScript (_ /\ PlutusV1) -> true
+        _ -> false
+      Nothing -> false
+
+  partitionAndFilterUtxos
+    :: BalanceTxM { spendable :: UtxoMap, invalidInContext :: UtxoMap }
+  partitionAndFilterUtxos =
     asksConstraints Constraints._nonSpendableInputs <#>
       \nonSpendableInputs ->
-        flip Map.filterKeys p.utxos \oref -> not $
-          Set.member oref nonSpendableInputs
-            || Set.member oref (p.unbalancedTx ^. _body' <<< _referenceInputs)
+        foldr
+          ( \(oref /\ output) acc ->
+              let
+                hasInlineDatum :: Boolean
+                hasInlineDatum = case (unwrap output).datum of
+                  OutputDatum _ -> true
+                  _ -> false
+
+                hasScriptRef :: Boolean
+                hasScriptRef = isJust (unwrap output).scriptRef
+
+                spendable :: Boolean
+                spendable = not $ Set.member oref nonSpendableInputs ||
+                  Set.member oref
+                    (p.unbalancedTx ^. _body' <<< _referenceInputs)
+
+                validInContext :: Boolean
+                validInContext = not $ txHasPlutusV1 &&
+                  (hasInlineDatum || hasScriptRef)
+              in
+                case spendable, validInContext of
+                  true, true -> acc
+                    { spendable = Map.insert oref output acc.spendable }
+                  true, false -> acc
+                    { invalidInContext = Map.insert oref output
+                        acc.invalidInContext
+                    }
+                  _, _ -> acc
+          )
+          { spendable: Map.empty
+          , invalidInContext: Map.empty
+          }
+          (Map.toUnfoldable p.utxos :: Array _)
 
   mainLoop :: BalancerState -> BalanceTxM FinalizedTransaction
   mainLoop = worker <<< PrebalanceTx
@@ -292,7 +350,8 @@ runBalancer p = do
           true ->
             if (Set.isEmpty $ balancedTx ^. _body' <<< _inputs) then do
               selectionState <-
-                performMultiAssetSelection p.strategy leftoverUtxos
+                performMultiAssetSelection p.strategy
+                  leftoverUtxos
                   (lovelaceValueOf one)
               runNextBalancerStep $ s
                 { transaction =
