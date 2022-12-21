@@ -136,6 +136,7 @@ import Data.Map
   ( empty
   , filter
   , filterKeys
+  , isEmpty
   , isSubmap
   , lookup
   , toUnfoldable
@@ -147,6 +148,8 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff (delay)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 
 -- | Balances an unbalanced transaction using the specified balancer
@@ -166,24 +169,9 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
       certsFee = getStakingBalance (unbalancedTx ^. _transaction')
         depositValuePerCert
 
-    srcAddrs <-
-      asksConstraints Constraints._srcAddresses
-        >>= maybe (liftQueryM QueryM.getWalletAddresses) pure
-
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM
-      case mWallet of
-        Just (Eternl _) -> do
-          walletAddresses <- QueryM.getWalletAddresses
-          let
-            { yes: inWalletAddresses, no: outWalletAddresses } = partition
-              (\addr -> elem addr walletAddresses)
-              srcAddrs
-          inWalletUtxos <- getWalletUtxosAt inWalletAddresses
-          outWalletUtxos <- parallelUtxosAt outWalletAddresses
-          pure $ Map.union <$> inWalletUtxos <*> outWalletUtxos
-        _ -> parallelUtxosAt srcAddrs
+    utxos <- getAddressesAndUtxos mWallet
 
     unbalancedCollTx <-
       case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -213,6 +201,31 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
       =<< maybe (liftQueryM QueryM.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
 
+  getAddressesAndUtxos
+    :: Maybe Wallet -> BalanceTxM UtxoMap
+  getAddressesAndUtxos mWallet = do
+    srcAddrs <-
+      asksConstraints Constraints._srcAddresses
+        >>= maybe (liftQueryM QueryM.getWalletAddresses) pure
+
+    utxos <- liftEitherQueryM
+      case mWallet of
+        Just (Eternl _) -> do
+          walletAddresses <- QueryM.getWalletAddresses
+          let
+            { yes: inWalletAddresses, no: outWalletAddresses } = partition
+              (\addr -> elem addr walletAddresses)
+              srcAddrs
+          inWalletUtxos <- repeatN 5 $ getWalletUtxosAt inWalletAddresses
+          outWalletUtxos <- parallelUtxosAt outWalletAddresses
+          pure $ Map.union <$> inWalletUtxos <*> outWalletUtxos
+        _ -> parallelUtxosAt srcAddrs
+    if Map.isEmpty utxos then
+      do
+        logInfo' "empty utxos, attempting again"
+        getAddressesAndUtxos mWallet
+    else pure utxos
+
   getWalletUtxosAt :: Array Address -> QueryM (Either BalanceTxError UtxoMap)
   getWalletUtxosAt inWalletAddresses = do
     filteredWalletUtxos <-
@@ -225,6 +238,25 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
       Left e -> Left e
       Right false -> Left CouldNotGetUtxos
       Right true -> Right $ filteredWalletUtxos
+
+  repeatN
+    :: forall (m :: Type -> Type) (b :: Type) (c :: Type)
+     . Monad m
+    => MonadLogger m
+    => MonadAff m
+    => Int
+    -> m (Either b c)
+    -> m (Either b c)
+  repeatN attempts action =
+    if attempts <= 0 then action
+    else do
+      result <- action
+      case result of
+        Left _ -> do
+          logInfo' $ "waiting repeatN: " <> show attempts
+          liftAff $ delay (wrap 1000.0)
+          repeatN (attempts - 1) action
+        value -> pure $ value
 
   parallelUtxosAt :: Array Address -> QueryM (Either BalanceTxError UtxoMap)
   parallelUtxosAt adresses = parTraverse utxosAt adresses
@@ -592,3 +624,8 @@ logTx msg utxos (Transaction { body: body'@(TxBody body) }) =
     , "Output Value: " <> show (Array.foldMap getAmount body.outputs)
     , "Fees: " <> show body.fee
     ]
+
+-- The same logInfo' as in Contract.Log
+logInfo'
+  :: forall (m :: Type -> Type). MonadLogger m => String -> m Unit
+logInfo' = Logger.info Map.empty
