@@ -138,7 +138,7 @@ import Ctl.Internal.Serialization.Address
   , StakeCredential
   ) as Csl
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash) as Csl
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , AuxiliaryData
@@ -164,6 +164,7 @@ import Ctl.Internal.Serialization.Types
   , Nonce
   , PlutusScripts
   , PoolMetadata
+  , PoolMetadataHash
   , PoolParams
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -179,11 +180,10 @@ import Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Withdrawals
   ) as Csl
 import Ctl.Internal.Types.BigNum (BigNum) as Csl
-import Ctl.Internal.Types.BigNum (toBigInt') as BigNum
+import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int (Int) as Csl
@@ -212,7 +212,6 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant)
 import Type.Row (type (+))
-import Untagged.Union (asOneOf)
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
@@ -246,9 +245,8 @@ convertTxBody txBody = do
   outputs <-
     _txBodyOutputs containerHelper txBody
       # traverse (convertOutput >>> cslErr "TransactionOutput")
-  fee <-
-    Coin <$> (_txBodyFee txBody # BigNum.toBigInt' "Tx fee")
   let
+    fee = Coin $ BigNum.toBigInt $ _txBodyFee txBody
     networkId =
       _txBodyNetworkId Csl.TestnetId Csl.MainnetId maybeFfiHelper txBody
 
@@ -262,7 +260,7 @@ convertTxBody txBody = do
     (map <<< map) (M.fromFoldable <<< map (lmap T.RewardAddress))
       -- bignum -> coin
       <<< (traverse <<< traverse <<< traverse)
-        (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
+        (BigNum.toBigInt >>> Coin >>> pure)
       $ ws
 
   update <- traverse convertUpdate $ _txBodyUpdate maybeFfiHelper txBody
@@ -287,9 +285,9 @@ convertTxBody txBody = do
     _txBodyCollateralReturn maybeFfiHelper txBody #
       traverse (convertOutput >>> cslErr "TransactionOutput")
 
-  totalCollateral <-
-    _txBodyTotalCollateral maybeFfiHelper txBody # traverse
-      (BigNum.toBigInt' "txbody withdrawals" >>> map Coin)
+  let
+    totalCollateral = _txBodyTotalCollateral maybeFfiHelper txBody <#>
+      (BigNum.toBigInt >>> Coin)
 
   pure $ T.TxBody
     { inputs
@@ -300,7 +298,7 @@ convertTxBody txBody = do
     , withdrawals
     , update
     , auxiliaryDataHash:
-        T.AuxiliaryDataHash <<< toBytes <<< asOneOf <$>
+        T.AuxiliaryDataHash <<< unwrap <<< toBytes <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
@@ -325,7 +323,7 @@ convertUpdate u = do
   epoch <- map T.Epoch $ cslNumberToUInt "convertUpdate: epoch" e
   ppus <- traverse
     ( bitraverse
-        (pure <<< T.GenesisHash <<< toBytes <<< asOneOf)
+        (pure <<< T.GenesisHash <<< unwrap <<< toBytes)
         convertProtocolParamUpdate
     )
     paramUpdates
@@ -348,9 +346,9 @@ convertCertificate = _convertCert certConvHelper
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         pure $ T.GenesisKeyDelegation
-          { genesisHash: T.GenesisHash $ toBytes $ asOneOf genesisHash
-          , genesisDelegateHash: T.GenesisDelegateHash
-              (toBytes $ asOneOf genesisDelegateHash)
+          { genesisHash: T.GenesisHash $ unwrap $ toBytes genesisHash
+          , genesisDelegateHash: T.GenesisDelegateHash $ unwrap
+              $ toBytes genesisDelegateHash
           , vrfKeyhash: VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
@@ -385,7 +383,9 @@ convertPoolRegistration params = do
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
         convertPoolMetadata_
           \url hash -> T.PoolMetadata
-            { url: T.URL url, hash: T.PoolMetadataHash hash }
+            { url: T.URL url
+            , hash: T.PoolMetadataHash $ unwrap $ toBytes hash
+            }
     }
 
 type ConvertRelayHelper a =
@@ -442,7 +442,7 @@ foreign import convertMultiHostName_
 
 convertPoolRetirement
   :: forall (r :: Row Type)
-   . Ed25519KeyHash
+   . Csl.Ed25519KeyHash
   -> Int
   -> Err r T.Certificate
 convertPoolRetirement poolKeyHash epochInt = do
@@ -473,20 +473,16 @@ convertProtocolParamUpdate cslPpu = do
   let
     ppu = _unpackProtocolParamUpdate maybeFfiHelper cslPpu
     lbl = (<>) "ProtocolParamUpdate."
-
-  minfeeA <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeA"))
-    ppu.minfeeA
-  minfeeB <- traverse (map Coin <<< BigNum.toBigInt' (lbl "minfeeB"))
-    ppu.minfeeB
+    minfeeA = Coin <<< BigNum.toBigInt <$> ppu.minfeeA
+    minfeeB = Coin <<< BigNum.toBigInt <$> ppu.minfeeB
   maxBlockBodySize <- traverse (cslNumberToUInt (lbl "maxBlockBodySize"))
     ppu.maxBlockBodySize
   maxTxSize <- traverse (cslNumberToUInt (lbl "maxTxSize")) ppu.maxTxSize
   maxBlockHeaderSize <- traverse (cslNumberToUInt (lbl "maxBlockHeaderSize"))
     ppu.maxBlockHeaderSize
-  keyDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "keyDeposit"))
-    ppu.keyDeposit
-  poolDeposit <- traverse (map Coin <<< BigNum.toBigInt' (lbl "poolDeposit"))
-    ppu.poolDeposit
+  let
+    keyDeposit = Coin <<< BigNum.toBigInt <$> ppu.keyDeposit
+    poolDeposit = Coin <<< BigNum.toBigInt <$> ppu.poolDeposit
   maxEpoch <- traverse (map T.Epoch <<< cslNumberToUInt (lbl "maxEpoch"))
     ppu.maxEpoch
   nOpt <- traverse (cslNumberToUInt (lbl "nOpt")) ppu.nOpt
@@ -494,12 +490,17 @@ convertProtocolParamUpdate cslPpu = do
     ppu.protocolVersion
   costModels <- addErrTrace (lbl "costModels") $ traverse convertCostModels
     ppu.costModels
-  maxTxExUnits <- traverse (convertExUnits (lbl "maxTxExUnits"))
-    ppu.maxTxExUnits
-  maxBlockExUnits <- traverse (convertExUnits (lbl "maxBlockExUnits"))
-    ppu.maxBlockExUnits
+  let
+    maxTxExUnits = convertExUnits <$> ppu.maxTxExUnits
+    maxBlockExUnits = convertExUnits <$>
+      ppu.maxBlockExUnits
   maxValueSize <- traverse (cslNumberToUInt (lbl "maxValueSize"))
     ppu.maxValueSize
+  collateralPercentage <- traverse
+    (cslNumberToUInt (lbl "collateralPercentage"))
+    ppu.collateralPercentage
+  maxCollateralInputs <- traverse (cslNumberToUInt (lbl "maxCollateralInputs"))
+    ppu.maxCollateralInputs
   pure
     { minfeeA
     , minfeeB
@@ -521,6 +522,8 @@ convertProtocolParamUpdate cslPpu = do
     , maxTxExUnits
     , maxBlockExUnits
     , maxValueSize
+    , collateralPercentage
+    , maxCollateralInputs
     }
 
 convertNonce :: Csl.Nonce -> T.Nonce
@@ -574,9 +577,7 @@ convertGeneralTransactionMetadata =
       -- convert tuple type
       traverse
         ( bitraverse
-            ( map TransactionMetadatumLabel <<< BigNum.toBigInt'
-                "MetadatumLabel: "
-            )
+            (pure <<< TransactionMetadatumLabel <<< BigNum.toBigInt)
             (convertMetadatum "GeneralTransactionMetadata: ")
         )
     -- fold to map and and wrap
@@ -638,28 +639,23 @@ cslIntToUInt nm nb = cslErr (nm <> ": Int (" <> show nb <> ") -> UInt") $
 
 cslRatioToRational
   :: forall (r :: Row Type)
-   . String
-  -> { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
-  -> E (FromCslRepError + r) (Ratio BigInt)
-cslRatioToRational err { numerator, denominator } = reduce
-  <$> BigNum.toBigInt' (err <> " cslRatioToRational") numerator
-  <*> BigNum.toBigInt' (err <> " cslRatioToRational") denominator
+   . { denominator :: Csl.BigNum, numerator :: Csl.BigNum }
+  -> Ratio BigInt
+cslRatioToRational { numerator, denominator } =
+  reduce (BigNum.toBigInt numerator) (BigNum.toBigInt denominator)
 
 convertExUnits
   :: forall (r :: Row Type)
-   . String
-  -> Csl.ExUnits
-  -> E (FromCslRepError + r) T.ExUnits
-convertExUnits nm cslExunits =
+   . Csl.ExUnits
+  -> T.ExUnits
+convertExUnits cslExunits =
   let
     { mem, steps } = _unpackExUnits cslExunits
   in
-    { mem: _, steps: _ }
-      <$> BigNum.toBigInt' (nm <> " mem") mem
-      <*> BigNum.toBigInt' (nm <> " steps") steps
+    { mem: _, steps: _ } (BigNum.toBigInt mem) (BigNum.toBigInt steps)
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
-convertScriptDataHash = asOneOf >>> toBytes >>> T.ScriptDataHash
+convertScriptDataHash = toBytes >>> unwrap >>> T.ScriptDataHash
 
 convertProtocolVersion
   :: forall (r :: Row Type)
@@ -706,6 +702,8 @@ foreign import _unpackProtocolParamUpdate
      , maxTxExUnits :: Maybe Csl.ExUnits
      , maxBlockExUnits :: Maybe Csl.ExUnits
      , maxValueSize :: Maybe Number
+     , collateralPercentage :: Maybe Number
+     , maxCollateralInputs :: Maybe Number
      }
 
 foreign import _unpackCostModels
@@ -843,7 +841,7 @@ foreign import _txBodyRequiredSigners
   :: ContainerHelper
   -> MaybeFfiHelper
   -> Csl.TransactionBody
-  -> Maybe (Array Ed25519KeyHash)
+  -> Maybe (Array Csl.Ed25519KeyHash)
 
 -- network_id(): NetworkId | void
 foreign import _txBodyNetworkId
@@ -878,7 +876,7 @@ foreign import _unpackUpdate
      }
 
 foreign import _unpackMint
-  :: ContainerHelper -> Csl.Mint -> Array (ScriptHash /\ Csl.MintAssets)
+  :: ContainerHelper -> Csl.Mint -> Array (Csl.ScriptHash /\ Csl.MintAssets)
 
 foreign import _unpackMintAssets
   :: ContainerHelper -> Csl.MintAssets -> Array (Csl.AssetName /\ Csl.Int)
@@ -887,9 +885,9 @@ type CertConvHelper (r :: Type) =
   { stakeDeregistration :: Csl.StakeCredential -> r
   , stakeRegistration :: Csl.StakeCredential -> r
   , stakeDelegation ::
-      Csl.StakeCredential -> Ed25519KeyHash -> r
+      Csl.StakeCredential -> Csl.Ed25519KeyHash -> r
   , poolRegistration :: Csl.PoolParams -> r
-  , poolRetirement :: Ed25519KeyHash -> Int -> r
+  , poolRetirement :: Csl.Ed25519KeyHash -> Int -> r
   , genesisKeyDelegation ::
       Csl.GenesisHash
       -> Csl.GenesisDelegateHash
@@ -907,14 +905,14 @@ foreign import _convertCert
   -> Csl.Certificate
   -> Err r T.Certificate
 
-foreign import poolParamsOperator :: Csl.PoolParams -> Ed25519KeyHash
+foreign import poolParamsOperator :: Csl.PoolParams -> Csl.Ed25519KeyHash
 foreign import poolParamsVrfKeyhash :: Csl.PoolParams -> Csl.VRFKeyHash
 foreign import poolParamsPledge :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsCost :: Csl.PoolParams -> Csl.BigNum
 foreign import poolParamsMargin :: Csl.PoolParams -> Csl.UnitInterval
 foreign import poolParamsRewardAccount :: Csl.PoolParams -> Csl.RewardAddress
 foreign import poolParamsPoolOwners
-  :: ContainerHelper -> Csl.PoolParams -> Array Ed25519KeyHash
+  :: ContainerHelper -> Csl.PoolParams -> Array Csl.Ed25519KeyHash
 
 foreign import poolParamsRelays
   :: ContainerHelper -> Csl.PoolParams -> Array Csl.Relay
@@ -928,4 +926,4 @@ foreign import unpackMIRToStakeCredentials_
   -> Array (Csl.StakeCredential /\ Csl.Int)
 
 foreign import convertPoolMetadata_
-  :: forall a. (String -> ByteArray -> a) -> Csl.PoolMetadata -> a
+  :: forall a. (String -> Csl.PoolMetadataHash -> a) -> Csl.PoolMetadata -> a

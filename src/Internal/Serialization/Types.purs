@@ -43,6 +43,7 @@ module Ctl.Internal.Serialization.Types
   , PlutusScript
   , PlutusScripts
   , PoolMetadata
+  , PoolMetadataHash
   , PoolParams
   , PrivateKey
   , ProposedProtocolParameterUpdates
@@ -76,7 +77,6 @@ module Ctl.Internal.Serialization.Types
   , TransactionWitnessSet
   , UnitInterval
   , Update
-  , VRFKeyHash
   , Value
   , Vkey
   , Vkeywitness
@@ -128,6 +128,7 @@ foreign import data PlutusMap :: Type
 foreign import data PlutusScript :: Type
 foreign import data PlutusScripts :: Type
 foreign import data PoolMetadata :: Type
+foreign import data PoolMetadataHash :: Type
 foreign import data PoolParams :: Type
 foreign import data ProposedProtocolParameterUpdates :: Type
 foreign import data ProtocolParamUpdate :: Type
@@ -161,7 +162,6 @@ foreign import data TransactionUnspentOutput :: Type
 foreign import data TransactionWitnessSet :: Type
 foreign import data UnitInterval :: Type
 foreign import data Update :: Type
-foreign import data VRFKeyHash :: Type
 foreign import data Value :: Type
 foreign import data Vkey :: Type
 foreign import data Vkeywitness :: Type

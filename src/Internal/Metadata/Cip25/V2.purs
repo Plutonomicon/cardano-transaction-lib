@@ -57,7 +57,7 @@ import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
-import Ctl.Internal.Types.RawBytes (hexToRawBytes, rawBytesToHex)
+import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Ctl.Internal.Types.TokenName (getTokenName, mkTokenName)
 import Ctl.Internal.Types.TransactionMetadata
@@ -235,7 +235,7 @@ encodePolicyIdKey (Cip25MetadataEntry { policyId }) =
 
 -- | Decode the CIP25 policy id key
 decodePolicyIdKey :: String -> Maybe MintingPolicyHash
-decodePolicyIdKey = map wrap <<< scriptHashFromBytes <=< hexToRawBytes
+decodePolicyIdKey = map wrap <<< scriptHashFromBytes <=< hexToByteArray
 
 -- | Encode the entry's asset name to the string used as the metadata
 -- | key
@@ -374,7 +374,7 @@ instance DecodeAeson Cip25Metadata where
     decodePolicyId =
       note (TypeMismatch "Expected hex-encoded policy id")
         <<< map wrap
-        <<< (scriptHashFromBytes <=< hexToRawBytes)
+        <<< (scriptHashFromBytes <=< hexToByteArray)
 
     decodeAssetName :: String -> Either JsonDecodeError Cip25TokenName
     decodeAssetName =
