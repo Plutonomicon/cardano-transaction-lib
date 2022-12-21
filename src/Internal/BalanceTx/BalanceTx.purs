@@ -350,8 +350,7 @@ runBalancer p = do
           true ->
             if (Set.isEmpty $ balancedTx ^. _body' <<< _inputs) then do
               selectionState <-
-                performMultiAssetSelection p.strategy
-                  leftoverUtxos
+                performMultiAssetSelection p.strategy leftoverUtxos
                   (lovelaceValueOf one)
               runNextBalancerStep $ s
                 { transaction =

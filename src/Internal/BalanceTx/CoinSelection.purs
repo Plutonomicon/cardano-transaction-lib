@@ -129,10 +129,7 @@ performMultiAssetSelection
   -> UtxoIndex
   -> Value
   -> m SelectionState
-performMultiAssetSelection
-  strategy
-  utxoIndex
-  requiredValue =
+performMultiAssetSelection strategy utxoIndex requiredValue =
   case requiredValue `Value.leq` availableValue of
     true ->
       runRoundRobinM (mkSelectionState utxoIndex) selectors
