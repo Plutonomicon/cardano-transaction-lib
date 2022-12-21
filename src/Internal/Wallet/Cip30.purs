@@ -19,7 +19,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Coin, Value, coinToValue, getLovelace)
+import Ctl.Internal.Cardano.Types.Value (Coin, Value, getLovelace)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -58,7 +58,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import Untagged.Union (UndefinedOr, asOneOf, maybeToUor)
+import Untagged.Union (UndefinedOr, maybeToUor)
 
 type DataSignature =
   { key :: CborBytes

@@ -37,8 +37,7 @@ import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes
-  ( cborBytesFromByteArray
-  , cborBytesToHex
+  ( cborBytesToHex
   , hexToCborBytes
   )
 import Ctl.Internal.Wallet
