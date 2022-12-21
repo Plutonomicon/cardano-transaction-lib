@@ -112,7 +112,7 @@ import Ctl.Internal.Types.BigNum
   , fromBigInt
   , maxValue
   , one
-  , toBigIntUnsafe
+  , toBigInt
   , zero
   ) as BigNum
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
@@ -279,31 +279,31 @@ instance Ord a => MeetSemilattice (Interval a) where
 -- This instance is written to be compatible with plutus.
 instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
   toData (FiniteInterval start end) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData $ lowerBound start
         , toData $ strictUpperBound (end + one)
         ]
     )
   toData (StartAt end) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData $ strictUpperBound (end + one)
         ]
     )
   toData (EndAt start) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData $ lowerBound start
         , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData AlwaysInterval =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData EmptyInterval =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound PosInf true :: LowerBound a)
         , toData (UpperBound NegInf true :: UpperBound a)
         ]
@@ -320,7 +320,7 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
 
 -- This instance is written to be compatible with plutus.
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
-  fromData (Constr index [ lower, upper ]) | index == zero = do
+  fromData (Constr index [ lower, upper ]) | index == BigNum.zero = do
     (LowerBound start startBool) <- fromData lower
     (UpperBound end endBool) <- fromData upper
     case
@@ -741,13 +741,13 @@ findSlotEraSummary (EraSummaries eraSummaries) slot =
   note (CannotFindSlotInEraSummaries slot) $ find pred eraSummaries
   where
   biSlot :: BigInt
-  biSlot = BigNum.toBigIntUnsafe $ unwrap slot
+  biSlot = BigNum.toBigInt $ unwrap slot
 
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    BigNum.toBigIntUnsafe (unwrap (unwrap start).slot) <= biSlot
+    BigNum.toBigInt (unwrap (unwrap start).slot) <= biSlot
       && maybe true
-        ((<) biSlot <<< BigNum.toBigIntUnsafe <<< unwrap <<< _.slot <<< unwrap)
+        ((<) biSlot <<< BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
         end
 
 -- This doesn't need to be exported but we can do it for tests.
@@ -815,8 +815,8 @@ relSlotFromSlot
   :: EraSummary -> Slot -> Either SlotToPosixTimeError RelSlot
 relSlotFromSlot (EraSummary { start }) s@(Slot slot) = do
   let
-    startSlot = BigNum.toBigIntUnsafe $ unwrap (unwrap start).slot
-    biSlot = BigNum.toBigIntUnsafe slot
+    startSlot = BigNum.toBigInt $ unwrap (unwrap start).slot
+    biSlot = BigNum.toBigInt slot
   unless (startSlot <= biSlot) (throwError $ StartingSlotGreaterThanSlot s)
   pure $ wrap $ biSlot - startSlot
 
@@ -1026,7 +1026,7 @@ slotFromRelSlot
   (EraSummary { start, end })
   (RelSlot relSlot /\ mt@(ModTime modTime)) = do
   let
-    startSlot = BigNum.toBigIntUnsafe $ unwrap (unwrap start).slot
+    startSlot = BigNum.toBigInt $ unwrap (unwrap start).slot
     -- Round down to the nearest Slot to accept Milliseconds as input.
     slot = startSlot + relSlot -- relative to system start
     -- If `EraSummary` doesn't have an end, the condition is automatically
@@ -1036,7 +1036,7 @@ slotFromRelSlot
     -- required to be in the distant future. Onchain, this uses POSIXTime which
     -- is stable, unlike Slots.
     endSlot = maybe (slot + one)
-      (BigNum.toBigIntUnsafe <<< unwrap <<< _.slot <<< unwrap)
+      (BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
       end
   bnSlot <- liftM CannotGetBigNumFromBigInt' $ BigNum.fromBigInt slot
   -- Check we are less than the end slot, or if equal, there is no excess:

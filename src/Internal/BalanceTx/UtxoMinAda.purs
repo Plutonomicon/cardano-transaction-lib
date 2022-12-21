@@ -21,7 +21,6 @@ import Ctl.Internal.Types.BigNum
   ( fromBigInt
   , maxValue
   , toBigInt
-  , toBigIntUnsafe
   ) as BigNum
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)
@@ -49,10 +48,10 @@ utxoMinAdaValue coinsPerUtxoUnit txOutput = do
         (BigNum.fromBigInt n)
   pure $ minAdaForOutput maybeFfiHelper cslTxOutput dataCost
     -- useful spy: BigNum.toBigInt >>= (pure <<< spy "utxoMinAdaValue")
-    >>= BigNum.toBigInt
+    <#> BigNum.toBigInt
 
 adaOnlyUtxoMinAdaValue :: CoinsPerUtxoUnit -> Effect BigInt
 adaOnlyUtxoMinAdaValue coinsPerUtxoUnit =
   map (unsafePartial fromJust) <<< utxoMinAdaValue coinsPerUtxoUnit <<<
     fakeOutputWithValue
-    $ lovelaceValueOf (BigNum.toBigIntUnsafe BigNum.maxValue)
+    $ lovelaceValueOf (BigNum.toBigInt BigNum.maxValue)

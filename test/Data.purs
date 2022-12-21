@@ -30,6 +30,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , ConsI
   , NilI
   )
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.BigInt (BigInt)
@@ -56,7 +57,6 @@ import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
 import Type.Proxy (Proxy(Proxy))
 import Type.RowList (Cons, Nil)
-import Untagged.Union (asOneOf)
 
 plutusDataAesonRoundTrip
   :: forall (a :: Type). ToData a => FromData a => a -> Either JsonDecodeError a
@@ -178,18 +178,18 @@ suite = do
         plutusDataRoundtripProperty (Proxy :: Proxy EType)
       test "CType: C1 constructor shouldn't accept empty arguments" $
         let
-          pd = Constr (BigInt.fromInt 1) []
+          pd = Constr BigNum.one []
         in
           shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
       test "CType: C1 constructor shouldn't accept more than one argument" $
         let
-          pd = Constr (BigInt.fromInt 1)
-            [ (Constr (BigInt.fromInt 1) []), (Integer $ BigInt.fromInt 0) ]
+          pd = Constr BigNum.one
+            [ (Constr BigNum.one []), (Integer $ BigInt.fromInt 0) ]
         in
           shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
       test "CType: C0 constructor shouldn't accept any arguments" $
         let
-          pd = Constr (BigInt.fromInt 0) [ (Constr (BigInt.fromInt 1) []) ]
+          pd = Constr BigNum.zero [ (Constr BigNum.one []) ]
         in
           shouldEqualWith fromData (const (Nothing :: Maybe CType)) pd
       test "FType and FType' toData/fromData are the same" $
@@ -552,8 +552,8 @@ instance (FromData a) => FromData (Tree a) where
   fromData x = genericFromData x
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = fromData =<< PDD.convertPlutusData =<< fromBytes
-  (hexToByteArrayUnsafe binary)
+fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes
+  (wrap $ hexToByteArrayUnsafe binary)
 
 testBinaryFixture
   :: forall a
@@ -568,9 +568,8 @@ testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
-    map (toBytes <<< asOneOf) (PDS.convertPlutusData (toData value))
-      `shouldEqual` Just
-        (hexToByteArrayUnsafe binaryFixture)
+    toBytes (PDS.convertPlutusData $ toData value)
+      `shouldEqual` wrap (hexToByteArrayUnsafe binaryFixture)
 
 -- | Poor man's type level tests
 tests :: Array String
