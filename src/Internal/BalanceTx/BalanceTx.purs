@@ -229,7 +229,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   getWalletUtxosAt :: Array Address -> QueryM (Either BalanceTxError UtxoMap)
   getWalletUtxosAt inWalletAddresses = do
     filteredWalletUtxos <-
-      maybe (Map.empty)
+      maybe Map.empty
         ( Map.filter
             (\txout -> elem (_.address (unwrap txout)) inWalletAddresses)
         ) <$> getWalletUtxos
