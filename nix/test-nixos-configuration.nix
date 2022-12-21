@@ -12,6 +12,7 @@
       { from = "host"; host.port = 1337; guest.port = 1337; }
       # Ogmios Datum Cache
       { from = "host"; host.port = 9999; guest.port = 9999; }
+      # Kupo
       { from = "host"; host.port = 1442; guest.port = 1442; }
     ];
   };
