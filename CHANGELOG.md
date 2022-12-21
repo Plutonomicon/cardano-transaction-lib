@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Unrealeased](#unrealeased)
+- [Unreleased](#unreleased)
   - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
@@ -48,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 ### Changed
-- The configuration option for plutip clusters: slot length, maximum transaction size and maximum execution units can now all be adjusted using `clusterConfig` field of `PlutipConfig`. The need for collateral can also be removed for debugging purposes by setting the `noCollateral` flag to true.
+- The configuration option for plutip clusters: slot length, maximum transaction size and maximum execution units can now all be adjusted using `clusterConfig` field of `PlutipConfig`. When adjusting maximum transaction size above the standard the collateral requirements of 1.5x the Tx Fee are reduced proportionately so as not to go above the 5 Ada allowance.
 
 ### Removed
 

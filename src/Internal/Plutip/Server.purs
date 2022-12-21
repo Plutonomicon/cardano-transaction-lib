@@ -478,8 +478,8 @@ startPlutipCluster cfg keysToGenerate = do
                     -- https://github.com/mlabs-haskell/plutip/issues/149
                     , epochSize: Nothing
                     , maxTxSize: cfg.clusterConfig.maxTxSize
-                    , increasedExUnits: cfg.clusterConfig.increasedExUnits
-                    , noCollateral: cfg.clusterConfig.noCollateral
+                    , raiseExUnitsToMax: Just
+                        cfg.clusterConfig.raiseExUnitsToMax
                     }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]

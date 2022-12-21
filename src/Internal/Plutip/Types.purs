@@ -76,19 +76,18 @@ type PlutipConfig =
 
 type ClusterConfig =
   { slotLength :: Maybe Seconds
-  -- Adjust the max transaction size. Useful for debugging with traces
+  -- | Adjust the max transaction size. Useful for debugging with traces
+  -- Collateral is automatically adjusted proportionally to allow fo the increase
   , maxTxSize :: Maybe UInt
-  -- Factor by which to increase the Max ex-units of a cluster
-  , increasedExUnits :: Maybe UInt
-  , noCollateral :: Boolean
+  -- | Increase execution units to the maxbound limit.
+  , raiseExUnitsToMax :: Boolean
   }
 
 defaultClusterConfig :: ClusterConfig
 defaultClusterConfig =
   { slotLength: Nothing
   , maxTxSize: Nothing
-  , increasedExUnits: Nothing
-  , noCollateral: false
+  , raiseExUnitsToMax: false
   }
 
 type PostgresConfig =
@@ -119,8 +118,7 @@ newtype ClusterStartupRequest =
     , epochSize :: Maybe UInt
     , slotLength :: Maybe Seconds
     , maxTxSize :: Maybe UInt
-    , increasedExUnits :: Maybe UInt
-    , noCollateral :: Boolean
+    , raiseExUnitsToMax :: Maybe Boolean
     }
 
 instance EncodeAeson ClusterStartupRequest where
@@ -130,8 +128,7 @@ instance EncodeAeson ClusterStartupRequest where
         , epochSize
         , slotLength
         , maxTxSize
-        , increasedExUnits
-        , noCollateral
+        , raiseExUnitsToMax
         }
     ) =
 
@@ -143,8 +140,7 @@ instance EncodeAeson ClusterStartupRequest where
         , epochSize
         , slotLength: sl
         , maxTxSize
-        , increasedExUnits
-        , noCollateral
+        , raiseExUnitsToMax
         }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey

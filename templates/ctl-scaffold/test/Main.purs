@@ -88,9 +88,7 @@ config =
       { slotLength: Just $ Seconds 0.1
       -- Adjust the max transaction size. Useful for debugging with traces
       , maxTxSize: Just $ UInt.fromInt 16384
-      -- Factor by with which to increase the standard maximum ex-Units
-      , increasedExUnits: Just $ UInt.fromInt 1
-      -- Remove the constraints on collateral. Useful for debugging with traces
-      , noCollateral: false
+      -- Increase execution units to the maxbound limit.
+      , raiseExUnitsToMax: false
       }
   }

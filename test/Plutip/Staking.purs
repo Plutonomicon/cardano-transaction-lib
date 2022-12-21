@@ -697,7 +697,6 @@ suite = do
     { clusterConfig =
         { slotLength: Just $ Seconds 0.05
         , maxTxSize: Nothing
-        , increasedExUnits: Nothing
-        , noCollateral: false
+        , raiseExUnitsToMax: false
         }
     }
