@@ -15,7 +15,6 @@ module Ctl.Internal.Wallet.Spec
 
 import Prelude
 
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension
@@ -57,8 +56,8 @@ data WalletSpec
   | ConnectToLode
   | ConnectToNuFi
 
-mkWalletBySpec :: NetworkId -> WalletSpec -> Aff Wallet
-mkWalletBySpec networkId = case _ of
+mkWalletBySpec :: WalletSpec -> Aff Wallet
+mkWalletBySpec = case _ of
   UseKeys paymentKeySpec mbStakeKeySpec -> do
     privatePaymentKey <- case paymentKeySpec of
       PrivatePaymentKeyFile filePath ->
@@ -67,7 +66,7 @@ mkWalletBySpec networkId = case _ of
     mbPrivateStakeKey <- for mbStakeKeySpec case _ of
       PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
       PrivateStakeKeyValue key -> pure key
-    pure $ mkKeyWallet networkId privatePaymentKey mbPrivateStakeKey
+    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
   ConnectToNami -> mkWalletAff NamiWallet
   ConnectToGero -> mkWalletAff GeroWallet
   ConnectToFlint -> mkWalletAff FlintWallet

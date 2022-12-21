@@ -5,11 +5,9 @@ module Ctl.Internal.Contract.Wallet
   , getWalletAddresses
   , signData
   , getWallet
-  , getNetworkId
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
   , ownStakePubKeysHashes
-  , withWalletAff
   , withWallet
   , getWalletCollateral
   , getWalletBalance
@@ -31,7 +29,6 @@ import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
   ( Address
-  , NetworkId
   , addressPaymentCred
   , baseAddressDelegationCred
   , baseAddressFromAddress
@@ -47,13 +44,6 @@ import Ctl.Internal.Wallet
   ( Wallet
   , actionBasedOnWallet
   )
-import Ctl.Internal.Wallet
-  ( getChangeAddress
-  , getRewardAddresses
-  , getUnusedAddresses
-  , getWalletAddresses
-  , signData
-  ) as Aff
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (catMaybes, cons, foldMap, head)
 import Data.Array as Array
@@ -66,31 +56,47 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 
 getUnusedAddresses :: Contract (Array Address)
-getUnusedAddresses = withWalletAff Aff.getUnusedAddresses
+getUnusedAddresses = fold <$> do
+  withWallet $ actionBasedOnWallet _.getUnusedAddresses mempty
 
 getChangeAddress :: Contract (Maybe Address)
-getChangeAddress = withWalletAff Aff.getChangeAddress
+getChangeAddress = withWallet do
+  actionBasedOnWallet _.getChangeAddress
+    \kw -> do
+      networkId <- asks _.networkId
+      pure $ pure $ (unwrap kw).address networkId
 
 getRewardAddresses :: Contract (Array Address)
-getRewardAddresses = withWalletAff Aff.getRewardAddresses
+getRewardAddresses = fold <$> withWallet do
+  actionBasedOnWallet _.getRewardAddresses
+    \kw -> do
+      networkId <- asks _.networkId
+      pure $ pure $ pure $ (unwrap kw).address networkId
 
 getWalletAddresses :: Contract (Array Address)
-getWalletAddresses = withWalletAff Aff.getWalletAddresses
+getWalletAddresses = fold <$> withWallet do
+  actionBasedOnWallet _.getWalletAddresses
+    ( \kw -> do
+        networkId <- asks _.networkId
+        pure $ pure $ Array.singleton $ (unwrap kw).address networkId
+    )
 
 signData :: Address -> RawBytes -> Contract (Maybe DataSignature)
-signData address payload = withWalletAff (Aff.signData address payload)
+signData address payload =
+  withWallet $
+    actionBasedOnWallet
+      (\w conn -> w.signData conn address payload)
+      \kw -> do
+        networkId <- asks _.networkId
+        liftAff $ pure <$> (unwrap kw).signData networkId payload
 
 getWallet :: Contract (Maybe Wallet)
 getWallet = asks _.wallet
-
-getNetworkId :: Contract NetworkId
-getNetworkId = asks _.networkId
 
 ownPubKeyHashes :: Contract (Array PubKeyHash)
 ownPubKeyHashes = catMaybes <$> do
@@ -118,10 +124,6 @@ ownStakePubKeysHashes = do
     wrap <<< wrap <$> stakeCredentialToKeyHash
       (baseAddressDelegationCred baseAddress)
 
-withWalletAff
-  :: forall (a :: Type). (Wallet -> Aff a) -> Contract a
-withWalletAff act = withWallet (liftAff <<< act)
-
 withWallet
   :: forall (a :: Type). (Wallet -> Contract a) -> Contract a
 withWallet act = do
@@ -134,7 +136,8 @@ getWalletCollateral = do
   mbCollateralUTxOs <- getWallet >>= maybe (pure Nothing) do
     actionBasedOnWallet _.getCollateral \kw -> do
       queryHandle <- getQueryHandle
-      let addr = (unwrap kw).address
+      networkId <- asks _.networkId
+      let addr = (unwrap kw).address networkId
       utxos <- (liftAff $ queryHandle.utxosAt addr)
         <#> hush >>> fromMaybe Map.empty
         >>= filterLockedUtxos

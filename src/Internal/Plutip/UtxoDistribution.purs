@@ -42,7 +42,6 @@ import Ctl.Internal.Plutip.Types
   , UtxoAmount
   )
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
@@ -86,7 +85,7 @@ instance UtxoDistribution InitialUTxOs KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
-      (privateKeysToKeyWallet MainnetId (PrivatePaymentKey key) Nothing) /\ tail
+      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
@@ -94,7 +93,7 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (InitialUTxOsWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: PrivateKeyResponse key, tail } ->
-      privateKeysToKeyWallet MainnetId (PrivatePaymentKey key) (Just stake) /\
+      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
         tail
   keyWallets _ wallet = [ wallet ]
 
@@ -180,7 +179,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   -- Get all utxos and key hashes at all wallets containing a stake key
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
-    ourWallet <- mkKeyWalletFromPrivateKeys ourKey Nothing
+    let ourWallet = mkKeyWalletFromPrivateKeys ourKey Nothing
     ourAddr <- liftedM "Could not get our address" $
       head <$> withKeyWallet ourWallet getWalletAddresses
     ourUtxos <- utxosAt ourAddr

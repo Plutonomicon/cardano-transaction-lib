@@ -30,16 +30,7 @@ module Ctl.Internal.Wallet
   , apiVersion
   , name
   , icon
-  , getNetworkId
-  , getUnusedAddresses
-  , getChangeAddress
-  , getRewardAddresses
-  , getWalletAddresses
   , actionBasedOnWallet
-  , signData
-  , ownPubKeyHashes
-  , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
   , callCip30Wallet
   ) where
 
@@ -56,27 +47,11 @@ import Ctl.Internal.Cardano.Types.Transaction
   , mkPublicKey
   )
 import Ctl.Internal.Helpers ((<<>>))
-import Ctl.Internal.Helpers as Helpers
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId(TestnetId, MainnetId)
-  , addressPaymentCred
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , stakeCredentialToKeyHash
-  )
 import Ctl.Internal.Types.Natural (fromInt', minus)
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash
-  , PubKeyHash
-  , StakePubKeyHash
-  )
-import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
 import Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
-  , DataSignature
   , mkCip30WalletAff
   )
 import Ctl.Internal.Wallet.Key
@@ -86,18 +61,14 @@ import Ctl.Internal.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
-import Data.Array as Array
-import Data.Foldable (fold)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (over, unwrap, wrap)
-import Data.Traversable (traverse)
+import Data.Newtype (over, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 
@@ -118,9 +89,8 @@ data WalletExtension
   | LodeWallet
   | NuFiWallet
 
-mkKeyWallet :: NetworkId -> PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWallet network payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
-  network
+mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
+mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
   payKey
   mbStakeKey
 
@@ -315,45 +285,6 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
           )
     )
 
-getNetworkId :: Wallet -> Aff NetworkId
-getNetworkId =
-  actionBasedOnWallet
-    (\w -> intToNetworkId <=< _.getNetworkId w)
-    \kw -> pure (unwrap kw).networkId
-  where
-  intToNetworkId :: Int -> Aff NetworkId
-  intToNetworkId = case _ of
-    0 -> pure TestnetId
-    1 -> pure MainnetId
-    _ -> liftEffect $ throw "Unknown network id"
-
-getUnusedAddresses :: Wallet -> Aff (Array Address)
-getUnusedAddresses wallet = fold <$> do
-  actionBasedOnWallet _.getUnusedAddresses mempty wallet
-
-getChangeAddress :: Wallet -> Aff (Maybe Address)
-getChangeAddress =
-  actionBasedOnWallet _.getChangeAddress
-    \kw -> pure $ pure (unwrap kw).address
-
-getRewardAddresses :: Wallet -> Aff (Array Address)
-getRewardAddresses wallet = fold <$> do
-  actionBasedOnWallet _.getRewardAddresses
-    (\kw -> pure $ pure $ pure (unwrap kw).address)
-    wallet
-
-getWalletAddresses :: Wallet -> Aff (Array Address)
-getWalletAddresses wallet = fold <$> do
-  actionBasedOnWallet _.getWalletAddresses
-    (\kw -> pure $ pure $ Array.singleton (unwrap kw).address)
-    wallet
-
-signData :: Address -> RawBytes -> Wallet -> Aff (Maybe DataSignature)
-signData address payload =
-  actionBasedOnWallet
-    (\w conn -> w.signData conn address payload)
-    \kw -> pure <$> (unwrap kw).signData payload
-
 actionBasedOnWallet
   :: forall (m :: Type -> Type) (a :: Type)
    . MonadAff m
@@ -370,31 +301,6 @@ actionBasedOnWallet walletAction keyWalletAction =
     Lode wallet -> liftAff $ callCip30Wallet wallet walletAction
     NuFi wallet -> liftAff $ callCip30Wallet wallet walletAction
     KeyWallet kw -> keyWalletAction kw
-
-ownPubKeyHashes :: Wallet -> Aff (Array PubKeyHash)
-ownPubKeyHashes wallet = Array.catMaybes <$> do
-  getWalletAddresses wallet >>= traverse \address -> do
-    paymentCred <-
-      Helpers.liftM
-        ( error $
-            "Unable to get payment credential from Address"
-        ) $
-        addressPaymentCred address
-    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
-
-ownPaymentPubKeyHashes :: Wallet -> Aff (Array PaymentPubKeyHash)
-ownPaymentPubKeyHashes wallet = map wrap <$> ownPubKeyHashes wallet
-
-ownStakePubKeysHashes :: Wallet -> Aff (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes wallet = do
-  addresses <- getWalletAddresses wallet
-  pure $ addressToMStakePubKeyHash <$> addresses
-  where
-  addressToMStakePubKeyHash :: Address -> Maybe StakePubKeyHash
-  addressToMStakePubKeyHash address = do
-    baseAddress <- baseAddressFromAddress address
-    wrap <<< wrap <$> stakeCredentialToKeyHash
-      (baseAddressDelegationCred baseAddress)
 
 callCip30Wallet
   :: forall (a :: Type)

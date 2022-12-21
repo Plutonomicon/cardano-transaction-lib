@@ -174,7 +174,7 @@ route configs tests = do
         do
           runContract configWithHooks
             $ withCip30Mock
-                (privateKeysToKeyWallet config.networkId paymentKey stakeKey)
+                (privateKeysToKeyWallet paymentKey stakeKey)
                 mock
                 test
   where

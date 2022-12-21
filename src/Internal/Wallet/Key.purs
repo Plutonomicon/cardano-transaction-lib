@@ -67,17 +67,16 @@ import Effect.Class (liftEffect)
 -- Key backend
 -------------------------------------------------------------------------------
 newtype KeyWallet = KeyWallet
-  { address :: Address
+  { address :: NetworkId -> Address
   , selectCollateral ::
       CoinsPerUtxoUnit
       -> Int
       -> UtxoMap
       -> Effect (Maybe (Array TransactionUnspentOutput))
   , signTx :: Transaction -> Aff TransactionWitnessSet
-  , signData :: RawBytes -> Aff DataSignature
+  , signData :: NetworkId -> RawBytes -> Aff DataSignature
   , paymentKey :: PrivatePaymentKey
   , stakeKey :: Maybe PrivateStakeKey
-  , networkId :: NetworkId
   }
 
 derive instance Newtype KeyWallet _
@@ -145,20 +144,19 @@ privateKeysToAddress payKey mbStakeKey network = do
       >>> enterpriseAddressToAddress
 
 privateKeysToKeyWallet
-  :: NetworkId -> PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
-privateKeysToKeyWallet networkId payKey mbStakeKey =
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
+privateKeysToKeyWallet payKey mbStakeKey =
   KeyWallet
     { address
     , selectCollateral
     , signTx
-    , signData: signData address
+    , signData
     , paymentKey: payKey
     , stakeKey: mbStakeKey
-    , networkId
     }
   where
-  address :: Address
-  address = privateKeysToAddress payKey mbStakeKey networkId
+  address :: NetworkId -> Address
+  address = privateKeysToAddress payKey mbStakeKey
 
   selectCollateral
     :: CoinsPerUtxoUnit
@@ -183,6 +181,7 @@ privateKeysToKeyWallet networkId payKey mbStakeKey =
         mempty
     pure witnessSet'
 
-  signData :: Address -> RawBytes -> Aff DataSignature
-  signData addr payload = do
-    liftEffect $ Cip30SignData.signData (unwrap payKey) addr payload
+  signData :: NetworkId -> RawBytes -> Aff DataSignature
+  signData networkId payload = do
+    liftEffect $ Cip30SignData.signData (unwrap payKey) (address networkId)
+      payload

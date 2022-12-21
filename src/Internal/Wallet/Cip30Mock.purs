@@ -138,10 +138,11 @@ mkCip30Mock pKey mSKey = do
     utxosAt address = liftMaybe (error "No UTxOs at address") <<< hush =<< do
       queryHandle.utxosAt address
 
-    keyWallet = privateKeysToKeyWallet env.networkId pKey mSKey
+    keyWallet = privateKeysToKeyWallet pKey mSKey
 
     addressHex =
-      byteArrayToHex $ toBytes $ asOneOf ((unwrap keyWallet).address :: Address)
+      byteArrayToHex $ toBytes $ asOneOf
+        ((unwrap keyWallet).address env.networkId :: Address)
 
   pure $
     { getNetworkId: fromAff $ pure $
@@ -149,7 +150,7 @@ mkCip30Mock pKey mSKey = do
           TestnetId -> 0
           MainnetId -> 1
     , getUtxos: fromAff do
-        let ownAddress = (unwrap keyWallet).address
+        let ownAddress = (unwrap keyWallet).address env.networkId
         utxos <- utxosAt ownAddress
         collateralUtxos <- getCollateralUtxos utxos
         let
@@ -164,7 +165,7 @@ mkCip30Mock pKey mSKey = do
               TransactionUnspentOutput { input, output }
         pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
     , getCollateral: fromAff do
-        let ownAddress = (unwrap keyWallet).address
+        let ownAddress = (unwrap keyWallet).address env.networkId
         utxos <- utxosAt ownAddress
         collateralUtxos <- getCollateralUtxos utxos
         cslUnspentOutput <- liftEffect $ traverse
@@ -172,7 +173,7 @@ mkCip30Mock pKey mSKey = do
           collateralUtxos
         pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
     , getBalance: fromAff do
-        let ownAddress = (unwrap keyWallet).address
+        let ownAddress = (unwrap keyWallet).address env.networkId
         utxos <- utxosAt ownAddress
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
@@ -198,7 +199,8 @@ mkCip30Mock pKey mSKey = do
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR")
           (hexToByteArray msg)
-        { key, signature } <- (unwrap keyWallet).signData (wrap msgBytes)
+        { key, signature } <- (unwrap keyWallet).signData env.networkId
+          (wrap msgBytes)
         pure { key: cborBytesToHex key, signature: cborBytesToHex signature }
     }
 

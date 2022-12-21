@@ -54,10 +54,9 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
-import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
-import Ctl.Internal.Wallet (Wallet)
-import Ctl.Internal.Wallet (getNetworkId) as Wallet
+import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
@@ -197,7 +196,7 @@ mkContractEnv params = do
   logger = mkLogger params.logLevel params.customLogger
 
   buildWallet :: Aff (Maybe Wallet)
-  buildWallet = traverse (mkWalletBySpec params.networkId) params.walletSpec
+  buildWallet = traverse mkWalletBySpec params.walletSpec
 
   constants =
     { networkId: params.networkId
@@ -245,9 +244,13 @@ getLedgerConstants logger = case _ of
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.
 walletNetworkCheck :: NetworkId -> Wallet -> Aff Unit
-walletNetworkCheck envNetworkId wallet = do
-  networkId <- Wallet.getNetworkId wallet
-  unless (envNetworkId == networkId) do
+walletNetworkCheck envNetworkId =
+  actionBasedOnWallet
+    (\w -> check <=< intToNetworkId <=< _.getNetworkId w)
+    (pure $ pure unit)
+  where
+  check :: NetworkId -> Aff Unit
+  check networkId = unless (envNetworkId == networkId) do
     liftEffect $ throw $
       "The networkId that is specified is not equal to the one from wallet."
         <> " The wallet is using "
@@ -255,6 +258,12 @@ walletNetworkCheck envNetworkId wallet = do
         <> " while "
         <> show envNetworkId
         <> " is specified in the config."
+
+  intToNetworkId :: Int -> Aff NetworkId
+  intToNetworkId = case _ of
+    0 -> pure TestnetId
+    1 -> pure MainnetId
+    _ -> liftEffect $ throw "Unknown network id"
 
 -- | Finalizes a `Contract` environment.
 -- | Closes the connections in `ContractEnv`, effectively making it unusable.

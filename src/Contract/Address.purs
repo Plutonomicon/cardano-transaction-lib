@@ -41,13 +41,13 @@ import Prelude
 import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Prelude (liftM)
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
   ) as Address
 import Ctl.Internal.Contract.Wallet
-  ( getNetworkId
-  , getWalletAddresses
+  ( getWalletAddresses
   , getWalletCollateral
   , ownPaymentPubKeyHashes
   , ownStakePubKeysHashes
@@ -210,7 +210,7 @@ ownStakePubKeysHashes :: Contract (Array (Maybe StakePubKeyHash))
 ownStakePubKeysHashes = Contract.ownStakePubKeysHashes
 
 getNetworkId :: Contract NetworkId
-getNetworkId = Contract.getNetworkId
+getNetworkId = asks _.networkId
 
 --------------------------------------------------------------------------------
 -- Helpers via Cardano helpers, these are helpers from the CSL equivalent

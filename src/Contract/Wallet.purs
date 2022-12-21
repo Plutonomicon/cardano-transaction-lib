@@ -78,7 +78,6 @@ withKeyWallet wallet =
   local _ { wallet = Just $ KeyWallet wallet }
 
 mkKeyWalletFromPrivateKeys
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Wallet.KeyWallet
-mkKeyWalletFromPrivateKeys payment mbStake = do
-  networkId <- getNetworkId
-  pure $ privateKeysToKeyWallet networkId payment mbStake
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet.KeyWallet
+mkKeyWalletFromPrivateKeys payment mbStake = privateKeysToKeyWallet payment
+  mbStake
