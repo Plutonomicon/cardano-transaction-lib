@@ -31,6 +31,8 @@ module Ctl.Internal.Cardano.Types.Transaction
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , PoolPubKeyHash(PoolPubKeyHash)
+  , mkPoolPubKeyHash
+  , poolPubKeyHashToBech32
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -105,13 +107,7 @@ import Ctl.Internal.Deserialization.Keys
   , publicKeyFromBech32
   )
 import Ctl.Internal.FromData (class FromData, fromData)
-import Ctl.Internal.Helpers
-  ( appendMap
-  , encodeMap
-  , encodeTagged'
-  , (</>)
-  , (<<>>)
-  )
+import Ctl.Internal.Helpers (appendMap, encodeMap, encodeTagged', (</>), (<<>>))
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -122,6 +118,7 @@ import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashToBech32
+  , ed25519KeyHashToBech32Unsafe
   )
 import Ctl.Internal.Serialization.Keys
   ( bech32FromEd25519Signature
@@ -154,12 +151,14 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
-import Data.Maybe (Maybe(Nothing), fromJust)
+import Data.Maybe (Maybe(Nothing), fromJust, isJust)
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
+import Data.String.CodeUnits as String
+import Data.String.Pattern (Pattern(Pattern))
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
@@ -640,6 +639,15 @@ instance Show PoolPubKeyHash where
     \ed25519KeyHashFromBech32 "
       <> show (ed25519KeyHashToBech32 "pool" kh)
       <> ")))"
+
+mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
+mkPoolPubKeyHash str
+  | isJust (String.stripPrefix (Pattern "pool") str) = wrap <$>
+      ed25519KeyHashFromBech32 str
+  | otherwise = Nothing
+
+poolPubKeyHashToBech32 :: PoolPubKeyHash -> Bech32String
+poolPubKeyHashToBech32 = unwrap >>> ed25519KeyHashToBech32Unsafe "pool"
 
 data Certificate
   = StakeRegistration StakeCredential
