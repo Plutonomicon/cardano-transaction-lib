@@ -27,7 +27,7 @@ module Ctl.Internal.BalanceTx.Error
 import Prelude
 
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer))
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
   , ScriptFailure

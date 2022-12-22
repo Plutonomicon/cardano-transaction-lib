@@ -118,6 +118,7 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
 import Ctl.Internal.Helpers ((??))
 import Ctl.Internal.Partition (equipartition, partition)
+import Ctl.Internal.Plutus.Conversion (toPlutusValue)
 import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
 import Ctl.Internal.QueryM (getChangeAddress, getWalletAddresses) as QueryM
 import Ctl.Internal.QueryM.Utxos
@@ -283,7 +284,8 @@ runBalancer p = do
   addInvalidInContext invalidInContext m = catchError m $ throwError <<<
     case _ of
       BalanceInsufficientError e a (InvalidInContext v) ->
-        BalanceInsufficientError e a (InvalidInContext (v <> invalidInContext))
+        BalanceInsufficientError e a
+          (InvalidInContext (v <> toPlutusValue invalidInContext))
       e -> e
 
   -- We check if the transaction uses a plutusv1 script, so that we can filter

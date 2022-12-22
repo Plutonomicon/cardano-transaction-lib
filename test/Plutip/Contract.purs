@@ -57,7 +57,9 @@ import Contract.Test.Plutip
   )
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
-  ( DataHash
+  ( BalanceTxError(BalanceInsufficientError)
+  , DataHash
+  , InvalidInContext(InvalidInContext)
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , OutputDatum(OutputDatumHash, NoOutputDatum, OutputDatum)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
@@ -139,7 +141,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
-import Data.Either (Either(Right), isLeft, isRight)
+import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
@@ -1023,8 +1025,18 @@ suite = do
             unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             balanceTxWithConstraints unbalancedTx balanceTxConstraints
 
+        let
+          hasInsufficientBalance
+            :: forall (a :: Type). Either BalanceTxError a -> Boolean
+          hasInsufficientBalance = case _ of
+            Left (BalanceInsufficientError _ _ (InvalidInContext amount))
+              | amount == Value.lovelaceValueOf (BigInt.fromInt 50_000_000) ->
+                  true
+            _ -> false
+
         balanceWithDatum NoOutputDatum >>= flip shouldSatisfy isRight
-        balanceWithDatum (OutputDatum datum42) >>= flip shouldSatisfy isLeft
+        balanceWithDatum (OutputDatum datum42) >>= flip shouldSatisfy
+          hasInsufficientBalance
 
     test "InlineDatum" do
       let
