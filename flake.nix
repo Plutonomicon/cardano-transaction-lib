@@ -429,6 +429,7 @@
             services.ogmios.package =
               inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
           }
+          inputs.kupo-nixos.nixosModules.kupo
           inputs.ogmios-datum-cache-nixos.nixosModules.ogmios-datum-cache
           {
             services.ogmios-datum-cache.package =
