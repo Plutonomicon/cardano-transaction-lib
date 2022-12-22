@@ -22,7 +22,7 @@ exports._convertNativeScript = handler => ns => {
     case lib.NativeScriptKind.TimelockExpiry:
       return handler.timelockExpiry(ns.as_timelock_expiry());
     default:
-      throw ("Impossible native script kind: " + ns.kind());
+      throw "Impossible native script kind: " + ns.kind();
   }
 };
 

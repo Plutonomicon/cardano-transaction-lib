@@ -237,7 +237,8 @@ convertTransaction tx = addErrTrace "convertTransaction" do
 convertTxBody :: forall (r :: Row Type). Csl.TransactionBody -> Err r T.TxBody
 convertTxBody txBody = do
   let
-    inputs = Set.fromFoldable $ convertInput <$> _txBodyInputs containerHelper txBody
+    inputs = Set.fromFoldable $ convertInput <$> _txBodyInputs containerHelper
+      txBody
 
   outputs <-
     _txBodyOutputs containerHelper txBody
@@ -301,7 +302,8 @@ convertTxBody txBody = do
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
         txBody
-    , collateral: _txBodyCollateral containerHelper maybeFfiHelper txBody >>= map convertInput >>> pure
+    , collateral: _txBodyCollateral containerHelper maybeFfiHelper txBody >>=
+        map convertInput >>> pure
     , requiredSigners:
         _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
           (map <<< map) T.RequiredSigner
