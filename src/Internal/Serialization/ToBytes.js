@@ -1,1 +1,1 @@
-exports.toBytes = sth => sth.to_bytes();
+exports._toBytes = sth => sth.to_bytes();

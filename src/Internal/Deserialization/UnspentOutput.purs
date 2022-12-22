@@ -1,7 +1,6 @@
 module Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
   , convertInput
   , convertOutput
   , convertValue
@@ -50,7 +49,6 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
@@ -69,7 +67,7 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Untagged.Union (asOneOf)
+import Data.UInt as UInt
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
@@ -84,8 +82,8 @@ convertInput input = do
   let
     index = getTransactionIndex input
   T.TransactionInput
-    { transactionId: T.TransactionHash $ toBytes
-        (asOneOf $ getTransactionHash input)
+    { transactionId: T.TransactionHash $ unwrap $ toBytes $
+        getTransactionHash input
     , index
     }
 
@@ -96,12 +94,12 @@ convertOutput output = do
     address = getAddress output
     mbDataHash =
       getDataHash maybeFfiHelper output <#>
-        asOneOf >>> toBytes >>> T.DataHash
+        toBytes >>> unwrap >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail
-    Just datumValue, Nothing -> OutputDatum <<< wrap <$> convertPlutusData
-      datumValue
+    Just datumValue, Nothing -> pure $ OutputDatum $ wrap $
+      convertPlutusData datumValue
     Nothing, Just datumHash -> pure $ OutputDatumHash datumHash
     Nothing, Nothing -> pure NoOutputDatum
   let
@@ -116,7 +114,7 @@ convertScriptRef = withScriptRef
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- BigNum.toBigInt $ getCoin value
+  let coin = BigNum.toBigInt $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -144,7 +142,7 @@ convertValue value = do
               map Map.fromFoldable
         )
     -- convert BigNum values, possibly failing
-    traverse (traverse BigNum.toBigInt) multiasset''
+    pure $ map (map BigNum.toBigInt) multiasset''
   pure
     $ T.mkValue (T.Coin coin)
     $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
@@ -185,11 +183,3 @@ foreign import getDataHash
 
 foreign import mkTransactionUnspentOutput
   :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
-
-foreign import _newTransactionUnspentOutputFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
-
-newTransactionUnspentOutputFromBytes
-  :: ByteArray -> Maybe TransactionUnspentOutput
-newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes
-  maybeFfiHelper
