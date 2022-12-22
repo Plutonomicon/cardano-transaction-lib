@@ -151,14 +151,13 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
-import Data.Maybe (Maybe(Nothing), fromJust, isJust)
+import Data.Maybe (Maybe(Nothing), fromJust)
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
-import Data.String.CodeUnits as String
-import Data.String.Pattern (Pattern(Pattern))
+import Data.String.Utils (startsWith)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
@@ -642,8 +641,7 @@ instance Show PoolPubKeyHash where
 
 mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
 mkPoolPubKeyHash str
-  | isJust (String.stripPrefix (Pattern "pool") str) = wrap <$>
-      ed25519KeyHashFromBech32 str
+  | startsWith "pool" str = PoolPubKeyHash <$> ed25519KeyHashFromBech32 str
   | otherwise = Nothing
 
 poolPubKeyHashToBech32 :: PoolPubKeyHash -> Bech32String

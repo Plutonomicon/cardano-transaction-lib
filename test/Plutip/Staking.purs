@@ -74,7 +74,7 @@ import Data.Array (head, (!!))
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Foldable (for_)
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.Time.Duration (Seconds(Seconds))
@@ -92,7 +92,7 @@ import Effect.Aff
   )
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
+import Effect.Exception (error)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config) as Common
@@ -113,8 +113,7 @@ suite = do
   -- We must never select this pool, because it retires at the third epoch
   -- (this is Plutip internal knowledge)
   -- https://github.com/mlabs-haskell/plutip/blob/7f2d59abd911dd11310404863cdedb2886902ebf/src/Test/Plutip/Internal/Cluster.hs#L692
-  retiringPoolId <- liftEffect
-    $ maybe (throw "unable to decode poolId bech32") pure
+  retiringPoolId <- liftEffect $ liftM (error "unable to decode poolId bech32")
     $ mkPoolPubKeyHash
         "pool1rv7ur8r2hz02lly9q8ehtwcrcydl3m2arqmndvwcqsfavgaemt6"
   let
