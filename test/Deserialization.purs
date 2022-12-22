@@ -23,18 +23,14 @@ import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
   )
-import Ctl.Internal.Deserialization.WitnessSet
-  ( convertWitnessSet
-  , deserializeWitnessSet
-  )
+import Ctl.Internal.Deserialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (toBytes)
-import Ctl.Internal.Serialization as Serialization
+import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serialization
 import Ctl.Internal.Serialization.BigInt as SB
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
+import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
 import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -44,7 +40,7 @@ import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (isJust, isNothing)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -87,7 +83,6 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
-import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -102,20 +97,15 @@ suite = do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" $ BigNum.fromBigInt bigInt
-          >>= BigNum.toBigInt
+          <#> BigNum.toBigInt
         res `shouldEqual` bigInt
     group "CSL <-> CTL PlutusData roundtrip tests" do
       let
         pdRoundTripTest ctlPd = do
-          cslPd <-
-            errMaybe "Failed to convert from CTL PlutusData to CSL PlutusData" $
-              SPD.convertPlutusData ctlPd
-          let pdBytes = toBytes (asOneOf cslPd)
           cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-            pdBytes
-          ctlPd' <-
-            errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData" $
-              DPD.convertPlutusData cslPd'
+            $ Serialization.toBytes
+            $ SPD.convertPlutusData ctlPd
+          let ctlPd' = DPD.convertPlutusData cslPd'
           ctlPd' `shouldEqual` ctlPd
       test "fixture #1" $ pdRoundTripTest plutusDataFixture1
       test "fixture #2" $ pdRoundTripTest plutusDataFixture2
@@ -129,18 +119,12 @@ suite = do
         "fixture #8 different Cbor bytes encodings (compact vs general Constr tag encodings)"
         $ do
             cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-              plutusDataFixture8Bytes
-            ctlPd' <-
-              errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
-                $
-                  DPD.convertPlutusData cslPd'
+              $ wrap plutusDataFixture8Bytes
+            let ctlPd' = DPD.convertPlutusData cslPd'
             ctlPd' `shouldEqual` plutusDataFixture8
             cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-              plutusDataFixture8Bytes'
-            ctlPdWp' <-
-              errMaybe "Failed to convert from CSL PlutusData to CTL PlutusData"
-                $
-                  DPD.convertPlutusData cslPdWp'
+              $ wrap plutusDataFixture8Bytes'
+            let ctlPdWp' = DPD.convertPlutusData cslPdWp'
             ctlPdWp' `shouldEqual` plutusDataFixture8
     group "UnspentTransactionOutput" do
       test "deserialization is inverse to serialization" do
@@ -153,7 +137,7 @@ suite = do
         output `shouldEqual` txOutputFixture1
       test "fixture #1" do
         res <- errMaybe "Failed deserialization 4" do
-          newTransactionUnspentOutputFromBytes utxoFixture1 >>=
+          fromBytes (wrap utxoFixture1) >>=
             convertUnspentOutput
         res `shouldEqual` utxoFixture1'
     group "Transaction Roundtrips" do
@@ -166,7 +150,7 @@ suite = do
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
-          deserializeWitnessSet witnessSetFixture1 >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture1) >>= convertWitnessSet
         test "has vkeys" do
           (unwrap res).vkeys `shouldSatisfy` isJust
         test "has plutusData" do
@@ -181,15 +165,15 @@ suite = do
           (unwrap res).nativeScripts `shouldSatisfy` isNothing
       test "fixture #2" do
         res <- errMaybe "Failed deserialization 6" do
-          deserializeWitnessSet witnessSetFixture2 >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture2) >>= convertWitnessSet
         res `shouldEqual` witnessSetFixture2Value
       test "fixture #3" do
         res <- errMaybe "Failed deserialization 7" do
-          deserializeWitnessSet witnessSetFixture3 >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture3) >>= convertWitnessSet
         res `shouldEqual` witnessSetFixture3Value
       group "fixture #4" do
         res <- errMaybe "Failed deserialization 8" $
-          deserializeWitnessSet witnessSetFixture4 >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture4) >>= convertWitnessSet
         test "has nativeScripts" do
           (unwrap res).nativeScripts `shouldSatisfy` isJust
     group "NativeScript - deserializaton is inverse to serialization" do
@@ -227,11 +211,11 @@ suite = do
           -> m Unit
         witnessSetRoundTrip fixture = do
           ws0 <- errMaybe "Failed deserialization" $
-            deserializeWitnessSet fixture >>= convertWitnessSet
+            fromBytes (wrap fixture) >>= convertWitnessSet
           ws1 <- liftEffect $ SW.convertWitnessSet ws0
           ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
           ws0 `shouldEqual` ws2 -- value representation
-          let wsBytes = Serialization.toBytes (asOneOf ws1)
+          let wsBytes = unwrap $ Serialization.toBytes ws1
           wsBytes `shouldEqual` fixture -- byte representation
       test "fixture #1" $ witnessSetRoundTrip witnessSetFixture1
       test "fixture #2" $ witnessSetRoundTrip witnessSetFixture2
@@ -262,7 +246,7 @@ testNativeScript input = do
                 purescript to handle it correctly.
   -}
 
-  let bytes = Serialization.toBytes (asOneOf serialized)
+  let bytes = Serialization.toBytes serialized
   res <- errMaybe "Failed deserialization" $ fromBytes bytes
   res' <- errMaybe "Failed deserialization" $ NSD.convertNativeScript res
   res' `shouldEqual` input

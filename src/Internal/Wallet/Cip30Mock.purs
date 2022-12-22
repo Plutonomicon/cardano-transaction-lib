@@ -55,7 +55,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
-import Untagged.Union (asOneOf)
 
 data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
 
@@ -141,7 +140,7 @@ mkCip30Mock pKey mSKey = do
     keyWallet = privateKeysToKeyWallet pKey mSKey
 
     addressHex =
-      byteArrayToHex $ toBytes $ asOneOf
+      byteArrayToHex $ unwrap $ toBytes
         ((unwrap keyWallet).address env.networkId :: Address)
 
   pure $
@@ -163,7 +162,7 @@ mkCip30Mock pKey mSKey = do
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
               TransactionUnspentOutput { input, output }
-        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUtxos
+        pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$> cslUtxos
     , getCollateral: fromAff do
         let ownAddress = (unwrap keyWallet).address env.networkId
         utxos <- utxosAt ownAddress
@@ -171,14 +170,15 @@ mkCip30Mock pKey mSKey = do
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
           collateralUtxos
-        pure $ (byteArrayToHex <<< toBytes <<< asOneOf) <$> cslUnspentOutput
+        pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$>
+          cslUnspentOutput
     , getBalance: fromAff do
         let ownAddress = (unwrap keyWallet).address env.networkId
         utxos <- utxosAt ownAddress
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
-        pure $ byteArrayToHex $ toBytes $ asOneOf value
+        pure $ byteArrayToHex $ unwrap $ toBytes value
     , getUsedAddresses: fromAff do
         pure [ addressHex ]
     , getUnusedAddresses: fromAff $ pure []
@@ -195,10 +195,10 @@ mkCip30Mock pKey mSKey = do
           $ cborBytesFromByteArray txBytes
         witness <- (unwrap keyWallet).signTx tx
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ toBytes $ asOneOf cslWitnessSet
+        pure $ byteArrayToHex $ unwrap $ toBytes cslWitnessSet
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
-        msgBytes <- liftMaybe (error "Unable to convert CBOR")
-          (hexToByteArray msg)
+        msgBytes <- liftMaybe (error "Unable to convert CBOR") $
+          hexToByteArray msg
         { key, signature } <- (unwrap keyWallet).signData env.networkId
           (wrap msgBytes)
         pure { key: cborBytesToHex key, signature: cborBytesToHex signature }

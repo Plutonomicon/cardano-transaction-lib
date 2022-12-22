@@ -332,6 +332,7 @@ let
           # Utils needed by E2E test code
           which # used to check for browser availability
           gnutar # used unpack settings archive within E2E test code
+          curl # used to query for the web server to start (see below)
         ] ++ (args.buildInputs or [ ]);
         NODE_PATH = "${nodeModules}/lib/node_modules";
       } // env)
@@ -351,7 +352,11 @@ let
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
         python -m http.server 4008 --directory ${bundledPursProject}/dist &
-        sleep 3 # Wait for it to start serving
+        until curl -S http://127.0.0.1:4008/index.html &>/dev/null; do
+          echo "Trying to connect to webserver...";
+          sleep 0.1;
+        done;
+
 
         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
         mkdir $out

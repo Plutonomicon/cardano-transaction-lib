@@ -64,10 +64,3 @@ exports.extractAssets = extractDict;
 exports.getDataHash = callMaybe("data_hash");
 exports.mkTransactionUnspentOutput = input => output =>
   lib.TransactionUnspentOutput.new(input, output);
-exports._newTransactionUnspentOutputFromBytes = maybe => bytes => {
-  try {
-    return maybe.just(lib.TransactionUnspentOutput.from_bytes(bytes));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};

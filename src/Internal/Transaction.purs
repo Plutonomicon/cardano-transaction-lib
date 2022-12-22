@@ -38,7 +38,6 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Effect (Effect)
 import Effect.Class (liftEffect)
-import Untagged.Union (asOneOf)
 
 data ModifyTxError
   = ConvertWitnessesError
@@ -69,7 +68,7 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   , null rs
   , null ds = pure tx
   | otherwise = do
-      scriptDataHash <- ScriptDataHash <<< toBytes <<< asOneOf
+      scriptDataHash <- ScriptDataHash <<< unwrap <<< toBytes
         <$> hashScriptData costModels rs (unwrap <$> ds)
       pure $ over Transaction
         _
@@ -87,13 +86,7 @@ attachDatums
   :: Array Datum -> Transaction -> ExceptT ModifyTxError Effect Transaction
 attachDatums [] tx = liftEither $ Right tx
 attachDatums datums tx@(Transaction { witnessSet: ws }) = do
-  ds <- traverse
-    ( liftEither
-        <<< note ConvertDatumError
-        <<< Serialization.PlutusData.convertPlutusData
-        <<< unwrap
-    )
-    datums
+  let ds = map (Serialization.PlutusData.convertPlutusData <<< unwrap) datums
   updateTxWithWitnesses tx
     =<< convertWitnessesWith ws (Serialization.WitnessSet.setPlutusData ds)
 

@@ -59,9 +59,7 @@ import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
-import Ctl.Internal.BalanceTx
-  ( FinalizedTransaction(FinalizedTransaction)
-  ) as FinalizedTransaction
+import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -220,7 +218,6 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotConvertPOSIXTimeRange
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
       , TypedTxOutHasNoDatumHash
       , CannotHashMintingPolicy
       , CannotHashValidator
