@@ -20,12 +20,7 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad
-  ( Contract
-  , ContractEnv
-  , liftContractM
-  , runContractInEnv
-  )
+import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
@@ -44,7 +39,7 @@ import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
   , OnSignalRef
-  , cleanupOnSigint'
+  , cleanupOnSigint
   , cleanupTmpDir
   , removeOnSignal
   , spawn
@@ -69,9 +64,7 @@ import Ctl.Internal.Plutip.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Ctl.Internal.QueryM
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  )
+import Ctl.Internal.QueryM (ClientError(ClientDecodeJsonError, ClientHttpError))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
@@ -110,7 +103,7 @@ import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath)
+import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -541,11 +534,12 @@ startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
     workdir = tmpDir <</>> "kupo-db"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  sig <- liftEffect $ cleanupOnSigint' workdir
+  sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
   pure (childProcess /\ workdir /\ sig)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
