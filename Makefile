@@ -3,9 +3,9 @@ SHELL := bash
 .PHONY: run-dev run-build check-format format query-testnet-tip clean check-explicit-exports
 .SHELLFLAGS := -eu -o pipefail -c
 
-ps-sources := $(shell fd -epurs -Etmp)
-nix-sources := $(shell fd -enix --exclude='spago*' -Etmp)
-js-sources := $(shell fd -ejs -Etmp)
+ps-sources := $(shell fd --no-ignore-parent -epurs)
+nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
+js-sources := $(shell fd --no-ignore-parent -ejs)
 ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript modules in examples/
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')

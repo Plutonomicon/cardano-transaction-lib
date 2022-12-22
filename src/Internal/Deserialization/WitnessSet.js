@@ -1,12 +1,3 @@
-/* global BROWSER_RUNTIME */
-
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
-} else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
-}
-
 const call = property => object => object[property]();
 
 const callMaybe = property => maybe => object => {
@@ -59,10 +50,3 @@ exports.getRedeemerPlutusData = call("data");
 exports.getExUnits = call("ex_units");
 exports.getExUnitsMem = call("mem");
 exports.getExUnitsSteps = call("steps");
-exports._deserializeWitnessSet = maybe => bytes => {
-  try {
-    return maybe.just(lib.TransactionWitnessSet.from_bytes(bytes));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};

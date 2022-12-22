@@ -24,17 +24,16 @@ import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteLength)
+import Ctl.Internal.Types.ByteArray (byteLength)
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum)
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Either (hush, note)
-import Data.Foldable (fold, foldMap)
+import Data.Either (note)
+import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(Nothing, Just), isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.String.CodePoints as String
-import Data.TextDecoder (decodeUtf8)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple.Nested (type (/\), (/\))
 
@@ -129,10 +128,8 @@ toDataString str = case toCip25Strings str of
   strings -> toData $ toData <$> strings
 
 fromDataString :: PlutusData -> Maybe String
-fromDataString datum = do
-  (fromCip25Strings <$> (Array.singleton <$> fromData datum)) <|> do
-    bytes :: Array ByteArray <- fromData datum
-    hush $ decodeUtf8 $ unwrap $ fold bytes
+fromDataString datum = fromCip25Strings <$>
+  ((Array.singleton <$> fromData datum) <|> fromData datum)
 
 toMetadataString :: String -> TransactionMetadatum
 toMetadataString str = case toCip25Strings str of
@@ -140,7 +137,5 @@ toMetadataString str = case toCip25Strings str of
   strings -> toMetadata $ toMetadata <$> strings
 
 fromMetadataString :: TransactionMetadatum -> Maybe String
-fromMetadataString datum = do
-  fromCip25Strings <$> (Array.singleton <$> fromMetadata datum) <|> do
-    bytes :: Array ByteArray <- fromMetadata datum
-    hush $ decodeUtf8 $ unwrap $ fold bytes
+fromMetadataString datum = fromCip25Strings <$>
+  ((Array.singleton <$> fromMetadata datum) <|> fromMetadata datum)

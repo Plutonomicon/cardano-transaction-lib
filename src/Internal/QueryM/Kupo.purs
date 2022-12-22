@@ -62,7 +62,6 @@ import Ctl.Internal.Serialization.Address
   , Slot
   , addressBech32
   , addressFromBech32
-  , addressFromBytes
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.Types.BigNum (toString) as BigNum
@@ -137,7 +136,8 @@ getDatumByHash (DataHash dataHashBytes) = do
 
 getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do
-  let endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
+  let
+    endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
 
@@ -218,7 +218,7 @@ instance DecodeAeson KupoTransactionOutput where
     decodeAddress obj =
       getField obj "address" >>= \x ->
         note (TypeMismatch "Expected bech32 or base16 encoded Shelley address")
-          (addressFromBech32 x <|> (addressFromBytes =<< hexToCborBytes x))
+          (addressFromBech32 x <|> (fromBytes =<< hexToCborBytes x))
 
     decodeDatumHash
       :: Object Aeson
@@ -395,7 +395,7 @@ instance DecodeAeson KupoScriptRef where
         decodeNativeScript :: ByteArray -> Either JsonDecodeError NativeScript
         decodeNativeScript scriptBytes = do
           nativeScript <-
-            flip note (fromBytes scriptBytes) $
+            flip note (fromBytes $ wrap scriptBytes) $
               TypeMismatch "decodeNativeScript: from_bytes() call failed"
           flip note (convertNativeScript nativeScript) $
             TypeMismatch "decodeNativeScript: failed to convert native script"
@@ -436,9 +436,9 @@ instance Show KupoMetadata where
 instance DecodeAeson KupoMetadata where
   decodeAeson = decodeAeson >=> case _ of
     [ { raw } :: { raw :: String } ] -> do
-      ba <- flip note (hexToByteArray raw) $
+      cbor <- flip note (hexToCborBytes raw) $
         TypeMismatch "Hexadecimal String"
-      metadata <- flip note (fromBytes ba) $
+      metadata <- flip note (fromBytes cbor) $
         TypeMismatch "Hexadecimal encoded Metadata"
       -- Conversion should always succeed, so use it as the `Just`
       pure $ KupoMetadata $ hush $ convertGeneralTransactionMetadata metadata

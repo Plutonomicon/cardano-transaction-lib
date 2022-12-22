@@ -1,14 +1,25 @@
-module Ctl.Internal.Serialization.ToBytes (toBytes) where
+module Ctl.Internal.Serialization.ToBytes
+  ( toBytes
+  ) where
 
-import Ctl.Internal.Serialization.Address (Address)
+import Prelude
+
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , ByronAddress
+  , StakeCredential
+  )
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryDataHash
   , DataHash
   , Ed25519Signature
   , GenesisDelegateHash
   , GenesisHash
+  , Mint
   , NativeScript
   , PlutusData
+  , PoolMetadataHash
   , Redeemers
   , ScriptDataHash
   , Transaction
@@ -17,32 +28,47 @@ import Ctl.Internal.Serialization.Types
   , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
-  , VRFKeyHash
   , Value
   )
 import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Untagged.Castable (class Castable)
 import Untagged.Union (type (|+|))
 
+type SerializableData = Address
+  |+| AuxiliaryDataHash
+  |+| ByronAddress
+  |+| DataHash
+  |+| Ed25519KeyHash
+  |+| Ed25519Signature
+  |+| GenesisDelegateHash
+  |+| GenesisHash
+  |+| Mint
+  |+| NativeScript
+  |+| PlutusData
+  |+| PoolMetadataHash
+  |+| Redeemers
+  |+| ScriptDataHash
+  |+| ScriptHash
+  |+| StakeCredential
+  |+| Transaction
+  |+| TransactionBody
+  |+| TransactionHash
+  |+| TransactionOutput
+  |+| TransactionUnspentOutput
+  |+| TransactionWitnessSet
+  |+| Value
+  |+| VRFKeyHash
+
+-- Add more as needed
+
 -- NOTE returns cbor encoding for all but hash types, for which it returns raw bytes
-foreign import toBytes
-  :: ( Transaction
-         |+| TransactionBody
-         |+| TransactionOutput
-         |+| TransactionUnspentOutput
-         |+| TransactionHash
-         |+| DataHash
-         |+| PlutusData
-         |+| TransactionWitnessSet
-         |+| NativeScript
-         |+| ScriptDataHash
-         |+| Redeemers
-         |+| GenesisHash
-         |+| GenesisDelegateHash
-         |+| AuxiliaryDataHash
-         |+| Address
-         |+| Value
-         |+| Ed25519Signature
-         |+| VRFKeyHash
-     -- Add more as needed.
-     )
-  -> ByteArray
+foreign import _toBytes
+  :: forall a. a -> ByteArray
+
+toBytes
+  :: forall a
+   . Castable a SerializableData
+  => a
+  -> CborBytes
+toBytes = CborBytes <<< _toBytes

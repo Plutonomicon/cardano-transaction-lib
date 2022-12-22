@@ -36,7 +36,7 @@ import Contract.PlutusData
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
   )
-import Contract.Prelude (liftM, mconcat)
+import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
@@ -141,7 +141,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
+import Effect.Exception (throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
@@ -762,12 +762,10 @@ suite = do
           awaitTxConfirmed txId
           logInfo' "Tx submitted successfully, trying to fetch datum"
 
-          hash1 <- liftM (error "Couldn't get hash for datums 1") $
-            datumHash datum1
-          hash2 <- liftM (error "Couldn't get hash for datums 2") $
-            datumHash datum2
-          hashes <- liftM (error "Couldn't get hashes for datums [1,2]") $
-            traverse datumHash datums
+          let
+            hash1 = datumHash datum1
+            hash2 = datumHash datum2
+            hashes = map datumHash datums
 
           actualDatums1 <- getDatumsByHashes hashes
           actualDatums1 `shouldEqual`
@@ -1403,8 +1401,7 @@ suite = do
                     tn
                     (BigInt.fromInt 50)
 
-            datumLookup <- liftContractM "Unable to create datum lookup" $
-              Lookups.datum datum'
+            let datumLookup = Lookups.datum datum'
 
             let
               lookups0 :: Lookups.ScriptLookups PlutusData

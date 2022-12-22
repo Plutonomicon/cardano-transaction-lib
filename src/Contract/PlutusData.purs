@@ -34,7 +34,7 @@ import Ctl.Internal.FromData
   , FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
-      , BigIntToIntFailed
+      , BigNumToIntFailed
       , IndexWantedButGot
       , WantedConstrGot
       )

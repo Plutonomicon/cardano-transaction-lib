@@ -56,7 +56,6 @@ import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Undefined (undefined)
-import Untagged.Union (asOneOf)
 
 -- TODO Either move ClientError out of QueryM or make a new error type
 -- and convert from ClientError.
@@ -99,16 +98,14 @@ queryHandleForCtlBackend contractEnv backend =
       cslTx <- liftEffect $ Serialization.convertTransaction tx
       let txHash = Hashing.transactionHash cslTx
       logDebug' $ "Pre-calculated tx hash: " <> show txHash
-      let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
+      let txCborBytes = Serialization.toBytes cslTx
       result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes
       case result of
         SubmitTxSuccess a -> pure $ Just $ wrap a
         _ -> pure Nothing
   , evaluateTx: \tx additionalUtxos -> runQueryM' do
-      txBytes <- liftEffect
-        ( wrap <<< Serialization.toBytes <<< asOneOf <$>
-            Serialization.convertTransaction tx
-        )
+      txBytes <- Serialization.toBytes <$> liftEffect
+        (Serialization.convertTransaction tx)
       QueryM.evaluateTxOgmios txBytes additionalUtxos
   , getEraSummaries: runQueryM' QueryM.getEraSummaries
   }

@@ -6763,10 +6763,6 @@
     },
     "root": {
       "inputs": {
-        "CHaP": [
-          "ogmios",
-          "CHaP"
-        ],
         "cardano-configurations": "cardano-configurations",
         "cardano-node": [
           "ogmios-nixos",
@@ -6774,14 +6770,6 @@
         ],
         "easy-purescript-nix": "easy-purescript-nix",
         "flake-compat": "flake-compat",
-        "haskell-nix": [
-          "ogmios",
-          "haskell-nix"
-        ],
-        "iohk-nix": [
-          "ogmios",
-          "iohk-nix"
-        ],
         "iohk-nix-environments": "iohk-nix-environments",
         "kupo": "kupo",
         "kupo-nixos": "kupo-nixos",
