@@ -3,19 +3,20 @@ module Ctl.Internal.ApplyArgs
   , applyArgs
   ) where
 
+import Prelude
+
 import Aeson (class DecodeAeson, class EncodeAeson)
-import Contract.Prelude (Either(Left, Right), bind, note, ($))
 import Ctl.Internal.Deserialization.WitnessSet as D
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as S
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript) as S
 import Ctl.Internal.Serialization.Types as CSL
 import Ctl.Internal.Types.PlutusData (PlutusData(List))
 import Ctl.Internal.Types.Scripts (PlutusScript)
+import Data.Either (Either(Left, Right))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Profunctor.Choice (left)
 import Data.Show.Generic (genericShow)
-import Prelude (class Show)
 
 foreign import apply_params_to_script
   :: (forall (x :: Type). x -> Either x CSL.PlutusScript)

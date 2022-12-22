@@ -67,7 +67,6 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
-import Data.UInt as UInt
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
