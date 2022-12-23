@@ -103,7 +103,7 @@ mustSendChangeToAddress
 mustSendChangeToAddress =
   wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
 
--- | Tells the balancer to use utxos at given addresses.
+-- | Tells the balancer to use UTxO's at given addresses.
 -- | If this constraint is not set, then the default addresses owned by the
 -- | wallet are used.
 -- |
@@ -114,7 +114,7 @@ mustUseUtxosAtAddresses
 mustUseUtxosAtAddresses networkId =
   wrap <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
 
--- | Tells the balancer to use utxos at a given address.
+-- | Tells the balancer to use UTxO's at a given address.
 -- | If this constraint is not set, then the default addresses owned by the
 -- | wallet are used.
 -- |
@@ -133,18 +133,18 @@ mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
 mustGenChangeOutsWithMaxTokenQuantity =
   wrap <<< setJust _maxChangeOutputTokenQuantity <<< max one
 
--- | Tells the balancer not to spend utxos with the specified output references.
+-- | Tells the balancer not to spend UTxO's with the specified output references.
 mustNotSpendUtxosWithOutRefs
   :: Set TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
 
--- | Tells the balancer not to spend a utxo with the specified output reference.
+-- | Tells the balancer not to spend a UTxO with the specified output reference.
 mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
--- | Tells the balancer to use the provided utxo set when evaluating script
+-- | Tells the balancer to use the provided UTxO set when evaluating script
 -- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
--- | Note that you need to use `unspentOutputs` lookup to make these utxos
+-- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos

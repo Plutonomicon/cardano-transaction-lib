@@ -277,7 +277,6 @@ import Effect.Exception (Error, error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 
-
 -- | Cluster setup contains everything that is needed to run a `Contract` on
 -- | a local cluster: paramters to connect to the services and private keys
 -- | that are pre-funded with Ada on that cluster
