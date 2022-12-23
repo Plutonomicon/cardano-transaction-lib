@@ -80,9 +80,7 @@ getValidatorHashDelegationsAndRewards skh = do
   stringRep = scriptHashToBech32Unsafe "script" $ unwrap skh
 
   byteHex :: String
-  byteHex =
-    byteArrayToHex <<< unwrap <<< scriptHashToBytes <<< unwrap $
-      skh
+  byteHex = byteArrayToHex $ unwrap $ scriptHashToBytes $ unwrap skh
 
 -- TODO: batched variant
 getPubKeyHashDelegationsAndRewards
@@ -98,7 +96,6 @@ getPubKeyHashDelegationsAndRewards pkh = do
     ed25519KeyHashToBech32Unsafe "stake_vkh" $ unwrap $ unwrap pkh
 
   byteHex :: String
-  byteHex =
-    byteArrayToHex <<< unwrap <<< ed25519KeyHashToBytes <<< unwrap $
-      unwrap
-        pkh
+  byteHex = byteArrayToHex $ unwrap $ ed25519KeyHashToBytes
+    $ unwrap
+    $ unwrap pkh

@@ -6,6 +6,17 @@ both in Plutus and CTL.
 For this discussion, we need to go through an overview of
 both of them.
 
+**Table of contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [About `Contract` in CTL and Plutus](#about-contract-in-ctl-and-plutus)
+- [Contract comparison](#contract-comparison)
+  - [MustPayTo functions](#mustpayto-functions)
+  - [The `give` contract](#the-give-contract)
+  - [The `grab` contract](#the-grab-contract)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## About `Contract` in CTL and Plutus
 
@@ -96,76 +107,6 @@ the [Plutus pioneer program](https://plutus-pioneer-program.readthedocs.io/en/la
 Both of them use the same on-chain contract that allows an arbitrary
 datum and arbitrary redeemer.
 
-### Signature and submit
-
-We are going to need the auxiliary PureScript function that isn't part
-of CTL:
-
-```PureScript
-module ExampleModule where
-
-import Contract.Prelude
-import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE)
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
-import Contract.PlutusData (PlutusData)
-import Contract.Transaction
-  ( balanceTx
-  , TransactionHash
-  , signTransaction
-  , submit
-  )
-import Contract.TxConstraints (TxConstraints)
-
-buildBalanceSignAndSubmitTx
-  :: ScriptLookups PlutusData
-  -> TxConstraints Unit Unit
-  -> Contract () TransactionHash
-buildBalanceSignAndSubmitTx lookups constraints = do
-  ubTx <- liftedE $ mkUnbalancedTx lookups constraints
-  bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
-  txId <- submit bsTx
-  logInfo' $ "Tx ID: " <> show txId
-  pure txId
-```
-
-
-This function takes our lookups and constraints, then it:
-
-- Constructs an unbalanced transaction.
-- Attempts to balance the transaction.
-- Request the user to sign this transaction.
-- Submits the transaction.
-- Returns the Id for the submitted transaction.
-
-Note that some errors could happen in this process and
-the use of the functions `liftedE` and `liftedM` to
-propagate those errors and internalize them in the `Contract` monad.
-Also, as when we work with Haskell `IO` values, some other
-errors could happen performing the operations inside
-and `Aff` effect (some server could be unreachable,
-the user could fail provide the signature, etc).
-
-This is a separate function as is almost boilerplate once we
-have set our environment.
-
-We can see this function as a more explicit version of the
-process made by Plutus with the `submitTx` function:
-
-```Haskell
--- | Build a transaction that satisfies the constraints, then submit it to
--- | the network. The constraints do not refer to any
--- | typed script inputs or outputs.
-submitTx
-  :: forall w s e. AsContractError e
-    => TxConstraints Void Void -> Contract w s e CardanoTx
-```
-
-A major difference in both functions is the fact that we
-are also signing the transaction as part of the balance of
-the transaction.
-
-
 ### MustPayTo functions
 
 
@@ -247,7 +188,7 @@ give vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  buildBalanceSignAndSubmitTx lookups constraints
+  submitTxFromConstraints lookups constraints
 ```
 
 
@@ -270,7 +211,7 @@ grab = do
       tx :: TxConstraints Void Void
       tx =
         mconcat [mustSpendScriptOutput oref $ Redeemer $ I 17 | oref <- orefs]
-   ledgerTx <- submitTxConstraintsWith @Void lookups tx
+   ledgerTx <- submitTxFromConstraints @Void lookups tx
    void $ awaitTxConfirmed $ txId ledgerTx
    logInfo @String $ "collected gifts"
 ```
@@ -328,7 +269,7 @@ grab vhash validator txId = do
         constraints =
           Constraints.mustSpendScriptOutput txInput unitRedeemer
       in
-        void $ buildBalanceSignAndSubmitTx lookups constraints
+        void $ submitTxFromConstraints lookups constraints
     _ ->
       logInfo' $ "The id "
         <> show txId

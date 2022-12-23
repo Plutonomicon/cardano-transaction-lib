@@ -33,6 +33,8 @@ module Contract.Transaction
   , signTransaction
   , submit
   , submitE
+  , submitTxFromConstraints
+  , submitTxFromConstraintsReturningFee
   , withBalancedTx
   , withBalancedTxWithConstraints
   , withBalancedTxs
@@ -51,14 +53,16 @@ import Contract.Monad
   , runContractInEnv
   , wrapContract
   )
+import Contract.PlutusData (class IsData)
+import Contract.ScriptLookups (mkUnbalancedTx)
+import Contract.Scripts (class ValidatorTypes)
+import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
-import Ctl.Internal.BalanceTx
-  ( FinalizedTransaction(FinalizedTransaction)
-  ) as FinalizedTransaction
+import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -220,14 +224,13 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotConvertPOSIXTimeRange
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
       , TypedTxOutHasNoDatumHash
       , CannotHashMintingPolicy
       , CannotHashValidator
       , CannotConvertPaymentPubKeyHash
       , CannotSatisfyAny
       )
-  , mkUnbalancedTx
+  , ScriptLookups
   ) as ScriptLookups
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Scripts
@@ -279,7 +282,6 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Untagged.Union (asOneOf)
 
 -- | Signs a transaction with potential failure.
 signTransaction
@@ -314,17 +316,17 @@ submitE
    . BalancedSignedTransaction
   -> Contract r (Either (Array Aeson) TransactionHash)
 submitE tx = do
-  cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
+  cslTx <- liftEffect $ Serialization.convertTransaction $ unwrap tx
   let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
-  let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
+  let txCborBytes = Serialization.toBytes cslTx
   result <- wrapContract $
     QueryM.submitTxOgmios (unwrap txHash) txCborBytes
   pure $ case result of
     SubmitTxSuccess th -> Right $ wrap th
     SubmitFail json -> Left json
 
--- | Query the Haskell server for the minimum transaction fee.
+-- | Query for the minimum transaction fee.
 calculateMinFee
   :: forall (r :: Row Type)
    . Transaction
@@ -599,3 +601,31 @@ createAdditionalUtxos tx = do
 
   pure $ plutusOutputs #
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
+
+submitTxFromConstraintsReturningFee
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups.ScriptLookups validator
+  -> TxConstraints redeemer datum
+  -> Contract r { txHash :: TransactionHash, txFinalFee :: BigInt }
+submitTxFromConstraintsReturningFee lookups constraints = do
+  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
+  balancedTx <- liftedE $ balanceTx unbalancedTx
+  balancedSignedTx <- signTransaction balancedTx
+  txHash <- submit balancedSignedTx
+  pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
+
+submitTxFromConstraints
+  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+       (redeemer :: Type)
+   . ValidatorTypes validator datum redeemer
+  => IsData datum
+  => IsData redeemer
+  => ScriptLookups.ScriptLookups validator
+  -> TxConstraints redeemer datum
+  -> Contract r TransactionHash
+submitTxFromConstraints lookups constraints =
+  _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints

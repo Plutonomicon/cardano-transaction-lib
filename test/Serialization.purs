@@ -13,18 +13,19 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, toBytes)
+import Ctl.Internal.Serialization (convertTxOutput, serializeData, toBytes)
 import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromString) as BN
+import Ctl.Internal.Types.BigNum (fromString, one) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
+import Ctl.Internal.Types.CborBytes (cborBytesToHex)
 import Ctl.Internal.Types.PlutusData as PD
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -48,7 +49,6 @@ import Test.Ctl.Fixtures
   )
 import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
-import Untagged.Union (asOneOf)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -67,23 +67,24 @@ suite = do
         let
           pkBytes = bytesFromPublicKey $ convertPubKey pk
           (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> fromBytes
-            (unwrap pkBytes)
+            (wrap $ unwrap pkBytes)
 
         pk'' `shouldSatisfy` isJust
       test "newTransactionHash" do
         let
           txString =
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
-          txBytes = hexToByteArrayUnsafe txString
+          txBytes = wrap $ hexToByteArrayUnsafe txString
         _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
       test "PlutusData #1 - Constr" $ do
         let
-          datum = PD.Constr (BigInt.fromInt 1)
+          datum = PD.Constr BN.one
             [ PD.Integer (BigInt.fromInt 1)
             , PD.Integer (BigInt.fromInt 2)
             ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #2 - Map" $ do
         let
           datum =
@@ -91,33 +92,33 @@ suite = do
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #3 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #4 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test "PlutusData #5 - Bytes" $ do
         let datum = PD.Bytes $ hexToByteArrayUnsafe "00ff"
-        (convertPlutusData datum $> unit) `shouldSatisfy` isJust
+        let _ = convertPlutusData datum -- Checking no exception raised
+        pure unit
       test
         "PlutusData #6 - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
         $ do
-            let
-              datum = PD.Integer (BigInt.fromInt 0)
-            datum' <- errMaybe "Cannot convertPlutusData" $ convertPlutusData
-              datum
-            let bytes = toBytes (asOneOf datum')
-            byteArrayToHex bytes `shouldEqual` "00"
+            let bytes = serializeData $ PD.Integer (BigInt.fromInt 0)
+            cborBytesToHex bytes `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
-        let bytes = toBytes (asOneOf txo)
-        byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
+        let bytes = toBytes txo
+        byteArrayToHex (unwrap bytes) `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $
         serializeTX txFixture1 txBinaryFixture1
       test "Transaction serialization #2 - tokens" $
@@ -158,15 +159,14 @@ serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
   liftEffect $ do
     cslTX <- TS.convertTransaction $ tx
-    let bytes = toBytes (asOneOf cslTX)
-    byteArrayToHex bytes `shouldEqual` fixture
+    let bytes = toBytes cslTX
+    byteArrayToHex (unwrap bytes) `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
   cslTX <- liftEffect $ TS.convertTransaction tx
-  let serialized = toBytes (asOneOf cslTX)
-  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes
-    serialized
+  let serialized = toBytes cslTX
+  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes serialized
   expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
     TD.convertTransaction deserialized
   tx `shouldEqual` expected

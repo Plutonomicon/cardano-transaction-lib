@@ -91,7 +91,8 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonString
   , decodeAeson
-  , encodeAeson'
+  , encodeAeson
+  , partialFiniteNumber
   )
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -107,7 +108,6 @@ import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Helpers
   ( appendMap
   , encodeMap
-  , encodeSet
   , encodeTagged'
   , (</>)
   , (<<>>)
@@ -165,7 +165,6 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Partial.Unsafe (unsafePartial)
-import Untagged.Union (asOneOf)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -312,11 +311,8 @@ instance Monoid TxBody where
     }
 
 instance EncodeAeson TxBody where
-  encodeAeson' (TxBody r) = encodeAeson' $ r
-    { inputs = encodeSet r.inputs
-    , withdrawals = encodeMap <$> r.withdrawals
-    , referenceInputs = encodeSet r.referenceInputs
-    }
+  encodeAeson (TxBody r) = encodeAeson $ r
+    { withdrawals = encodeMap <$> r.withdrawals }
 
 newtype ScriptDataHash = ScriptDataHash ByteArray
 
@@ -368,7 +364,7 @@ instance Show ProposedProtocolParameterUpdates where
   show = genericShow
 
 instance EncodeAeson ProposedProtocolParameterUpdates where
-  encodeAeson' (ProposedProtocolParameterUpdates r) = encodeAeson' $ encodeMap r
+  encodeAeson (ProposedProtocolParameterUpdates r) = encodeMap r
 
 newtype GenesisHash = GenesisHash ByteArray
 
@@ -402,6 +398,8 @@ type ProtocolParamUpdate =
   , maxTxExUnits :: Maybe ExUnits
   , maxBlockExUnits :: Maybe ExUnits
   , maxValueSize :: Maybe UInt
+  , collateralPercentage :: Maybe UInt
+  , maxCollateralInputs :: Maybe UInt
   }
 
 type ExUnitPrices =
@@ -426,7 +424,7 @@ instance Show Costmdls where
   show = genericShow
 
 instance EncodeAeson Costmdls where
-  encodeAeson' = encodeAeson' <<< encodeMap <<< unwrap
+  encodeAeson = encodeMap <<< unwrap
 
 newtype CostModel = CostModel (Array Int.Int)
 
@@ -465,8 +463,8 @@ instance DecodeAeson Nonce where
     err = Left (TypeMismatch "Nonce")
 
 instance EncodeAeson Nonce where
-  encodeAeson' IdentityNonce = encodeAeson' "neutral"
-  encodeAeson' (HashNonce hash) = encodeAeson' hash
+  encodeAeson IdentityNonce = encodeAeson "neutral"
+  encodeAeson (HashNonce hash) = encodeAeson hash
 
 type UnitInterval =
   { numerator :: BigNum
@@ -523,10 +521,10 @@ instance Show Relay where
   show = genericShow
 
 instance EncodeAeson Relay where
-  encodeAeson' = case _ of
-    SingleHostAddr r -> encodeAeson' $ encodeTagged' "SingleHostAddr" r
-    SingleHostName r -> encodeAeson' $ encodeTagged' "SingleHostName" r
-    MultiHostName r -> encodeAeson' $ encodeTagged' "MultiHostName" r
+  encodeAeson = case _ of
+    SingleHostAddr r -> encodeTagged' "SingleHostAddr" r
+    SingleHostName r -> encodeTagged' "SingleHostName" r
+    MultiHostName r -> encodeTagged' "MultiHostName" r
 
 newtype URL = URL String
 
@@ -579,7 +577,7 @@ instance Show MIRToStakeCredentials where
   show = genericShow
 
 instance EncodeAeson MIRToStakeCredentials where
-  encodeAeson' (MIRToStakeCredentials r) = encodeAeson' $ encodeMap r
+  encodeAeson (MIRToStakeCredentials r) = encodeMap r
 
 data MoveInstantaneousReward
   = ToOtherPot
@@ -598,9 +596,13 @@ instance Show MoveInstantaneousReward where
   show = genericShow
 
 instance EncodeAeson MoveInstantaneousReward where
-  encodeAeson' = case _ of
-    ToOtherPot r -> encodeAeson' $ encodeTagged' "ToOtherPot" r
-    ToStakeCreds r -> encodeAeson' $ encodeTagged' "ToStakeCreds" r
+  encodeAeson = case _ of
+    ToOtherPot r -> encodeTagged' "ToOtherPot" r
+      -- We assume the numbers are finite
+      { pot = unsafePartial partialFiniteNumber r.pot }
+    ToStakeCreds r -> encodeTagged' "ToStakeCreds" r
+      -- We assume the numbers are finite
+      { pot = unsafePartial partialFiniteNumber r.pot }
 
 type PoolRegistrationParams =
   { operator :: PoolPubKeyHash -- cwitness (cert)
@@ -623,8 +625,8 @@ derive instance Eq PoolPubKeyHash
 derive instance Generic PoolPubKeyHash _
 
 instance EncodeAeson PoolPubKeyHash where
-  encodeAeson' (PoolPubKeyHash kh) =
-    encodeAeson' (ed25519KeyHashToBech32 "pool" kh)
+  encodeAeson (PoolPubKeyHash kh) =
+    encodeAeson (ed25519KeyHashToBech32 "pool" kh)
 
 instance DecodeAeson PoolPubKeyHash where
   decodeAeson aeson = do
@@ -662,18 +664,18 @@ instance Show Certificate where
   show = genericShow
 
 instance EncodeAeson Certificate where
-  encodeAeson' = case _ of
-    StakeRegistration r -> encodeAeson' $ encodeTagged' "StakeRegistration" r
-    StakeDeregistration r -> encodeAeson' $ encodeTagged' "StakeDeregistration"
+  encodeAeson = case _ of
+    StakeRegistration r -> encodeTagged' "StakeRegistration" r
+    StakeDeregistration r -> encodeTagged' "StakeDeregistration"
       r
-    StakeDelegation cred hash -> encodeAeson' $ encodeTagged' "StakeDelegation"
+    StakeDelegation cred hash -> encodeTagged' "StakeDelegation"
       { stakeCredential: cred, ed25519KeyHash: hash }
-    PoolRegistration r -> encodeAeson' $ encodeTagged' "PoolRegistration" r
-    PoolRetirement r -> encodeAeson' $ encodeTagged' "PoolRetirement" r
-    GenesisKeyDelegation r -> encodeAeson' $ encodeTagged'
+    PoolRegistration r -> encodeTagged' "PoolRegistration" r
+    PoolRetirement r -> encodeTagged' "PoolRetirement" r
+    GenesisKeyDelegation r -> encodeTagged'
       "GenesisKeyDelegation"
       r
-    MoveInstantaneousRewardsCert r -> encodeAeson' $ encodeTagged'
+    MoveInstantaneousRewardsCert r -> encodeTagged'
       "MoveInstantaneousReward"
       r
 
@@ -852,7 +854,8 @@ mkFromCslPubKey :: Serialization.PublicKey -> PublicKey
 mkFromCslPubKey = PublicKey <<< bytesFromPublicKey
 
 convertPubKey :: PublicKey -> Serialization.PublicKey
-convertPubKey (PublicKey bs) = unsafePartial $ fromJust <<< fromBytes <<< unwrap
+convertPubKey (PublicKey bs) = unsafePartial
+  $ fromJust <<< fromBytes <<< wrap <<< unwrap
   $ bs
 
 derive newtype instance Eq PublicKey
@@ -871,15 +874,16 @@ instance Show PublicKey where
 newtype Ed25519Signature = Ed25519Signature RawBytes
 
 mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
-mkEd25519Signature = map (Ed25519Signature <<< wrap <<< toBytes <<< asOneOf) <<<
-  ed25519SignatureFromBech32
+mkEd25519Signature =
+  map (Ed25519Signature <<< wrap <<< unwrap <<< toBytes) <<<
+    ed25519SignatureFromBech32
 
 mkFromCslEd25519Signature :: Serialization.Ed25519Signature -> Ed25519Signature
-mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< toBytes <<< asOneOf
+mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< unwrap <<< toBytes
 
 convertEd25519Signature :: Ed25519Signature -> Serialization.Ed25519Signature
 convertEd25519Signature (Ed25519Signature bs) = unsafePartial
-  $ fromJust <<< fromBytes <<< unwrap
+  $ fromJust <<< fromBytes <<< wrap <<< unwrap
   $ bs
 
 derive newtype instance Eq Ed25519Signature

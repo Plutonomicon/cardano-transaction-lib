@@ -3,13 +3,16 @@
 In order to run CTL's `Contract` effects, several services are required. These can be configured through a `ContractEnv` that holds websocket connections, information about server hosts/ports, and other requisite information.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Current services](#current-services)
 - [Using NixOS module](#using-nixos-module)
-- [Using CTL's `runtime` overlay](#using-ctl-s--runtime--overlay)
+- [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
 - [Changing network configurations](#changing-network-configurations)
 - [Wallet requirements](#wallet-requirements)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ### Current services
 
 The services that are currently **required** are:
@@ -26,15 +29,9 @@ The services that are currently **required** are:
   - This is required to query for datums, which Ogmios itself does not support
   - This in turn requires a PostgreSQL DB
 
-Optional services:
-
-- [Our Haskell server](../server/README.md)
-  - We hope to deprecate this in the future, but we use it at the moment to apply arguments to Plutus scripts, which is hard to implement on front-end.
-  - To build the server project, run the following from the repository root: `nix build -L .#ctl-server:exe:ctl-server`
-
 ### Using NixOS module
 
-`ctl-server` and its dependencies can be configured and started via NixOS modules. See [../nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example usage and [../nix/ctl-server-nixos-module.nix](../nix/ctl-server-nixos-module.nix) for module options.
+CTL's dependencies can be configured and started via NixOS modules. See [nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example.
 
 ### Using CTL's `runtime` overlay
 

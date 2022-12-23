@@ -3,14 +3,18 @@
 [Plutip](https://github.com/mlabs-haskell/plutip) is a tool to run private Cardano testnets. CTL provides integration with Plutip via a [`plutip-server` binary](https://github.com/mlabs-haskell/plutip/pull/79) that exposes an HTTP interface to control local Cardano clusters.
 
 **Table of Contents**
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  + [Testing in Aff context](#testing-in-aff-context)
-  + [Testing with Mote](#testing-with-mote)
-  + [Testing with Nix](#testing-with-nix)
+  - [Testing in Aff context](#testing-in-aff-context)
+  - [Testing with Mote](#testing-with-mote)
+  - [Note on SIGINT](#note-on-sigint)
+  - [Testing with Nix](#testing-with-nix)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Architecture
 
 CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
@@ -20,10 +24,6 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - [`kupo`](https://cardanosolutions.github.io/kupo/)
 - [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
 - PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
-
-If you plan on using CTL's `applyArgs` effect, you must also ensure the following is on your `$PATH`:
-
-- `ctl-server`: a server-side part of CTL itself
 
 All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.
 
@@ -167,12 +167,6 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
   some-plutip-test = project.runPlutipTest {
     name = "some-plutip-test";
     testMain = "Test.MyProject.Plutip";
-    # If you don't need `ctl-server`, you can set the following
-    # to `false`. Make sure to leave it as `true` (the default)
-    # if you are calling `applyArgs` in your contracts. This
-    # must match your `PlutipConfig` -- if `ctlServerConfig` is
-    # `Nothing`, `ctl-server` will not be spawned
-    withCtlServer = false;
     # The rest of the arguments are passed through to `runPursTest`:
     env = { SOME_ENV_VAR = "${some-value}"; };
   };

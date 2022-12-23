@@ -14,6 +14,7 @@ module Ctl.Internal.ToData
 
 import Prelude
 
+import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Ctl.Internal.Helpers (uIntToBigInt)
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -26,14 +27,15 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , class GetWithLabel
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (toBigIntUnsafe) as BigNum
+import Ctl.Internal.Types.BigNum (fromInt, one, toBigInt, zero) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (cons, sortWith)
 import Data.Array as Array
-import Data.BigInt (BigInt, fromInt)
+import Data.ArrayBuffer.Types (Uint8Array)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
@@ -47,6 +49,19 @@ import Data.Symbol (class IsSymbol)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.UInt (UInt)
+import Noble.Secp256k1.ECDSA
+  ( ECDSAPublicKey
+  , ECDSASignature
+  , MessageHash
+  , unECDSAPublicKey
+  , unMessageHash
+  , unPrivateKey
+  )
+import Noble.Secp256k1.Schnorr
+  ( SchnorrPublicKey
+  , SchnorrSignature
+  , unSchnorrPublicKey
+  )
 import Prim.Row as Row
 import Prim.TypeError (class Fail, Text)
 import Record as Record
@@ -147,7 +162,7 @@ instance
   ) =>
   ToDataWithSchema t (G.Constructor constr arg) where
   toDataWithSchema p (G.Constructor args) = Constr
-    (fromInt <<< natVal $ (Proxy :: Proxy index))
+    (BigNum.fromInt <<< natVal $ (Proxy :: Proxy index))
     (toDataArgs p (Proxy :: Proxy constr) args)
 
 -- | ToDataArgs instances for Data.Generic.Rep
@@ -236,21 +251,21 @@ instance ToData Void where
   toData = absurd
 
 instance ToData Unit where
-  toData _ = Constr zero []
+  toData _ = Constr BigNum.zero []
 
 -- NOTE: For the sake of compatibility the following toDatas have to match
 -- https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-tx/src/PlutusTx/IsData/Instances.hs
 instance ToData Boolean where
-  toData false = Constr zero []
-  toData true = Constr one []
+  toData false = Constr BigNum.zero []
+  toData true = Constr BigNum.one []
 
 instance ToData a => ToData (Maybe a) where
-  toData (Just x) = Constr zero [ toData x ] -- Just is zero-indexed by Plutus
-  toData Nothing = Constr one []
+  toData (Just x) = Constr BigNum.zero [ toData x ] -- Just is zero-indexed by Plutus
+  toData Nothing = Constr BigNum.one []
 
 instance (ToData a, ToData b) => ToData (Either a b) where
-  toData (Left e) = Constr zero [ toData e ]
-  toData (Right x) = Constr one [ toData x ]
+  toData (Left e) = Constr BigNum.zero [ toData e ]
+  toData (Right x) = Constr BigNum.one [ toData x ]
 
 instance Fail (Text "Int is not supported, use BigInt instead") => ToData Int where
   toData = toData <<< BigInt.fromInt
@@ -259,7 +274,7 @@ instance ToData BigInt where
   toData = Integer
 
 instance ToData BigNum where
-  toData = toData <<< BigNum.toBigIntUnsafe
+  toData = toData <<< BigNum.toBigInt
 
 instance ToData UInt where
   toData = toData <<< uIntToBigInt
@@ -274,7 +289,7 @@ instance ToData a => ToData (List a) where
   toData = foldableToPlutusData
 
 instance (ToData a, ToData b) => ToData (Tuple a b) where
-  toData (Tuple a b) = Constr zero [ toData a, toData b ]
+  toData (Tuple a b) = Constr BigNum.zero [ toData a, toData b ]
 
 -- Note that nothing prevents the denominator from being zero, we could provide
 -- safety here:
@@ -295,6 +310,29 @@ instance ToData String where
 
 instance ToData PlutusData where
   toData = identity
+
+instance ToData Uint8Array where
+  toData = toData <<< ByteArray
+
+-- Instances for purescript-noble-secp256k1 types
+
+instance ToData Secp256k1PrivateKey where
+  toData = unwrap >>> unPrivateKey >>> ByteArray >>> toData
+
+instance ToData MessageHash where
+  toData = unMessageHash >>> ByteArray >>> toData
+
+instance ToData ECDSAPublicKey where
+  toData = unECDSAPublicKey >>> ByteArray >>> toData
+
+instance ToData ECDSASignature where
+  toData = unwrap >>> ByteArray >>> toData
+
+instance ToData SchnorrPublicKey where
+  toData = unSchnorrPublicKey >>> ByteArray >>> toData
+
+instance ToData SchnorrSignature where
+  toData = unwrap >>> ByteArray >>> toData
 
 foldableToPlutusData
   :: forall (a :: Type) (t :: Type -> Type)

@@ -16,17 +16,15 @@ import Aeson
   , class EncodeAeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , decodeAeson
-  , encodeAeson'
+  , getField
   , (.:)
   )
-import Aeson.Decode.Decoders (decodeArray)
-import Ctl.Internal.Helpers (encodeTagged')
+import Ctl.Internal.Helpers (contentsProp, encodeTagged', tagProp)
 import Ctl.Internal.Metadata.Helpers (errExpectedObject)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (fromString)
-import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Array.NonEmpty (fromFoldable)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -68,37 +66,34 @@ instance Arbitrary NativeScript where
     where
     pk :: Ed25519KeyHash
     pk = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
-      hexToRawBytesUnsafe
+      hexToByteArrayUnsafe
         "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 instance DecodeAeson NativeScript where
   decodeAeson = caseAesonObject errExpectedObject $ \obj -> do
-    tag <- obj .: "tag"
-    let aesonContents = obj .: "contents"
+    tag <- obj .: tagProp
+    let
+      aesonContents
+        :: forall (a :: Type). DecodeAeson a => Either JsonDecodeError a
+      aesonContents = obj .: contentsProp
     case tag of
-      "ScriptPubkey" -> ScriptPubkey <$> (decodeAeson =<< aesonContents)
-      "ScriptAll" -> ScriptAll <$>
-        (decodeArray decodeAeson =<< (decodeAeson =<< aesonContents))
-      "ScriptAny" -> ScriptAny <$>
-        (decodeArray decodeAeson =<< (decodeAeson =<< aesonContents))
-      "TimelockStart" -> TimelockStart <$> (decodeAeson =<< aesonContents)
-      "TimelockExpiry" -> TimelockExpiry <$> (decodeAeson =<< aesonContents)
-      "ScriptNOfK" -> aesonContents >>=
-        caseAesonObject errExpectedObject
-          ( \nOfkObj -> do
-              n <- nOfkObj .: "n"
-              scriptsAeson <- nOfkObj .: "nativeScripts"
-              scripts <- decodeArray decodeAeson scriptsAeson
-              pure $ ScriptNOfK n scripts
-          )
-      _ -> Left $ TypeMismatch ("Unknown tag" <> tag)
+      "ScriptPubkey" -> ScriptPubkey <$> aesonContents
+      "ScriptAll" -> ScriptAll <$> aesonContents
+      "ScriptAny" -> ScriptAny <$> aesonContents
+      "TimelockStart" -> TimelockStart <$> aesonContents
+      "TimelockExpiry" -> TimelockExpiry <$> aesonContents
+      "ScriptNOfK" -> ScriptNOfK
+        <$> (flip getField "n" =<< aesonContents)
+        <*> (flip getField "nativeScripts" =<< aesonContents)
+
+      _ -> Left $ TypeMismatch ("Unknown tag: " <> tag)
 
 instance EncodeAeson NativeScript where
-  encodeAeson' = case _ of
-    ScriptPubkey r -> encodeAeson' $ encodeTagged' "ScriptPubkey" r
-    ScriptAll r -> encodeAeson' $ encodeTagged' "ScriptAll" r
-    ScriptAny r -> encodeAeson' $ encodeTagged' "ScriptAny" r
-    ScriptNOfK n nativeScripts -> encodeAeson' $ encodeTagged' "ScriptNOfK"
+  encodeAeson = case _ of
+    ScriptPubkey r -> encodeTagged' "ScriptPubkey" r
+    ScriptAll r -> encodeTagged' "ScriptAll" r
+    ScriptAny r -> encodeTagged' "ScriptAny" r
+    ScriptNOfK n nativeScripts -> encodeTagged' "ScriptNOfK"
       { n, nativeScripts }
-    TimelockStart r -> encodeAeson' $ encodeTagged' "TimelockStart" r
-    TimelockExpiry r -> encodeAeson' $ encodeTagged' "TimelockExpiry" r
+    TimelockStart r -> encodeTagged' "TimelockStart" r
+    TimelockExpiry r -> encodeTagged' "TimelockExpiry" r

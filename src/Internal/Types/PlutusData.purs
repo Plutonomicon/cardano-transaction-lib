@@ -16,11 +16,11 @@ import Aeson
   , JsonDecodeError(UnexpectedValue)
   , decodeAeson
   , encodeAeson
-  , encodeAeson'
   , toStringifiedNumbersJson
   , (.:)
   )
 import Control.Alt ((<|>))
+import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left))
@@ -33,7 +33,7 @@ import Data.Tuple.Nested ((/\))
 
 -- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData
-  = Constr BigInt (Array PlutusData)
+  = Constr BigNum (Array PlutusData)
   | Map (Array (Tuple PlutusData PlutusData))
   | List (Array PlutusData)
   | Integer BigInt
@@ -88,19 +88,19 @@ instance DecodeAeson PlutusData where
         Just res -> pure $ Bytes res
 
 instance EncodeAeson PlutusData where
-  encodeAeson' (Constr constr fields) = encodeAeson'
-    { "constr": encodeAeson constr
-    , "fields": encodeAeson fields
+  encodeAeson (Constr constr fields) = encodeAeson
+    { "constr": constr
+    , "fields": fields
     }
-  encodeAeson' (Map elems) = encodeAeson'
+  encodeAeson (Map elems) = encodeAeson
     { "map": encodeAeson $ map
         ( \(k /\ v) ->
-            { "key": encodeAeson k
-            , "value": encodeAeson v
+            { "key": k
+            , "value": v
             }
         )
         elems
     }
-  encodeAeson' (List elems) = encodeAeson' elems
-  encodeAeson' (Integer bi) = encodeAeson' bi
-  encodeAeson' (Bytes ba) = encodeAeson' ba
+  encodeAeson (List elems) = encodeAeson elems
+  encodeAeson (Integer bi) = encodeAeson bi
+  encodeAeson (Bytes ba) = encodeAeson ba
