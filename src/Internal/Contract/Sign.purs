@@ -38,10 +38,7 @@ signTransaction
   :: Transaction.Transaction -> Contract (Maybe Transaction.Transaction)
 signTransaction tx = do
   hooks <- asks _.hooks
-  let
-    runHook =
-      for_ hooks.beforeSign (void <<< liftEffect <<< try)
-  runHook
+  for_ hooks.beforeSign (void <<< liftEffect <<< try)
   withWallet case _ of
     Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
     Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx

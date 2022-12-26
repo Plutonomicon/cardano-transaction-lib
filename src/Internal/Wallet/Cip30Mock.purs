@@ -143,6 +143,10 @@ mkCip30Mock pKey mSKey = do
       byteArrayToHex $ unwrap $ toBytes
         ((unwrap keyWallet).address env.networkId :: Address)
 
+    ownUtxos = do
+      let ownAddress = (unwrap keyWallet).address env.networkId
+      utxosAt ownAddress
+
   pure $
     { getNetworkId: fromAff $ pure $
         case env.networkId of
