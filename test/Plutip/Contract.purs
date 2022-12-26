@@ -14,6 +14,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
+import Contract.AuxiliaryData (setGeneralTxMetadata)
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
@@ -42,6 +43,8 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( ValidatorHash
   , applyArgs
+  , getScriptByHash
+  , getScriptsByHashes
   , mintingPolicyHash
   , validatorHash
   )
@@ -63,6 +66,7 @@ import Contract.Transaction
   , balanceTx
   , balanceTxWithConstraints
   , createAdditionalUtxos
+  , getTxMetadata
   , signTransaction
   , submit
   , submitTxFromConstraints
@@ -123,6 +127,11 @@ import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum(Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  )
 import Ctl.Internal.Wallet
   ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   )
@@ -136,7 +145,7 @@ import Data.Either (Either(Right), isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -144,6 +153,8 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
+import Partial (crash)
+import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
@@ -781,6 +792,80 @@ suite = do
                 , hash2 /\ Right datum2
                 ]
             )
+
+    test "GetScriptByHash" do
+      let
+        distribution :: InitialUTxOs
+        distribution = [ BigInt.fromInt 2_000_000_000 ]
+
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          validator1 <- AlwaysSucceeds.alwaysSucceedsScript
+          validator2 <- alwaysSucceedsScriptV2
+          let
+            validatorRef1 = PlutusScriptRef $ unwrap validator1
+            validatorRef2 = PlutusScriptRef $ unwrap validator2
+            useScriptAndGetByHash validator vhash = do
+              txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+              awaitTxConfirmed txId
+              -- For Kupo (used inside) to see script, its utxo must be spent
+              AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+              getScriptByHash $ unwrap vhash
+
+          result1 <- useScriptAndGetByHash validator1 (validatorHash validator1)
+          result2 <- useScriptAndGetByHash validator2 (validatorHash validator2)
+
+          let
+            unpackResult' :: Partial => _
+            unpackResult' (Right (Just x)) = x
+            unpackResult' _ = crash "test fail: No script found by hash"
+            unpackResult x = unsafePartial $ unpackResult' x
+
+          -- Testing getScriptByHash
+          (unpackResult result1) `shouldEqual` validatorRef1
+          (unpackResult result2) `shouldEqual` validatorRef2
+
+          -- Testing getScriptsByHashes
+          let
+            scriptHash1 = unwrap (validatorHash validator1)
+            scriptHash2 = unwrap (validatorHash validator2)
+          results <- getScriptsByHashes [ scriptHash1, scriptHash2 ]
+          (map unpackResult results) `shouldEqual` Map.fromFoldable
+            [ (scriptHash1 /\ validatorRef1)
+            , (scriptHash2 /\ validatorRef2)
+            ]
+
+    test "GetTxMetadata" do
+      let
+        distribution :: InitialUTxOs
+        distribution = [ BigInt.fromInt 2_000_000_000 ]
+
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          tn <- mkTokenName "Token name"
+          mp /\ _ <- mkCurrencySymbol alwaysMintsPolicy
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = mconcat
+              [ Constraints.mustMintCurrency (mintingPolicyHash mp) tn one
+              ]
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups =
+              Lookups.mintingPolicy mp
+            givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
+              [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          ubTx' <- setGeneralTxMetadata ubTx givenMetadata
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx')
+          txId <- submit bsTx
+          awaitTxConfirmed txId
+
+          mMetadata <- getTxMetadata txId
+          let metadata = unsafePartial $ fromJust mMetadata
+
+          metadata `shouldEqual` givenMetadata
 
     test "MintZeroToken" do
       let
