@@ -149,7 +149,7 @@ type Cip30Mock =
   , getUtxos ::
       Fn2 (UndefinedOr String) (UndefinedOr Paginate)
         (Promise (NullOr (Array String)))
-  , getCollateral :: CollateralParams -> ((Promise (Array String)))
+  , getCollateral :: CollateralParams -> (Promise (Array String))
   , getBalance :: Effect (Promise String)
   , getUsedAddresses :: (UndefinedOr Paginate) -> Promise (Array String)
   , getUnusedAddresses :: Effect (Promise (Array String))
@@ -184,7 +184,6 @@ mkCip30Mock pKey mSKey = do
           utxos
           <#> fold
 
-  let
     convertAmount :: String -> Effect Value
     convertAmount amount = do
       let
@@ -214,10 +213,9 @@ mkCip30Mock pKey mSKey = do
         let
           xUtxos = Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
             TransactionUnspentOutput { input, output }
-        let
           amountValue = DSV.convertValue =<< fromBytes =<< hexToCborBytes =<<
             (uorToMaybe amount)
-        if (not hasEnoughAmount amountValue xUtxos) then pure $ maybeToNullOr
+        if not $ hasEnoughAmount amountValue xUtxos then pure $ maybeToNullOr
           Nothing
         else do
           -- Convert to CSL representation and serialize
@@ -234,10 +232,9 @@ mkCip30Mock pKey mSKey = do
           runQueryMInRuntime config runtime (utxosAt ownAddress)
         collateralUtxos <- getCollateralUtxos utxos
         amountValue <- liftEffect $ convertAmount amount
-        if gt amountValue maxCollateralAmount then liftEffect $
+        when (gt amountValue maxCollateralAmount) $ liftEffect $
           raiseInvalidRequestError "Amount value is bigger than allowed 5 ADA"
-        else pure unit
-        if (not $ hasEnoughAmount (Just amountValue) collateralUtxos) then
+        if not $ hasEnoughAmount (Just amountValue) collateralUtxos then
           liftEffect $ raiseInvalidRequestError
             "Cannot find collateral to match required amount"
         else do

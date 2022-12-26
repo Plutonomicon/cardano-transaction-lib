@@ -292,6 +292,7 @@ getCip30Collateral conn amount = do
   _getCollateral maybeFfiHelper conn amountBigNumStr `catchError`
     \_ -> throwError $ error "Wallet doesn't implement `getCollateral`."
   where
+  coinToBigNumberStr :: Coin -> Maybe String
   coinToBigNumberStr coin =
     BigNum.toString <$>
       ( BigNum.fromBigInt $
