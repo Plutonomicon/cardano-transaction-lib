@@ -153,7 +153,7 @@ getWalletAddressesPaginated
 getWalletAddressesPaginated paginate = getWalletAddressesGeneral $ Just paginate
 
 getWalletAddressesGeneral
-  :: Maybe Paginate -> forall (r :: Row Type). Contract r (Array Address)
+  :: forall (r :: Row Type). Maybe Paginate -> Contract r (Array Address)
 getWalletAddressesGeneral paginate = do
   addresses <- wrapContract $ QueryM.getWalletAddresses paginate
   traverse

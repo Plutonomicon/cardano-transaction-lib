@@ -263,7 +263,7 @@ mkCip30Mock pKey mSKey = do
           byteArrayToHex <<< unwrap <<< toBytes
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
-          [ (cborBytesToHex <<< toBytes) address ]
+          [ cborBytesToHex $ toBytes address ]
     , signTx: mkFn2 \str _partialSign -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToCborBytes
           str
