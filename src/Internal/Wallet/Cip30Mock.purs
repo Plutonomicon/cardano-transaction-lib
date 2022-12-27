@@ -134,8 +134,10 @@ mkCip30Mock pKey mSKey = do
           utxos
           <#> fold
 
-    utxosAt address = liftMaybe (error "No UTxOs at address") <<< hush =<< do
-      queryHandle.utxosAt address
+    ownUtxos = do
+      let ownAddress = (unwrap keyWallet).address env.networkId
+      liftMaybe (error "No UTxOs at address") <<< hush =<< do
+        queryHandle.utxosAt ownAddress
 
     keyWallet = privateKeysToKeyWallet pKey mSKey
 
@@ -143,18 +145,13 @@ mkCip30Mock pKey mSKey = do
       byteArrayToHex $ unwrap $ toBytes
         ((unwrap keyWallet).address env.networkId :: Address)
 
-    ownUtxos = do
-      let ownAddress = (unwrap keyWallet).address env.networkId
-      utxosAt ownAddress
-
   pure $
     { getNetworkId: fromAff $ pure $
         case env.networkId of
           TestnetId -> 0
           MainnetId -> 1
     , getUtxos: fromAff do
-        let ownAddress = (unwrap keyWallet).address env.networkId
-        utxos <- utxosAt ownAddress
+        utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
         let
           -- filter UTxOs that will be used as collateral
@@ -168,8 +165,7 @@ mkCip30Mock pKey mSKey = do
               TransactionUnspentOutput { input, output }
         pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$> cslUtxos
     , getCollateral: fromAff do
-        let ownAddress = (unwrap keyWallet).address env.networkId
-        utxos <- utxosAt ownAddress
+        utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
         cslUnspentOutput <- liftEffect $ traverse
           convertTransactionUnspentOutput
@@ -177,8 +173,7 @@ mkCip30Mock pKey mSKey = do
         pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$>
           cslUnspentOutput
     , getBalance: fromAff do
-        let ownAddress = (unwrap keyWallet).address env.networkId
-        utxos <- utxosAt ownAddress
+        utxos <- ownUtxos
         value <- liftEffect $ convertValue $
           (foldMap (_.amount <<< unwrap) <<< Map.values)
             utxos
