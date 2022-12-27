@@ -35,6 +35,7 @@ type CtlBackend =
 
 type BlockfrostBackend =
   { blockfrostConfig :: ServerConfig
+  , blockfrostApiKey :: Maybe String
   }
 
 getCtlBackend :: QueryBackend -> Maybe CtlBackend
@@ -60,6 +61,7 @@ type CtlBackendParams =
 
 type BlockfrostBackendParams =
   { blockfrostConfig :: ServerConfig
+  , blockfrostApiKey :: Maybe String
   }
 
 mkCtlBackendParams :: CtlBackendParams -> QueryBackendParams
