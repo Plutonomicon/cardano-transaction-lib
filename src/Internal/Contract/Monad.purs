@@ -350,19 +350,13 @@ runQueryM contractEnv ctlBackend =
 mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv
 mkQueryEnv contractEnv ctlBackend =
   { config:
-      { ogmiosConfig: ctlBackend.ogmios.config
-      , kupoConfig: ctlBackend.kupoConfig
-      , networkId: contractEnv.networkId
+      { kupoConfig: ctlBackend.kupoConfig
       , logLevel: contractEnv.logLevel
-      , walletSpec: contractEnv.walletSpec
       , customLogger: contractEnv.customLogger
       , suppressLogs: contractEnv.suppressLogs
       }
   , runtime:
       { ogmiosWs: ctlBackend.ogmios.ws
-      , wallet: contractEnv.wallet
-      , usedTxOuts: contractEnv.usedTxOuts
-      , pparams: contractEnv.ledgerConstants.pparams
       }
   }
 
