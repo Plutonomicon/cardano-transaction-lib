@@ -66,7 +66,7 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (hexToCborBytes)
+import Ctl.Internal.Types.CborBytes (CborBytes, hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -434,9 +434,7 @@ instance Show KupoMetadata where
 
 instance DecodeAeson KupoMetadata where
   decodeAeson = decodeAeson >=> case _ of
-    [ { raw } :: { raw :: String } ] -> do
-      cbor <- flip note (hexToCborBytes raw) $
-        TypeMismatch "Hexadecimal String"
+    [ { raw: cbor } :: { raw :: CborBytes } ] -> do
       metadata <- flip note (fromBytes cbor) $
         TypeMismatch "Hexadecimal encoded Metadata"
       pure $ KupoMetadata $ Just $ convertGeneralTransactionMetadata metadata

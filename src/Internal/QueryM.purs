@@ -385,7 +385,7 @@ mempoolSnapshotHasTxAff ogmiosWs logger ms =
 
 data ClientError
   = ClientHttpError Affjax.Error
-  | ClientHttpResponseError String
+  | ClientHttpResponseError Affjax.StatusCode.StatusCode String
   | ClientDecodeJsonError String JsonDecodeError
   | ClientEncodingError String
   | ClientOtherError String
@@ -396,8 +396,10 @@ instance Show ClientError where
     "(ClientHttpError "
       <> Affjax.printError err
       <> ")"
-  show (ClientHttpResponseError err) =
+  show (ClientHttpResponseError statusCode err) =
     "(ClientHttpResponseError "
+      <> show statusCode
+      <> " "
       <> show err
       <> ")"
   show (ClientDecodeJsonError jsonStr err) =
@@ -428,7 +430,8 @@ handleAffjaxResponse (Left affjaxError) =
 handleAffjaxResponse
   (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
   | statusCode < 200 || statusCode > 299 =
-      Left (ClientHttpResponseError body)
+      Left
+        (ClientHttpResponseError (Affjax.StatusCode.StatusCode statusCode) body)
   | otherwise =
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)

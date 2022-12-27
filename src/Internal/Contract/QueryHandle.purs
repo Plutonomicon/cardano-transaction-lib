@@ -46,6 +46,10 @@ import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Service.Blockfrost
+  ( getTxMetadata
+  , isTxConfirmed
+  ) as Blockfrost
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
@@ -115,5 +119,20 @@ queryHandleForCtlBackend contractEnv backend =
 
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend = undefined
-
+queryHandleForBlockfrostBackend _ backend =
+  { getDatumByHash: undefined
+  , getScriptByHash: undefined
+  , getUtxoByOref: undefined
+  , isTxConfirmed: runBlockfrost backend Nothing <<< Blockfrost.isTxConfirmed -- TODO Just
+  , getTxMetadata: runBlockfrost backend Nothing <<< Blockfrost.getTxMetadata -- TODO Just
+  , utxosAt: undefined
+  , getChainTip: undefined
+  , getCurrentEpoch: undefined
+  , submitTx: undefined
+  , evaluateTx: undefined
+  , getEraSummaries: undefined
+  }
+  where
+  runBlockfrost :: forall (a :: Type). _ -> _ -> (_ -> _ -> Aff a) -> Aff a
+  runBlockfrost { blockfrostConfig } mbApiKey action = action blockfrostConfig
+    mbApiKey
