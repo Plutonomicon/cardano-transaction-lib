@@ -46,8 +46,11 @@ import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Ctl.Internal.Service.Blockfrost (getUtxoByOref) as Blockfrost
-import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
+import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
+import Ctl.Internal.Service.Blockfrost (getUtxoByOref, utxosAt) as Blockfrost
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
@@ -122,14 +125,19 @@ queryHandleForBlockfrostBackend contractEnv backend =
   , getScriptByHash: undefined
   , getUtxoByOref:
       -- FIXME: remove `undefined`
-      undefined <<< runBlockfrostServiceM backend <<< Blockfrost.getUtxoByOref
+      undefined <<< runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
   , isTxConfirmed: undefined
   , getTxMetadata: undefined
-  , utxosAt: undefined
+  , utxosAt:
+      -- FIXME: remove `undefined`
+      undefined <<< runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: undefined
   , getCurrentEpoch: undefined
   , submitTx: undefined
   , evaluateTx: undefined
   , getEraSummaries: undefined
   }
+  where
+  runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
+  runBlockfrostServiceM' = runBlockfrostServiceM backend
 

@@ -1,6 +1,7 @@
 module Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
+  , blockfrostPublicPreviewServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , mkHttpUrl
@@ -39,6 +40,14 @@ defaultKupoServerConfig =
   , host: "localhost"
   , secure: false
   , path: Just "kupo"
+  }
+
+blockfrostPublicPreviewServerConfig :: ServerConfig
+blockfrostPublicPreviewServerConfig =
+  { port: UInt.fromInt 443
+  , host: "cardano-preview.blockfrost.io"
+  , secure: true
+  , path: Just "/api/v0"
   }
 
 mkHttpUrl :: ServerConfig -> Url

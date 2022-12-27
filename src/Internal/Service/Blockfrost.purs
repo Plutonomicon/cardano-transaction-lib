@@ -1,7 +1,11 @@
 module Ctl.Internal.Service.Blockfrost
-  ( BlockfrostTransactionOutput -- TODO: should not be exported
+  ( BlockfrostServiceM
+  , BlockfrostServiceParams
+  , BlockfrostTransactionOutput -- TODO: should not be exported
+  , BlockfrostUtxosAtAddress -- TODO: should not be exported
   , getUtxoByOref
   , runBlockfrostServiceM
+  , utxosAt
   ) where
 
 import Prelude
@@ -31,7 +35,11 @@ import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.QueryM (ClientError, handleAffjaxResponse)
 import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkHttpUrl)
-import Ctl.Internal.Serialization.Address (Address, addressFromBech32)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , addressBech32
+  , addressFromBech32
+  )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, decodeAssetClass)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
@@ -43,6 +51,7 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Data.Array (find) as Array
+import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
@@ -76,13 +85,16 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
     , blockfrostApiKey: backend.blockfrostApiKey
     }
 
-data BlockfrostEndpoint =
-  GetTransactionUtxos TransactionHash
+data BlockfrostEndpoint
+  = GetUtxosAtAddress Address -- /addresses/{address}/utxos
+  | GetUtxosOfTransaction TransactionHash -- /txs/{hash}/utxos
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetTransactionUtxos txHash ->
+    GetUtxosAtAddress address ->
+      "/addresses/" <> addressBech32 address <> "/utxos"
+    GetUtxosOfTransaction txHash ->
       "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
 
 blockfrostGetRequest
@@ -102,32 +114,42 @@ blockfrostGetRequest endpoint = ask >>= \params -> liftAff do
 -- Get utxos at address / by output reference
 --------------------------------------------------------------------------------
 
+utxosAt
+  :: Address
+  -- TODO: resolve `BlockfrostUtxosAtAddress`
+  -- -> BlockfrostServiceM (Either ClientError UtxoMap)
+  -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
+utxosAt address =
+  handleAffjaxResponse <$>
+    blockfrostGetRequest (GetUtxosAtAddress address)
+
 getUtxoByOref
   :: TransactionInput
   -- TODO: resolve `BlockfrostTransactionOutput`
   -- -> BlockfrostServiceM (Either ClientError (Maybe TransactionOutput))
   -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostTransactionOutput))
 getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
-  (blockfrostUtxoMap :: BlockfrostUtxoMap) <-
+  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <-
     ExceptT $ handleAffjaxResponse <$>
-      blockfrostGetRequest (GetTransactionUtxos txHash)
+      blockfrostGetRequest (GetUtxosOfTransaction txHash)
   pure $ snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap)
 
 --------------------------------------------------------------------------------
--- BlockfrostUtxoMap
+-- BlockfrostUtxosAtAddress / BlockfrostUtxosOfTransaction
 --------------------------------------------------------------------------------
 
 type BlockfrostUnspentOutput = TransactionInput /\ BlockfrostTransactionOutput
 
-newtype BlockfrostUtxoMap = BlockfrostUtxoMap (Array BlockfrostUnspentOutput)
+newtype BlockfrostUtxosAtAddress =
+  BlockfrostUtxosAtAddress (Array BlockfrostUnspentOutput)
 
-derive instance Generic BlockfrostUtxoMap _
-derive instance Newtype BlockfrostUtxoMap _
+derive instance Generic BlockfrostUtxosAtAddress _
+derive instance Newtype BlockfrostUtxosAtAddress _
 
-instance Show BlockfrostUtxoMap where
+instance Show BlockfrostUtxosAtAddress where
   show = genericShow
 
-instance DecodeAeson BlockfrostUtxoMap where
+instance DecodeAeson BlockfrostUtxosAtAddress where
   decodeAeson = aesonArray (map wrap <<< traverse decodeUtxoEntry)
     where
     decodeUtxoEntry :: Aeson -> Either JsonDecodeError BlockfrostUnspentOutput
@@ -139,6 +161,34 @@ instance DecodeAeson BlockfrostUtxoMap where
       transactionId <- getField obj "tx_hash"
       index <- getField obj "output_index"
       pure $ TransactionInput { transactionId, index }
+
+newtype BlockfrostUtxosOfTransaction =
+  BlockfrostUtxosOfTransaction (Array BlockfrostUnspentOutput)
+
+derive instance Generic BlockfrostUtxosOfTransaction _
+derive instance Newtype BlockfrostUtxosOfTransaction _
+
+instance Show BlockfrostUtxosOfTransaction where
+  show = genericShow
+
+instance DecodeAeson BlockfrostUtxosOfTransaction where
+  decodeAeson = aesonObject \obj -> do
+    txHash <- getField obj "hash"
+    getField obj "outputs"
+      >>= aesonArray (map wrap <<< traverse (decodeUtxoEntry txHash))
+    where
+    decodeUtxoEntry
+      :: TransactionHash
+      -> Aeson
+      -> Either JsonDecodeError BlockfrostUnspentOutput
+    decodeUtxoEntry txHash utxoAeson =
+      Tuple <$> decodeTxOref txHash utxoAeson <*> decodeAeson utxoAeson
+
+    decodeTxOref
+      :: TransactionHash -> Aeson -> Either JsonDecodeError TransactionInput
+    decodeTxOref txHash = aesonObject $
+      flip getField "output_index" >>> map \index ->
+        TransactionInput { transactionId: txHash, index }
 
 --------------------------------------------------------------------------------
 -- BlockfrostTransactionOutput
@@ -177,7 +227,10 @@ instance DecodeAeson BlockfrostTransactionOutput where
       where
       decodeAsset :: Aeson -> Either JsonDecodeError Value
       decodeAsset = aesonObject \obj -> do
-        quantity <- getField obj "quantity"
+        quantity <-
+          getField obj "quantity" >>=
+            BigInt.fromString >>>
+              note (TypeMismatch "Expected string repr of BigInt")
         getField obj "unit" >>= case _ of
           "lovelace" -> pure $ Value.lovelaceValueOf quantity
           assetString -> do

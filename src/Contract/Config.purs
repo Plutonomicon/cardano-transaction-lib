@@ -41,6 +41,7 @@ import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.QueryM.ServerConfig
   ( Host
   , ServerConfig
+  , blockfrostPublicPreviewServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   )
