@@ -41,8 +41,8 @@ utxosAt address = do
   queryHandle <- getQueryHandle
   let cardanoAddr = fromPlutusAddress networkId (getAddress address)
   cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosAt cardanoAddr
-  toPlutusUtxoMap cardanoUtxoMap
-    # liftContractM "utxosAt: failed to convert utxos"
+  liftContractM "utxosAt: failed to convert utxos"
+    $ toPlutusUtxoMap cardanoUtxoMap
 
 -- | Queries for an utxo given a transaction input.
 -- | Returns `Nothing` if the output has already been spent.
