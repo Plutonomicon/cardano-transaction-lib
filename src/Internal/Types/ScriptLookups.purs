@@ -1078,14 +1078,12 @@ processConstraint mpsMap osMap = do
       let value = fromPlutusValue plutusValue
       runExceptT $ _valueSpentBalancesOutputs <>= requireValue value
     MustSpendPubKeyOutput txo -> runExceptT do
-      txOut <- ExceptT $ lookupTxOutRef txo Nothing
-      case txOut of
-        TransactionOutput { amount } -> do
-          -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
-          -- keeps track TransactionInput and TxInType (the input type, whether
-          -- consuming script, public key or simple script)
-          _cpsToTxBody <<< _inputs %= Set.insert txo
-          _valueSpentBalancesInputs <>= provideValue amount
+      TransactionOutput { amount } <- ExceptT $ lookupTxOutRef txo Nothing
+      -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
+      -- keeps track TransactionInput and TxInType (the input type, whether
+      -- consuming script, public key or simple script)
+      _cpsToTxBody <<< _inputs %= Set.insert txo
+      _valueSpentBalancesInputs <>= provideValue amount
     MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo scriptRefUnspentOut
       case txOut of

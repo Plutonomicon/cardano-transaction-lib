@@ -291,7 +291,7 @@ runBalancer p = do
   -- We check if the transaction uses a plutusv1 script, so that we can filter
   -- out utxos which use plutusv2 features if so.
   txHasPlutusV1 :: Boolean
-  txHasPlutusV1 = do
+  txHasPlutusV1 =
     case p.unbalancedTx ^. _transaction' ^. _witnessSet ^. _plutusScripts of
       Just scripts -> flip Array.any scripts case _ of
         PlutusScript (_ /\ PlutusV1) -> true
