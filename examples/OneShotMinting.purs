@@ -13,7 +13,7 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Address (Address, getWalletAddresses)
+import Contract.Address (Address)
 import Contract.Config (ConfigParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -46,7 +46,6 @@ import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
-import Data.Array (head)
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
