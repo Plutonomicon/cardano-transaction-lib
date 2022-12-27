@@ -397,8 +397,7 @@ instance DecodeAeson KupoScriptRef where
           nativeScript <-
             flip note (fromBytes $ wrap scriptBytes) $
               TypeMismatch "decodeNativeScript: from_bytes() call failed"
-          flip note (convertNativeScript nativeScript) $
-            TypeMismatch "decodeNativeScript: failed to convert native script"
+          pure $ convertNativeScript nativeScript
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing

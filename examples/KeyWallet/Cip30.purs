@@ -11,7 +11,6 @@ import Contract.Monad (Contract)
 import Contract.Prim.ByteArray (RawBytes)
 import Contract.Wallet
   ( getChangeAddress
-  , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   , signData
@@ -28,7 +27,6 @@ mkContract :: RawBytes -> Contract Unit
 mkContract dat = do
   logInfo' "Running Examples.KeyWallet.Cip30"
   logInfo' "Funtions that depend on `Contract`"
-  _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
   mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
   changeAddress <- liftMaybe (error "can't get change address") mChangeAddress

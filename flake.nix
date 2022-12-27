@@ -424,6 +424,7 @@
             services.ogmios.package =
               inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
           }
+          inputs.kupo-nixos.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {

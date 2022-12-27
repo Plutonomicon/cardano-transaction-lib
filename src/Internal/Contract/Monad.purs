@@ -347,7 +347,7 @@ runQueryM :: forall (a :: Type). ContractEnv -> CtlBackend -> QueryM a -> Aff a
 runQueryM contractEnv ctlBackend =
   flip runReaderT (mkQueryEnv contractEnv ctlBackend) <<< unwrap
 
-mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv ()
+mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv
 mkQueryEnv contractEnv ctlBackend =
   { config:
       { ogmiosConfig: ctlBackend.ogmios.config
@@ -364,7 +364,6 @@ mkQueryEnv contractEnv ctlBackend =
       , usedTxOuts: contractEnv.usedTxOuts
       , pparams: contractEnv.ledgerConstants.pparams
       }
-  , extraConfig: {}
   }
 
 --------------------------------------------------------------------------------

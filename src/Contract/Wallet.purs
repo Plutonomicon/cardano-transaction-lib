@@ -2,7 +2,6 @@
 module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
-  , getNetworkId
   , module Contract.Address
   , module Contract.Utxos
   , module X
@@ -19,7 +18,6 @@ import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract)
 import Contract.Utxos (getWalletUtxos) as Contract.Utxos
 import Control.Monad.Reader (local)
-import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
   , getRewardAddresses
@@ -28,7 +26,6 @@ import Ctl.Internal.Contract.Wallet
   , signData
   ) as X
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as Deserialization.Keys
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Wallet
   ( Wallet(Gero, Nami, Flint, Lode, Eternl, KeyWallet)
   , WalletExtension
@@ -65,9 +62,6 @@ import Ctl.Internal.Wallet.Spec
       )
   )
 import Data.Maybe (Maybe(Just))
-
-getNetworkId :: Contract NetworkId
-getNetworkId = asks _.networkId
 
 withKeyWallet
   :: forall (a :: Type)

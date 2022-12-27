@@ -10,14 +10,13 @@ module Ctl.Internal.QueryM
       , ClientOtherError
       )
   , ClusterSetup
-  , DefaultQueryEnv
   , ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
   , QueryConfig
   , QueryM
   , ParQueryM
-  , QueryMExtended(QueryMExtended)
+  , QueryMT(QueryMT)
   , QueryEnv
   , QueryRuntime
   , SubmitTxListenerSet
@@ -230,52 +229,48 @@ type QueryRuntime =
   }
 
 -- | `QueryEnv` contains everything needed for `QueryM` to run.
-type QueryEnv (r :: Row Type) =
+type QueryEnv =
   { config :: QueryConfig
   , runtime :: QueryRuntime
-  , extraConfig :: { | r }
   }
 
-type DefaultQueryEnv = QueryEnv ()
+type QueryM = QueryMT Aff
 
-type QueryM = QueryMExtended () Aff
+type ParQueryM = QueryMT ParAff
 
-type ParQueryM = QueryMExtended () ParAff
+newtype QueryMT (m :: Type -> Type) (a :: Type) =
+  QueryMT (ReaderT QueryEnv m a)
 
-newtype QueryMExtended (r :: Row Type) (m :: Type -> Type) (a :: Type) =
-  QueryMExtended
-    (ReaderT (QueryEnv r) m a)
-
-derive instance Newtype (QueryMExtended r m a) _
-derive newtype instance Functor m => Functor (QueryMExtended r m)
-derive newtype instance Apply m => Apply (QueryMExtended r m)
-derive newtype instance Applicative m => Applicative (QueryMExtended r m)
-derive newtype instance Bind m => Bind (QueryMExtended r m)
-derive newtype instance Alt m => Alt (QueryMExtended r m)
-derive newtype instance Plus m => Plus (QueryMExtended r m)
-derive newtype instance Alternative m => Alternative (QueryMExtended r m)
-derive newtype instance Monad (QueryMExtended r Aff)
-derive newtype instance MonadEffect (QueryMExtended r Aff)
-derive newtype instance MonadAff (QueryMExtended r Aff)
+derive instance Newtype (QueryMT m a) _
+derive newtype instance Functor m => Functor (QueryMT m)
+derive newtype instance Apply m => Apply (QueryMT m)
+derive newtype instance Applicative m => Applicative (QueryMT m)
+derive newtype instance Bind m => Bind (QueryMT m)
+derive newtype instance Alt m => Alt (QueryMT m)
+derive newtype instance Plus m => Plus (QueryMT m)
+derive newtype instance Alternative m => Alternative (QueryMT m)
+derive newtype instance Monad (QueryMT Aff)
+derive newtype instance MonadEffect (QueryMT Aff)
+derive newtype instance MonadAff (QueryMT Aff)
 derive newtype instance
   ( Semigroup a
   , Apply m
   ) =>
-  Semigroup (QueryMExtended r m a)
+  Semigroup (QueryMT m a)
 
 derive newtype instance
   ( Monoid a
   , Applicative m
   ) =>
-  Monoid (QueryMExtended r m a)
+  Monoid (QueryMT m a)
 
-derive newtype instance MonadThrow Error (QueryMExtended r Aff)
-derive newtype instance MonadError Error (QueryMExtended r Aff)
-derive newtype instance MonadRec (QueryMExtended r Aff)
-derive newtype instance MonadAsk (QueryEnv r) (QueryMExtended r Aff)
-derive newtype instance MonadReader (QueryEnv r) (QueryMExtended r Aff)
+derive newtype instance MonadThrow Error (QueryMT Aff)
+derive newtype instance MonadError Error (QueryMT Aff)
+derive newtype instance MonadRec (QueryMT Aff)
+derive newtype instance MonadAsk QueryEnv (QueryMT Aff)
+derive newtype instance MonadReader QueryEnv (QueryMT Aff)
 
-instance MonadLogger (QueryMExtended r Aff) where
+instance MonadLogger (QueryMT Aff) where
   log msg = do
     config <- asks $ _.config
     let
@@ -285,10 +280,10 @@ instance MonadLogger (QueryMExtended r Aff) where
 
 -- Newtype deriving complains about overlapping instances, so we wrap and
 -- unwrap manually
-instance Parallel (QueryMExtended r ParAff) (QueryMExtended r Aff) where
-  parallel :: QueryMExtended r Aff ~> QueryMExtended r ParAff
+instance Parallel (QueryMT ParAff) (QueryMT Aff) where
+  parallel :: QueryMT Aff ~> QueryMT ParAff
   parallel = wrap <<< parallel <<< unwrap
-  sequential :: QueryMExtended r ParAff ~> QueryMExtended r Aff
+  sequential :: QueryMT ParAff ~> QueryMT Aff
   sequential = wrap <<< sequential <<< unwrap
 
 getProtocolParametersAff

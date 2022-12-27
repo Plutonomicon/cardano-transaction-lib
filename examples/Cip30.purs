@@ -16,7 +16,6 @@ import Contract.Wallet
   ( WalletExtension
   , apiVersion
   , getChangeAddress
-  , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   , getWallet
@@ -64,7 +63,6 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Cip30"
   logInfo' "Funtions that depend on `Contract`"
-  _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
