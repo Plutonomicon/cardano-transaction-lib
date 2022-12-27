@@ -81,7 +81,7 @@ import Ctl.Internal.Types.Transaction
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right), hush, note)
+import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
@@ -439,8 +439,7 @@ instance DecodeAeson KupoMetadata where
         TypeMismatch "Hexadecimal String"
       metadata <- flip note (fromBytes cbor) $
         TypeMismatch "Hexadecimal encoded Metadata"
-      -- Conversion should always succeed, so use it as the `Just`
-      pure $ KupoMetadata $ hush $ convertGeneralTransactionMetadata metadata
+      pure $ KupoMetadata $ Just $ convertGeneralTransactionMetadata metadata
     [] -> Right $ KupoMetadata Nothing
     _ -> Left $ TypeMismatch "Singleton or Empty Array"
 

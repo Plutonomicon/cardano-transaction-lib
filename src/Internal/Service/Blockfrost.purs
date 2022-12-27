@@ -1,8 +1,11 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
-  , BlockfrostTransactionOutput -- TODO: should not be exported
-  , BlockfrostUtxosAtAddress -- TODO: should not be exported
+  -- TODO: should not be exported:
+  , BlockfrostTransactionOutput(BlockfrostTransactionOutput)
+  , BlockfrostUnspentOutput
+  , BlockfrostUtxosAtAddress(BlockfrostUtxosAtAddress)
+  --
   , getUtxoByOref
   , runBlockfrostServiceM
   , utxosAt
@@ -24,7 +27,6 @@ import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
-import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
@@ -66,7 +68,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
-import Undefined (undefined)
 
 type BlockfrostServiceParams =
   { blockfrostConfig :: ServerConfig

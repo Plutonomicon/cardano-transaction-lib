@@ -120,7 +120,7 @@ queryHandleForCtlBackend contractEnv backend =
 
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend contractEnv backend =
+queryHandleForBlockfrostBackend _ backend =
   { getDatumByHash: undefined
   , getScriptByHash: undefined
   , getUtxoByOref:
