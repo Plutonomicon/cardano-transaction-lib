@@ -6,13 +6,16 @@ import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Config (ConfigParams)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Utxos (getWalletBalance, getWalletUtxos)
+import Contract.Value as Value
+import Data.BigInt as BigInt
 
 contract :: Contract () Unit
 contract = do
   log "Address:"
   log <<< show =<< getWalletAddresses
   log "Collateral:"
-  log <<< show =<< getWalletCollateral mempty
+  log <<< show =<< getWalletCollateral
+    (Value.valueToCoin $ Value.lovelaceValueOf $ BigInt.fromInt 5_000_000)
   log "Balance:"
   log <<< show =<< getWalletBalance
   log "UTxOs:"
