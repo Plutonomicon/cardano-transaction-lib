@@ -815,15 +815,9 @@ suite = do
           result1 <- useScriptAndGetByHash validator1 (validatorHash validator1)
           result2 <- useScriptAndGetByHash validator2 (validatorHash validator2)
 
-          let
-            unpackResult' :: Partial => _
-            unpackResult' (Right (Just x)) = x
-            unpackResult' _ = crash "test fail: No script found by hash"
-            unpackResult x = unsafePartial $ unpackResult' x
-
           -- Testing getScriptByHash
-          (unpackResult result1) `shouldEqual` validatorRef1
-          (unpackResult result2) `shouldEqual` validatorRef2
+          result1 `shouldEqual` (Right (Just validatorRef1))
+          result2 `shouldEqual` (Right (Just validatorRef2))
 
           -- Testing getScriptsByHashes
           let
@@ -846,9 +840,8 @@ suite = do
           mp /\ _ <- mkCurrencySymbol alwaysMintsPolicy
           let
             constraints :: Constraints.TxConstraints Void Void
-            constraints = mconcat
-              [ Constraints.mustMintCurrency (mintingPolicyHash mp) tn one
-              ]
+            constraints =
+              Constraints.mustMintCurrency (mintingPolicyHash mp) tn one
 
             lookups :: Lookups.ScriptLookups Void
             lookups =
