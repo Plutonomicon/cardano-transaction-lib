@@ -295,6 +295,7 @@ let additions =
           , "js-date"
           , "lattice"
           , "lists"
+          , "literals"
           , "math"
           , "maybe"
           , "medea"
