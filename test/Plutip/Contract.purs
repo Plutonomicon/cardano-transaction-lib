@@ -22,6 +22,11 @@ import Contract.BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
+import Contract.Metadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum(Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  )
 import Contract.Monad
   ( Contract
   , liftContractE
@@ -127,11 +132,6 @@ import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
 import Ctl.Internal.Scripts (nativeScriptHashEnterpriseAddress)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum(Text)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  )
 import Ctl.Internal.Wallet
   ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   )
@@ -808,7 +808,7 @@ suite = do
             useScriptAndGetByHash validator vhash = do
               txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
               awaitTxConfirmed txId
-              -- For Kupo (used inside) to see script, its utxo must be spent
+              -- Spending utxo, to make Kupo (used inside) see the script
               AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
               getScriptByHash $ unwrap vhash
 
