@@ -66,6 +66,12 @@ isTxConfirmed txHash config mbApiKey = do
   endpoint :: Affjax.URL
   endpoint = "/txs/" <> byteArrayToHex (unwrap txHash)
 
+-- TODO Decide how to handle tx not found vs no metadata
+-- Kupo internally first finds an output of the tx, if there are none it will return Nothing
+-- But if there's no metadata, it will fail via ClientError, due to aeson parsing failing
+
+-- Blockfrost on the other hand will (currently) fail with Nothing if the tx doesn't exist
+-- and return an empty metadata if the tx exists but had no metadata set (or the metadata was set but empty)
 getTxMetadata
   :: TransactionHash
   -> ServerConfig
