@@ -24,6 +24,7 @@ import Ctl.Internal.Contract.QueryBackend
   , CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   )
+import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.QueryM (ClientError, QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
@@ -68,7 +69,9 @@ type AffE (a :: Type) = Aff (Either ClientError a)
 type QueryHandle =
   { getDatumByHash :: DataHash -> AffE (Maybe Datum)
   , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
-  , getTxMetadata :: TransactionHash -> AffE (Maybe GeneralTransactionMetadata)
+  , getTxMetadata ::
+      TransactionHash
+      -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap

@@ -384,10 +384,15 @@ mempoolSnapshotHasTxAff ogmiosWs logger ms =
 --------------------------------------------------------------------------------
 
 data ClientError
+  -- | Affjax error
   = ClientHttpError Affjax.Error
+  -- | Server responded with HTTP status code outside of 200-299
   | ClientHttpResponseError Affjax.StatusCode.StatusCode String
+  -- | Failed to decode the response
   | ClientDecodeJsonError String JsonDecodeError
+  -- | Failed to encode the request
   | ClientEncodingError String
+  -- | Any other error
   | ClientOtherError String
 
 -- No Show instance of Affjax.Error

@@ -10,23 +10,30 @@ import Contract.Metadata
   )
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Contract.Transaction (TransactionHash(TransactionHash))
+import Contract.Transaction
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  , TransactionHash(TransactionHash)
+  )
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Service.Blockfrost (getTxMetadata, isTxConfirmed)
 import Data.Array ((!!))
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
+import Data.Either (Either(Left, Right))
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Mote (group, test)
 import Node.Process (argv)
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (fail, shouldEqual)
 import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Blockfrost --exec-args PREVIEW_API_KEY`
@@ -38,18 +45,28 @@ main = do
       defaultConfig { exit = true }
       (testPlan apiKey)
 
-type Fixture =
-  { hash :: TransactionHash
-  , metadata :: Maybe GeneralTransactionMetadata
-  , confirmed :: Boolean
-  }
+data Fixture
+  = TxWithMetadata
+      { hash :: TransactionHash
+      , metadata :: GeneralTransactionMetadata
+      }
+  | TxWithNoMetadata
+      { hash :: TransactionHash }
+  | UnconfirmedTx
+      { hash :: TransactionHash }
+
+fixtureHash :: Fixture -> TransactionHash
+fixtureHash = case _ of
+  TxWithMetadata { hash } -> hash
+  TxWithNoMetadata { hash } -> hash
+  UnconfirmedTx { hash } -> hash
 
 fixture1 :: Fixture
-fixture1 =
+fixture1 = TxWithMetadata
   { hash: TransactionHash $ hexToByteArrayUnsafe
       "7a2aff2b7f92f6f8ec3fb2135301c7bfc36fea1489a3ca37fd6066f3155c46ff"
   , metadata:
-      Just $ GeneralTransactionMetadata $ Map.fromFoldable $
+      GeneralTransactionMetadata $ Map.fromFoldable $
         [ 30 /\ "5"
         , 50 /\
             "d8799f581c11185d006a64f24e9cf6da987589cd0b166718d3680e63985db370"
@@ -107,15 +124,14 @@ fixture1 =
             "4e5205e5df368030e9f814c2258c01f50c62375c55b07fbcc076c181::02"
         ] <#> \(label /\ text) ->
           TransactionMetadatumLabel (BigInt.fromInt label) /\ Text text
-  , confirmed: true
   }
 
 fixture2 :: Fixture
-fixture2 =
+fixture2 = TxWithMetadata
   { hash: TransactionHash $ hexToByteArrayUnsafe
       "d499729695be63b4c6affb2412899a7f16390d54d97f78f51d796a5cef424126"
   , metadata:
-      Just $ GeneralTransactionMetadata $ Map.fromFoldable $
+      GeneralTransactionMetadata $ Map.fromFoldable $
         [ 674 /\
             [ "City" /\ "Mumbai"
             , "Humidity" /\ "69.19999694824219 %"
@@ -127,24 +143,18 @@ fixture2 =
           TransactionMetadatumLabel
             (BigInt.fromInt label) /\ MetadataMap
             (Map.fromFoldable $ metamap <#> \(k /\ v) -> Text k /\ Text v)
-  , confirmed: true
   }
 
 fixture3 :: Fixture
-fixture3 =
+fixture3 = TxWithNoMetadata
   { hash: TransactionHash $ hexToByteArrayUnsafe
       "7b458500ef7783e16dab5d9f9f282505182c316ccf3ecf75d0472f95ab31eeaa"
-  -- , metadata: Nothing
-  , metadata: Just $ GeneralTransactionMetadata $ Map.empty
-  , confirmed: true
   }
 
 fixture4 :: Fixture
-fixture4 =
+fixture4 = UnconfirmedTx
   { hash: TransactionHash $ hexToByteArrayUnsafe
       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-  , metadata: Nothing
-  , confirmed: false
   }
 
 config :: ServerConfig
@@ -160,10 +170,25 @@ testPlan apiKey = group "Blockfrost" do
   forWithIndex_ [ fixture1, fixture2, fixture3, fixture4 ] \i fixture ->
     group ("fixture " <> show (i + 1)) do
       test "getTxMetadata" do
-        eMetadata <- getTxMetadata fixture.hash config (Just apiKey)
-        metadata <- liftEither (lmap (error <<< show) eMetadata)
-        metadata `shouldEqual` fixture.metadata
+        eMetadata <- getTxMetadata (fixtureHash fixture) config (Just apiKey)
+        case fixture of
+          TxWithMetadata { metadata } -> case eMetadata of
+            Right metadata' -> metadata' `shouldEqual` metadata
+            unexpected -> fail $ show unexpected <> " ≠ (Right ("
+              <> show metadata
+              <> "))"
+          TxWithNoMetadata _ -> case eMetadata of
+            Left GetTxMetadataMetadataEmptyOrMissingError -> pure unit
+            unexpected -> fail $ show unexpected <>
+              " ≠ (Left GetTxMetadataMetadataEmptyOrMissingError)"
+          UnconfirmedTx _ -> case eMetadata of
+            Left GetTxMetadataTxNotFoundError -> pure unit
+            unexpected -> fail $ show unexpected <>
+              " ≠ (Left GetTxMetadataTxNotFoundError)"
       test "isTxConfirmed" do
-        eConfirmed <- isTxConfirmed fixture.hash config (Just apiKey)
+        eConfirmed <- isTxConfirmed (fixtureHash fixture) config (Just apiKey)
         confirmed <- liftEither (lmap (error <<< show) eConfirmed)
-        confirmed `shouldEqual` fixture.confirmed
+        confirmed `shouldEqual` case fixture of
+          TxWithMetadata _ -> true
+          TxWithNoMetadata _ -> true
+          UnconfirmedTx _ -> false

@@ -15,6 +15,13 @@ import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
 import Affjax.RequestHeader (RequestHeader(RequestHeader)) as Affjax
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataClientError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
@@ -35,8 +42,8 @@ import Data.Foldable (foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Effect.Aff (Aff)
@@ -76,13 +83,19 @@ getTxMetadata
   :: TransactionHash
   -> ServerConfig
   -> Maybe String
-  -> Aff (Either ClientError (Maybe GeneralTransactionMetadata))
+  -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
 getTxMetadata txHash config mbApiKey = do
-  response :: Either ClientError _ <- handleAffjaxResponse <$> request
-  pure case response of
-    Right metadata -> Right $ Just $ unwrapBlockfrostMetadata metadata
-    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right Nothing
-    Left e -> Left e
+  response :: Either ClientError _ <- handleAffjaxResponse <$>
+    request
+  pure case unwrapBlockfrostMetadata <$> response of
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+      Left GetTxMetadataTxNotFoundError
+    Left e ->
+      Left (GetTxMetadataClientError e)
+    Right metadata
+      | Map.isEmpty (unwrap metadata) ->
+          Left GetTxMetadataMetadataEmptyOrMissingError
+      | otherwise -> Right metadata
   where
   request :: Aff (Either Affjax.Error (Affjax.Response String))
   request = Affjax.request $ Affjax.defaultRequest
@@ -106,6 +119,7 @@ newtype BlockfrostMetadata = BlockfrostMetadata
 
 derive instance Generic BlockfrostMetadata _
 derive instance Eq BlockfrostMetadata
+derive instance Newtype BlockfrostMetadata _
 
 instance Show BlockfrostMetadata where
   show = genericShow
