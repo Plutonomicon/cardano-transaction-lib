@@ -373,7 +373,7 @@ handleAffjaxResponse (Left affjaxError) =
 handleAffjaxResponse
   (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
   | statusCode < 200 || statusCode > 299 =
-      Left $ ClientHttpResponseError $ ServiceOtherError body
+      Left $ ClientHttpResponseError (wrap statusCode) $ ServiceOtherError body
   | otherwise =
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)

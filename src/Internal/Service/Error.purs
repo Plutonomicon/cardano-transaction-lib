@@ -17,6 +17,7 @@ import Prelude
 
 import Aeson (class DecodeAeson, JsonDecodeError, getField)
 import Affjax (Error, printError) as Affjax
+import Affjax.StatusCode (StatusCode) as Affjax
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
@@ -27,10 +28,15 @@ import Data.Show.Generic (genericShow)
 --------------------------------------------------------------------------------
 
 data ClientError
+  -- | Affjax error
   = ClientHttpError Affjax.Error
-  | ClientHttpResponseError ServiceError
+  -- | Server responded with HTTP status code outside of 200-299
+  | ClientHttpResponseError Affjax.StatusCode ServiceError
+  -- | Failed to decode the response
   | ClientDecodeJsonError String JsonDecodeError
+  -- | Failed to encode the request
   | ClientEncodingError String
+  -- | Any other error
   | ClientOtherError String
 
 -- No `Show` instance of `Affjax.Error`
@@ -39,8 +45,10 @@ instance Show ClientError where
     "(ClientHttpError "
       <> Affjax.printError err
       <> ")"
-  show (ClientHttpResponseError err) =
+  show (ClientHttpResponseError statusCode err) =
     "(ClientHttpResponseError "
+      <> show statusCode
+      <> " "
       <> show err
       <> ")"
   show (ClientDecodeJsonError jsonStr err) =
