@@ -145,7 +145,7 @@ import Data.Either (Either(Right), isLeft)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -153,8 +153,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, skip, test)
 import Mote.Monad (mapTest)
-import Partial (crash)
-import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
@@ -836,16 +834,12 @@ suite = do
 
       withWallets distribution \alice -> do
         withKeyWallet alice do
-          tn <- mkTokenName "Token name"
-          mp /\ _ <- mkCurrencySymbol alwaysMintsPolicy
           let
             constraints :: Constraints.TxConstraints Void Void
-            constraints =
-              Constraints.mustMintCurrency (mintingPolicyHash mp) tn one
+            constraints = mempty
 
             lookups :: Lookups.ScriptLookups Void
-            lookups =
-              Lookups.mintingPolicy mp
+            lookups = mempty
             givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
               [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
 
