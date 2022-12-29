@@ -126,7 +126,8 @@ import Ctl.Internal.QueryM.Ogmios
   , aesonObject
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.QueryM.ServerConfig
+import Ctl.Internal.QueryM.UniqueId (ListenerId)
+import Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig
   , defaultOgmiosWsConfig
@@ -134,11 +135,7 @@ import Ctl.Internal.QueryM.ServerConfig
   , mkServerUrl
   , mkWsUrl
   ) as ExportServerConfig
-import Ctl.Internal.QueryM.ServerConfig
-  ( ServerConfig
-  , mkWsUrl
-  )
-import Ctl.Internal.QueryM.UniqueId (ListenerId)
+import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain

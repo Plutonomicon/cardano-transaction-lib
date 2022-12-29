@@ -56,7 +56,6 @@ import Ctl.Internal.QueryM
   , QueryM
   , handleAffjaxResponse
   )
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Serialization.Address
   ( Address
   , Slot
@@ -64,6 +63,7 @@ import Ctl.Internal.Serialization.Address
   , addressFromBech32
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (hexToCborBytes)

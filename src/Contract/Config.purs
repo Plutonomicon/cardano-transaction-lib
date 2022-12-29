@@ -20,7 +20,7 @@ module Contract.Config
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys
-  , module Ctl.Internal.QueryM.ServerConfig
+  , module Ctl.Internal.ServerConfig
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
   , module X
@@ -38,9 +38,12 @@ import Ctl.Internal.Contract.QueryBackend
   , mkCtlBackendParams
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.QueryM.ServerConfig
+import Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig
+  , blockfrostPublicMainnetServerConfig
+  , blockfrostPublicPreprodServerConfig
+  , blockfrostPublicPreviewServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   )
