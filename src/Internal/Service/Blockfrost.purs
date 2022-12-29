@@ -57,7 +57,7 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Data.Array (find) as Array
+import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), note)
@@ -101,14 +101,17 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 --------------------------------------------------------------------------------
 
 data BlockfrostEndpoint
-  = GetUtxosAtAddress Address -- /addresses/{address}/utxos
-  | GetUtxosOfTransaction TransactionHash -- /txs/{hash}/utxos
+  -- /addresses/{address}/utxos?page={page}&count={count}
+  = GetUtxosAtAddress Address Int Int
+  -- /txs/{hash}/utxos
+  | GetUtxosOfTransaction TransactionHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetUtxosAtAddress address ->
-      "/addresses/" <> addressBech32 address <> "/utxos"
+    GetUtxosAtAddress address page count ->
+      "/addresses/" <> addressBech32 address <> "/utxos?page=" <> show page
+        <> ("&count=" <> show count)
     GetUtxosOfTransaction txHash ->
       "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
 
@@ -155,9 +158,18 @@ utxosAt
   -- TODO: resolve `BlockfrostUtxosAtAddress`
   -- -> BlockfrostServiceM (Either ClientError UtxoMap)
   -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
-utxosAt address =
-  handleBlockfrostResponse <$>
-    blockfrostGetRequest (GetUtxosAtAddress address)
+utxosAt address = utxosAtAddressOnPage 1
+  where
+  utxosAtAddressOnPage
+    :: Int -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
+  utxosAtAddressOnPage page = runExceptT do
+    -- Maximum number of results per page supported by Blockfrost:
+    let maxNumResultsOnPage = 100
+    utxos <- ExceptT $ handleBlockfrostResponse <$>
+      blockfrostGetRequest (GetUtxosAtAddress address page maxNumResultsOnPage)
+    case Array.length (unwrap utxos) < maxNumResultsOnPage of
+      true -> pure utxos
+      false -> append utxos <$> ExceptT (utxosAtAddressOnPage $ page + 1)
 
 getUtxoByOref
   :: TransactionInput
@@ -181,6 +193,7 @@ newtype BlockfrostUtxosAtAddress =
 
 derive instance Generic BlockfrostUtxosAtAddress _
 derive instance Newtype BlockfrostUtxosAtAddress _
+derive newtype instance Semigroup BlockfrostUtxosAtAddress
 
 instance Show BlockfrostUtxosAtAddress where
   show = genericShow
