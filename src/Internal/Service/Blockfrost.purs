@@ -1,6 +1,7 @@
 module Ctl.Internal.Service.Blockfrost
   ( isTxConfirmed
   , getTxMetadata
+  , BlockfrostMetadata
   ) where
 
 import Prelude

@@ -86,9 +86,7 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  )
+import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
