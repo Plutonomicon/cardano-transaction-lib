@@ -824,9 +824,9 @@ suite = do
             scriptHash1 = unwrap (validatorHash validator1)
             scriptHash2 = unwrap (validatorHash validator2)
           results <- getScriptsByHashes [ scriptHash1, scriptHash2 ]
-          (map unpackResult results) `shouldEqual` Map.fromFoldable
-            [ (scriptHash1 /\ validatorRef1)
-            , (scriptHash2 /\ validatorRef2)
+          results `shouldEqual` Map.fromFoldable
+            [ (scriptHash1 /\ (Right (Just validatorRef1)))
+            , (scriptHash2 /\ (Right (Just validatorRef2)))
             ]
 
     test "GetTxMetadata" do
@@ -856,9 +856,7 @@ suite = do
           awaitTxConfirmed txId
 
           mMetadata <- getTxMetadata txId
-          let metadata = unsafePartial $ fromJust mMetadata
-
-          metadata `shouldEqual` givenMetadata
+          mMetadata `shouldEqual` (Just givenMetadata)
 
     test "MintZeroToken" do
       let
