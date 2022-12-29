@@ -26,14 +26,14 @@ aesonArray
    . (Array Aeson -> Either JsonDecodeError a)
   -> Aeson
   -> Either JsonDecodeError a
-aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
+aesonArray = caseAesonArray (Left (TypeMismatch "Array"))
 
 aesonObject
   :: forall (a :: Type)
    . (Object Aeson -> Either JsonDecodeError a)
   -> Aeson
   -> Either JsonDecodeError a
-aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
+aesonObject = caseAesonObject (Left (TypeMismatch "Object"))
 
 decodeAssetClass
   :: String
@@ -54,4 +54,3 @@ decodeAssetClass assetString csString tnString =
     TypeMismatch $
       ("In " <> assetString <> ": Expected hex-encoded " <> t)
         <> (", got: " <> actual)
-

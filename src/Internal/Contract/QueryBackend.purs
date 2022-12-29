@@ -14,7 +14,7 @@ module Ctl.Internal.Contract.QueryBackend
 import Prelude
 
 import Ctl.Internal.QueryM (OgmiosWebSocket)
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
+import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 
 --------------------------------------------------------------------------------

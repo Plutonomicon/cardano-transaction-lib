@@ -1,6 +1,8 @@
-module Ctl.Internal.QueryM.ServerConfig
+module Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig
+  , blockfrostPublicMainnetServerConfig
+  , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
@@ -46,6 +48,22 @@ blockfrostPublicPreviewServerConfig :: ServerConfig
 blockfrostPublicPreviewServerConfig =
   { port: UInt.fromInt 443
   , host: "cardano-preview.blockfrost.io"
+  , secure: true
+  , path: Just "/api/v0"
+  }
+
+blockfrostPublicPreprodServerConfig :: ServerConfig
+blockfrostPublicPreprodServerConfig =
+  { port: UInt.fromInt 443
+  , host: "cardano-preprod.blockfrost.io"
+  , secure: true
+  , path: Just "/api/v0"
+  }
+
+blockfrostPublicMainnetServerConfig :: ServerConfig
+blockfrostPublicMainnetServerConfig =
+  { port: UInt.fromInt 443
+  , host: "cardano-mainnet.blockfrost.io"
   , secure: true
   , path: Just "/api/v0"
   }

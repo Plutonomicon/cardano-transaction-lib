@@ -64,7 +64,9 @@ import Ctl.Internal.Plutip.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Ctl.Internal.QueryM (ClientError(ClientDecodeJsonError, ClientHttpError))
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))

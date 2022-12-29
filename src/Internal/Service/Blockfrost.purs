@@ -20,10 +20,12 @@ import Aeson
   , decodeAeson
   , getField
   , getFieldOptional'
+  , parseJsonStringToAeson
   )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
 import Affjax.RequestHeader (RequestHeader(RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
+import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
@@ -35,14 +37,17 @@ import Ctl.Internal.Cardano.Types.Value
   ) as Value
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
-import Ctl.Internal.QueryM (ClientError, handleAffjaxResponse)
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
+  , ServiceError(ServiceBlockfrostError)
+  )
 import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, decodeAssetClass)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.OutputDatum
@@ -53,8 +58,9 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Data.Array (find) as Array
+import Data.Bifunctor (lmap)
 import Data.BigInt (fromString) as BigInt
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
@@ -68,6 +74,10 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
+
+--------------------------------------------------------------------------------
+-- BlockfrostServiceM
+--------------------------------------------------------------------------------
 
 type BlockfrostServiceParams =
   { blockfrostConfig :: ServerConfig
@@ -85,6 +95,10 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
     { blockfrostConfig: backend.blockfrostConfig
     , blockfrostApiKey: backend.blockfrostApiKey
     }
+
+--------------------------------------------------------------------------------
+-- Making requests to Blockfrost endpoints
+--------------------------------------------------------------------------------
 
 data BlockfrostEndpoint
   = GetUtxosAtAddress Address -- /addresses/{address}/utxos
@@ -112,6 +126,27 @@ blockfrostGetRequest endpoint = ask >>= \params -> liftAff do
     }
 
 --------------------------------------------------------------------------------
+-- Blockfrost response handling
+--------------------------------------------------------------------------------
+
+handleBlockfrostResponse
+  :: forall (result :: Type)
+   . DecodeAeson result
+  => Either Affjax.Error (Affjax.Response String)
+  -> Either ClientError result
+handleBlockfrostResponse (Left affjaxError) =
+  Left (ClientHttpError affjaxError)
+handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
+  | statusCode < 200 || statusCode > 299 = do
+      blockfrostError <-
+        body # lmap (ClientDecodeJsonError body)
+          <<< (decodeAeson <=< parseJsonStringToAeson)
+      Left $ ClientHttpResponseError $ ServiceBlockfrostError blockfrostError
+  | otherwise =
+      body # lmap (ClientDecodeJsonError body)
+        <<< (decodeAeson <=< parseJsonStringToAeson)
+
+--------------------------------------------------------------------------------
 -- Get utxos at address / by output reference
 --------------------------------------------------------------------------------
 
@@ -121,7 +156,7 @@ utxosAt
   -- -> BlockfrostServiceM (Either ClientError UtxoMap)
   -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
 utxosAt address =
-  handleAffjaxResponse <$>
+  handleBlockfrostResponse <$>
     blockfrostGetRequest (GetUtxosAtAddress address)
 
 getUtxoByOref
@@ -131,7 +166,7 @@ getUtxoByOref
   -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostTransactionOutput))
 getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
   (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <-
-    ExceptT $ handleAffjaxResponse <$>
+    ExceptT $ handleBlockfrostResponse <$>
       blockfrostGetRequest (GetUtxosOfTransaction txHash)
   pure $ snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap)
 
