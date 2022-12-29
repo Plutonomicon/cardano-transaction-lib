@@ -1,4 +1,17 @@
-module Ctl.Internal.Service.Error where
+module Ctl.Internal.Service.Error
+  ( BlockfrostError(BlockfrostError)
+  , ClientError
+      ( ClientHttpError
+      , ClientHttpResponseError
+      , ClientDecodeJsonError
+      , ClientEncodingError
+      , ClientOtherError
+      )
+  , ServiceError
+      ( ServiceBlockfrostError
+      , ServiceOtherError
+      )
+  ) where
 
 import Prelude
 
@@ -62,6 +75,7 @@ newtype BlockfrostError = BlockfrostError
   , message :: String
   }
 
+derive instance Newtype BlockfrostError _
 derive instance Generic BlockfrostError _
 
 instance Show BlockfrostError where

@@ -15,7 +15,6 @@ module Contract.Transaction
   , createAdditionalUtxos
   , getTxFinalFee
   , module BalanceTxError
-  , module ExportQueryM
   , module FinalizedTransaction
   , module NativeScript
   , module OutputDatum
@@ -173,15 +172,6 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
 import Ctl.Internal.Plutus.Types.Value (Coin)
-import Ctl.Internal.QueryM
-  ( ClientError
-      ( ClientHttpError
-      , ClientHttpResponseError
-      , ClientDecodeJsonError
-      , ClientEncodingError
-      , ClientOtherError
-      )
-  ) as ExportQueryM
 import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport

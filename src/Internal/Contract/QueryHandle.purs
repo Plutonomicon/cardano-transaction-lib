@@ -14,18 +14,14 @@ import Ctl.Internal.Cardano.Types.Transaction
   , TransactionOutput
   , UtxoMap
   )
-import Ctl.Internal.Contract.Monad
-  ( Contract
-  , ContractEnv
-  , runQueryM
-  )
+import Ctl.Internal.Contract.Monad (Contract, ContractEnv, runQueryM)
 import Ctl.Internal.Contract.QueryBackend
   ( BlockfrostBackend
   , CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   )
 import Ctl.Internal.Hashing (transactionHash) as Hashing
-import Ctl.Internal.QueryM (ClientError, QueryM)
+import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
@@ -46,6 +42,7 @@ import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
@@ -57,8 +54,6 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Undefined (undefined)
 
--- TODO Either move ClientError out of QueryM or make a new error type
--- and convert from ClientError.
 type AffE (a :: Type) = Aff (Either ClientError a)
 
 type QueryHandle =
