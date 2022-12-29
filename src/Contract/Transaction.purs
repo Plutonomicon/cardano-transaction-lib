@@ -500,6 +500,7 @@ getTxFinalFee =
   unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
 
 -- | Fetch transaction metadata.
+-- | Returns `Right` when the transaction exists and metadata was non-empty
 getTxMetadata
   :: TransactionHash
   -> Contract (Either GetTxMetadataError GeneralTransactionMetadata)
