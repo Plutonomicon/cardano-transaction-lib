@@ -42,6 +42,10 @@ import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
@@ -110,5 +114,20 @@ queryHandleForCtlBackend contractEnv backend =
 
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend = undefined
+queryHandleForBlockfrostBackend _ backend =
+  { getDatumByHash: runBlockfrostServiceM' <<< undefined
+  , getScriptByHash: runBlockfrostServiceM' <<< undefined
+  , getUtxoByOref: runBlockfrostServiceM' <<< undefined
+  , isTxConfirmed: runBlockfrostServiceM' <<< undefined
+  , getTxMetadata: runBlockfrostServiceM' <<< undefined
+  , utxosAt: runBlockfrostServiceM' <<< undefined
+  , getChainTip: runBlockfrostServiceM' undefined
+  , getCurrentEpoch: runBlockfrostServiceM' undefined
+  , submitTx: runBlockfrostServiceM' <<< undefined
+  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' undefined
+  , getEraSummaries: runBlockfrostServiceM' undefined
+  }
+  where
+  runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
+  runBlockfrostServiceM' = runBlockfrostServiceM backend
 

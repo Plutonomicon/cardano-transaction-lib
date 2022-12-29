@@ -88,7 +88,7 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
       blockfrostError <-
         body # lmap (ClientDecodeJsonError body)
           <<< (decodeAeson <=< parseJsonStringToAeson)
-      Left $ ClientHttpResponseError (ServiceBlockfrostError blockfrostError)
+      Left $ ClientHttpResponseError $ ServiceBlockfrostError blockfrostError
   | otherwise =
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
