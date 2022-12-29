@@ -139,17 +139,11 @@ import Ctl.Internal.QueryM.ServerConfig
   , mkWsUrl
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts)
-import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
-import Ctl.Internal.Wallet.Spec
-  ( WalletSpec
-  )
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -201,14 +195,10 @@ type ClusterSetup =
 -- | - server parameters for all the services
 -- | - network ID
 -- | - logging level
--- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { ogmiosConfig :: ServerConfig
-  , kupoConfig :: ServerConfig
-  , networkId :: NetworkId
+  { kupoConfig :: ServerConfig
   , logLevel :: LogLevel
-  , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
@@ -218,14 +208,8 @@ type QueryConfig =
 -- |
 -- | Includes:
 -- | - WebSocket connections
--- | - A wallet connection
--- | - A data structure to keep UTxOs that has already been spent
--- | - Current protocol parameters
 type QueryRuntime =
   { ogmiosWs :: OgmiosWebSocket
-  , wallet :: Maybe Wallet
-  , usedTxOuts :: UsedTxOuts
-  , pparams :: Ogmios.ProtocolParameters
   }
 
 -- | `QueryEnv` contains everything needed for `QueryM` to run.
