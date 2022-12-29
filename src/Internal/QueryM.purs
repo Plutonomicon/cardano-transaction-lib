@@ -46,7 +46,7 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
+import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat

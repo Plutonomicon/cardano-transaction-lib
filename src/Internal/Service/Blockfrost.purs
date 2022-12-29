@@ -2,6 +2,7 @@ module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
   , runBlockfrostServiceM
+  , dummyExport
   ) where
 
 import Prelude
@@ -61,6 +62,10 @@ realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
     _ -> undefined
+
+dummyExport :: Unit
+dummyExport = undefined blockfrostGetRequest blockfrostPostRequest
+  (handleBlockfrostResponse undefined :: _ Int)
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
