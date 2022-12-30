@@ -1,47 +1,190 @@
-module Ctl.Internal.BalanceTx.Collateral.Select
-  ( maxCandidateUtxos
-  , minRequiredCollateral
-  , selectCollateral
-  ) where
+module Ctl.Internal.BalanceTx.Collateral.Select where
 
 import Prelude
 
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithNonAdaAssets)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Ctl.Internal.Cardano.Types.Value (NonAdaAsset)
 import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit, ProtocolParameters(ProtocolParameters))
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
+import Data.BigInt (fromInt, fromNumber, toNumber) as BigInt
 import Data.Foldable (foldMap, foldl, length)
 import Data.Function (on)
+import Data.Generic.Rep (class Generic)
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
+import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (toInt, toNumber) as UInt
 import Effect (Effect)
-
-minRequiredCollateral :: BigInt
-minRequiredCollateral = BigInt.fromInt 5_000_000
-
--- | A constant that limits the number of candidate utxos for collateral
--- | selection, thus maintaining acceptable time complexity.
-maxCandidateUtxos :: Int
-maxCandidateUtxos = 10
+import Math (ceil) as Math
+import Partial.Unsafe (unsafePartial)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
--- Select Collateral
+-- Collateral selection constraints
+--------------------------------------------------------------------------------
+
+-- | Specifies an upper bound on the search space size.
+data SearchSpaceLimit
+  -- | Limits the numbers of candidate utxo combinations.
+  = SearchSpaceLimit
+      { maxCandidateUtxos :: Int
+      , maxCollateralInputs :: Int
+      }
+  -- | Specifies that there is no search space limit.
+  -- | WARNING: This should only be used for testing purposes.
+  | UnsafeNoSearchSpaceLimit
+
+derive instance Generic SearchSpaceLimit _
+
+instance Show SearchSpaceLimit where
+  show = genericShow
+
+getMaxCandidateUtxos :: SearchSpaceLimit -> Maybe Int
+getMaxCandidateUtxos searchSpaceLimit =
+  case searchSpaceLimit of
+    SearchSpaceLimit { maxCandidateUtxos } -> Just maxCandidateUtxos
+    UnsafeNoSearchSpaceLimit -> Nothing
+
+getMaxCollateralInputs :: SearchSpaceLimit -> Maybe Int
+getMaxCollateralInputs searchSpaceLimit =
+  case searchSpaceLimit of
+    SearchSpaceLimit { maxCollateralInputs } -> Just maxCollateralInputs
+    UnsafeNoSearchSpaceLimit -> Nothing
+
+-- | Using the default search space limits will allow to select collateral
+-- | from 45_825 utxo combinations.
+defaultSearchSpaceLimit :: SearchSpaceLimit
+defaultSearchSpaceLimit = SearchSpaceLimit
+  { maxCandidateUtxos: 65
+  , maxCollateralInputs: 3
+  }
+
+type CollateralSelectionConstraintsRec =
+  { searchSpaceLimit :: SearchSpaceLimit
+  , minRequiredCollateral :: Maybe BigInt
+  }
+
+newtype CollateralSelectionConstraints =
+  CollateralSelectionConstraints CollateralSelectionConstraintsRec
+
+derive instance Generic CollateralSelectionConstraints _
+derive instance Newtype CollateralSelectionConstraints _
+
+instance Show CollateralSelectionConstraints where
+  show = genericShow
+
+defaultCollateralSelectionConstraints :: CollateralSelectionConstraints
+defaultCollateralSelectionConstraints = wrap
+  { searchSpaceLimit: defaultSearchSpaceLimit
+  , minRequiredCollateral: Just (BigInt.fromInt 5_000_000)
+  }
+
+--------------------------------------------------------------------------------
+-- Collateral selection
+--------------------------------------------------------------------------------
+
+newtype CollateralSelectionParams = CollateralSelectionParams
+  { transactionFees :: BigInt
+  , utxos :: UtxoMap
+  , constraints :: CollateralSelectionConstraints
+  , maxCollateralInputs :: Int
+  , collateralPercent :: Number
+  , collateralReturnCompensator :: Number
+  , coinsPerUtxoUnit :: CoinsPerUtxoUnit
+  }
+
+derive instance Generic CollateralSelectionParams _
+derive instance Newtype CollateralSelectionParams _
+
+instance Show CollateralSelectionParams where
+  show = genericShow
+
+defaultCollateralSelectionParams
+  :: BigInt
+  -> UtxoMap
+  -> ProtocolParameters
+  -> CollateralSelectionParams
+defaultCollateralSelectionParams fees utxos (ProtocolParameters pparams) = wrap
+  { transactionFees: fees
+  , utxos
+  , constraints: defaultCollateralSelectionConstraints
+  , maxCollateralInputs: UInt.toInt pparams.maxCollateralInputs
+  , collateralPercent: (UInt.toNumber pparams.collateralPercent) / 100.0
+  , collateralReturnCompensator: 1.5
+  , coinsPerUtxoUnit: pparams.coinsPerUtxoUnit
+  }
+
+selectCollateral
+  :: CollateralSelectionParams
+  -> Effect (Maybe (List TransactionUnspentOutput))
+selectCollateral (CollateralSelectionParams p@{ coinsPerUtxoUnit }) = p.utxos
+  -- 1. Sort utxos by ada value in decreasing order
+  # Map.toUnfoldable
+  # map (AdaOut <<< asTxUnspentOutput)
+  # List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
+
+  -- 2. Limit the number of candidate utxos for collateral selection to have
+  -- acceptable time complexity
+  # map unwrap
+  # maybe identity List.take (getMaxCandidateUtxos constraints.searchSpaceLimit)
+
+  -- 3. Generate utxo combinations with number of utxos in each combination
+  -- <= `maxCollateralInputs`
+  # combinations maxCollateralInputs
+
+  -- 4. Filter out utxo combinations with total Ada value < `requiredCollateral`
+  # List.filter (\x -> foldl adaValue' zero x >= requiredCollateral)
+
+  -- 5. For each candidate utxo combination calculate min ada value of the
+  -- corresponding collateral return output
+  # traverse (\x -> Tuple x <$> collateralReturnMinAdaValue coinsPerUtxoUnit x)
+  # map (List.mapMaybe mkCollateralCandidate)
+
+  -- 6. Sort candidate utxo combinations in ascending order by min ada value,
+  -- then select the first combination
+  # map (map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort)
+  where
+  constraints :: CollateralSelectionConstraintsRec
+  constraints = unwrap p.constraints
+
+  requiredCollateral :: BigInt
+  requiredCollateral =
+    constraints.minRequiredCollateral
+      # maybe requiredCollateral' (max requiredCollateral')
+    where
+    requiredCollateral' :: BigInt
+    requiredCollateral' =
+      fromMaybe fallback $ BigInt.fromNumber $
+        Math.ceil (BigInt.toNumber p.transactionFees * feesMultiplier)
+
+    feesMultiplier :: Number
+    feesMultiplier = p.collateralPercent * p.collateralReturnCompensator
+
+    fallback :: BigInt
+    fallback = p.transactionFees * BigInt.fromInt 2
+
+  maxCollateralInputs :: Int
+  maxCollateralInputs =
+    case constraints.searchSpaceLimit of
+      SearchSpaceLimit searchSpaceLimit ->
+        max searchSpaceLimit.maxCollateralInputs p.maxCollateralInputs
+      UnsafeNoSearchSpaceLimit -> p.maxCollateralInputs
+
+--------------------------------------------------------------------------------
+-- Helpers
 --------------------------------------------------------------------------------
 
 collateralReturnMinAdaValue
@@ -90,6 +233,7 @@ mkCollateralCandidate
 mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
   CollateralCandidate <<< Tuple unspentOutputs <$> returnOutMinAdaValue
 
+{-
 -- | Selects an utxo combination to use as collateral by generating all possible
 -- | utxo combinations and then applying the following constraints:
 -- |
@@ -134,10 +278,7 @@ selectCollateral coinsPerUtxoUnit maxCollateralInputs =
     <<< List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
     <<< map (AdaOut <<< asTxUnspentOutput)
     <<< Map.toUnfoldable
-
---------------------------------------------------------------------------------
--- Helpers
---------------------------------------------------------------------------------
+-}
 
 -- | A wrapper around an utxo with ordering by ada value.
 newtype AdaOut = AdaOut TransactionUnspentOutput
