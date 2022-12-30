@@ -14,11 +14,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , TransactionOutput
   , UtxoMap
   )
-import Ctl.Internal.Contract.Monad
-  ( Contract
-  , ContractEnv
-  , runQueryM
-  )
+import Ctl.Internal.Contract.Monad (Contract, ContractEnv, runQueryM)
 import Ctl.Internal.Contract.QueryBackend
   ( BlockfrostBackend
   , CtlBackend
@@ -26,7 +22,7 @@ import Ctl.Internal.Contract.QueryBackend
   )
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
-import Ctl.Internal.QueryM (ClientError, QueryM)
+import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
@@ -48,9 +44,14 @@ import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
+import Ctl.Internal.Service.Blockfrost
   ( getTxMetadata
   , isTxConfirmed
   ) as Blockfrost
+import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
@@ -62,8 +63,6 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Undefined (undefined)
 
--- TODO Either move ClientError out of QueryM or make a new error type
--- and convert from ClientError.
 type AffE (a :: Type) = Aff (Either ClientError a)
 
 type QueryHandle =
@@ -123,19 +122,19 @@ queryHandleForCtlBackend contractEnv backend =
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
 queryHandleForBlockfrostBackend _ backend =
-  { getDatumByHash: undefined
-  , getScriptByHash: undefined
-  , getUtxoByOref: undefined
-  , isTxConfirmed: runBlockfrost backend Nothing <<< Blockfrost.isTxConfirmed -- TODO Just
-  , getTxMetadata: runBlockfrost backend Nothing <<< Blockfrost.getTxMetadata -- TODO Just
-  , utxosAt: undefined
-  , getChainTip: undefined
-  , getCurrentEpoch: undefined
-  , submitTx: undefined
-  , evaluateTx: undefined
-  , getEraSummaries: undefined
+  { getDatumByHash: runBlockfrostServiceM' <<< undefined
+  , getScriptByHash: runBlockfrostServiceM' <<< undefined
+  , getUtxoByOref: runBlockfrostServiceM' <<< undefined
+  , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
+  , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
+  , utxosAt: runBlockfrostServiceM' <<< undefined
+  , getChainTip: runBlockfrostServiceM' undefined
+  , getCurrentEpoch: runBlockfrostServiceM' undefined
+  , submitTx: runBlockfrostServiceM' <<< undefined
+  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
+      additionalUtxos
+  , getEraSummaries: runBlockfrostServiceM' undefined
   }
   where
-  runBlockfrost :: forall (a :: Type). _ -> _ -> (_ -> _ -> Aff a) -> Aff a
-  runBlockfrost { blockfrostConfig } mbApiKey action = action blockfrostConfig
-    mbApiKey
+  runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
+  runBlockfrostServiceM' = runBlockfrostServiceM backend

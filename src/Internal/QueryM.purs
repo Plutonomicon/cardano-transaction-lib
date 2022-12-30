@@ -2,13 +2,6 @@
 module Ctl.Internal.QueryM
   ( module ExportDispatcher
   , module ExportServerConfig
-  , ClientError
-      ( ClientHttpError
-      , ClientHttpResponseError
-      , ClientDecodeJsonError
-      , ClientEncodingError
-      , ClientOtherError
-      )
   , ClusterSetup
   , ListenerSet
   , OgmiosListeners
@@ -53,7 +46,7 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Affjax (Error, Response, defaultRequest, printError, request) as Affjax
+import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -68,10 +61,7 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
-import Control.Monad.Reader.Trans
-  ( ReaderT(ReaderT)
-  , asks
-  )
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
@@ -126,7 +116,8 @@ import Ctl.Internal.QueryM.Ogmios
   , aesonObject
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.QueryM.ServerConfig
+import Ctl.Internal.QueryM.UniqueId (ListenerId)
+import Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig
   , defaultOgmiosWsConfig
@@ -134,22 +125,16 @@ import Ctl.Internal.QueryM.ServerConfig
   , mkServerUrl
   , mkWsUrl
   ) as ExportServerConfig
-import Ctl.Internal.QueryM.ServerConfig
-  ( ServerConfig
-  , mkWsUrl
+import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
+  , ServiceError(ServiceOtherError)
   )
-import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts)
-import Ctl.Internal.Wallet (Wallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
-import Ctl.Internal.Wallet.Spec
-  ( WalletSpec
-  )
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
@@ -201,14 +186,10 @@ type ClusterSetup =
 -- | - server parameters for all the services
 -- | - network ID
 -- | - logging level
--- | - wallet setup instructions
 -- | - optional custom logger
 type QueryConfig =
-  { ogmiosConfig :: ServerConfig
-  , kupoConfig :: ServerConfig
-  , networkId :: NetworkId
+  { kupoConfig :: ServerConfig
   , logLevel :: LogLevel
-  , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   }
@@ -218,14 +199,8 @@ type QueryConfig =
 -- |
 -- | Includes:
 -- | - WebSocket connections
--- | - A wallet connection
--- | - A data structure to keep UTxOs that has already been spent
--- | - Current protocol parameters
 type QueryRuntime =
   { ogmiosWs :: OgmiosWebSocket
-  , wallet :: Maybe Wallet
-  , usedTxOuts :: UsedTxOuts
-  , pparams :: Ogmios.ProtocolParameters
   }
 
 -- | `QueryEnv` contains everything needed for `QueryM` to run.
@@ -383,43 +358,6 @@ mempoolSnapshotHasTxAff ogmiosWs logger ms =
 -- Affjax
 --------------------------------------------------------------------------------
 
-data ClientError
-  -- | Affjax error
-  = ClientHttpError Affjax.Error
-  -- | Server responded with HTTP status code outside of 200-299
-  | ClientHttpResponseError Affjax.StatusCode.StatusCode String
-  -- | Failed to decode the response
-  | ClientDecodeJsonError String JsonDecodeError
-  -- | Failed to encode the request
-  | ClientEncodingError String
-  -- | Any other error
-  | ClientOtherError String
-
--- No Show instance of Affjax.Error
-instance Show ClientError where
-  show (ClientHttpError err) =
-    "(ClientHttpError "
-      <> Affjax.printError err
-      <> ")"
-  show (ClientHttpResponseError statusCode err) =
-    "(ClientHttpResponseError "
-      <> show statusCode
-      <> " "
-      <> show err
-      <> ")"
-  show (ClientDecodeJsonError jsonStr err) =
-    "(ClientDecodeJsonError (" <> show jsonStr <> ") "
-      <> show err
-      <> ")"
-  show (ClientEncodingError err) =
-    "(ClientEncodingError "
-      <> err
-      <> ")"
-  show (ClientOtherError err) =
-    "(ClientOtherError "
-      <> err
-      <> ")"
-
 -- Checks response status code and returns `ClientError` in case of failure,
 -- otherwise attempts to decode the result.
 --
@@ -435,8 +373,7 @@ handleAffjaxResponse (Left affjaxError) =
 handleAffjaxResponse
   (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
   | statusCode < 200 || statusCode > 299 =
-      Left
-        (ClientHttpResponseError (Affjax.StatusCode.StatusCode statusCode) body)
+      Left $ ClientHttpResponseError (wrap statusCode) $ ServiceOtherError body
   | otherwise =
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)

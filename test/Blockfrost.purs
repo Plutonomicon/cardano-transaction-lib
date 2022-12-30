@@ -2,7 +2,7 @@ module Test.Ctl.Blockfrost (main, testPlan) where
 
 import Prelude
 
-import Contract.Config (ServerConfig)
+import Contract.Config (blockfrostPublicPreviewServerConfig)
 import Contract.Metadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(Text, MetadataMap)
@@ -18,8 +18,13 @@ import Contract.Transaction
   , TransactionHash(TransactionHash)
   )
 import Control.Monad.Error.Class (liftEither)
+import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Helpers (liftedM)
-import Ctl.Internal.Service.Blockfrost (getTxMetadata, isTxConfirmed)
+import Ctl.Internal.Service.Blockfrost
+  ( getTxMetadata
+  , isTxConfirmed
+  , runBlockfrostServiceM
+  )
 import Data.Array ((!!))
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
@@ -28,7 +33,6 @@ import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just))
 import Data.Tuple.Nested ((/\))
-import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Mote (group, test)
@@ -43,7 +47,11 @@ main = do
   launchAff_ do
     interpretWithConfig
       defaultConfig { exit = true }
-      (testPlan apiKey)
+      ( testPlan
+          { blockfrostConfig: blockfrostPublicPreviewServerConfig
+          , blockfrostApiKey: Just apiKey
+          }
+      )
 
 data Fixture
   = TxWithMetadata
@@ -157,20 +165,13 @@ fixture4 = UnconfirmedTx
       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   }
 
-config :: ServerConfig
-config =
-  { host: "cardano-preview.blockfrost.io"
-  , port: UInt.fromInt 443
-  , secure: true
-  , path: Just "/api/v0"
-  }
-
-testPlan :: String -> TestPlanM (Aff Unit) Unit
-testPlan apiKey = group "Blockfrost" do
+testPlan :: BlockfrostBackend -> TestPlanM (Aff Unit) Unit
+testPlan backend = group "Blockfrost" do
   forWithIndex_ [ fixture1, fixture2, fixture3, fixture4 ] \i fixture ->
     group ("fixture " <> show (i + 1)) do
       test "getTxMetadata" do
-        eMetadata <- getTxMetadata (fixtureHash fixture) config (Just apiKey)
+        eMetadata <- runBlockfrostServiceM backend $ getTxMetadata
+          (fixtureHash fixture)
         case fixture of
           TxWithMetadata { metadata } -> case eMetadata of
             Right metadata' -> metadata' `shouldEqual` metadata
@@ -186,7 +187,8 @@ testPlan apiKey = group "Blockfrost" do
             unexpected -> fail $ show unexpected <>
               " ≠ (Left GetTxMetadataTxNotFoundError)"
       test "isTxConfirmed" do
-        eConfirmed <- isTxConfirmed (fixtureHash fixture) config (Just apiKey)
+        eConfirmed <- runBlockfrostServiceM backend $ isTxConfirmed
+          (fixtureHash fixture)
         confirmed <- liftEither (lmap (error <<< show) eConfirmed)
         confirmed `shouldEqual` case fixture of
           TxWithMetadata _ -> true

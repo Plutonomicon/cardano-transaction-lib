@@ -46,13 +46,4 @@
     nodeConfig = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
     nodeSocket = "/var/run/cardano-node/node.socket";
   };
-
-  services.ogmios-datum-cache = {
-    enable = true;
-    host = "0.0.0.0";
-    useLatest = true;
-    blockSlot = 5854109;
-    blockHash = "85366c607a9777b887733de621aa2008aec9db4f3e6a114fb90ec2909bc06f14";
-    blockFilter = builtins.toJSON { const = true; };
-  };
 }

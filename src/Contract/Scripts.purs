@@ -4,7 +4,6 @@
 module Contract.Scripts
   ( getScriptByHash
   , getScriptsByHashes
-  , module ExportQueryM
   , module ExportScripts
   , module Hash
   , module NativeScript
@@ -31,14 +30,6 @@ import Ctl.Internal.Cardano.Types.NativeScript
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
-import Ctl.Internal.QueryM (ClientError)
-import Ctl.Internal.QueryM
-  ( ClientError
-      ( ClientHttpError
-      , ClientDecodeJsonError
-      , ClientEncodingError
-      )
-  ) as ExportQueryM
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , nativeScriptStakeValidatorHash
@@ -47,6 +38,7 @@ import Ctl.Internal.Scripts
   ) as ExportScripts
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
+import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)

@@ -27,7 +27,7 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
+import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map

@@ -8,7 +8,7 @@ module Ctl.Internal.Contract.QueryHandle.Error
 
 import Prelude
 
-import Ctl.Internal.QueryM (ClientError)
+import Ctl.Internal.Service.Error (ClientError)
 
 -- Abstracts over the differences between Kupo and Blockfrost
 data GetTxMetadataError
