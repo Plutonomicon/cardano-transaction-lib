@@ -14,6 +14,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
+import Contract.AuxiliaryData (setGeneralTxMetadata)
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
@@ -21,6 +22,11 @@ import Contract.BalanceTxConstraints
 import Contract.Chain (currentTime)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
+import Contract.Metadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum(Text)
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  )
 import Contract.Monad
   ( Contract
   , liftContractE
@@ -42,6 +48,8 @@ import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( ValidatorHash
   , applyArgs
+  , getScriptByHash
+  , getScriptsByHashes
   , mintingPolicyHash
   , validatorHash
   )
@@ -63,6 +71,7 @@ import Contract.Transaction
   , balanceTx
   , balanceTxWithConstraints
   , createAdditionalUtxos
+  , getTxMetadata
   , signTransaction
   , submit
   , submitTxFromConstraints
@@ -781,6 +790,67 @@ suite = do
                 , hash2 /\ Right datum2
                 ]
             )
+
+    test "GetScriptByHash" do
+      let
+        distribution :: InitialUTxOs
+        distribution = [ BigInt.fromInt 2_000_000_000 ]
+
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          validator1 <- AlwaysSucceeds.alwaysSucceedsScript
+          validator2 <- alwaysSucceedsScriptV2
+          let
+            validatorRef1 = PlutusScriptRef $ unwrap validator1
+            validatorRef2 = PlutusScriptRef $ unwrap validator2
+            useScriptAndGetByHash validator vhash = do
+              txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+              awaitTxConfirmed txId
+              -- Spending utxo, to make Kupo (used inside) see the script
+              AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
+              getScriptByHash $ unwrap vhash
+
+          result1 <- useScriptAndGetByHash validator1 (validatorHash validator1)
+          result2 <- useScriptAndGetByHash validator2 (validatorHash validator2)
+
+          -- Testing getScriptByHash
+          result1 `shouldEqual` (Right (Just validatorRef1))
+          result2 `shouldEqual` (Right (Just validatorRef2))
+
+          -- Testing getScriptsByHashes
+          let
+            scriptHash1 = unwrap (validatorHash validator1)
+            scriptHash2 = unwrap (validatorHash validator2)
+          results <- getScriptsByHashes [ scriptHash1, scriptHash2 ]
+          results `shouldEqual` Map.fromFoldable
+            [ (scriptHash1 /\ (Right (Just validatorRef1)))
+            , (scriptHash2 /\ (Right (Just validatorRef2)))
+            ]
+
+    test "GetTxMetadata" do
+      let
+        distribution :: InitialUTxOs
+        distribution = [ BigInt.fromInt 2_000_000_000 ]
+
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          let
+            constraints :: Constraints.TxConstraints Void Void
+            constraints = mempty
+
+            lookups :: Lookups.ScriptLookups Void
+            lookups = mempty
+            givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
+              [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
+
+          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          ubTx' <- setGeneralTxMetadata ubTx givenMetadata
+          bsTx <- signTransaction =<< liftedE (balanceTx ubTx')
+          txId <- submit bsTx
+          awaitTxConfirmed txId
+
+          mMetadata <- getTxMetadata txId
+          mMetadata `shouldEqual` (Just givenMetadata)
 
     test "MintZeroToken" do
       let
