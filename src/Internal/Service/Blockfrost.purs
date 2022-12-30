@@ -1,8 +1,9 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
+  , BlockfrostCurrentEpoch(BlockfrostCurrentEpoch)
   , runBlockfrostServiceM
-  , dummyExport
+  , getCurrentEpoch
   ) where
 
 import Prelude
@@ -22,14 +23,16 @@ import Ctl.Internal.Service.Error
   , ServiceError(ServiceBlockfrostError)
   )
 import Data.Bifunctor (lmap)
+import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right))
+import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
 import Data.Maybe (Maybe, maybe)
 import Data.MediaType (MediaType)
-import Data.Newtype (wrap)
+import Data.Newtype (class Newtype, wrap)
+import Data.Show.Generic (genericShow)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -57,15 +60,14 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 --------------------------------------------------------------------------------
 
 data BlockfrostEndpoint
+  = GetCurrentEpoch
+  | GetProtocolParams
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    _ -> undefined
-
-dummyExport :: Unit
-dummyExport = undefined blockfrostGetRequest blockfrostPostRequest
-  (handleBlockfrostResponse undefined :: _ Int)
+    GetCurrentEpoch -> "/epochs/latest"
+    GetProtocolParams -> "/epochs/latest/parameters"
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -121,3 +123,16 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
+newtype BlockfrostCurrentEpoch = BlockfrostCurrentEpoch { epoch :: BigInt }
+
+derive instance Generic BlockfrostCurrentEpoch _
+derive instance Newtype BlockfrostCurrentEpoch _
+derive newtype instance DecodeAeson BlockfrostCurrentEpoch
+
+instance Show BlockfrostCurrentEpoch where
+  show = genericShow
+
+getCurrentEpoch
+  :: BlockfrostServiceM (Either ClientError BlockfrostCurrentEpoch)
+getCurrentEpoch = blockfrostGetRequest GetCurrentEpoch
+  <#> handleBlockfrostResponse
