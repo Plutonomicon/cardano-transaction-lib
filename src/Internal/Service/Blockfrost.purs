@@ -63,8 +63,8 @@ realizeEndpoint endpoint =
   case endpoint of
     _ -> undefined
 
-dummyExport :: Unit
-dummyExport = undefined blockfrostGetRequest blockfrostPostRequest
+dummyExport :: Unit -> Unit
+dummyExport _ = undefined blockfrostGetRequest blockfrostPostRequest
   (handleBlockfrostResponse undefined :: _ Int)
 
 blockfrostGetRequest
