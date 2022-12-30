@@ -49,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- CIP-30 got optional args support on level of `Cip30Mock` and `Cip30Wallet` module API is changed to support them. `getWalletAddresses` got version `getWalletAddressesPaginated`. `getValue` got `Maybe Paginate` argument. `getCollateral` got amount argument of type `Coin` and `getValue` got amount argument of type `Value`. ([#1264](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1264)
+- CIP-30 API and mock wallet now support optional arguments. `getWalletAddresses` got version `getWalletAddressesPaginated`. `getValue` got `Maybe Paginate` argument. `getCollateral` got amount argument of type `Coin` and `getValue` got amount argument of type `Value`. ([#1264](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1264))
 
 
 ### Removed
