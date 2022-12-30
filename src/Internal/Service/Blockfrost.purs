@@ -68,6 +68,7 @@ realizeEndpoint endpoint =
   case endpoint of
     GetCurrentEpoch -> "/epochs/latest"
     GetProtocolParams -> "/epochs/latest/parameters"
+    _ -> undefined
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
