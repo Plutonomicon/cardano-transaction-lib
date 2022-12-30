@@ -11,6 +11,7 @@ import Prelude
 import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
+import Ctl.Internal.Types.BigNum (zero) as BigNum
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -56,7 +57,7 @@ instance Show TransactionInput where
 
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
 instance FromData TransactionInput where
-  fromData (Constr n [ txId, idx ]) | n == zero =
+  fromData (Constr n [ txId, idx ]) | n == BigNum.zero =
     TransactionInput <$>
       ({ transactionId: _, index: _ } <$> fromData txId <*> fromData idx)
   fromData _ = Nothing
@@ -64,7 +65,7 @@ instance FromData TransactionInput where
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
 instance ToData TransactionInput where
   toData (TransactionInput { transactionId, index }) =
-    Constr zero [ toData transactionId, toData index ]
+    Constr BigNum.zero [ toData transactionId, toData index ]
 
 instance Coarbitrary TransactionInput where
   coarbitrary (TransactionInput input) generator =
@@ -92,12 +93,13 @@ instance Show TransactionHash where
 
 -- Plutus actually has this as a zero indexed record
 instance FromData TransactionHash where
-  fromData (Constr n [ bytes ]) | n == zero = TransactionHash <$> fromData bytes
+  fromData (Constr n [ bytes ]) | n == BigNum.zero = TransactionHash <$>
+    fromData bytes
   fromData _ = Nothing
 
 -- Plutus actually has this as a zero indexed record
 instance ToData TransactionHash where
-  toData (TransactionHash bytes) = Constr zero [ toData bytes ]
+  toData (TransactionHash bytes) = Constr BigNum.zero [ toData bytes ]
 
 instance Arbitrary TransactionHash where
   arbitrary =

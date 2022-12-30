@@ -29,15 +29,12 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashToBytes
   )
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.RawBytes
-  ( hexToRawBytesUnsafe
-  )
+import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Data.Array.NonEmpty (fromArray)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 
@@ -74,7 +71,7 @@ instance Arbitrary CurrencySymbol where
     translate x =
       scriptHashAsCurrencySymbol $ unsafePartial $ fromJust
         $ scriptHashFromBytes
-        $ hexToRawBytesUnsafe x
+        $ hexToByteArrayUnsafe x
 
 adaSymbol :: CurrencySymbol
 adaSymbol = CurrencySymbol mempty
@@ -88,8 +85,8 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 
 -- | The currency symbol of a monetary policy hash.
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
-  scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ scriptHashToBytes
+  h
 
 getCurrencySymbol :: CurrencySymbol -> ByteArray
 getCurrencySymbol (CurrencySymbol curSymbol) = curSymbol
@@ -99,7 +96,7 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes (wrap byteArr) $> CurrencySymbol byteArr
+      scriptHashFromBytes byteArr $> CurrencySymbol byteArr
 
 --------------------------------------------------------------------------------
 -- Internal
@@ -108,5 +105,5 @@ mkCurrencySymbol byteArr
 -- This must be safe to use as long as we always construct a
 -- `CurrencySymbol` with the smart-constructors.
 currencyScriptHash :: CurrencySymbol -> ScriptHash
-currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes <<< wrap
+currencyScriptHash = unsafePartial $ fromJust <<< scriptHashFromBytes
   <<< getCurrencySymbol

@@ -11,10 +11,7 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Address
-  ( addressToOgmiosAddress
-  , ogmiosAddressToAddress
-  )
+import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as Transaction
@@ -24,6 +21,7 @@ import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as Serialization
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(OutputDatum, OutputDatumHash, NoOutputDatum)
@@ -31,10 +29,9 @@ import Ctl.Internal.Types.OutputDatum
   , outputDatumDatum
   )
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
-import Data.Maybe (Maybe, fromMaybe, isNothing)
+import Data.Maybe (Maybe(Just), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
-import Untagged.Union (asOneOf)
 
 -- | A module for helpers of the various transaction output types.
 
@@ -90,7 +87,7 @@ transactionOutputToOgmiosTxOut
   { address: addressToOgmiosAddress address
   , value
   , datumHash: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
-  , datum: datumToOgmiosDatum =<< outputDatumDatum datum
+  , datum: datumToOgmiosDatum <$> outputDatumDatum datum
   , script: scriptRef
   }
 
@@ -104,20 +101,19 @@ ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 -- | Converts an Ogmios datum `String` to an internal `Datum`
 ogmiosDatumToDatum :: String -> Maybe Datum
 ogmiosDatumToDatum =
-  hexToByteArray
+  hexToCborBytes
     >=> fromBytes
-    >=> Deserialization.convertPlutusData
-      >>> map Datum
+    >=> (Deserialization.convertPlutusData >>> Datum >>> Just)
 
 -- | Converts an internal `DataHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DataHash -> String
 datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 
 -- | Converts an internal `Datum` to an Ogmios datum `String`
-datumToOgmiosDatum :: Datum -> Maybe String
+datumToOgmiosDatum :: Datum -> String
 datumToOgmiosDatum (Datum plutusData) =
-  Serialization.convertPlutusData plutusData <#>
-    (asOneOf >>> toBytes >>> byteArrayToHex)
+  Serialization.convertPlutusData plutusData #
+    toBytes >>> unwrap >>> byteArrayToHex
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
 toOutputDatum d dh =

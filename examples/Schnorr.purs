@@ -12,6 +12,7 @@ import Contract.Crypto.Secp256k1.Schnorr
 import Contract.Crypto.Secp256k1.Utils (randomSecp256k1PrivateKey)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( class ToData
   , PlutusData(Constr)
@@ -44,7 +45,7 @@ derive instance Generic SchnorrRedeemer _
 derive instance Newtype SchnorrRedeemer _
 
 instance ToData SchnorrRedeemer where
-  toData (SchnorrRedeemer { msg, sig, pk }) = Constr zero
+  toData (SchnorrRedeemer { msg, sig, pk }) = Constr BigNum.zero
     [ toData msg, toData sig, toData pk ]
 
 contract :: Contract () Unit

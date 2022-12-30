@@ -262,7 +262,7 @@ unsafeAdaSymbol = CurrencySymbol mempty
 -- | constructor is not exported
 mkCurrencySymbol :: ByteArray -> Maybe CurrencySymbol
 mkCurrencySymbol byteArr =
-  scriptHashFromBytes (wrap byteArr) *> pure (CurrencySymbol byteArr)
+  scriptHashFromBytes byteArr *> pure (CurrencySymbol byteArr)
 
 -- Do not export. Create an Ada `CurrencySymbol` from a `ByteArray`
 mkUnsafeAdaSymbol :: ByteArray -> Maybe CurrencySymbol
@@ -846,7 +846,7 @@ filterNonAda (Value _ nonAda) = Value mempty nonAda
 -- already know is a valid CurrencySymbol
 currencyScriptHash :: CurrencySymbol -> ScriptHash
 currencyScriptHash (CurrencySymbol byteArray) =
-  unsafePartial fromJust $ scriptHashFromBytes (wrap byteArray)
+  unsafePartial fromJust $ scriptHashFromBytes byteArray
 
 scriptHashAsCurrencySymbol :: ScriptHash -> CurrencySymbol
 scriptHashAsCurrencySymbol = CurrencySymbol <<< unwrap <<< scriptHashToBytes
@@ -860,8 +860,8 @@ currencyMPSHash = MintingPolicyHash <<< currencyScriptHash
 -- Plutus doesn't use Maybe here.
 -- | The currency symbol of a monetary policy hash
 mpsSymbol :: MintingPolicyHash -> Maybe CurrencySymbol
-mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol <<< unwrap $
-  scriptHashToBytes h
+mpsSymbol (MintingPolicyHash h) = mkCurrencySymbol $ unwrap $ scriptHashToBytes
+  h
 
 -- Like `mapEither` that works with 'These'.
 mapThese

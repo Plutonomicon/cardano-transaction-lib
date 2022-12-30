@@ -12,7 +12,7 @@ const setter = prop => obj => value => () => obj["set_" + prop](value);
 exports.newAuxiliaryData = () => lib.AuxiliaryData.new();
 
 exports._hashAuxiliaryData = auxiliaryData =>
-  lib.hash_auxiliary_data(auxiliaryData).to_bytes();
+  lib.hash_auxiliary_data(auxiliaryData);
 
 exports.setAuxiliaryDataNativeScripts = setter("native_scripts");
 

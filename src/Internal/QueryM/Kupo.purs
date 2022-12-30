@@ -53,7 +53,6 @@ import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
   , addressFromBech32
-  , addressFromBytes
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
@@ -124,7 +123,8 @@ getDatumByHash (DataHash dataHashBytes) = do
 
 getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do
-  let endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
+  let
+    endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
 
@@ -173,7 +173,7 @@ instance DecodeAeson KupoTransactionOutput where
     decodeAddress obj =
       getField obj "address" >>= \x ->
         note (TypeMismatch "Expected bech32 or base16 encoded Shelley address")
-          (addressFromBech32 x <|> (addressFromBytes =<< hexToCborBytes x))
+          (addressFromBech32 x <|> (fromBytes =<< hexToCborBytes x))
 
     decodeDatumHash
       :: Object Aeson
@@ -350,10 +350,9 @@ instance DecodeAeson KupoScriptRef where
         decodeNativeScript :: ByteArray -> Either JsonDecodeError NativeScript
         decodeNativeScript scriptBytes = do
           nativeScript <-
-            flip note (fromBytes scriptBytes) $
+            flip note (fromBytes $ wrap scriptBytes) $
               TypeMismatch "decodeNativeScript: from_bytes() call failed"
-          flip note (convertNativeScript nativeScript) $
-            TypeMismatch "decodeNativeScript: failed to convert native script"
+          pure $ convertNativeScript nativeScript
 
 --------------------------------------------------------------------------------
 -- Helpers

@@ -62,9 +62,7 @@ import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
-import Ctl.Internal.BalanceTx
-  ( FinalizedTransaction(FinalizedTransaction)
-  ) as FinalizedTransaction
+import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -144,6 +142,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _vkeys
   , _withdrawals
   , _witnessSet
+  , mkPoolPubKeyHash
+  , poolPubKeyHashToBech32
   ) as Transaction
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
@@ -226,7 +226,6 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotConvertPOSIXTimeRange
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
       , TypedTxOutHasNoDatumHash
       , CannotHashMintingPolicy
       , CannotHashValidator
@@ -285,7 +284,6 @@ import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Untagged.Union (asOneOf)
 
 -- | Signs a transaction with potential failure.
 signTransaction
@@ -320,10 +318,10 @@ submitE
    . BalancedSignedTransaction
   -> Contract r (Either (Array Aeson) TransactionHash)
 submitE tx = do
-  cslTx <- liftEffect $ Serialization.convertTransaction (unwrap tx)
+  cslTx <- liftEffect $ Serialization.convertTransaction $ unwrap tx
   let txHash = Hashing.transactionHash cslTx
   logDebug' $ "Pre-calculated tx hash: " <> show txHash
-  let txCborBytes = wrap $ Serialization.toBytes $ asOneOf cslTx
+  let txCborBytes = Serialization.toBytes cslTx
   result <- wrapContract $
     QueryM.submitTxOgmios (unwrap txHash) txCborBytes
   pure $ case result of

@@ -180,6 +180,8 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
     maxTxExUnits: optional(ppu.max_tx_ex_units()),
     maxBlockExUnits: optional(ppu.max_block_ex_units()),
     maxValueSize: optional(ppu.max_value_size()),
+    collateralPercentage: optional(ppu.collateral_percentage()),
+    maxCollateralInputs: optional(ppu.max_collateral_inputs()),
   };
 };
 
@@ -208,47 +210,20 @@ exports._unpackMetadataMap = containerHelper =>
 exports._unpackMetadataList = containerHelper => containerHelper.unpack;
 
 exports._convertMetadatum = metadataCtors => cslMetadatum => {
-  // map
-  let r = null;
-  try {
-    r = cslMetadatum.as_map();
-  } catch (_) {
-    r = null;
+  switch (cslMetadatum.kind()) {
+    case lib.TransactionMetadatumKind.MetadataMap:
+      return metadataCtors.from_map(cslMetadatum.as_map());
+    case lib.TransactionMetadatumKind.MetadataList:
+      return metadataCtors.from_list(cslMetadatum.as_list());
+    case lib.TransactionMetadatumKind.Int:
+      return metadataCtors.from_int(cslMetadatum.as_int());
+    case lib.TransactionMetadatumKind.Bytes:
+      return metadataCtors.from_bytes(cslMetadatum.as_bytes());
+    case lib.TransactionMetadatumKind.Text:
+      return metadataCtors.from_text(cslMetadatum.as_text());
+    default:
+      throw "Could not convert to known types.";
   }
-  if (r) return metadataCtors.from_map(r);
-  // list
-  try {
-    r = cslMetadatum.as_list();
-  } catch (_) {
-    r = null;
-  }
-  if (r) return metadataCtors.from_list(r);
-
-  // int
-  try {
-    r = cslMetadatum.as_int();
-  } catch (_) {
-    r = null;
-  }
-  if (r) return metadataCtors.from_int(r);
-
-  // bytes
-  try {
-    r = cslMetadatum.as_bytes();
-  } catch (_) {
-    r = null;
-  }
-  if (r) return metadataCtors.from_bytes(r);
-
-  // text
-  try {
-    r = cslMetadatum.as_text();
-  } catch (_) {
-    r = null;
-  }
-  if (r) return metadataCtors.from_text(r);
-
-  return metadataCtors.error("Could not convert to known types.");
 };
 
 exports._unpackExUnits = exunits => {
@@ -290,22 +265,16 @@ exports.poolParamsRelays = containerHelper => poolParams =>
 exports.poolParamsPoolMetadata = callMaybe("pool_metadata");
 
 exports.convertRelay_ = helper => relay => {
-  let res = relay.as_single_host_addr();
-  if (res) {
-    return helper.asSingleHostAddr(res);
+  switch (relay.kind()) {
+    case lib.RelayKind.SingleHostAddr:
+      return helper.asSingleHostAddr(relay.as_single_host_addr());
+    case lib.RelayKind.SingleHostName:
+      return helper.asSingleHostName(relay.as_single_host_name());
+    case lib.RelayKind.MultiHostName:
+      return helper.asMultiHostName(relay.as_multi_host_name());
+    default:
+      throw "convertRelay_: impossible happened: invalid Relay";
   }
-
-  res = relay.as_single_host_name();
-  if (res) {
-    return helper.asSingleHostName(res);
-  }
-
-  res = relay.as_multi_host_name();
-  if (res) {
-    return helper.asMultiHostName(res);
-  }
-
-  throw "convertRelay_: impossible happened: invalid Relay";
 };
 
 exports.convertIpv6_ = ipv6 => ipv6.ip();
@@ -337,4 +306,4 @@ exports.unpackMIRToStakeCredentials_ =
     containerHelper.unpackKeyIndexed(mirToStakeCredentials);
 
 exports.convertPoolMetadata_ = cont => poolMetadata =>
-  cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash().to_bytes());
+  cont(poolMetadata.url().url())(poolMetadata.pool_metadata_hash());

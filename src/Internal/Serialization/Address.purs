@@ -11,14 +11,12 @@ module Ctl.Internal.Serialization.Address
   , PointerAddress
   , RewardAddress
   , StakeCredential
-  , addressBytes
   , addressBech32
   , addressNetworkId
   , intToNetworkId
   , keyHashCredential
   , scriptHashCredential
   , withStakeCredential
-  , stakeCredentialToBytes
   , baseAddress
   , baseAddressPaymentCred
   , baseAddressDelegationCred
@@ -32,8 +30,6 @@ module Ctl.Internal.Serialization.Address
   , NetworkId(MainnetId, TestnetId)
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
-  , stakeCredentialFromBytes
-  , addressFromBytes
   , addressFromBech32
   , addressPaymentCred
   , addressStakeCred
@@ -45,8 +41,6 @@ module Ctl.Internal.Serialization.Address
   , baseAddressNetworkId
   , byronAddressToBase58
   , byronAddressFromBase58
-  , byronAddressFromBytes
-  , byronAddressBytes
   , byronProtocolMagic
   , byronAddressAttributes
   , byronAddressNetworkId
@@ -325,6 +319,7 @@ instance EncodeAeson StakeCredential where
 foreign import _addressFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe Address
 
+-- We can't use FromBytes class here, because of cyclic dependencies
 foreign import _addressFromBytes :: MaybeFfiHelper -> CborBytes -> Maybe Address
 foreign import addressBytes :: Address -> CborBytes
 foreign import addressBech32 :: Address -> Bech32String
