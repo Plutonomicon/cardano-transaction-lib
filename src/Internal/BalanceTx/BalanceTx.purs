@@ -36,7 +36,6 @@ import Ctl.Internal.BalanceTx.Error
       , CouldNotGetCollateral
       , CouldNotGetUtxos
       , ExUnitsEvaluationFailed
-      , InsufficientTxInputs
       , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed

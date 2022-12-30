@@ -12,7 +12,6 @@ module Ctl.Internal.BalanceTx.Error
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
       , ExUnitsEvaluationFailed
-      , InsufficientTxInputs
       , InsufficientUtxoBalanceToCoverAsset
       , ReindexRedeemersError
       , UtxoLookupFailedFor
@@ -76,7 +75,6 @@ data BalanceTxError
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
-  | InsufficientTxInputs Expected Actual
   | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
   | ReindexRedeemersError ReindexErrors
   | UtxoLookupFailedFor TransactionInput
