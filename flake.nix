@@ -13,7 +13,7 @@
 
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
     plutip.url = "github:mlabs-haskell/plutip?rev=8d1795d9ac3f9c6f31381104b25c71576eeba009";
-    kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
+    kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/35096d5086215bd8ec60ca873f2dcf7ff2fbdee4";
     kupo-nixos.inputs.kupo.follows = "kupo";
 
     kupo = {
@@ -163,7 +163,7 @@
               name = "ctl-e2e-test";
               testMain = "Test.Ctl.E2E";
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
-              buildInputs = [ inputs.kupo-nixos.defaultPackage.${pkgs.system} ];
+              buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
@@ -238,7 +238,7 @@
                 ogmios-datum-cache =
                   inputs.ogmios-datum-cache.defaultPackage.${system};
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-                kupo = inputs.kupo-nixos.defaultPackage.${system};
+                kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
                 inherit cardano-configurations;
