@@ -8,10 +8,7 @@ import Prelude
 
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithNonAdaAssets)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput
-  , UtxoMap
-  )
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
@@ -21,12 +18,12 @@ import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt
-import Data.Foldable (foldMap, foldl)
+import Data.Foldable (foldMap, foldl, length)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Traversable (traverse)
@@ -168,15 +165,45 @@ nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
 nonAdaAsset =
   Value.getNonAdaAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
--- | Returns a list of all subsequences of the given list.
-subsequences :: forall (a :: Type). List a -> List (List a)
-subsequences Nil = Cons Nil Nil
-subsequences (Cons x xs) =
-  let subs = subsequences xs in map (Cons x) subs <> subs
+--------------------------------------------------------------------------------
+-- Generating combinations
+--------------------------------------------------------------------------------
 
 -- | Generates all possible combinations of list elements with the number of
--- | elements in each combination not exceeding `k` (no repetitions, no order).
+-- | elements in each combination not exceeding `k`.
+-- |
+-- | This function can use an excessive amount of time and space.
+-- | Running time:
+-- |   for small `k`: approximately `O((n^(k+1) - 1)/(n - 1))` or `O(k*n^k)`
 combinations :: forall (a :: Type). Int -> List a -> List (List a)
-combinations k =
-  List.filter (\x -> List.length x <= k && not (List.null x))
-    <<< subsequences
+combinations k l
+  | k <= zero = mempty
+  | otherwise = combinationsOfSize k l <> combinations (k - 1) l
+
+-- | Generates all combinations of size `k` from elements of a given list.
+-- |
+-- | This function can use an excessive amount of time and space.
+-- | Running time: approximately `O(n^k)` for small `k`
+combinationsOfSize :: forall (a :: Type). Int -> List a -> List (List a)
+combinationsOfSize k l =
+  let
+    n = length l
+    i = n - k + 1
+  in
+    if k <= zero || k > n then Cons Nil Nil
+    else
+      List.concat $ List.zipWith next (List.take i l) (tails i l)
+  where
+  next :: a -> List a -> List (List a)
+  next x = map (Cons x) <<< combinationsOfSize (k - 1)
+
+-- | Returns the list of `k` tail segments of a given list.
+-- |
+-- | Running time: `O(k)`
+tails :: forall (a :: Type). Int -> List a -> List (List a)
+tails k l
+  | k <= 0 = mempty
+  | otherwise =
+      maybe mempty
+        (\{ tail: xs } -> Cons xs $ tails (k - 1) xs)
+        (List.uncons l)
