@@ -1,6 +1,7 @@
 -- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ContractParams`.
 module Contract.Config
   ( testnetConfig
+  , testnetBlockfrostDevConfig
   , testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
@@ -34,7 +35,7 @@ import Ctl.Internal.Contract.QueryBackend
   ( -- TODO Export Blockfrost once the following is stable
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1118
     -- , mkBlockfrostBackendParams
-    QueryBackendParams(CtlBackendParams {-, BlockfrostBackendParams-} )
+    QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
   , mkCtlBackendParams
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -74,6 +75,26 @@ testnetConfig =
       { ogmiosConfig: defaultOgmiosWsConfig
       , kupoConfig: defaultKupoServerConfig
       }
+  , networkId: TestnetId
+  , walletSpec: Nothing
+  , logLevel: Trace
+  , customLogger: Nothing
+  , suppressLogs: false
+  , hooks: emptyHooks
+  }
+
+-- | Blockfrost public preview with CTL as backup
+testnetBlockfrostDevConfig :: Maybe String -> ContractParams
+testnetBlockfrostDevConfig mbApiKey =
+  { backendParams: BlockfrostBackendParams
+      { blockfrostApiKey: mbApiKey
+      , blockfrostConfig: blockfrostPublicPreviewServerConfig
+      }
+      ( Just
+          { ogmiosConfig: defaultOgmiosWsConfig
+          , kupoConfig: defaultKupoServerConfig
+          }
+      )
   , networkId: TestnetId
   , walletSpec: Nothing
   , logLevel: Trace

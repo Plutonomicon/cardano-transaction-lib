@@ -53,7 +53,7 @@ import Contract.PlutusData (class IsData)
 import Contract.ScriptLookups (mkUnbalancedTx)
 import Contract.Scripts (class ValidatorTypes)
 import Contract.TxConstraints (TxConstraints)
-import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
@@ -248,6 +248,7 @@ import Ctl.Internal.Types.VRFKeyHash
   , vrfKeyHashToBytes
   ) as X
 import Data.Array.NonEmpty as NonEmptyArray
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either, hush)
 import Data.Foldable (foldl, length)
@@ -262,7 +263,7 @@ import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
-import Effect.Aff (bracket)
+import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 
@@ -285,7 +286,9 @@ submit
   -> Contract TransactionHash
 submit tx = do
   queryHandle <- getQueryHandle
-  liftedM "Failed to submit tx" $ liftAff $ queryHandle.submitTx $ unwrap tx
+  eiTxHash <- liftAff $ queryHandle.submitTx $ unwrap tx
+  liftEither $ flip lmap eiTxHash \err -> error $
+    "Failed to submit tx:\n" <> show err
 
 -- | Calculate the minimum transaction fee.
 calculateMinFee

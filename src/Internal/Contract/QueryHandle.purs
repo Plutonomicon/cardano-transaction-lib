@@ -38,7 +38,10 @@ import Ctl.Internal.QueryM.Ogmios
   , CurrentEpoch
   , EraSummaries
   ) as Ogmios
-import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
+import Ctl.Internal.QueryM.Ogmios
+  ( SubmitTxR(SubmitTxSuccess, SubmitFail)
+  , TxEvaluationR
+  )
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
@@ -46,12 +49,16 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
-import Ctl.Internal.Service.Error (ClientError)
+import Ctl.Internal.Service.Blockfrost
+  ( evaluateTx
+  , submitTx
+  ) as Blockfrost
+import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Data.Either (Either)
+import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -70,7 +77,7 @@ type QueryHandle =
   , getChainTip :: Aff Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
   -- TODO Capture errors from all backends
-  , submitTx :: Transaction -> Aff (Maybe TransactionHash)
+  , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: Aff Ogmios.EraSummaries
   }
@@ -80,8 +87,10 @@ getQueryHandle = ask <#> \contractEnv ->
   case contractEnv.backend of
     CtlBackend backend _ ->
       queryHandleForCtlBackend contractEnv backend
-    BlockfrostBackend backend _ ->
-      queryHandleForBlockfrostBackend contractEnv backend
+    BlockfrostBackend backend (Just ctlBackend) -> do
+      let fallback = queryHandleForCtlBackend contractEnv ctlBackend
+      queryHandleForBlockfrostBackend contractEnv backend fallback
+    BlockfrostBackend _ Nothing -> undefined
 
 queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
 queryHandleForCtlBackend contractEnv backend =
@@ -100,8 +109,8 @@ queryHandleForCtlBackend contractEnv backend =
       let txCborBytes = Serialization.toBytes cslTx
       result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes
       case result of
-        SubmitTxSuccess a -> pure $ Just $ wrap a
-        _ -> pure Nothing
+        SubmitTxSuccess a -> pure $ pure $ wrap a
+        SubmitFail err -> pure $ Left $ ClientOtherError $ show err
   , evaluateTx: \tx additionalUtxos -> runQueryM' do
       txBytes <- Serialization.toBytes <$> liftEffect
         (Serialization.convertTransaction tx)
@@ -113,22 +122,20 @@ queryHandleForCtlBackend contractEnv backend =
   runQueryM' = runQueryM contractEnv backend
 
 queryHandleForBlockfrostBackend
-  :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend _ backend =
-  { getDatumByHash: runBlockfrostServiceM' <<< undefined
-  , getScriptByHash: runBlockfrostServiceM' <<< undefined
-  , getUtxoByOref: runBlockfrostServiceM' <<< undefined
-  , isTxConfirmed: runBlockfrostServiceM' <<< undefined
-  , getTxMetadata: runBlockfrostServiceM' <<< undefined
-  , utxosAt: runBlockfrostServiceM' <<< undefined
-  , getChainTip: runBlockfrostServiceM' undefined
-  , getCurrentEpoch: runBlockfrostServiceM' undefined
-  , submitTx: runBlockfrostServiceM' <<< undefined
-  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
-      additionalUtxos
-  , getEraSummaries: runBlockfrostServiceM' undefined
+  :: ContractEnv -> BlockfrostBackend -> QueryHandle -> QueryHandle
+queryHandleForBlockfrostBackend _ backend fallback =
+  { getDatumByHash: fallback.getDatumByHash
+  , getScriptByHash: fallback.getScriptByHash
+  , getUtxoByOref: fallback.getUtxoByOref
+  , isTxConfirmed: fallback.isTxConfirmed
+  , getTxMetadata: fallback.getTxMetadata
+  , utxosAt: fallback.utxosAt
+  , getChainTip: fallback.getChainTip
+  , getCurrentEpoch: fallback.getCurrentEpoch
+  , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
+  , evaluateTx: \tx _ -> runBlockfrostServiceM' $ Blockfrost.evaluateTx tx
+  , getEraSummaries: fallback.getEraSummaries
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM backend
-

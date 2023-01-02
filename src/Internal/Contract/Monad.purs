@@ -61,7 +61,7 @@ import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
@@ -239,6 +239,9 @@ getLedgerConstants logger = case _ of
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
+  -- Temporarily use CtlBackend to get constants
+  BlockfrostBackend _ (Just ctlBackend) -> getLedgerConstants logger
+    (CtlBackend ctlBackend Nothing)
   BlockfrostBackend _ _ -> undefined
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
