@@ -11,19 +11,14 @@ import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Control.Lazy (fix)
-import Ctl.Internal.Helpers (liftEither, race)
+import Ctl.Internal.Helpers (delaySec, liftEither, race)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent)
 import Data.Either (hush, note)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, traverse_)
 import Effect.AVar as AVarSync
-import Effect.Aff
-  ( Aff
-  , Milliseconds(Milliseconds)
-  , delay
-  , launchAff_
-  , throwError
-  )
+import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.AVar as AVar
 import Effect.Class (liftEffect)
 import Effect.Console as Console
@@ -36,20 +31,17 @@ import Toppokki as Toppokki
 -- | React to events raised by the browser
 -- |
 -- | Takes a page and a function which provides you with
--- | a `wait :: Number -> String -> Aff BrowserEvent` function.
--- | `wait` takes timeout in seconds, timeout error message and
--- | returns `Aff` action, wich, when performed, produce you the next `BrowserEvent`
+-- | a `wait` `Aff` action, wich, when performed, produce you the next `BrowserEvent`
+-- | or throws an error
 subscribeToBrowserEvents
   :: Toppokki.Page
-  -> ((Number -> String -> Aff BrowserEvent) -> Aff Unit)
+  -> (Aff BrowserEvent -> Aff Unit)
   -> Aff Unit
 subscribeToBrowserEvents page cont = do
   logs <- liftEffect $ Ref.new ""
   eventAVar <- AVar.empty
 
-  let
-    addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
-    delayS s = delay $ Milliseconds (1000.0 * s)
+  let addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
 
   liftEffect do
     flip Toppokki.onConsole page $
@@ -69,19 +61,9 @@ subscribeToBrowserEvents page cont = do
     -- to the `eventVAar` one by one.
     watcher = fix \this -> do
       getBrowserEvents page >>= traverse_ (_ `AVar.put` eventAVar)
-      delayS 0.5 *> this
+      delaySec (Seconds 0.5) *> this
 
-    handler = cont \timeoutS timeoutError ->
-      race
-        -- "eventAVar consumer site"
-        -- Either provides next `BrowserEvent`, or throws an exception if
-        -- `eventAVar` was killed in `onPageError`` callback
-        (AVar.take eventAVar) $
-        -- Watchdog timer. Will be canceled (by race)
-        -- when `AVar.take eventAVar` completes
-        -- If watchdog is not canceled in `timeuotS` seconds it
-        -- resolves race with an excetion
-        delayS timeoutS *> throwError (error timeoutError)
+    handler = cont $ AVar.take eventAVar
 
   -- Watcher loop, normally, runs forever
   -- Gets resolved by handler or if watcher throws an error

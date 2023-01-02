@@ -13,7 +13,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (liftedM, race, (<</>>))
+import Ctl.Internal.Helpers (delaySec, liftedM, race, raceMany, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
@@ -297,23 +297,33 @@ testPlan opts@{ tests } rt@{ wallets } =
                   , sign: sign extensionId password re
                   }
 
-              subscribeToBrowserEvents page \wait -> do
+              subscribeToBrowserEvents page \waitNextEvent -> do
                 let
                   handler event = do
                     case event of
                       ConfirmAccess -> do
-                        handler =<< race
-                          (someWallet.confirmAccess *> never)
-                          (wait 100.0 nextAfterConfirmAccess)
+                        handler =<< raceMany
+                          [ someWallet.confirmAccess *> never
+                          , waitNextEvent
+                          , delaySec (Seconds 100.0) *>
+                              throwError (error nextAfterConfirmAccess)
+                          ]
                       Sign -> do
-                        handler =<< race
-                          (someWallet.sign *> never)
-                          (wait 100.0 nextAfterSign)
+                        handler =<< raceMany
+                          [ someWallet.sign *> never
+                          , waitNextEvent
+                          , delaySec (Seconds 100.0) *>
+                              throwError (error nextAfterSign)
+                          ]
                       Success -> pure unit
                       Failure err -> throwError $ error $ failureEventReceived
                         err
 
-                handler =<< wait 10.0 noEventsReceived
+                handler =<< raceMany
+                  [ waitNextEvent
+                  , delaySec (Seconds 10.0) *>
+                      throwError (error noEventsReceived)
+                  ]
   where
   noEventsReceived =
     "Timeout reached when trying to connect to CTL Contract running\
@@ -332,17 +342,27 @@ testPlan opts@{ tests } rt@{ wallets } =
 
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents page \wait -> do
+    subscribeToBrowserEvents page \waitNextEvent -> do
       let
 
         handler event =
           case event of
-            ConfirmAccess -> handler =<< wait 10.0 nextAfterConfirmAccess
-            Sign -> handler =<< wait 10.0 nextAfterSign
+            ConfirmAccess -> handler =<< raceMany
+              [ waitNextEvent
+              , delaySec (Seconds 10.0) *> throwError
+                  (error nextAfterConfirmAccess)
+              ]
+            Sign -> handler =<< raceMany
+              [ waitNextEvent
+              , delaySec (Seconds 10.0) *> throwError (error nextAfterSign)
+              ]
             Success -> pure unit
             Failure err -> throwError $ error $ failureEventReceived err
 
-      handler =<< wait 10.0 noEventsReceived
+      handler =<< raceMany
+        [ waitNextEvent
+        , delaySec (Seconds 10.0) *> throwError (error noEventsReceived)
+        ]
 
 -- | Implements `browser` command.
 runBrowser

@@ -17,7 +17,7 @@ import Prelude
 import Control.Lazy (fix)
 import Control.MonadPlus (guard)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Helpers (liftM, race)
+import Ctl.Internal.Helpers (delaySec, liftM, race)
 import Ctl.Internal.Test.E2E.Types
   ( ExtensionId
   , RunningE2ETest
@@ -31,10 +31,10 @@ import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Effect (Effect)
-import Effect.Aff (Aff, delay, throwError, try)
+import Effect.Aff (Aff, throwError, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Foreign (Foreign, unsafeFromForeign)
@@ -319,9 +319,6 @@ click = wrap "click()"
 
 clickButton :: String -> Toppokki.Page -> Aff Unit
 clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
-
-delaySec :: Seconds -> Aff Unit
-delaySec (Seconds seconds) = delay $ Milliseconds (seconds * 1000.0)
 
 -- | Inject jQuery into a running page
 injectJQuery :: Toppokki.Page -> String -> Aff Unit
