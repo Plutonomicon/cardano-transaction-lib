@@ -16,6 +16,8 @@ data GetTxMetadataError
   | GetTxMetadataMetadataEmptyOrMissingError
   | GetTxMetadataClientError ClientError
 
+derive instance Eq GetTxMetadataError
+
 instance Show GetTxMetadataError where
   show = case _ of
     GetTxMetadataTxNotFoundError ->

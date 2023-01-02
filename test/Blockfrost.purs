@@ -37,7 +37,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Mote (group, test)
 import Node.Process (argv)
-import Test.Spec.Assertions (fail, shouldEqual)
+import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Blockfrost --exec-args PREVIEW_API_KEY`
@@ -172,24 +172,14 @@ testPlan backend = group "Blockfrost" do
       test "getTxMetadata" do
         eMetadata <- runBlockfrostServiceM backend $ getTxMetadata
           (fixtureHash fixture)
-        case fixture of
-          TxWithMetadata { metadata } -> case eMetadata of
-            Right metadata' -> metadata' `shouldEqual` metadata
-            unexpected -> fail $ show unexpected <> " ≠ (Right ("
-              <> show metadata
-              <> "))"
-          TxWithNoMetadata _ -> case eMetadata of
-            Left GetTxMetadataMetadataEmptyOrMissingError -> pure unit
-            unexpected -> fail $ show unexpected <>
-              " ≠ (Left GetTxMetadataMetadataEmptyOrMissingError)"
-          UnconfirmedTx _ -> case eMetadata of
-            Left GetTxMetadataTxNotFoundError -> pure unit
-            unexpected -> fail $ show unexpected <>
-              " ≠ (Left GetTxMetadataTxNotFoundError)"
+        eMetadata `shouldEqual` case fixture of
+          TxWithMetadata { metadata } -> Right metadata
+          TxWithNoMetadata _ -> Left GetTxMetadataMetadataEmptyOrMissingError
+          UnconfirmedTx _ -> Left GetTxMetadataTxNotFoundError
       test "isTxConfirmed" do
-        eConfirmed <- runBlockfrostServiceM backend $ isTxConfirmed
-          (fixtureHash fixture)
-        confirmed <- liftEither (lmap (error <<< show) eConfirmed)
+        eConfirmed <- runBlockfrostServiceM backend $ isTxConfirmed $
+          fixtureHash fixture
+        confirmed <- liftEither $ lmap (error <<< show) eConfirmed
         confirmed `shouldEqual` case fixture of
           TxWithMetadata _ -> true
           TxWithNoMetadata _ -> true
