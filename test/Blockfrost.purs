@@ -47,11 +47,10 @@ main = do
   launchAff_ do
     interpretWithConfig
       defaultConfig { exit = true }
-      ( testPlan
+      $ testPlan
           { blockfrostConfig: blockfrostPublicPreviewServerConfig
           , blockfrostApiKey: Just apiKey
           }
-      )
 
 data Fixture
   = TxWithMetadata
