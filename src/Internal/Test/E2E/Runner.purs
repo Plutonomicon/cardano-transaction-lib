@@ -13,7 +13,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (liftedM, (<</>>))
+import Ctl.Internal.Helpers (liftedM, race, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
@@ -94,7 +94,7 @@ import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Canceler(Canceler), makeAff, throwError)
+import Effect.Aff (Aff, Canceler(Canceler), makeAff, never, throwError)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
@@ -299,14 +299,16 @@ testPlan opts@{ tests } rt@{ wallets } =
 
               subscribeToBrowserEvents page \wait -> do
                 let
-                  handler event =
+                  handler event = do
                     case event of
                       ConfirmAccess -> do
-                        someWallet.confirmAccess
-                        handler =<< wait 10.0 nextAfterConfirmAccess
+                        handler =<< race
+                          (someWallet.confirmAccess *> never)
+                          (wait 100.0 nextAfterConfirmAccess)
                       Sign -> do
-                        someWallet.sign
-                        handler =<< wait 10.0 nextAfterSign
+                        handler =<< race
+                          (someWallet.sign *> never)
+                          (wait 100.0 nextAfterSign)
                       Success -> pure unit
                       Failure err -> throwError $ error $ failureEventReceived
                         err

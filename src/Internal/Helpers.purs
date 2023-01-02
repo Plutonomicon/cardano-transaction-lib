@@ -26,6 +26,7 @@ module Ctl.Internal.Helpers
   , maybeArrayMerge
   , mkErrorRecord
   , notImplemented
+  , race
   , showWithParens
   , tagProp
   , uIntToBigInt
@@ -34,13 +35,13 @@ module Ctl.Internal.Helpers
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
-import Control.Monad.Error.Class (class MonadError, throwError)
+import Control.Monad.Error.Class (class MonadError, throwError, try)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (ltraverse)
-import Data.Either (Either(Right), either)
+import Data.Either (Either(Left, Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
@@ -60,6 +61,8 @@ import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
+import Effect.Aff (Aff, bracket, error, forkAff, killFiber)
+import Effect.Aff.AVar as AVar
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
@@ -282,3 +285,29 @@ concatPaths a b =
   right = fromMaybe b (stripPrefix (Pattern "/") b)
 
 infixr 5 concatPaths as <</>> -- </> is taken
+
+-- | Runs two `Aff` actions concurrently
+-- | Get resolved by the first which either resolves or throws
+-- | Expected properties:
+-- | race x y = race y x
+-- | race x (race y z) = race (race x y) z
+-- | race never x = x
+race :: forall (a :: Type). Aff a -> Aff a -> Aff a
+race f g = bracket acquire dispose \{ sync } -> AVar.take sync
+  where
+  acquire = do
+    sync <- AVar.empty
+    let
+      worker h =
+        try h >>= case _ of
+          Right a -> void $ AVar.tryPut a sync
+          Left e -> AVar.kill e sync
+
+    fib1 <- forkAff $ worker f
+    fib2 <- forkAff $ worker g
+    pure { sync, fib1, fib2 }
+
+  dispose { fib1, fib2 } = do
+    let err = error "dispose"
+    killFiber err fib1
+    killFiber err fib2

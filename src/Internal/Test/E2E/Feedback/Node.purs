@@ -10,22 +10,19 @@ module Ctl.Internal.Test.E2E.Feedback.Node
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
-import Ctl.Internal.Helpers (liftEither)
+import Control.Lazy (fix)
+import Ctl.Internal.Helpers (liftEither, race)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent)
-import Data.Either (Either(Left, Right), hush, note)
+import Data.Either (hush, note)
 import Data.Traversable (for, traverse_)
 import Effect.AVar as AVarSync
 import Effect.Aff
   ( Aff
   , Milliseconds(Milliseconds)
   , delay
-  , finally
-  , forkAff
-  , killFiber
   , launchAff_
-  , supervise
-  , try
+  , throwError
   )
 import Effect.Aff.AVar as AVar
 import Effect.Class (liftEffect)
@@ -41,7 +38,7 @@ import Toppokki as Toppokki
 -- | Takes a page and a function which provides you with
 -- | a `wait :: Number -> String -> Aff BrowserEvent` function.
 -- | `wait` takes timeout in seconds, timeout error message and
--- | returns `Aff` action, wich, when performed produce you a `BrowserEvent`
+-- | returns `Aff` action, wich, when performed, produce you the next `BrowserEvent`
 subscribeToBrowserEvents
   :: Toppokki.Page
   -> ((Number -> String -> Aff BrowserEvent) -> Aff Unit)
@@ -67,47 +64,28 @@ subscribeToBrowserEvents page cont = do
         let errStr = "Page error occured: " <> message err <> "\n" <> allLogs
         AVarSync.kill (error errStr) eventAVar
 
-  -- Watcher loop. Will be killed when `cont` completes.
-  --
-  -- Asyncronously gets browser events and pushes
-  -- to the `eventVAar` one by one.
-  --
-  -- In case of am exception in loop, kills the AVar with this
-  -- exception.
-  -- This exception expected to be rethrown on AVar cosumer's site
-  watcher <- forkAff do
-    let
-      loop = do
-        getBrowserEvents page >>= traverse_ \e ->
-          AVar.put e eventAVar
+  let
+    -- Asyncronously gets browser events and pushes
+    -- to the `eventVAar` one by one.
+    watcher = fix \this -> do
+      getBrowserEvents page >>= traverse_ (_ `AVar.put` eventAVar)
+      delayS 0.5 *> this
 
-        delayS 0.5
-        loop
-    try loop >>= case _ of
-      -- It is safe to kill killed AVar
-      Left err -> AVar.kill err eventAVar
-      Right _ -> pure unit
-
-  -- Kill watcher loop once cont completed any way
-  finally (killFiber (error "This should never bubble up") watcher) $
-    cont \timeoutS timeoutError ->
-      supervise do
-        -- Watchdog timer. Will be killed (by supervise)
+    handler = cont \timeoutS timeoutError ->
+      race
+        -- "eventAVar consumer site"
+        -- Either provides next `BrowserEvent`, or throws an exception if
+        -- `eventAVar` was killed in `onPageError`` callback
+        (AVar.take eventAVar) $
+        -- Watchdog timer. Will be canceled (by race)
         -- when `AVar.take eventAVar` completes
+        -- If watchdog is not canceled in `timeuotS` seconds it
+        -- resolves race with an excetion
+        delayS timeoutS *> throwError (error timeoutError)
 
-        -- If watchdog is not killed in timeuotS seconds it
-        -- kills `eventAVar`, with `timeoutError` error.
-        -- Exception expected to be rethrown on AVar cosumer's site
-        -- in this case
-        void $ forkAff $ do
-          delayS timeoutS
-          AVar.kill (error timeoutError) eventAVar
-
-        -- "AVar consumer site"
-        -- Either provides next event, or throws an exception if
-        -- `eventAVar` was killed
-        -- (in either Watchdog or Watcher thread or onPageError callback)
-        AVar.take eventAVar
+  -- Watcher loop, normally, runs forever
+  -- Gets resolved by handler or if watcher throws an error
+  race watcher handler
 
 getBrowserEvents
   :: Toppokki.Page -> Aff (Array BrowserEvent)

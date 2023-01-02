@@ -14,9 +14,10 @@ module Ctl.Internal.Test.E2E.Wallets
 
 import Prelude
 
+import Control.Lazy (fix)
 import Control.MonadPlus (guard)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.Helpers (liftM, race)
 import Ctl.Internal.Test.E2E.Types
   ( ExtensionId
   , RunningE2ETest
@@ -30,10 +31,10 @@ import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Time.Duration (Seconds(Seconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 import Data.Traversable (for, for_)
 import Effect (Effect)
-import Effect.Aff (Aff, delay, try)
+import Effect.Aff (Aff, delay, throwError, try)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Foreign (Foreign, unsafeFromForeign)
@@ -71,32 +72,35 @@ foreign import pageUrl :: Toppokki.Page -> Effect String
 -- | Wait until the wallet page pops up. Timout should be at least a few seconds.
 waitForWalletPage
   :: Pattern -> Seconds -> Toppokki.Browser -> Aff Toppokki.Page
-waitForWalletPage pattern timeout browser =
-  findWalletPage pattern browser >>= case _ of
-    Nothing -> do
-      if timeout > Seconds 0.0 then do
-        delaySec 0.1
-        waitForWalletPage pattern (Seconds $ unwrap timeout - 0.1) browser
-      else liftEffect $ throw $
+waitForWalletPage pattern timeout browser = do
+  let
+    timeoutError = do
+      delaySec timeout
+      throwError $ error $
         "Wallet popup did not open. Did you provide extension ID correctly? "
           <> "Provided pattern: "
           <> unwrap pattern
-    Just page -> pure page
+
+  race timeoutError $
+    fix \this -> findWalletPage pattern browser >>= case _ of
+      Nothing -> delaySec (Seconds 0.1) *> this
+      Just page -> pure page
 
 waitForWalletPageClose
-  :: Pattern -> Number -> Toppokki.Browser -> Aff Unit
-waitForWalletPageClose pattern timeout browser =
-  findWalletPage pattern browser >>= case _ of
-    Nothing -> do
-      pure unit
-    Just _page -> do
-      if timeout > 0.0 then do
-        delaySec 0.1
-        waitForWalletPageClose pattern (timeout - 0.1) browser
-      else liftEffect $ throw $
+  :: Pattern -> Seconds -> Toppokki.Browser -> Aff Unit
+waitForWalletPageClose pattern timeout browser = do
+  let
+    timeoutError = do
+      delaySec timeout
+      throwError $ error $
         "Wallet popup did not close. Did you provide extension ID correctly? "
           <> "Provided pattern: "
           <> unwrap pattern
+
+  race timeoutError $
+    fix \this -> findWalletPage pattern browser >>= case _ of
+      Nothing -> pure unit
+      Just _page -> delaySec (Seconds 0.1) *> this
 
 -- | Find the wallet extension popup given a URL pattern
 inWalletPage
@@ -140,11 +144,11 @@ eternlConfirmAccess extId re = do
   wasInPage <- isJust <$> inWalletPageOptional extId pattern re
     confirmAccessTimeout
     \page -> do
-      delaySec 1.0
+      delaySec (Seconds 1.0)
       void $ Toppokki.pageWaitForSelector (wrap "span.capitalize") {} page
       clickButton "Connect to Site" page
   when wasInPage do
-    waitForWalletPageClose pattern 10.0 re.browser
+    waitForWalletPageClose pattern (Seconds 10.0) re.browser
   where
   pattern :: Pattern
   pattern = wrap $ unExtensionId extId <> "/www/index.html#/connect/"
@@ -156,7 +160,7 @@ eternlSign extId password re = do
       {}
       page
     -- TODO: why does it require a delay?
-    delaySec 1.0
+    delaySec (Seconds 1.0)
     typeInto (inputType "password") password page
     void $ doJQ (wrap "span.capitalize:contains(\"sign\")") click page
   where
@@ -169,7 +173,7 @@ namiConfirmAccess extId re = do
     confirmAccessTimeout
     (clickButton "Access")
   when wasInPage do
-    waitForWalletPageClose pattern 10.0 re.browser
+    waitForWalletPageClose pattern (Seconds 10.0) re.browser
   where
   pattern :: Pattern
   pattern = wrap $ unExtensionId extId
@@ -201,7 +205,7 @@ geroConfirmAccess extId re = do
       void $ doJQ (inputType "checkbox") click page
       void $ doJQ (buttonWithText "Connect") click page
   when wasInPage do
-    waitForWalletPageClose pattern 10.0 re.browser
+    waitForWalletPageClose pattern (Seconds 10.0) re.browser
   where
   pattern :: Pattern
   pattern = wrap $ unExtensionId extId <> "/index.html?#/connection"
@@ -238,7 +242,7 @@ getJQuery re =
 lodeConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 lodeConfirmAccess extId re = do
   wasOnAccessPage <- inWalletPage pattern re confirmAccessTimeout \page -> do
-    delaySec 0.1
+    delaySec (Seconds 0.1)
     isOnAccessPage <- getJQuery re >>= isJQuerySelectorAvailable
       (buttonWithText "Access")
       page
@@ -247,7 +251,7 @@ lodeConfirmAccess extId re = do
       void $ doJQ (buttonWithText "Access") click page
     pure isOnAccessPage
   when wasOnAccessPage do
-    waitForWalletPageClose pattern 10.0 re.browser
+    waitForWalletPageClose pattern (Seconds 10.0) re.browser
   where
   pattern = Pattern $ unExtensionId extId
 
@@ -263,7 +267,7 @@ lodeSign extId gpassword re = do
     unless isOnSignPage do
       liftEffect $ throw $ "lodeSign: unable to find signing page"
     typeInto (inputType "password") gpassword page
-    delaySec 0.1
+    delaySec (Seconds 0.1)
     clickButton "Approve" page
 
 isJQuerySelectorAvailable :: Selector -> Toppokki.Page -> String -> Aff Boolean
@@ -316,8 +320,8 @@ click = wrap "click()"
 clickButton :: String -> Toppokki.Page -> Aff Unit
 clickButton buttonText = void <$> doJQ (buttonWithText buttonText) click
 
-delaySec :: Number -> Aff Unit
-delaySec seconds = delay $ wrap $ seconds * 1000.0
+delaySec :: Seconds -> Aff Unit
+delaySec (Seconds seconds) = delay $ Milliseconds (seconds * 1000.0)
 
 -- | Inject jQuery into a running page
 injectJQuery :: Toppokki.Page -> String -> Aff Unit
