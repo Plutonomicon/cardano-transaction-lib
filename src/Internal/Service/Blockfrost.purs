@@ -2,7 +2,7 @@ module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
   , BlockfrostCurrentEpoch(BlockfrostCurrentEpoch)
-  -- , BlockfrostProtocolParameters(BlockfrostProtocolParameters)
+  , BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   , runBlockfrostServiceM
   , getCurrentEpoch
   , getProtocolParameters
@@ -155,43 +155,36 @@ instance DecodeAeson a => DecodeAeson (Stringed a) where
   decodeAeson = decodeAeson >=> decodeJsonString >=> Stringed >>> pure
 
 type BlockfrostProtocolParametersRaw =
-  --{ "epoch" :: BigInt
-  { "min_fee_a" :: UInt -- minFeeCoefficient
-  , "min_fee_b" :: UInt -- minFeeConstant
-  , "max_block_size" :: UInt -- maxBlockBodySize
-  , "max_tx_size" :: UInt -- maxTxSize
-  , "max_block_header_size" :: UInt -- maxBlockHeaderSize
-  , "key_deposit" :: Stringed BigInt -- stakeKeyDeposit
-  , "pool_deposit" :: Stringed BigInt -- poolDeposit
-  , "e_max" :: BigInt -- poolRetirementEpochBound
-  , "n_opt" :: UInt -- desiredNumberOfPools
-  , "a0" :: Finite BigNumber -- poolInfluence
-  , "rho" :: Finite BigNumber -- monetaryExpansion
-  , "tau" :: Finite BigNumber -- treasuryExpansion
-  -- Deprecated in Babbage
-  -- , "decentralisation_param"
-  -- , "extra_entropy"
-  , "protocol_major_ver" :: UInt -- protocolVersion.major
-  , "protocol_minor_ver" :: UInt -- protocolVersion.minor 
-  -- Deprecated in Alonzo
-  -- , "min_utxo"
-  , "min_pool_cost" :: Stringed BigInt -- minPoolCost
-  -- , "nonce" :: String -- No ogmios version
+  { "min_fee_a" :: UInt
+  , "min_fee_b" :: UInt
+  , "max_block_size" :: UInt
+  , "max_tx_size" :: UInt
+  , "max_block_header_size" :: UInt
+  , "key_deposit" :: Stringed BigInt
+  , "pool_deposit" :: Stringed BigInt
+  , "e_max" :: BigInt
+  , "n_opt" :: UInt
+  , "a0" :: Finite BigNumber
+  , "rho" :: Finite BigNumber
+  , "tau" :: Finite BigNumber
+  , "protocol_major_ver" :: UInt
+  , "protocol_minor_ver" :: UInt
+  , "min_pool_cost" :: Stringed BigInt
   , "cost_models" ::
       { "PlutusV1" :: { | CostModelV1 }
       , "PlutusV2" :: { | CostModelV2 }
       }
-  , "price_mem" :: Finite BigNumber -- prices.memory
-  , "price_step" :: Finite BigNumber -- prices.steps
-  , "max_tx_ex_mem" :: Stringed BigInt -- maxExecutionUnitsPerTransaction.memory
-  , "max_tx_ex_steps" :: Stringed BigInt -- maxExecutionUnitsPerTransaction.steps
-  , "max_block_ex_mem" :: Stringed BigInt -- maxExecutionUnitsPerBlock.memory
-  , "max_block_ex_steps" :: Stringed BigInt -- maxExecutionUnitsPerBlock.steps
-  , "max_val_size" :: Stringed UInt -- maxValueSize
-  , "collateral_percent" :: UInt -- collateralPercentage
-  , "max_collateral_inputs" :: UInt -- maxCollateralInputs
-  , "coins_per_utxo_size" :: Maybe (Stringed BigInt) -- coinsPerUtxoByte
-  , "coins_per_utxo_word" :: Maybe (Stringed BigInt) -- coinsPerUtxoWord
+  , "price_mem" :: Finite BigNumber
+  , "price_step" :: Finite BigNumber
+  , "max_tx_ex_mem" :: Stringed BigInt
+  , "max_tx_ex_steps" :: Stringed BigInt
+  , "max_block_ex_mem" :: Stringed BigInt
+  , "max_block_ex_steps" :: Stringed BigInt
+  , "max_val_size" :: Stringed UInt
+  , "collateral_percent" :: UInt
+  , "max_collateral_inputs" :: UInt
+  , "coins_per_utxo_size" :: Maybe (Stringed BigInt)
+  , "coins_per_utxo_word" :: Maybe (Stringed BigInt)
   }
 
 bigNumberToRational :: BigNumber -> Maybe Rational
