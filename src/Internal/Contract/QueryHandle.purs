@@ -44,9 +44,11 @@ import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
-  , getCurrentEpoch
   , runBlockfrostServiceM
   )
+import Ctl.Internal.Service.Blockfrost
+  ( getCurrentEpoch
+  ) as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
@@ -123,7 +125,7 @@ queryHandleForBlockfrostBackend _ backend =
   , getTxMetadata: runBlockfrostServiceM' <<< undefined
   , utxosAt: runBlockfrostServiceM' <<< undefined
   , getChainTip: runBlockfrostServiceM' undefined
-  , getCurrentEpoch: undefined $ runBlockfrostServiceM' getCurrentEpoch
+  , getCurrentEpoch: undefined $ runBlockfrostServiceM' Blockfrost.getCurrentEpoch
   , submitTx: runBlockfrostServiceM' <<< undefined
   , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
       additionalUtxos

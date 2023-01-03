@@ -57,6 +57,7 @@ module Ctl.Internal.QueryM.Ogmios
   , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
+  , convertCostModel
   , evaluateTxCall
   , queryPoolIdsCall
   , mempoolSnapshotHasTxCall
