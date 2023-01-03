@@ -59,7 +59,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
-import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
+import Data.Time.Duration (Seconds, convertDuration)
 import Data.Traversable (traverse)
 import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -309,4 +309,4 @@ raceMany
 raceMany = foldl race never
 
 delaySec :: Seconds -> Aff Unit
-delaySec (Seconds seconds) = delay $ Milliseconds (seconds * 1000.0)
+delaySec seconds = delay $ convertDuration seconds
