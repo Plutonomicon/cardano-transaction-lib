@@ -71,6 +71,7 @@ module Ctl.Internal.QueryM.Ogmios
   , submitTxCall
   , slotLengthFactor
   , parseIpv6String
+  , rationalToSubcoin
   ) where
 
 import Prelude
