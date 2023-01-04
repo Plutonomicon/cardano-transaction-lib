@@ -46,6 +46,7 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
@@ -115,8 +116,8 @@ queryHandleForCtlBackend contractEnv backend =
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
 queryHandleForBlockfrostBackend _ backend =
-  { getDatumByHash: runBlockfrostServiceM' <<< undefined
-  , getScriptByHash: runBlockfrostServiceM' <<< undefined
+  { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
+  , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
   , getUtxoByOref: runBlockfrostServiceM' <<< undefined
   , isTxConfirmed: runBlockfrostServiceM' <<< undefined
   , getTxMetadata: runBlockfrostServiceM' <<< undefined
