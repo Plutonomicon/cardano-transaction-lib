@@ -20,9 +20,6 @@ import Prelude
 import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
-import Data.Bifunctor (lmap)
-import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
-import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -59,9 +56,12 @@ import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart(SystemStart)) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
+import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)

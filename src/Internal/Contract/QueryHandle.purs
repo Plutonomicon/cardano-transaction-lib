@@ -125,7 +125,8 @@ queryHandleForBlockfrostBackend _ backend =
   , getTxMetadata: runBlockfrostServiceM' <<< undefined
   , utxosAt: runBlockfrostServiceM' <<< undefined
   , getChainTip: runBlockfrostServiceM' undefined
-  , getCurrentEpoch: undefined $ runBlockfrostServiceM' Blockfrost.getCurrentEpoch
+  , getCurrentEpoch: undefined $ runBlockfrostServiceM'
+      Blockfrost.getCurrentEpoch
   , submitTx: runBlockfrostServiceM' <<< undefined
   , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
       additionalUtxos

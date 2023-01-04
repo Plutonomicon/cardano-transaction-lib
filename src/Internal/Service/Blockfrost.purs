@@ -10,7 +10,15 @@ module Ctl.Internal.Service.Blockfrost
 
 import Prelude
 
-import Aeson (class DecodeAeson, Finite, JsonDecodeError(..), decodeAeson, decodeJsonString, parseJsonStringToAeson, unpackFinite)
+import Aeson
+  ( class DecodeAeson
+  , Finite
+  , JsonDecodeError(..)
+  , decodeAeson
+  , decodeJsonString
+  , parseJsonStringToAeson
+  , unpackFinite
+  )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
 import Affjax.RequestBody (RequestBody) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
@@ -23,10 +31,21 @@ import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(..))
 import Ctl.Internal.Cardano.Types.Value (Coin(..))
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit(..), CostModelV1, CostModelV2, Epoch(..), ProtocolParameters(..), rationalToSubcoin, convertCostModel)
+import Ctl.Internal.QueryM.Ogmios
+  ( CoinsPerUtxoUnit(..)
+  , CostModelV1
+  , CostModelV2
+  , Epoch(..)
+  , ProtocolParameters(..)
+  , convertCostModel
+  , rationalToSubcoin
+  )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
-import Ctl.Internal.Service.Error (ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError), ServiceError(ServiceBlockfrostError))
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
+  , ServiceError(ServiceBlockfrostError)
+  )
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.Scripts (Language(..))
 import Data.Bifunctor (lmap)
@@ -189,7 +208,8 @@ type BlockfrostProtocolParametersRaw =
 
 bigNumberToRational :: BigNumber -> Maybe Rational
 bigNumberToRational bn = do
-  let (numerator' /\ denominator') = toFraction bn (BigNumber.fromNumber infinity)
+  let
+    (numerator' /\ denominator') = toFraction bn (BigNumber.fromNumber infinity)
   numerator <- BigInt.fromString $ BigNumber.toString numerator'
   denominator <- BigInt.fromString $ BigNumber.toString denominator'
   reduce numerator denominator
@@ -220,8 +240,8 @@ instance DecodeAeson BlockfrostProtocolParameters where
         (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
         pure
         $ (CoinsPerUtxoByte <<< Coin <<< unwrap <$> raw.coins_per_utxo_size) <|>
-          (CoinsPerUtxoWord <<< Coin <<< unwrap <$> raw.coins_per_utxo_word)
-              
+            (CoinsPerUtxoWord <<< Coin <<< unwrap <$> raw.coins_per_utxo_word)
+
     pure $ BlockfrostProtocolParameters $ ProtocolParameters
       { protocolVersion: raw.protocol_major_ver /\ raw.protocol_minor_ver
       -- The following two parameters were removed from Babbage
@@ -247,13 +267,13 @@ instance DecodeAeson BlockfrostProtocolParameters where
           ]
       , prices
       , maxTxExUnits:
-        { mem: unwrap raw.max_tx_ex_mem
-        , steps: unwrap raw.max_tx_ex_steps
-        }
+          { mem: unwrap raw.max_tx_ex_mem
+          , steps: unwrap raw.max_tx_ex_steps
+          }
       , maxBlockExUnits:
-        { mem: unwrap raw.max_block_ex_mem
-        , steps: unwrap raw.max_block_ex_steps
-        }
+          { mem: unwrap raw.max_block_ex_mem
+          , steps: unwrap raw.max_block_ex_steps
+          }
       , maxValueSize: unwrap raw.max_val_size
       , collateralPercent: raw.collateral_percent
       , maxCollateralInputs: raw.max_collateral_inputs
