@@ -4,7 +4,9 @@ module Contract.Time
   , getEraSummaries
   , getSystemStart
   , module Chain
+  , module ExportEraSummaries
   , module ExportOgmios
+  , module ExportSystemStart
   , module Interval
   , module SerializationAddress
   ) where
@@ -24,23 +26,19 @@ import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
-import Ctl.Internal.QueryM.Ogmios
-  ( CurrentEpoch(CurrentEpoch)
-  , EpochLength(EpochLength)
+import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
+import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch)) as ExportOgmios
+import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
+import Ctl.Internal.Types.EraSummaries
+  ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SystemStart(SystemStart)
-  ) as ExportOgmios
-import Ctl.Internal.QueryM.Ogmios
-  ( CurrentEpoch(CurrentEpoch)
-  , EraSummaries
-  , SystemStart
-  )
-import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
+  ) as ExportEraSummaries
+import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -96,6 +94,10 @@ import Ctl.Internal.Types.Interval
   , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
+import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.SystemStart
+  ( SystemStart(SystemStart)
+  ) as ExportSystemStart
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)

@@ -40,9 +40,9 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummary
   , EraSummaryParameters
   )
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.BigInt (toNumber) as BigInt
-import Data.DateTime (DateTime)
 import Data.DateTime.Instant (instant, toDateTime)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
@@ -155,7 +155,7 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
 -- Get blockchain information
 --------------------------------------------------------------------------------
 
-getSystemStart :: BlockfrostServiceM (Either ClientError DateTime)
+getSystemStart :: BlockfrostServiceM (Either ClientError SystemStart)
 getSystemStart = runExceptT do
   (systemStart :: BlockfrostSystemStart) <-
     ExceptT $ handleBlockfrostResponse <$>
@@ -178,7 +178,7 @@ getEraSummaries = runExceptT do
 -- BlockfrostSystemStart
 --------------------------------------------------------------------------------
 
-newtype BlockfrostSystemStart = BlockfrostSystemStart DateTime
+newtype BlockfrostSystemStart = BlockfrostSystemStart SystemStart
 
 derive instance Generic BlockfrostSystemStart _
 derive instance Newtype BlockfrostSystemStart _
@@ -190,7 +190,7 @@ instance DecodeAeson BlockfrostSystemStart where
   decodeAeson = aesonObject \obj -> do
     systemStart <- Seconds <<< BigInt.toNumber <$> getField obj "system_start"
     note (TypeMismatch "Unix timestamp")
-      (wrap <<< toDateTime <$> instant (convertDuration systemStart))
+      (wrap <<< wrap <<< toDateTime <$> instant (convertDuration systemStart))
 
 --------------------------------------------------------------------------------
 -- BlockfrostChainTip

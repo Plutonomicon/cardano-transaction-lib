@@ -270,6 +270,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import MedeaPrelude (mapMaybe)
 import Prelude (join) as Bind
 import Type.Proxy (Proxy(Proxy))
@@ -1051,7 +1052,9 @@ processConstraint mpsMap osMap c = do
     MustIncludeDatum dat -> addDatum dat
     MustValidateIn posixTimeRange -> do
       { systemStart } <- asks _.ledgerConstants
-      eraSummaries <- liftAff $ queryHandle.getEraSummaries
+      eraSummaries <- liftAff $
+        queryHandle.getEraSummaries
+          >>= either (liftEffect <<< throw <<< show) pure
       runExceptT do
         ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
           posixTimeRangeToTransactionValidity eraSummaries

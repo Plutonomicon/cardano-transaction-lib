@@ -1,8 +1,9 @@
 module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
-  , ParContract(ParContract)
   , ContractEnv
   , ContractParams
+  , LedgerConstants
+  , ParContract(ParContract)
   , mkContractEnv
   , runContract
   , runContractInEnv
@@ -52,9 +53,9 @@ import Ctl.Internal.QueryM
   , underlyingWebSocket
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
--- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -150,6 +151,13 @@ runContractInEnv contractEnv =
 -- ContractEnv
 --------------------------------------------------------------------------------
 
+-- `LedgerConstants` contains values that technically may change, but we assume
+-- to be constant during Contract evaluation
+type LedgerConstants =
+  { pparams :: Ogmios.ProtocolParameters
+  , systemStart :: SystemStart
+  }
+
 type ContractEnv =
   { backend :: QueryBackend
   , networkId :: NetworkId
@@ -160,12 +168,7 @@ type ContractEnv =
   , hooks :: Hooks
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
-  -- ledgerConstants are values that technically may change, but we assume to be
-  -- constant during Contract evaluation
-  , ledgerConstants ::
-      { pparams :: Ogmios.ProtocolParameters
-      , systemStart :: Ogmios.SystemStart
-      }
+  , ledgerConstants :: LedgerConstants
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -226,14 +229,8 @@ buildBackend logger = case _ of
       , kupoConfig
       }
 
--- | Query for the ledger constants, ideally using the main backend
-getLedgerConstants
-  :: Logger
-  -> QueryBackend
-  -> Aff
-       { pparams :: Ogmios.ProtocolParameters
-       , systemStart :: Ogmios.SystemStart
-       }
+-- | Query for the ledger constants using the main backend.
+getLedgerConstants :: Logger -> QueryBackend -> Aff LedgerConstants
 getLedgerConstants logger = case _ of
   CtlBackend { ogmios: { ws } } _ -> do
     pparams <- getProtocolParametersAff ws logger

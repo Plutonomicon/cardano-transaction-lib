@@ -73,6 +73,11 @@ instance Show EraSummary where
 -- | time: Time in seconds relative to the start time of the network.
 -- |
 -- | slot: Absolute slot number.
+-- | Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust u64
+-- | which has precision up to 18446744073709551615 (note 385 difference).
+-- | We treat this as neglible instead of defining `AbsSlot BigInt`.
+-- | See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
+-- | for details.
 -- |
 -- | epoch: Epoch number.
 newtype EraSummaryTime = EraSummaryTime

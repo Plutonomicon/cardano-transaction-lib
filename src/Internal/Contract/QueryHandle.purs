@@ -33,11 +33,7 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
-import Ctl.Internal.QueryM.Ogmios
-  ( AdditionalUtxoSet
-  , CurrentEpoch
-  , EraSummaries
-  ) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, CurrentEpoch) as Ogmios
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
@@ -46,12 +42,14 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
+import Ctl.Internal.Service.Blockfrost (getChainTip, getEraSummaries) as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
+import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Data.Either (Either)
+import Data.Either (Either(Right))
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -67,12 +65,12 @@ type QueryHandle =
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
-  , getChainTip :: Aff Chain.Tip
+  , getChainTip :: AffE Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
   -- TODO Capture errors from all backends
   , submitTx :: Transaction -> Aff (Maybe TransactionHash)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
-  , getEraSummaries :: Aff Ogmios.EraSummaries
+  , getEraSummaries :: AffE EraSummaries
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -91,7 +89,7 @@ queryHandleForCtlBackend contractEnv backend =
   , isTxConfirmed: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
   , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
   , utxosAt: runQueryM' <<< Kupo.utxosAt
-  , getChainTip: runQueryM' QueryM.getChainTip
+  , getChainTip: Right <$> runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
   , submitTx: \tx -> runQueryM' do
       cslTx <- liftEffect $ Serialization.convertTransaction tx
@@ -106,7 +104,7 @@ queryHandleForCtlBackend contractEnv backend =
       txBytes <- Serialization.toBytes <$> liftEffect
         (Serialization.convertTransaction tx)
       QueryM.evaluateTxOgmios txBytes additionalUtxos
-  , getEraSummaries: runQueryM' QueryM.getEraSummaries
+  , getEraSummaries: Right <$> runQueryM' QueryM.getEraSummaries
   }
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a
@@ -121,12 +119,12 @@ queryHandleForBlockfrostBackend _ backend =
   , isTxConfirmed: runBlockfrostServiceM' <<< undefined
   , getTxMetadata: runBlockfrostServiceM' <<< undefined
   , utxosAt: runBlockfrostServiceM' <<< undefined
-  , getChainTip: runBlockfrostServiceM' undefined
+  , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
   , getCurrentEpoch: runBlockfrostServiceM' undefined
   , submitTx: runBlockfrostServiceM' <<< undefined
   , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
       additionalUtxos
-  , getEraSummaries: runBlockfrostServiceM' undefined
+  , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
