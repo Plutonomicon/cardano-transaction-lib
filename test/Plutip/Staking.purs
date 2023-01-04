@@ -119,7 +119,7 @@ suite = do
   let
     -- A routine function that filters out retiring pool from the list of available
     -- pools
-    selectPoolId :: Contract () PoolPubKeyHash
+    selectPoolId :: Contract PoolPubKeyHash
     selectPoolId = do
       pools <- getPoolIds
       logInfo' "Pool IDs:"
