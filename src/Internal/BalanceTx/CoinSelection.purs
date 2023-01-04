@@ -30,6 +30,7 @@ import Ctl.Internal.BalanceTx.Error
       )
   , Expected(Expected)
   , ImpossibleError(Impossible)
+  , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass(AssetClass), Coin, Value)
@@ -52,6 +53,7 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexPartition
   , utxoIndexUniverse
   )
+import Ctl.Internal.Plutus.Conversion (toPlutusValue)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -137,7 +139,10 @@ performMultiAssetSelection strategy utxoIndex requiredValue =
   where
   balanceInsufficientError :: BalanceTxError
   balanceInsufficientError =
-    BalanceInsufficientError (Expected requiredValue) (Actual availableValue)
+    BalanceInsufficientError
+      (Expected $ toPlutusValue requiredValue)
+      (Actual $ toPlutusValue availableValue)
+      (InvalidInContext $ toPlutusValue mempty)
 
   availableValue :: Value
   availableValue = balance (utxoIndexUniverse utxoIndex)
