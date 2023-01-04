@@ -242,8 +242,8 @@ getLedgerConstants logger = case _ of
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  BlockfrostBackend blockfrost _ -> do
-    pparams <- runBlockfrostServiceM blockfrost Blockfrost.getProtocolParameters
+  BlockfrostBackend blockfrost _ -> runBlockfrostServiceM blockfrost do
+    pparams <- Blockfrost.getProtocolParameters
       >>= lmap (show >>> error) >>> liftEither
     let
       systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
