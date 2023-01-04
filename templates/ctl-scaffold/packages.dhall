@@ -256,8 +256,8 @@ let additions =
           , "prelude"
           , "tuples"
           ]
-        , repo = "https://github.com/mlabs-haskell/purescript-bignumber"
-        , version = "58c51448be23c05caf51cde45bb3b09cc7169447"
+        , repo = "https://github.com/jy14898/purescript-bignumber"
+        , version = "705923edd892a3397b90d28ce7db9a7181dcd599"
         }
       , cardano-transaction-lib =
         { dependencies =
@@ -273,6 +273,7 @@ let additions =
           , "avar"
           , "bifunctors"
           , "bigints"
+          , "bignumber"
           , "checked-exceptions"
           , "console"
           , "control"

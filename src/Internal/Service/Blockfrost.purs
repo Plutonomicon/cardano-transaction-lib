@@ -190,8 +190,8 @@ type BlockfrostProtocolParametersRaw =
 bigNumberToRational :: BigNumber -> Maybe Rational
 bigNumberToRational bn = do
   let (numerator' /\ denominator') = toFraction bn (BigNumber.fromNumber infinity)
-  numerator <- BigInt.fromString numerator'
-  denominator <- BigInt.fromString denominator'
+  numerator <- BigInt.fromString $ BigNumber.toString numerator'
+  denominator <- BigInt.fromString $ BigNumber.toString denominator'
   reduce numerator denominator
 
 bigNumberToRational' :: BigNumber -> Either JsonDecodeError Rational

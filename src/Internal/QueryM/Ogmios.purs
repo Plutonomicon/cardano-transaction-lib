@@ -1011,6 +1011,7 @@ type ProtocolParametersRaw =
 data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
 
 derive instance Generic CoinsPerUtxoUnit _
+derive instance Eq CoinsPerUtxoUnit
 
 instance Show CoinsPerUtxoUnit where
   show = genericShow
@@ -1046,6 +1047,7 @@ newtype ProtocolParameters = ProtocolParameters
 
 derive instance Newtype ProtocolParameters _
 derive instance Generic ProtocolParameters _
+derive instance Eq ProtocolParameters
 
 instance Show ProtocolParameters where
   show = genericShow

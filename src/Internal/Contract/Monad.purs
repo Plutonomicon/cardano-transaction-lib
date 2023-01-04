@@ -17,8 +17,12 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
+import Data.Bifunctor (lmap)
+import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Control.Monad.Error.Class
   ( class MonadError
   , class MonadThrow
@@ -53,7 +57,7 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart(SystemStart)) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
@@ -71,7 +75,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Contract
@@ -239,7 +242,12 @@ getLedgerConstants logger = case _ of
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  BlockfrostBackend _ _ -> undefined
+  BlockfrostBackend blockfrost _ -> do
+    pparams <- runBlockfrostServiceM blockfrost Blockfrost.getProtocolParameters
+      >>= lmap (show >>> error) >>> liftEither
+    let
+      systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
+    pure { pparams, systemStart }
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.

@@ -199,11 +199,11 @@ let
 
     "bignumber" = pkgs.stdenv.mkDerivation {
         name = "bignumber";
-        version = "58c51448be23c05caf51cde45bb3b09cc7169447";
+        version = "705923edd892a3397b90d28ce7db9a7181dcd599";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-bignumber";
-          rev = "58c51448be23c05caf51cde45bb3b09cc7169447";
-          sha256 = "1q0zyq0ni2vcr99bnxn37ah6f1h3z9mhda4f0549x925mzm25d04";
+          rev = "705923edd892a3397b90d28ce7db9a7181dcd599";
+          sha256 = "0wddkx161xk457r1mb1f1r79l8qgxja0xhdvxjd1ai43nwp9cgkf";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
