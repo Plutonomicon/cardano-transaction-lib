@@ -7,8 +7,11 @@ module Ctl.Internal.Contract.QueryHandle
 import Prelude
 
 import Contract.Log (logDebug')
+import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
+import Effect.Exception (error)
+import Data.Bifunctor (bimap)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
@@ -125,8 +128,9 @@ queryHandleForBlockfrostBackend _ backend =
   , getTxMetadata: runBlockfrostServiceM' <<< undefined
   , utxosAt: runBlockfrostServiceM' <<< undefined
   , getChainTip: runBlockfrostServiceM' undefined
-  , getCurrentEpoch: undefined $ runBlockfrostServiceM'
-      Blockfrost.getCurrentEpoch
+  , getCurrentEpoch:
+      runBlockfrostServiceM' Blockfrost.getCurrentEpoch
+        >>= bimap (show >>> error) wrap >>> liftEither
   , submitTx: runBlockfrostServiceM' <<< undefined
   , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
       additionalUtxos

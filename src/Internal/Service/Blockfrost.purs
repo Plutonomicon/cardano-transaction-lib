@@ -280,9 +280,11 @@ instance DecodeAeson BlockfrostProtocolParameters where
       }
 
 getCurrentEpoch
-  :: BlockfrostServiceM (Either ClientError BlockfrostCurrentEpoch)
-getCurrentEpoch = blockfrostGetRequest GetCurrentEpoch
-  <#> handleBlockfrostResponse
+  :: BlockfrostServiceM (Either ClientError BigInt)
+getCurrentEpoch = runExceptT do
+  BlockfrostCurrentEpoch { epoch } <- ExceptT $ blockfrostGetRequest GetCurrentEpoch
+    <#> handleBlockfrostResponse
+  pure epoch
 
 getProtocolParameters
   :: BlockfrostServiceM (Either ClientError Ogmios.ProtocolParameters)
