@@ -19,13 +19,11 @@ import Contract.Chain
   , Tip(Tip, TipAtGenesis)
   , getTip
   ) as Chain
-import Contract.Monad (Contract)
+import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
-import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as EraSummaries
 import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
 import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch)) as ExportOgmios
 import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
@@ -95,9 +93,7 @@ import Ctl.Internal.Types.Interval
   , upperBound
   ) as Interval
 import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Types.SystemStart
-  ( SystemStart(SystemStart)
-  ) as ExportSystemStart
+import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Data.BigInt as BigInt
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
@@ -113,11 +109,12 @@ getCurrentEpoch = do
     $ BigInt.toString (bigInt :: BigInt.BigInt)
 
 -- | Get `EraSummaries` as used for Slot arithemetic.
--- | Details can be found https://ogmios.dev/api/ under "eraSummaries" query
+-- | Details can be found https://ogmios.dev/api/ under "eraSummaries" query.
 getEraSummaries :: Contract EraSummaries
-getEraSummaries = wrapQueryM EraSummaries.getEraSummaries
+getEraSummaries = do
+  queryHandle <- getQueryHandle
+  liftedE $ liftAff $ queryHandle.getEraSummaries
 
 -- | Get the current system start time.
 getSystemStart :: Contract SystemStart
-getSystemStart =
-  asks $ _.ledgerConstants >>> _.systemStart
+getSystemStart = asks $ _.ledgerConstants >>> _.systemStart

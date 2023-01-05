@@ -55,11 +55,13 @@ import Ctl.Internal.QueryM
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 import Ctl.Internal.QueryM.Ogmios (ProtocolParameters) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Service.Blockfrost (getSystemStart) as Blockfrost
+import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
-import Data.Either (Either(Left, Right), isRight)
+import Data.Either (Either(Left, Right), either, isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), fromMaybe)
@@ -236,7 +238,13 @@ getLedgerConstants logger = case _ of
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  BlockfrostBackend _ _ -> undefined
+  BlockfrostBackend backend _ ->
+    runBlockfrostServiceM backend do
+      pparams <- undefined -- TODO: fetch pparams using Blockfrost
+      systemStart <-
+        Blockfrost.getSystemStart
+          >>= either (liftEffect <<< throw <<< show) pure
+      pure { pparams, systemStart }
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.

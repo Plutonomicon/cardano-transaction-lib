@@ -14,7 +14,6 @@ import Data.BigInt (fromNumber) as BigInt
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (fromDateTime, unInstant)
 import Data.Either (Either, hush)
-import Data.Foldable (length)
 import Data.Formatter.DateTime (Formatter, format, parseFormatString, unformat)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe, fromJust)
