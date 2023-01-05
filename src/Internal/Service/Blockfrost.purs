@@ -93,14 +93,14 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 --------------------------------------------------------------------------------
 
 data BlockfrostEndpoint
-  = GetCurrentEpoch
-  | GetProtocolParams
+  = LatestEpoch
+  | LatestProtocolParameters
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetCurrentEpoch -> "/epochs/latest"
-    GetProtocolParams -> "/epochs/latest/parameters"
+    LatestEpoch -> "/epochs/latest"
+    LatestProtocolParameters -> "/epochs/latest/parameters"
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -282,7 +282,7 @@ instance DecodeAeson BlockfrostProtocolParameters where
 getCurrentEpoch
   :: BlockfrostServiceM (Either ClientError BigInt)
 getCurrentEpoch = runExceptT do
-  BlockfrostCurrentEpoch { epoch } <- ExceptT $ blockfrostGetRequest GetCurrentEpoch
+  BlockfrostCurrentEpoch { epoch } <- ExceptT $ blockfrostGetRequest LatestEpoch
     <#> handleBlockfrostResponse
   pure epoch
 
@@ -290,5 +290,5 @@ getProtocolParameters
   :: BlockfrostServiceM (Either ClientError Ogmios.ProtocolParameters)
 getProtocolParameters = runExceptT do
   BlockfrostProtocolParameters params <- ExceptT $
-    blockfrostGetRequest GetProtocolParams <#> handleBlockfrostResponse
+    blockfrostGetRequest LatestProtocolParameters <#> handleBlockfrostResponse
   pure params
