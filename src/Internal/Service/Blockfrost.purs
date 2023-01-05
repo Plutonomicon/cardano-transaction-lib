@@ -88,14 +88,14 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 --------------------------------------------------------------------------------
 
 data BlockfrostEndpoint
-  = GetTransaction TransactionHash
-  | GetTransactionMetadata TransactionHash
+  = Transaction TransactionHash
+  | TransactionMetadata TransactionHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetTransaction txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
-    GetTransactionMetadata txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
+    Transaction txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
+    TransactionMetadata txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
       <> "/metadata/cbor"
 
 dummyExport :: Unit -> Unit
@@ -159,7 +159,7 @@ isTxConfirmed
   :: TransactionHash
   -> BlockfrostServiceM (Either ClientError Boolean)
 isTxConfirmed txHash = do
-  response <- blockfrostGetRequest $ GetTransaction txHash
+  response <- blockfrostGetRequest $ Transaction txHash
   pure case handleBlockfrostResponse response of
     Right (_ :: Aeson) -> Right true
     Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
@@ -169,7 +169,7 @@ getTxMetadata
   :: TransactionHash
   -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
 getTxMetadata txHash = do
-  response <- blockfrostGetRequest (GetTransactionMetadata txHash)
+  response <- blockfrostGetRequest (TransactionMetadata txHash)
   pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
     Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
       Left GetTxMetadataTxNotFoundError
