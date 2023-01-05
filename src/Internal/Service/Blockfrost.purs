@@ -89,6 +89,8 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 
 data BlockfrostEndpoint
   = Transaction TransactionHash
+  -- TODO Check if /txs/{txhash}/metadata/cbor is paginated.
+  --      Documentation suggests it both is and isn't.
   | TransactionMetadata TransactionHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
