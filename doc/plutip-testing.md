@@ -199,12 +199,12 @@ Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses
 
 `Contract.Test.Utils` module provides a DSL for assertions that accumulate error messages, instead of exiting early after the first failure.
 
-The interpreter is `withAssertions` function, that accepts two arrays for two kinds of assertions:
+The interpreter is `withAssertions` function, that accepts two kinds of assertions:
 
-- `ContractBasicAssertion` is simply executed at the end of `Contract` lifetime
+- `ContractBasicAssertion` is simply executed at the end of the `Contract` lifetime and only needs the result of the `Сontract`
 - `ContractWrapAssertion` can inspect the state both before and after `Contract` execution, allowing to monitor for effects, e.g. monetary gains/losses at address
 
-`withAssertions` supports both of them via a `ContractAssertions` typeclass:
+`withAssertions` allows mixing both of them via a `ContractAssertions` typeclass:
 
 ```purescript
 withAssertions
