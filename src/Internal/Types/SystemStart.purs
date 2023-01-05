@@ -14,11 +14,13 @@ import Data.BigInt (fromNumber) as BigInt
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (fromDateTime, unInstant)
 import Data.Either (Either, hush)
+import Data.Foldable (length)
 import Data.Formatter.DateTime (Formatter, format, parseFormatString, unformat)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.String (length, take) as String
 import Partial.Unsafe (unsafePartial)
 
 newtype SystemStart = SystemStart DateTime
@@ -37,24 +39,37 @@ sysStartUnixTime (SystemStart dateTime) =
 
 -- | Attempts to parse `SystemStart` from Ogmios timestamp string.
 sysStartFromOgmiosTimestamp :: String -> Either String SystemStart
-sysStartFromOgmiosTimestamp timestamp =
-  wrap <$> -- FIXME: Unit test with Ogmios fixtures fails.
-    ( unformat ogmiosDateTimeFormatterMsec timestamp
-        <|> unformat ogmiosDateTimeFormatterSec timestamp
-    )
+sysStartFromOgmiosTimestamp timestamp = wrap <$> (unformatMsec <|> unformatSec)
+  where
+  unformatMsec :: Either String DateTime
+  unformatMsec = unformat
+    (mkDateTimeFormatterUnsafe ogmiosDateTimeFormatStringMsec)
+    (String.take (String.length ogmiosDateTimeFormatStringMsec) timestamp)
+
+  unformatSec :: Either String DateTime
+  unformatSec = unformat
+    (mkDateTimeFormatterUnsafe ogmiosDateTimeFormatStringSec)
+    (String.take (String.length ogmiosDateTimeFormatStringSec) timestamp)
 
 sysStartFromOgmiosTimestampUnsafe :: String -> SystemStart
 sysStartFromOgmiosTimestampUnsafe timestamp =
   unsafePartial fromJust $ hush $ sysStartFromOgmiosTimestamp timestamp
 
 sysStartToOgmiosTimestamp :: SystemStart -> String
-sysStartToOgmiosTimestamp = format ogmiosDateTimeFormatterMsec <<< unwrap
+sysStartToOgmiosTimestamp =
+  format (mkDateTimeFormatterUnsafe ogmiosDateTimeFormatStringMsecUTC)
+    <<< unwrap
 
-ogmiosDateTimeFormatterSec :: Formatter
-ogmiosDateTimeFormatterSec =
-  unsafePartial fromJust $ hush $ parseFormatString "YYYY-MM-DDTHH:mm:ssZ"
+mkDateTimeFormatterUnsafe :: String -> Formatter
+mkDateTimeFormatterUnsafe =
+  unsafePartial fromJust <<< hush <<< parseFormatString
 
-ogmiosDateTimeFormatterMsec :: Formatter
-ogmiosDateTimeFormatterMsec =
-  unsafePartial fromJust $ hush $ parseFormatString "YYYY-MM-DDTHH:mm:ss.SSSZ"
+ogmiosDateTimeFormatStringSec :: String
+ogmiosDateTimeFormatStringSec = "YYYY-MM-DDTHH:mm:ss"
+
+ogmiosDateTimeFormatStringMsec :: String
+ogmiosDateTimeFormatStringMsec = ogmiosDateTimeFormatStringSec <> ".SSS"
+
+ogmiosDateTimeFormatStringMsecUTC :: String
+ogmiosDateTimeFormatStringMsecUTC = ogmiosDateTimeFormatStringMsec <> "Z"
 
