@@ -152,7 +152,7 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 handle404AsNothing
-  :: forall x. Either ClientError (Maybe x) -> Either ClientError (Maybe x)
+  :: forall (x :: Type). Either ClientError (Maybe x) -> Either ClientError (Maybe x)
 handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
   Right Nothing
 handle404AsNothing x = x
@@ -227,14 +227,13 @@ instance DecodeAeson BlockfrostScriptLanguage where
       Left $ TypeMismatch $
         "language: expected 'native' or 'plutusV{1|2}', got: " <> invalid
 
--- Do not parse fields other than `type`, cuz we do not need them yet
+-- Do not parse fields other than `type` because we do not need them yet
 data BlockfrostScriptInfo = BlockfrostScriptInfo
   { type :: BlockfrostScriptLanguage }
 
 instance DecodeAeson BlockfrostScriptInfo where
   decodeAeson aeson = do
-    mType <- aesonObject (flip getFieldOptional "type") aeson
-    type_ <- note (AtKey "type" MissingValue) mType
+    type_ <- aesonObject (flip getField "type") aeson
     pure $ BlockfrostScriptInfo { type: type_ }
 
 scriptInfoType :: BlockfrostScriptInfo -> BlockfrostScriptLanguage
