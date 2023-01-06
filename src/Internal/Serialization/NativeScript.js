@@ -6,6 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("csl-runtime-gc")(lib);
 
 const mkScript = prop => arg => lib.NativeScript[prop](arg);
 

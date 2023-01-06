@@ -8,6 +8,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-message-signing-nodejs");
   csl = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("csl-runtime-gc")(lib);
 
 function opt_chain(maybe, obj) {
   const isNothing = x => x === null || x === undefined;

@@ -9,6 +9,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
   apply_args = require("apply-args-nodejs");
 }
+lib = require("csl-runtime-gc")(lib);
 
 /**
  * @param {} left
