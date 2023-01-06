@@ -13,6 +13,7 @@
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
+- [CTL/Plutip utilities for testing](#ctlplutip-utilities-for-testing)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Architecture
@@ -193,3 +194,34 @@ let
 Although stake keys serve no real purpose in plutip context, they allow to use base addresses, and thus allow to have the same code for plutip testing, in-browser tests and production.
 
 Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
+
+## CTL/Plutip utilities for testing
+
+`Contract.Test.Utils` module provides a DSL for assertions that accumulate error messages, instead of exiting early after the first failure.
+
+The interpreter is `withAssertions` function, that accepts two kinds of assertions:
+
+- `ContractBasicAssertion` is simply executed at the end of the `Contract` lifetime and only needs the result of the `Сontract`
+- `ContractWrapAssertion` can inspect the state both before and after `Contract` execution, allowing to monitor for effects, e.g. monetary gains/losses at address
+
+`withAssertions` allows mixing both of them via a `ContractAssertions` typeclass:
+
+```purescript
+withAssertions
+  :: forall (r :: Row Type) (a :: Type) (assertions :: Type)
+   . ContractAssertions assertions r a
+  => assertions
+  -> Contract r a
+  -> Contract r a
+```
+
+The typeclass allows to combine multiple assertions using `Array`s and `Tuple`s. For example, `assertions` type variable from the snippet above can be instantiated with something like this:
+
+```purescript
+Array (ContractWrapAssertion () ContractResult)
+  /\ Array (ContractBasicAssertion () ContractResult Unit)
+```
+
+Particular values can be constructed with utility functions, as demonstrated in the [ContractTestUtils example](../examples/ContractTestUtils.purs) (see `mkAssertions`).
+
+All the functions require `Labeled` arguments, that can be constructed with `label` function; or `noLabel`, if descriptive names in error messages are not needed.

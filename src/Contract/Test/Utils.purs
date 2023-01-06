@@ -357,6 +357,8 @@ valueAtAddress
 valueAtAddress =
   map (foldMap (view (_output <<< _amount))) <<< utxosAtAddress
 
+-- | Assert anything about `Value`s before and after `Contract` execution, as
+-- | well as the `Contract` output `w`.
 checkBalanceDeltaAtAddress
   :: forall (r :: Row Type) (w :: Type) (a :: Type)
    . Labeled Address
@@ -370,6 +372,7 @@ checkBalanceDeltaAtAddress addr contract check = do
   valueAfter <- valueAtAddress addr
   check res valueBefore valueAfter
 
+-- | Assert anything about newly appeared UTxOs at address.
 checkNewUtxosAtAddress
   :: forall (r :: Row Type) (w :: Type) (a :: Type)
    . Labeled Address
@@ -381,6 +384,11 @@ checkNewUtxosAtAddress addr txHash check =
     check $ Array.fromFoldable $ Map.values $
       Map.filterKeys (\oref -> (unwrap oref).transactionId == txHash) utxos
 
+-- | Assert that Ada delta (`after - before`) satisfies a predicate.
+-- | Once the *actual difference* is computed, it is passed as the first
+-- | parameter to the predicate.
+-- | The *expected difference* is retrieved using the second parameter of this
+-- | function, and is passed as the second parameter to the predicate.
 assertLovelaceDeltaAtAddress
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
@@ -443,6 +451,11 @@ assertLossAtAddress'
 assertLossAtAddress' addr minLoss =
   assertLossAtAddress addr (const $ pure minLoss)
 
+-- | Assert that token delta (`after - before`) satisfies a predicate.
+-- | Once the *actual difference* is computed, it is passed as the first
+-- | parameter to the predicate.
+-- | The *expected difference* is retrieved using the third parameter of this
+-- | function, and is passed as the second parameter to the predicate.
 assertTokenDeltaAtAddress
   :: forall (r :: Row Type) (a :: Type)
    . Labeled Address
@@ -632,8 +645,8 @@ checkTxHasMetadata txHash =
 
 foreign import exitCode :: Int -> Effect Unit
 
--- | attaches a custom handler on SIGINt to kill the fiber.
--- | see `doc/plutip-testing#custom-SIGINT-handlers`
+-- | Attaches a custom handler on SIGINt to kill the fiber.
+-- | see https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#note-on-sigint
 interruptOnSignal :: forall a. Signal -> Fiber a -> Effect Unit
 interruptOnSignal signal fiber = Process.onSignal signal do
   launchAff_ do
