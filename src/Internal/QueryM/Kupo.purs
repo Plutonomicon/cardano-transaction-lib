@@ -14,8 +14,6 @@ import Aeson
   ( class DecodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonArray
-  , caseAesonObject
   , decodeAeson
   , getField
   , getFieldOptional
@@ -29,7 +27,6 @@ import Control.Bind (bindFlipped)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )

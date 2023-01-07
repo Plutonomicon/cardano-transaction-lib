@@ -11,7 +11,7 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch, AtKey, MissingValue)
+  , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , getField
   , getFieldOptional
@@ -41,7 +41,6 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
-import Ctl.Internal.Deserialization.NativeScript (decodeNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Serialization.Hash
   ( ScriptHash
@@ -55,7 +54,6 @@ import Ctl.Internal.Service.Error
   )
 import Ctl.Internal.Service.Helpers (aesonObject, aesonString)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
@@ -63,7 +61,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -102,7 +100,7 @@ data BlockfrostEndpoint
   -- /scripts/{script_hash}
   | GetScriptInfo ScriptHash
   -- /scripts/{script_hash}/cbor
-  | GetScriptCbor ScriptHash
+  | GetPlutusScriptCborByHash ScriptHash
   -- /scripts/{script_hash}/json
   | GetNativeScriptByHash ScriptHash
 
@@ -113,7 +111,7 @@ realizeEndpoint endpoint =
       "/scripts/datum/" <> byteArrayToHex hashBytes <> "/cbor"
     GetScriptInfo scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
-    GetScriptCbor scriptHash ->
+    GetPlutusScriptCborByHash scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
     GetNativeScriptByHash scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/json"
@@ -180,6 +178,10 @@ handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
   Right Nothing
 handle404AsNothing x = x
 
+--------------------------------------------------------------------------------
+-- Get datum by hash
+--------------------------------------------------------------------------------
+
 getDatumByHash
   :: DataHash -> BlockfrostServiceM (Either ClientError (Maybe Datum))
 getDatumByHash dataHash = do
@@ -187,38 +189,89 @@ getDatumByHash dataHash = do
   pure $ handle404AsNothing $ unwrapBlockfrostDatum <$> handleBlockfrostResponse
     response
 
-getScriptInfo
-  :: ScriptHash
-  -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
-getScriptInfo scriptHash = do
-  response <- blockfrostGetRequest (GetScriptInfo scriptHash)
-  pure $ handle404AsNothing $ handleBlockfrostResponse response
+--------------------------------------------------------------------------------
+-- Get script by hash
+--------------------------------------------------------------------------------
 
 getScriptByHash
-  :: ScriptHash -> BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
+  :: ScriptHash
+  -> BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = runExceptT $ runMaybeT do
-  info <- MaybeT $ ExceptT $ getScriptInfo scriptHash
-  cbor <- MaybeT $ ExceptT $ do
-    response <- blockfrostGetRequest (GetScriptCbor scriptHash)
-    pure $ handle404AsNothing $ unwrapBlockfrostCbor <$>
-      handleBlockfrostResponse response
-  let
-    script = lmap (ClientDecodeJsonError "Error decoding script") $
-      wrapScriptType (scriptInfoType info) cbor
-  MaybeT $ ExceptT $ pure $ Just <$> script
+  scriptInfo <- MaybeT $ ExceptT getScriptInfo
+  case scriptLanguage scriptInfo of
+    NativeScript ->
+      NativeScriptRef <$>
+        (MaybeT $ ExceptT getNativeScriptByHash)
+    PlutusV1Script ->
+      PlutusScriptRef <$> plutusV1Script <$>
+        (MaybeT $ ExceptT getPlutusScriptCborByHash)
+    PlutusV2Script ->
+      PlutusScriptRef <$> plutusV2Script <$>
+        (MaybeT $ ExceptT getPlutusScriptCborByHash)
   where
-  wrapScriptType scriptType x = case scriptType of
-    NativeScript -> NativeScriptRef <$> decodeNativeScript x
-    PlutusV1Script -> pure $ PlutusScriptRef $ plutusV1Script x
-    PlutusV2Script -> pure $ PlutusScriptRef $ plutusV2Script x
-
-getNativeScriptByHash
-  :: ScriptHash -> BlockfrostServiceM (Either ClientError (Maybe NativeScript))
-getNativeScriptByHash scriptHash = runExceptT do
-  (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
-    response <- blockfrostGetRequest (GetNativeScriptByHash scriptHash)
+  getScriptInfo
+    :: BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
+  getScriptInfo = do
+    response <- blockfrostGetRequest (GetScriptInfo scriptHash)
     pure $ handle404AsNothing $ handleBlockfrostResponse response
-  pure $ unwrap <$> nativeScript
+
+  getNativeScriptByHash
+    :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
+  getNativeScriptByHash = runExceptT do
+    (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
+      response <- blockfrostGetRequest (GetNativeScriptByHash scriptHash)
+      pure $ handle404AsNothing $ handleBlockfrostResponse response
+    pure $ unwrap <$> nativeScript
+
+  getPlutusScriptCborByHash
+    :: BlockfrostServiceM (Either ClientError (Maybe ByteArray))
+  getPlutusScriptCborByHash = runExceptT do
+    (plutusScriptCbor :: Maybe BlockfrostCbor) <- ExceptT do
+      response <- blockfrostGetRequest (GetPlutusScriptCborByHash scriptHash)
+      pure $ handle404AsNothing $ handleBlockfrostResponse response
+    pure $ join $ unwrap <$> plutusScriptCbor
+
+--------------------------------------------------------------------------------
+-- BlockfrostScriptLanguage
+--------------------------------------------------------------------------------
+
+data BlockfrostScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
+
+derive instance Generic BlockfrostScriptLanguage _
+
+instance Show BlockfrostScriptLanguage where
+  show = genericShow
+
+instance DecodeAeson BlockfrostScriptLanguage where
+  decodeAeson = aesonString $ case _ of
+    "native" -> pure NativeScript
+    "plutusV1" -> pure PlutusV1Script
+    "plutusV2" -> pure PlutusV2Script
+    invalid ->
+      Left $ TypeMismatch $
+        "language: expected 'native' or 'plutusV{1|2}', got: " <> invalid
+
+--------------------------------------------------------------------------------
+-- BlockfrostScriptInfo
+--------------------------------------------------------------------------------
+
+newtype BlockfrostScriptInfo = BlockfrostScriptInfo
+  { language :: BlockfrostScriptLanguage
+  }
+
+scriptLanguage :: BlockfrostScriptInfo -> BlockfrostScriptLanguage
+scriptLanguage = _.language <<< unwrap
+
+derive instance Generic BlockfrostScriptInfo _
+derive instance Newtype BlockfrostScriptInfo _
+
+instance Show BlockfrostScriptInfo where
+  show = genericShow
+
+instance DecodeAeson BlockfrostScriptInfo where
+  decodeAeson = aesonObject \obj ->
+    getField obj "type"
+      <#> \language -> BlockfrostScriptInfo { language }
 
 --------------------------------------------------------------------------------
 -- BlockfrostNativeScript
@@ -261,12 +314,35 @@ instance DecodeAeson BlockfrostNativeScript where
         Left $ TypeMismatch "Native script constructor"
 
 --------------------------------------------------------------------------------
--- `getDatumByHash` response parsing
+-- BlockfrostCbor
+--------------------------------------------------------------------------------
+
+newtype BlockfrostCbor = BlockfrostCbor (Maybe ByteArray)
+
+derive instance Generic BlockfrostCbor _
+derive instance Newtype BlockfrostCbor _
+
+instance Show BlockfrostCbor where
+  show = genericShow
+
+instance DecodeAeson BlockfrostCbor where
+  decodeAeson aeson
+    | isNull aeson = pure $ BlockfrostCbor Nothing
+    | otherwise = do
+        cbor <- aesonObject (flip getFieldOptional "cbor") aeson
+        pure $ BlockfrostCbor cbor
+
+--------------------------------------------------------------------------------
+-- BlockfrostDatum
 --------------------------------------------------------------------------------
 
 newtype BlockfrostDatum = BlockfrostDatum (Maybe Datum)
 
+derive instance Generic BlockfrostDatum _
 derive instance Newtype BlockfrostDatum _
+
+instance Show BlockfrostDatum where
+  show = genericShow
 
 unwrapBlockfrostDatum :: BlockfrostDatum -> Maybe Datum
 unwrapBlockfrostDatum = unwrap
@@ -278,48 +354,3 @@ instance DecodeAeson BlockfrostDatum where
         cbor <- aesonObject (flip getFieldOptional "cbor") aeson
         pure $ BlockfrostDatum $ deserializeData =<< cbor
 
---------------------------------------------------------------------------------
--- `getScriptByHash` response parsing
---------------------------------------------------------------------------------
-
-data BlockfrostScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
-
-derive instance Generic BlockfrostScriptLanguage _
-
-instance Show BlockfrostScriptLanguage where
-  show = genericShow
-
-instance DecodeAeson BlockfrostScriptLanguage where
-  decodeAeson = aesonString $ case _ of
-    "native" -> pure NativeScript
-    "plutusV1" -> pure PlutusV1Script
-    "plutusV2" -> pure PlutusV2Script
-    invalid ->
-      Left $ TypeMismatch $
-        "language: expected 'native' or 'plutusV{1|2}', got: " <> invalid
-
--- Do not parse fields other than `type` because we do not need them yet
-data BlockfrostScriptInfo = BlockfrostScriptInfo
-  { type :: BlockfrostScriptLanguage }
-
-instance DecodeAeson BlockfrostScriptInfo where
-  decodeAeson aeson = do
-    type_ <- aesonObject (flip getField "type") aeson
-    pure $ BlockfrostScriptInfo { type: type_ }
-
-scriptInfoType :: BlockfrostScriptInfo -> BlockfrostScriptLanguage
-scriptInfoType (BlockfrostScriptInfo info) = info.type
-
-newtype BlockfrostCbor = BlockfrostCbor (Maybe ByteArray)
-
-derive instance Newtype BlockfrostCbor _
-
-unwrapBlockfrostCbor :: BlockfrostCbor -> Maybe ByteArray
-unwrapBlockfrostCbor = unwrap
-
-instance DecodeAeson BlockfrostCbor where
-  decodeAeson aeson
-    | isNull aeson = pure $ BlockfrostCbor Nothing
-    | otherwise = do
-        cbor <- aesonObject (flip getFieldOptional "cbor") aeson
-        pure $ BlockfrostCbor cbor
