@@ -2,10 +2,14 @@ module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
   -- TODO: should not be exported:
+  , BlockfrostEndpoint
   , BlockfrostTransactionOutput(BlockfrostTransactionOutput)
   , BlockfrostUnspentOutput
   , BlockfrostUtxosAtAddress(BlockfrostUtxosAtAddress)
+  , blockfrostPostRequest
   --
+  , getDatumByHash
+  , getScriptByHash
   , getUtxoByOref
   , runBlockfrostServiceM
   , utxosAt
@@ -19,17 +23,35 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , getField
+  , getFieldOptional
   , getFieldOptional'
+  , isNull
   , parseJsonStringToAeson
   )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
 import Affjax.RequestBody (RequestBody) as Affjax
-import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
+import Affjax.RequestHeader
+  ( RequestHeader(ContentType, RequestHeader)
+  ) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Ctl.Internal.Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , ScriptPubkey
+      , TimelockExpiry
+      , TimelockStart
+      )
+  )
+import Ctl.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  )
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
@@ -43,17 +65,29 @@ import Ctl.Internal.Serialization.Address
   , addressBech32
   , addressFromBech32
   )
-import Ctl.Internal.Serialization.Hash (ScriptHash)
+import Ctl.Internal.Serialization.Hash
+  ( ScriptHash
+  , ed25519KeyHashFromBytes
+  , scriptHashToBytes
+  )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
   , ServiceError(ServiceBlockfrostError)
   )
-import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, decodeAssetClass)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Service.Helpers
+  ( aesonArray
+  , aesonObject
+  , aesonString
+  , decodeAssetClass
+  )
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatum, OutputDatumHash)
   )
+import Ctl.Internal.Types.RawBytes (rawBytesToHex)
+import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -103,14 +137,30 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 --------------------------------------------------------------------------------
 
 data BlockfrostEndpoint
+  -- /scripts/datum/{datum_hash}/cbor
+  = GetDatumCbor DataHash
+  -- /scripts/{script_hash}/json
+  | GetNativeScriptByHash ScriptHash
+  -- /scripts/{script_hash}/cbor
+  | GetPlutusScriptCborByHash ScriptHash
+  -- /scripts/{script_hash}
+  | GetScriptInfo ScriptHash
   -- /addresses/{address}/utxos?page={page}&count={count}
-  = GetUtxosAtAddress Address Int Int
+  | GetUtxosAtAddress Address Int Int
   -- /txs/{hash}/utxos
   | GetUtxosOfTransaction TransactionHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
+    GetDatumCbor (DataHash hashBytes) ->
+      "/scripts/datum/" <> byteArrayToHex hashBytes <> "/cbor"
+    GetNativeScriptByHash scriptHash ->
+      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/json"
+    GetPlutusScriptCborByHash scriptHash ->
+      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
+    GetScriptInfo scriptHash ->
+      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
     GetUtxosAtAddress address page count ->
       "/addresses/" <> addressBech32 address <> "/utxos?page=" <> show page
         <> ("&count=" <> show count)
@@ -171,6 +221,14 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
+handle404AsNothing
+  :: forall (x :: Type)
+   . Either ClientError (Maybe x)
+  -> Either ClientError (Maybe x)
+handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
+  Right Nothing
+handle404AsNothing x = x
+
 --------------------------------------------------------------------------------
 -- Get utxos at address / by output reference
 --------------------------------------------------------------------------------
@@ -203,6 +261,59 @@ getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
     ExceptT $ handleBlockfrostResponse <$>
       blockfrostGetRequest (GetUtxosOfTransaction txHash)
   pure $ snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap)
+
+--------------------------------------------------------------------------------
+-- Get datum by hash
+--------------------------------------------------------------------------------
+
+getDatumByHash
+  :: DataHash -> BlockfrostServiceM (Either ClientError (Maybe Datum))
+getDatumByHash dataHash = do
+  response <- blockfrostGetRequest (GetDatumCbor dataHash)
+  pure $ handle404AsNothing $ unwrapBlockfrostDatum <$> handleBlockfrostResponse
+    response
+
+--------------------------------------------------------------------------------
+-- Get script by hash
+--------------------------------------------------------------------------------
+
+getScriptByHash
+  :: ScriptHash
+  -> BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
+getScriptByHash scriptHash = runExceptT $ runMaybeT do
+  scriptInfo <- MaybeT $ ExceptT getScriptInfo
+  case scriptLanguage scriptInfo of
+    NativeScript ->
+      NativeScriptRef <$>
+        (MaybeT $ ExceptT getNativeScriptByHash)
+    PlutusV1Script ->
+      PlutusScriptRef <$> plutusV1Script <$>
+        (MaybeT $ ExceptT getPlutusScriptCborByHash)
+    PlutusV2Script ->
+      PlutusScriptRef <$> plutusV2Script <$>
+        (MaybeT $ ExceptT getPlutusScriptCborByHash)
+  where
+  getScriptInfo
+    :: BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
+  getScriptInfo = do
+    response <- blockfrostGetRequest (GetScriptInfo scriptHash)
+    pure $ handle404AsNothing $ handleBlockfrostResponse response
+
+  getNativeScriptByHash
+    :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
+  getNativeScriptByHash = runExceptT do
+    (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
+      response <- blockfrostGetRequest (GetNativeScriptByHash scriptHash)
+      pure $ handle404AsNothing $ handleBlockfrostResponse response
+    pure $ unwrap <$> nativeScript
+
+  getPlutusScriptCborByHash
+    :: BlockfrostServiceM (Either ClientError (Maybe ByteArray))
+  getPlutusScriptCborByHash = runExceptT do
+    (plutusScriptCbor :: Maybe BlockfrostCbor) <- ExceptT do
+      response <- blockfrostGetRequest (GetPlutusScriptCborByHash scriptHash)
+      pure $ handle404AsNothing $ handleBlockfrostResponse response
+    pure $ join $ unwrap <$> plutusScriptCbor
 
 --------------------------------------------------------------------------------
 -- BlockfrostUtxosAtAddress / BlockfrostUtxosOfTransaction
@@ -318,4 +429,127 @@ instance DecodeAeson BlockfrostTransactionOutput where
         Nothing ->
           maybe NoOutputDatum OutputDatumHash
             <$> getFieldOptional' obj "data_hash"
+
+--------------------------------------------------------------------------------
+-- BlockfrostScriptLanguage
+--------------------------------------------------------------------------------
+
+data BlockfrostScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
+
+derive instance Generic BlockfrostScriptLanguage _
+
+instance Show BlockfrostScriptLanguage where
+  show = genericShow
+
+instance DecodeAeson BlockfrostScriptLanguage where
+  decodeAeson = aesonString $ case _ of
+    "native" -> pure NativeScript
+    "plutusV1" -> pure PlutusV1Script
+    "plutusV2" -> pure PlutusV2Script
+    invalid ->
+      Left $ TypeMismatch $
+        "language: expected 'native' or 'plutusV{1|2}', got: " <> invalid
+
+--------------------------------------------------------------------------------
+-- BlockfrostScriptInfo
+--------------------------------------------------------------------------------
+
+newtype BlockfrostScriptInfo = BlockfrostScriptInfo
+  { language :: BlockfrostScriptLanguage
+  }
+
+scriptLanguage :: BlockfrostScriptInfo -> BlockfrostScriptLanguage
+scriptLanguage = _.language <<< unwrap
+
+derive instance Generic BlockfrostScriptInfo _
+derive instance Newtype BlockfrostScriptInfo _
+
+instance Show BlockfrostScriptInfo where
+  show = genericShow
+
+instance DecodeAeson BlockfrostScriptInfo where
+  decodeAeson = aesonObject \obj ->
+    getField obj "type"
+      <#> \language -> BlockfrostScriptInfo { language }
+
+--------------------------------------------------------------------------------
+-- BlockfrostNativeScript
+--------------------------------------------------------------------------------
+
+newtype BlockfrostNativeScript = BlockfrostNativeScript NativeScript
+
+derive instance Generic BlockfrostNativeScript _
+derive instance Newtype BlockfrostNativeScript _
+
+instance Show BlockfrostNativeScript where
+  show = genericShow
+
+instance DecodeAeson BlockfrostNativeScript where
+  decodeAeson =
+    aesonObject (flip getField "json") >=> (map wrap <<< decodeNativeScript)
+    where
+    unwrap' :: BlockfrostNativeScript -> NativeScript
+    unwrap' = unwrap
+
+    decodeNativeScript :: Object Aeson -> Either JsonDecodeError NativeScript
+    decodeNativeScript obj = getField obj "type" >>= case _ of
+      "sig" ->
+        ScriptPubkey <$>
+          ( getField obj "keyHash" >>=
+              (note (TypeMismatch "Ed25519KeyHash") <<< ed25519KeyHashFromBytes)
+          )
+      "before" ->
+        TimelockExpiry <$> getField obj "slot"
+      "after" ->
+        TimelockStart <$> getField obj "slot"
+      "all" ->
+        ScriptAll <$> map unwrap' <$> getField obj "scripts"
+      "any" ->
+        ScriptAny <$> map unwrap' <$> getField obj "scripts"
+      "atLeast" -> do
+        required <- getField obj "required"
+        ScriptNOfK required <$> map unwrap' <$> getField obj "scripts"
+      _ ->
+        Left $ TypeMismatch "Native script constructor"
+
+--------------------------------------------------------------------------------
+-- BlockfrostCbor
+--------------------------------------------------------------------------------
+
+newtype BlockfrostCbor = BlockfrostCbor (Maybe ByteArray)
+
+derive instance Generic BlockfrostCbor _
+derive instance Newtype BlockfrostCbor _
+
+instance Show BlockfrostCbor where
+  show = genericShow
+
+instance DecodeAeson BlockfrostCbor where
+  decodeAeson aeson
+    | isNull aeson = pure $ BlockfrostCbor Nothing
+    | otherwise = do
+        cbor <- aesonObject (flip getFieldOptional "cbor") aeson
+        pure $ BlockfrostCbor cbor
+
+--------------------------------------------------------------------------------
+-- BlockfrostDatum
+--------------------------------------------------------------------------------
+
+newtype BlockfrostDatum = BlockfrostDatum (Maybe Datum)
+
+derive instance Generic BlockfrostDatum _
+derive instance Newtype BlockfrostDatum _
+
+instance Show BlockfrostDatum where
+  show = genericShow
+
+unwrapBlockfrostDatum :: BlockfrostDatum -> Maybe Datum
+unwrapBlockfrostDatum = unwrap
+
+instance DecodeAeson BlockfrostDatum where
+  decodeAeson aeson
+    | isNull aeson = pure $ BlockfrostDatum Nothing
+    | otherwise = do
+        cbor <- aesonObject (flip getFieldOptional "cbor") aeson
+        pure $ BlockfrostDatum $ deserializeData =<< cbor
 

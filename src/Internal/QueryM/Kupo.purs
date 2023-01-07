@@ -14,9 +14,6 @@ import Aeson
   ( class DecodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
-  , caseAesonArray
-  , caseAesonObject
-  , caseAesonString
   , decodeAeson
   , getField
   , getFieldOptional
@@ -30,7 +27,6 @@ import Control.Bind (bindFlipped)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
@@ -46,7 +42,7 @@ import Ctl.Internal.Cardano.Types.Value
   , mkValue
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
+import Ctl.Internal.Deserialization.NativeScript (decodeNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
@@ -61,8 +57,9 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
+import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString)
 import Ctl.Internal.Types.BigNum (toString) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
@@ -388,13 +385,6 @@ instance DecodeAeson KupoScriptRef where
                 pure $ PlutusScriptRef $ plutusV1Script scriptBytes
               PlutusV2Script ->
                 pure $ PlutusScriptRef $ plutusV2Script scriptBytes
-        where
-        decodeNativeScript :: ByteArray -> Either JsonDecodeError NativeScript
-        decodeNativeScript scriptBytes = do
-          nativeScript <-
-            flip note (fromBytes $ wrap scriptBytes) $
-              TypeMismatch "decodeNativeScript: from_bytes() call failed"
-          pure $ convertNativeScript nativeScript
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing
@@ -463,24 +453,3 @@ kupoGetRequestAff config endpoint = do
     , url = mkHttpUrl config <> endpoint
     , responseFormat = Affjax.ResponseFormat.string
     }
-
-aesonArray
-  :: forall (a :: Type)
-   . (Array Aeson -> Either JsonDecodeError a)
-  -> Aeson
-  -> Either JsonDecodeError a
-aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
-
-aesonObject
-  :: forall (a :: Type)
-   . (Object Aeson -> Either JsonDecodeError a)
-  -> Aeson
-  -> Either JsonDecodeError a
-aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
-
-aesonString
-  :: forall (a :: Type)
-   . (String -> Either JsonDecodeError a)
-  -> Aeson
-  -> Either JsonDecodeError a
-aesonString = caseAesonString (Left (TypeMismatch "Expected String"))
