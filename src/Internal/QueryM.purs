@@ -1,4 +1,7 @@
--- | CTL query layer monad
+-- | CTL query layer monad.
+-- | This module defines an Aff interface for Ogmios Websocket Queries.
+-- | Since WebSockets do not define a mechanism for linking request/response.
+-- | Or for verifying that the connection is live, those concerns are addressed here
 module Ctl.Internal.QueryM
   ( module ExportDispatcher
   , module ExportServerConfig
@@ -162,11 +165,6 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-
--- This module defines an Aff interface for Ogmios Websocket Queries
--- Since WebSockets do not define a mechanism for linking request/response
--- Or for verifying that the connection is live, those concerns are addressed
--- here
 
 -- | Cluster setup contains everything that is needed to run a `Contract` on
 -- | a local cluster: paramters to connect to the services and private keys
@@ -373,7 +371,7 @@ handleAffjaxResponse (Left affjaxError) =
 handleAffjaxResponse
   (Right { status: Affjax.StatusCode.StatusCode statusCode, body })
   | statusCode < 200 || statusCode > 299 =
-      Left $ ClientHttpResponseError $ ServiceOtherError body
+      Left $ ClientHttpResponseError (wrap statusCode) $ ServiceOtherError body
   | otherwise =
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)

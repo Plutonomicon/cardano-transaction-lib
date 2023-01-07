@@ -1311,7 +1311,7 @@ instance DecodeAeson ChainTipQR where
     r :: (ChainOrigin |+| ChainPoint) <- decodeAeson j
     pure $ either CtChainOrigin CtChainPoint $ toEither1 r
 
--- | A Blake2b 32-byte digest of an era-independent block header, serialised as
+-- | A Blake2b 32-byte digest of an era-independent block header, serialized as
 -- CBOR in base16
 newtype OgmiosBlockHeaderHash = OgmiosBlockHeaderHash String
 
@@ -1338,7 +1338,7 @@ instance Show ChainOrigin where
 -- | A point on the chain, identified by a slot and a block header hash
 type ChainPoint =
   { slot :: Slot -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
-  -- for details on why we lose a neglible amount of precision.
+  -- for details on why we lose a negligible amount of precision.
   , hash :: OgmiosBlockHeaderHash
   }
 
@@ -1468,7 +1468,7 @@ aesonObject
   -> Either JsonDecodeError a
 aesonObject = caseAesonObject (Left (TypeMismatch "Expected Object"))
 
--- helper for assumming we get an array
+-- helper for assuming we get an array
 aesonArray
   :: forall (a :: Type)
    . (Array Aeson -> Either JsonDecodeError a)

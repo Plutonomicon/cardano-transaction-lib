@@ -23,7 +23,8 @@ import Aeson
   , parseJsonStringToAeson
   )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
-import Affjax.RequestHeader (RequestHeader(RequestHeader)) as Affjax
+import Affjax.RequestBody (RequestBody) as Affjax
+import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -63,8 +64,9 @@ import Data.BigInt (fromString) as BigInt
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
-import Data.HTTP.Method (Method(GET))
+import Data.HTTP.Method (Method(GET, POST))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (splitAt) as String
@@ -128,6 +130,25 @@ blockfrostGetRequest endpoint = ask >>= \params -> liftAff do
           params.blockfrostApiKey
     }
 
+blockfrostPostRequest
+  :: BlockfrostEndpoint
+  -> MediaType
+  -> Maybe Affjax.RequestBody
+  -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+blockfrostPostRequest endpoint mediaType mbContent =
+  ask >>= \params -> liftAff do
+    Affjax.request $ Affjax.defaultRequest
+      { method = Left POST
+      , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
+      , content = mbContent
+      , responseFormat = Affjax.ResponseFormat.string
+      , headers =
+          [ Affjax.ContentType mediaType ] <>
+            maybe mempty
+              (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
+              params.blockfrostApiKey
+      }
+
 --------------------------------------------------------------------------------
 -- Blockfrost response handling
 --------------------------------------------------------------------------------
@@ -144,7 +165,8 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
       blockfrostError <-
         body # lmap (ClientDecodeJsonError body)
           <<< (decodeAeson <=< parseJsonStringToAeson)
-      Left $ ClientHttpResponseError $ ServiceBlockfrostError blockfrostError
+      Left $ ClientHttpResponseError (wrap statusCode) $
+        ServiceBlockfrostError blockfrostError
   | otherwise =
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
