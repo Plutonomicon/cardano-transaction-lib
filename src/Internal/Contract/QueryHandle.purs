@@ -125,7 +125,8 @@ queryHandleForBlockfrostBackend _ backend =
   , getChainTip: runBlockfrostServiceM' undefined
   , getCurrentEpoch: runBlockfrostServiceM' undefined
   , submitTx: runBlockfrostServiceM' <<< undefined
-  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' undefined
+  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
+      additionalUtxos
   , getEraSummaries: runBlockfrostServiceM' undefined
   }
   where

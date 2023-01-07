@@ -1,9 +1,9 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
-  , runBlockfrostServiceM
   , getDatumByHash
   , getScriptByHash
+  , runBlockfrostServiceM
   ) where
 
 import Prelude

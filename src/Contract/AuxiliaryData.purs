@@ -33,13 +33,13 @@ import Data.Maybe (Maybe, fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Effect.Class (liftEffect)
 
--- These functions involve `UnattachedUnbalancedTx` which in turns involve
--- `UnbalancedTx`, these involve `ScriptOutput` which is what is currently
--- being used in more up-to-date Plutus code (as opposed to `TransactionOutput`).
--- Therefore, we won't provide any conversion. It is worth noting
--- `UnattachedUnbalancedTx` also includes Cardano-style Redeemers, although
--- I don't think there's a way around this because they need to be reattached
--- later on - see Types.ScriptLookups for more detail.
+-- These functions involve `UnattachedUnbalancedTx`,
+-- which in turn involve `UnbalancedTx`. These functions involve ScriptOutput,
+-- which is the type currently being used in more recent Plutus code (as opposed to `TransactionOutput`).
+-- As a result, no conversion will be provided.
+-- It is worth noting that `UnattachedUnbalancedTx` also includes Cardano-style Redeemers,
+-- which must be reattached later on (see Types.ScriptLookups for more information).
+-- There does not appear to be a way around this.
 
 setAuxiliaryData
   :: UnattachedUnbalancedTx
