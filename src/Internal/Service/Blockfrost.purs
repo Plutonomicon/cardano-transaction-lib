@@ -1,13 +1,6 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , BlockfrostServiceParams
-  -- TODO: should not be exported:
-  , BlockfrostEndpoint
-  , BlockfrostTransactionOutput(BlockfrostTransactionOutput)
-  , BlockfrostUnspentOutput
-  , BlockfrostUtxosAtAddress(BlockfrostUtxosAtAddress)
-  , blockfrostPostRequest
-  --
   , getDatumByHash
   , getScriptByHash
   , getUtxoByOref
@@ -30,15 +23,14 @@ import Aeson
   )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
 import Affjax.RequestBody (RequestBody) as Affjax
-import Affjax.RequestHeader
-  ( RequestHeader(ContentType, RequestHeader)
-  ) as Affjax
+import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptAll
@@ -51,6 +43,10 @@ import Ctl.Internal.Cardano.Types.NativeScript
   )
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  )
+import Ctl.Internal.Cardano.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  , UtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
 import Ctl.Internal.Cardano.Types.Value
@@ -72,7 +68,12 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error
-  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
+  ( ClientError
+      ( ClientDecodeJsonError
+      , ClientHttpError
+      , ClientHttpResponseError
+      , ClientOtherError
+      )
   , ServiceError(ServiceBlockfrostError)
   )
 import Ctl.Internal.Service.Helpers
@@ -99,6 +100,7 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
+import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -233,12 +235,10 @@ handle404AsNothing x = x
 -- Get utxos at address / by output reference
 --------------------------------------------------------------------------------
 
-utxosAt
-  :: Address
-  -- TODO: resolve `BlockfrostUtxosAtAddress`
-  -- -> BlockfrostServiceM (Either ClientError UtxoMap)
-  -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
-utxosAt address = utxosAtAddressOnPage 1
+utxosAt :: Address -> BlockfrostServiceM (Either ClientError UtxoMap)
+utxosAt address = runExceptT $
+  ExceptT (utxosAtAddressOnPage 1)
+    >>= (ExceptT <<< resolveBlockfrostUtxosAtAddress)
   where
   utxosAtAddressOnPage
     :: Int -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
@@ -253,14 +253,13 @@ utxosAt address = utxosAtAddressOnPage 1
 
 getUtxoByOref
   :: TransactionInput
-  -- TODO: resolve `BlockfrostTransactionOutput`
-  -- -> BlockfrostServiceM (Either ClientError (Maybe TransactionOutput))
-  -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostTransactionOutput))
+  -> BlockfrostServiceM (Either ClientError (Maybe TransactionOutput))
 getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
   (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <-
     ExceptT $ handleBlockfrostResponse <$>
       blockfrostGetRequest (GetUtxosOfTransaction txHash)
-  pure $ snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap)
+  traverse (ExceptT <<< resolveBlockfrostTxOutput)
+    (snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap))
 
 --------------------------------------------------------------------------------
 -- Get datum by hash
@@ -343,6 +342,13 @@ instance DecodeAeson BlockfrostUtxosAtAddress where
       transactionId <- getField obj "tx_hash"
       index <- getField obj "output_index"
       pure $ TransactionInput { transactionId, index }
+
+resolveBlockfrostUtxosAtAddress
+  :: BlockfrostUtxosAtAddress
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+resolveBlockfrostUtxosAtAddress (BlockfrostUtxosAtAddress utxos) =
+  runExceptT $ Map.fromFoldable <$>
+    parTraverse (traverse (ExceptT <<< resolveBlockfrostTxOutput)) utxos
 
 newtype BlockfrostUtxosOfTransaction =
   BlockfrostUtxosOfTransaction (Array BlockfrostUnspentOutput)
@@ -429,6 +435,26 @@ instance DecodeAeson BlockfrostTransactionOutput where
         Nothing ->
           maybe NoOutputDatum OutputDatumHash
             <$> getFieldOptional' obj "data_hash"
+
+resolveBlockfrostTxOutput
+  :: BlockfrostTransactionOutput
+  -> BlockfrostServiceM (Either ClientError TransactionOutput)
+resolveBlockfrostTxOutput
+  (BlockfrostTransactionOutput blockfrostTxOutput@{ address, amount, datum }) =
+  map mkTxOutput <$> resolveScriptRef
+  where
+  mkTxOutput :: Maybe ScriptRef -> TransactionOutput
+  mkTxOutput scriptRef =
+    TransactionOutput { address, amount, datum, scriptRef }
+
+  resolveScriptRef :: BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
+  resolveScriptRef =
+    case blockfrostTxOutput.scriptHash of
+      Nothing -> pure $ Right Nothing
+      Just scriptHash -> runExceptT do
+        scriptRef <- ExceptT $ getScriptByHash scriptHash
+        except $ Just <$> flip note scriptRef
+          (ClientOtherError "Blockfrost: Failed to resolve reference script")
 
 --------------------------------------------------------------------------------
 -- BlockfrostScriptLanguage

@@ -118,14 +118,10 @@ queryHandleForBlockfrostBackend
 queryHandleForBlockfrostBackend _ backend =
   { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
   , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
-  , getUtxoByOref:
-      -- FIXME: remove `undefined`
-      undefined <<< runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
+  , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
   , isTxConfirmed: runBlockfrostServiceM' <<< undefined
   , getTxMetadata: runBlockfrostServiceM' <<< undefined
-  , utxosAt:
-      -- FIXME: remove `undefined`
-      undefined <<< runBlockfrostServiceM' <<< Blockfrost.utxosAt
+  , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' undefined
   , getCurrentEpoch: runBlockfrostServiceM' undefined
   , submitTx: runBlockfrostServiceM' <<< undefined
