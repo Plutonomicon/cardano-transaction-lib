@@ -10,8 +10,10 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , Aeson
   , JsonDecodeError(TypeMismatch, AtKey, MissingValue)
   , decodeAeson
+  , getField
   , getFieldOptional
   , isNull
   , parseJsonStringToAeson
@@ -25,13 +27,27 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Ctl.Internal.Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , ScriptPubkey
+      , TimelockExpiry
+      , TimelockStart
+      )
+  )
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Deserialization.NativeScript (decodeNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
+import Ctl.Internal.Serialization.Hash
+  ( ScriptHash
+  , ed25519KeyHashFromBytes
+  , scriptHashToBytes
+  )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
@@ -53,6 +69,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
+import Foreign.Object (Object)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -86,6 +103,8 @@ data BlockfrostEndpoint
   | GetScriptInfo ScriptHash
   -- /scripts/{script_hash}/cbor
   | GetScriptCbor ScriptHash
+  -- /scripts/{script_hash}/json
+  | GetNativeScriptByHash ScriptHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
@@ -96,6 +115,8 @@ realizeEndpoint endpoint =
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
     GetScriptCbor scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
+    GetNativeScriptByHash scriptHash ->
+      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/json"
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -152,7 +173,9 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 handle404AsNothing
-  :: forall (x :: Type). Either ClientError (Maybe x) -> Either ClientError (Maybe x)
+  :: forall (x :: Type)
+   . Either ClientError (Maybe x)
+  -> Either ClientError (Maybe x)
 handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
   Right Nothing
 handle404AsNothing x = x
@@ -188,6 +211,54 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
     NativeScript -> NativeScriptRef <$> decodeNativeScript x
     PlutusV1Script -> pure $ PlutusScriptRef $ plutusV1Script x
     PlutusV2Script -> pure $ PlutusScriptRef $ plutusV2Script x
+
+getNativeScriptByHash
+  :: ScriptHash -> BlockfrostServiceM (Either ClientError (Maybe NativeScript))
+getNativeScriptByHash scriptHash = runExceptT do
+  (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
+    response <- blockfrostGetRequest (GetNativeScriptByHash scriptHash)
+    pure $ handle404AsNothing $ handleBlockfrostResponse response
+  pure $ unwrap <$> nativeScript
+
+--------------------------------------------------------------------------------
+-- BlockfrostNativeScript
+--------------------------------------------------------------------------------
+
+newtype BlockfrostNativeScript = BlockfrostNativeScript NativeScript
+
+derive instance Generic BlockfrostNativeScript _
+derive instance Newtype BlockfrostNativeScript _
+
+instance Show BlockfrostNativeScript where
+  show = genericShow
+
+instance DecodeAeson BlockfrostNativeScript where
+  decodeAeson =
+    aesonObject (flip getField "json") >=> (map wrap <<< decodeNativeScript)
+    where
+    unwrap' :: BlockfrostNativeScript -> NativeScript
+    unwrap' = unwrap
+
+    decodeNativeScript :: Object Aeson -> Either JsonDecodeError NativeScript
+    decodeNativeScript obj = getField obj "type" >>= case _ of
+      "sig" ->
+        ScriptPubkey <$>
+          ( getField obj "keyHash" >>=
+              (note (TypeMismatch "Ed25519KeyHash") <<< ed25519KeyHashFromBytes)
+          )
+      "before" ->
+        TimelockExpiry <$> getField obj "slot"
+      "after" ->
+        TimelockStart <$> getField obj "slot"
+      "all" ->
+        ScriptAll <$> map unwrap' <$> getField obj "scripts"
+      "any" ->
+        ScriptAny <$> map unwrap' <$> getField obj "scripts"
+      "atLeast" -> do
+        required <- getField obj "required"
+        ScriptNOfK required <$> map unwrap' <$> getField obj "scripts"
+      _ ->
+        Left $ TypeMismatch "Native script constructor"
 
 --------------------------------------------------------------------------------
 -- `getDatumByHash` response parsing
