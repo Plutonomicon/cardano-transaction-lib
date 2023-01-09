@@ -46,6 +46,7 @@ import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.QueryM
   ( ClientError(ClientOtherError)
   , QueryM
+  , getLogger
   , handleAffjaxResponse
   )
 import Ctl.Internal.QueryM.ServerConfig (mkHttpUrl)
@@ -73,6 +74,7 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
+import Data.Log.Level (LogLevel(Debug))
 import Data.Map (Map)
 import Data.Map (fromFoldable, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
@@ -84,6 +86,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (toString) as UInt
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as Object
 
@@ -362,7 +365,10 @@ instance DecodeAeson KupoScriptRef where
 kupoGetRequest
   :: String -> QueryM (Either Affjax.Error (Affjax.Response String))
 kupoGetRequest endpoint = do
+  logger <- getLogger
   config <- asks (_.kupoConfig <<< _.config)
+  liftAff $ liftEffect $ logger Debug $
+    "Kupo GET request to URL " <> show (mkHttpUrl config <> endpoint)
   liftAff $ Affjax.request $ Affjax.defaultRequest
     { method = Left GET
     , url = mkHttpUrl config <> endpoint
