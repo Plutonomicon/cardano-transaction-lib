@@ -12,6 +12,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Promise (Promise, toAffE)
 import Control.Promise as Promise
+import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet
@@ -19,7 +20,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Coin, Value, getLovelace)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value, getLovelace)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -119,7 +120,7 @@ mkCip30WalletAff
 mkCip30WalletAff walletName enableWallet = do
   wallet <- toAffE enableWallet
   -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral wallet mempty) do
+  whenM (isNothing <$> getCollateral wallet (Coin minRequiredCollateral)) do
     liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet

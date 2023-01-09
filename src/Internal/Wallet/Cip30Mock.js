@@ -24,6 +24,19 @@ exports.raiseInvalidRequestError = info => () => {
   throw new APIError(InvalidRequestCode, info);
 };
 
+class TxSignError {
+  constructor(code, info) {
+    this.code = code;
+    this.info = info;
+  }
+}
+
+const ProofGenerationError = 1;
+
+exports.raiseTxSignProofGenerationError = info => () => {
+  throw new TxSignError(ProofGenerationError, info);
+};
+
 exports._catchPaginateError = eitherpaginateerrorffi => action => () => {
   try {
     return eitherpaginateerrorffi.right(action());

@@ -9,6 +9,10 @@ import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
+  , _body
+  , _requiredSigners
+  , _vkeys
+  , convertPubKey
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -30,9 +34,13 @@ import Ctl.Internal.QueryM.Utxos (utxosAt)
 import Ctl.Internal.Serialization
   ( convertTransactionUnspentOutput
   , convertValue
+  , publicKeyHash
   , toBytes
   )
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Serialization.Hash
+  ( Ed25519KeyHash
+  )
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
@@ -59,14 +67,16 @@ import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Int (ceil, toNumber)
+import Data.Lens (view)
 import Data.Lens ((.~))
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
+import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
@@ -261,7 +271,7 @@ mkCip30Mock pKey mSKey = do
     , getRewardAddresses: fromAff do
         (unwrap keyWallet).address config.networkId <#> \address ->
           [ cborBytesToHex $ toBytes address ]
-    , signTx: mkFn2 \str _partialSign -> unsafePerformEffect $ fromAff do
+    , signTx: mkFn2 \str partialSign -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToCborBytes
           str
         tx <- liftMaybe (error "Failed to decode Transaction CBOR")
@@ -269,6 +279,24 @@ mkCip30Mock pKey mSKey = do
           $ deserializeTransaction
           $ txBytes
         witness <- (unwrap keyWallet).signTx tx
+        when (not partialSign) do
+          -- Checking all required keys are signed
+          let
+            requiredKeys :: Array Ed25519KeyHash
+            requiredKeys = map unwrap $ fromMaybe [] $ view
+              (_body <<< _requiredSigners)
+              tx
+
+            signedKeys :: Array Ed25519KeyHash
+            signedKeys =
+              map
+                (publicKeyHash <<< convertPubKey <<< unwrap <<< fst <<< unwrap)
+                $ fromMaybe []
+                $ view _vkeys witness
+          when (requiredKeys /= signedKeys)
+            $ liftEffect
+            $ raiseTxSignProofGenerationError
+                "Partial sign is forbidden, but not all required keys signed"
         cslWitnessSet <- liftEffect $ convertWitnessSet witness
         pure $ cborBytesToHex $ toBytes cslWitnessSet
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
@@ -287,6 +315,10 @@ foreign import injectCip30Mock :: String -> Cip30Mock -> Effect (Effect Unit)
 -- Helpers
 
 foreign import raisePaginateError :: forall a. Int -> Effect a
+
+-- String is error message
+foreign import raiseTxSignProofGenerationError
+  :: forall (a :: Type). String -> Effect a
 
 type EitherErrorFfi error errorParam return =
   { right :: return -> Either error return
