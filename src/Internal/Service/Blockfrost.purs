@@ -1,9 +1,18 @@
 module Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
+  ( BlockfrostEndpoint
+      ( GetDatumCbor
+      , GetNativeScriptByHash
+      , GetPlutusScriptCborByHash
+      , GetScriptInfo
+      )
+  , BlockfrostRawResponses
+  , BlockfrostServiceM
   , BlockfrostServiceParams
+  , blockfrostPostRequest
   , getDatumByHash
   , getScriptByHash
   , runBlockfrostServiceM
+  , runBlockfrostServiceTestM
   ) where
 
 import Prelude
@@ -25,7 +34,7 @@ import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
-import Control.Monad.Reader.Class (ask)
+import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
@@ -61,34 +70,63 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Map (Map)
+import Data.Map (empty, insert) as Map
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (traverse, traverse_)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Ref (Ref)
+import Effect.Ref (modify_, new, read) as Ref
 import Foreign.Object (Object)
+import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
 --------------------------------------------------------------------------------
 
+type BlockfrostRawResponses = Maybe (Ref (Map BlockfrostEndpoint String))
+
 type BlockfrostServiceParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
+  , blockfrostRawResponses :: BlockfrostRawResponses
   }
 
 type BlockfrostServiceM (a :: Type) = ReaderT BlockfrostServiceParams Aff a
 
 runBlockfrostServiceM
   :: forall (a :: Type). BlockfrostBackend -> BlockfrostServiceM a -> Aff a
-runBlockfrostServiceM backend = flip runReaderT serviceParams
+runBlockfrostServiceM = flip runReaderT <<< mkServiceParams Nothing
+
+runBlockfrostServiceTestM
+  :: forall (a :: Type)
+   . BlockfrostBackend
+  -> BlockfrostServiceM a
+  -> Aff (a /\ Map BlockfrostEndpoint String)
+runBlockfrostServiceTestM backend action = do
+  rawResponsesRef <- liftEffect $ Just <$> Ref.new Map.empty
+  runReaderT actionWithRawResponses (mkServiceParams rawResponsesRef backend)
   where
-  serviceParams :: BlockfrostServiceParams
-  serviceParams =
-    { blockfrostConfig: backend.blockfrostConfig
-    , blockfrostApiKey: backend.blockfrostApiKey
-    }
+  actionWithRawResponses
+    :: BlockfrostServiceM (a /\ Map BlockfrostEndpoint String)
+  actionWithRawResponses = do
+    rawResponsesRef <- unsafePartial fromJust <$> asks _.blockfrostRawResponses
+    Tuple <$> action <*> liftEffect (Ref.read rawResponsesRef)
+
+mkServiceParams
+  :: BlockfrostRawResponses -> BlockfrostBackend -> BlockfrostServiceParams
+mkServiceParams blockfrostRawResponses backend =
+  { blockfrostConfig: backend.blockfrostConfig
+  , blockfrostApiKey: backend.blockfrostApiKey
+  , blockfrostRawResponses
+  }
 
 --------------------------------------------------------------------------------
 -- Making requests to Blockfrost endpoints
@@ -103,6 +141,13 @@ data BlockfrostEndpoint
   | GetPlutusScriptCborByHash ScriptHash
   -- /scripts/{script_hash}/json
   | GetNativeScriptByHash ScriptHash
+
+derive instance Generic BlockfrostEndpoint _
+derive instance Eq BlockfrostEndpoint
+derive instance Ord BlockfrostEndpoint
+
+instance Show BlockfrostEndpoint where
+  show = genericShow
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
@@ -119,15 +164,27 @@ realizeEndpoint endpoint =
 blockfrostGetRequest
   :: BlockfrostEndpoint
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostGetRequest endpoint = ask >>= \params -> liftAff do
-  Affjax.request $ Affjax.defaultRequest
-    { method = Left GET
-    , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
-    , responseFormat = Affjax.ResponseFormat.string
-    , headers =
-        maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
-          params.blockfrostApiKey
-    }
+blockfrostGetRequest endpoint = ask >>= \params -> do
+  result <-
+    liftAff $ Affjax.request $ Affjax.defaultRequest
+      { method = Left GET
+      , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
+      , responseFormat = Affjax.ResponseFormat.string
+      , headers =
+          maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
+            params.blockfrostApiKey
+      }
+  updateRawResponses result
+  pure result
+  where
+  updateRawResponses
+    :: Either Affjax.Error (Affjax.Response String)
+    -> BlockfrostServiceM Unit
+  updateRawResponses (Right { body: response }) = do
+    rawResponses <- asks _.blockfrostRawResponses
+    liftEffect $
+      traverse_ (Ref.modify_ (Map.insert endpoint response)) rawResponses
+  updateRawResponses _ = pure unit
 
 blockfrostPostRequest
   :: BlockfrostEndpoint
@@ -244,7 +301,7 @@ instance Show BlockfrostScriptLanguage where
 
 instance DecodeAeson BlockfrostScriptLanguage where
   decodeAeson = aesonString $ case _ of
-    "native" -> pure NativeScript
+    "timelock" -> pure NativeScript
     "plutusV1" -> pure PlutusV1Script
     "plutusV2" -> pure PlutusV2Script
     invalid ->
@@ -289,9 +346,6 @@ instance DecodeAeson BlockfrostNativeScript where
   decodeAeson =
     aesonObject (flip getField "json") >=> (map wrap <<< decodeNativeScript)
     where
-    unwrap' :: BlockfrostNativeScript -> NativeScript
-    unwrap' = unwrap
-
     decodeNativeScript :: Object Aeson -> Either JsonDecodeError NativeScript
     decodeNativeScript obj = getField obj "type" >>= case _ of
       "sig" ->
@@ -304,14 +358,17 @@ instance DecodeAeson BlockfrostNativeScript where
       "after" ->
         TimelockStart <$> getField obj "slot"
       "all" ->
-        ScriptAll <$> map unwrap' <$> getField obj "scripts"
+        ScriptAll <$> decodeScripts
       "any" ->
-        ScriptAny <$> map unwrap' <$> getField obj "scripts"
-      "atLeast" -> do
-        required <- getField obj "required"
-        ScriptNOfK required <$> map unwrap' <$> getField obj "scripts"
+        ScriptAny <$> decodeScripts
+      "atLeast" ->
+        ScriptNOfK <$> getField obj "required" <*> decodeScripts
       _ ->
         Left $ TypeMismatch "Native script constructor"
+      where
+      decodeScripts :: Either JsonDecodeError (Array NativeScript)
+      decodeScripts =
+        getField obj "scripts" >>= traverse (aesonObject decodeNativeScript)
 
 --------------------------------------------------------------------------------
 -- BlockfrostCbor

@@ -8,6 +8,7 @@ import Ctl.Internal.Hashing
   , blake2b256HashHex
   , datumHash
   , plutusScriptHash
+  , scriptRefHash
   , sha256Hash
   , sha256HashHex
   , sha3_256Hash
