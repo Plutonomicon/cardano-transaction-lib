@@ -13,6 +13,7 @@ import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
+import Test.Ctl.Blockfrost.Aeson as Blockfrost.Aeson
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
@@ -78,6 +79,7 @@ testPlan = do
   Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
+  Blockfrost.Aeson.suite
   ProtocolParams.suite
   Types.TokenName.suite
   Types.Transaction.suite
