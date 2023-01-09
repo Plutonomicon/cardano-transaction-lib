@@ -23,12 +23,14 @@ import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Logger.Trans (LoggerT, runLoggerT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   )
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
+import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM.Ogmios (TxEvaluationR)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
@@ -42,7 +44,9 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
-import Data.Maybe (Maybe(Just), maybe)
+import Data.Log.Level (LogLevel)
+import Data.Log.Message (Message)
+import Data.Maybe (Maybe(Just), fromMaybe, maybe)
 import Data.MediaType (MediaType(MediaType))
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -61,12 +65,24 @@ type BlockfrostServiceParams =
   , blockfrostApiKey :: Maybe String
   }
 
-type BlockfrostServiceM (a :: Type) = ReaderT BlockfrostServiceParams Aff a
+type BlockfrostServiceM (a :: Type) = LoggerT
+  (ReaderT BlockfrostServiceParams Aff)
+  a
 
 runBlockfrostServiceM
-  :: forall (a :: Type). BlockfrostBackend -> BlockfrostServiceM a -> Aff a
-runBlockfrostServiceM backend = flip runReaderT serviceParams
+  :: forall (a :: Type)
+   . LogLevel
+  -> Maybe (LogLevel -> Message -> Aff Unit)
+  -> BlockfrostBackend
+  -> BlockfrostServiceM a
+  -> Aff a
+runBlockfrostServiceM logLevel customLogger backend =
+  flip runReaderT serviceParams <<< flip runLoggerT logger
   where
+  logger :: Message -> ReaderT BlockfrostServiceParams Aff Unit
+  logger =
+    liftAff <<< fromMaybe logWithLevel customLogger logLevel
+
   serviceParams :: BlockfrostServiceParams
   serviceParams =
     { blockfrostConfig: backend.blockfrostConfig

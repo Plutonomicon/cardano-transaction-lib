@@ -6,7 +6,7 @@ module Ctl.Internal.Contract.QueryHandle
 
 import Prelude
 
-import Contract.Log (logDebug')
+import Contract.Log (logDebug', logWarn')
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -49,16 +49,14 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
-import Ctl.Internal.Service.Blockfrost
-  ( evaluateTx
-  , submitTx
-  ) as Blockfrost
+import Ctl.Internal.Service.Blockfrost (evaluateTx, submitTx) as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either(Left))
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -123,7 +121,7 @@ queryHandleForCtlBackend contractEnv backend =
 
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle -> QueryHandle
-queryHandleForBlockfrostBackend _ backend fallback =
+queryHandleForBlockfrostBackend env backend fallback =
   { getDatumByHash: fallback.getDatumByHash
   , getScriptByHash: fallback.getScriptByHash
   , getUtxoByOref: fallback.getUtxoByOref
@@ -133,9 +131,13 @@ queryHandleForBlockfrostBackend _ backend fallback =
   , getChainTip: fallback.getChainTip
   , getCurrentEpoch: fallback.getCurrentEpoch
   , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
-  , evaluateTx: \tx _ -> runBlockfrostServiceM' $ Blockfrost.evaluateTx tx
+  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' do
+      unless (Map.isEmpty $ unwrap additionalUtxos) do
+        logWarn' "Blockfrost does not support explicit additional utxos"
+      Blockfrost.evaluateTx tx
   , getEraSummaries: fallback.getEraSummaries
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
-  runBlockfrostServiceM' = runBlockfrostServiceM backend
+  runBlockfrostServiceM' = runBlockfrostServiceM env.logLevel env.customLogger
+    backend
