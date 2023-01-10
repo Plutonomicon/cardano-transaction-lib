@@ -20,6 +20,7 @@ import Ctl.Internal.Contract.QueryBackend
   , CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   )
+import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
@@ -42,7 +43,7 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
-import Ctl.Internal.Service.Blockfrost (getChainTip, getEraSummaries) as Blockfrost
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
@@ -61,7 +62,9 @@ type AffE (a :: Type) = Aff (Either ClientError a)
 type QueryHandle =
   { getDatumByHash :: DataHash -> AffE (Maybe Datum)
   , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
-  , getTxMetadata :: TransactionHash -> AffE (Maybe GeneralTransactionMetadata)
+  , getTxMetadata ::
+      TransactionHash
+      -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
@@ -116,8 +119,8 @@ queryHandleForBlockfrostBackend _ backend =
   { getDatumByHash: runBlockfrostServiceM' <<< undefined
   , getScriptByHash: runBlockfrostServiceM' <<< undefined
   , getUtxoByOref: runBlockfrostServiceM' <<< undefined
-  , isTxConfirmed: runBlockfrostServiceM' <<< undefined
-  , getTxMetadata: runBlockfrostServiceM' <<< undefined
+  , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
+  , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< undefined
   , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
   , getCurrentEpoch: runBlockfrostServiceM' undefined
@@ -129,4 +132,3 @@ queryHandleForBlockfrostBackend _ backend =
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM backend
-

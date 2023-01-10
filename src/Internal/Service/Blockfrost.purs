@@ -1,9 +1,13 @@
 module Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
+  ( BlockfrostMetadata(BlockfrostMetadata)
+  , BlockfrostServiceM
   , BlockfrostServiceParams
+  , dummyExport
   , getChainTip
   , getEraSummaries
   , getSystemStart
+  , getTxMetadata
+  , isTxConfirmed
   , runBlockfrostServiceM
   ) where
 
@@ -27,13 +31,25 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
-import Ctl.Internal.QueryM.Ogmios (aesonObject)
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataClientError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.Transaction
+  ( convertGeneralTransactionMetadata
+  )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
   , ServiceError(ServiceBlockfrostError)
   )
-import Ctl.Internal.Service.Helpers (aesonArray)
+import Ctl.Internal.Service.Helpers (aesonArray, aesonObject)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries
@@ -41,21 +57,27 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummaryParameters
   )
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  )
 import Data.Bifunctor (lmap)
 import Data.BigInt (toNumber) as BigInt
 import Data.DateTime.Instant (instant, toDateTime)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
+import Data.Map as Map
 import Data.Maybe (Maybe, maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds(Seconds), convertDuration)
-import Data.Traversable (traverse)
+import Data.Traversable (for, traverse)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -84,18 +106,28 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 
 data BlockfrostEndpoint
   -- /genesis
-  = GetBlockchainGenesis
+  = BlockchainGenesis
   -- /network/eras
-  | GetEraSummaries
+  | EraSummaries
   -- /blocks/latest
-  | GetLatestBlock
+  | LatestBlock
+  -- /txs/{hash}
+  | Transaction TransactionHash
+  -- /txs/{hash}/metadata
+  | TransactionMetadata TransactionHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetBlockchainGenesis -> "/genesis"
-    GetEraSummaries -> "/network/eras"
-    GetLatestBlock -> "/blocks/latest"
+    BlockchainGenesis -> "/genesis"
+    EraSummaries -> "/network/eras"
+    LatestBlock -> "/blocks/latest"
+    Transaction txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
+    TransactionMetadata txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
+      <> "/metadata/cbor"
+
+dummyExport :: Unit -> Unit
+dummyExport _ = undefined blockfrostPostRequest
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -159,20 +191,53 @@ getSystemStart :: BlockfrostServiceM (Either ClientError SystemStart)
 getSystemStart = runExceptT do
   (systemStart :: BlockfrostSystemStart) <-
     ExceptT $ handleBlockfrostResponse <$>
-      blockfrostGetRequest GetBlockchainGenesis
+      blockfrostGetRequest BlockchainGenesis
   pure $ unwrap systemStart
 
 getChainTip :: BlockfrostServiceM (Either ClientError Tip)
 getChainTip = runExceptT do
   (chainTip :: BlockfrostChainTip) <-
-    ExceptT $ handleBlockfrostResponse <$> blockfrostGetRequest GetLatestBlock
+    ExceptT $ handleBlockfrostResponse <$> blockfrostGetRequest LatestBlock
   pure $ unwrap chainTip
 
 getEraSummaries :: BlockfrostServiceM (Either ClientError EraSummaries)
 getEraSummaries = runExceptT do
   (eraSummaries :: BlockfrostEraSummaries) <-
-    ExceptT $ handleBlockfrostResponse <$> blockfrostGetRequest GetEraSummaries
+    ExceptT $ handleBlockfrostResponse <$> blockfrostGetRequest EraSummaries
   pure $ unwrap eraSummaries
+
+--------------------------------------------------------------------------------
+-- Check transaction confirmation status
+--------------------------------------------------------------------------------
+
+isTxConfirmed
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError Boolean)
+isTxConfirmed txHash = do
+  response <- blockfrostGetRequest $ Transaction txHash
+  pure case handleBlockfrostResponse response of
+    Right (_ :: Aeson) -> Right true
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
+    Left e -> Left e
+
+--------------------------------------------------------------------------------
+-- Get transaction metadata
+--------------------------------------------------------------------------------
+
+getTxMetadata
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
+getTxMetadata txHash = do
+  response <- blockfrostGetRequest (TransactionMetadata txHash)
+  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+      Left GetTxMetadataTxNotFoundError
+    Left e ->
+      Left (GetTxMetadataClientError e)
+    Right metadata
+      | Map.isEmpty (unwrap metadata) ->
+          Left GetTxMetadataMetadataEmptyOrMissingError
+      | otherwise -> Right metadata
 
 --------------------------------------------------------------------------------
 -- BlockfrostSystemStart
@@ -245,3 +310,31 @@ instance DecodeAeson BlockfrostEraSummaries where
       -- so we need to convert between them.
       slotLengthFactor :: Number
       slotLengthFactor = 1000.0
+
+--------------------------------------------------------------------------------
+-- BlockfrostMetadata
+--------------------------------------------------------------------------------
+
+newtype BlockfrostMetadata = BlockfrostMetadata
+  GeneralTransactionMetadata
+
+derive instance Generic BlockfrostMetadata _
+derive instance Eq BlockfrostMetadata
+derive instance Newtype BlockfrostMetadata _
+
+instance Show BlockfrostMetadata where
+  show = genericShow
+
+instance DecodeAeson BlockfrostMetadata where
+  decodeAeson = decodeAeson >=>
+    \(metadatas :: Array { metadata :: CborBytes }) -> do
+      metadatas' <- for metadatas \{ metadata } -> do
+        map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
+          (fromBytes metadata) $
+          TypeMismatch "Hexadecimal encoded Metadata"
+
+      pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions
+        metadatas'
+
+unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
+unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata

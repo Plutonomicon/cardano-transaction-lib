@@ -58,7 +58,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 -- toList :: Map k v -> [(k, v)]. Therefore, I will derive Generic and Newtype
 -- instance and export the constructor. We could potentially provide this by
 -- having a `fromList` in `Maybe` although we should probably try to replicate
--- behaviour so that our CTL and onchain behaviours match. There doesn't even
+-- behaviour so that our CTL and on-chain behaviours match. There doesn't even
 -- seem to be an `Ord` constraint on the keys.
 -- | A Plutus-style associated list `Map` of key-value pairs.
 newtype Map (k :: Type) (v :: Type) = Map (Array (Tuple k v))
@@ -119,11 +119,11 @@ instance (Eq k, Semigroup v) => Monoid (Map k v) where
 lookup :: forall (k :: Type) (v :: Type). Eq k => k -> Map k v -> Maybe v
 lookup k (Map xs) = Foldable.lookup k xs
 
--- | Whether is a key is a member of a `Map`
+-- | Whether given key is a member of a `Map`
 member :: forall (k :: Type) (v :: Type). Eq k => k -> Map k v -> Boolean
 member k = isJust <<< lookup k
 
--- Insert a key, value pair into a `Map`
+-- Insert a key-value pair into a `Map`
 insert :: forall k v. (Eq k) => k -> v -> Map k v -> Map k v
 insert k v m = unionWith (\_ b -> b) m $ singleton k v
 
