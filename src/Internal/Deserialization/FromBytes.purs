@@ -33,6 +33,7 @@ import Ctl.Internal.Serialization.Types
   , Transaction
   , TransactionBody
   , TransactionHash
+  , TransactionMetadatum
   , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
@@ -71,6 +72,9 @@ instance FromBytes Ed25519Signature where
 
 instance FromBytes GeneralTransactionMetadata where
   fromBytes' = fromBytesImpl "GeneralTransactionMetadata"
+
+instance FromBytes TransactionMetadatum where
+  fromBytes' = fromBytesImpl "TransactionMetadatum"
 
 instance FromBytes GenesisDelegateHash where
   fromBytes' = fromBytesImpl "GenesisDelegateHash"

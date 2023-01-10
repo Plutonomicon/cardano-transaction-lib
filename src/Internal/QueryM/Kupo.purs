@@ -27,6 +27,7 @@ import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parTraverse)
@@ -44,6 +45,13 @@ import Ctl.Internal.Cardano.Types.Value
   , mkCurrencySymbol
   , mkSingletonNonAdaAsset
   , mkValue
+  )
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataClientError
+      , GetTxMetadataTxNotFoundError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
@@ -63,7 +71,7 @@ import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (hexToCborBytes)
+import Ctl.Internal.Types.CborBytes (CborBytes, hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -77,13 +85,14 @@ import Ctl.Internal.Types.Transaction
   )
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Map (Map)
-import Data.Map (fromFoldable, lookup) as Map
+import Data.Map (fromFoldable, isEmpty, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -156,19 +165,25 @@ isTxConfirmedAff config (TransactionHash txHash) = runExceptT do
 
 getTxMetadata
   :: TransactionHash
-  -> QueryM (Either ClientError (Maybe GeneralTransactionMetadata))
+  -> QueryM (Either GetTxMetadataError GeneralTransactionMetadata)
 getTxMetadata txHash = runExceptT do
-  ExceptT (isTxConfirmed txHash) >>= case _ of
-    Nothing -> pure Nothing
+  ExceptT (lmap GetTxMetadataClientError <$> isTxConfirmed txHash) >>= case _ of
+    Nothing -> throwError GetTxMetadataTxNotFoundError
     Just slot -> do
       let
         endpoint = "/metadata/" <> BigNum.toString (unwrap slot)
           <> "?transaction_id="
           <> byteArrayToHex (unwrap txHash)
-      metadata <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest
-        endpoint
-      -- `KupoMetadata` will fail parsing if there is more than one response
-      pure $ unwrapKupoMetadata metadata
+      kupoMetadata <- ExceptT $
+        lmap GetTxMetadataClientError <<< handleAffjaxResponse <$>
+          kupoGetRequest
+            endpoint
+      case unwrapKupoMetadata kupoMetadata of
+        Nothing -> throwError GetTxMetadataMetadataEmptyOrMissingError
+        Just metadata
+          | Map.isEmpty (unwrap metadata) -> throwError
+              GetTxMetadataMetadataEmptyOrMissingError
+          | otherwise -> pure metadata
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing
@@ -431,9 +446,7 @@ instance Show KupoMetadata where
 
 instance DecodeAeson KupoMetadata where
   decodeAeson = decodeAeson >=> case _ of
-    [ { raw } :: { raw :: String } ] -> do
-      cbor <- flip note (hexToCborBytes raw) $
-        TypeMismatch "Hexadecimal String"
+    [ { raw: cbor } :: { raw :: CborBytes } ] -> do
       metadata <- flip note (fromBytes cbor) $
         TypeMismatch "Hexadecimal encoded Metadata"
       pure $ KupoMetadata $ Just $ convertGeneralTransactionMetadata metadata
