@@ -82,7 +82,7 @@ import Ctl.Internal.Plutus.Types.Transaction
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (fromFoldable, mapWithIndex) as Array
 import Data.BigInt (BigInt)
-import Data.Either (Either(Left, Right), isRight)
+import Data.Either (Either(Left, Right), hush, isRight)
 import Data.Foldable (foldMap, null)
 import Data.Lens.Getter (view, (^.))
 import Data.Map (filterKeys, lookup, values) as Map
@@ -576,7 +576,7 @@ assertTxHasMetadataImpl
 assertTxHasMetadataImpl mdLabel txHash expectedMetadata = do
   generalMetadata <-
     assertContractM (TransactionHasNoMetadata txHash Nothing)
-      (getTxMetadata txHash)
+      (hush <$> getTxMetadata txHash)
 
   rawMetadata <-
     assertContractM' (TransactionHasNoMetadata txHash (Just mdLabel))

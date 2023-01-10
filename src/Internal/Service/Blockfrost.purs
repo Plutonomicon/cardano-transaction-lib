@@ -1,19 +1,24 @@
 module Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
+  ( isTxConfirmed
+  , getTxMetadata
+  , BlockfrostMetadata(BlockfrostMetadata)
+  , BlockfrostServiceM
   , BlockfrostServiceParams
   , BlockfrostCurrentEpoch(BlockfrostCurrentEpoch)
   , BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   , runBlockfrostServiceM
   , getCurrentEpoch
   , getProtocolParameters
+  , dummyExport
   ) where
 
 import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , Aeson
   , Finite
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch, AtKey, MissingValue)
   , decodeAeson
   , decodeJsonString
   , parseJsonStringToAeson
@@ -31,6 +36,17 @@ import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(..))
 import Ctl.Internal.Cardano.Types.Value (Coin(..))
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataClientError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.Transaction
+  ( convertGeneralTransactionMetadata
+  )
 import Ctl.Internal.QueryM.Ogmios
   ( CoinsPerUtxoUnit(..)
   , CostModelV1
@@ -46,8 +62,15 @@ import Ctl.Internal.Service.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
   , ServiceError(ServiceBlockfrostError)
   )
+-- import Ctl.Internal.QueryM (handleAffjaxResponse)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.Scripts (Language(..))
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  )
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -62,10 +85,12 @@ import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (for)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -95,12 +120,20 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 data BlockfrostEndpoint
   = LatestEpoch
   | LatestProtocolParameters
+  | Transaction TransactionHash
+  | TransactionMetadata TransactionHash
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
     LatestEpoch -> "/epochs/latest"
     LatestProtocolParameters -> "/epochs/latest/parameters"
+    Transaction txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
+    TransactionMetadata txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
+      <> "/metadata/cbor"
+
+dummyExport :: Unit -> Unit
+dummyExport _ = undefined blockfrostPostRequest
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -292,3 +325,56 @@ getProtocolParameters = runExceptT do
   BlockfrostProtocolParameters params <- ExceptT $
     blockfrostGetRequest LatestProtocolParameters <#> handleBlockfrostResponse
   pure params
+
+isTxConfirmed
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError Boolean)
+isTxConfirmed txHash = do
+  response <- blockfrostGetRequest $ Transaction txHash
+  pure case handleBlockfrostResponse response of
+    Right (_ :: Aeson) -> Right true
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
+    Left e -> Left e
+
+getTxMetadata
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
+getTxMetadata txHash = do
+  response <- blockfrostGetRequest (TransactionMetadata txHash)
+  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+      Left GetTxMetadataTxNotFoundError
+    Left e ->
+      Left (GetTxMetadataClientError e)
+    Right metadata
+      | Map.isEmpty (unwrap metadata) ->
+          Left GetTxMetadataMetadataEmptyOrMissingError
+      | otherwise -> Right metadata
+
+--------------------------------------------------------------------------------
+-- `getTxMetadata` reponse parsing
+--------------------------------------------------------------------------------
+
+newtype BlockfrostMetadata = BlockfrostMetadata
+  GeneralTransactionMetadata
+
+derive instance Generic BlockfrostMetadata _
+derive instance Eq BlockfrostMetadata
+derive instance Newtype BlockfrostMetadata _
+
+instance Show BlockfrostMetadata where
+  show = genericShow
+
+instance DecodeAeson BlockfrostMetadata where
+  decodeAeson = decodeAeson >=>
+    \(metadatas :: Array { metadata :: CborBytes }) -> do
+      metadatas' <- for metadatas \{ metadata } -> do
+        map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
+          (fromBytes metadata) $
+          TypeMismatch "Hexadecimal encoded Metadata"
+
+      pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions
+        metadatas'
+
+unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
+unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata

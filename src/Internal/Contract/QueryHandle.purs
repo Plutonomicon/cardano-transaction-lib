@@ -10,8 +10,6 @@ import Contract.Log (logDebug')
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Effect.Exception (error)
-import Data.Bifunctor (bimap)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
@@ -23,6 +21,7 @@ import Ctl.Internal.Contract.QueryBackend
   , CtlBackend
   , QueryBackend(BlockfrostBackend, CtlBackend)
   )
+import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
@@ -51,17 +50,21 @@ import Ctl.Internal.Service.Blockfrost
   )
 import Ctl.Internal.Service.Blockfrost
   ( getCurrentEpoch
+  , getTxMetadata
+  , isTxConfirmed
   ) as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Data.Bifunctor (bimap)
 import Data.Either (Either)
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import Undefined (undefined)
 
 type AffE (a :: Type) = Aff (Either ClientError a)
@@ -69,7 +72,9 @@ type AffE (a :: Type) = Aff (Either ClientError a)
 type QueryHandle =
   { getDatumByHash :: DataHash -> AffE (Maybe Datum)
   , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
-  , getTxMetadata :: TransactionHash -> AffE (Maybe GeneralTransactionMetadata)
+  , getTxMetadata ::
+      TransactionHash
+      -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
@@ -124,8 +129,8 @@ queryHandleForBlockfrostBackend _ backend =
   { getDatumByHash: runBlockfrostServiceM' <<< undefined
   , getScriptByHash: runBlockfrostServiceM' <<< undefined
   , getUtxoByOref: runBlockfrostServiceM' <<< undefined
-  , isTxConfirmed: runBlockfrostServiceM' <<< undefined
-  , getTxMetadata: runBlockfrostServiceM' <<< undefined
+  , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
+  , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< undefined
   , getChainTip: runBlockfrostServiceM' undefined
   , getCurrentEpoch:
@@ -139,4 +144,3 @@ queryHandleForBlockfrostBackend _ backend =
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM backend
-
