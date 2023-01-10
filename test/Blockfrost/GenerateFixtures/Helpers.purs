@@ -11,7 +11,10 @@ import Contract.Prelude
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
+  , ServerConfig
   , WalletSpec(UseKeys)
+  , blockfrostPublicMainnetServerConfig
+  , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
   , testnetConfig
   )
@@ -20,6 +23,7 @@ import Ctl.Internal.Contract.QueryBackend
   , mkBlockfrostBackendParams
   )
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.String (take) as String
 import Effect.Exception (throw)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (exists, writeTextFile)
@@ -29,9 +33,11 @@ import Node.Process (lookupEnv)
 foreign import md5 :: String -> String
 
 blockfrostBackend :: Effect BlockfrostBackend
-blockfrostBackend =
-  getBlockfrostApiKeyFromEnv <#> \blockfrostApiKey ->
-    { blockfrostConfig: blockfrostPublicPreviewServerConfig
+blockfrostBackend = do
+  blockfrostApiKey <- getBlockfrostApiKeyFromEnv
+  blockfrostConfig <- blockfrostConfigFromApiKey blockfrostApiKey
+  pure
+    { blockfrostConfig
     , blockfrostApiKey: Just blockfrostApiKey
     }
 
@@ -39,15 +45,30 @@ contractParams :: Effect ContractParams
 contractParams = do
   blockfrostApiKey <- getBlockfrostApiKeyFromEnv
   skeyFilepath <- getSkeyFilepathFromEnv
+  blockfrostConfig <- blockfrostConfigFromApiKey blockfrostApiKey
   pure $ testnetConfig
     { backendParams =
         mkBlockfrostBackendParams
-          { blockfrostConfig: blockfrostPublicPreviewServerConfig
+          { blockfrostConfig
           , blockfrostApiKey: Just blockfrostApiKey
           }
     , logLevel = Info
     , walletSpec = Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
     }
+
+blockfrostConfigFromApiKey :: String -> Effect ServerConfig
+blockfrostConfigFromApiKey = String.take networkPrefixLength >>> case _ of
+  "mainnet" ->
+    pure blockfrostPublicMainnetServerConfig
+  "preview" ->
+    pure blockfrostPublicPreviewServerConfig
+  "preprod" ->
+    pure blockfrostPublicPreprodServerConfig
+  _ ->
+    throw "Failed to derive server config from Blockfrost API key"
+  where
+  networkPrefixLength :: Int
+  networkPrefixLength = 7
 
 getBlockfrostApiKeyFromEnv :: Effect String
 getBlockfrostApiKeyFromEnv = lookupEnv' "BLOCKFROST_API_KEY"
