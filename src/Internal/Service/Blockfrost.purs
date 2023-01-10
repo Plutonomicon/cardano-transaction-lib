@@ -1,10 +1,16 @@
 module Ctl.Internal.Service.Blockfrost
-  ( isTxConfirmed
-  , getTxMetadata
+  ( BlockfrostEndpoint
+      ( Transaction
+      , TransactionMetadata
+      )
   , BlockfrostMetadata(BlockfrostMetadata)
+  , BlockfrostRawResponses
   , BlockfrostServiceM
   , BlockfrostServiceParams
+  , getTxMetadata
+  , isTxConfirmed
   , runBlockfrostServiceM
+  , runBlockfrostServiceTestM
   , dummyExport
   ) where
 
@@ -22,7 +28,7 @@ import Affjax.RequestBody (RequestBody) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
-import Control.Monad.Reader.Class (ask)
+import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Contract.QueryHandle.Error
@@ -41,7 +47,6 @@ import Ctl.Internal.Service.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
   , ServiceError(ServiceBlockfrostError)
   )
--- import Ctl.Internal.QueryM (handleAffjaxResponse)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Transaction (TransactionHash)
@@ -52,36 +57,63 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
+import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (for)
+import Data.Traversable (for, traverse_)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Ref (Ref)
+import Effect.Ref (modify_, new, read) as Ref
+import Partial.Unsafe (unsafePartial)
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
 --------------------------------------------------------------------------------
 
+type BlockfrostRawResponses = Maybe (Ref (Map BlockfrostEndpoint String))
+
 type BlockfrostServiceParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
+  , blockfrostRawResponses :: BlockfrostRawResponses
   }
 
 type BlockfrostServiceM (a :: Type) = ReaderT BlockfrostServiceParams Aff a
 
 runBlockfrostServiceM
   :: forall (a :: Type). BlockfrostBackend -> BlockfrostServiceM a -> Aff a
-runBlockfrostServiceM backend = flip runReaderT serviceParams
+runBlockfrostServiceM = flip runReaderT <<< mkServiceParams Nothing
+
+runBlockfrostServiceTestM
+  :: forall (a :: Type)
+   . BlockfrostBackend
+  -> BlockfrostServiceM a
+  -> Aff (a /\ Map BlockfrostEndpoint String)
+runBlockfrostServiceTestM backend action = do
+  rawResponsesRef <- liftEffect $ Just <$> Ref.new Map.empty
+  runReaderT actionWithRawResponses (mkServiceParams rawResponsesRef backend)
   where
-  serviceParams :: BlockfrostServiceParams
-  serviceParams =
-    { blockfrostConfig: backend.blockfrostConfig
-    , blockfrostApiKey: backend.blockfrostApiKey
-    }
+  actionWithRawResponses
+    :: BlockfrostServiceM (a /\ Map BlockfrostEndpoint String)
+  actionWithRawResponses = do
+    rawResponsesRef <- unsafePartial fromJust <$> asks _.blockfrostRawResponses
+    Tuple <$> action <*> liftEffect (Ref.read rawResponsesRef)
+
+mkServiceParams
+  :: BlockfrostRawResponses -> BlockfrostBackend -> BlockfrostServiceParams
+mkServiceParams blockfrostRawResponses backend =
+  { blockfrostConfig: backend.blockfrostConfig
+  , blockfrostApiKey: backend.blockfrostApiKey
+  , blockfrostRawResponses
+  }
 
 --------------------------------------------------------------------------------
 -- Making requests to Blockfrost endpoints
@@ -90,6 +122,13 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 data BlockfrostEndpoint
   = Transaction TransactionHash
   | TransactionMetadata TransactionHash
+
+derive instance Generic BlockfrostEndpoint _
+derive instance Eq BlockfrostEndpoint
+derive instance Ord BlockfrostEndpoint
+
+instance Show BlockfrostEndpoint where
+  show = genericShow
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
@@ -104,23 +143,24 @@ dummyExport _ = undefined blockfrostPostRequest
 blockfrostGetRequest
   :: BlockfrostEndpoint
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostGetRequest endpoint = ask >>= \params -> liftAff do
-  Affjax.request $ Affjax.defaultRequest
-    { method = Left GET
-    , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
-    , responseFormat = Affjax.ResponseFormat.string
-    , headers =
-        maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
-          params.blockfrostApiKey
-    }
+blockfrostGetRequest endpoint = ask >>= \params ->
+  updateRawResponses endpoint =<< liftAff do
+    Affjax.request $ Affjax.defaultRequest
+      { method = Left GET
+      , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
+      , responseFormat = Affjax.ResponseFormat.string
+      , headers =
+          maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
+            params.blockfrostApiKey
+      }
 
 blockfrostPostRequest
   :: BlockfrostEndpoint
   -> MediaType
   -> Maybe Affjax.RequestBody
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostPostRequest endpoint mediaType mbContent =
-  ask >>= \params -> liftAff do
+blockfrostPostRequest endpoint mediaType mbContent = ask >>= \params ->
+  updateRawResponses endpoint =<< liftAff do
     Affjax.request $ Affjax.defaultRequest
       { method = Left POST
       , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
@@ -132,6 +172,17 @@ blockfrostPostRequest endpoint mediaType mbContent =
               (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
               params.blockfrostApiKey
       }
+
+updateRawResponses
+  :: BlockfrostEndpoint
+  -> Either Affjax.Error (Affjax.Response String)
+  -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+updateRawResponses endpoint result@(Right { body: response }) = do
+  rawResponses <- asks _.blockfrostRawResponses
+  liftEffect $
+    traverse_ (Ref.modify_ (Map.insert endpoint response)) rawResponses
+  pure result
+updateRawResponses _ result = pure result
 
 --------------------------------------------------------------------------------
 -- Blockfrost response handling
