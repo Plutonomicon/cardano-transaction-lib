@@ -73,17 +73,15 @@ toError = error <<< match
 -- | FromBytesError row alias
 type FromBytesError r = (fromBytesError :: String | r)
 
--- | Needed to craate a variant type
+-- | Needed to create a variant type
 _fromBytesError = Proxy :: Proxy "fromBytesError"
 
--- | An error to use
 fromBytesError
   :: forall (r :: Row Type) (a :: Type)
    . String
   -> E (FromBytesError + r) a
 fromBytesError = Left <<< inj _fromBytesError
 
--- | An internal helper to shorten code
 fromBytesErrorHelper
   :: forall (r :: Row Type)
    . ErrorFfiHelper (FromBytesError + r)

@@ -39,6 +39,17 @@ data ClientError
   -- | Any other error
   | ClientOtherError String
 
+instance Eq ClientError where
+  eq (ClientHttpError e1) (ClientHttpError e2) =
+    Affjax.printError e1 == Affjax.printError e2
+  eq (ClientHttpResponseError sc1 e1) (ClientHttpResponseError sc2 e2) =
+    (sc1 == sc2) && (e1 == e2)
+  eq (ClientDecodeJsonError s1 e1) (ClientDecodeJsonError s2 e2) =
+    (s1 == s2) && (e1 == e2)
+  eq (ClientEncodingError s1) (ClientEncodingError s2) = s1 == s2
+  eq (ClientOtherError s1) (ClientOtherError s2) = s1 == s2
+  eq _ _ = false
+
 -- No `Show` instance of `Affjax.Error`
 instance Show ClientError where
   show (ClientHttpError err) =
@@ -72,6 +83,7 @@ data ServiceError
   = ServiceBlockfrostError BlockfrostError
   | ServiceOtherError String
 
+derive instance Eq ServiceError
 derive instance Generic ServiceError _
 
 instance Show ServiceError where
@@ -83,6 +95,7 @@ newtype BlockfrostError = BlockfrostError
   , message :: String
   }
 
+derive instance Eq BlockfrostError
 derive instance Newtype BlockfrostError _
 derive instance Generic BlockfrostError _
 

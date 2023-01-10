@@ -121,13 +121,13 @@ In addition to the constraints/lookups listed above, there are several other cri
   - [x] `signTransaction`
   - [x] `submit`
   - [x] `awaitTxConfirmed` (implies `awaitTxConfirmedWithTimeout`)
-  - [ ] `getTxMetadata`
+  - [x] `getTxMetadata`
 - `Contract.Scripts.*`
   - [x] `validatorHash`
   - [x] `mintingPolicy`
   - [x] `applyArgs`
-  - [ ] `getScriptByHash`
-  - [ ] `getScriptsByHashes`
+  - [x] `getScriptByHash`
+  - [x] `getScriptsByHashes`
 - `Contract.Hashing.*`
   - [x] `datumHash`
   - [x] `plutusScriptHash`
