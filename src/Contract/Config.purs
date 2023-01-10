@@ -32,10 +32,8 @@ import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad (ContractParams)
 import Ctl.Internal.Contract.QueryBackend
-  ( -- TODO Export Blockfrost once the following is stable
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1118
-    -- , mkBlockfrostBackendParams
-    QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
+  ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
+  , mkBlockfrostBackendParams
   , mkCtlBackendParams
   )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -68,6 +66,7 @@ import Ctl.Internal.Wallet.Spec
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.UInt as UInt
 
 testnetConfig :: ContractParams
 testnetConfig =
@@ -84,6 +83,7 @@ testnetConfig =
   }
 
 -- | Blockfrost public preview with CTL as backup
+-- | Does not use the Kupo webpack proxy
 testnetBlockfrostDevConfig :: Maybe String -> ContractParams
 testnetBlockfrostDevConfig mbApiKey =
   { backendParams: BlockfrostBackendParams
@@ -92,7 +92,12 @@ testnetBlockfrostDevConfig mbApiKey =
       }
       ( Just
           { ogmiosConfig: defaultOgmiosWsConfig
-          , kupoConfig: defaultKupoServerConfig
+          , kupoConfig:
+              { port: UInt.fromInt 1442
+              , host: "localhost"
+              , secure: false
+              , path: Nothing
+              }
           }
       )
   , networkId: TestnetId
