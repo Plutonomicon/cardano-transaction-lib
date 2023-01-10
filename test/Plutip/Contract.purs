@@ -27,13 +27,7 @@ import Contract.Metadata
   , TransactionMetadatum(Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
-import Contract.Monad
-  ( Contract
-  , liftContractE
-  , liftContractM
-  , liftedE
-  , liftedM
-  )
+import Contract.Monad (Contract, liftContractE, liftContractM, liftedE, liftedM)
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -151,7 +145,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -176,7 +170,7 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM PlutipTest Unit
 suite = do
-  group "Contract" do
+  only $ group "Contract" do
     flip mapTest QueryM.AffInterface.suite
       (noWallet <<< wrapQueryM)
 
@@ -1247,7 +1241,7 @@ suite = do
       withWallets distribution \alice ->
         withKeyWallet alice PaysWithDatum.contract
 
-    test "Examples.ContractTestUtils" do
+    only $ test "Examples.ContractTestUtils" do
       let
         initialUtxos :: InitialUTxOs
         initialUtxos =

@@ -267,6 +267,7 @@ import Data.UInt (UInt)
 import Effect.Aff (bracket)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
+import Effect.Exception (try)
 
 -- | Signs a transaction with potential failure.
 signTransaction
@@ -287,7 +288,11 @@ submit
   -> Contract TransactionHash
 submit tx = do
   queryHandle <- getQueryHandle
-  liftedM "Failed to submit tx" $ liftAff $ queryHandle.submitTx $ unwrap tx
+  res <- liftedM "Failed to submit tx" $ liftAff $ queryHandle.submitTx $ unwrap
+    tx
+  void $ asks (_.hooks >>> _.onSubmit) >>=
+    traverse \hook -> liftEffect $ void $ try $ hook $ unwrap tx
+  pure res
 
 -- | Calculate the minimum transaction fee.
 calculateMinFee

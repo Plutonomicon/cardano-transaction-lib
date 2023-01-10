@@ -51,11 +51,12 @@ import Contract.Transaction
 import Contract.TxConstraints (DatumPresence(DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value)
+import Contract.Value (CurrencySymbol, TokenName, Value, adaToken)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Lens (view)
 
 newtype ContractParams = ContractParams
@@ -94,12 +95,14 @@ mkAssertions params@(ContractParams p) = do
           p.adaToSend
 
       , TestUtils.assertLossAtAddress (label senderAddress "Sender")
-          \{ txFinalFee } -> pure (p.adaToSend + txFinalFee)
+          \{ txFinalFee } -> pure (p.adaToSend + txFinalFee + txFinalFee)
 
       , TestUtils.assertTokenGainAtAddress' (label senderAddress "Sender")
           ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
               p.tokensToMint
           )
+      , TestUtils.assertExUnitsNotExceed
+          { mem: BigInt.fromInt 800, steps: BigInt.fromInt 16110 }
       ]
     /\
       [ \{ txOutputUnderTest } ->

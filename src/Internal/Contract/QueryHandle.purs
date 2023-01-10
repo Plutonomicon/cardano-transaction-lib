@@ -131,4 +131,3 @@ queryHandleForBlockfrostBackend _ backend =
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM backend
-
