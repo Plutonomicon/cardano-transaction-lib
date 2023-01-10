@@ -80,9 +80,9 @@ testPlan = do
   Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
+  ProtocolParams.suite
   Blockfrost.Aeson.suite
   Blockfrost.ProtocolParameters.suite
-  ProtocolParams.suite
   Types.TokenName.suite
   Types.Transaction.suite
   Ctl.Data.Interval.suite

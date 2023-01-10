@@ -17,7 +17,7 @@ import Node.FS.Aff (readTextFile)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Runner (defaultConfig)
 
--- These fixtures were aquired soon after each other, so we can compare their
+-- These fixtures were acquired soon after each other, so we can compare their
 -- parsed results
 
 blockfrostFixture :: String
