@@ -4,9 +4,12 @@ module Ctl.Internal.Service.Blockfrost
       , TransactionMetadata
       )
   , BlockfrostMetadata(BlockfrostMetadata)
-  , BlockfrostRawResponses
+  , BlockfrostRawPostResponseData
+  , BlockfrostRawResponse
   , BlockfrostServiceM
   , BlockfrostServiceParams
+  , OnBlockfrostRawGetResponseHook
+  , OnBlockfrostRawPostResponseHook
   , getTxMetadata
   , isTxConfirmed
   , runBlockfrostServiceM
@@ -57,62 +60,68 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
-import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (for, traverse_)
-import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\))
+import Data.Traversable (for)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Ref (Ref)
-import Effect.Ref (modify_, new, read) as Ref
-import Partial.Unsafe (unsafePartial)
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
 --------------------------------------------------------------------------------
 
-type BlockfrostRawResponses = Maybe (Ref (Map BlockfrostEndpoint String))
+type BlockfrostRawResponse = String
+
+type BlockfrostRawPostResponseData =
+  { endpoint :: BlockfrostEndpoint
+  , mediaType :: MediaType
+  , requestBody :: Maybe Affjax.RequestBody
+  , rawResponse :: BlockfrostRawResponse
+  }
+
+type OnBlockfrostRawGetResponseHook =
+  Maybe (BlockfrostEndpoint -> BlockfrostRawResponse -> Aff Unit)
+
+type OnBlockfrostRawPostResponseHook =
+  Maybe (BlockfrostRawPostResponseData -> Aff Unit)
 
 type BlockfrostServiceParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
-  , blockfrostRawResponses :: BlockfrostRawResponses
+  , onBlockfrostRawGetResponse :: OnBlockfrostRawGetResponseHook
+  , onBlockfrostRawPostResponse :: OnBlockfrostRawPostResponseHook
   }
 
 type BlockfrostServiceM (a :: Type) = ReaderT BlockfrostServiceParams Aff a
 
 runBlockfrostServiceM
   :: forall (a :: Type). BlockfrostBackend -> BlockfrostServiceM a -> Aff a
-runBlockfrostServiceM = flip runReaderT <<< mkServiceParams Nothing
+runBlockfrostServiceM = flip runReaderT <<< mkServiceParams Nothing Nothing
 
 runBlockfrostServiceTestM
   :: forall (a :: Type)
    . BlockfrostBackend
+  -> OnBlockfrostRawGetResponseHook
+  -> OnBlockfrostRawPostResponseHook
   -> BlockfrostServiceM a
-  -> Aff (a /\ Map BlockfrostEndpoint String)
-runBlockfrostServiceTestM backend action = do
-  rawResponsesRef <- liftEffect $ Just <$> Ref.new Map.empty
-  runReaderT actionWithRawResponses (mkServiceParams rawResponsesRef backend)
-  where
-  actionWithRawResponses
-    :: BlockfrostServiceM (a /\ Map BlockfrostEndpoint String)
-  actionWithRawResponses = do
-    rawResponsesRef <- unsafePartial fromJust <$> asks _.blockfrostRawResponses
-    Tuple <$> action <*> liftEffect (Ref.read rawResponsesRef)
+  -> Aff a
+runBlockfrostServiceTestM backend onRawGetResponse onRawPostResponse =
+  flip runReaderT (mkServiceParams onRawGetResponse onRawPostResponse backend)
 
 mkServiceParams
-  :: BlockfrostRawResponses -> BlockfrostBackend -> BlockfrostServiceParams
-mkServiceParams blockfrostRawResponses backend =
+  :: OnBlockfrostRawGetResponseHook
+  -> OnBlockfrostRawPostResponseHook
+  -> BlockfrostBackend
+  -> BlockfrostServiceParams
+mkServiceParams onBlockfrostRawGetResponse onBlockfrostRawPostResponse backend =
   { blockfrostConfig: backend.blockfrostConfig
   , blockfrostApiKey: backend.blockfrostApiKey
-  , blockfrostRawResponses
+  , onBlockfrostRawGetResponse
+  , onBlockfrostRawPostResponse
   }
 
 --------------------------------------------------------------------------------
@@ -144,7 +153,7 @@ blockfrostGetRequest
   :: BlockfrostEndpoint
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
 blockfrostGetRequest endpoint = ask >>= \params ->
-  updateRawResponses endpoint =<< liftAff do
+  withOnRawGetResponseHook endpoint =<< liftAff do
     Affjax.request $ Affjax.defaultRequest
       { method = Left GET
       , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
@@ -160,7 +169,7 @@ blockfrostPostRequest
   -> Maybe Affjax.RequestBody
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
 blockfrostPostRequest endpoint mediaType mbContent = ask >>= \params ->
-  updateRawResponses endpoint =<< liftAff do
+  withOnRawPostResponseHook endpoint mediaType mbContent =<< liftAff do
     Affjax.request $ Affjax.defaultRequest
       { method = Left POST
       , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
@@ -173,16 +182,33 @@ blockfrostPostRequest endpoint mediaType mbContent = ask >>= \params ->
               params.blockfrostApiKey
       }
 
-updateRawResponses
+withOnRawGetResponseHook
   :: BlockfrostEndpoint
   -> Either Affjax.Error (Affjax.Response String)
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-updateRawResponses endpoint result@(Right { body: response }) = do
-  rawResponses <- asks _.blockfrostRawResponses
-  liftEffect $
-    traverse_ (Ref.modify_ (Map.insert endpoint response)) rawResponses
-  pure result
-updateRawResponses _ result = pure result
+withOnRawGetResponseHook endpoint result =
+  case result of
+    Right { body: rawResponse } -> do
+      onRawGetResponse <- asks _.onBlockfrostRawGetResponse
+      maybe (pure unit) (\f -> liftAff $ f endpoint rawResponse)
+        onRawGetResponse
+      pure result
+    _ -> pure result
+
+withOnRawPostResponseHook
+  :: BlockfrostEndpoint
+  -> MediaType
+  -> Maybe Affjax.RequestBody
+  -> Either Affjax.Error (Affjax.Response String)
+  -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+withOnRawPostResponseHook endpoint mediaType requestBody result =
+  case result of
+    Right { body: rawResponse } -> do
+      let data_ = { endpoint, mediaType, requestBody, rawResponse }
+      onRawPostResponse <- asks _.onBlockfrostRawPostResponse
+      maybe (pure unit) (\f -> liftAff $ f data_) onRawPostResponse
+      pure result
+    _ -> pure result
 
 --------------------------------------------------------------------------------
 -- Blockfrost response handling
