@@ -65,7 +65,7 @@ import Data.Maybe (Maybe(Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (for)
+import Data.Traversable (for, for_)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Undefined (undefined)
@@ -186,14 +186,11 @@ withOnRawGetResponseHook
   :: BlockfrostEndpoint
   -> Either Affjax.Error (Affjax.Response String)
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-withOnRawGetResponseHook endpoint result =
-  case result of
-    Right { body: rawResponse } -> do
-      onRawGetResponse <- asks _.onBlockfrostRawGetResponse
-      maybe (pure unit) (\f -> liftAff $ f endpoint rawResponse)
-        onRawGetResponse
-      pure result
-    _ -> pure result
+withOnRawGetResponseHook endpoint result = do
+  for_ result \{ body: rawResponse } -> do
+    onRawGetResponse <- asks _.onBlockfrostRawGetResponse
+    maybe (pure unit) (\f -> liftAff $ f endpoint rawResponse) onRawGetResponse
+  pure result
 
 withOnRawPostResponseHook
   :: BlockfrostEndpoint
@@ -201,14 +198,12 @@ withOnRawPostResponseHook
   -> Maybe Affjax.RequestBody
   -> Either Affjax.Error (Affjax.Response String)
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-withOnRawPostResponseHook endpoint mediaType requestBody result =
-  case result of
-    Right { body: rawResponse } -> do
-      let data_ = { endpoint, mediaType, requestBody, rawResponse }
-      onRawPostResponse <- asks _.onBlockfrostRawPostResponse
-      maybe (pure unit) (\f -> liftAff $ f data_) onRawPostResponse
-      pure result
-    _ -> pure result
+withOnRawPostResponseHook endpoint mediaType requestBody result = do
+  for_ result \{ body: rawResponse } -> do
+    let data_ = { endpoint, mediaType, requestBody, rawResponse }
+    onRawPostResponse <- asks _.onBlockfrostRawPostResponse
+    maybe (pure unit) (\f -> liftAff $ f data_) onRawPostResponse
+  pure result
 
 --------------------------------------------------------------------------------
 -- Blockfrost response handling

@@ -1,5 +1,6 @@
 module Test.Ctl.Blockfrost.GenerateFixtures.Helpers
-  ( contractParams
+  ( blockfrostBackend
+  , contractParams
   , lookupEnv'
   , md5
   , storeBlockfrostFixture
@@ -14,20 +15,30 @@ import Contract.Config
   , blockfrostPublicPreviewServerConfig
   , testnetConfig
   )
-import Ctl.Internal.Contract.QueryBackend (mkBlockfrostBackendParams)
+import Ctl.Internal.Contract.QueryBackend
+  ( BlockfrostBackend
+  , mkBlockfrostBackendParams
+  )
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Effect.Exception (throw)
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (writeTextFile)
+import Node.FS.Aff (exists, writeTextFile)
 import Node.Path (concat)
 import Node.Process (lookupEnv)
 
 foreign import md5 :: String -> String
 
+blockfrostBackend :: Effect BlockfrostBackend
+blockfrostBackend =
+  getBlockfrostApiKeyFromEnv <#> \blockfrostApiKey ->
+    { blockfrostConfig: blockfrostPublicPreviewServerConfig
+    , blockfrostApiKey: Just blockfrostApiKey
+    }
+
 contractParams :: Effect ContractParams
 contractParams = do
-  blockfrostApiKey <- lookupEnv' "BLOCKFROST_API_KEY"
-  skeyFilepath <- lookupEnv' "SKEY_FILEPATH"
+  blockfrostApiKey <- getBlockfrostApiKeyFromEnv
+  skeyFilepath <- getSkeyFilepathFromEnv
   pure $ testnetConfig
     { backendParams =
         mkBlockfrostBackendParams
@@ -37,6 +48,12 @@ contractParams = do
     , logLevel = Info
     , walletSpec = Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
     }
+
+getBlockfrostApiKeyFromEnv :: Effect String
+getBlockfrostApiKeyFromEnv = lookupEnv' "BLOCKFROST_API_KEY"
+
+getSkeyFilepathFromEnv :: Effect String
+getSkeyFilepathFromEnv = lookupEnv' "SKEY_FILEPATH"
 
 lookupEnv' :: String -> Effect String
 lookupEnv' var =
@@ -50,5 +67,7 @@ storeBlockfrostFixture i query resp =
     filename = query <> "-" <> respHash <> ".json"
     fp = concat [ "fixtures", "test", "blockfrost", query, filename ]
   in
-    writeTextFile UTF8 fp resp
-      *> log ("Successfully saved fixture #" <> show i <> " to: " <> fp)
+    exists fp >>= flip unless
+      ( writeTextFile UTF8 fp resp
+          *> log ("Successfully saved fixture #" <> show i <> " to: " <> fp)
+      )
