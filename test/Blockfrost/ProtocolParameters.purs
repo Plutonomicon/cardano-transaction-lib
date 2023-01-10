@@ -41,11 +41,10 @@ main = launchAff_ do
     suite
 
 suite :: TestPlanM (Aff Unit) Unit
-suite = do
-  group "Blockfrost" do
-    test "ProtocolParameter parsing" do
-      BlockfrostProtocolParameters blockfrostFixture' <- loadFixture
-        blockfrostFixture
-      ogmiosFixture' <- loadFixture ogmiosFixture
+suite = group "Blockfrost" do
+  test "ProtocolParameter parsing verification" do
+    BlockfrostProtocolParameters blockfrostFixture' <- loadFixture
+      blockfrostFixture
+    ogmiosFixture' <- loadFixture ogmiosFixture
 
-      blockfrostFixture' `shouldEqual` ogmiosFixture'
+    blockfrostFixture' `shouldEqual` ogmiosFixture'

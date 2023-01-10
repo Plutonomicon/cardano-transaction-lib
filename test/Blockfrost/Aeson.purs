@@ -75,7 +75,7 @@ loadFixtures = do
   pure groupedFiles
 
 suite :: TestPlanM (Aff Unit) Unit
-suite = group "Blockfrost Aeson tests" do
+suite = group "Blockfrost" $ group "Aeson" do
   groupedFiles <- lift loadFixtures
 
   for_ groupedFiles \(query /\ files') ->
@@ -92,6 +92,9 @@ suite = group "Blockfrost Aeson tests" do
               (Aeson.decodeAeson aeson :: _ a)
           case query of
             "getTxMetadata" -> handle (Proxy :: _ B.BlockfrostMetadata)
+            "getCurrentEpoch" -> handle (Proxy :: _ B.BlockfrostCurrentEpoch)
+            "getProtocolParameters" -> handle
+              (Proxy :: _ B.BlockfrostProtocolParameters)
             _ -> liftEffect $ throw $ "Unknown case " <> bn
 
 main :: Effect Unit
