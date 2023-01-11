@@ -56,7 +56,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Fixed
 - CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))
 - Critical upstream fix in [`purescript-bignumber`](https://github.com/mlabs-haskell/purescript-bignumber/pull/2)
-- `OutputDatum` aeson encoding now roundtrips
+- `OutputDatum` aeson encoding now roundtrips ([#1388](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1388))
 
 ### Runtime Dependencies
 
