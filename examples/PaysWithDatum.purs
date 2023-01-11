@@ -17,12 +17,7 @@ import Contract.Address
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftedM
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.PlutusData
   ( DataHash
   , Datum(Datum)
@@ -30,17 +25,15 @@ import Contract.PlutusData
   , PlutusData(Integer)
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Test.Utils
+import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
-  , ContractBasicAssertion
-  , label
-  )
-import Contract.Test.Utils
-  ( assertContract
+  , ContractCheck
+  , assertContract
+  , assertionToCheck
   , checkNewUtxosAtAddress
-  , runContractAssertionM'
-  , withAssertions
-  ) as TestUtils
+  , label
+  , runChecks
+  )
 import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
@@ -91,43 +84,43 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  void $ TestUtils.withAssertions assertions do
+  void $ runChecks checks do
     txHash <- submitTxFromConstraints lookups constraints
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { address, txHash, datum, datumHash: datumHash' }
 
-assertions :: Array (ContractBasicAssertion ContractResult Unit)
-assertions =
+checks :: Array (ContractCheck ContractResult)
+checks =
   [ assertTxCreatesOutputWithInlineDatum, assertTxCreatesOutputWithDatumHash ]
 
 assertTxCreatesOutputWithInlineDatum
-  :: ContractBasicAssertion ContractResult Unit
-assertTxCreatesOutputWithInlineDatum { address, txHash, datum } =
-  let
-    assertionFailure :: ContractAssertionFailure
-    assertionFailure =
-      CustomFailure "Could not find output with given inline datum"
-  in
-    TestUtils.runContractAssertionM' $
-      TestUtils.checkNewUtxosAtAddress (label address "ownAddress") txHash
-        \outputs ->
-          TestUtils.assertContract assertionFailure $
-            hasOutputWithOutputDatum (OutputDatum datum) outputs
+  :: ContractCheck ContractResult
+assertTxCreatesOutputWithInlineDatum = assertionToCheck
+  "Contains an output with inline datum"
+  \{ address, txHash, datum } -> do
+    let
+      assertionFailure :: ContractAssertionFailure
+      assertionFailure =
+        CustomFailure "Could not find output with given inline datum"
+    checkNewUtxosAtAddress (label address "ownAddress") txHash
+      \outputs ->
+        assertContract assertionFailure $
+          hasOutputWithOutputDatum (OutputDatum datum) outputs
 
 assertTxCreatesOutputWithDatumHash
-  :: ContractBasicAssertion ContractResult Unit
-assertTxCreatesOutputWithDatumHash { address, txHash, datumHash } =
-  let
-    assertionFailure :: ContractAssertionFailure
-    assertionFailure =
-      CustomFailure "Could not find output with given datum hash"
-  in
-    TestUtils.runContractAssertionM' $
-      TestUtils.checkNewUtxosAtAddress (label address "ownAddress") txHash
-        \outputs ->
-          TestUtils.assertContract assertionFailure $
-            hasOutputWithOutputDatum (OutputDatumHash datumHash) outputs
+  :: ContractCheck ContractResult
+assertTxCreatesOutputWithDatumHash = assertionToCheck
+  "Contains an output with a given datum hash"
+  \{ address, txHash, datumHash } -> do
+    let
+      assertionFailure :: ContractAssertionFailure
+      assertionFailure =
+        CustomFailure "Could not find output with given datum hash"
+    checkNewUtxosAtAddress (label address "ownAddress") txHash
+      \outputs ->
+        assertContract assertionFailure $
+          hasOutputWithOutputDatum (OutputDatumHash datumHash) outputs
 
 hasOutputWithOutputDatum
   :: OutputDatum -> Array TransactionOutputWithRefScript -> Boolean

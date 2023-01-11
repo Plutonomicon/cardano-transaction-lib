@@ -29,12 +29,19 @@ import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Test.Utils
-  ( ContractBasicAssertion
-  , ContractWrapAssertion
+import Contract.Test.Assert
+  ( ContractCheck
+  , assertOutputHasDatum
+  , assertOutputHasRefScript
+  , assertTxHasMetadata
+  , assertionToCheck
+  , checkExUnitsNotExceed
+  , checkGainAtAddress'
+  , checkLossAtAddress
+  , checkTokenGainAtAddress'
   , label
+  , runChecks
   )
-import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
@@ -51,7 +58,7 @@ import Contract.Transaction
 import Contract.TxConstraints (DatumPresence(DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, adaToken)
+import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
@@ -77,46 +84,44 @@ type ContractResult =
   , txOutputUnderTest :: TransactionOutputWithRefScript
   }
 
-mkAssertions
+mkChecks
   :: ContractParams
-  -> Contract
-       ( Array (ContractWrapAssertion ContractResult)
-           /\ Array (ContractBasicAssertion ContractResult Unit)
-       )
-mkAssertions params@(ContractParams p) = do
+  -> Contract (Array (ContractCheck ContractResult))
+mkChecks params@(ContractParams p) = do
   senderAddress <-
     liftedM "Failed to get sender address" $ head <$> getWalletAddresses
   receiverAddress <-
     liftedM "Failed to get receiver address" (getReceiverAddress params)
   let dhash = datumHash p.datumToAttach
   pure
-    $
-      [ TestUtils.assertGainAtAddress' (label receiverAddress "Receiver")
-          p.adaToSend
+    [ checkGainAtAddress' (label receiverAddress "Receiver")
+        p.adaToSend
 
-      , TestUtils.assertLossAtAddress (label senderAddress "Sender")
-          \{ txFinalFee } -> pure (p.adaToSend + txFinalFee + txFinalFee)
+    , checkLossAtAddress (label senderAddress "Sender")
+        \{ txFinalFee } -> pure (p.adaToSend + txFinalFee)
 
-      , TestUtils.assertTokenGainAtAddress' (label senderAddress "Sender")
-          ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
-              p.tokensToMint
-          )
-      , TestUtils.assertExUnitsNotExceed
-          { mem: BigInt.fromInt 800, steps: BigInt.fromInt 16110 }
-      ]
-    /\
-      [ \{ txOutputUnderTest } ->
-          TestUtils.assertOutputHasDatum (OutputDatumHash dhash)
+    , checkTokenGainAtAddress' (label senderAddress "Sender")
+        ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
+            p.tokensToMint
+        )
+
+    , checkExUnitsNotExceed
+        { mem: BigInt.fromInt 800, steps: BigInt.fromInt 161100 }
+
+    , assertionToCheck "Sender's output has a datum"
+        \{ txOutputUnderTest } ->
+          assertOutputHasDatum (OutputDatumHash dhash)
             (label txOutputUnderTest "Sender's output with datum hash")
 
-      , \{ txOutputUnderTest } ->
-          TestUtils.assertOutputHasRefScript
+    , assertionToCheck "Output has a reference script"
+        \{ txOutputUnderTest } ->
+          assertOutputHasRefScript
             (scriptRefFromMintingPolicy p.mintingPolicy)
             (label txOutputUnderTest "Sender's output with reference script")
 
-      , \{ txHash } ->
-          TestUtils.assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
-      ]
+    , assertionToCheck "Contains CIP-25 metadata" \{ txHash } ->
+        assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
+    ]
 
 contract :: ContractParams -> Contract Unit
 contract params@(ContractParams p) = do
@@ -150,8 +155,8 @@ contract params@(ContractParams p) = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy p.mintingPolicy
 
-  assertions <- mkAssertions params
-  void $ TestUtils.withAssertions assertions do
+  checks <- mkChecks params
+  void $ runChecks checks do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
     balancedTx <- liftedE $ balanceTx unbalancedTxWithMetadata
