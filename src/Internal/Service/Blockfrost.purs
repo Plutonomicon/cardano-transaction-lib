@@ -1,16 +1,19 @@
 module Ctl.Internal.Service.Blockfrost
-  ( BlockfrostEndpoint
+  ( BlockfrostChainTip(BlockfrostChainTip)
+  , BlockfrostEndpoint
       ( BlockchainGenesis
       , EraSummaries
       , LatestBlock
       , Transaction
       , TransactionMetadata
       )
+  , BlockfrostEraSummaries(BlockfrostEraSummaries)
   , BlockfrostMetadata(BlockfrostMetadata)
   , BlockfrostRawPostResponseData
   , BlockfrostRawResponse
   , BlockfrostServiceM
   , BlockfrostServiceParams
+  , BlockfrostSystemStart(BlockfrostSystemStart)
   , OnBlockfrostRawGetResponseHook
   , OnBlockfrostRawPostResponseHook
   , dummyExport
@@ -27,9 +30,11 @@ import Prelude
 
 import Aeson
   ( class DecodeAeson
+  , class EncodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
+  , encodeAeson
   , getField
   , getFieldOptional'
   , parseJsonStringToAeson
@@ -68,19 +73,19 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummary
   , EraSummaryParameters
   )
-import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart))
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   )
 import Data.Bifunctor (lmap)
-import Data.BigInt (toNumber) as BigInt
-import Data.DateTime.Instant (instant, toDateTime)
+import Data.BigInt (fromNumber, toNumber) as BigInt
+import Data.DateTime.Instant (fromDateTime, instant, toDateTime, unInstant)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe(Nothing), fromJust, maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -89,6 +94,7 @@ import Data.Traversable (for, for_, traverse)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
+import Partial.Unsafe (unsafePartial)
 import Undefined (undefined)
 
 --------------------------------------------------------------------------------
@@ -332,6 +338,14 @@ instance DecodeAeson BlockfrostSystemStart where
     systemStart <- Seconds <<< BigInt.toNumber <$> getField obj "system_start"
     note (TypeMismatch "Unix timestamp")
       (wrap <<< wrap <<< toDateTime <$> instant (convertDuration systemStart))
+
+instance EncodeAeson BlockfrostSystemStart where
+  encodeAeson (BlockfrostSystemStart (SystemStart systemStart)) =
+    encodeAeson
+      (unsafePartial fromJust $ BigInt.fromNumber $ unwrap unixTimeSec)
+    where
+    unixTimeSec :: Seconds
+    unixTimeSec = convertDuration $ unInstant $ fromDateTime systemStart
 
 --------------------------------------------------------------------------------
 -- BlockfrostChainTip
