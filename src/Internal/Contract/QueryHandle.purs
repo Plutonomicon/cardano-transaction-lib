@@ -22,6 +22,7 @@ import Ctl.Internal.Contract.QueryBackend
   )
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
@@ -63,7 +64,7 @@ import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either(Left))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -147,5 +148,6 @@ queryHandleForBlockfrostBackend env backend fallback =
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
-  runBlockfrostServiceM' = runBlockfrostServiceM env.logLevel env.customLogger
+  runBlockfrostServiceM' = runBlockfrostServiceM
+    (fromMaybe logWithLevel env.customLogger env.logLevel)
     backend

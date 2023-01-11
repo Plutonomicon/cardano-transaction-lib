@@ -45,7 +45,6 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
-import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM.Ogmios (TxEvaluationR)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
@@ -64,10 +63,9 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
-import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just), maybe)
 import Data.MediaType (MediaType(MediaType))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -93,18 +91,13 @@ type BlockfrostServiceM (a :: Type) = LoggerT
 
 runBlockfrostServiceM
   :: forall (a :: Type)
-   . LogLevel
-  -> Maybe (LogLevel -> Message -> Aff Unit)
+   . (Message -> Aff Unit)
   -> BlockfrostBackend
   -> BlockfrostServiceM a
   -> Aff a
-runBlockfrostServiceM logLevel customLogger backend =
-  flip runReaderT serviceParams <<< flip runLoggerT logger
+runBlockfrostServiceM logger backend =
+  flip runReaderT serviceParams <<< flip runLoggerT (liftAff <<< logger)
   where
-  logger :: Message -> ReaderT BlockfrostServiceParams Aff Unit
-  logger =
-    liftAff <<< fromMaybe logWithLevel customLogger logLevel
-
   serviceParams :: BlockfrostServiceParams
   serviceParams =
     { blockfrostConfig: backend.blockfrostConfig
