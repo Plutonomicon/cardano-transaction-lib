@@ -3,10 +3,10 @@
 let lib, csl;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = require("@emurgo/cardano-message-signing-browser");
-  csl = require("@emurgo/cardano-serialization-lib-browser");
+  csl = require("@mlabs-haskell/cardano-serialization-lib-browser");
 } else {
   lib = require("@emurgo/cardano-message-signing-nodejs");
-  csl = require("@emurgo/cardano-serialization-lib-nodejs");
+  csl = require("@mlabs-haskell/cardano-serialization-lib-nodejs");
 }
 
 function opt_chain(maybe, obj) {

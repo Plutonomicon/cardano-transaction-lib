@@ -22,8 +22,8 @@
   "dependencies": {
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
-    "@emurgo/cardano-serialization-lib-browser": "11.2.1",
-    "@emurgo/cardano-serialization-lib-nodejs": "11.2.1",
+    "@mlabs-haskell/cardano-serialization-lib-browser": "11.2.1",
+    "@mlabs-haskell/cardano-serialization-lib-nodejs": "11.2.1",
     "@mlabs-haskell/json-bigint": " 1.0.0",
     "@noble/secp256k1": "^1.7.0",
     "apply-args-browser": "0.0.1",
