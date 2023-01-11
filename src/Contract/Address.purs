@@ -50,11 +50,11 @@ import Ctl.Internal.Address
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
+  , fromPlutusCoin
   , toPlutusAddress
   , toPlutusAddressWithNetworkTag
   , toPlutusTxUnspentOutput
   )
-import Ctl.Internal.Plutus.Conversion.Value (fromPlutusCoin)
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)

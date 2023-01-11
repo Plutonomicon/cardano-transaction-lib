@@ -5,7 +5,11 @@ import Contract.Prelude
 import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Config (ConfigParams)
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.Utxos (getWalletBalance, getWalletUtxos)
+import Contract.Utxos
+  ( getWalletBalance
+  , getWalletUtxos
+  , getWalletUtxosPaginated
+  )
 import Contract.Value as Value
 import Data.BigInt as BigInt
 
@@ -19,9 +23,9 @@ contract = do
   log "Balance:"
   log <<< show =<< getWalletBalance
   log "UTxOs:"
-  log <<< show =<< getWalletUtxos Nothing Nothing
+  log <<< show =<< getWalletUtxos Nothing
   log "UTxOs paginated:"
-  log <<< show =<< getWalletUtxos Nothing (Just { limit: 10, page: 0 })
+  log <<< show =<< getWalletUtxosPaginated Nothing { limit: 10, page: 0 }
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ $ do

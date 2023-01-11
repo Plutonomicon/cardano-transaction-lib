@@ -108,7 +108,7 @@ contract = do
 
     walletValidUtxos <- liftedM "Failed to get wallet Utxos"
       $ map (filter isUtxoValid)
-      <$> getWalletUtxos Nothing Nothing
+      <$> getWalletUtxos Nothing
 
     pure $ length walletValidUtxos >= 2 -- 2 transactions
 

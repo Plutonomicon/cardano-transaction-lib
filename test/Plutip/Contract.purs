@@ -72,7 +72,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (getWalletBalance, getWalletUtxosPaginated, utxosAt)
 import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
@@ -1336,7 +1336,7 @@ suite = do
               ownPaymentPubKeysHashes
 
             wUtxos0 <- liftedM "Failed to get wallet UTXOs" $
-              getWalletUtxos Nothing Nothing
+              getWalletUtxos Nothing
             logInfo' $ "wUtxos0 " <> show wUtxos0
 
             mp <- alwaysMintsPolicyV2
@@ -1607,7 +1607,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           utxos <- withCip30Mock alice MockNami do
-            getWalletUtxos Nothing Nothing
+            getWalletUtxos Nothing
           utxos `shouldSatisfy` isJust
 
       test "Get own UTxOs - amount equal to UTxOs sum amount" do
@@ -1624,7 +1624,7 @@ suite = do
             let
               mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
                 2_000_000_000
-            getWalletUtxos mValue Nothing
+            getWalletUtxos mValue
           utxos `shouldSatisfy` isJust
 
       test "Get own UTxOs - pagination is checked after amount and works" do
@@ -1641,11 +1641,11 @@ suite = do
           isJustOneUtxo Nothing = false
         withWallets distribution \alice -> do
           utxos <- withCip30Mock alice MockNami do
-            let pagination = Just $ { limit: 1, page: 1 }
+            let pagination = { limit: 1, page: 1 }
             let
               mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
                 2_000_000_000
-            getWalletUtxos mValue pagination
+            getWalletUtxosPaginated mValue pagination
           utxos `shouldSatisfy` isJustOneUtxo
 
       test "Get own UTxOs - too big amount" do
@@ -1661,7 +1661,7 @@ suite = do
             let
               mValue = Just $ Value.lovelaceValueOf $ BigInt.fromInt
                 2_000_000_001
-            getWalletUtxos mValue Nothing
+            getWalletUtxos mValue
           utxos `shouldEqual` Nothing
 
       test "Get own UTxOs - too big page in pagination" do
@@ -1674,8 +1674,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           utxos <- withCip30Mock alice MockNami do
-            let pagination = Just $ { limit: 1, page: 2 }
-            getWalletUtxos Nothing pagination
+            getWalletUtxosPaginated Nothing { limit: 1, page: 2 }
           utxos `shouldEqual` Nothing
 
       test "Get own address" do

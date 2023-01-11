@@ -5,6 +5,7 @@ module Contract.Utxos
   ( getUtxo
   , getWalletBalance
   , getWalletUtxos
+  , getWalletUtxosPaginated
   , utxosAt
   , module X
   ) where
@@ -26,12 +27,9 @@ import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM (getNetworkId)
 import Ctl.Internal.QueryM.Kupo (getUtxoByOref, utxosAt) as Kupo
-import Ctl.Internal.QueryM.Utxos
-  ( getWalletBalance
-  , getWalletUtxos
-  ) as Utxos
+import Ctl.Internal.QueryM.Utxos (getWalletBalance, getWalletUtxos) as Utxos
 import Ctl.Internal.Wallet.Cip30 (Paginate)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 
 -- | This module defines the functionality for requesting utxos via Kupo.
 
@@ -73,11 +71,22 @@ getWalletBalance = wrapContract (Utxos.getWalletBalance <#> map toPlutusValue)
 getWalletUtxos
   :: forall (r :: Row Type)
    . Maybe Value
-  -> Maybe Paginate
   -> Contract r (Maybe UtxoMap)
-getWalletUtxos value paginate = do
+getWalletUtxos value = do
   mCardanoUtxos <- wrapContract $
-    Utxos.getWalletUtxos (fromPlutusValue <$> value) paginate
+    Utxos.getWalletUtxos (fromPlutusValue <$> value) Nothing
+  for mCardanoUtxos $
+    liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
+      toPlutusUtxoMap
+
+getWalletUtxosPaginated
+  :: forall (r :: Row Type)
+   . Maybe Value
+  -> Paginate
+  -> Contract r (Maybe UtxoMap)
+getWalletUtxosPaginated value paginate = do
+  mCardanoUtxos <- wrapContract $
+    Utxos.getWalletUtxos (fromPlutusValue <$> value) (Just paginate)
   for mCardanoUtxos $
     liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
       toPlutusUtxoMap
