@@ -51,6 +51,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- Testing interface is re-implemented. Assertion functions from `Contract.Test.Utils` are moved to `Contract.Test.Assert`. See [the docs](./doc/test-utils.md) for info on the new interface. ([#1389](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1389))
+
 ### Removed
 
 ### Fixed
