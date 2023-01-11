@@ -81,7 +81,7 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (foldr)
 import Data.Array (fromFoldable, length, mapWithIndex, partition) as Array
 import Data.BigInt (BigInt)
-import Data.Either (Either(Right, Left), either)
+import Data.Either (Either(Right, Left), either, hush)
 import Data.Foldable (foldMap, null, sum)
 import Data.Lens (non, to, traversed, view, (%~), (^.), (^..))
 import Data.Lens.Record (prop)
@@ -583,7 +583,7 @@ assertTxHasMetadata
 assertTxHasMetadata mdLabel txHash expectedMetadata = do
   generalMetadata <-
     assertContractMaybe (TransactionHasNoMetadata txHash Nothing)
-      =<< lift (getTxMetadata txHash)
+      =<< lift (hush <$> getTxMetadata txHash)
 
   rawMetadata <-
     assertContractMaybe (TransactionHasNoMetadata txHash (Just mdLabel))

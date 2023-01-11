@@ -145,7 +145,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -170,7 +170,7 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM PlutipTest Unit
 suite = do
-  only $ group "Contract" do
+  group "Contract" do
     flip mapTest QueryM.AffInterface.suite
       (noWallet <<< wrapQueryM)
 
@@ -844,7 +844,7 @@ suite = do
           awaitTxConfirmed txId
 
           mMetadata <- getTxMetadata txId
-          mMetadata `shouldEqual` (Just givenMetadata)
+          mMetadata `shouldEqual` Right givenMetadata
 
     test "MintZeroToken" do
       let
@@ -1241,7 +1241,7 @@ suite = do
       withWallets distribution \alice ->
         withKeyWallet alice PaysWithDatum.contract
 
-    only $ test "Examples.ContractTestUtils" do
+    test "Examples.ContractTestUtils" do
       let
         initialUtxos :: InitialUTxOs
         initialUtxos =
