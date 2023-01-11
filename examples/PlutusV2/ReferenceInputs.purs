@@ -79,7 +79,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  void $ runChecks checks do
+  void $ runChecks checks $ lift do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     balancedSignedTx <- signTransaction =<< liftedE (balanceTx unbalancedTx)
     txHash <- submit balancedSignedTx

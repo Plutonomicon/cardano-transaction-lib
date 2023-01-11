@@ -51,6 +51,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
 import Data.Array (head, singleton) as Array
@@ -113,7 +114,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
         <> Lookups.unspentOutputs utxos
 
   let checks = mkChecks ownAddress (cs /\ tn /\ one)
-  void $ runChecks checks do
+  void $ runChecks checks $ lift do
     { txHash, txFinalFee } <-
       submitTxFromConstraintsReturningFee lookups constraints
     logInfo' $ "Tx ID: " <> show txHash

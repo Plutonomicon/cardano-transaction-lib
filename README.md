@@ -38,6 +38,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
 - [Testing contracts with Plutip](./doc/plutip-testing.md)
 - [End-to-end testing with headless browsers](./doc/e2e-testing.md)
+- [Utilities for testing](./doc/test-utils.md)
 - [CIP-25 NFT standard support](./doc/cip-25-nfts.md)
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)

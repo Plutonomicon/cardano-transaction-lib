@@ -151,7 +151,7 @@ contract (ContractParams p) = do
         <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
-  void $ runChecks checks do
+  void $ runChecks checks $ lift do
     unbalancedTx <-
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 

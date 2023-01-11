@@ -60,6 +60,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
+import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.BigInt (BigInt)
@@ -156,7 +157,7 @@ contract params@(ContractParams p) = do
     lookups = Lookups.mintingPolicy p.mintingPolicy
 
   checks <- mkChecks params
-  void $ runChecks checks do
+  void $ runChecks checks $ lift do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
     balancedTx <- liftedE $ balanceTx unbalancedTxWithMetadata

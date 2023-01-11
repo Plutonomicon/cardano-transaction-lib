@@ -44,6 +44,7 @@ import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
+import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithDatum)
 import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
@@ -84,7 +85,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  void $ runChecks checks do
+  void $ runChecks checks $ lift do
     txHash <- submitTxFromConstraints lookups constraints
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"

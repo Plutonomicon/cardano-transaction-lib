@@ -18,29 +18,30 @@ module Contract.Test.Assert
   , Label
   , Labeled(Labeled)
   , assertContractExpectedActual
-  , assertContractMaybe
   , assertContract
+  , assertContractMaybe
+  , assertLovelaceDeltaAtAddress
+  , assertOutputHasDatum
+  , assertOutputHasRefScript
+  , assertTxHasMetadata
+  , assertValueDeltaAtAddress
+  , assertionToCheck
   , checkExUnitsNotExceed
   , checkGainAtAddress
   , checkGainAtAddress'
   , checkLossAtAddress
   , checkLossAtAddress'
-  , assertLovelaceDeltaAtAddress
-  , assertOutputHasDatum
+  , checkNewUtxosAtAddress
   , checkTokenDeltaAtAddress
   , checkTokenGainAtAddress
   , checkTokenGainAtAddress'
   , checkTokenLossAtAddress
   , checkTokenLossAtAddress'
-  , assertTxHasMetadata
-  , assertValueDeltaAtAddress
-  , checkNewUtxosAtAddress
-  , assertOutputHasRefScript
   , label
-  , unlabel
   , noLabel
   , runChecks
-  , assertionToCheck
+  , tellFailure
+  , unlabel
   ) where
 
 import Prelude
@@ -277,9 +278,9 @@ assertContractExpectedActual mkAssertionFailure expected actual =
 
 -- | Accepts an array of checks and interprets them into a `Contract`.
 runChecks
-  :: forall (a :: Type) (assertions :: Type)
+  :: forall (a :: Type)
    . Array (ContractCheck a)
-  -> Contract a
+  -> ContractAssertion a
   -> Contract a
 runChecks assertions contract = do
   ref <- liftEffect $ Ref.new Nil
@@ -317,7 +318,7 @@ runChecks assertions contract = do
         pure success
 
   go :: ContractAssertion a
-  go = foldr wrapAssertion (lift contract) assertions
+  go = foldr wrapAssertion contract assertions
 
 tellFailure
   :: ContractAssertionFailure -> ContractAssertion Unit
