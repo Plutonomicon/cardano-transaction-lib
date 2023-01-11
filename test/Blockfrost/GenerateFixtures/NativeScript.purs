@@ -1,4 +1,4 @@
-module Test.Ctl.Blockfrost.GenerateFixtures.GetNativeScriptByHash (main) where
+module Test.Ctl.Blockfrost.GenerateFixtures.NativeScript (main) where
 
 import Contract.Prelude
 
@@ -7,14 +7,12 @@ import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
-  , blockfrostPublicPreviewServerConfig
   , testnetConfig
   )
 import Contract.Hashing (scriptRefHash) as Hashing
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftContractM
   , liftedM
   , runContract
   )
@@ -31,22 +29,20 @@ import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostEndpoint(NativeScriptByHash)
+  , BlockfrostRawResponse
   , runBlockfrostServiceTestM
   )
 import Ctl.Internal.Service.Blockfrost (getScriptByHash) as Blockfrost
 import Data.Array (mapWithIndex)
 import Data.BigInt (fromInt) as BigInt
-import Data.Map (lookup) as Map
-import Effect.Exception (throw)
-import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (writeTextFile)
-import Node.Path (concat)
-import Node.Process (lookupEnv)
+import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
+  ( blockfrostBackend
+  , getSkeyFilepathFromEnv
+  , storeBlockfrostFixture
+  )
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Test.QuickCheck.Gen (randomSample')
 import Test.Spec.Assertions (shouldEqual)
-
-foreign import md5 :: String -> String
 
 main :: Effect Unit
 main =
@@ -56,7 +52,7 @@ main =
   contractParams :: Effect ContractParams
   contractParams = do
     -- blockfrostApiKey <- lookupEnv' "BLOCKFROST_API_KEY"
-    skeyFilepath <- lookupEnv' "SKEY_FILEPATH"
+    skeyFilepath <- getSkeyFilepathFromEnv
     pure $ testnetConfig
       -- TODO: Configure Contract with Blockfrost as the default backend.
       -- { backendParams =
@@ -69,22 +65,10 @@ main =
           Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
       }
 
-lookupEnv' :: String -> Effect String
-lookupEnv' var =
-  lookupEnv var >>=
-    maybe (throw $ var <> " environment variable not set") pure
-
 generateFixtures :: Int -> Contract Unit
 generateFixtures numFixtures = do
-  -- TODO: Remove this code and use Blockfrost as the default backend instead.
-  blockfrostApiKey <- liftEffect $ lookupEnv' "BLOCKFROST_API_KEY"
-  let
-    backend :: BlockfrostBackend
-    backend =
-      { blockfrostConfig: blockfrostPublicPreviewServerConfig
-      , blockfrostApiKey: Just blockfrostApiKey
-      }
-  --
+  -- TODO: Remove this line and use Blockfrost as the default backend instead.
+  backend <- liftEffect blockfrostBackend
 
   nativeScripts <- liftEffect $ randomSample' numFixtures arbitrary
   traverse_ (generateFixtureForScript backend) (mapWithIndex (/\) nativeScripts)
@@ -92,13 +76,6 @@ generateFixtures numFixtures = do
   generateFixtureForScript
     :: BlockfrostBackend -> Int /\ NativeScript -> Contract Unit
   generateFixtureForScript backend (i /\ nativeScript) = do
-    let
-      nativeScriptRef :: ScriptRef
-      nativeScriptRef = NativeScriptRef nativeScript
-
-      nativeScriptHash :: ScriptHash
-      nativeScriptHash = Hashing.scriptRefHash nativeScriptRef
-
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- ownStakePubKeyHash
     let
@@ -117,24 +94,23 @@ generateFixtures numFixtures = do
     -- backend <- liftedM "Failed to get Blockfrost backend"
     --   (getBlockfrostBackend <$> asks _.backend)
 
-    eiNativeScript /\ rawResponses <-
-      liftAff $ runBlockfrostServiceTestM backend
+    eiNativeScript <- liftAff $
+      runBlockfrostServiceTestM backend (Just onBlockfrostRawResponse) Nothing
         (Blockfrost.getScriptByHash nativeScriptHash)
 
     eiNativeScript `shouldEqual` Right (Just nativeScriptRef)
-
-    rawResponse <- liftContractM "Could not find raw response" $
-      Map.lookup (NativeScriptByHash nativeScriptHash) rawResponses
-
-    liftAff $ storeFixture rawResponse
     where
-    storeFixture :: String -> Aff Unit
-    storeFixture resp =
-      let
-        respHash = md5 resp
-        query = "getNativeScriptByHash"
-        filename = query <> "-" <> respHash <> ".json"
-        fp = concat [ "fixtures", "test", "blockfrost", query, filename ]
-      in
-        writeTextFile UTF8 fp resp
-          *> log ("Successfully stored fixture #" <> show i <> " to: " <> fp)
+    nativeScriptRef :: ScriptRef
+    nativeScriptRef = NativeScriptRef nativeScript
+
+    nativeScriptHash :: ScriptHash
+    nativeScriptHash = Hashing.scriptRefHash nativeScriptRef
+
+    onBlockfrostRawResponse
+      :: BlockfrostEndpoint -> BlockfrostRawResponse -> Aff Unit
+    onBlockfrostRawResponse query rawResponse =
+      case query of
+        NativeScriptByHash h | h == nativeScriptHash ->
+          storeBlockfrostFixture i "getNativeScriptByHash" rawResponse
+        _ -> pure unit
+
