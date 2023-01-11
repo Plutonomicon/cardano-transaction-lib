@@ -30,7 +30,7 @@ import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostEndpoint(GetNativeScriptByHash)
+  ( BlockfrostEndpoint(NativeScriptByHash)
   , runBlockfrostServiceTestM
   )
 import Ctl.Internal.Service.Blockfrost (getScriptByHash) as Blockfrost
@@ -124,7 +124,7 @@ generateFixtures numFixtures = do
     eiNativeScript `shouldEqual` Right (Just nativeScriptRef)
 
     rawResponse <- liftContractM "Could not find raw response" $
-      Map.lookup (GetNativeScriptByHash nativeScriptHash) rawResponses
+      Map.lookup (NativeScriptByHash nativeScriptHash) rawResponses
 
     liftAff $ storeFixture rawResponse
     where

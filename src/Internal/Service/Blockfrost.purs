@@ -1,16 +1,21 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostEndpoint
-      ( GetDatumCbor
-      , GetNativeScriptByHash
-      , GetPlutusScriptCborByHash
-      , GetScriptInfo
+      ( DatumCbor
+      , NativeScriptByHash
+      , PlutusScriptCborByHash
+      , ScriptInfo
+      , Transaction
+      , TransactionMetadata
       )
+  , BlockfrostMetadata(BlockfrostMetadata)
   , BlockfrostRawResponses
   , BlockfrostServiceM
   , BlockfrostServiceParams
-  , blockfrostPostRequest
+  , dummyExport
   , getDatumByHash
   , getScriptByHash
+  , getTxMetadata
+  , isTxConfirmed
   , runBlockfrostServiceM
   , runBlockfrostServiceTestM
   ) where
@@ -50,7 +55,18 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataClientError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
+import Ctl.Internal.Deserialization.Transaction
+  ( convertGeneralTransactionMetadata
+  )
 import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , ed25519KeyHashFromBytes
@@ -63,20 +79,25 @@ import Ctl.Internal.Service.Error
   )
 import Ctl.Internal.Service.Helpers (aesonObject, aesonString)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  )
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
 import Data.Map (Map)
-import Data.Map (empty, insert) as Map
+import Data.Map (empty, insert, isEmpty, unions) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse, traverse_)
+import Data.Traversable (for, traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
@@ -86,6 +107,7 @@ import Effect.Ref (Ref)
 import Effect.Ref (modify_, new, read) as Ref
 import Foreign.Object (Object)
 import Partial.Unsafe (unsafePartial)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -134,13 +156,17 @@ mkServiceParams blockfrostRawResponses backend =
 
 data BlockfrostEndpoint
   -- /scripts/datum/{datum_hash}/cbor
-  = GetDatumCbor DataHash
-  -- /scripts/{script_hash}
-  | GetScriptInfo ScriptHash
-  -- /scripts/{script_hash}/cbor
-  | GetPlutusScriptCborByHash ScriptHash
+  = DatumCbor DataHash
   -- /scripts/{script_hash}/json
-  | GetNativeScriptByHash ScriptHash
+  | NativeScriptByHash ScriptHash
+  -- /scripts/{script_hash}/cbor
+  | PlutusScriptCborByHash ScriptHash
+  -- /scripts/{script_hash}
+  | ScriptInfo ScriptHash
+  -- /txs/{hash}
+  | Transaction TransactionHash
+  -- /txs/{hash}/metadata
+  | TransactionMetadata TransactionHash
 
 derive instance Generic BlockfrostEndpoint _
 derive instance Eq BlockfrostEndpoint
@@ -152,14 +178,21 @@ instance Show BlockfrostEndpoint where
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetDatumCbor (DataHash hashBytes) ->
+    DatumCbor (DataHash hashBytes) ->
       "/scripts/datum/" <> byteArrayToHex hashBytes <> "/cbor"
-    GetScriptInfo scriptHash ->
-      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
-    GetPlutusScriptCborByHash scriptHash ->
-      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
-    GetNativeScriptByHash scriptHash ->
+    NativeScriptByHash scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/json"
+    PlutusScriptCborByHash scriptHash ->
+      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
+    ScriptInfo scriptHash ->
+      "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
+    Transaction txHash ->
+      "/txs/" <> byteArrayToHex (unwrap txHash)
+    TransactionMetadata txHash ->
+      "/txs/" <> byteArrayToHex (unwrap txHash) <> "/metadata/cbor"
+
+dummyExport :: Unit -> Unit
+dummyExport _ = undefined blockfrostPostRequest
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -242,7 +275,7 @@ handle404AsNothing x = x
 getDatumByHash
   :: DataHash -> BlockfrostServiceM (Either ClientError (Maybe Datum))
 getDatumByHash dataHash = do
-  response <- blockfrostGetRequest (GetDatumCbor dataHash)
+  response <- blockfrostGetRequest (DatumCbor dataHash)
   pure $ handle404AsNothing $ unwrapBlockfrostDatum <$> handleBlockfrostResponse
     response
 
@@ -269,14 +302,14 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
   getScriptInfo
     :: BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
   getScriptInfo = do
-    response <- blockfrostGetRequest (GetScriptInfo scriptHash)
+    response <- blockfrostGetRequest (ScriptInfo scriptHash)
     pure $ handle404AsNothing $ handleBlockfrostResponse response
 
   getNativeScriptByHash
     :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
   getNativeScriptByHash = runExceptT do
     (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
-      response <- blockfrostGetRequest (GetNativeScriptByHash scriptHash)
+      response <- blockfrostGetRequest (NativeScriptByHash scriptHash)
       pure $ handle404AsNothing $ handleBlockfrostResponse response
     pure $ unwrap <$> nativeScript
 
@@ -284,9 +317,42 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
     :: BlockfrostServiceM (Either ClientError (Maybe ByteArray))
   getPlutusScriptCborByHash = runExceptT do
     (plutusScriptCbor :: Maybe BlockfrostCbor) <- ExceptT do
-      response <- blockfrostGetRequest (GetPlutusScriptCborByHash scriptHash)
+      response <- blockfrostGetRequest (PlutusScriptCborByHash scriptHash)
       pure $ handle404AsNothing $ handleBlockfrostResponse response
     pure $ join $ unwrap <$> plutusScriptCbor
+
+--------------------------------------------------------------------------------
+-- Check transaction confirmation status
+--------------------------------------------------------------------------------
+
+isTxConfirmed
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError Boolean)
+isTxConfirmed txHash = do
+  response <- blockfrostGetRequest $ Transaction txHash
+  pure case handleBlockfrostResponse response of
+    Right (_ :: Aeson) -> Right true
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
+    Left e -> Left e
+
+--------------------------------------------------------------------------------
+-- Get transaction metadata
+--------------------------------------------------------------------------------
+
+getTxMetadata
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
+getTxMetadata txHash = do
+  response <- blockfrostGetRequest (TransactionMetadata txHash)
+  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+      Left GetTxMetadataTxNotFoundError
+    Left e ->
+      Left (GetTxMetadataClientError e)
+    Right metadata
+      | Map.isEmpty (unwrap metadata) ->
+          Left GetTxMetadataMetadataEmptyOrMissingError
+      | otherwise -> Right metadata
 
 --------------------------------------------------------------------------------
 -- BlockfrostScriptLanguage
@@ -411,3 +477,30 @@ instance DecodeAeson BlockfrostDatum where
         cbor <- aesonObject (flip getFieldOptional "cbor") aeson
         pure $ BlockfrostDatum $ deserializeData =<< cbor
 
+--------------------------------------------------------------------------------
+-- BlockfrostMetadata
+--------------------------------------------------------------------------------
+
+newtype BlockfrostMetadata = BlockfrostMetadata
+  GeneralTransactionMetadata
+
+derive instance Generic BlockfrostMetadata _
+derive instance Eq BlockfrostMetadata
+derive instance Newtype BlockfrostMetadata _
+
+instance Show BlockfrostMetadata where
+  show = genericShow
+
+instance DecodeAeson BlockfrostMetadata where
+  decodeAeson = decodeAeson >=>
+    \(metadatas :: Array { metadata :: CborBytes }) -> do
+      metadatas' <- for metadatas \{ metadata } -> do
+        map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
+          (fromBytes metadata) $
+          TypeMismatch "Hexadecimal encoded Metadata"
+
+      pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions
+        metadatas'
+
+unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
+unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata
