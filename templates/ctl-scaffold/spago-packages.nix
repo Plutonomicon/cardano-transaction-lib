@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "001b639606f341489968d599fb0cef2900aeb474";
+        version = "22e4fd523092dc74355691951a922697e745f6fa";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "001b639606f341489968d599fb0cef2900aeb474";
-          sha256 = "1rbpq2ikndjar8h3hpq5yz4mqga7276ggdbws34ppq3miczh9czz";
+          rev = "22e4fd523092dc74355691951a922697e745f6fa";
+          sha256 = "1mkra59915c4wrd95mhl22bhmljdybzbqj9naz5fvvqik7biyv1n";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -413,6 +413,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "fixed-points" = pkgs.stdenv.mkDerivation {
+        name = "fixed-points";
+        version = "v6.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-fixed-points.git";
+          rev = "3b643d948479aee7cd3e36c95258f1f84df0c35f";
+          sha256 = "0w2j0sarylzsmg8b228pmn3qndif0bzw2vmxrx30ar15qy7jdb5d";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "foldable-traversable" = pkgs.stdenv.mkDerivation {
         name = "foldable-traversable";
         version = "v5.0.1";
@@ -468,6 +480,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-form-urlencoded.git";
           rev = "860b2c4bf0a848322d2077faaefbeb98762cb8d6";
           sha256 = "1pi3vxix10crisisnd94li1vmmgiawlh5lgl51z7ssd9azygg0b0";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "formatters" = pkgs.stdenv.mkDerivation {
+        name = "formatters";
+        version = "v6.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-formatters.git";
+          rev = "b2e65b2bccd09a3c17a396f07e13e5cdca90e4e4";
+          sha256 = "02c43sv6ci2698mjkmvkv3cjv99ilxv8ii8x7n9wqf18r4hlmk0y";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

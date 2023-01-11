@@ -50,6 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Transaction` exports `mkPoolPubKeyHash` and `poolPubKeyHashToBech32` for bech32 roundtripping ([#1360](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1360))
 
 ### Changed
+- `SystemStart` now has `DateTime` (rather than `String`) as the underlying type ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
 
 ### Removed
 

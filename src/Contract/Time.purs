@@ -109,7 +109,11 @@ getCurrentEpoch = do
     $ BigInt.toString (bigInt :: BigInt.BigInt)
 
 -- | Get `EraSummaries` as used for Slot arithemetic.
--- | Details can be found https://ogmios.dev/api/ under "eraSummaries" query.
+-- |
+-- | More info can be found in Ogmios or Blockfrost docs (see links below).
+-- | Currently we use the same data type definition.
+-- | https://ogmios.dev/api/ under "eraSummaries" query
+-- | https://docs.blockfrost.io/#tag/Cardano-Network/paths/~1network~1eras/get
 getEraSummaries :: Contract EraSummaries
 getEraSummaries = do
   queryHandle <- getQueryHandle
