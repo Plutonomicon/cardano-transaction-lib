@@ -123,6 +123,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (toArray) as NEArray
 import Data.BigInt (BigInt)
+import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable (fold, foldMap, foldl, foldr, sum)
 import Data.Lens.Getter ((^.))
@@ -199,8 +200,8 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
   setTransactionCollateral changeAddr transaction = do
     collateral <-
-      liftEitherQueryM $
-        note CouldNotGetCollateral <$> getWalletCollateral mempty
+      liftEitherQueryM $ note CouldNotGetCollateral
+        <$> getWalletCollateral (Coin $ BigInt.fromInt 5_000_000)
     let collaterisedTx = addTxCollateral collateral transaction
     -- Don't mess with Cip30 collateral
     isCip30 <- isJust <$> askCip30Wallet
