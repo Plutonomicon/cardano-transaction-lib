@@ -1084,8 +1084,10 @@ instance DecodeAeson ProtocolParameters where
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable $ catMaybes
-          [ pure (PlutusV1 /\ convertPlutusV1CostModel ps.costModels."plutus:v1")
-          , (PlutusV2 /\ _) <<< convertPlutusV2CostModel <$> ps.costModels."plutus:v2"
+          [ pure
+              (PlutusV1 /\ convertPlutusV1CostModel ps.costModels."plutus:v1")
+          , (PlutusV2 /\ _) <<< convertPlutusV2CostModel <$>
+              ps.costModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction

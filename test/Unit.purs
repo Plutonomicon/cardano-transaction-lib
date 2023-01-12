@@ -13,7 +13,7 @@ import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
-import Test.Ctl.Blockfrost.Aeson as Blockfrost.Aeson
+import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
 import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.Data as Data
