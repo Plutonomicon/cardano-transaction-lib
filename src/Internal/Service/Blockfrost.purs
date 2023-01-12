@@ -8,6 +8,7 @@ module Ctl.Internal.Service.Blockfrost
       , TransactionMetadata
       )
   , BlockfrostMetadata(BlockfrostMetadata)
+  , BlockfrostNativeScript(BlockfrostNativeScript)
   , BlockfrostRawPostResponseData
   , BlockfrostRawResponse
   , BlockfrostServiceM

@@ -13,7 +13,10 @@ import Aeson
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Service.Blockfrost (BlockfrostMetadata)
+import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostMetadata
+  , BlockfrostNativeScript
+  )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, length)
 import Data.Array.NonEmpty (tail)
@@ -54,15 +57,20 @@ suite = do
             (const unit)
             (decodeAeson aeson :: Either JsonDecodeError a)
         case query of
+          GetNativeScriptByHashQuery ->
+            handle (Proxy :: Proxy BlockfrostNativeScript)
           GetTxMetadataQuery -> handle (Proxy :: Proxy BlockfrostMetadata)
     tests (genericSucc query)
 
-data Query = GetTxMetadataQuery
+data Query
+  = GetNativeScriptByHashQuery
+  | GetTxMetadataQuery
 
 derive instance Generic Query _
 
 printQuery :: Query -> String
 printQuery = case _ of
+  GetNativeScriptByHashQuery -> "getNativeScriptByHash"
   GetTxMetadataQuery -> "getTxMetadata"
 
 loadFixtures :: FilePath -> Aff (Array { aeson :: Aeson, bn :: String })
