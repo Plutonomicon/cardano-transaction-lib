@@ -33,8 +33,8 @@ import Control.Alt ((<|>))
 import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
-import Ctl.Internal.Cardano.Types.Transaction (Costmdls(..))
-import Ctl.Internal.Cardano.Types.Value (Coin(..))
+import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls))
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin))
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Contract.QueryHandle.Error
   ( GetTxMetadataError
@@ -48,12 +48,13 @@ import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
 import Ctl.Internal.QueryM.Ogmios
-  ( CoinsPerUtxoUnit(..)
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
   , CostModelV1
   , CostModelV2
-  , Epoch(..)
-  , ProtocolParameters(..)
-  , convertCostModel
+  , Epoch(Epoch)
+  , ProtocolParameters(ProtocolParameters)
+  , convertPlutusV1CostModel
+  , convertPlutusV2CostModel
   , rationalToSubcoin
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
@@ -66,7 +67,7 @@ import Ctl.Internal.Service.Error
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Rational (Rational, reduce)
-import Ctl.Internal.Types.Scripts (Language(..))
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2))
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
@@ -80,7 +81,7 @@ import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
 import Data.Map as Map
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
@@ -189,6 +190,77 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
+getCurrentEpoch
+  :: BlockfrostServiceM (Either ClientError BigInt)
+getCurrentEpoch = runExceptT do
+  BlockfrostCurrentEpoch { epoch } <- ExceptT $ blockfrostGetRequest LatestEpoch
+    <#> handleBlockfrostResponse
+  pure epoch
+
+getProtocolParameters
+  :: BlockfrostServiceM (Either ClientError Ogmios.ProtocolParameters)
+getProtocolParameters = runExceptT do
+  BlockfrostProtocolParameters params <- ExceptT $
+    blockfrostGetRequest LatestProtocolParameters <#> handleBlockfrostResponse
+  pure params
+
+isTxConfirmed
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError Boolean)
+isTxConfirmed txHash = do
+  response <- blockfrostGetRequest $ Transaction txHash
+  pure case handleBlockfrostResponse response of
+    Right (_ :: Aeson) -> Right true
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
+    Left e -> Left e
+
+getTxMetadata
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
+getTxMetadata txHash = do
+  response <- blockfrostGetRequest (TransactionMetadata txHash)
+  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+      Left GetTxMetadataTxNotFoundError
+    Left e ->
+      Left (GetTxMetadataClientError e)
+    Right metadata
+      | Map.isEmpty (unwrap metadata) ->
+          Left GetTxMetadataMetadataEmptyOrMissingError
+      | otherwise -> Right metadata
+
+--------------------------------------------------------------------------------
+-- `getTxMetadata` reponse parsing
+--------------------------------------------------------------------------------
+
+newtype BlockfrostMetadata = BlockfrostMetadata
+  GeneralTransactionMetadata
+
+derive instance Generic BlockfrostMetadata _
+derive instance Eq BlockfrostMetadata
+derive instance Newtype BlockfrostMetadata _
+
+instance Show BlockfrostMetadata where
+  show = genericShow
+
+instance DecodeAeson BlockfrostMetadata where
+  decodeAeson = decodeAeson >=>
+    \(metadatas :: Array { metadata :: CborBytes }) -> do
+      metadatas' <- for metadatas \{ metadata } -> do
+        map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
+          (fromBytes metadata) $
+          TypeMismatch "Hexadecimal encoded Metadata"
+
+      pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions
+        metadatas'
+
+unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
+unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata
+
+--------------------------------------------------------------------------------
+-- `getCurrentEpoch` reponse parsing
+--------------------------------------------------------------------------------
+
 newtype BlockfrostCurrentEpoch = BlockfrostCurrentEpoch { epoch :: BigInt }
 
 derive instance Generic BlockfrostCurrentEpoch _
@@ -197,6 +269,10 @@ derive newtype instance DecodeAeson BlockfrostCurrentEpoch
 
 instance Show BlockfrostCurrentEpoch where
   show = genericShow
+
+--------------------------------------------------------------------------------
+-- `getProtocolParameters` reponse parsing
+--------------------------------------------------------------------------------
 
 -- | `Stringed a` decodes an `a` who was encoded as a `String`
 newtype Stringed a = Stringed a
@@ -295,8 +371,8 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , treasuryCut
       , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable
-          [ PlutusV1 /\ convertCostModel raw.cost_models."PlutusV1"
-          , PlutusV2 /\ convertCostModel raw.cost_models."PlutusV2"
+          [ PlutusV1 /\ convertPlutusV1CostModel raw.cost_models."PlutusV1"
+          , PlutusV2 /\ convertPlutusV2CostModel raw.cost_models."PlutusV2"
           ]
       , prices
       , maxTxExUnits:
@@ -312,69 +388,3 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , maxCollateralInputs: raw.max_collateral_inputs
       }
 
-getCurrentEpoch
-  :: BlockfrostServiceM (Either ClientError BigInt)
-getCurrentEpoch = runExceptT do
-  BlockfrostCurrentEpoch { epoch } <- ExceptT $ blockfrostGetRequest LatestEpoch
-    <#> handleBlockfrostResponse
-  pure epoch
-
-getProtocolParameters
-  :: BlockfrostServiceM (Either ClientError Ogmios.ProtocolParameters)
-getProtocolParameters = runExceptT do
-  BlockfrostProtocolParameters params <- ExceptT $
-    blockfrostGetRequest LatestProtocolParameters <#> handleBlockfrostResponse
-  pure params
-
-isTxConfirmed
-  :: TransactionHash
-  -> BlockfrostServiceM (Either ClientError Boolean)
-isTxConfirmed txHash = do
-  response <- blockfrostGetRequest $ Transaction txHash
-  pure case handleBlockfrostResponse response of
-    Right (_ :: Aeson) -> Right true
-    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
-    Left e -> Left e
-
-getTxMetadata
-  :: TransactionHash
-  -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
-getTxMetadata txHash = do
-  response <- blockfrostGetRequest (TransactionMetadata txHash)
-  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
-    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
-      Left GetTxMetadataTxNotFoundError
-    Left e ->
-      Left (GetTxMetadataClientError e)
-    Right metadata
-      | Map.isEmpty (unwrap metadata) ->
-          Left GetTxMetadataMetadataEmptyOrMissingError
-      | otherwise -> Right metadata
-
---------------------------------------------------------------------------------
--- `getTxMetadata` reponse parsing
---------------------------------------------------------------------------------
-
-newtype BlockfrostMetadata = BlockfrostMetadata
-  GeneralTransactionMetadata
-
-derive instance Generic BlockfrostMetadata _
-derive instance Eq BlockfrostMetadata
-derive instance Newtype BlockfrostMetadata _
-
-instance Show BlockfrostMetadata where
-  show = genericShow
-
-instance DecodeAeson BlockfrostMetadata where
-  decodeAeson = decodeAeson >=>
-    \(metadatas :: Array { metadata :: CborBytes }) -> do
-      metadatas' <- for metadatas \{ metadata } -> do
-        map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
-          (fromBytes metadata) $
-          TypeMismatch "Hexadecimal encoded Metadata"
-
-      pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions
-        metadatas'
-
-unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
-unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata

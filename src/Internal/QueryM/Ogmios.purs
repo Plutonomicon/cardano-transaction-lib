@@ -58,6 +58,8 @@ module Ctl.Internal.QueryM.Ogmios
   , aesonArray
   , aesonObject
   , convertCostModel
+  , convertPlutusV1CostModel
+  , convertPlutusV2CostModel
   , evaluateTxCall
   , queryPoolIdsCall
   , mempoolSnapshotHasTxCall
@@ -1082,8 +1084,8 @@ instance DecodeAeson ProtocolParameters where
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable $ catMaybes
-          [ pure (PlutusV1 /\ convertCostModel ps.costModels."plutus:v1")
-          , (PlutusV2 /\ _) <<< convertCostModel <$> ps.costModels."plutus:v2"
+          [ pure (PlutusV1 /\ convertPlutusV1CostModel ps.costModels."plutus:v1")
+          , (PlutusV2 /\ _) <<< convertPlutusV2CostModel <$> ps.costModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
@@ -1298,6 +1300,14 @@ convertCostModel model = wrap $ reverse $ List.toUnfoldable $ hfoldl
   ((\xs x -> x List.: xs) :: List Csl.Int -> Csl.Int -> List Csl.Int)
   (mempty :: List Csl.Int)
   model
+
+-- Specialized conversions to only perform the type level traversals once
+
+convertPlutusV1CostModel :: Record CostModelV1 -> T.CostModel
+convertPlutusV1CostModel = convertCostModel
+
+convertPlutusV2CostModel :: Record CostModelV2 -> T.CostModel
+convertPlutusV2CostModel = convertCostModel
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
