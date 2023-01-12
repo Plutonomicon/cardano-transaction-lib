@@ -16,6 +16,7 @@ import Control.Parallel (parTraverse)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostMetadata
   , BlockfrostNativeScript
+  , BlockfrostScriptInfo
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, length)
@@ -59,11 +60,13 @@ suite = do
         case query of
           GetNativeScriptByHashQuery ->
             handle (Proxy :: Proxy BlockfrostNativeScript)
+          GetScriptInfoQuery -> handle (Proxy :: Proxy BlockfrostScriptInfo)
           GetTxMetadataQuery -> handle (Proxy :: Proxy BlockfrostMetadata)
     tests (genericSucc query)
 
 data Query
   = GetNativeScriptByHashQuery
+  | GetScriptInfoQuery
   | GetTxMetadataQuery
 
 derive instance Generic Query _
@@ -71,6 +74,7 @@ derive instance Generic Query _
 printQuery :: Query -> String
 printQuery = case _ of
   GetNativeScriptByHashQuery -> "getNativeScriptByHash"
+  GetScriptInfoQuery -> "getScriptInfo"
   GetTxMetadataQuery -> "getTxMetadata"
 
 loadFixtures :: FilePath -> Aff (Array { aeson :: Aeson, bn :: String })

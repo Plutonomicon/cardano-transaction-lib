@@ -11,13 +11,16 @@ module Ctl.Internal.Service.Blockfrost
   , BlockfrostNativeScript(BlockfrostNativeScript)
   , BlockfrostRawPostResponseData
   , BlockfrostRawResponse
+  , BlockfrostScriptInfo(BlockfrostScriptInfo)
   , BlockfrostServiceM
   , BlockfrostServiceParams
+  , BlockfrostScriptLanguage(NativeScript, PlutusV1Script, PlutusV2Script)
   , OnBlockfrostRawGetResponseHook
   , OnBlockfrostRawPostResponseHook
   , dummyExport
   , getDatumByHash
   , getScriptByHash
+  , getScriptInfo
   , getTxMetadata
   , isTxConfirmed
   , runBlockfrostServiceM
@@ -309,7 +312,7 @@ getScriptByHash
   :: ScriptHash
   -> BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = runExceptT $ runMaybeT do
-  scriptInfo <- MaybeT $ ExceptT getScriptInfo
+  scriptInfo <- MaybeT $ ExceptT $ getScriptInfo scriptHash
   case scriptLanguage scriptInfo of
     NativeScript ->
       NativeScriptRef <$>
@@ -321,12 +324,6 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
       PlutusScriptRef <$> plutusV2Script <$>
         (MaybeT $ ExceptT getPlutusScriptCborByHash)
   where
-  getScriptInfo
-    :: BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
-  getScriptInfo = do
-    response <- blockfrostGetRequest (ScriptInfo scriptHash)
-    pure $ handle404AsNothing $ handleBlockfrostResponse response
-
   getNativeScriptByHash
     :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
   getNativeScriptByHash = runExceptT do
@@ -342,6 +339,13 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
       response <- blockfrostGetRequest (PlutusScriptCborByHash scriptHash)
       pure $ handle404AsNothing $ handleBlockfrostResponse response
     pure $ join $ unwrap <$> plutusScriptCbor
+
+getScriptInfo
+  :: ScriptHash
+  -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
+getScriptInfo scriptHash = do
+  response <- blockfrostGetRequest (ScriptInfo scriptHash)
+  pure $ handle404AsNothing $ handleBlockfrostResponse response
 
 --------------------------------------------------------------------------------
 -- Check transaction confirmation status
@@ -383,6 +387,7 @@ getTxMetadata txHash = do
 data BlockfrostScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
 
 derive instance Generic BlockfrostScriptLanguage _
+derive instance Eq BlockfrostScriptLanguage
 
 instance Show BlockfrostScriptLanguage where
   show = genericShow
@@ -409,14 +414,14 @@ scriptLanguage = _.language <<< unwrap
 
 derive instance Generic BlockfrostScriptInfo _
 derive instance Newtype BlockfrostScriptInfo _
+derive instance Eq BlockfrostScriptInfo
 
 instance Show BlockfrostScriptInfo where
   show = genericShow
 
 instance DecodeAeson BlockfrostScriptInfo where
-  decodeAeson = aesonObject \obj ->
-    getField obj "type"
-      <#> \language -> BlockfrostScriptInfo { language }
+  decodeAeson =
+    aesonObject (map (wrap <<< { language: _ }) <<< flip getField "type")
 
 --------------------------------------------------------------------------------
 -- BlockfrostNativeScript

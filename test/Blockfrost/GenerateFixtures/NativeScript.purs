@@ -7,15 +7,13 @@ import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
+  , defaultKupoServerConfig
+  , defaultOgmiosWsConfig
+  , mkCtlBackendParams
   , testnetConfig
   )
 import Contract.Hashing (scriptRefHash) as Hashing
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftedM
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups (ScriptLookups) as Lookups
 import Contract.Scripts (NativeScript, ScriptHash)
 import Contract.Transaction
@@ -35,6 +33,7 @@ import Ctl.Internal.Service.Blockfrost
 import Ctl.Internal.Service.Blockfrost (getScriptByHash) as Blockfrost
 import Data.Array (mapWithIndex)
 import Data.BigInt (fromInt) as BigInt
+import Data.UInt (fromInt) as UInt
 import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
   ( blockfrostBackend
   , getSkeyFilepathFromEnv
@@ -60,7 +59,14 @@ main =
       --      { blockfrostConfig: blockfrostPublicPreviewServerConfig
       --      , blockfrostApiKey: Just blockfrostApiKey
       --      }
-      { logLevel = Info
+      { backendParams =
+          mkCtlBackendParams
+            { ogmiosConfig: defaultOgmiosWsConfig
+            , kupoConfig:
+                defaultKupoServerConfig
+                  { port = UInt.fromInt 1442, path = Nothing }
+            }
+      , logLevel = Info
       , walletSpec =
           Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
       }
