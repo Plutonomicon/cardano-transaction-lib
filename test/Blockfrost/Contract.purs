@@ -14,6 +14,7 @@ import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip (testContractsInEnv)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.String (joinWith)
+import Data.Time.Duration (Minutes(Minutes), convertDuration)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
@@ -27,9 +28,10 @@ main = do
   argv >>= case _ of
     [ _, apiKey, privateKey, backupKeys ] ->
       launchAff_ do
-        interpretWithConfig defaultConfig { timeout = Nothing } $ suite apiKey
-          privateKey
-          backupKeys
+        interpretWithConfig
+          defaultConfig
+            { timeout = Just $ convertDuration $ 5.0 # Minutes }
+          (suite apiKey privateKey backupKeys)
     _ -> do
       log $ joinWith "\n"
         [ "Wrong number of parameters provided."
