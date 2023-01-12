@@ -243,7 +243,7 @@ withOnRawGetResponseHook
 withOnRawGetResponseHook endpoint result = do
   for_ result \{ body: rawResponse } -> do
     onRawGetResponse <- asks _.onBlockfrostRawGetResponse
-    maybe (pure unit) (\f -> liftAff $ f endpoint rawResponse) onRawGetResponse
+    liftAff $ for_ onRawGetResponse \f -> f endpoint rawResponse
   pure result
 
 withOnRawPostResponseHook
@@ -256,7 +256,7 @@ withOnRawPostResponseHook endpoint mediaType requestBody result = do
   for_ result \{ body: rawResponse } -> do
     let data_ = { endpoint, mediaType, requestBody, rawResponse }
     onRawPostResponse <- asks _.onBlockfrostRawPostResponse
-    maybe (pure unit) (\f -> liftAff $ f data_) onRawPostResponse
+    liftAff $ for_ onRawPostResponse \f -> f data_
   pure result
 
 --------------------------------------------------------------------------------
