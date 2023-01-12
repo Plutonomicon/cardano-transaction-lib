@@ -3,6 +3,7 @@ module Test.Ctl.Utils.DrainWallets (main) where
 import Prelude
 
 import Contract.Address (getWalletAddresses, ownPaymentPubKeysHashes)
+import Effect.Class (liftEffect)
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
@@ -93,6 +94,16 @@ run privateKey walletsDir = runContract config do
         { utxos
         , usedWallets: if Map.isEmpty utxos then [] else [ { wallet, pkh } ]
         }
+
+  log $ joinWith " "
+    [ "Checked",  show $ Array.length wallets, "wallets." ]
+
+  when (Map.isEmpty utxos) do
+    log "No UTxOs to spend, nothing to do."
+    liftEffect $ exit 0
+
+  log $ joinWith " "
+    [ "Found", show $ Map.size utxos, "in" , show $ Array.length usedWallets, "wallets." ]
 
   let
     constraints = foldMap mustSpendPubKeyOutput (Map.keys utxos)
