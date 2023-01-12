@@ -102,4 +102,3 @@ loadFixtures query = do
 
 readdir' :: FilePath -> Aff (Array FilePath)
 readdir' fp = (map <<< map) (\fn -> concat [ fp, fn ]) (readdir fp)
-
