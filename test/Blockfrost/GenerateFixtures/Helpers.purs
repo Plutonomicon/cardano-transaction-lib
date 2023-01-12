@@ -4,7 +4,6 @@ module Test.Ctl.Blockfrost.GenerateFixtures.Helpers
   , getBlockfrostApiKeyFromEnv
   , getSkeyFilepathFromEnv
   , lookupEnv'
-  , md5
   , storeBlockfrostFixture
   ) where
 
@@ -24,6 +23,7 @@ import Ctl.Internal.Contract.QueryBackend
   ( BlockfrostBackend
   , mkBlockfrostBackendParams
   )
+import Ctl.Internal.Hashing (md5HashHex)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String (take) as String
 import Effect.Exception (throw)
@@ -31,8 +31,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (exists, writeTextFile)
 import Node.Path (concat)
 import Node.Process (lookupEnv)
-
-foreign import md5 :: String -> String
 
 blockfrostBackend :: Effect BlockfrostBackend
 blockfrostBackend = do
@@ -84,13 +82,12 @@ lookupEnv' var =
     maybe (throw $ var <> " environment variable not set") pure
 
 storeBlockfrostFixture :: Int -> String -> String -> Aff Unit
-storeBlockfrostFixture i query resp =
+storeBlockfrostFixture i query resp = do
+  respHash <- liftEffect $ md5HashHex resp
   let
-    respHash = md5 resp
     filename = query <> "-" <> respHash <> ".json"
     fp = concat [ "fixtures", "test", "blockfrost", query, filename ]
-  in
-    exists fp >>= flip unless
-      ( writeTextFile UTF8 fp resp
-          *> log ("Successfully saved fixture #" <> show i <> " to: " <> fp)
-      )
+  exists fp >>= flip unless
+    ( writeTextFile UTF8 fp resp
+        *> log ("Successfully saved fixture #" <> show i <> " to: " <> fp)
+    )
