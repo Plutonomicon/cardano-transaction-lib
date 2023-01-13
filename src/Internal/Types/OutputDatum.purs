@@ -77,7 +77,7 @@ instance DecodeAeson OutputDatum where
           pure $ OutputDatumHash dataHash
         "OutputDatum" -> do
           datum <- obj .: "contents"
-          pure $ OutputDatumHash datum
+          pure $ OutputDatum datum
         tagValue -> do
           Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
             tagValue
