@@ -55,7 +55,9 @@ instance Arbitrary NativeScript where
     [ ScriptPubkey <$> (pure pk)
     , ScriptAll <$> sized (\i -> resize (i `div` 2) arbitrary)
     , ScriptAny <$> sized (\i -> resize (i `div` 2) arbitrary)
-    , ScriptNOfK <$> arbitrary <*> sized (\i -> resize (i `div` 2) arbitrary)
+    , ScriptNOfK
+        <$> suchThat (arbitrary :: Gen Int) (_ >= 0)
+        <*> sized (\i -> resize (i `div` 2) arbitrary)
     , TimelockStart <$> map
         (wrap <<< (unsafePartial $ fromJust <<< fromString <<< show))
         (suchThat (arbitrary :: Gen Int) (_ > 0))

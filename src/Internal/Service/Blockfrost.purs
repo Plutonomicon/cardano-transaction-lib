@@ -10,14 +10,18 @@ module Ctl.Internal.Service.Blockfrost
       , UtxosOfTransaction
       )
   , BlockfrostMetadata(BlockfrostMetadata)
+  , BlockfrostNativeScript(BlockfrostNativeScript)
   , BlockfrostRawPostResponseData
   , BlockfrostRawResponse
+  , BlockfrostScriptInfo(BlockfrostScriptInfo)
+  , BlockfrostScriptLanguage(NativeScript, PlutusV1Script, PlutusV2Script)
   , BlockfrostServiceM
   , BlockfrostServiceParams
   , OnBlockfrostRawGetResponseHook
   , OnBlockfrostRawPostResponseHook
   , getDatumByHash
   , getScriptByHash
+  , getScriptInfo
   , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
@@ -423,7 +427,7 @@ getScriptByHash
   :: ScriptHash
   -> BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = runExceptT $ runMaybeT do
-  scriptInfo <- MaybeT $ ExceptT getScriptInfo
+  scriptInfo <- MaybeT $ ExceptT $ getScriptInfo scriptHash
   case scriptLanguage scriptInfo of
     NativeScript ->
       NativeScriptRef <$>
@@ -435,12 +439,6 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
       PlutusScriptRef <$> plutusV2Script <$>
         (MaybeT $ ExceptT getPlutusScriptCborByHash)
   where
-  getScriptInfo
-    :: BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
-  getScriptInfo = do
-    response <- blockfrostGetRequest (ScriptInfo scriptHash)
-    pure $ handle404AsNothing $ handleBlockfrostResponse response
-
   getNativeScriptByHash
     :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
   getNativeScriptByHash = runExceptT do
@@ -456,6 +454,13 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
       response <- blockfrostGetRequest (PlutusScriptCborByHash scriptHash)
       pure $ handle404AsNothing $ handleBlockfrostResponse response
     pure $ join $ unwrap <$> plutusScriptCbor
+
+getScriptInfo
+  :: ScriptHash
+  -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
+getScriptInfo scriptHash = do
+  response <- blockfrostGetRequest (ScriptInfo scriptHash)
+  pure $ handle404AsNothing $ handleBlockfrostResponse response
 
 --------------------------------------------------------------------------------
 -- BlockfrostUtxosAtAddress / BlockfrostUtxosOfTransaction
@@ -606,13 +611,14 @@ resolveBlockfrostTxOutput
 data BlockfrostScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
 
 derive instance Generic BlockfrostScriptLanguage _
+derive instance Eq BlockfrostScriptLanguage
 
 instance Show BlockfrostScriptLanguage where
   show = genericShow
 
 instance DecodeAeson BlockfrostScriptLanguage where
   decodeAeson = aesonString $ case _ of
-    "native" -> pure NativeScript
+    "timelock" -> pure NativeScript
     "plutusV1" -> pure PlutusV1Script
     "plutusV2" -> pure PlutusV2Script
     invalid ->
@@ -632,14 +638,14 @@ scriptLanguage = _.language <<< unwrap
 
 derive instance Generic BlockfrostScriptInfo _
 derive instance Newtype BlockfrostScriptInfo _
+derive instance Eq BlockfrostScriptInfo
 
 instance Show BlockfrostScriptInfo where
   show = genericShow
 
 instance DecodeAeson BlockfrostScriptInfo where
-  decodeAeson = aesonObject \obj ->
-    getField obj "type"
-      <#> \language -> BlockfrostScriptInfo { language }
+  decodeAeson =
+    aesonObject (map (wrap <<< { language: _ }) <<< flip getField "type")
 
 --------------------------------------------------------------------------------
 -- BlockfrostNativeScript
@@ -657,9 +663,6 @@ instance DecodeAeson BlockfrostNativeScript where
   decodeAeson =
     aesonObject (flip getField "json") >=> (map wrap <<< decodeNativeScript)
     where
-    unwrap' :: BlockfrostNativeScript -> NativeScript
-    unwrap' = unwrap
-
     decodeNativeScript :: Object Aeson -> Either JsonDecodeError NativeScript
     decodeNativeScript obj = getField obj "type" >>= case _ of
       "sig" ->
@@ -672,14 +675,17 @@ instance DecodeAeson BlockfrostNativeScript where
       "after" ->
         TimelockStart <$> getField obj "slot"
       "all" ->
-        ScriptAll <$> map unwrap' <$> getField obj "scripts"
+        ScriptAll <$> decodeScripts
       "any" ->
-        ScriptAny <$> map unwrap' <$> getField obj "scripts"
-      "atLeast" -> do
-        required <- getField obj "required"
-        ScriptNOfK required <$> map unwrap' <$> getField obj "scripts"
+        ScriptAny <$> decodeScripts
+      "atLeast" ->
+        ScriptNOfK <$> getField obj "required" <*> decodeScripts
       _ ->
         Left $ TypeMismatch "Native script constructor"
+      where
+      decodeScripts :: Either JsonDecodeError (Array NativeScript)
+      decodeScripts =
+        getField obj "scripts" >>= traverse (aesonObject decodeNativeScript)
 
 --------------------------------------------------------------------------------
 -- BlockfrostCbor

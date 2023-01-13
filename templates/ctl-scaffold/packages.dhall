@@ -276,6 +276,7 @@ let additions =
           , "checked-exceptions"
           , "console"
           , "control"
+          , "crypto"
           , "datetime"
           , "debug"
           , "effect"
@@ -348,7 +349,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "001b639606f341489968d599fb0cef2900aeb474"
+        , version = "b7456bbcc20fa94efd776ff02848116d050ed1fe"
         }
       , noble-secp256k1 =
         { dependencies =
