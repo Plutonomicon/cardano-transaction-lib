@@ -154,6 +154,14 @@ import Ctl.Internal.Contract.AwaitTxConfirmed
   ) as Contract
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      , GetTxMetadataClientError
+      )
+  ) as X
 import Ctl.Internal.Contract.Sign (signTransaction) as Contract
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Plutus.Conversion
@@ -483,12 +491,14 @@ getTxFinalFee :: BalancedSignedTransaction -> BigInt
 getTxFinalFee =
   unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
 
--- TODO Throw the Either errors?
 -- | Fetch transaction metadata.
-getTxMetadata :: TransactionHash -> Contract (Maybe GeneralTransactionMetadata)
+-- | Returns `Right` when the transaction exists and metadata was non-empty
+getTxMetadata
+  :: TransactionHash
+  -> Contract (Either GetTxMetadataError GeneralTransactionMetadata)
 getTxMetadata th = do
   queryHandle <- getQueryHandle
-  liftAff $ join <<< hush <$> queryHandle.getTxMetadata th
+  liftAff $ queryHandle.getTxMetadata th
 
 -- | Wait until a transaction with given hash is confirmed.
 -- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.

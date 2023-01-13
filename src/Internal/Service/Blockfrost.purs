@@ -1,11 +1,30 @@
 module Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
+  ( BlockfrostEndpoint
+      ( DatumCbor
+      , NativeScriptByHash
+      , PlutusScriptCborByHash
+      , ScriptInfo
+      , Transaction
+      , TransactionMetadata
+      , UtxosAtAddress
+      , UtxosOfTransaction
+      )
+  , BlockfrostMetadata(BlockfrostMetadata)
+  , BlockfrostRawPostResponseData
+  , BlockfrostRawResponse
+  , BlockfrostServiceM
   , BlockfrostServiceParams
+  , OnBlockfrostRawGetResponseHook
+  , OnBlockfrostRawPostResponseHook
   , getDatumByHash
   , getScriptByHash
+  , getTxMetadata
   , getUtxoByOref
+  , isTxConfirmed
   , runBlockfrostServiceM
+  , runBlockfrostServiceTestM
   , utxosAt
+  , dummyExport
   ) where
 
 import Prelude
@@ -28,7 +47,7 @@ import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
-import Control.Monad.Reader.Class (ask)
+import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -55,7 +74,18 @@ import Ctl.Internal.Cardano.Types.Value
   , mkValue
   ) as Value
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataClientError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
+import Ctl.Internal.Deserialization.Transaction
+  ( convertGeneralTransactionMetadata
+  )
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
@@ -83,6 +113,7 @@ import Ctl.Internal.Service.Helpers
   , decodeAssetClass
   )
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatum, OutputDatumHash)
@@ -93,6 +124,9 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  )
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (fromString) as BigInt
@@ -100,39 +134,73 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
-import Data.Map (fromFoldable) as Map
+import Data.Map (fromFoldable, isEmpty, unions) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (splitAt) as String
-import Data.Traversable (traverse)
+import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
+import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
 --------------------------------------------------------------------------------
 
+type BlockfrostRawResponse = String
+
+type BlockfrostRawPostResponseData =
+  { endpoint :: BlockfrostEndpoint
+  , mediaType :: MediaType
+  , requestBody :: Maybe Affjax.RequestBody
+  , rawResponse :: BlockfrostRawResponse
+  }
+
+type OnBlockfrostRawGetResponseHook =
+  Maybe (BlockfrostEndpoint -> BlockfrostRawResponse -> Aff Unit)
+
+type OnBlockfrostRawPostResponseHook =
+  Maybe (BlockfrostRawPostResponseData -> Aff Unit)
+
 type BlockfrostServiceParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
+  , onBlockfrostRawGetResponse :: OnBlockfrostRawGetResponseHook
+  , onBlockfrostRawPostResponse :: OnBlockfrostRawPostResponseHook
   }
 
 type BlockfrostServiceM (a :: Type) = ReaderT BlockfrostServiceParams Aff a
 
 runBlockfrostServiceM
   :: forall (a :: Type). BlockfrostBackend -> BlockfrostServiceM a -> Aff a
-runBlockfrostServiceM backend = flip runReaderT serviceParams
-  where
-  serviceParams :: BlockfrostServiceParams
-  serviceParams =
-    { blockfrostConfig: backend.blockfrostConfig
-    , blockfrostApiKey: backend.blockfrostApiKey
-    }
+runBlockfrostServiceM = flip runReaderT <<< mkServiceParams Nothing Nothing
+
+runBlockfrostServiceTestM
+  :: forall (a :: Type)
+   . BlockfrostBackend
+  -> OnBlockfrostRawGetResponseHook
+  -> OnBlockfrostRawPostResponseHook
+  -> BlockfrostServiceM a
+  -> Aff a
+runBlockfrostServiceTestM backend onRawGetResponse onRawPostResponse =
+  flip runReaderT (mkServiceParams onRawGetResponse onRawPostResponse backend)
+
+mkServiceParams
+  :: OnBlockfrostRawGetResponseHook
+  -> OnBlockfrostRawPostResponseHook
+  -> BlockfrostBackend
+  -> BlockfrostServiceParams
+mkServiceParams onBlockfrostRawGetResponse onBlockfrostRawPostResponse backend =
+  { blockfrostConfig: backend.blockfrostConfig
+  , blockfrostApiKey: backend.blockfrostApiKey
+  , onBlockfrostRawGetResponse
+  , onBlockfrostRawPostResponse
+  }
 
 --------------------------------------------------------------------------------
 -- Making requests to Blockfrost endpoints
@@ -140,55 +208,74 @@ runBlockfrostServiceM backend = flip runReaderT serviceParams
 
 data BlockfrostEndpoint
   -- /scripts/datum/{datum_hash}/cbor
-  = GetDatumCbor DataHash
+  = DatumCbor DataHash
   -- /scripts/{script_hash}/json
-  | GetNativeScriptByHash ScriptHash
+  | NativeScriptByHash ScriptHash
   -- /scripts/{script_hash}/cbor
-  | GetPlutusScriptCborByHash ScriptHash
+  | PlutusScriptCborByHash ScriptHash
   -- /scripts/{script_hash}
-  | GetScriptInfo ScriptHash
+  | ScriptInfo ScriptHash
+  -- /txs/{hash}
+  | Transaction TransactionHash
+  -- /txs/{hash}/metadata
+  | TransactionMetadata TransactionHash
   -- /addresses/{address}/utxos?page={page}&count={count}
-  | GetUtxosAtAddress Address Int Int
+  | UtxosAtAddress Address Int Int
   -- /txs/{hash}/utxos
-  | GetUtxosOfTransaction TransactionHash
+  | UtxosOfTransaction TransactionHash
+
+derive instance Generic BlockfrostEndpoint _
+derive instance Eq BlockfrostEndpoint
+derive instance Ord BlockfrostEndpoint
+
+instance Show BlockfrostEndpoint where
+  show = genericShow
 
 realizeEndpoint :: BlockfrostEndpoint -> Affjax.URL
 realizeEndpoint endpoint =
   case endpoint of
-    GetDatumCbor (DataHash hashBytes) ->
+    DatumCbor (DataHash hashBytes) ->
       "/scripts/datum/" <> byteArrayToHex hashBytes <> "/cbor"
-    GetNativeScriptByHash scriptHash ->
+    NativeScriptByHash scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/json"
-    GetPlutusScriptCborByHash scriptHash ->
+    PlutusScriptCborByHash scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
-    GetScriptInfo scriptHash ->
+    ScriptInfo scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
-    GetUtxosAtAddress address page count ->
+    Transaction txHash ->
+      "/txs/" <> byteArrayToHex (unwrap txHash)
+    TransactionMetadata txHash ->
+      "/txs/" <> byteArrayToHex (unwrap txHash) <> "/metadata/cbor"
+    UtxosAtAddress address page count ->
       "/addresses/" <> addressBech32 address <> "/utxos?page=" <> show page
         <> ("&count=" <> show count)
-    GetUtxosOfTransaction txHash ->
+    UtxosOfTransaction txHash ->
       "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
+
+dummyExport :: Unit -> Unit
+dummyExport _ = undefined blockfrostPostRequest
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostGetRequest endpoint = ask >>= \params -> liftAff do
-  Affjax.request $ Affjax.defaultRequest
-    { method = Left GET
-    , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
-    , responseFormat = Affjax.ResponseFormat.string
-    , headers =
-        maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
-          params.blockfrostApiKey
-    }
+blockfrostGetRequest endpoint = ask >>= \params ->
+  withOnRawGetResponseHook endpoint =<< liftAff do
+    Affjax.request $ Affjax.defaultRequest
+      { method = Left GET
+      , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
+      , responseFormat = Affjax.ResponseFormat.string
+      , headers =
+          maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
+            params.blockfrostApiKey
+      }
 
 blockfrostPostRequest
   :: BlockfrostEndpoint
   -> MediaType
   -> Maybe Affjax.RequestBody
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostPostRequest endpoint mediaType mbContent =
-  ask >>= \params -> liftAff do
+blockfrostPostRequest endpoint mediaType mbContent = ask >>= \params ->
+  withOnRawPostResponseHook endpoint mediaType mbContent =<< liftAff do
     Affjax.request $ Affjax.defaultRequest
       { method = Left POST
       , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
@@ -200,6 +287,29 @@ blockfrostPostRequest endpoint mediaType mbContent =
               (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
               params.blockfrostApiKey
       }
+
+withOnRawGetResponseHook
+  :: BlockfrostEndpoint
+  -> Either Affjax.Error (Affjax.Response String)
+  -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+withOnRawGetResponseHook endpoint result = do
+  for_ result \{ body: rawResponse } -> do
+    onRawGetResponse <- asks _.onBlockfrostRawGetResponse
+    liftAff $ for_ onRawGetResponse \f -> f endpoint rawResponse
+  pure result
+
+withOnRawPostResponseHook
+  :: BlockfrostEndpoint
+  -> MediaType
+  -> Maybe Affjax.RequestBody
+  -> Either Affjax.Error (Affjax.Response String)
+  -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+withOnRawPostResponseHook endpoint mediaType requestBody result = do
+  for_ result \{ body: rawResponse } -> do
+    let data_ = { endpoint, mediaType, requestBody, rawResponse }
+    onRawPostResponse <- asks _.onBlockfrostRawPostResponse
+    liftAff $ for_ onRawPostResponse \f -> f data_
+  pure result
 
 --------------------------------------------------------------------------------
 -- Blockfrost response handling
@@ -232,6 +342,39 @@ handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
 handle404AsNothing x = x
 
 --------------------------------------------------------------------------------
+-- Check transaction confirmation status
+--------------------------------------------------------------------------------
+
+isTxConfirmed
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError Boolean)
+isTxConfirmed txHash = do
+  response <- blockfrostGetRequest $ Transaction txHash
+  pure case handleBlockfrostResponse response of
+    Right (_ :: Aeson) -> Right true
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right false
+    Left e -> Left e
+
+--------------------------------------------------------------------------------
+-- Get transaction metadata
+--------------------------------------------------------------------------------
+
+getTxMetadata
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
+getTxMetadata txHash = do
+  response <- blockfrostGetRequest (TransactionMetadata txHash)
+  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
+    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+      Left GetTxMetadataTxNotFoundError
+    Left e ->
+      Left (GetTxMetadataClientError e)
+    Right metadata
+      | Map.isEmpty (unwrap metadata) ->
+          Left GetTxMetadataMetadataEmptyOrMissingError
+      | otherwise -> Right metadata
+
+--------------------------------------------------------------------------------
 -- Get utxos at address / by output reference
 --------------------------------------------------------------------------------
 
@@ -246,7 +389,7 @@ utxosAt address = runExceptT $
     -- Maximum number of results per page supported by Blockfrost:
     let maxNumResultsOnPage = 100
     utxos <- ExceptT $ handleBlockfrostResponse <$>
-      blockfrostGetRequest (GetUtxosAtAddress address page maxNumResultsOnPage)
+      blockfrostGetRequest (UtxosAtAddress address page maxNumResultsOnPage)
     case Array.length (unwrap utxos) < maxNumResultsOnPage of
       true -> pure utxos
       false -> append utxos <$> ExceptT (utxosAtAddressOnPage $ page + 1)
@@ -257,7 +400,7 @@ getUtxoByOref
 getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
   (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <-
     ExceptT $ handleBlockfrostResponse <$>
-      blockfrostGetRequest (GetUtxosOfTransaction txHash)
+      blockfrostGetRequest (UtxosOfTransaction txHash)
   traverse (ExceptT <<< resolveBlockfrostTxOutput)
     (snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap))
 
@@ -268,7 +411,7 @@ getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
 getDatumByHash
   :: DataHash -> BlockfrostServiceM (Either ClientError (Maybe Datum))
 getDatumByHash dataHash = do
-  response <- blockfrostGetRequest (GetDatumCbor dataHash)
+  response <- blockfrostGetRequest (DatumCbor dataHash)
   pure $ handle404AsNothing $ unwrapBlockfrostDatum <$> handleBlockfrostResponse
     response
 
@@ -295,14 +438,14 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
   getScriptInfo
     :: BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
   getScriptInfo = do
-    response <- blockfrostGetRequest (GetScriptInfo scriptHash)
+    response <- blockfrostGetRequest (ScriptInfo scriptHash)
     pure $ handle404AsNothing $ handleBlockfrostResponse response
 
   getNativeScriptByHash
     :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
   getNativeScriptByHash = runExceptT do
     (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
-      response <- blockfrostGetRequest (GetNativeScriptByHash scriptHash)
+      response <- blockfrostGetRequest (NativeScriptByHash scriptHash)
       pure $ handle404AsNothing $ handleBlockfrostResponse response
     pure $ unwrap <$> nativeScript
 
@@ -310,7 +453,7 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
     :: BlockfrostServiceM (Either ClientError (Maybe ByteArray))
   getPlutusScriptCborByHash = runExceptT do
     (plutusScriptCbor :: Maybe BlockfrostCbor) <- ExceptT do
-      response <- blockfrostGetRequest (GetPlutusScriptCborByHash scriptHash)
+      response <- blockfrostGetRequest (PlutusScriptCborByHash scriptHash)
       pure $ handle404AsNothing $ handleBlockfrostResponse response
     pure $ join $ unwrap <$> plutusScriptCbor
 
@@ -579,3 +722,29 @@ instance DecodeAeson BlockfrostDatum where
         cbor <- aesonObject (flip getFieldOptional "cbor") aeson
         pure $ BlockfrostDatum $ deserializeData =<< cbor
 
+--------------------------------------------------------------------------------
+-- BlockfrostMetadata
+--------------------------------------------------------------------------------
+
+newtype BlockfrostMetadata = BlockfrostMetadata GeneralTransactionMetadata
+
+derive instance Generic BlockfrostMetadata _
+derive instance Eq BlockfrostMetadata
+derive instance Newtype BlockfrostMetadata _
+
+instance Show BlockfrostMetadata where
+  show = genericShow
+
+instance DecodeAeson BlockfrostMetadata where
+  decodeAeson = decodeAeson >=>
+    \(metadatas :: Array { metadata :: CborBytes }) -> do
+      metadatas' <- for metadatas \{ metadata } -> do
+        map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
+          (fromBytes metadata) $
+          TypeMismatch "Hexadecimal encoded Metadata"
+
+      pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions
+        metadatas'
+
+unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
+unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata

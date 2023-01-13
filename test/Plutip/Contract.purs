@@ -850,7 +850,7 @@ suite = do
           awaitTxConfirmed txId
 
           mMetadata <- getTxMetadata txId
-          mMetadata `shouldEqual` (Just givenMetadata)
+          mMetadata `shouldEqual` Right givenMetadata
 
     test "MintZeroToken" do
       let
