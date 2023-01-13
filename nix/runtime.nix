@@ -20,12 +20,25 @@ rec {
       tag = "1.35.4";
     };
     ogmios = { port = 1337; };
+    postgres = {
+      # User-facing port on host machine.
+      # Can be set to null in order to not bind postgres port to host.
+      # Postgres will always be accessible via `postgres:5432` from
+      # containers.
+      port = 5432;
+      user = "ctl";
+      password = "ctl";
+      db = "ctl-${network.name}";
+    };
     kupo = {
       port = 1442;
       since = "origin";
-      match = "*/*"; # matches Shelley addresses only
+      match = "*/*"; # matches Shelley addresses onlsy
       tag = "v2.2.0";
       # TODO: Do we want to support connection through ogmios?
+    };
+    blockfrost = {
+      enable = false;
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
     # corresponds directly to YAML that would be written in a `docker-compose` file,
@@ -154,7 +167,61 @@ rec {
             ];
           };
         };
-      };
+        "postgres-${network.name}" = {
+          service = {
+            image = "postgres:13";
+            ports =
+              if postgres.port == null
+              then [ ]
+              else [ "${toString postgres.port}:5432" ];
+            environment = {
+              POSTGRES_USER = "${postgres.user}";
+              POSTGRES_PASSWORD = "${postgres.password}";
+              POSTGRES_DB = "${postgres.db}";
+            };
+          };
+        };
+      } // (if config.blockfrost.enable then {
+        "db-sync-${network.name}" = {
+          build.image = pkgs.lib.mkForce inputs.db-sync.packages.${pkgs.system}.dockerImage;
+          service = {
+            useHostStore = true;
+            environment = {
+              NETWORK = network.name;
+              POSTGRES_HOST = "postgres-${network.name}";
+              POSTGRES_PORT = postgres.port;
+              POSTGRES_USER = postgres.user;
+              PGPASSWORD = postgres.password;
+              # POSTGRES_PASSWORD = postgres.password;
+            };
+            depends_on = [ "postgres-${network.name}" ];
+            volumes = [
+              "${nodeIpcVol}:/ipc"
+              "${config.cardano-configurations}/network/${config.network.name}/cardano-db-sync:/config"
+              "${config.cardano-configurations}/network/${config.network.name}/genesis:/genesis"
+            ];
+          };
+        };
+        blockfrost = {
+          build.image = pkgs.lib.mkForce inputs.blockfrost.packages.${pkgs.system}.dockerImage;
+          service = {
+            useHostStore = true;
+            ports = [ (bindPort 3000) ];
+            environment ={
+              BLOCKFROST_CONFIG_SERVER_PORT = 3000;
+              BLOCKFROST_CONFIG_SERVER_LISTEN_ADDRESS = "0.0.0.0";
+              BLOCKFROST_CONFIG_SERVER_DEBUG= "false";
+              BLOCKFROST_CONFIG_DBSYNC_HOST = "postgres-${network.name}:5432";
+              BLOCKFROST_CONFIG_DBSYNC_USER = postgres.user;
+              BLOCKFROST_CONFIG_DBSYNC_DATABASE = postgres.db;
+              BLOCKFROST_CONFIG_DBSYNC_MAX_CONN = "1";
+              BLOCKFROST_CONFIG_NETWORK = "preview";
+              BLOCKFROST_CONFIG_TOKEN_REGISTRY_URL = "https://tokens.cardano.org";
+              PGPASSWORD = postgres.password;
+            };
+          };
+        };
+      } else {});
     in
     {
       docker-compose.raw = pkgs.lib.recursiveUpdate

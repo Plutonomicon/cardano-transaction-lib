@@ -39,6 +39,9 @@
       url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
       flake = false;
     };
+
+    blockfrost.url = "github:mlabs-haskell/blockfrost-backend-ryo/aciceri/nix-flake";
+    db-sync.url = "github:mlabs-haskell/cardano-db-sync/aciceri/customConfig-input-fix";
   };
 
   outputs =
@@ -257,6 +260,7 @@
         in
         (psProjectFor pkgs).apps // {
           ctl-runtime = pkgs.launchCtlRuntime { };
+          ctl-runtime-blockfrost = pkgs.launchCtlRuntime { blockfrost.enable = true; };
           default = self.apps.${system}.ctl-runtime;
           vm = {
             type = "app";
