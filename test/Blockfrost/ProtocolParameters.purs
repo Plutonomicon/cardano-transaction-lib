@@ -22,7 +22,7 @@ import Test.Spec.Runner (defaultConfig)
 
 blockfrostFixture :: String
 blockfrostFixture =
-  "blockfrost/getProtocolParameters-7fe834fd628aa322eedeb3d8c7c1dd61.json"
+  "blockfrost/getProtocolParameters/getProtocolParameters-7fe834fd628aa322eedeb3d8c7c1dd61.json"
 
 ogmiosFixture :: String
 ogmiosFixture =
