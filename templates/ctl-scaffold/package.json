@@ -26,7 +26,6 @@
     "@emurgo/cardano-serialization-lib-nodejs": "11.2.1",
     "@mlabs-haskell/json-bigint": " 1.0.0",
     "@noble/secp256k1": "^1.7.0",
-    "csl-runtime-gc": "1.0.4",
     "apply-args-browser": "0.0.1",
     "apply-args-nodejs": "0.0.1",
     "base64-js": "^1.5.1",

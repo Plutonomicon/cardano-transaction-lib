@@ -10,7 +10,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
-lib = require("csl-runtime-gc")(lib);
+lib = require('@mlabs-haskell/csl-gc-wrapper')(lib)
 
 exports.blake2b256Hash = bytesToHash => {
   return Blake2.blake2b(bytesToHash, null, 32);

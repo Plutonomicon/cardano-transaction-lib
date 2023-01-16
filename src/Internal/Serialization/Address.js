@@ -6,7 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
-lib = require("csl-runtime-gc")(lib);
+lib = require('@mlabs-haskell/csl-gc-wrapper')(lib)
 
 const callClassStaticMaybe = (classname, functionname) => maybe => input => {
   let ret = null;
