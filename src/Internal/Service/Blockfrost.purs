@@ -49,7 +49,8 @@ import Affjax.RequestBody (RequestBody) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
@@ -414,10 +415,10 @@ getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
 
 getDatumByHash
   :: DataHash -> BlockfrostServiceM (Either ClientError (Maybe Datum))
-getDatumByHash dataHash = do
-  response <- blockfrostGetRequest (DatumCbor dataHash)
-  pure $ handle404AsNothing $ unwrapBlockfrostDatum <$> handleBlockfrostResponse
-    response
+getDatumByHash dataHash =
+  blockfrostGetRequest (DatumCbor dataHash) <#> \response ->
+    handle404AsNothing
+      (unwrapBlockfrostDatum <$> handleBlockfrostResponse response)
 
 --------------------------------------------------------------------------------
 -- Get script by hash
@@ -431,36 +432,34 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
   case scriptLanguage scriptInfo of
     NativeScript ->
       NativeScriptRef <$>
-        (MaybeT $ ExceptT getNativeScriptByHash)
+        MaybeT (ExceptT getNativeScriptByHash)
     PlutusV1Script ->
-      PlutusScriptRef <$> plutusV1Script <$>
-        (MaybeT $ ExceptT getPlutusScriptCborByHash)
+      PlutusScriptRef <<< plutusV1Script <$>
+        MaybeT (ExceptT getPlutusScriptCborByHash)
     PlutusV2Script ->
-      PlutusScriptRef <$> plutusV2Script <$>
-        (MaybeT $ ExceptT getPlutusScriptCborByHash)
+      PlutusScriptRef <<< plutusV2Script <$>
+        MaybeT (ExceptT getPlutusScriptCborByHash)
   where
   getNativeScriptByHash
     :: BlockfrostServiceM (Either ClientError (Maybe NativeScript))
-  getNativeScriptByHash = runExceptT do
-    (nativeScript :: Maybe BlockfrostNativeScript) <- ExceptT do
-      response <- blockfrostGetRequest (NativeScriptByHash scriptHash)
-      pure $ handle404AsNothing $ handleBlockfrostResponse response
-    pure $ unwrap <$> nativeScript
+  getNativeScriptByHash =
+    blockfrostGetRequest (NativeScriptByHash scriptHash) <#> \response ->
+      map unwrapBlockfrostNativeScript <$>
+        handle404AsNothing (handleBlockfrostResponse response)
 
   getPlutusScriptCborByHash
     :: BlockfrostServiceM (Either ClientError (Maybe ByteArray))
-  getPlutusScriptCborByHash = runExceptT do
-    (plutusScriptCbor :: Maybe BlockfrostCbor) <- ExceptT do
-      response <- blockfrostGetRequest (PlutusScriptCborByHash scriptHash)
-      pure $ handle404AsNothing $ handleBlockfrostResponse response
-    pure $ join $ unwrap <$> plutusScriptCbor
+  getPlutusScriptCborByHash =
+    blockfrostGetRequest (PlutusScriptCborByHash scriptHash) <#> \response ->
+      handle404AsNothing
+        (unwrapBlockfrostCbor <$> handleBlockfrostResponse response)
 
 getScriptInfo
   :: ScriptHash
   -> BlockfrostServiceM (Either ClientError (Maybe BlockfrostScriptInfo))
-getScriptInfo scriptHash = do
-  response <- blockfrostGetRequest (ScriptInfo scriptHash)
-  pure $ handle404AsNothing $ handleBlockfrostResponse response
+getScriptInfo scriptHash =
+  blockfrostGetRequest (ScriptInfo scriptHash) <#> \response ->
+    handle404AsNothing (handleBlockfrostResponse response)
 
 --------------------------------------------------------------------------------
 -- BlockfrostUtxosAtAddress / BlockfrostUtxosOfTransaction
@@ -596,13 +595,11 @@ resolveBlockfrostTxOutput
     TransactionOutput { address, amount, datum, scriptRef }
 
   resolveScriptRef :: BlockfrostServiceM (Either ClientError (Maybe ScriptRef))
-  resolveScriptRef =
-    case blockfrostTxOutput.scriptHash of
-      Nothing -> pure $ Right Nothing
-      Just scriptHash -> runExceptT do
-        scriptRef <- ExceptT $ getScriptByHash scriptHash
-        except $ Just <$> flip note scriptRef
-          (ClientOtherError "Blockfrost: Failed to resolve reference script")
+  resolveScriptRef = runExceptT do
+    for blockfrostTxOutput.scriptHash \scriptHash -> do
+      scriptRef <- ExceptT $ getScriptByHash scriptHash
+      flip liftMaybe scriptRef
+        (ClientOtherError "Blockfrost: Failed to resolve reference script")
 
 --------------------------------------------------------------------------------
 -- BlockfrostScriptLanguage
@@ -656,6 +653,9 @@ newtype BlockfrostNativeScript = BlockfrostNativeScript NativeScript
 derive instance Generic BlockfrostNativeScript _
 derive instance Newtype BlockfrostNativeScript _
 
+unwrapBlockfrostNativeScript :: BlockfrostNativeScript -> NativeScript
+unwrapBlockfrostNativeScript = unwrap
+
 instance Show BlockfrostNativeScript where
   show = genericShow
 
@@ -695,6 +695,9 @@ newtype BlockfrostCbor = BlockfrostCbor (Maybe ByteArray)
 
 derive instance Generic BlockfrostCbor _
 derive instance Newtype BlockfrostCbor _
+
+unwrapBlockfrostCbor :: BlockfrostCbor -> Maybe ByteArray
+unwrapBlockfrostCbor = unwrap
 
 instance Show BlockfrostCbor where
   show = genericShow
