@@ -6,7 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
-lib = require('@mlabs-haskell/csl-gc-wrapper')(lib)
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 exports._BigInt_from_str = helper => str => {
   try {
