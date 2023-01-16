@@ -41,7 +41,6 @@ import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affja
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Alt ((<|>))
-import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls))
@@ -58,7 +57,16 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
-import Ctl.Internal.QueryM.Ogmios
+import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
+  , ServiceError(ServiceBlockfrostError)
+  )
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.ProtocolParameters
   ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
   , CostModelV1
   , CostModelV2
@@ -66,16 +74,7 @@ import Ctl.Internal.QueryM.Ogmios
   , ProtocolParameters(ProtocolParameters)
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel
-  , rationalToSubcoin
   )
-import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
-import Ctl.Internal.Service.Error
-  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
-  , ServiceError(ServiceBlockfrostError)
-  )
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2))
 import Ctl.Internal.Types.Transaction (TransactionHash)
@@ -97,7 +96,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for, for_)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
@@ -264,19 +263,16 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
       body # lmap (ClientDecodeJsonError body)
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
-getCurrentEpoch
-  :: BlockfrostServiceM (Either ClientError BigInt)
-getCurrentEpoch = runExceptT do
-  BlockfrostCurrentEpoch { epoch } <- ExceptT $ blockfrostGetRequest LatestEpoch
-    <#> handleBlockfrostResponse
-  pure epoch
+getCurrentEpoch :: BlockfrostServiceM (Either ClientError BigInt)
+getCurrentEpoch =
+  blockfrostGetRequest LatestEpoch <#>
+    handleBlockfrostResponse >>> map unwrapBlockfrostCurrentEpoch
 
 getProtocolParameters
-  :: BlockfrostServiceM (Either ClientError Ogmios.ProtocolParameters)
-getProtocolParameters = runExceptT do
-  BlockfrostProtocolParameters params <- ExceptT $
-    blockfrostGetRequest LatestProtocolParameters <#> handleBlockfrostResponse
-  pure params
+  :: BlockfrostServiceM (Either ClientError ProtocolParameters)
+getProtocolParameters =
+  blockfrostGetRequest LatestProtocolParameters <#>
+    handleBlockfrostResponse >>> map unwrapBlockfrostProtocolParameters
 
 isTxConfirmed
   :: TransactionHash
@@ -335,14 +331,20 @@ unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata
 -- `getCurrentEpoch` reponse parsing
 --------------------------------------------------------------------------------
 
-newtype BlockfrostCurrentEpoch = BlockfrostCurrentEpoch { epoch :: BigInt }
+newtype BlockfrostCurrentEpoch = BlockfrostCurrentEpoch BigInt
 
 derive instance Generic BlockfrostCurrentEpoch _
 derive instance Newtype BlockfrostCurrentEpoch _
-derive newtype instance DecodeAeson BlockfrostCurrentEpoch
 
 instance Show BlockfrostCurrentEpoch where
   show = genericShow
+
+instance DecodeAeson BlockfrostCurrentEpoch where
+  decodeAeson a = decodeAeson a <#>
+    \({ epoch } :: { epoch :: BigInt }) -> wrap epoch
+
+unwrapBlockfrostCurrentEpoch :: BlockfrostCurrentEpoch -> BigInt
+unwrapBlockfrostCurrentEpoch = unwrap
 
 --------------------------------------------------------------------------------
 -- `getProtocolParameters` reponse parsing
@@ -389,34 +391,52 @@ type BlockfrostProtocolParametersRaw =
   , "coins_per_utxo_word" :: Maybe (Stringed BigInt)
   }
 
-bigNumberToRational :: BigNumber -> Maybe Rational
-bigNumberToRational bn = do
-  let
-    (numerator' /\ denominator') = toFraction bn (BigNumber.fromNumber infinity)
-  numerator <- BigInt.fromString $ BigNumber.toString numerator'
-  denominator <- BigInt.fromString $ BigNumber.toString denominator'
-  reduce numerator denominator
+toFraction' :: Finite BigNumber -> String /\ String
+toFraction' bn =
+  (BigNumber.toString numerator /\ BigNumber.toString denominator)
+  where
+  (numerator /\ denominator) = toFraction (unpackFinite bn)
+    (BigNumber.fromNumber infinity)
 
-bigNumberToRational' :: BigNumber -> Either JsonDecodeError Rational
-bigNumberToRational' = note (TypeMismatch "Rational") <<< bigNumberToRational
+bigNumberToRational :: Finite BigNumber -> Either JsonDecodeError Rational
+bigNumberToRational bn = note (TypeMismatch "Rational") do
+  numerator <- BigInt.fromString numerator'
+  denominator <- BigInt.fromString denominator'
+  reduce numerator denominator
+  where
+  (numerator' /\ denominator') = toFraction' bn
+
+bigNumberToPrice
+  :: Finite BigNumber
+  -> Either JsonDecodeError { numerator :: BigNum, denominator :: BigNum }
+bigNumberToPrice bn = note (TypeMismatch "Rational") do
+  numerator <- BigNum.fromString numerator'
+  denominator <- BigNum.fromString denominator'
+  pure { numerator, denominator }
+  where
+  (numerator' /\ denominator') = toFraction' bn
 
 newtype BlockfrostProtocolParameters =
   BlockfrostProtocolParameters ProtocolParameters
 
+derive instance Generic BlockfrostProtocolParameters _
+derive instance Newtype BlockfrostProtocolParameters _
+
+unwrapBlockfrostProtocolParameters
+  :: BlockfrostProtocolParameters -> ProtocolParameters
+unwrapBlockfrostProtocolParameters = unwrap
+
+instance Show BlockfrostProtocolParameters where
+  show = genericShow
+
 instance DecodeAeson BlockfrostProtocolParameters where
   decodeAeson = decodeAeson >=> \(raw :: BlockfrostProtocolParametersRaw) -> do
-    poolPledgeInfluence <- bigNumberToRational' $ unpackFinite raw.a0
-    monetaryExpansion <- bigNumberToRational' $ unpackFinite raw.rho
-    treasuryCut <- bigNumberToRational' $ unpackFinite raw.tau
-    prices <- do
-      let
-        convert bn = do
-          rational <- bigNumberToRational $ unpackFinite bn
-          rationalToSubcoin $ wrap rational
-
-      memPrice <- note (TypeMismatch "Rational") $ convert raw.price_mem
-      stepPrice <- note (TypeMismatch "Rational") $ convert raw.price_step
-      pure { memPrice, stepPrice }
+    poolPledgeInfluence <- bigNumberToRational raw.a0
+    monetaryExpansion <- bigNumberToRational raw.rho
+    treasuryCut <- bigNumberToRational raw.tau
+    memPrice <- bigNumberToPrice raw.price_mem
+    stepPrice <- bigNumberToPrice raw.price_step
+    let prices = { memPrice, stepPrice }
 
     coinsPerUtxoUnit <-
       maybe

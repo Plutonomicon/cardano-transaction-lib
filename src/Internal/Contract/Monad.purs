@@ -54,10 +54,11 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart(SystemStart)) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (SystemStart(SystemStart)) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
 import Ctl.Internal.Service.Blockfrost as Blockfrost
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -166,7 +167,7 @@ type ContractEnv =
   -- ledgerConstants are values that technically may change, but we assume to be
   -- constant during Contract evaluation
   , ledgerConstants ::
-      { pparams :: Ogmios.ProtocolParameters
+      { pparams :: ProtocolParameters
       , systemStart :: Ogmios.SystemStart
       }
   }
@@ -234,18 +235,19 @@ getLedgerConstants
   :: Logger
   -> QueryBackend
   -> Aff
-       { pparams :: Ogmios.ProtocolParameters
+       { pparams :: ProtocolParameters
        , systemStart :: Ogmios.SystemStart
        }
 getLedgerConstants logger = case _ of
   CtlBackend { ogmios: { ws } } _ -> do
-    pparams <- getProtocolParametersAff ws logger
+    pparams <- unwrap <$> getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
   BlockfrostBackend blockfrost _ -> runBlockfrostServiceM blockfrost do
     pparams <- Blockfrost.getProtocolParameters
       >>= lmap (show >>> error) >>> liftEither
     let
+      -- TODO: https://github.com/plutonomicon/cardano-transaction-lib/pull/1377
       systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
     pure { pparams, systemStart }
 

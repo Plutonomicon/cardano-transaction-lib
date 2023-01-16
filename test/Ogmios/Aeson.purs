@@ -166,7 +166,7 @@ suite = group "Ogmios Aeson tests" do
             "systemStart" -> handle (Proxy :: _ O.SystemStart)
             "eraSummaries" -> handle (Proxy :: _ O.EraSummaries)
             "currentProtocolParameters" -> handle
-              (Proxy :: _ O.ProtocolParameters)
+              (Proxy :: _ O.OgmiosProtocolParameters)
             "poolIds" -> handle
               (Proxy :: _ O.PoolIdsR)
             "poolParameters" -> handle

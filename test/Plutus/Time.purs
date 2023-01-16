@@ -5,8 +5,7 @@ module Test.Ctl.Internal.Plutus.Time
 import Prelude
 
 import Ctl.Internal.QueryM.Ogmios
-  ( Epoch(Epoch)
-  , EpochLength(EpochLength)
+  ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
@@ -40,6 +39,7 @@ import Ctl.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
+import Ctl.Internal.Types.ProtocolParameters (Epoch(Epoch))
 import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
