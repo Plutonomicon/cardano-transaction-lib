@@ -25,7 +25,10 @@ import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
-import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch)) as ExportOgmios
+import Ctl.Internal.QueryM.Ogmios
+  ( CurrentEpoch(CurrentEpoch)
+  , OgmiosEraSummaries(OgmiosEraSummaries)
+  ) as ExportOgmios
 import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
 import Ctl.Internal.Types.EraSummaries
   ( EpochLength(EpochLength)

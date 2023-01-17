@@ -380,7 +380,6 @@ newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
 derive instance Generic OgmiosSystemStart _
 derive instance Newtype OgmiosSystemStart _
 derive newtype instance Eq OgmiosSystemStart
--- derive newtype instance EncodeAeson OgmiosSystemStart
 
 instance Show OgmiosSystemStart where
   show = genericShow

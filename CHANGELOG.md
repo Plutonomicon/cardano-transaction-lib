@@ -51,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 - `SystemStart` now has `DateTime` (rather than `String`) as the underlying type ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- `EraSummaries` now does not have an `EncodeAeson` instance. Consider wrapping it in `OgmiosEraSummaries` for Aeson encoding. ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
 
 ### Removed
 
