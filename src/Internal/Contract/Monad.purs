@@ -239,7 +239,7 @@ getLedgerConstants logger = case _ of
     pparams <- getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  -- Temporarily use CtlBackend to get constants
+  -- FIXME Temporarily use CtlBackend to get constants
   BlockfrostBackend _ (Just ctlBackend) -> getLedgerConstants logger
     (CtlBackend ctlBackend Nothing)
   BlockfrostBackend _ _ -> undefined

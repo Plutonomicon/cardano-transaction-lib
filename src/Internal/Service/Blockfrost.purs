@@ -16,7 +16,6 @@ module Ctl.Internal.Service.Blockfrost
   , isTxConfirmed
   , runBlockfrostServiceM
   , runBlockfrostServiceTestM
-  , dummyExport
   , submitTx
   , evaluateTx
   ) where
@@ -84,7 +83,6 @@ import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -176,9 +174,6 @@ realizeEndpoint endpoint =
     TransactionMetadata txHash -> "/txs/" <> byteArrayToHex (unwrap txHash)
       <> "/metadata/cbor"
 
-dummyExport :: Unit -> Unit
-dummyExport _ = undefined blockfrostPostRequest
-
 blockfrostGetRequest
   :: BlockfrostEndpoint
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
@@ -269,10 +264,7 @@ submitTx tx = do
     -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
   request cbor =
     blockfrostPostRequest SubmitTransaction (MediaType "application/cbor")
-      $ Just
-      $ Affjax.arrayView
-      $ unwrap
-      $ unwrap cbor
+      (Just $ Affjax.arrayView $ unwrap $ unwrap cbor)
 
 evaluateTx :: Transaction -> BlockfrostServiceM TxEvaluationR
 evaluateTx tx = do
@@ -292,9 +284,7 @@ evaluateTx tx = do
     -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
   request cbor =
     blockfrostPostRequest EvaluateTransaction (MediaType "application/cbor")
-      $ Just
-      $ Affjax.string
-      $ cborBytesToHex cbor
+      (Just $ Affjax.string $ cborBytesToHex cbor)
 
 data BlockfrostEvaluateTx = BlockfrostEvaluateTx (Either Aeson TxEvaluationR)
 
@@ -306,10 +296,12 @@ instance Show BlockfrostEvaluateTx where
 instance DecodeAeson BlockfrostEvaluateTx where
   decodeAeson aeson = success <|> failure <#> BlockfrostEvaluateTx
     where
+    success :: Either JsonDecodeError (Either Aeson TxEvaluationR)
     success = do
       { result } :: { result :: TxEvaluationR } <- decodeAeson aeson
       pure $ Right result
 
+    failure :: Either JsonDecodeError (Either Aeson TxEvaluationR)
     failure = pure $ Left aeson
 
 unwrapBlockfrostEvaluateTx :: BlockfrostEvaluateTx -> Either Aeson TxEvaluationR
