@@ -5,7 +5,7 @@ module Test.Ctl.ProtocolParams
 import Prelude
 
 import Aeson (decodeAeson)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
+import Ctl.Internal.QueryM.Ogmios (OgmiosProtocolParameters)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
@@ -19,5 +19,5 @@ suite = do
     "./fixtures/test/ogmios/currentProtocolParameters.json"
   group "ProtocolParameters parser" $ do
     test "is able to parse ogmios response fixture" $
-      (decodeAeson aeson :: Either _ ProtocolParameters) `shouldSatisfy`
+      (decodeAeson aeson :: Either _ OgmiosProtocolParameters) `shouldSatisfy`
         isRight

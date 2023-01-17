@@ -7,6 +7,7 @@ module Ctl.Internal.Contract.QueryHandle
 import Prelude
 
 import Contract.Log (logDebug', logWarn')
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -51,23 +52,19 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
-import Ctl.Internal.Service.Blockfrost
-  ( evaluateTx
-  , getTxMetadata
-  , isTxConfirmed
-  , submitTx
-  ) as Blockfrost
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Data.Either (Either(Left))
+import Data.Either (Either(Left, Right))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
+import Data.Maybe (Maybe, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import Undefined (undefined)
 
 type AffE (a :: Type) = Aff (Either ClientError a)
@@ -94,10 +91,8 @@ getQueryHandle = ask <#> \contractEnv ->
   case contractEnv.backend of
     CtlBackend backend _ ->
       queryHandleForCtlBackend contractEnv backend
-    BlockfrostBackend backend (Just ctlBackend) -> do
-      let fallback = queryHandleForCtlBackend contractEnv ctlBackend
-      queryHandleForBlockfrostBackend contractEnv backend fallback
-    BlockfrostBackend _ Nothing -> undefined
+    BlockfrostBackend backend _ -> do
+      queryHandleForBlockfrostBackend contractEnv backend
 
 queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
 queryHandleForCtlBackend contractEnv backend =
@@ -129,25 +124,28 @@ queryHandleForCtlBackend contractEnv backend =
   runQueryM' = runQueryM contractEnv backend
 
 queryHandleForBlockfrostBackend
-  :: ContractEnv -> BlockfrostBackend -> QueryHandle -> QueryHandle
-queryHandleForBlockfrostBackend env backend fallback =
-  { getDatumByHash: fallback.getDatumByHash
-  , getScriptByHash: fallback.getScriptByHash
-  , getUtxoByOref: fallback.getUtxoByOref
+  :: ContractEnv -> BlockfrostBackend -> QueryHandle
+queryHandleForBlockfrostBackend contractEnv backend =
+  { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
+  , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
+  , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
   , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
-  , utxosAt: fallback.utxosAt
-  , getChainTip: fallback.getChainTip
-  , getCurrentEpoch: fallback.getCurrentEpoch
+  , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
+  , getChainTip: runBlockfrostServiceM' undefined
+  , getCurrentEpoch:
+      runBlockfrostServiceM' Blockfrost.getCurrentEpoch >>= case _ of
+        Right epoch -> pure $ wrap epoch
+        Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
   , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' do
       unless (Map.isEmpty $ unwrap additionalUtxos) do
         logWarn' "Blockfrost does not support explicit additional utxos"
       Blockfrost.evaluateTx tx
-  , getEraSummaries: fallback.getEraSummaries
+  , getEraSummaries: runBlockfrostServiceM' undefined
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM
-    (fromMaybe logWithLevel env.customLogger env.logLevel)
+    (fromMaybe logWithLevel contractEnv.customLogger contractEnv.logLevel)
     backend

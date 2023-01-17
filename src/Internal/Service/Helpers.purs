@@ -1,5 +1,6 @@
 module Ctl.Internal.Service.Helpers
   ( aesonArray
+  , aesonString
   , aesonObject
   , decodeAssetClass
   ) where
@@ -11,6 +12,7 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , caseAesonArray
   , caseAesonObject
+  , caseAesonString
   )
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.Value (CurrencySymbol, mkCurrencySymbol)
@@ -34,6 +36,13 @@ aesonObject
   -> Aeson
   -> Either JsonDecodeError a
 aesonObject = caseAesonObject (Left (TypeMismatch "Object"))
+
+aesonString
+  :: forall (a :: Type)
+   . (String -> Either JsonDecodeError a)
+  -> Aeson
+  -> Either JsonDecodeError a
+aesonString = caseAesonString (Left (TypeMismatch "String"))
 
 decodeAssetClass
   :: String

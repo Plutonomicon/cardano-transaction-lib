@@ -6,6 +6,7 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.JsWebSocket
   ( _mkWebSocket
@@ -86,8 +87,6 @@ mkWebSocketAff
 mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
 
-foreign import md5 :: String -> String
-
 data Query = Query (JsonWspCall Unit Aeson) String
 
 mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
@@ -133,9 +132,9 @@ main =
       pure { resp, query: shown }
 
     for_ resps \{ resp, query } -> do
+      let resp' = stringifyAeson resp
+      respMd5 <- liftEffect $ md5HashHex resp'
       let
-        resp' = stringifyAeson resp
-        respMd5 = md5 resp'
         fp = concat
           [ "fixtures"
           , "test"

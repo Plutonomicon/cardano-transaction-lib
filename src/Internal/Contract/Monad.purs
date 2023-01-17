@@ -17,6 +17,7 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
@@ -53,15 +54,19 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (SystemStart(SystemStart)) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
+import Ctl.Internal.Service.Blockfrost as Blockfrost
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
+import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
@@ -71,7 +76,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Contract
@@ -163,7 +167,7 @@ type ContractEnv =
   -- ledgerConstants are values that technically may change, but we assume to be
   -- constant during Contract evaluation
   , ledgerConstants ::
-      { pparams :: Ogmios.ProtocolParameters
+      { pparams :: ProtocolParameters
       , systemStart :: Ogmios.SystemStart
       }
   }
@@ -182,7 +186,7 @@ mkContractEnv params = do
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
-      ledgerConstants <- getLedgerConstants logger backend
+      ledgerConstants <- getLedgerConstants params backend
       pure $ merge { backend, ledgerConstants }
     b2 <- parallel do
       wallet <- buildWallet
@@ -228,21 +232,36 @@ buildBackend logger = case _ of
 
 -- | Query for the ledger constants, ideally using the main backend
 getLedgerConstants
-  :: Logger
+  :: forall (r :: Row Type)
+   . { logLevel :: LogLevel
+     , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+     | r
+     }
   -> QueryBackend
   -> Aff
-       { pparams :: Ogmios.ProtocolParameters
+       { pparams :: ProtocolParameters
        , systemStart :: Ogmios.SystemStart
        }
-getLedgerConstants logger = case _ of
+getLedgerConstants params = case _ of
   CtlBackend { ogmios: { ws } } _ -> do
-    pparams <- getProtocolParametersAff ws logger
+    pparams <- unwrap <$> getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  -- FIXME Temporarily use CtlBackend to get constants
-  BlockfrostBackend _ (Just ctlBackend) -> getLedgerConstants logger
-    (CtlBackend ctlBackend Nothing)
-  BlockfrostBackend _ _ -> undefined
+  BlockfrostBackend backend _ ->
+    runBlockfrostServiceM blockfrostLogger backend do
+      pparams <- Blockfrost.getProtocolParameters
+        >>= lmap (show >>> error) >>> liftEither
+      let
+        -- TODO: https://github.com/plutonomicon/cardano-transaction-lib/pull/1377
+        systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
+      pure { pparams, systemStart }
+  where
+  logger :: Logger
+  logger = mkLogger params.logLevel params.customLogger
+
+  -- TODO: Should we respect `suppressLogs` here?
+  blockfrostLogger :: Message -> Aff Unit
+  blockfrostLogger = fromMaybe logWithLevel params.customLogger params.logLevel
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.

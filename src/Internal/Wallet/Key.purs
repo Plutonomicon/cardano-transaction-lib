@@ -33,7 +33,6 @@ import Ctl.Internal.Deserialization.Keys
   , privateKeyToBech32
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Serialization
   ( publicKeyHash
   )
@@ -49,6 +48,7 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Cip30.SignData (signData) as Cip30SignData

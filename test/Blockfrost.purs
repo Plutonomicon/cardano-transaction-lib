@@ -11,7 +11,8 @@ import Contract.Metadata
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Transaction
-  ( GetTxMetadataError
+  ( DataHash
+  , GetTxMetadataError
       ( GetTxMetadataTxNotFoundError
       , GetTxMetadataMetadataEmptyOrMissingError
       )
@@ -20,27 +21,29 @@ import Contract.Transaction
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Helpers (liftedM)
+import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
-  , getTxMetadata
-  , isTxConfirmed
   , runBlockfrostServiceM
   )
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Data.Array ((!!))
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(Left, Right), fromRight, isRight)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Newtype (wrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class.Console (log)
 import Mote (group, test)
 import Node.Process (argv)
-import Test.Spec.Assertions (shouldEqual)
+import Partial.Unsafe (unsafePartial)
+import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Blockfrost --exec-args PREVIEW_API_KEY`
@@ -50,10 +53,58 @@ main = do
   launchAff_ do
     interpretWithConfig
       defaultConfig { exit = true }
-      $ testPlan
+      ( testPlan
           { blockfrostConfig: blockfrostPublicPreviewServerConfig
           , blockfrostApiKey: Just apiKey
           }
+      )
+
+testPlan :: BlockfrostBackend -> TestPlanM (Aff Unit) Unit
+testPlan backend = group "Blockfrost" do
+  let
+    mkDatumHash :: String -> DataHash
+    mkDatumHash = wrap <<< hexToByteArrayUnsafe
+
+    mkStringHash :: String -> ScriptHash
+    mkStringHash s = unsafePartial $ fromJust $ scriptHashFromBytes $
+      hexToByteArrayUnsafe s
+
+  test "getDatumByHash - not found" do
+    runBlockfrost do
+      datum <- Blockfrost.getDatumByHash $ mkDatumHash
+        "e1457a0c47dfb7a2f6b8fbb059bdceab163c05d34f195b87b9f2b30e"
+      datum `shouldSatisfy` isRight
+      let result = fromRight Nothing datum
+      result `shouldEqual` Nothing
+
+  test "getScriptByHash - not found" do
+    runBlockfrost do
+      script <- Blockfrost.getScriptByHash $ mkStringHash
+        "e1457a0c47dfb7a2f6b8fbb059bdceab163c05d34f195b87b9f2b30e"
+      script `shouldSatisfy` isRight
+      let result = fromRight Nothing script
+      result `shouldEqual` Nothing
+
+  forWithIndex_ [ fixture1, fixture2, fixture3, fixture4 ] \i fixture ->
+    group ("fixture " <> show (i + 1)) do
+      test "getTxMetadata" do
+        eMetadata <- runBlockfrost $ Blockfrost.getTxMetadata $
+          fixtureHash fixture
+        eMetadata `shouldEqual` case fixture of
+          TxWithMetadata { metadata } -> Right metadata
+          TxWithNoMetadata _ -> Left GetTxMetadataMetadataEmptyOrMissingError
+          UnconfirmedTx _ -> Left GetTxMetadataTxNotFoundError
+      test "isTxConfirmed" do
+        eConfirmed <- runBlockfrost $ Blockfrost.isTxConfirmed $
+          fixtureHash fixture
+        confirmed <- liftEither $ lmap (error <<< show) eConfirmed
+        confirmed `shouldEqual` case fixture of
+          TxWithMetadata _ -> true
+          TxWithNoMetadata _ -> true
+          UnconfirmedTx _ -> false
+  where
+  runBlockfrost :: forall (a :: Type). BlockfrostServiceM a -> Aff a
+  runBlockfrost = runBlockfrostServiceM (prettyFormatter >=> log) backend
 
 data Fixture
   = TxWithMetadata
@@ -167,23 +218,3 @@ fixture4 = UnconfirmedTx
       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   }
 
-testPlan :: BlockfrostBackend -> TestPlanM (Aff Unit) Unit
-testPlan backend = group "Blockfrost" do
-  forWithIndex_ [ fixture1, fixture2, fixture3, fixture4 ] \i fixture ->
-    group ("fixture " <> show (i + 1)) do
-      test "getTxMetadata" do
-        eMetadata <- runBlockfrost $ getTxMetadata $ fixtureHash fixture
-        eMetadata `shouldEqual` case fixture of
-          TxWithMetadata { metadata } -> Right metadata
-          TxWithNoMetadata _ -> Left GetTxMetadataMetadataEmptyOrMissingError
-          UnconfirmedTx _ -> Left GetTxMetadataTxNotFoundError
-      test "isTxConfirmed" do
-        eConfirmed <- runBlockfrost $ isTxConfirmed $ fixtureHash fixture
-        confirmed <- liftEither $ lmap (error <<< show) eConfirmed
-        confirmed `shouldEqual` case fixture of
-          TxWithMetadata _ -> true
-          TxWithNoMetadata _ -> true
-          UnconfirmedTx _ -> false
-  where
-  runBlockfrost :: forall (a :: Type). BlockfrostServiceM a -> Aff a
-  runBlockfrost = runBlockfrostServiceM (prettyFormatter >=> log) backend

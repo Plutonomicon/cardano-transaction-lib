@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "001b639606f341489968d599fb0cef2900aeb474";
+        version = "90b8fc187d61e6e3b91290339dc8039190cbfece";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "001b639606f341489968d599fb0cef2900aeb474";
-          sha256 = "1rbpq2ikndjar8h3hpq5yz4mqga7276ggdbws34ppq3miczh9czz";
+          rev = "90b8fc187d61e6e3b91290339dc8039190cbfece";
+          sha256 = "0ajvywggfy63jzf88lvjhl7wjqyzs6q6livnhr1q329qw0dhhss9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -288,6 +288,18 @@ let
           url = "https://github.com/purescript/purescript-control.git";
           rev = "18d582e311f1f8523f9eb55fb93c91bd21e22837";
           sha256 = "06dc06yli4g5yr8fb9sdpqbhiaff37g977qcsbds9q2mlhnjgfx9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "crypto" = pkgs.stdenv.mkDerivation {
+        name = "crypto";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/oreshinya/purescript-crypto.git";
+          rev = "cbc19e06c5e4d528e7733633e50c070b1aa0f77e";
+          sha256 = "142p9f0mg1yi4bccg3jwhhyn4k4yy5fskh08p05n9sfym27ss126";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
