@@ -5,6 +5,14 @@ module Test.Ctl.Internal.Plutus.Time
 import Prelude
 
 import Ctl.Internal.QueryM.Ogmios
+  ( OgmiosEraSummaries(OgmiosEraSummaries)
+  , OgmiosSystemStart
+  )
+import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
+import Ctl.Internal.Types.EraSummaries
   ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -13,12 +21,7 @@ import Ctl.Internal.QueryM.Ogmios
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  , SystemStart(SystemStart)
   )
-import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)
@@ -40,6 +43,7 @@ import Ctl.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
+import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
 import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
@@ -78,8 +82,9 @@ relSlotFixture = RelSlot $ BigInt.fromInt 12855
 currentEpochFixture :: Epoch
 currentEpochFixture = Epoch $ BigInt.fromInt 58326646
 
-systemStartFixture :: SystemStart
-systemStartFixture = SystemStart "2019-07-24T20:20:16Z"
+systemStartFixture :: OgmiosSystemStart
+systemStartFixture =
+  wrap $ sysStartFromOgmiosTimestampUnsafe "2019-07-24T20:20:16Z"
 
 mkRelativeTime :: Int -> RelativeTime
 mkRelativeTime = RelativeTime <<< BigInt.toNumber <<< BigInt.fromInt
@@ -224,9 +229,9 @@ eraSummaryLengthToSeconds old@(EraSummary { parameters }) =
   in
     wrap (unwrap old) { parameters = newParameters }
 
-eraSummariesLengthToSeconds :: EraSummaries -> EraSummaries
-eraSummariesLengthToSeconds values =
-  wrap (eraSummaryLengthToSeconds <$> unwrap values)
+eraSummariesLengthToSeconds :: OgmiosEraSummaries -> OgmiosEraSummaries
+eraSummariesLengthToSeconds (OgmiosEraSummaries values) =
+  wrap $ wrap (eraSummaryLengthToSeconds <$> unwrap values)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
@@ -257,7 +262,7 @@ suite = do
       toFromAesonTest "AbsTime" absTimeFixture
       toFromAesonTest "RelSlot" relSlotFixture
       toFromAesonTest "RelTime" relTimeFixture
-      toFromAesonTestWith "EraSummaries" eraSummariesLengthToSeconds
-        eraSummariesFixture
+      toFromAesonTestWith "EraSummaries" eraSummariesLengthToSeconds $
+        OgmiosEraSummaries eraSummariesFixture
       toFromAesonTest "SystemStart" systemStartFixture
       toFromAesonTest "CurrentEpoch" currentEpochFixture

@@ -288,6 +288,7 @@ let additions =
           , "foldable-traversable"
           , "foreign"
           , "foreign-object"
+          , "formatters"
           , "functions"
           , "gen"
           , "heterogeneous"
@@ -350,7 +351,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "90b8fc187d61e6e3b91290339dc8039190cbfece"
+        , version = "22e4fd523092dc74355691951a922697e745f6fa"
         }
       , noble-secp256k1 =
         { dependencies =

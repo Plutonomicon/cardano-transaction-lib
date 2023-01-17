@@ -36,11 +36,7 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
-import Ctl.Internal.QueryM.Ogmios
-  ( AdditionalUtxoSet
-  , CurrentEpoch
-  , EraSummaries
-  ) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, CurrentEpoch) as Ogmios
 import Ctl.Internal.QueryM.Ogmios
   ( SubmitTxR(SubmitTxSuccess, SubmitFail)
   , TxEvaluationR
@@ -56,6 +52,7 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
+import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either(Left, Right))
@@ -65,7 +62,6 @@ import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import Undefined (undefined)
 
 type AffE (a :: Type) = Aff (Either ClientError a)
 
@@ -78,12 +74,12 @@ type QueryHandle =
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
-  , getChainTip :: Aff Chain.Tip
+  , getChainTip :: AffE Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
   -- TODO Capture errors from all backends
   , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
-  , getEraSummaries :: Aff Ogmios.EraSummaries
+  , getEraSummaries :: AffE EraSummaries
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -102,7 +98,7 @@ queryHandleForCtlBackend contractEnv backend =
   , isTxConfirmed: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
   , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
   , utxosAt: runQueryM' <<< Kupo.utxosAt
-  , getChainTip: runQueryM' QueryM.getChainTip
+  , getChainTip: Right <$> runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
   , submitTx: \tx -> runQueryM' do
       cslTx <- liftEffect $ Serialization.convertTransaction tx
@@ -117,7 +113,7 @@ queryHandleForCtlBackend contractEnv backend =
       txBytes <- Serialization.toBytes <$> liftEffect
         (Serialization.convertTransaction tx)
       QueryM.evaluateTxOgmios txBytes additionalUtxos
-  , getEraSummaries: runQueryM' QueryM.getEraSummaries
+  , getEraSummaries: Right <$> runQueryM' QueryM.getEraSummaries
   }
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a
@@ -132,7 +128,7 @@ queryHandleForBlockfrostBackend contractEnv backend =
   , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
-  , getChainTip: runBlockfrostServiceM' undefined
+  , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
   , getCurrentEpoch:
       runBlockfrostServiceM' Blockfrost.getCurrentEpoch >>= case _ of
         Right epoch -> pure $ wrap epoch
@@ -142,7 +138,7 @@ queryHandleForBlockfrostBackend contractEnv backend =
       unless (Map.isEmpty $ unwrap additionalUtxos) do
         logWarn' "Blockfrost does not support explicit additional utxos"
       Blockfrost.evaluateTx tx
-  , getEraSummaries: runBlockfrostServiceM' undefined
+  , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a

@@ -6,11 +6,6 @@ module Ctl.Internal.QueryM.Ogmios
   , ChainTipQR(CtChainOrigin, CtChainPoint)
   , CurrentEpoch(CurrentEpoch)
   , DelegationsAndRewardsR(DelegationsAndRewardsR)
-  , EpochLength(EpochLength)
-  , EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , EraSummaryParameters(EraSummaryParameters)
-  , EraSummaryTime(EraSummaryTime)
   , ExecutionUnits
   , MempoolSnapshotAcquired
   , OgmiosAddress
@@ -22,8 +17,6 @@ module Ctl.Internal.QueryM.Ogmios
   , PoolParametersR(PoolParametersR)
   , OgmiosProtocolParameters(OgmiosProtocolParameters)
   , RedeemerPointer
-  , RelativeTime(RelativeTime)
-  , SafeZone(SafeZone)
   , ScriptFailure
       ( ExtraRedeemers
       , MissingRequiredDatums
@@ -37,12 +30,12 @@ module Ctl.Internal.QueryM.Ogmios
   , AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosUtxoMap
   , OgmiosDatum
+  , OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosScript
+  , OgmiosSystemStart(OgmiosSystemStart)
   , OgmiosTxIn
   , OgmiosTxId
-  , SlotLength(SlotLength)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
-  , SystemStart(SystemStart)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
@@ -82,12 +75,12 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson
+  , fromArray
   , getField
   , getFieldOptional
   , getFieldOptional'
   , isNull
   , isString
-  , partialFiniteNumber
   , stringifyAeson
   , toString
   , (.:)
@@ -152,6 +145,11 @@ import Ctl.Internal.Types.ByteArray
   )
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , EraSummaryParameters(EraSummaryParameters)
+  )
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
 import Ctl.Internal.Types.ProtocolParameters
@@ -171,10 +169,16 @@ import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
+import Ctl.Internal.Types.SystemStart
+  ( SystemStart
+  , sysStartFromOgmiosTimestamp
+  , sysStartToOgmiosTimestamp
+  )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, note)
@@ -215,7 +219,7 @@ import Untagged.Union (type (|+|), toEither1)
 --------------------------------------------------------------------------------
 
 -- | Queries Ogmios for the system start Datetime
-querySystemStartCall :: JsonWspCall Unit SystemStart
+querySystemStartCall :: JsonWspCall Unit OgmiosSystemStart
 querySystemStartCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "systemStart" }
@@ -229,7 +233,7 @@ queryCurrentEpochCall = mkOgmiosCallType
   }
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
-queryEraSummariesCall :: JsonWspCall Unit EraSummaries
+queryEraSummariesCall :: JsonWspCall Unit OgmiosEraSummaries
 queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
@@ -371,16 +375,22 @@ instance DecodeAeson SubmitTxR where
       ) <|> (SubmitFail <$> getField o "SubmitFail")
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
-newtype SystemStart = SystemStart String
+newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
 
-derive instance Generic SystemStart _
-derive instance Newtype SystemStart _
-derive newtype instance DecodeAeson SystemStart
-derive newtype instance EncodeAeson SystemStart
-derive newtype instance Eq SystemStart
+derive instance Generic OgmiosSystemStart _
+derive instance Newtype OgmiosSystemStart _
+derive newtype instance Eq OgmiosSystemStart
 
-instance Show SystemStart where
+instance Show OgmiosSystemStart where
   show = genericShow
+
+instance DecodeAeson OgmiosSystemStart where
+  decodeAeson =
+    caseAesonString (Left (TypeMismatch "Timestamp string"))
+      (map wrap <<< lmap TypeMismatch <<< sysStartFromOgmiosTimestamp)
+
+instance EncodeAeson OgmiosSystemStart where
+  encodeAeson = encodeAeson <<< sysStartToOgmiosTimestamp <<< unwrap
 
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
 newtype CurrentEpoch = CurrentEpoch BigInt
@@ -397,191 +407,62 @@ instance Show CurrentEpoch where
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
-newtype EraSummaries = EraSummaries (Array EraSummary)
+newtype OgmiosEraSummaries = OgmiosEraSummaries EraSummaries
 
-derive instance Generic EraSummaries _
-derive instance Newtype EraSummaries _
-derive newtype instance Eq EraSummaries
-derive newtype instance EncodeAeson EraSummaries
+derive instance Generic OgmiosEraSummaries _
+derive instance Newtype OgmiosEraSummaries _
+derive newtype instance Eq OgmiosEraSummaries
 
-instance Show EraSummaries where
+instance Show OgmiosEraSummaries where
   show = genericShow
 
-instance DecodeAeson EraSummaries where
-  decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
+instance DecodeAeson OgmiosEraSummaries where
+  decodeAeson = aesonArray (map (wrap <<< wrap) <<< traverse decodeEraSummary)
+    where
+    decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
+    decodeEraSummary = aesonObject \o -> do
+      start <- getField o "start"
+      -- The field "end" is required by Ogmios API, but it can optionally return
+      -- Null, so we want to fail if the field is absent but make Null value
+      -- acceptable in presence of the field (hence why "end" is wrapped in
+      -- `Maybe`).
+      end' <- getField o "end"
+      end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
+      parameters <- decodeEraSummaryParameters =<< getField o "parameters"
+      pure $ wrap { start, end, parameters }
 
--- | From Ogmios:
--- | start: An era bound which captures the time, slot and epoch at which the
--- | era start. The time is relative to the start time of the network.
--- |
--- | end: An era bound which captures the time, slot and epoch at which the
--- | era start. The time is relative to the start time of the network.
--- |
--- | parameters: Parameters that can vary across hard forks.
-newtype EraSummary = EraSummary
-  { start :: EraSummaryTime
-  , end :: Maybe EraSummaryTime
-  , parameters :: EraSummaryParameters
-  }
+    decodeEraSummaryParameters
+      :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
+    decodeEraSummaryParameters o = do
+      epochLength <- getField o "epochLength"
+      slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
+      safeZone <- fromMaybe zero <$> getField o "safeZone"
+      pure $ wrap { epochLength, slotLength, safeZone }
 
-derive instance Generic EraSummary _
-derive instance Newtype EraSummary _
-derive newtype instance Eq EraSummary
+instance EncodeAeson OgmiosEraSummaries where
+  encodeAeson (OgmiosEraSummaries (EraSummaries eraSummaries)) =
+    fromArray $ map encodeEraSummary eraSummaries
+    where
+    encodeEraSummary :: EraSummary -> Aeson
+    encodeEraSummary (EraSummary { start, end, parameters }) =
+      encodeAeson
+        { "start": start
+        , "end": end
+        , "parameters": encodeEraSummaryParameters parameters
+        }
 
-instance Show EraSummary where
-  show = genericShow
+    encodeEraSummaryParameters :: EraSummaryParameters -> Aeson
+    encodeEraSummaryParameters (EraSummaryParameters params) =
+      encodeAeson
+        { "epochLength": params.epochLength
+        , "slotLength": params.slotLength
+        , "safeZone": params.safeZone
+        }
 
-instance DecodeAeson EraSummary where
-  decodeAeson = aesonObject $ \o -> do
-    start <- getField o "start"
-    -- The field "end" is required by Ogmios API, but it can optionally return
-    -- Null, so we want to fail if the field is absent but make Null value
-    -- acceptable in presence of the field (hence why "end" is wrapped in
-    -- `Maybe`).
-    end' <- getField o "end"
-    end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
-    parameters <- getField o "parameters"
-    pure $ wrap { start, end, parameters }
-
-instance EncodeAeson EraSummary where
-  encodeAeson (EraSummary { start, end, parameters }) =
-    encodeAeson
-      { "start": start
-      , "end": end
-      , "parameters": parameters
-      }
-
-newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime -- The time is relative to the start time of the network.
-  , slot :: Slot -- An absolute slot number
-  -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
-  -- u64 which has precision up to 18446744073709551615 (note 385 difference)
-  -- we treat this as neglible instead of defining `AbsSlot BigInt`. See
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/632 for
-  -- details.
-  , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
-  -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
-  }
-
-derive instance Generic EraSummaryTime _
-derive instance Newtype EraSummaryTime _
-derive newtype instance Eq EraSummaryTime
-
-instance Show EraSummaryTime where
-  show = genericShow
-
-instance DecodeAeson EraSummaryTime where
-  decodeAeson = aesonObject $ \o -> do
-    time <- getField o "time"
-    slot <- getField o "slot"
-    epoch <- getField o "epoch"
-    pure $ wrap { time, slot, epoch }
-
-instance EncodeAeson EraSummaryTime where
-  encodeAeson (EraSummaryTime { time, slot, epoch }) =
-    encodeAeson
-      { "time": time
-      , "slot": slot
-      , "epoch": epoch
-      }
-
--- | A time in seconds relative to another one (typically, system start or era
--- | start). [ 0 .. 18446744073709552000 ]
-newtype RelativeTime = RelativeTime Number
-
-derive instance Generic RelativeTime _
-derive instance Newtype RelativeTime _
-derive newtype instance Eq RelativeTime
-derive newtype instance Ord RelativeTime
-derive newtype instance DecodeAeson RelativeTime
-
-instance EncodeAeson RelativeTime where
-  encodeAeson (RelativeTime rt) =
-    -- We assume the numbers are finite
-    encodeAeson $ unsafePartial partialFiniteNumber rt
-
-instance Show RelativeTime where
-  show (RelativeTime rt) = showWithParens "RelativeTime" rt
-
-newtype EraSummaryParameters = EraSummaryParameters
-  { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: SlotLength -- <= MAX_SAFE_INTEGER (=9,007,199,254,740,992)
-  -- A slot length, in milliseconds, previously it has
-  -- a max limit of 18446744073709552000, now removed.
-  , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
-  -- the ledger in which it is guaranteed that no hard fork can take place.
-  -- This should be (at least) the number of slots in which we are guaranteed
-  -- to have k blocks.
-  }
-
-derive instance Generic EraSummaryParameters _
-derive instance Newtype EraSummaryParameters _
-derive newtype instance Eq EraSummaryParameters
-
-instance Show EraSummaryParameters where
-  show = genericShow
-
-instance DecodeAeson EraSummaryParameters where
-  decodeAeson = aesonObject $ \o -> do
-    epochLength <- getField o "epochLength"
-    slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
-    safeZone <- fromMaybe zero <$> getField o "safeZone"
-    pure $ wrap { epochLength, slotLength, safeZone }
-
--- | The EraSummaryParameters uses seconds and we use miliseconds
--- use it to translate between them
+-- Ogmios returns `slotLength` in seconds, and we use milliseconds,
+-- so we need to convert between them.
 slotLengthFactor :: Number
-slotLengthFactor = 1e3
-
-instance EncodeAeson EraSummaryParameters where
-  encodeAeson (EraSummaryParameters { epochLength, slotLength, safeZone }) =
-    encodeAeson
-      { "epochLength": epochLength
-      , "slotLength": slotLength
-      , "safeZone": safeZone
-      }
-
--- | An epoch number or length. [ 0 .. 18446744073709552000 ]
-newtype EpochLength = EpochLength BigInt
-
-derive instance Generic EpochLength _
-derive instance Newtype EpochLength _
-derive newtype instance Eq EpochLength
-derive newtype instance DecodeAeson EpochLength
-derive newtype instance EncodeAeson EpochLength
-
-instance Show EpochLength where
-  show (EpochLength el) = showWithParens "EpochLength" el
-
--- | A slot length, in milliseconds
-newtype SlotLength = SlotLength Number
-
-derive instance Generic SlotLength _
-derive instance Newtype SlotLength _
-derive newtype instance Eq SlotLength
-derive newtype instance DecodeAeson SlotLength
-instance EncodeAeson SlotLength where
-  encodeAeson (SlotLength sl) =
-    -- We assume the numbers are finite
-    encodeAeson $ unsafePartial partialFiniteNumber sl
-
-instance Show SlotLength where
-  show (SlotLength sl) = showWithParens "SlotLength" sl
-
--- | Number of slots from the tip of the ledger in which it is guaranteed that
--- | no hard fork can take place. This should be (at least) the number of slots
--- | in which we are guaranteed to have k blocks.
-newtype SafeZone = SafeZone BigInt
-
-derive instance Generic SafeZone _
-derive instance Newtype SafeZone _
-derive newtype instance Eq SafeZone
-derive newtype instance Semiring SafeZone
-derive newtype instance DecodeAeson SafeZone
-derive newtype instance EncodeAeson SafeZone
-
-instance Show SafeZone where
-  show (SafeZone sz) = showWithParens "SafeZone" sz
+slotLengthFactor = 1000.0
 
 ---------------- DELEGATIONS & REWARDS QUERY RESPONSE & PARSING
 

@@ -14,10 +14,10 @@ import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
+import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
@@ -26,17 +26,18 @@ import Ctl.Internal.Types.Interval
   )
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural as Natural
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
-import Data.Either (hush)
+import Data.Either (either, hush)
 import Data.Int as Int
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
 import Effect.Aff (Milliseconds, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (error)
+import Effect.Exception (error, throw)
 import Effect.Now (now)
 
 -- | The returned slot will be no less than the slot provided as argument.
@@ -48,7 +49,9 @@ waitUntilSlot futureSlot = do
       | slot >= futureSlot -> pure tip
       | otherwise -> do
           { systemStart } <- asks _.ledgerConstants
-          eraSummaries <- liftAff $ queryHandle.getEraSummaries
+          eraSummaries <- liftAff $
+            queryHandle.getEraSummaries
+              >>= either (liftEffect <<< throw <<< show) pure
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
@@ -177,7 +180,9 @@ slotToEndPOSIXTime slot = do
     $ wrap <$> BigNum.add (unwrap slot) (BigNum.fromInt 1)
   { systemStart } <- asks _.ledgerConstants
   queryHandle <- getQueryHandle
-  eraSummaries <- liftAff $ queryHandle.getEraSummaries
+  eraSummaries <- liftAff $
+    queryHandle.getEraSummaries
+      >>= either (liftEffect <<< throw <<< show) pure
   futureTime <- liftEffect $
     slotToPosixTime eraSummaries systemStart futureSlot
       >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")

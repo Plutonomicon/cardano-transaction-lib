@@ -1,8 +1,9 @@
 module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
-  , ParContract(ParContract)
   , ContractEnv
   , ContractParams
+  , LedgerConstants
+  , ParContract(ParContract)
   , mkContractEnv
   , runContract
   , runContractInEnv
@@ -53,12 +54,15 @@ import Ctl.Internal.QueryM
   , underlyingWebSocket
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
--- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (SystemStart(SystemStart)) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
-import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
+import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
 import Ctl.Internal.Service.Blockfrost as Blockfrost
+import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -154,6 +158,13 @@ runContractInEnv contractEnv =
 -- ContractEnv
 --------------------------------------------------------------------------------
 
+-- `LedgerConstants` contains values that technically may change, but we assume
+-- to be constant during Contract evaluation
+type LedgerConstants =
+  { pparams :: ProtocolParameters
+  , systemStart :: SystemStart
+  }
+
 type ContractEnv =
   { backend :: QueryBackend
   , networkId :: NetworkId
@@ -164,12 +175,7 @@ type ContractEnv =
   , hooks :: Hooks
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
-  -- ledgerConstants are values that technically may change, but we assume to be
-  -- constant during Contract evaluation
-  , ledgerConstants ::
-      { pparams :: ProtocolParameters
-      , systemStart :: Ogmios.SystemStart
-      }
+  , ledgerConstants :: LedgerConstants
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -230,7 +236,7 @@ buildBackend logger = case _ of
       , kupoConfig
       }
 
--- | Query for the ledger constants, ideally using the main backend
+-- | Query for the ledger constants using the main backend.
 getLedgerConstants
   :: forall (r :: Row Type)
    . { logLevel :: LogLevel
@@ -238,24 +244,24 @@ getLedgerConstants
      | r
      }
   -> QueryBackend
-  -> Aff
-       { pparams :: ProtocolParameters
-       , systemStart :: Ogmios.SystemStart
-       }
+  -> Aff LedgerConstants
 getLedgerConstants params = case _ of
-  CtlBackend { ogmios: { ws } } _ -> do
-    pparams <- unwrap <$> getProtocolParametersAff ws logger
-    systemStart <- getSystemStartAff ws logger
-    pure { pparams, systemStart }
+  CtlBackend { ogmios: { ws } } _ ->
+    { pparams: _, systemStart: _ }
+      <$> (unwrap <$> getProtocolParametersAff ws logger)
+      <*> getSystemStartAff ws logger
   BlockfrostBackend backend _ ->
-    runBlockfrostServiceM blockfrostLogger backend do
-      pparams <- Blockfrost.getProtocolParameters
-        >>= lmap (show >>> error) >>> liftEither
-      let
-        -- TODO: https://github.com/plutonomicon/cardano-transaction-lib/pull/1377
-        systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
-      pure { pparams, systemStart }
+    runBlockfrostServiceM blockfrostLogger backend $
+      { pparams: _, systemStart: _ }
+        <$> withErrorOnLeft Blockfrost.getProtocolParameters
+        <*> withErrorOnLeft Blockfrost.getSystemStart
   where
+  withErrorOnLeft
+    :: forall (a :: Type)
+     . BlockfrostServiceM (Either ClientError a)
+    -> BlockfrostServiceM a
+  withErrorOnLeft = (=<<) (lmap (show >>> error) >>> liftEither)
+
   logger :: Logger
   logger = mkLogger params.logLevel params.customLogger
 

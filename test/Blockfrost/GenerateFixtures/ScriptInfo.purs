@@ -109,8 +109,7 @@ generateFixtures = do
 
   forWithIndex_ hashesLanguages \i (scriptHash /\ language) -> do
     scriptInfo <- liftAff $
-      runBlockfrostServiceTestM (\_ -> pure unit)
-        backend
+      runBlockfrostServiceTestM (\_ -> pure unit) backend
         (Just $ onBlockfrostRawResponse i scriptHash)
         Nothing
         (Blockfrost.getScriptInfo scriptHash)

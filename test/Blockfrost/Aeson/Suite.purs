@@ -14,11 +14,14 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostCurrentEpoch
+  ( BlockfrostChainTip
+  , BlockfrostCurrentEpoch
+  , BlockfrostEraSummaries
   , BlockfrostMetadata
   , BlockfrostNativeScript
   , BlockfrostProtocolParameters
   , BlockfrostScriptInfo
+  , BlockfrostSystemStart
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, length)
@@ -60,33 +63,45 @@ suite = do
             (const unit)
             (decodeAeson aeson :: Either JsonDecodeError a)
         case query of
+          GetChainTipQuery ->
+            handle (Proxy :: Proxy BlockfrostChainTip)
           GetCurrentEpochQuery ->
             handle (Proxy :: Proxy BlockfrostCurrentEpoch)
+          GetEraSummariesQuery ->
+            handle (Proxy :: Proxy BlockfrostEraSummaries)
           GetNativeScriptByHashQuery ->
             handle (Proxy :: Proxy BlockfrostNativeScript)
           GetProtocolParametersQuery ->
             handle (Proxy :: Proxy BlockfrostProtocolParameters)
           GetScriptInfoQuery ->
             handle (Proxy :: Proxy BlockfrostScriptInfo)
+          GetSystemStartQuery ->
+            handle (Proxy :: Proxy BlockfrostSystemStart)
           GetTxMetadataQuery ->
             handle (Proxy :: Proxy BlockfrostMetadata)
     tests (genericSucc query)
 
 data Query
-  = GetCurrentEpochQuery
+  = GetChainTipQuery
+  | GetCurrentEpochQuery
+  | GetEraSummariesQuery
   | GetNativeScriptByHashQuery
   | GetProtocolParametersQuery
   | GetScriptInfoQuery
+  | GetSystemStartQuery
   | GetTxMetadataQuery
 
 derive instance Generic Query _
 
 printQuery :: Query -> String
 printQuery = case _ of
+  GetChainTipQuery -> "getChainTip"
   GetCurrentEpochQuery -> "getCurrentEpoch"
+  GetEraSummariesQuery -> "getEraSummaries"
   GetNativeScriptByHashQuery -> "getNativeScriptByHash"
   GetProtocolParametersQuery -> "getProtocolParameters"
   GetScriptInfoQuery -> "getScriptInfo"
+  GetSystemStartQuery -> "getSystemStart"
   GetTxMetadataQuery -> "getTxMetadata"
 
 loadFixtures :: FilePath -> Aff (Array { aeson :: Aeson, bn :: String })
