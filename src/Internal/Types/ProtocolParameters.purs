@@ -1,6 +1,5 @@
 module Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
-  , Epoch(Epoch)
   , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
   , CostModelV1
   , CostModelV2
@@ -10,10 +9,6 @@ module Ctl.Internal.Types.ProtocolParameters
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  )
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
   , ExUnitPrices
@@ -22,11 +17,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value (Coin)
-import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Types.Epoch (Epoch)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Rational (Rational)
 import Data.Array (reverse)
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.List (List)
 import Data.List as List
@@ -36,20 +30,6 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Heterogeneous.Folding (class HFoldl, hfoldl)
-
--- | An epoch number or length with greater precision for Ogmios than
--- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
-newtype Epoch = Epoch BigInt
-
-derive instance Generic Epoch _
-derive instance Newtype Epoch _
-derive newtype instance Eq Epoch
-derive newtype instance Ord Epoch
-derive newtype instance DecodeAeson Epoch
-derive newtype instance EncodeAeson Epoch
-
-instance Show Epoch where
-  show (Epoch e) = showWithParens "Epoch" e
 
 data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
 

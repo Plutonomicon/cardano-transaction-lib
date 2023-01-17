@@ -151,13 +151,13 @@ import Ctl.Internal.Types.ByteArray
   , hexToByteArray
   )
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
 import Ctl.Internal.Types.ProtocolParameters
   ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
   , CostModelV1
   , CostModelV2
-  , Epoch(Epoch)
   , ProtocolParameters(ProtocolParameters)
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel

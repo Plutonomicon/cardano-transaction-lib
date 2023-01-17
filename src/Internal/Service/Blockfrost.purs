@@ -133,6 +133,7 @@ import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatum, OutputDatumHash)
   )
@@ -140,7 +141,6 @@ import Ctl.Internal.Types.ProtocolParameters
   ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
   , CostModelV1
   , CostModelV2
-  , Epoch(Epoch)
   , ProtocolParameters(ProtocolParameters)
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel

@@ -18,6 +18,7 @@ import Ctl.Internal.QueryM.Ogmios
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)
@@ -39,7 +40,6 @@ import Ctl.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
-import Ctl.Internal.Types.ProtocolParameters (Epoch(Epoch))
 import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
