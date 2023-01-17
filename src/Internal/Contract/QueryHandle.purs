@@ -48,11 +48,7 @@ import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
-import Ctl.Internal.Service.Blockfrost
-  ( getCurrentEpoch
-  , getTxMetadata
-  , isTxConfirmed
-  ) as Blockfrost
+import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
@@ -125,20 +121,19 @@ queryHandleForCtlBackend contractEnv backend =
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
 queryHandleForBlockfrostBackend _ backend =
-  { getDatumByHash: runBlockfrostServiceM' <<< undefined
-  , getScriptByHash: runBlockfrostServiceM' <<< undefined
-  , getUtxoByOref: runBlockfrostServiceM' <<< undefined
+  { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
+  , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
+  , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
   , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
-  , utxosAt: runBlockfrostServiceM' <<< undefined
+  , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' undefined
   , getCurrentEpoch:
       runBlockfrostServiceM' Blockfrost.getCurrentEpoch >>= case _ of
         Right epoch -> pure $ wrap epoch
         Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< undefined
-  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' $ undefined tx
-      additionalUtxos
+  , evaluateTx: \_ _ -> runBlockfrostServiceM' undefined
   , getEraSummaries: runBlockfrostServiceM' undefined
   }
   where

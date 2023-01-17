@@ -201,7 +201,7 @@ let
         name = "bignumber";
         version = "705923edd892a3397b90d28ce7db9a7181dcd599";
         src = pkgs.fetchgit {
-          url = "https://github.com/jy14898/purescript-bignumber";
+          url = "https://github.com/mlabs-haskell/purescript-bignumber";
           rev = "705923edd892a3397b90d28ce7db9a7181dcd599";
           sha256 = "0wddkx161xk457r1mb1f1r79l8qgxja0xhdvxjd1ai43nwp9cgkf";
         };
@@ -288,6 +288,18 @@ let
           url = "https://github.com/purescript/purescript-control.git";
           rev = "18d582e311f1f8523f9eb55fb93c91bd21e22837";
           sha256 = "06dc06yli4g5yr8fb9sdpqbhiaff37g977qcsbds9q2mlhnjgfx9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "crypto" = pkgs.stdenv.mkDerivation {
+        name = "crypto";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/oreshinya/purescript-crypto.git";
+          rev = "cbc19e06c5e4d528e7733633e50c070b1aa0f77e";
+          sha256 = "142p9f0mg1yi4bccg3jwhhyn4k4yy5fskh08p05n9sfym27ss126";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

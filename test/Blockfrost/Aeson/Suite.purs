@@ -16,7 +16,9 @@ import Control.Parallel (parTraverse)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostCurrentEpoch
   , BlockfrostMetadata
+  , BlockfrostNativeScript
   , BlockfrostProtocolParameters
+  , BlockfrostScriptInfo
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, length)
@@ -58,24 +60,34 @@ suite = do
             (const unit)
             (decodeAeson aeson :: Either JsonDecodeError a)
         case query of
-          GetTxMetadataQuery -> handle (Proxy :: Proxy BlockfrostMetadata)
-          GetCurrentEpochQuery -> handle (Proxy :: Proxy BlockfrostCurrentEpoch)
-          GetProtocolParametersQuery -> handle
-            (Proxy :: Proxy BlockfrostProtocolParameters)
+          GetCurrentEpochQuery ->
+            handle (Proxy :: Proxy BlockfrostCurrentEpoch)
+          GetNativeScriptByHashQuery ->
+            handle (Proxy :: Proxy BlockfrostNativeScript)
+          GetProtocolParametersQuery ->
+            handle (Proxy :: Proxy BlockfrostProtocolParameters)
+          GetScriptInfoQuery ->
+            handle (Proxy :: Proxy BlockfrostScriptInfo)
+          GetTxMetadataQuery ->
+            handle (Proxy :: Proxy BlockfrostMetadata)
     tests (genericSucc query)
 
 data Query
-  = GetTxMetadataQuery
-  | GetCurrentEpochQuery
+  = GetCurrentEpochQuery
+  | GetNativeScriptByHashQuery
   | GetProtocolParametersQuery
+  | GetScriptInfoQuery
+  | GetTxMetadataQuery
 
 derive instance Generic Query _
 
 printQuery :: Query -> String
 printQuery = case _ of
-  GetTxMetadataQuery -> "getTxMetadata"
   GetCurrentEpochQuery -> "getCurrentEpoch"
+  GetNativeScriptByHashQuery -> "getNativeScriptByHash"
   GetProtocolParametersQuery -> "getProtocolParameters"
+  GetScriptInfoQuery -> "getScriptInfo"
+  GetTxMetadataQuery -> "getTxMetadata"
 
 loadFixtures :: FilePath -> Aff (Array { aeson :: Aeson, bn :: String })
 loadFixtures query = do

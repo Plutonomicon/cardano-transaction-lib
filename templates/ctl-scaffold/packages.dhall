@@ -277,6 +277,7 @@ let additions =
           , "checked-exceptions"
           , "console"
           , "control"
+          , "crypto"
           , "datetime"
           , "debug"
           , "effect"
