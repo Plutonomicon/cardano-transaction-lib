@@ -101,7 +101,9 @@ generateFixtures numFixtures = do
     --   (getBlockfrostBackend <$> asks _.backend)
 
     eiNativeScript <- liftAff $
-      runBlockfrostServiceTestM backend (Just onBlockfrostRawResponse) Nothing
+      runBlockfrostServiceTestM (\_ -> pure unit) backend
+        (Just onBlockfrostRawResponse)
+        Nothing
         (Blockfrost.getScriptByHash nativeScriptHash)
 
     eiNativeScript `shouldEqual` Right (Just nativeScriptRef)

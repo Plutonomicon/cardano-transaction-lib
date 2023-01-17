@@ -1,11 +1,13 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostEndpoint
       ( DatumCbor
+      , EvaluateTransaction
       , LatestEpoch
       , LatestProtocolParameters
       , NativeScriptByHash
       , PlutusScriptCborByHash
       , ScriptInfo
+      , SubmitTransaction
       , Transaction
       , TransactionMetadata
       , UtxosAtAddress
@@ -23,6 +25,7 @@ module Ctl.Internal.Service.Blockfrost
   , BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   , OnBlockfrostRawGetResponseHook
   , OnBlockfrostRawPostResponseHook
+  , evaluateTx
   , getCurrentEpoch
   , getDatumByHash
   , getProtocolParameters
@@ -33,8 +36,8 @@ module Ctl.Internal.Service.Blockfrost
   , isTxConfirmed
   , runBlockfrostServiceM
   , runBlockfrostServiceTestM
+  , submitTx
   , utxosAt
-  , dummyExport
   ) where
 
 import Prelude
@@ -51,16 +54,18 @@ import Aeson
   , getFieldOptional'
   , isNull
   , parseJsonStringToAeson
+  , stringifyAeson
   , unpackFinite
   )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
-import Affjax.RequestBody (RequestBody) as Affjax
+import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Alt ((<|>))
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Error.Class (liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Logger.Trans (LoggerT(LoggerT), runLoggerT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
@@ -80,6 +85,7 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   )
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
+  , Transaction
   , TransactionOutput(TransactionOutput)
   , UtxoMap
   )
@@ -102,6 +108,8 @@ import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
+import Ctl.Internal.QueryM.Ogmios (TxEvaluationR)
+import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
   , addressBech32
@@ -131,7 +139,7 @@ import Ctl.Internal.Service.Helpers
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (CborBytes)
+import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.OutputDatum
@@ -169,9 +177,10 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
+import Data.Log.Message (Message)
 import Data.Map (fromFoldable, isEmpty, unions) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.MediaType (MediaType)
+import Data.MediaType (MediaType(MediaType))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
 import Data.Show.Generic (genericShow)
@@ -182,8 +191,9 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import Foreign.Object (Object)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -211,21 +221,31 @@ type BlockfrostServiceParams =
   , onBlockfrostRawPostResponse :: OnBlockfrostRawPostResponseHook
   }
 
-type BlockfrostServiceM (a :: Type) = ReaderT BlockfrostServiceParams Aff a
+type BlockfrostServiceM (a :: Type) = LoggerT
+  (ReaderT BlockfrostServiceParams Aff)
+  a
 
 runBlockfrostServiceM
-  :: forall (a :: Type). BlockfrostBackend -> BlockfrostServiceM a -> Aff a
-runBlockfrostServiceM = flip runReaderT <<< mkServiceParams Nothing Nothing
+  :: forall (a :: Type)
+   . (Message -> Aff Unit)
+  -> BlockfrostBackend
+  -> BlockfrostServiceM a
+  -> Aff a
+runBlockfrostServiceM logger backend =
+  flip runReaderT (mkServiceParams Nothing Nothing backend) <<< flip runLoggerT
+    (liftAff <<< logger)
 
 runBlockfrostServiceTestM
   :: forall (a :: Type)
-   . BlockfrostBackend
+   . (Message -> Aff Unit)
+  -> BlockfrostBackend
   -> OnBlockfrostRawGetResponseHook
   -> OnBlockfrostRawPostResponseHook
   -> BlockfrostServiceM a
   -> Aff a
-runBlockfrostServiceTestM backend onRawGetResponse onRawPostResponse =
+runBlockfrostServiceTestM logger backend onRawGetResponse onRawPostResponse =
   flip runReaderT (mkServiceParams onRawGetResponse onRawPostResponse backend)
+    <<< flip runLoggerT (liftAff <<< logger)
 
 mkServiceParams
   :: OnBlockfrostRawGetResponseHook
@@ -246,6 +266,8 @@ mkServiceParams onBlockfrostRawGetResponse onBlockfrostRawPostResponse backend =
 data BlockfrostEndpoint
   -- /scripts/datum/{datum_hash}/cbor
   = DatumCbor DataHash
+  -- /utils/txs/evaluate
+  | EvaluateTransaction
   -- /epochs/latest
   | LatestEpoch
   -- /epochs/latest/parameters
@@ -256,6 +278,8 @@ data BlockfrostEndpoint
   | PlutusScriptCborByHash ScriptHash
   -- /scripts/{script_hash}
   | ScriptInfo ScriptHash
+  -- /tx/submit
+  | SubmitTransaction
   -- /txs/{hash}
   | Transaction TransactionHash
   -- /txs/{hash}/metadata
@@ -277,6 +301,8 @@ realizeEndpoint endpoint =
   case endpoint of
     DatumCbor (DataHash hashBytes) ->
       "/scripts/datum/" <> byteArrayToHex hashBytes <> "/cbor"
+    EvaluateTransaction ->
+      "/utils/txs/evaluate"
     LatestEpoch ->
       "/epochs/latest"
     LatestProtocolParameters ->
@@ -287,6 +313,8 @@ realizeEndpoint endpoint =
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/cbor"
     ScriptInfo scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
+    SubmitTransaction ->
+      "/tx/submit"
     Transaction txHash ->
       "/txs/" <> byteArrayToHex (unwrap txHash)
     TransactionMetadata txHash ->
@@ -296,9 +324,6 @@ realizeEndpoint endpoint =
         <> ("&count=" <> show count)
     UtxosOfTransaction txHash ->
       "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
-
-dummyExport :: Unit -> Unit
-dummyExport _ = undefined blockfrostPostRequest
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -385,6 +410,44 @@ handle404AsNothing
 handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
   Right Nothing
 handle404AsNothing x = x
+
+--------------------------------------------------------------------------------
+-- Submit / evaluate transaction
+--------------------------------------------------------------------------------
+
+submitTx
+  :: Transaction
+  -> BlockfrostServiceM (Either ClientError TransactionHash)
+submitTx tx = do
+  cslTx <- liftEffect $ Serialization.convertTransaction tx
+  handleBlockfrostResponse <$> request (Serialization.toBytes cslTx)
+  where
+  request
+    :: CborBytes
+    -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+  request cbor =
+    blockfrostPostRequest SubmitTransaction (MediaType "application/cbor")
+      (Just $ Affjax.arrayView $ unwrap $ unwrap cbor)
+
+evaluateTx :: Transaction -> BlockfrostServiceM TxEvaluationR
+evaluateTx tx = do
+  cslTx <- liftEffect $ Serialization.convertTransaction tx
+  resp <- handleBlockfrostResponse <$> request (Serialization.toBytes cslTx)
+  case unwrapBlockfrostEvaluateTx <$> resp of
+    Left err -> throwError $ error $ show err
+    Right (Left err) ->
+      -- Replicate the error of QueryM's fault handler
+      throwError $ error $ "Server responded with `fault`: " <> stringifyAeson
+        err
+    Right (Right eval) -> pure eval
+  where
+  -- Hex encoded, not binary like submission
+  request
+    :: CborBytes
+    -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+  request cbor =
+    blockfrostPostRequest EvaluateTransaction (MediaType "application/cbor")
+      (Just $ Affjax.string $ cborBytesToHex cbor)
 
 --------------------------------------------------------------------------------
 -- Get current epoch information
@@ -517,6 +580,31 @@ getScriptInfo scriptHash =
     handle404AsNothing (handleBlockfrostResponse response)
 
 --------------------------------------------------------------------------------
+-- BlockfrostEvaluateTx
+--------------------------------------------------------------------------------
+
+data BlockfrostEvaluateTx = BlockfrostEvaluateTx (Either Aeson TxEvaluationR)
+
+derive instance Generic BlockfrostEvaluateTx _
+
+instance Show BlockfrostEvaluateTx where
+  show = genericShow
+
+instance DecodeAeson BlockfrostEvaluateTx where
+  decodeAeson aeson = success <|> failure <#> BlockfrostEvaluateTx
+    where
+    success :: Either JsonDecodeError (Either Aeson TxEvaluationR)
+    success = do
+      { result } :: { result :: TxEvaluationR } <- decodeAeson aeson
+      pure $ Right result
+
+    failure :: Either JsonDecodeError (Either Aeson TxEvaluationR)
+    failure = pure $ Left aeson
+
+unwrapBlockfrostEvaluateTx :: BlockfrostEvaluateTx -> Either Aeson TxEvaluationR
+unwrapBlockfrostEvaluateTx (BlockfrostEvaluateTx ei) = ei
+
+--------------------------------------------------------------------------------
 -- BlockfrostUtxosAtAddress / BlockfrostUtxosOfTransaction
 --------------------------------------------------------------------------------
 
@@ -549,8 +637,16 @@ resolveBlockfrostUtxosAtAddress
   :: BlockfrostUtxosAtAddress
   -> BlockfrostServiceM (Either ClientError UtxoMap)
 resolveBlockfrostUtxosAtAddress (BlockfrostUtxosAtAddress utxos) =
-  runExceptT $ Map.fromFoldable <$>
-    parTraverse (traverse (ExceptT <<< resolveBlockfrostTxOutput)) utxos
+  -- TODO: `Parallel` instance for `BlockfrostServiceM`?
+  LoggerT \logger ->
+    let
+      resolve
+        :: BlockfrostTransactionOutput
+        -> ExceptT ClientError (ReaderT BlockfrostServiceParams Aff)
+             TransactionOutput
+      resolve = ExceptT <<< flip runLoggerT logger <<< resolveBlockfrostTxOutput
+    in
+      runExceptT $ Map.fromFoldable <$> parTraverse (traverse resolve) utxos
 
 newtype BlockfrostUtxosOfTransaction =
   BlockfrostUtxosOfTransaction (Array BlockfrostUnspentOutput)

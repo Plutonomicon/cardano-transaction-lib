@@ -186,7 +186,7 @@ mkContractEnv params = do
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
-      ledgerConstants <- getLedgerConstants logger backend
+      ledgerConstants <- getLedgerConstants params backend
       pure $ merge { backend, ledgerConstants }
     b2 <- parallel do
       wallet <- buildWallet
@@ -232,24 +232,36 @@ buildBackend logger = case _ of
 
 -- | Query for the ledger constants, ideally using the main backend
 getLedgerConstants
-  :: Logger
+  :: forall (r :: Row Type)
+   . { logLevel :: LogLevel
+     , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+     | r
+     }
   -> QueryBackend
   -> Aff
        { pparams :: ProtocolParameters
        , systemStart :: Ogmios.SystemStart
        }
-getLedgerConstants logger = case _ of
+getLedgerConstants params = case _ of
   CtlBackend { ogmios: { ws } } _ -> do
     pparams <- unwrap <$> getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  BlockfrostBackend blockfrost _ -> runBlockfrostServiceM blockfrost do
-    pparams <- Blockfrost.getProtocolParameters
-      >>= lmap (show >>> error) >>> liftEither
-    let
-      -- TODO: https://github.com/plutonomicon/cardano-transaction-lib/pull/1377
-      systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
-    pure { pparams, systemStart }
+  BlockfrostBackend backend _ ->
+    runBlockfrostServiceM blockfrostLogger backend do
+      pparams <- Blockfrost.getProtocolParameters
+        >>= lmap (show >>> error) >>> liftEither
+      let
+        -- TODO: https://github.com/plutonomicon/cardano-transaction-lib/pull/1377
+        systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
+      pure { pparams, systemStart }
+  where
+  logger :: Logger
+  logger = mkLogger params.logLevel params.customLogger
+
+  -- TODO: Should we respect `suppressLogs` here?
+  blockfrostLogger :: Message -> Aff Unit
+  blockfrostLogger = fromMaybe logWithLevel params.customLogger params.logLevel
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.

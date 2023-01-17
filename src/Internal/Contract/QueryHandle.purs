@@ -6,7 +6,7 @@ module Ctl.Internal.Contract.QueryHandle
 
 import Prelude
 
-import Contract.Log (logDebug')
+import Contract.Log (logDebug', logWarn')
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
@@ -23,6 +23,7 @@ import Ctl.Internal.Contract.QueryBackend
   )
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
@@ -40,7 +41,10 @@ import Ctl.Internal.QueryM.Ogmios
   , CurrentEpoch
   , EraSummaries
   ) as Ogmios
-import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitTxSuccess), TxEvaluationR)
+import Ctl.Internal.QueryM.Ogmios
+  ( SubmitTxR(SubmitTxSuccess, SubmitFail)
+  , TxEvaluationR
+  )
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
@@ -49,13 +53,14 @@ import Ctl.Internal.Service.Blockfrost
   , runBlockfrostServiceM
   )
 import Ctl.Internal.Service.Blockfrost as Blockfrost
-import Ctl.Internal.Service.Error (ClientError)
+import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Map as Map
+import Data.Maybe (Maybe, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -76,7 +81,7 @@ type QueryHandle =
   , getChainTip :: Aff Chain.Tip
   , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
   -- TODO Capture errors from all backends
-  , submitTx :: Transaction -> Aff (Maybe TransactionHash)
+  , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: Aff Ogmios.EraSummaries
   }
@@ -86,7 +91,7 @@ getQueryHandle = ask <#> \contractEnv ->
   case contractEnv.backend of
     CtlBackend backend _ ->
       queryHandleForCtlBackend contractEnv backend
-    BlockfrostBackend backend _ ->
+    BlockfrostBackend backend _ -> do
       queryHandleForBlockfrostBackend contractEnv backend
 
 queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
@@ -106,8 +111,8 @@ queryHandleForCtlBackend contractEnv backend =
       let txCborBytes = Serialization.toBytes cslTx
       result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes
       case result of
-        SubmitTxSuccess a -> pure $ Just $ wrap a
-        _ -> pure Nothing
+        SubmitTxSuccess a -> pure $ pure $ wrap a
+        SubmitFail err -> pure $ Left $ ClientOtherError $ show err
   , evaluateTx: \tx additionalUtxos -> runQueryM' do
       txBytes <- Serialization.toBytes <$> liftEffect
         (Serialization.convertTransaction tx)
@@ -120,7 +125,7 @@ queryHandleForCtlBackend contractEnv backend =
 
 queryHandleForBlockfrostBackend
   :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend _ backend =
+queryHandleForBlockfrostBackend contractEnv backend =
   { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
   , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
   , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
@@ -132,10 +137,15 @@ queryHandleForBlockfrostBackend _ backend =
       runBlockfrostServiceM' Blockfrost.getCurrentEpoch >>= case _ of
         Right epoch -> pure $ wrap epoch
         Left err -> throwError $ error $ show err
-  , submitTx: runBlockfrostServiceM' <<< undefined
-  , evaluateTx: \_ _ -> runBlockfrostServiceM' undefined
+  , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
+  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' do
+      unless (Map.isEmpty $ unwrap additionalUtxos) do
+        logWarn' "Blockfrost does not support explicit additional utxos"
+      Blockfrost.evaluateTx tx
   , getEraSummaries: runBlockfrostServiceM' undefined
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
-  runBlockfrostServiceM' = runBlockfrostServiceM backend
+  runBlockfrostServiceM' = runBlockfrostServiceM
+    (fromMaybe logWithLevel contractEnv.customLogger contractEnv.logLevel)
+    backend
