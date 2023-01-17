@@ -25,7 +25,8 @@ main = launchAff_ generateFixture
 generateFixture :: Aff Unit
 generateFixture = do
   backend <- liftEffect blockfrostBackend
-  sysStart <- runBlockfrostServiceTestM backend (Just onBlockfrostRawResponse)
+  sysStart <- runBlockfrostServiceTestM (\_ -> pure unit) backend
+    (Just onBlockfrostRawResponse)
     Nothing
     Blockfrost.getSystemStart
   either (liftEffect <<< throw <<< show) (\_ -> pure unit) sysStart

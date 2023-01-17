@@ -113,6 +113,7 @@ import Ctl.Internal.QueryM.JsonWsp as JsonWsp
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , DelegationsAndRewardsR
+  , OgmiosProtocolParameters
   , PoolIdsR
   , PoolParametersR
   , TxHash
@@ -263,7 +264,7 @@ instance Parallel (QueryMT ParAff) (QueryMT Aff) where
 getProtocolParametersAff
   :: OgmiosWebSocket
   -> (LogLevel -> String -> Effect Unit)
-  -> Aff Ogmios.ProtocolParameters
+  -> Aff OgmiosProtocolParameters
 getProtocolParametersAff ogmiosWs logger =
   mkOgmiosRequestAff ogmiosWs logger Ogmios.queryProtocolParametersCall
     _.getProtocolParameters
@@ -625,7 +626,7 @@ type OgmiosListeners =
   , submit :: SubmitTxListenerSet
   , evaluate ::
       ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
-  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
+  , getProtocolParameters :: ListenerSet Unit OgmiosProtocolParameters
   , eraSummaries :: ListenerSet Unit Ogmios.OgmiosEraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart

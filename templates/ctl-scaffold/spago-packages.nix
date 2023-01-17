@@ -293,6 +293,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "crypto" = pkgs.stdenv.mkDerivation {
+        name = "crypto";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/oreshinya/purescript-crypto.git";
+          rev = "cbc19e06c5e4d528e7733633e50c070b1aa0f77e";
+          sha256 = "142p9f0mg1yi4bccg3jwhhyn4k4yy5fskh08p05n9sfym27ss126";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "datetime" = pkgs.stdenv.mkDerivation {
         name = "datetime";
         version = "v5.0.2";

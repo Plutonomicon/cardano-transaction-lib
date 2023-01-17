@@ -1,0 +1,1 @@
+{"json":{"type":"all","scripts":[{"type":"all","scripts":[{"type":"any","scripts":[]},{"type":"sig","keyHash":"1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"},{"type":"atLeast","scripts":[{"slot":575878,"type":"before"},{"type":"all","scripts":[]}],"required":531675}]}]}}

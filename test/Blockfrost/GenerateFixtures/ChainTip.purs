@@ -31,7 +31,8 @@ generateFixtures numFixtures = do
   worker :: BlockfrostBackend -> Int -> Maybe Tip -> Aff Unit
   worker _ i _ | i == numFixtures = pure unit
   worker backend i prevChainTip = do
-    chainTip <- runBlockfrostServiceTestM backend (Just onBlockfrostRawResponse)
+    chainTip <- runBlockfrostServiceTestM (\_ -> pure unit) backend
+      (Just onBlockfrostRawResponse)
       Nothing
       Blockfrost.getChainTip
     case prevChainTip == hush chainTip of

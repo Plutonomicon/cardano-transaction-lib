@@ -17,7 +17,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (NonAdaAsset)
 import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt) as BigInt

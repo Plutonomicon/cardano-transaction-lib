@@ -25,7 +25,7 @@ main = launchAff_ generateFixture
 generateFixture :: Aff Unit
 generateFixture = do
   backend <- liftEffect blockfrostBackend
-  eraSummaries <- runBlockfrostServiceTestM backend
+  eraSummaries <- runBlockfrostServiceTestM (\_ -> pure unit) backend
     (Just onBlockfrostRawResponse)
     Nothing
     Blockfrost.getEraSummaries

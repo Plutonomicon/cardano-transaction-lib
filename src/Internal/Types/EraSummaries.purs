@@ -1,6 +1,5 @@
 module Ctl.Internal.Types.EraSummaries
-  ( Epoch(Epoch)
-  , EpochLength(EpochLength)
+  ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
@@ -22,6 +21,7 @@ import Aeson
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
+import Ctl.Internal.Types.Epoch (Epoch)
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
@@ -147,20 +147,6 @@ instance EncodeAeson RelativeTime where
 
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
-
--- | An epoch number or length with greater precision for Ogmios than
--- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
-newtype Epoch = Epoch BigInt
-
-derive instance Generic Epoch _
-derive instance Newtype Epoch _
-derive newtype instance Eq Epoch
-derive newtype instance Ord Epoch
-derive newtype instance DecodeAeson Epoch
-derive newtype instance EncodeAeson Epoch
-
-instance Show Epoch where
-  show (Epoch epoch) = showWithParens "Epoch" epoch
 
 newtype EpochLength = EpochLength BigInt
 

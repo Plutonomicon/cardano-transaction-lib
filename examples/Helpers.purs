@@ -3,6 +3,7 @@ module Ctl.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
+  , mustPayToPubKeyStakeAddressWithScriptRef
   , submitAndLog
   ) where
 
@@ -16,6 +17,7 @@ import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( BalancedSignedTransaction
+  , ScriptRef
   , awaitTxConfirmed
   , submit
   )
@@ -60,6 +62,18 @@ mustPayToPubKeyStakeAddressWithDatum pkh Nothing datum dtp =
   Constraints.mustPayToPubKeyWithDatum pkh datum dtp
 mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) datum dtp =
   Constraints.mustPayToPubKeyAddressWithDatum pkh skh datum dtp
+
+mustPayToPubKeyStakeAddressWithScriptRef
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> Maybe StakePubKeyHash
+  -> ScriptRef
+  -> Value
+  -> Constraints.TxConstraints i o
+mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing scriptRef =
+  Constraints.mustPayToPubKeyWithScriptRef pkh scriptRef
+mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
+  Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef
 
 submitAndLog
   :: BalancedSignedTransaction -> Contract Unit

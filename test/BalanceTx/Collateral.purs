@@ -20,8 +20,8 @@ import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
   , mkSingletonNonAdaAsset
   ) as Value
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.BigInt (fromInt) as BigInt
