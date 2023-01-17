@@ -17,6 +17,7 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
@@ -53,11 +54,15 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 -- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (SystemStart(SystemStart)) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Service.Blockfrost (runBlockfrostServiceM)
+import Ctl.Internal.Service.Blockfrost as Blockfrost
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
+import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
@@ -71,7 +76,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Contract
@@ -163,7 +167,7 @@ type ContractEnv =
   -- ledgerConstants are values that technically may change, but we assume to be
   -- constant during Contract evaluation
   , ledgerConstants ::
-      { pparams :: Ogmios.ProtocolParameters
+      { pparams :: ProtocolParameters
       , systemStart :: Ogmios.SystemStart
       }
   }
@@ -231,15 +235,21 @@ getLedgerConstants
   :: Logger
   -> QueryBackend
   -> Aff
-       { pparams :: Ogmios.ProtocolParameters
+       { pparams :: ProtocolParameters
        , systemStart :: Ogmios.SystemStart
        }
 getLedgerConstants logger = case _ of
   CtlBackend { ogmios: { ws } } _ -> do
-    pparams <- getProtocolParametersAff ws logger
+    pparams <- unwrap <$> getProtocolParametersAff ws logger
     systemStart <- getSystemStartAff ws logger
     pure { pparams, systemStart }
-  BlockfrostBackend _ _ -> undefined
+  BlockfrostBackend blockfrost _ -> runBlockfrostServiceM blockfrost do
+    pparams <- Blockfrost.getProtocolParameters
+      >>= lmap (show >>> error) >>> liftEither
+    let
+      -- TODO: https://github.com/plutonomicon/cardano-transaction-lib/pull/1377
+      systemStart = Ogmios.SystemStart "2022-10-25T00:00:00Z"
+    pure { pparams, systemStart }
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.

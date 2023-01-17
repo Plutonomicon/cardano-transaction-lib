@@ -1,6 +1,8 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostEndpoint
       ( DatumCbor
+      , LatestEpoch
+      , LatestProtocolParameters
       , NativeScriptByHash
       , PlutusScriptCborByHash
       , ScriptInfo
@@ -17,9 +19,13 @@ module Ctl.Internal.Service.Blockfrost
   , BlockfrostScriptLanguage(NativeScript, PlutusV1Script, PlutusV2Script)
   , BlockfrostServiceM
   , BlockfrostServiceParams
+  , BlockfrostCurrentEpoch(BlockfrostCurrentEpoch)
+  , BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   , OnBlockfrostRawGetResponseHook
   , OnBlockfrostRawPostResponseHook
+  , getCurrentEpoch
   , getDatumByHash
+  , getProtocolParameters
   , getScriptByHash
   , getScriptInfo
   , getTxMetadata
@@ -36,19 +42,23 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
+  , Finite
+  , JsonDecodeError(TypeMismatch, AtKey, MissingValue)
   , decodeAeson
+  , decodeJsonString
   , getField
   , getFieldOptional
   , getFieldOptional'
   , isNull
   , parseJsonStringToAeson
+  , unpackFinite
   )
 import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
 import Affjax.RequestBody (RequestBody) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
@@ -69,10 +79,11 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
+  ( Costmdls(Costmdls)
+  , TransactionOutput(TransactionOutput)
   , UtxoMap
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
 import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
   , mkSingletonNonAdaAsset
@@ -117,14 +128,30 @@ import Ctl.Internal.Service.Helpers
   , aesonString
   , decodeAssetClass
   )
+import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatum, OutputDatumHash)
   )
+import Ctl.Internal.Types.ProtocolParameters
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
+  , CostModelV1
+  , CostModelV2
+  , ProtocolParameters(ProtocolParameters)
+  , convertPlutusV1CostModel
+  , convertPlutusV2CostModel
+  )
+import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
-import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , plutusV1Script
+  , plutusV2Script
+  )
 import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -134,7 +161,10 @@ import Ctl.Internal.Types.TransactionMetadata
   )
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
+import Data.BigInt (BigInt)
 import Data.BigInt (fromString) as BigInt
+import Data.BigNumber (BigNumber, toFraction)
+import Data.BigNumber as BigNumber
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
@@ -143,11 +173,13 @@ import Data.Map (fromFoldable, isEmpty, unions) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType (MediaType)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Number (infinity)
 import Data.Show.Generic (genericShow)
 import Data.String (splitAt) as String
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
@@ -214,6 +246,10 @@ mkServiceParams onBlockfrostRawGetResponse onBlockfrostRawPostResponse backend =
 data BlockfrostEndpoint
   -- /scripts/datum/{datum_hash}/cbor
   = DatumCbor DataHash
+  -- /epochs/latest
+  | LatestEpoch
+  -- /epochs/latest/parameters
+  | LatestProtocolParameters
   -- /scripts/{script_hash}/json
   | NativeScriptByHash ScriptHash
   -- /scripts/{script_hash}/cbor
@@ -241,6 +277,10 @@ realizeEndpoint endpoint =
   case endpoint of
     DatumCbor (DataHash hashBytes) ->
       "/scripts/datum/" <> byteArrayToHex hashBytes <> "/cbor"
+    LatestEpoch ->
+      "/epochs/latest"
+    LatestProtocolParameters ->
+      "/epochs/latest/parameters"
     NativeScriptByHash scriptHash ->
       "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash) <> "/json"
     PlutusScriptCborByHash scriptHash ->
@@ -345,6 +385,21 @@ handle404AsNothing
 handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
   Right Nothing
 handle404AsNothing x = x
+
+--------------------------------------------------------------------------------
+-- Get current epoch information
+--------------------------------------------------------------------------------
+
+getCurrentEpoch :: BlockfrostServiceM (Either ClientError BigInt)
+getCurrentEpoch =
+  blockfrostGetRequest LatestEpoch <#>
+    handleBlockfrostResponse >>> map unwrapBlockfrostCurrentEpoch
+
+getProtocolParameters
+  :: BlockfrostServiceM (Either ClientError ProtocolParameters)
+getProtocolParameters =
+  blockfrostGetRequest LatestProtocolParameters <#>
+    handleBlockfrostResponse >>> map unwrapBlockfrostProtocolParameters
 
 --------------------------------------------------------------------------------
 -- Check transaction confirmation status
@@ -757,3 +812,159 @@ instance DecodeAeson BlockfrostMetadata where
 
 unwrapBlockfrostMetadata :: BlockfrostMetadata -> GeneralTransactionMetadata
 unwrapBlockfrostMetadata (BlockfrostMetadata metadata) = metadata
+
+--------------------------------------------------------------------------------
+-- BlockfrostCurrentEpoch
+--------------------------------------------------------------------------------
+
+newtype BlockfrostCurrentEpoch = BlockfrostCurrentEpoch BigInt
+
+derive instance Generic BlockfrostCurrentEpoch _
+derive instance Newtype BlockfrostCurrentEpoch _
+
+instance Show BlockfrostCurrentEpoch where
+  show = genericShow
+
+instance DecodeAeson BlockfrostCurrentEpoch where
+  decodeAeson a = decodeAeson a <#>
+    \({ epoch } :: { epoch :: BigInt }) -> wrap epoch
+
+unwrapBlockfrostCurrentEpoch :: BlockfrostCurrentEpoch -> BigInt
+unwrapBlockfrostCurrentEpoch = unwrap
+
+--------------------------------------------------------------------------------
+-- BlockfrostProtocolParameters
+--------------------------------------------------------------------------------
+
+-- | `Stringed a` decodes an `a` who was encoded as a `String`
+newtype Stringed a = Stringed a
+
+derive instance Newtype (Stringed a) _
+
+instance DecodeAeson a => DecodeAeson (Stringed a) where
+  decodeAeson = decodeAeson >=> decodeJsonString >=> Stringed >>> pure
+
+type BlockfrostProtocolParametersRaw =
+  { "min_fee_a" :: UInt
+  , "min_fee_b" :: UInt
+  , "max_block_size" :: UInt
+  , "max_tx_size" :: UInt
+  , "max_block_header_size" :: UInt
+  , "key_deposit" :: Stringed BigInt
+  , "pool_deposit" :: Stringed BigInt
+  , "e_max" :: BigInt
+  , "n_opt" :: UInt
+  , "a0" :: Finite BigNumber
+  , "rho" :: Finite BigNumber
+  , "tau" :: Finite BigNumber
+  , "protocol_major_ver" :: UInt
+  , "protocol_minor_ver" :: UInt
+  , "min_pool_cost" :: Stringed BigInt
+  , "cost_models" ::
+      { "PlutusV1" :: { | CostModelV1 }
+      , "PlutusV2" :: { | CostModelV2 }
+      }
+  , "price_mem" :: Finite BigNumber
+  , "price_step" :: Finite BigNumber
+  , "max_tx_ex_mem" :: Stringed BigInt
+  , "max_tx_ex_steps" :: Stringed BigInt
+  , "max_block_ex_mem" :: Stringed BigInt
+  , "max_block_ex_steps" :: Stringed BigInt
+  , "max_val_size" :: Stringed UInt
+  , "collateral_percent" :: UInt
+  , "max_collateral_inputs" :: UInt
+  , "coins_per_utxo_size" :: Maybe (Stringed BigInt)
+  , "coins_per_utxo_word" :: Maybe (Stringed BigInt)
+  }
+
+toFraction' :: Finite BigNumber -> String /\ String
+toFraction' bn =
+  (BigNumber.toString numerator /\ BigNumber.toString denominator)
+  where
+  (numerator /\ denominator) = toFraction (unpackFinite bn)
+    (BigNumber.fromNumber infinity)
+
+bigNumberToRational :: Finite BigNumber -> Either JsonDecodeError Rational
+bigNumberToRational bn = note (TypeMismatch "Rational") do
+  numerator <- BigInt.fromString numerator'
+  denominator <- BigInt.fromString denominator'
+  reduce numerator denominator
+  where
+  (numerator' /\ denominator') = toFraction' bn
+
+bigNumberToPrice
+  :: Finite BigNumber
+  -> Either JsonDecodeError { numerator :: BigNum, denominator :: BigNum }
+bigNumberToPrice bn = note (TypeMismatch "Rational") do
+  numerator <- BigNum.fromString numerator'
+  denominator <- BigNum.fromString denominator'
+  pure { numerator, denominator }
+  where
+  (numerator' /\ denominator') = toFraction' bn
+
+newtype BlockfrostProtocolParameters =
+  BlockfrostProtocolParameters ProtocolParameters
+
+derive instance Generic BlockfrostProtocolParameters _
+derive instance Newtype BlockfrostProtocolParameters _
+
+unwrapBlockfrostProtocolParameters
+  :: BlockfrostProtocolParameters -> ProtocolParameters
+unwrapBlockfrostProtocolParameters = unwrap
+
+instance Show BlockfrostProtocolParameters where
+  show = genericShow
+
+instance DecodeAeson BlockfrostProtocolParameters where
+  decodeAeson = decodeAeson >=> \(raw :: BlockfrostProtocolParametersRaw) -> do
+    poolPledgeInfluence <- bigNumberToRational raw.a0
+    monetaryExpansion <- bigNumberToRational raw.rho
+    treasuryCut <- bigNumberToRational raw.tau
+    memPrice <- bigNumberToPrice raw.price_mem
+    stepPrice <- bigNumberToPrice raw.price_step
+    let prices = { memPrice, stepPrice }
+
+    coinsPerUtxoUnit <-
+      maybe
+        (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
+        pure
+        $ (CoinsPerUtxoByte <<< Coin <<< unwrap <$> raw.coins_per_utxo_size) <|>
+            (CoinsPerUtxoWord <<< Coin <<< unwrap <$> raw.coins_per_utxo_word)
+
+    pure $ BlockfrostProtocolParameters $ ProtocolParameters
+      { protocolVersion: raw.protocol_major_ver /\ raw.protocol_minor_ver
+      -- The following two parameters were removed from Babbage
+      , decentralization: zero
+      , extraPraosEntropy: Nothing
+      , maxBlockHeaderSize: raw.max_block_header_size
+      , maxBlockBodySize: raw.max_block_size
+      , maxTxSize: raw.max_tx_size
+      , txFeeFixed: raw.min_fee_b
+      , txFeePerByte: raw.min_fee_a
+      , stakeAddressDeposit: Coin $ unwrap raw.key_deposit
+      , stakePoolDeposit: Coin $ unwrap raw.pool_deposit
+      , minPoolCost: Coin $ unwrap raw.min_pool_cost
+      , poolRetireMaxEpoch: Epoch raw.e_max
+      , stakePoolTargetNum: raw.n_opt
+      , poolPledgeInfluence
+      , monetaryExpansion
+      , treasuryCut
+      , coinsPerUtxoUnit: coinsPerUtxoUnit
+      , costModels: Costmdls $ Map.fromFoldable
+          [ PlutusV1 /\ convertPlutusV1CostModel raw.cost_models."PlutusV1"
+          , PlutusV2 /\ convertPlutusV2CostModel raw.cost_models."PlutusV2"
+          ]
+      , prices
+      , maxTxExUnits:
+          { mem: unwrap raw.max_tx_ex_mem
+          , steps: unwrap raw.max_tx_ex_steps
+          }
+      , maxBlockExUnits:
+          { mem: unwrap raw.max_block_ex_mem
+          , steps: unwrap raw.max_block_ex_steps
+          }
+      , maxValueSize: unwrap raw.max_val_size
+      , collateralPercent: raw.collateral_percent
+      , maxCollateralInputs: raw.max_collateral_inputs
+      }
+

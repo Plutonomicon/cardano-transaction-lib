@@ -7,6 +7,7 @@ module Ctl.Internal.Contract.QueryHandle
 import Prelude
 
 import Contract.Log (logDebug')
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -53,11 +54,12 @@ import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Data.Either (Either)
+import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Exception (error)
 import Undefined (undefined)
 
 type AffE (a :: Type) = Aff (Either ClientError a)
@@ -126,7 +128,10 @@ queryHandleForBlockfrostBackend _ backend =
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' undefined
-  , getCurrentEpoch: runBlockfrostServiceM' undefined
+  , getCurrentEpoch:
+      runBlockfrostServiceM' Blockfrost.getCurrentEpoch >>= case _ of
+        Right epoch -> pure $ wrap epoch
+        Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< undefined
   , evaluateTx: \_ _ -> runBlockfrostServiceM' undefined
   , getEraSummaries: runBlockfrostServiceM' undefined

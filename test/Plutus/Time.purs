@@ -5,8 +5,7 @@ module Test.Ctl.Internal.Plutus.Time
 import Prelude
 
 import Ctl.Internal.QueryM.Ogmios
-  ( Epoch(Epoch)
-  , EpochLength(EpochLength)
+  ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
@@ -19,6 +18,7 @@ import Ctl.Internal.QueryM.Ogmios
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , ModTime(ModTime)

@@ -262,17 +262,18 @@ let additions =
       , cardano-transaction-lib =
         { dependencies =
           [ "aeson"
-          , "argonaut-codecs"
           , "aff"
           , "aff-promise"
           , "aff-retry"
           , "affjax"
           , "argonaut"
+          , "argonaut-codecs"
           , "arraybuffer-types"
           , "arrays"
           , "avar"
           , "bifunctors"
           , "bigints"
+          , "bignumber"
           , "checked-exceptions"
           , "console"
           , "control"
@@ -349,7 +350,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "b7456bbcc20fa94efd776ff02848116d050ed1fe"
+        , version = "90b8fc187d61e6e3b91290339dc8039190cbfece"
         }
       , noble-secp256k1 =
         { dependencies =
