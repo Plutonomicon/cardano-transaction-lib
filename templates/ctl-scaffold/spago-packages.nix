@@ -201,7 +201,7 @@ let
         name = "bignumber";
         version = "705923edd892a3397b90d28ce7db9a7181dcd599";
         src = pkgs.fetchgit {
-          url = "https://github.com/mlabs-haskell/purescript-bignumber";
+          url = "https://github.com/jy14898/purescript-bignumber";
           rev = "705923edd892a3397b90d28ce7db9a7181dcd599";
           sha256 = "0wddkx161xk457r1mb1f1r79l8qgxja0xhdvxjd1ai43nwp9cgkf";
         };
@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "001b639606f341489968d599fb0cef2900aeb474";
+        version = "90b8fc187d61e6e3b91290339dc8039190cbfece";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "001b639606f341489968d599fb0cef2900aeb474";
-          sha256 = "1rbpq2ikndjar8h3hpq5yz4mqga7276ggdbws34ppq3miczh9czz";
+          rev = "90b8fc187d61e6e3b91290339dc8039190cbfece";
+          sha256 = "0ajvywggfy63jzf88lvjhl7wjqyzs6q6livnhr1q329qw0dhhss9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
