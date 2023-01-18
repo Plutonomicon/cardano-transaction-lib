@@ -78,7 +78,9 @@ mkChecks ownAddress nft =
     [ checkTokenGainAtAddress' labeledOwnAddress nft
 
     , checkLossAtAddress labeledOwnAddress
-        \{ txFinalFee } -> pure txFinalFee
+        case _ of
+          Nothing -> pure zero
+          Just { txFinalFee } -> pure txFinalFee
     ]
 
 contract :: Contract Unit
