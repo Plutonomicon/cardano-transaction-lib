@@ -9,6 +9,7 @@ module Ctl.Internal.Plutip.Server
   , testPlutipContracts
   , withWallets
   , noWallet
+  , testContractsInEnv
   , PlutipTest
   ) where
 
@@ -19,9 +20,37 @@ import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
-import Control.Monad.Error.Class (liftEither)
+import Contract.Address
+  ( NetworkId(MainnetId)
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  )
+import Contract.Config (ContractParams)
+import Contract.Hashing (publicKeyHash)
+import Contract.Monad
+  ( Contract
+  , ContractEnv
+  , liftContractM
+  , liftedE
+  , runContractInEnv
+  , withContractEnv
+  )
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , balanceTx
+  , signTransaction
+  , submit
+  , submitTxFromConstraints
+  )
+import Contract.Utxos (utxosAt)
+import Contract.Wallet (withKeyWallet)
+import Contract.Wallet.Key
+  ( keyWalletPrivatePaymentKey
+  , keyWalletPrivateStakeKey
+  , publicKeyFromPrivateKey
+  )
+import Contract.Wallet.KeyFile (privatePaymentKeyToFile, privateStakeKeyToFile)
+import Control.Monad.Error.Class (liftEither, liftMaybe)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
@@ -32,6 +61,7 @@ import Ctl.Internal.Contract.Monad
   , stopContractEnv
   )
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
+import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
@@ -55,6 +85,7 @@ import Ctl.Internal.Plutip.Types
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
+  , UtxoAmount
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
 import Ctl.Internal.Plutip.UtxoDistribution
@@ -64,25 +95,37 @@ import Ctl.Internal.Plutip.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
+import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
+import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx, unspentOutputs)
+import Ctl.Internal.Types.TxConstraints
+  ( TxConstraints
+  , mustBeSignedBy
+  , mustPayToPubKey
+  , mustPayToPubKeyAddress
+  , mustSpendPubKeyOutput
+  )
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
+import Ctl.Internal.Wallet (KeyWallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), either, isLeft)
-import Data.Foldable (sum)
+import Data.Foldable (fold, sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (over, wrap)
+import Data.Newtype (over, unwrap, wrap)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
+import Data.Traversable (foldMap, for, for_, sequence_, traverse, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -104,8 +147,10 @@ import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
+import Node.FS.Aff (mkdir)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
+import Node.Path (concat) as Path
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -136,6 +181,114 @@ withPlutipContractEnv plutipCfg distr cont = do
     (const $ runCleanup cleanupRef)
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
+
+-- | Run `PlutipTest`s with an existing `ContractEnv`, not necessarily one
+-- | created through `Plutip`.
+-- | Tests are funded by the wallet in the supplied environment.
+-- | The `FilePath` parameter should point to a directory to store generated
+-- | wallets, in the case where funds failed to be returned to the main wallet.
+testContractsInEnv
+  :: ContractParams
+  -> FilePath
+  -> TestPlanM PlutipTest Unit
+  -> TestPlanM (Aff Unit) Unit
+testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
+  runPlutipTest \distr mkTest -> withContractEnv params \env -> do
+    let
+      distrArray :: Array (Array UtxoAmount)
+      distrArray = encodeDistribution distr
+
+    privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey <#>
+      PrivateKeyResponse
+
+    wallets <-
+      liftMaybe
+        ( error
+            "Impossible happened: could not decode wallets. Please report as bug"
+        )
+        $ decodeWallets distr privateKeys
+
+    let
+      walletsArray :: Array KeyWallet
+      walletsArray = keyWallets (pureProxy distr) wallets
+
+      runContract :: Aff Unit
+      runContract = runContractInEnv env { wallet = Nothing } $ mkTest wallets
+
+    if Array.null walletsArray then
+      runContract
+    else Aff.bracket
+      ( backupWallets env walletsArray *> fundWallets env walletsArray
+          distrArray
+      )
+      (\_ -> returnFunds env walletsArray)
+      \_ -> runContract
+  where
+  pureProxy :: forall (a :: Type). a -> Proxy a
+  pureProxy _ = Proxy
+
+  backupWallets :: ContractEnv -> Array KeyWallet -> Aff Unit
+  backupWallets env walletsArray = liftAff $ for_ walletsArray \wallet -> do
+    let
+      address = addressBech32 $ (unwrap wallet).address env.networkId
+      payment = keyWalletPrivatePaymentKey wallet
+      mbStake = keyWalletPrivateStakeKey wallet
+      folder = Path.concat [ backup, address ]
+
+    mkdir folder
+    privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
+      payment
+    for mbStake $ privateStakeKeyToFile
+      (Path.concat [ folder, "stake_signing_key" ])
+
+  fundWallets
+    :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff Unit
+  fundWallets env walletsArray distrArray = runContractInEnv env do
+    let
+      constraints = flip foldMap (Array.zip walletsArray distrArray)
+        \(wallet /\ walletDistr) -> flip foldMap walletDistr
+          \value -> mustPayToKeyWallet wallet $ lovelaceValueOf value
+
+    txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
+    awaitTxConfirmed txHash
+
+  returnFunds :: ContractEnv -> Array KeyWallet -> Aff Unit
+  returnFunds env walletsArray = runContractInEnv env do
+    utxos <- Map.unions <<< fold <$> for walletsArray
+      (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
+    pkhs <- fold <$> for walletsArray
+      (flip withKeyWallet ownPaymentPubKeysHashes)
+
+    let
+      constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
+        <> foldMap mustBeSignedBy pkhs
+      lookups = unspentOutputs utxos
+
+    unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
+    balancedTx <- liftedE $ balanceTx unbalancedTx
+    balancedSignedTx <- Array.foldM
+      (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
+      (wrap $ unwrap balancedTx)
+      walletsArray
+    txHash <- submit balancedSignedTx
+    awaitTxConfirmed txHash
+
+  mustPayToKeyWallet
+    :: forall (i :: Type) (o :: Type)
+     . KeyWallet
+    -> Value
+    -> TxConstraints i o
+  mustPayToKeyWallet wallet value =
+    let
+      convert = wrap <<< publicKeyHash <<< publicKeyFromPrivateKey
+      payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
+      mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
+    in
+      maybe
+        (mustPayToPubKey payment)
+        (mustPayToPubKeyAddress payment)
+        mbStake
+        value
 
 -- | Run `Contract`s in tests in a single Plutip instance.
 -- | NOTE: This uses `MoteT`s bracketting, and thus has the same caveats.
@@ -618,7 +771,9 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     { ogmiosConfig: plutipCfg.ogmiosConfig
     , kupoConfig: plutipCfg.kupoConfig
     }
-  ledgerConstants <- getLedgerConstants logger backend
+  ledgerConstants <- getLedgerConstants
+    plutipCfg { customLogger = customLogger }
+    backend
   pure
     { backend
     , networkId: MainnetId

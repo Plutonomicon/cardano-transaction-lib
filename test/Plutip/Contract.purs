@@ -51,7 +51,6 @@ import Contract.Test.Plutip
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
   , PlutipTest
-  , noWallet
   , withStakeKey
   , withWallets
   )
@@ -112,7 +111,6 @@ import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
-import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
@@ -146,7 +144,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, skip, test)
-import Mote.Monad (mapTest)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
@@ -162,20 +159,13 @@ import Test.Ctl.Fixtures
   , unappliedScriptFixture
   )
 import Test.Ctl.Plutip.Common (privateStakeKey)
-import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
-import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM PlutipTest Unit
 suite = do
   group "Contract" do
-    flip mapTest QueryM.AffInterface.suite
-      (noWallet <<< wrapQueryM)
-
-    NetworkId.suite
-
     test "Collateral" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
@@ -1684,27 +1674,27 @@ suite = do
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
               (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
-  group "Plutus Crypto" do
-    test "ECDSA" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      withWallets distribution \alice -> do
-        withKeyWallet alice do
-          ECDSA.contract
-    test "Schnorr" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      withWallets distribution \alice -> do
-        withKeyWallet alice do
-          Schnorr.contract
+    group "Plutus Crypto" do
+      test "ECDSA" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withKeyWallet alice do
+            ECDSA.contract
+      test "Schnorr" do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1_000_000_000
+            , BigInt.fromInt 2_000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withKeyWallet alice do
+            Schnorr.contract
 
 signMultipleContract :: Contract Unit
 signMultipleContract = do

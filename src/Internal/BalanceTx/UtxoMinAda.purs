@@ -10,9 +10,6 @@ import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.QueryM.Ogmios
-  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
-  )
 import Ctl.Internal.Serialization (convertTxOutput)
 import Ctl.Internal.Serialization.Types (DataCost)
 import Ctl.Internal.Serialization.Types (TransactionOutput) as Csl
@@ -22,6 +19,9 @@ import Ctl.Internal.Types.BigNum
   , maxValue
   , toBigInt
   ) as BigNum
+import Ctl.Internal.Types.ProtocolParameters
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
+  )
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)
 import Effect (Effect)

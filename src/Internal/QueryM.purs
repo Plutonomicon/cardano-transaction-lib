@@ -113,6 +113,7 @@ import Ctl.Internal.QueryM.JsonWsp as JsonWsp
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , DelegationsAndRewardsR
+  , OgmiosProtocolParameters
   , PoolIdsR
   , PoolParametersR
   , TxHash
@@ -137,6 +138,7 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
@@ -262,7 +264,7 @@ instance Parallel (QueryMT ParAff) (QueryMT Aff) where
 getProtocolParametersAff
   :: OgmiosWebSocket
   -> (LogLevel -> String -> Effect Unit)
-  -> Aff Ogmios.ProtocolParameters
+  -> Aff OgmiosProtocolParameters
 getProtocolParametersAff ogmiosWs logger =
   mkOgmiosRequestAff ogmiosWs logger Ogmios.queryProtocolParametersCall
     _.getProtocolParameters
@@ -271,9 +273,9 @@ getProtocolParametersAff ogmiosWs logger =
 getSystemStartAff
   :: OgmiosWebSocket
   -> (LogLevel -> String -> Effect Unit)
-  -> Aff Ogmios.SystemStart
+  -> Aff SystemStart
 getSystemStartAff ogmiosWs logger =
-  mkOgmiosRequestAff ogmiosWs logger Ogmios.querySystemStartCall
+  unwrap <$> mkOgmiosRequestAff ogmiosWs logger Ogmios.querySystemStartCall
     _.systemStart
     unit
 
@@ -624,10 +626,10 @@ type OgmiosListeners =
   , submit :: SubmitTxListenerSet
   , evaluate ::
       ListenerSet (CborBytes /\ AdditionalUtxoSet) Ogmios.TxEvaluationR
-  , getProtocolParameters :: ListenerSet Unit Ogmios.ProtocolParameters
-  , eraSummaries :: ListenerSet Unit Ogmios.EraSummaries
+  , getProtocolParameters :: ListenerSet Unit OgmiosProtocolParameters
+  , eraSummaries :: ListenerSet Unit Ogmios.OgmiosEraSummaries
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
-  , systemStart :: ListenerSet Unit Ogmios.SystemStart
+  , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR

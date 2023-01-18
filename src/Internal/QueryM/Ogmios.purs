@@ -4,17 +4,8 @@ module Ctl.Internal.QueryM.Ogmios
   ( ChainOrigin(ChainOrigin)
   , ChainPoint
   , ChainTipQR(CtChainOrigin, CtChainPoint)
-  , CostModelV1
-  , CostModelV2
-  , CoinsPerUtxoUnit(CoinsPerUtxoByte, CoinsPerUtxoWord)
   , CurrentEpoch(CurrentEpoch)
   , DelegationsAndRewardsR(DelegationsAndRewardsR)
-  , Epoch(Epoch)
-  , EpochLength(EpochLength)
-  , EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , EraSummaryParameters(EraSummaryParameters)
-  , EraSummaryTime(EraSummaryTime)
   , ExecutionUnits
   , MempoolSnapshotAcquired
   , OgmiosAddress
@@ -24,10 +15,8 @@ module Ctl.Internal.QueryM.Ogmios
   , PParamRational(PParamRational)
   , PoolParameters
   , PoolParametersR(PoolParametersR)
-  , ProtocolParameters(ProtocolParameters)
+  , OgmiosProtocolParameters(OgmiosProtocolParameters)
   , RedeemerPointer
-  , RelativeTime(RelativeTime)
-  , SafeZone(SafeZone)
   , ScriptFailure
       ( ExtraRedeemers
       , MissingRequiredDatums
@@ -41,12 +30,12 @@ module Ctl.Internal.QueryM.Ogmios
   , AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosUtxoMap
   , OgmiosDatum
+  , OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosScript
+  , OgmiosSystemStart(OgmiosSystemStart)
   , OgmiosTxIn
   , OgmiosTxId
-  , SlotLength(SlotLength)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
-  , SystemStart(SystemStart)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
@@ -71,6 +60,7 @@ module Ctl.Internal.QueryM.Ogmios
   , submitTxCall
   , slotLengthFactor
   , parseIpv6String
+  , rationalToSubcoin
   ) where
 
 import Prelude
@@ -85,12 +75,12 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson
+  , fromArray
   , getField
   , getFieldOptional
   , getFieldOptional'
   , isNull
   , isString
-  , partialFiniteNumber
   , stringifyAeson
   , toString
   , (.:)
@@ -118,7 +108,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , ExUnits
   , Ipv4(Ipv4)
   , Ipv6(Ipv6)
-  , Nonce
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , PoolPubKeyHash
@@ -127,7 +116,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , URL(URL)
   , UnitInterval
   )
-import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
@@ -156,9 +144,22 @@ import Ctl.Internal.Types.ByteArray
   , hexToByteArray
   )
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
-import Ctl.Internal.Types.Int as Csl
+import Ctl.Internal.Types.Epoch (Epoch(Epoch))
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , EraSummaryParameters(EraSummaryParameters)
+  )
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
+import Ctl.Internal.Types.ProtocolParameters
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
+  , CostModelV1
+  , CostModelV2
+  , ProtocolParameters(ProtocolParameters)
+  , convertPlutusV1CostModel
+  , convertPlutusV2CostModel
+  )
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
@@ -168,18 +169,22 @@ import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
+import Ctl.Internal.Types.SystemStart
+  ( SystemStart
+  , sysStartFromOgmiosTimestamp
+  , sysStartToOgmiosTimestamp
+  )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
-import Data.Array (catMaybes, index, reverse)
+import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
-import Data.List (List)
-import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
@@ -204,7 +209,6 @@ import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object (singleton, toUnfoldable) as ForeignObject
 import Foreign.Object as Object
-import Heterogeneous.Folding (class HFoldl, hfoldl)
 import Partial.Unsafe (unsafePartial)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -215,7 +219,7 @@ import Untagged.Union (type (|+|), toEither1)
 --------------------------------------------------------------------------------
 
 -- | Queries Ogmios for the system start Datetime
-querySystemStartCall :: JsonWspCall Unit SystemStart
+querySystemStartCall :: JsonWspCall Unit OgmiosSystemStart
 querySystemStartCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "systemStart" }
@@ -229,14 +233,14 @@ queryCurrentEpochCall = mkOgmiosCallType
   }
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
-queryEraSummariesCall :: JsonWspCall Unit EraSummaries
+queryEraSummariesCall :: JsonWspCall Unit OgmiosEraSummaries
 queryEraSummariesCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "eraSummaries" }
   }
 
 -- | Queries Ogmios for the current protocol parameters
-queryProtocolParametersCall :: JsonWspCall Unit ProtocolParameters
+queryProtocolParametersCall :: JsonWspCall Unit OgmiosProtocolParameters
 queryProtocolParametersCall = mkOgmiosCallType
   { methodname: "Query"
   , args: const { query: "currentProtocolParameters" }
@@ -371,16 +375,22 @@ instance DecodeAeson SubmitTxR where
       ) <|> (SubmitFail <$> getField o "SubmitFail")
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
-newtype SystemStart = SystemStart String
+newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
 
-derive instance Generic SystemStart _
-derive instance Newtype SystemStart _
-derive newtype instance DecodeAeson SystemStart
-derive newtype instance EncodeAeson SystemStart
-derive newtype instance Eq SystemStart
+derive instance Generic OgmiosSystemStart _
+derive instance Newtype OgmiosSystemStart _
+derive newtype instance Eq OgmiosSystemStart
 
-instance Show SystemStart where
+instance Show OgmiosSystemStart where
   show = genericShow
+
+instance DecodeAeson OgmiosSystemStart where
+  decodeAeson =
+    caseAesonString (Left (TypeMismatch "Timestamp string"))
+      (map wrap <<< lmap TypeMismatch <<< sysStartFromOgmiosTimestamp)
+
+instance EncodeAeson OgmiosSystemStart where
+  encodeAeson = encodeAeson <<< sysStartToOgmiosTimestamp <<< unwrap
 
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
 newtype CurrentEpoch = CurrentEpoch BigInt
@@ -397,205 +407,62 @@ instance Show CurrentEpoch where
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
-newtype EraSummaries = EraSummaries (Array EraSummary)
+newtype OgmiosEraSummaries = OgmiosEraSummaries EraSummaries
 
-derive instance Generic EraSummaries _
-derive instance Newtype EraSummaries _
-derive newtype instance Eq EraSummaries
-derive newtype instance EncodeAeson EraSummaries
+derive instance Generic OgmiosEraSummaries _
+derive instance Newtype OgmiosEraSummaries _
+derive newtype instance Eq OgmiosEraSummaries
 
-instance Show EraSummaries where
+instance Show OgmiosEraSummaries where
   show = genericShow
 
-instance DecodeAeson EraSummaries where
-  decodeAeson = aesonArray (map wrap <<< traverse decodeAeson)
+instance DecodeAeson OgmiosEraSummaries where
+  decodeAeson = aesonArray (map (wrap <<< wrap) <<< traverse decodeEraSummary)
+    where
+    decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
+    decodeEraSummary = aesonObject \o -> do
+      start <- getField o "start"
+      -- The field "end" is required by Ogmios API, but it can optionally return
+      -- Null, so we want to fail if the field is absent but make Null value
+      -- acceptable in presence of the field (hence why "end" is wrapped in
+      -- `Maybe`).
+      end' <- getField o "end"
+      end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
+      parameters <- decodeEraSummaryParameters =<< getField o "parameters"
+      pure $ wrap { start, end, parameters }
 
--- | From Ogmios:
--- | start: An era bound which captures the time, slot and epoch at which the
--- | era start. The time is relative to the start time of the network.
--- |
--- | end: An era bound which captures the time, slot and epoch at which the
--- | era start. The time is relative to the start time of the network.
--- |
--- | parameters: Parameters that can vary across hard forks.
-newtype EraSummary = EraSummary
-  { start :: EraSummaryTime
-  , end :: Maybe EraSummaryTime
-  , parameters :: EraSummaryParameters
-  }
+    decodeEraSummaryParameters
+      :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
+    decodeEraSummaryParameters o = do
+      epochLength <- getField o "epochLength"
+      slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
+      safeZone <- fromMaybe zero <$> getField o "safeZone"
+      pure $ wrap { epochLength, slotLength, safeZone }
 
-derive instance Generic EraSummary _
-derive instance Newtype EraSummary _
-derive newtype instance Eq EraSummary
+instance EncodeAeson OgmiosEraSummaries where
+  encodeAeson (OgmiosEraSummaries (EraSummaries eraSummaries)) =
+    fromArray $ map encodeEraSummary eraSummaries
+    where
+    encodeEraSummary :: EraSummary -> Aeson
+    encodeEraSummary (EraSummary { start, end, parameters }) =
+      encodeAeson
+        { "start": start
+        , "end": end
+        , "parameters": encodeEraSummaryParameters parameters
+        }
 
-instance Show EraSummary where
-  show = genericShow
+    encodeEraSummaryParameters :: EraSummaryParameters -> Aeson
+    encodeEraSummaryParameters (EraSummaryParameters params) =
+      encodeAeson
+        { "epochLength": params.epochLength
+        , "slotLength": params.slotLength
+        , "safeZone": params.safeZone
+        }
 
-instance DecodeAeson EraSummary where
-  decodeAeson = aesonObject $ \o -> do
-    start <- getField o "start"
-    -- The field "end" is required by Ogmios API, but it can optionally return
-    -- Null, so we want to fail if the field is absent but make Null value
-    -- acceptable in presence of the field (hence why "end" is wrapped in
-    -- `Maybe`).
-    end' <- getField o "end"
-    end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
-    parameters <- getField o "parameters"
-    pure $ wrap { start, end, parameters }
-
-instance EncodeAeson EraSummary where
-  encodeAeson (EraSummary { start, end, parameters }) =
-    encodeAeson
-      { "start": start
-      , "end": end
-      , "parameters": parameters
-      }
-
-newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime -- The time is relative to the start time of the network.
-  , slot :: Slot -- An absolute slot number
-  -- Ogmios returns a number 0-18446744073709552000 but our `Slot` is a Rust
-  -- u64 which has precision up to 18446744073709551615 (note 385 difference)
-  -- we treat this as neglible instead of defining `AbsSlot BigInt`. See
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/632 for
-  -- details.
-  , epoch :: Epoch -- 0-18446744073709552000, an epoch number or length, don't
-  -- use `Cardano.Types.Epoch` because Epoch is bounded by UInt also.
-  }
-
-derive instance Generic EraSummaryTime _
-derive instance Newtype EraSummaryTime _
-derive newtype instance Eq EraSummaryTime
-
-instance Show EraSummaryTime where
-  show = genericShow
-
-instance DecodeAeson EraSummaryTime where
-  decodeAeson = aesonObject $ \o -> do
-    time <- getField o "time"
-    slot <- getField o "slot"
-    epoch <- getField o "epoch"
-    pure $ wrap { time, slot, epoch }
-
-instance EncodeAeson EraSummaryTime where
-  encodeAeson (EraSummaryTime { time, slot, epoch }) =
-    encodeAeson
-      { "time": time
-      , "slot": slot
-      , "epoch": epoch
-      }
-
--- | A time in seconds relative to another one (typically, system start or era
--- | start). [ 0 .. 18446744073709552000 ]
-newtype RelativeTime = RelativeTime Number
-
-derive instance Generic RelativeTime _
-derive instance Newtype RelativeTime _
-derive newtype instance Eq RelativeTime
-derive newtype instance Ord RelativeTime
-derive newtype instance DecodeAeson RelativeTime
-
-instance EncodeAeson RelativeTime where
-  encodeAeson (RelativeTime rt) =
-    -- We assume the numbers are finite
-    encodeAeson $ unsafePartial partialFiniteNumber rt
-
-instance Show RelativeTime where
-  show (RelativeTime rt) = showWithParens "RelativeTime" rt
-
--- | An epoch number or length with greater precision for Ogmios than
--- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]
-newtype Epoch = Epoch BigInt
-
-derive instance Generic Epoch _
-derive instance Newtype Epoch _
-derive newtype instance Eq Epoch
-derive newtype instance Ord Epoch
-derive newtype instance DecodeAeson Epoch
-derive newtype instance EncodeAeson Epoch
-
-instance Show Epoch where
-  show (Epoch e) = showWithParens "Epoch" e
-
-newtype EraSummaryParameters = EraSummaryParameters
-  { epochLength :: EpochLength -- 0-18446744073709552000 An epoch number or length.
-  , slotLength :: SlotLength -- <= MAX_SAFE_INTEGER (=9,007,199,254,740,992)
-  -- A slot length, in milliseconds, previously it has
-  -- a max limit of 18446744073709552000, now removed.
-  , safeZone :: SafeZone -- 0-18446744073709552000 Number of slots from the tip of
-  -- the ledger in which it is guaranteed that no hard fork can take place.
-  -- This should be (at least) the number of slots in which we are guaranteed
-  -- to have k blocks.
-  }
-
-derive instance Generic EraSummaryParameters _
-derive instance Newtype EraSummaryParameters _
-derive newtype instance Eq EraSummaryParameters
-
-instance Show EraSummaryParameters where
-  show = genericShow
-
-instance DecodeAeson EraSummaryParameters where
-  decodeAeson = aesonObject $ \o -> do
-    epochLength <- getField o "epochLength"
-    slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
-    safeZone <- fromMaybe zero <$> getField o "safeZone"
-    pure $ wrap { epochLength, slotLength, safeZone }
-
--- | The EraSummaryParameters uses seconds and we use miliseconds
--- use it to translate between them
+-- Ogmios returns `slotLength` in seconds, and we use milliseconds,
+-- so we need to convert between them.
 slotLengthFactor :: Number
-slotLengthFactor = 1e3
-
-instance EncodeAeson EraSummaryParameters where
-  encodeAeson (EraSummaryParameters { epochLength, slotLength, safeZone }) =
-    encodeAeson
-      { "epochLength": epochLength
-      , "slotLength": slotLength
-      , "safeZone": safeZone
-      }
-
--- | An epoch number or length. [ 0 .. 18446744073709552000 ]
-newtype EpochLength = EpochLength BigInt
-
-derive instance Generic EpochLength _
-derive instance Newtype EpochLength _
-derive newtype instance Eq EpochLength
-derive newtype instance DecodeAeson EpochLength
-derive newtype instance EncodeAeson EpochLength
-
-instance Show EpochLength where
-  show (EpochLength el) = showWithParens "EpochLength" el
-
--- | A slot length, in milliseconds
-newtype SlotLength = SlotLength Number
-
-derive instance Generic SlotLength _
-derive instance Newtype SlotLength _
-derive newtype instance Eq SlotLength
-derive newtype instance DecodeAeson SlotLength
-instance EncodeAeson SlotLength where
-  encodeAeson (SlotLength sl) =
-    -- We assume the numbers are finite
-    encodeAeson $ unsafePartial partialFiniteNumber sl
-
-instance Show SlotLength where
-  show (SlotLength sl) = showWithParens "SlotLength" sl
-
--- | Number of slots from the tip of the ledger in which it is guaranteed that
--- | no hard fork can take place. This should be (at least) the number of slots
--- | in which we are guaranteed to have k blocks.
-newtype SafeZone = SafeZone BigInt
-
-derive instance Generic SafeZone _
-derive instance Newtype SafeZone _
-derive newtype instance Eq SafeZone
-derive newtype instance Semiring SafeZone
-derive newtype instance DecodeAeson SafeZone
-derive newtype instance EncodeAeson SafeZone
-
-instance Show SafeZone where
-  show (SafeZone sz) = showWithParens "SafeZone" sz
+slotLengthFactor = 1000.0
 
 ---------------- DELEGATIONS & REWARDS QUERY RESPONSE & PARSING
 
@@ -1006,49 +873,16 @@ type ProtocolParametersRaw =
   , "maxCollateralInputs" :: UInt
   }
 
-data CoinsPerUtxoUnit = CoinsPerUtxoByte Coin | CoinsPerUtxoWord Coin
+newtype OgmiosProtocolParameters = OgmiosProtocolParameters ProtocolParameters
 
-derive instance Generic CoinsPerUtxoUnit _
+derive instance Newtype OgmiosProtocolParameters _
+derive instance Generic OgmiosProtocolParameters _
+derive instance Eq OgmiosProtocolParameters
 
-instance Show CoinsPerUtxoUnit where
+instance Show OgmiosProtocolParameters where
   show = genericShow
 
--- Based on `Cardano.Api.ProtocolParameters.ProtocolParameters` from
--- `cardano-api`.
-newtype ProtocolParameters = ProtocolParameters
-  { protocolVersion :: UInt /\ UInt
-  , decentralization :: Rational
-  , extraPraosEntropy :: Maybe Nonce
-  , maxBlockHeaderSize :: UInt
-  , maxBlockBodySize :: UInt
-  , maxTxSize :: UInt
-  , txFeeFixed :: UInt
-  , txFeePerByte :: UInt
-  , stakeAddressDeposit :: Coin
-  , stakePoolDeposit :: Coin
-  , minPoolCost :: Coin
-  , poolRetireMaxEpoch :: Epoch
-  , stakePoolTargetNum :: UInt
-  , poolPledgeInfluence :: Rational
-  , monetaryExpansion :: Rational
-  , treasuryCut :: Rational
-  , coinsPerUtxoUnit :: CoinsPerUtxoUnit
-  , costModels :: Costmdls
-  , prices :: ExUnitPrices
-  , maxTxExUnits :: ExUnits
-  , maxBlockExUnits :: ExUnits
-  , maxValueSize :: UInt
-  , collateralPercent :: UInt
-  , maxCollateralInputs :: UInt
-  }
-
-derive instance Newtype ProtocolParameters _
-derive instance Generic ProtocolParameters _
-
-instance Show ProtocolParameters where
-  show = genericShow
-
-instance DecodeAeson ProtocolParameters where
+instance DecodeAeson OgmiosProtocolParameters where
   decodeAeson aeson = do
     ps :: ProtocolParametersRaw <- decodeAeson aeson
     prices <- decodePrices ps
@@ -1058,7 +892,7 @@ instance DecodeAeson ProtocolParameters where
         pure
         $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
             (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
-    pure $ ProtocolParameters
+    pure $ OgmiosProtocolParameters $ ProtocolParameters
       { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
       -- The following two parameters were removed from Babbage
       , decentralization: zero
@@ -1078,8 +912,10 @@ instance DecodeAeson ProtocolParameters where
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
       , coinsPerUtxoUnit: coinsPerUtxoUnit
       , costModels: Costmdls $ Map.fromFoldable $ catMaybes
-          [ pure (PlutusV1 /\ convertCostModel ps.costModels."plutus:v1")
-          , (PlutusV2 /\ _) <<< convertCostModel <$> ps.costModels."plutus:v2"
+          [ pure
+              (PlutusV1 /\ convertPlutusV1CostModel ps.costModels."plutus:v1")
+          , (PlutusV2 /\ _) <<< convertPlutusV2CostModel <$>
+              ps.costModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
@@ -1099,201 +935,6 @@ instance DecodeAeson ProtocolParameters where
       memPrice <- rationalToSubcoin ps.prices.memory
       stepPrice <- rationalToSubcoin ps.prices.steps
       pure { memPrice, stepPrice } -- ExUnits
-
--- | A type that represents a JSON-encoded Costmodel in format used by Ogmios
-type CostModelV1 =
-  ( "addInteger-cpu-arguments-intercept" :: Csl.Int
-  , "addInteger-cpu-arguments-slope" :: Csl.Int
-  , "addInteger-memory-arguments-intercept" :: Csl.Int
-  , "addInteger-memory-arguments-slope" :: Csl.Int
-  , "appendByteString-cpu-arguments-intercept" :: Csl.Int
-  , "appendByteString-cpu-arguments-slope" :: Csl.Int
-  , "appendByteString-memory-arguments-intercept" :: Csl.Int
-  , "appendByteString-memory-arguments-slope" :: Csl.Int
-  , "appendString-cpu-arguments-intercept" :: Csl.Int
-  , "appendString-cpu-arguments-slope" :: Csl.Int
-  , "appendString-memory-arguments-intercept" :: Csl.Int
-  , "appendString-memory-arguments-slope" :: Csl.Int
-  , "bData-cpu-arguments" :: Csl.Int
-  , "bData-memory-arguments" :: Csl.Int
-  , "blake2b_256-cpu-arguments-intercept" :: Csl.Int
-  , "blake2b_256-cpu-arguments-slope" :: Csl.Int
-  , "blake2b_256-memory-arguments" :: Csl.Int
-  , "cekApplyCost-exBudgetCPU" :: Csl.Int
-  , "cekApplyCost-exBudgetMemory" :: Csl.Int
-  , "cekBuiltinCost-exBudgetCPU" :: Csl.Int
-  , "cekBuiltinCost-exBudgetMemory" :: Csl.Int
-  , "cekConstCost-exBudgetCPU" :: Csl.Int
-  , "cekConstCost-exBudgetMemory" :: Csl.Int
-  , "cekDelayCost-exBudgetCPU" :: Csl.Int
-  , "cekDelayCost-exBudgetMemory" :: Csl.Int
-  , "cekForceCost-exBudgetCPU" :: Csl.Int
-  , "cekForceCost-exBudgetMemory" :: Csl.Int
-  , "cekLamCost-exBudgetCPU" :: Csl.Int
-  , "cekLamCost-exBudgetMemory" :: Csl.Int
-  , "cekStartupCost-exBudgetCPU" :: Csl.Int
-  , "cekStartupCost-exBudgetMemory" :: Csl.Int
-  , "cekVarCost-exBudgetCPU" :: Csl.Int
-  , "cekVarCost-exBudgetMemory" :: Csl.Int
-  , "chooseData-cpu-arguments" :: Csl.Int
-  , "chooseData-memory-arguments" :: Csl.Int
-  , "chooseList-cpu-arguments" :: Csl.Int
-  , "chooseList-memory-arguments" :: Csl.Int
-  , "chooseUnit-cpu-arguments" :: Csl.Int
-  , "chooseUnit-memory-arguments" :: Csl.Int
-  , "consByteString-cpu-arguments-intercept" :: Csl.Int
-  , "consByteString-cpu-arguments-slope" :: Csl.Int
-  , "consByteString-memory-arguments-intercept" :: Csl.Int
-  , "consByteString-memory-arguments-slope" :: Csl.Int
-  , "constrData-cpu-arguments" :: Csl.Int
-  , "constrData-memory-arguments" :: Csl.Int
-  , "decodeUtf8-cpu-arguments-intercept" :: Csl.Int
-  , "decodeUtf8-cpu-arguments-slope" :: Csl.Int
-  , "decodeUtf8-memory-arguments-intercept" :: Csl.Int
-  , "decodeUtf8-memory-arguments-slope" :: Csl.Int
-  , "divideInteger-cpu-arguments-constant" :: Csl.Int
-  , "divideInteger-cpu-arguments-model-arguments-intercept" :: Csl.Int
-  , "divideInteger-cpu-arguments-model-arguments-slope" :: Csl.Int
-  , "divideInteger-memory-arguments-intercept" :: Csl.Int
-  , "divideInteger-memory-arguments-minimum" :: Csl.Int
-  , "divideInteger-memory-arguments-slope" :: Csl.Int
-  , "encodeUtf8-cpu-arguments-intercept" :: Csl.Int
-  , "encodeUtf8-cpu-arguments-slope" :: Csl.Int
-  , "encodeUtf8-memory-arguments-intercept" :: Csl.Int
-  , "encodeUtf8-memory-arguments-slope" :: Csl.Int
-  , "equalsByteString-cpu-arguments-constant" :: Csl.Int
-  , "equalsByteString-cpu-arguments-intercept" :: Csl.Int
-  , "equalsByteString-cpu-arguments-slope" :: Csl.Int
-  , "equalsByteString-memory-arguments" :: Csl.Int
-  , "equalsData-cpu-arguments-intercept" :: Csl.Int
-  , "equalsData-cpu-arguments-slope" :: Csl.Int
-  , "equalsData-memory-arguments" :: Csl.Int
-  , "equalsInteger-cpu-arguments-intercept" :: Csl.Int
-  , "equalsInteger-cpu-arguments-slope" :: Csl.Int
-  , "equalsInteger-memory-arguments" :: Csl.Int
-  , "equalsString-cpu-arguments-constant" :: Csl.Int
-  , "equalsString-cpu-arguments-intercept" :: Csl.Int
-  , "equalsString-cpu-arguments-slope" :: Csl.Int
-  , "equalsString-memory-arguments" :: Csl.Int
-  , "fstPair-cpu-arguments" :: Csl.Int
-  , "fstPair-memory-arguments" :: Csl.Int
-  , "headList-cpu-arguments" :: Csl.Int
-  , "headList-memory-arguments" :: Csl.Int
-  , "iData-cpu-arguments" :: Csl.Int
-  , "iData-memory-arguments" :: Csl.Int
-  , "ifThenElse-cpu-arguments" :: Csl.Int
-  , "ifThenElse-memory-arguments" :: Csl.Int
-  , "indexByteString-cpu-arguments" :: Csl.Int
-  , "indexByteString-memory-arguments" :: Csl.Int
-  , "lengthOfByteString-cpu-arguments" :: Csl.Int
-  , "lengthOfByteString-memory-arguments" :: Csl.Int
-  , "lessThanByteString-cpu-arguments-intercept" :: Csl.Int
-  , "lessThanByteString-cpu-arguments-slope" :: Csl.Int
-  , "lessThanByteString-memory-arguments" :: Csl.Int
-  , "lessThanEqualsByteString-cpu-arguments-intercept" :: Csl.Int
-  , "lessThanEqualsByteString-cpu-arguments-slope" :: Csl.Int
-  , "lessThanEqualsByteString-memory-arguments" :: Csl.Int
-  , "lessThanEqualsInteger-cpu-arguments-intercept" :: Csl.Int
-  , "lessThanEqualsInteger-cpu-arguments-slope" :: Csl.Int
-  , "lessThanEqualsInteger-memory-arguments" :: Csl.Int
-  , "lessThanInteger-cpu-arguments-intercept" :: Csl.Int
-  , "lessThanInteger-cpu-arguments-slope" :: Csl.Int
-  , "lessThanInteger-memory-arguments" :: Csl.Int
-  , "listData-cpu-arguments" :: Csl.Int
-  , "listData-memory-arguments" :: Csl.Int
-  , "mapData-cpu-arguments" :: Csl.Int
-  , "mapData-memory-arguments" :: Csl.Int
-  , "mkCons-cpu-arguments" :: Csl.Int
-  , "mkCons-memory-arguments" :: Csl.Int
-  , "mkNilData-cpu-arguments" :: Csl.Int
-  , "mkNilData-memory-arguments" :: Csl.Int
-  , "mkNilPairData-cpu-arguments" :: Csl.Int
-  , "mkNilPairData-memory-arguments" :: Csl.Int
-  , "mkPairData-cpu-arguments" :: Csl.Int
-  , "mkPairData-memory-arguments" :: Csl.Int
-  , "modInteger-cpu-arguments-constant" :: Csl.Int
-  , "modInteger-cpu-arguments-model-arguments-intercept" :: Csl.Int
-  , "modInteger-cpu-arguments-model-arguments-slope" :: Csl.Int
-  , "modInteger-memory-arguments-intercept" :: Csl.Int
-  , "modInteger-memory-arguments-minimum" :: Csl.Int
-  , "modInteger-memory-arguments-slope" :: Csl.Int
-  , "multiplyInteger-cpu-arguments-intercept" :: Csl.Int
-  , "multiplyInteger-cpu-arguments-slope" :: Csl.Int
-  , "multiplyInteger-memory-arguments-intercept" :: Csl.Int
-  , "multiplyInteger-memory-arguments-slope" :: Csl.Int
-  , "nullList-cpu-arguments" :: Csl.Int
-  , "nullList-memory-arguments" :: Csl.Int
-  , "quotientInteger-cpu-arguments-constant" :: Csl.Int
-  , "quotientInteger-cpu-arguments-model-arguments-intercept" :: Csl.Int
-  , "quotientInteger-cpu-arguments-model-arguments-slope" :: Csl.Int
-  , "quotientInteger-memory-arguments-intercept" :: Csl.Int
-  , "quotientInteger-memory-arguments-minimum" :: Csl.Int
-  , "quotientInteger-memory-arguments-slope" :: Csl.Int
-  , "remainderInteger-cpu-arguments-constant" :: Csl.Int
-  , "remainderInteger-cpu-arguments-model-arguments-intercept" :: Csl.Int
-  , "remainderInteger-cpu-arguments-model-arguments-slope" :: Csl.Int
-  , "remainderInteger-memory-arguments-intercept" :: Csl.Int
-  , "remainderInteger-memory-arguments-minimum" :: Csl.Int
-  , "remainderInteger-memory-arguments-slope" :: Csl.Int
-  , "sha2_256-cpu-arguments-intercept" :: Csl.Int
-  , "sha2_256-cpu-arguments-slope" :: Csl.Int
-  , "sha2_256-memory-arguments" :: Csl.Int
-  , "sha3_256-cpu-arguments-intercept" :: Csl.Int
-  , "sha3_256-cpu-arguments-slope" :: Csl.Int
-  , "sha3_256-memory-arguments" :: Csl.Int
-  , "sliceByteString-cpu-arguments-intercept" :: Csl.Int
-  , "sliceByteString-cpu-arguments-slope" :: Csl.Int
-  , "sliceByteString-memory-arguments-intercept" :: Csl.Int
-  , "sliceByteString-memory-arguments-slope" :: Csl.Int
-  , "sndPair-cpu-arguments" :: Csl.Int
-  , "sndPair-memory-arguments" :: Csl.Int
-  , "subtractInteger-cpu-arguments-intercept" :: Csl.Int
-  , "subtractInteger-cpu-arguments-slope" :: Csl.Int
-  , "subtractInteger-memory-arguments-intercept" :: Csl.Int
-  , "subtractInteger-memory-arguments-slope" :: Csl.Int
-  , "tailList-cpu-arguments" :: Csl.Int
-  , "tailList-memory-arguments" :: Csl.Int
-  , "trace-cpu-arguments" :: Csl.Int
-  , "trace-memory-arguments" :: Csl.Int
-  , "unBData-cpu-arguments" :: Csl.Int
-  , "unBData-memory-arguments" :: Csl.Int
-  , "unConstrData-cpu-arguments" :: Csl.Int
-  , "unConstrData-memory-arguments" :: Csl.Int
-  , "unIData-cpu-arguments" :: Csl.Int
-  , "unIData-memory-arguments" :: Csl.Int
-  , "unListData-cpu-arguments" :: Csl.Int
-  , "unListData-memory-arguments" :: Csl.Int
-  , "unMapData-cpu-arguments" :: Csl.Int
-  , "unMapData-memory-arguments" :: Csl.Int
-  , "verifyEd25519Signature-cpu-arguments-intercept" :: Csl.Int
-  , "verifyEd25519Signature-cpu-arguments-slope" :: Csl.Int
-  , "verifyEd25519Signature-memory-arguments" :: Csl.Int
-  )
-
-type CostModelV2 =
-  ( "serialiseData-cpu-arguments-intercept" :: Csl.Int
-  , "serialiseData-cpu-arguments-slope" :: Csl.Int
-  , "serialiseData-memory-arguments-intercept" :: Csl.Int
-  , "serialiseData-memory-arguments-slope" :: Csl.Int
-  , "verifyEcdsaSecp256k1Signature-cpu-arguments" :: Csl.Int
-  , "verifyEcdsaSecp256k1Signature-memory-arguments" :: Csl.Int
-  , "verifySchnorrSecp256k1Signature-cpu-arguments-intercept" :: Csl.Int
-  , "verifySchnorrSecp256k1Signature-cpu-arguments-slope" :: Csl.Int
-  , "verifySchnorrSecp256k1Signature-memory-arguments" :: Csl.Int
-  | CostModelV1
-  )
-
--- This assumes that cost models are stored in lexicographical order
-convertCostModel
-  :: forall costModel
-   . HFoldl (List Csl.Int -> Csl.Int -> List Csl.Int) (List Csl.Int) costModel
-       (List Csl.Int)
-  => costModel
-  -> T.CostModel
-convertCostModel model = wrap $ reverse $ List.toUnfoldable $ hfoldl
-  ((\xs x -> x List.: xs) :: List Csl.Int -> Csl.Int -> List Csl.Int)
-  (mempty :: List Csl.Int)
-  model
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 

@@ -1,8 +1,9 @@
 module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
-  , ParContract(ParContract)
   , ContractEnv
   , ContractParams
+  , LedgerConstants
+  , ParContract(ParContract)
   , mkContractEnv
   , runContract
   , runContractInEnv
@@ -17,6 +18,7 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
@@ -52,12 +54,19 @@ import Ctl.Internal.QueryM
   , underlyingWebSocket
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
--- TODO: Move/translate these types into Cardano
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters, SystemStart) as Ogmios
 import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
+import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
+import Ctl.Internal.Service.Blockfrost as Blockfrost
+import Ctl.Internal.Service.Error (ClientError)
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
+import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
@@ -71,7 +80,6 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
-import Undefined (undefined)
 
 --------------------------------------------------------------------------------
 -- Contract
@@ -150,6 +158,13 @@ runContractInEnv contractEnv =
 -- ContractEnv
 --------------------------------------------------------------------------------
 
+-- `LedgerConstants` contains values that technically may change, but we assume
+-- to be constant during Contract evaluation
+type LedgerConstants =
+  { pparams :: ProtocolParameters
+  , systemStart :: SystemStart
+  }
+
 type ContractEnv =
   { backend :: QueryBackend
   , networkId :: NetworkId
@@ -160,12 +175,7 @@ type ContractEnv =
   , hooks :: Hooks
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
-  -- ledgerConstants are values that technically may change, but we assume to be
-  -- constant during Contract evaluation
-  , ledgerConstants ::
-      { pparams :: Ogmios.ProtocolParameters
-      , systemStart :: Ogmios.SystemStart
-      }
+  , ledgerConstants :: LedgerConstants
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -182,7 +192,7 @@ mkContractEnv params = do
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
-      ledgerConstants <- getLedgerConstants logger backend
+      ledgerConstants <- getLedgerConstants params backend
       pure $ merge { backend, ledgerConstants }
     b2 <- parallel do
       wallet <- buildWallet
@@ -226,20 +236,38 @@ buildBackend logger = case _ of
       , kupoConfig
       }
 
--- | Query for the ledger constants, ideally using the main backend
+-- | Query for the ledger constants using the main backend.
 getLedgerConstants
-  :: Logger
+  :: forall (r :: Row Type)
+   . { logLevel :: LogLevel
+     , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+     | r
+     }
   -> QueryBackend
-  -> Aff
-       { pparams :: Ogmios.ProtocolParameters
-       , systemStart :: Ogmios.SystemStart
-       }
-getLedgerConstants logger = case _ of
-  CtlBackend { ogmios: { ws } } _ -> do
-    pparams <- getProtocolParametersAff ws logger
-    systemStart <- getSystemStartAff ws logger
-    pure { pparams, systemStart }
-  BlockfrostBackend _ _ -> undefined
+  -> Aff LedgerConstants
+getLedgerConstants params = case _ of
+  CtlBackend { ogmios: { ws } } _ ->
+    { pparams: _, systemStart: _ }
+      <$> (unwrap <$> getProtocolParametersAff ws logger)
+      <*> getSystemStartAff ws logger
+  BlockfrostBackend backend _ ->
+    runBlockfrostServiceM blockfrostLogger backend $
+      { pparams: _, systemStart: _ }
+        <$> withErrorOnLeft Blockfrost.getProtocolParameters
+        <*> withErrorOnLeft Blockfrost.getSystemStart
+  where
+  withErrorOnLeft
+    :: forall (a :: Type)
+     . BlockfrostServiceM (Either ClientError a)
+    -> BlockfrostServiceM a
+  withErrorOnLeft = (=<<) (lmap (show >>> error) >>> liftEither)
+
+  logger :: Logger
+  logger = mkLogger params.logLevel params.customLogger
+
+  -- TODO: Should we respect `suppressLogs` here?
+  blockfrostLogger :: Message -> Aff Unit
+  blockfrostLogger = fromMaybe logWithLevel params.customLogger params.logLevel
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.
