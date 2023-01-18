@@ -58,7 +58,7 @@ import Contract.Transaction
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
-import Control.Monad.Error.Class (throwError)
+import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.Error.Class as E
 import Control.Monad.Reader (ReaderT, ask, local, mapReaderT, runReaderT)
 import Control.Monad.Trans.Class (lift)
@@ -81,7 +81,7 @@ import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (foldr)
 import Data.Array (fromFoldable, length, mapWithIndex, partition) as Array
 import Data.BigInt (BigInt)
-import Data.Either (Either(Right, Left), either, hush)
+import Data.Either (either, hush)
 import Data.Foldable (foldMap, null, sum)
 import Data.Lens (non, to, traversed, view, (%~), (^.), (^..))
 import Data.Lens.Record (prop)
@@ -93,7 +93,7 @@ import Data.String (trim) as String
 import Data.String.Common (joinWith) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw, try)
+import Effect.Exception (Error, error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Type.Proxy (Proxy(Proxy))
@@ -221,7 +221,7 @@ instance Show a => Show (ExpectedActual a) where
 -- Different types of assertions, Assertion composition, Basic functions
 --------------------------------------------------------------------------------
 
--- | An check that can run some initialization code before the `Contract` is run
+-- | A check that can run some initialization code before the `Contract` is run
 -- | and check the results afterwards. It is used to implement assertions that
 -- | require state monitoring, e.g. checking gains at address.
 type ContractCheck a =
@@ -284,8 +284,7 @@ runChecks
   -> Contract a
 runChecks assertions contract = do
   ref <- liftEffect $ Ref.new Nil
-  eiResult <- E.try $
-    flip runReaderT ref go
+  eiResult <- E.try $ flip runReaderT ref wrappedContract
   failures <- liftEffect $ Ref.read ref
   if null failures then either
     (liftEffect <<< throwError <<< error <<< reportException)
@@ -293,9 +292,7 @@ runChecks assertions contract = do
     eiResult
   else do
     let
-      errorStr = case eiResult of
-        Left error -> reportException error
-        _ -> ""
+      errorStr = either reportException (const "") eiResult
       errorReport =
         String.trim
           ( errorStr <> "\n\n" <>
@@ -304,21 +301,16 @@ runChecks assertions contract = do
     -- error trace from the exception itself will be appended here
     liftEffect $ throwError $ error errorReport
   where
+  reportException :: Error -> String
   reportException error = "\n\nAn exception has been thrown: \n\n" <> show error
 
   wrapAssertion :: ContractCheck a -> ContractAssertion a -> ContractAssertion a
   wrapAssertion assertion acc = do
     run /\ finalize <- assertion acc
-    E.try run >>= case _ of
-      Left failure -> do
-        finalize
-        throwError failure
-      Right success -> do
-        finalize
-        pure success
+    E.try run >>= \res -> finalize *> liftEither res
 
-  go :: ContractAssertion a
-  go = foldr wrapAssertion contract assertions
+  wrappedContract :: ContractAssertion a
+  wrappedContract = foldr wrapAssertion contract assertions
 
 tellFailure
   :: ContractAssertionFailure -> ContractAssertion Unit
@@ -398,7 +390,7 @@ assertValueDeltaAtAddress addr check contract = do
     finalize = do
       valueAfter <- valueAtAddress' addr
       liftEffect (Ref.read ref) >>= case _ of
-        Nothing -> pure unit -- tellFailure $ CustomFailure "Contract did not run"
+        Nothing -> pure unit -- the result value was not produced
         Just res -> check res valueBefore valueAfter
     run = do
       res <- contract
