@@ -8,8 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Added](#added)
   - [Fixed](#fixed)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added)
 - [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-1)
   - [Changed](#changed)
@@ -42,13 +43,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [v4.0.2] - 2023-01-17
 
-### Added
-
-- Added secp256k1 explainer
-
 ### Fixed
 
 - Fixed nix build issue on MacOS systems
+
+## [v4.0.1] - 2022-12-20
+
+### Added
+
+- Added a SECP256k1 explainer document ([#1346](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1346))
 
 ## [v4.0.0] - 2022-12-15
 
