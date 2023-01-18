@@ -771,7 +771,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     { ogmiosConfig: plutipCfg.ogmiosConfig
     , kupoConfig: plutipCfg.kupoConfig
     }
-  ledgerConstants <- getLedgerConstants plutipCfg backend
+  ledgerConstants <- getLedgerConstants plutipCfg { customLogger = customLogger } backend
   pure
     { backend
     , networkId: MainnetId
