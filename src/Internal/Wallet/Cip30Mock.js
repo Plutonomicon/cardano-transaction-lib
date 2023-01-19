@@ -1,9 +1,12 @@
 /* eslint-disable no-global-assign */
 
 // Classes are our implementation detail - CIP-30 only requires object fields
-class PaginateError {
+class PaginateError extends Error {
   constructor(maxSize) {
+    super();
     this.maxSize = maxSize;
+    this.name = "PaginateError";
+    this.message = "maxSize: " + this.maxSize;
   }
 }
 
@@ -13,10 +16,13 @@ exports.raisePaginateError = maxSize => () => {
 
 const InvalidRequestCode = -1;
 
-class APIError {
+class APIError extends Error {
   constructor(code, info) {
+    super();
     this.code = code;
     this.info = info;
+    this.name = "APIError";
+    this.message = this.info;
   }
 }
 
@@ -24,10 +30,13 @@ exports.raiseInvalidRequestError = info => () => {
   throw new APIError(InvalidRequestCode, info);
 };
 
-class TxSignError {
+class TxSignError extends Error {
   constructor(code, info) {
+    super();
     this.code = code;
     this.info = info;
+    this.name = "TxSignError";
+    this.message = this.info;
   }
 }
 

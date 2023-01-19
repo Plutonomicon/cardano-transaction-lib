@@ -161,7 +161,7 @@ type Cip30Mock =
         (Promise (NullOr (Array String)))
   , getCollateral :: CollateralParams -> (Promise (Array String))
   , getBalance :: Effect (Promise String)
-  , getUsedAddresses :: (UndefinedOr Paginate) -> Promise (Array String)
+  , getUsedAddresses :: UndefinedOr Paginate -> Promise (Array String)
   , getUnusedAddresses :: Effect (Promise (Array String))
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
@@ -233,8 +233,7 @@ mkCip30Mock pKey mSKey = do
             xUtxos
           page <- liftEffect
             $ paginateArray (uorToMaybe pagination)
-            $
-              (cborBytesToHex <<< toBytes) <$> cslUtxos
+            $ cborBytesToHex <<< toBytes <$> cslUtxos
           pure $ maybeToNullOr $ Just page
     , getCollateral: \{ amount } -> unsafePerformEffect $ fromAff do
         ownAddress <- (unwrap keyWallet).address config.networkId
@@ -340,6 +339,7 @@ catchPaginateError = _catchPaginateError eitherPaginateErrorFfi
 foreign import raiseInvalidRequestError :: String -> forall a. Effect a
 
 paginateArray :: forall a. Maybe Paginate -> Array a -> Effect (Array a)
+paginateArray (Just { limit: 0 }) _xs = raisePaginateError 0
 paginateArray (Just { page, limit }) xs =
   case page >= maxPages of
     true -> raisePaginateError maxPages
