@@ -40,7 +40,7 @@ assertionToCheck
   -> ContractCheck a
 ```
 
-The first argument is a descriptive message that will be printed in case there is an exception thrown inside the `Contract` that is being tested. This is done because in case of an exception there's no way to get the result value of type `a`. For better developer experience all the tests skipped due to the exception will still be mentioned in the report, e.g. [for this example](../examples/ContractTestUtils.purs):
+The first argument is a descriptive message that will be printed in case there is an exception thrown inside the `Contract` that is being tested. This is done because in case of an exception there's no way to get the result value of type `a`. For better developer experience, all the tests skipped due to the exception will still be mentioned in the report, e.g. [for this example](../examples/ContractTestUtils.purs):
 
 ```
   ✗ Examples.ContractTestUtils:

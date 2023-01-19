@@ -176,7 +176,7 @@ printContractAssertionFailure = case _ of
 
   TransactionHasNoMetadata txHash mdLabel ->
     "Tx with id " <> showTxHash txHash <> " does not hold "
-      <> (maybe mempty (flip append " ") mdLabel <> "metadata")
+      <> (maybe "" (_ <> " ") mdLabel <> "metadata")
 
   UnexpectedDatumInOutput txOutput expectedActual ->
     "Unexpected datum in output " <> printLabeled txOutput <> " " <>
@@ -282,9 +282,7 @@ assertContract
   :: ContractAssertionFailure
   -> Boolean
   -> ContractAssertion Unit
-assertContract failure cond
-  | cond = pure unit
-  | otherwise = tellFailure failure
+assertContract failure cond = unless cond $ tellFailure failure
 
 assertContractMaybe
   :: forall (a :: Type)
@@ -402,7 +400,7 @@ checkExUnitsNotExceed maxExUnits contract = do
     finalize = do
       exUnits <- liftEffect $ Ref.read ref
       assertContract (MaxExUnitsExceeded (ExpectedActual maxExUnits exUnits))
-        (maxExUnits >= exUnits)
+        (maxExUnits.mem >= exUnits.mem && maxExUnits.steps >= exUnits.steps)
 
   pure (mapReaderT (local setSubmitHook) contract /\ finalize)
 
@@ -458,7 +456,6 @@ assertLovelaceDeltaAtAddress addr getExpected comp contract = do
         UnexpectedLovelaceDelta addr (ExpectedActual expected actual)
 
     assertContract unexpectedLovelaceDelta (comp actual expected)
-    pure unit
 
 -- | Requires that the computed amount of lovelace was gained at the address
 -- | by calling the contract.
