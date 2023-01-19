@@ -23,7 +23,7 @@ exports._mkWebSocket = logger => url => () => {
     if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
       ws = new ReconnectingWebSocket.default(url);
     } else {
-      ws = new ReconnectingWebSocket(url, [], {
+      ws = new ReconnectingWebSocket.default(url, [], {
         WebSocket: NoPerMessageDeflateWebSocket,
       });
     }
