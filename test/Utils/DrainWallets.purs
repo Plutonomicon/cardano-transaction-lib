@@ -105,7 +105,7 @@ run privateKey walletsDir = runContract config do
   log $ joinWith " "
     [ "Found"
     , show $ Map.size utxos
-    , "in"
+    , "UTxOs in"
     , show $ Array.length usedWallets
     , "wallets."
     ]

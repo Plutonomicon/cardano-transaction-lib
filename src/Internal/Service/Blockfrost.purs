@@ -66,7 +66,7 @@ import Aeson
   , stringifyAeson
   , unpackFinite
   )
-import Affjax (Error, Response, URL, defaultRequest, request) as Affjax
+import Affjax (Error, Response, URL, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
@@ -74,6 +74,7 @@ import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Logger.Class (log)
 import Control.Monad.Logger.Trans (LoggerT(LoggerT), runLoggerT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask, asks)
@@ -194,8 +195,10 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
+import Data.JSDate (now)
+import Data.Log.Level (LogLevel(Trace))
 import Data.Log.Message (Message)
-import Data.Map (fromFoldable, isEmpty, unions) as Map
+import Data.Map (empty, fromFoldable, isEmpty, unions) as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.MediaType (MediaType(MediaType))
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -358,35 +361,57 @@ realizeEndpoint endpoint =
 blockfrostGetRequest
   :: BlockfrostEndpoint
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostGetRequest endpoint = ask >>= \params ->
-  withOnRawGetResponseHook endpoint =<< liftAff do
-    Affjax.request $ Affjax.defaultRequest
-      { method = Left GET
-      , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
-      , responseFormat = Affjax.ResponseFormat.string
-      , headers =
-          maybe mempty (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
-            params.blockfrostApiKey
-      }
+blockfrostGetRequest endpoint = do
+  timestamp <- liftEffect now
+  log { level: Trace, message: show { endpoint }, tags: Map.empty, timestamp }
+  resp <- ask >>= \params ->
+    withOnRawGetResponseHook endpoint =<< liftAff do
+      Affjax.request $ Affjax.defaultRequest
+        { method = Left GET
+        , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
+        , responseFormat = Affjax.ResponseFormat.string
+        , headers =
+            maybe mempty
+              (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
+              params.blockfrostApiKey
+        }
+  case resp of
+    Right r -> log { level: Trace, message: show r, tags: Map.empty, timestamp }
+    Left e -> log
+      { level: Trace, message: Affjax.printError e, tags: Map.empty, timestamp }
+  pure resp
 
 blockfrostPostRequest
   :: BlockfrostEndpoint
   -> MediaType
   -> Maybe Affjax.RequestBody
   -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-blockfrostPostRequest endpoint mediaType mbContent = ask >>= \params ->
-  withOnRawPostResponseHook endpoint mediaType mbContent =<< liftAff do
-    Affjax.request $ Affjax.defaultRequest
-      { method = Left POST
-      , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
-      , content = mbContent
-      , responseFormat = Affjax.ResponseFormat.string
-      , headers =
-          [ Affjax.ContentType mediaType ] <>
-            maybe mempty
-              (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
-              params.blockfrostApiKey
-      }
+blockfrostPostRequest endpoint mediaType mbContent = do
+  timestamp <- liftEffect now
+  log
+    { level: Trace
+    , message: show { endpoint, mediaType {-, mbContent -} }
+    , tags: Map.empty
+    , timestamp
+    }
+  resp <- ask >>= \params ->
+    withOnRawPostResponseHook endpoint mediaType mbContent =<< liftAff do
+      Affjax.request $ Affjax.defaultRequest
+        { method = Left POST
+        , url = mkHttpUrl params.blockfrostConfig <> realizeEndpoint endpoint
+        , content = mbContent
+        , responseFormat = Affjax.ResponseFormat.string
+        , headers =
+            [ Affjax.ContentType mediaType ] <>
+              maybe mempty
+                (\apiKey -> [ Affjax.RequestHeader "project_id" apiKey ])
+                params.blockfrostApiKey
+        }
+  case resp of
+    Right r -> log { level: Trace, message: show r, tags: Map.empty, timestamp }
+    Left e -> log
+      { level: Trace, message: Affjax.printError e, tags: Map.empty, timestamp }
+  pure resp
 
 withOnRawGetResponseHook
   :: BlockfrostEndpoint
@@ -455,12 +480,19 @@ utxosAt address = runExceptT $
   utxosAtAddressOnPage page = runExceptT do
     -- Maximum number of results per page supported by Blockfrost:
     let maxNumResultsOnPage = 100
-    utxos <- ExceptT $ handleBlockfrostResponse <$>
+    -- utxos <- ExceptT $ handleBlockfrostResponse <$>
+    --   blockfrostGetRequest (UtxosAtAddress address page maxNumResultsOnPage)
+    utxos <- ExceptT $
       blockfrostGetRequest (UtxosAtAddress address page maxNumResultsOnPage)
+        <#> handleBlockfrostResponse >>> case _ of
+          Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right
+            mempty
+          e -> e
     case Array.length (unwrap utxos) < maxNumResultsOnPage of
       true -> pure utxos
       false -> append utxos <$> ExceptT (utxosAtAddressOnPage $ page + 1)
 
+-- Map 404?
 getUtxoByOref
   :: TransactionInput
   -> BlockfrostServiceM (Either ClientError (Maybe TransactionOutput))
@@ -741,6 +773,7 @@ newtype BlockfrostUtxosAtAddress =
 derive instance Generic BlockfrostUtxosAtAddress _
 derive instance Newtype BlockfrostUtxosAtAddress _
 derive newtype instance Semigroup BlockfrostUtxosAtAddress
+derive newtype instance Monoid BlockfrostUtxosAtAddress
 
 instance Show BlockfrostUtxosAtAddress where
   show = genericShow

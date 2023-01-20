@@ -22,6 +22,8 @@ import Node.Process (argv, exit)
 import Test.Ctl.Plutip.Contract as Plutip
 import Test.Spec.Runner (defaultConfig)
 
+-- TODO Remove dev config
+
 -- Run with `spago test --main Test.Ctl.Blockfrost.Contract --exec-args "BLOCKFROST_API_KEY PRIVATE_PAYMENT_FILE BACKUP_KEYS_DIR"`
 main :: Effect Unit
 main = do

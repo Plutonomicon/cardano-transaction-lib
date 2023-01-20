@@ -27,6 +27,7 @@ import Contract.Address
   )
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
+import Contract.Log (logTrace')
 import Contract.Monad
   ( Contract
   , ContractEnv
@@ -43,6 +44,7 @@ import Contract.Transaction
   , submitTxFromConstraints
   )
 import Contract.Utxos (utxosAt)
+import Contract.Value (valueToCoin')
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key
   ( keyWalletPrivatePaymentKey
@@ -95,6 +97,7 @@ import Ctl.Internal.Plutip.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
+import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
 import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
 import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Service.Error
@@ -114,15 +117,18 @@ import Ctl.Internal.Wallet (KeyWallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), either, isLeft)
 import Data.Foldable (fold, sum)
 import Data.HTTP.Method as Method
+import Data.Lens ((^.))
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
+import Data.String (joinWith)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse, traverse_)
@@ -130,7 +136,7 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), delay, try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
@@ -140,6 +146,7 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -213,7 +220,9 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       walletsArray = keyWallets (pureProxy distr) wallets
 
       runContract :: Aff Unit
-      runContract = runContractInEnv env { wallet = Nothing } $ mkTest wallets
+      runContract = runContractInEnv env { wallet = Nothing } do
+        logTrace' "Running contract"
+        mkTest wallets
 
     if Array.null walletsArray then
       runContract
@@ -221,7 +230,7 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       ( backupWallets env walletsArray *> fundWallets env walletsArray
           distrArray
       )
-      (\_ -> returnFunds env walletsArray)
+      (returnFunds env walletsArray)
       \_ -> runContract
   where
   pureProxy :: forall (a :: Type). a -> Proxy a
@@ -242,8 +251,9 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       (Path.concat [ folder, "stake_signing_key" ])
 
   fundWallets
-    :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff Unit
+    :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigInt
   fundWallets env walletsArray distrArray = runContractInEnv env do
+    logTrace' "Funding wallets"
     let
       constraints = flip foldMap (Array.zip walletsArray distrArray)
         \(wallet /\ walletDistr) -> flip foldMap walletDistr
@@ -251,27 +261,77 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
 
     txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
     awaitTxConfirmed txHash
+    let fundTotal = Array.foldr (flip (Array.foldr (+))) zero distrArray
+    -- Use log so we can see, regardless of suppression
+    log $ joinWith " "
+      [ "Sent"
+      , show fundTotal
+      , "lovelace to test wallets"
+      ]
+    pure fundTotal
 
-  returnFunds :: ContractEnv -> Array KeyWallet -> Aff Unit
-  returnFunds env walletsArray = runContractInEnv env do
+  returnFunds :: ContractEnv -> Array KeyWallet -> BigInt -> Aff Unit
+  returnFunds env walletsArray fundTotal = runContractInEnv env do
+    logTrace' "Returning wallet funds"
+    log "here1"
+
+    -- We could delay until there's a delta?
+    let
+      go 0 = pure unit
+      go n = do
+        utxos <- Map.unions <<< fold <$> for walletsArray
+          (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
+        let
+          v = Array.foldr
+            (\txorf acc -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+            zero
+            (Array.fromFoldable $ Map.values utxos)
+        log $ show v
+        liftAff $ delay $ wrap $ 2000.0
+        go (n - 1)
+
+    go 10
+
     utxos <- Map.unions <<< fold <$> for walletsArray
       (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
+
     pkhs <- fold <$> for walletsArray
       (flip withKeyWallet ownPaymentPubKeysHashes)
 
+    log "here2"
     let
       constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
         <> foldMap mustBeSignedBy pkhs
       lookups = unspentOutputs utxos
 
     unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
+    log "here3"
     balancedTx <- liftedE $ balanceTx unbalancedTx
+    log "here4"
     balancedSignedTx <- Array.foldM
       (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
       (wrap $ unwrap balancedTx)
       walletsArray
-    txHash <- submit balancedSignedTx
-    awaitTxConfirmed txHash
+    log "here5"
+    -- We failed to submit
+    txHash <- try $ submit balancedSignedTx
+    log "here6"
+    either (log <<< show) awaitTxConfirmed txHash
+    log "here7"
+
+    let
+      (refundTotal :: BigInt) = Array.foldr
+        (\txorf acc -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+        zero
+        (Array.fromFoldable $ Map.values utxos)
+
+    log $ joinWith " "
+      [ "Refunded"
+      , show refundTotal
+      , "of"
+      , show fundTotal
+      , "lovelace from test wallets"
+      ]
 
   mustPayToKeyWallet
     :: forall (i :: Type) (o :: Type)
@@ -771,7 +831,9 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     { ogmiosConfig: plutipCfg.ogmiosConfig
     , kupoConfig: plutipCfg.kupoConfig
     }
-  ledgerConstants <- getLedgerConstants plutipCfg { customLogger = customLogger } backend
+  ledgerConstants <- getLedgerConstants
+    plutipCfg { customLogger = customLogger }
+    backend
   pure
     { backend
     , networkId: MainnetId

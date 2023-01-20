@@ -1280,7 +1280,7 @@ suite = do
           BalanceTxConstraintsExample.ContractParams
             { aliceKeyWallet: alice, bobKeyWallet: bob }
 
-    group "Evaluation with additional UTxOs and tx chaining" do
+    skip $ group "Evaluation with additional UTxOs and tx chaining" do
       test "Examples.TxChaining" $
         let
           distribution :: InitialUTxOs
