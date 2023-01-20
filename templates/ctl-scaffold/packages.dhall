@@ -146,7 +146,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5"
+        , version = "bfd8f4dcd0522a076320f9dc710c24817438e02e"
         }
       , sequences =
         { dependencies =
@@ -257,7 +257,7 @@ let additions =
           , "tuples"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-bignumber"
-        , version = "58c51448be23c05caf51cde45bb3b09cc7169447"
+        , version = "705923edd892a3397b90d28ce7db9a7181dcd599"
         }
       , cardano-transaction-lib =
         { dependencies =

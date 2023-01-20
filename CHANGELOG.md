@@ -47,6 +47,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- `bundlePursProject` allows passing of `includeBundledModule` flag to export the bundled JS module `spago bundle-module` outputs
+
+- `Contract.Transaction` exports `mkPoolPubKeyHash` and `poolPubKeyHashToBech32` for bech32 roundtripping ([#1360](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1360))
+
 ### Changed
 
 - CIP-30 API and mock wallet now support optional arguments. `getWalletAddresses` got version `getWalletAddressesPaginated`. `getWalletUtxos` got an optional `Value` argument, and a paginated version. `getWalletCollateral` now accepts a required argument of type `Coin`, as defined in CIP-30 ([#1264](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1264))
@@ -55,6 +59,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Removed
 
 ### Fixed
+- CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))
+- Critical upstream fix in [`purescript-bignumber`](https://github.com/mlabs-haskell/purescript-bignumber/pull/2)
+- `OutputDatum` aeson encoding now roundtrips ([#1388](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1388))
 
 ### Runtime Dependencies
 

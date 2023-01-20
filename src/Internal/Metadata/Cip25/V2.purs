@@ -33,6 +33,8 @@ import Ctl.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
   , fromDataString
   , fromMetadataString
+  , toDataString
+  , toMetadataString
   )
 import Ctl.Internal.Metadata.Cip25.Common
   ( Cip25MetadataFile(Cip25MetadataFile)
@@ -46,11 +48,7 @@ import Ctl.Internal.Metadata.Helpers
   , lookupMetadata
   )
 import Ctl.Internal.Metadata.MetadataType (class MetadataType)
-import Ctl.Internal.Metadata.ToMetadata
-  ( class ToMetadata
-  , anyToMetadata
-  , toMetadata
-  )
+import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
@@ -149,8 +147,8 @@ instance DecodeAeson Cip25V2 where
 -- the standard only specifies the encoding for Cip25Metadata).
 metadataEntryToMetadata :: Cip25MetadataEntry -> TransactionMetadatum
 metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata $
-  [ "name" /\ anyToMetadata entry.name
-  , "image" /\ anyToMetadata entry.image
+  [ "name" /\ toMetadata entry.name
+  , "image" /\ toMetadataString entry.image
   ]
     <> mbMediaType
     <> mbDescription
@@ -158,11 +156,11 @@ metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata $
   where
   mbFiles = case entry.files of
     [] -> []
-    files -> [ "files" /\ anyToMetadata files ]
+    files -> [ "files" /\ toMetadata files ]
   mbMediaType = fold $ entry.mediaType <#> \mediaType ->
-    [ "mediaType" /\ anyToMetadata mediaType ]
+    [ "mediaType" /\ toMetadata mediaType ]
   mbDescription = fold $ entry.description <#> \description ->
-    [ "description" /\ anyToMetadata description ]
+    [ "description" /\ toMetadataString description ]
 
 metadataEntryFromMetadata
   :: MintingPolicyHash
@@ -181,7 +179,7 @@ metadataEntryFromMetadata policyId assetName contents = do
 metadataEntryToData :: Cip25MetadataEntry -> PlutusData
 metadataEntryToData (Cip25MetadataEntry entry) = toData $ AssocMap.Map $
   [ "name" /\ toData entry.name
-  , "image" /\ toData entry.image
+  , "image" /\ toDataString entry.image
   ]
     <> mbMediaType
     <> mbDescription
@@ -193,7 +191,7 @@ metadataEntryToData (Cip25MetadataEntry entry) = toData $ AssocMap.Map $
   mbMediaType = fold $ entry.mediaType <#> \mediaType ->
     [ "mediaType" /\ toData mediaType ]
   mbDescription = fold $ entry.description <#> \description ->
-    [ "description" /\ toData description ]
+    [ "description" /\ toDataString description ]
 
 metadataEntryFromData
   :: MintingPolicyHash

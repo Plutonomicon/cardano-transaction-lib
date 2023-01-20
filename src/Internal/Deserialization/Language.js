@@ -6,21 +6,14 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
-// foreign import _convertLanguage
-//   :: forall r.ErrorFfiHelper r -> { plutusV1 :: Language, plutusV2 :: Language } -> CSL.Language -> E r Language
-exports._convertLanguage = errorHelper => langCtors => cslLang => {
-  try {
-    if (cslLang.kind() == lib.LanguageKind.PlutusV1) {
-      return errorHelper.valid(langCtors.plutusV1);
-    } else if (cslLang.kind() == lib.LanguageKind.PlutusV2) {
-      return errorHelper.valid(langCtors.plutusV2);
-    } else {
-      return errorHelper.error(
-        "_convertLanguage: Unsupported language kind: " + cslLang.kind()
-      );
-    }
-  } catch (e) {
-    return errorHelper.error("_convertLanguage raised: " + e);
+exports._convertLanguage = langCtors => cslLang => {
+  if (cslLang.kind() == lib.LanguageKind.PlutusV1) {
+    return langCtors.plutusV1;
+  } else if (cslLang.kind() == lib.LanguageKind.PlutusV2) {
+    return langCtors.plutusV2;
+  } else {
+    throw "_convertLanguage: Unsupported language kind: " + cslLang.kind();
   }
 };

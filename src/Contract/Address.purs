@@ -173,7 +173,7 @@ getWalletAddressWithNetworkTag
   => Contract r (Maybe AddressWithNetworkTag)
 getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
 
--- | Get all the `AddressWithNetworkTag` of the browser wallet discarding errors.
+-- | Get all the `AddressWithNetworkTag`s of the browser wallet discarding errors.
 getWalletAddressesWithNetworkTag
   :: forall (r :: Row Type). Contract r (Array AddressWithNetworkTag)
 getWalletAddressesWithNetworkTag = do
@@ -189,7 +189,7 @@ getWalletAddressesWithNetworkTag = do
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
--- | E.g. Nami creates a hardcoded 5 Ada collateral.
+-- | E.g. Nami creates a hard-coded 5 Ada collateral.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
 getWalletCollateral
@@ -239,8 +239,8 @@ getNetworkId = wrapContract QueryM.getNetworkId
 
 --------------------------------------------------------------------------------
 -- Helpers via Cardano helpers, these are helpers from the CSL equivalent
--- that converts either input or output to a Plutus Address.
--- Helpers by deconstructing/constructing the Plutus Address are exported under
+-- that convert either input or output to a Plutus Address.
+-- Helpers that deconstruct/construct the Plutus Address are exported under
 -- `module Address`
 --------------------------------------------------------------------------------
 
