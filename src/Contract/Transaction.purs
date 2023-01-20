@@ -276,6 +276,7 @@ import Data.UInt (UInt)
 import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
+import Effect.Exception (try)
 
 -- | Signs a transaction with potential failure.
 signTransaction
@@ -297,6 +298,8 @@ submit
 submit tx = do
   queryHandle <- getQueryHandle
   eiTxHash <- liftAff $ queryHandle.submitTx $ unwrap tx
+  void $ asks (_.hooks >>> _.onSubmit) >>=
+    traverse \hook -> liftEffect $ void $ try $ hook $ unwrap tx
   liftEither $ flip lmap eiTxHash \err -> error $
     "Failed to submit tx:\n" <> show err
 
