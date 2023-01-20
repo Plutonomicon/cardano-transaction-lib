@@ -199,7 +199,7 @@ import Data.JSDate (JSDate, now)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Log.Message (Message)
 import Data.Map (empty, fromFoldable, isEmpty, unions) as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType (MediaType(MediaType))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
@@ -475,12 +475,19 @@ handleBlockfrostResponse (Right { status: Affjax.StatusCode statusCode, body })
         <<< (decodeAeson <=< parseJsonStringToAeson)
 
 handle404AsNothing
-  :: forall (x :: Type)
-   . Either ClientError (Maybe x)
-  -> Either ClientError (Maybe x)
+  :: forall (a :: Type)
+   . Either ClientError (Maybe a)
+  -> Either ClientError (Maybe a)
 handle404AsNothing (Left (ClientHttpResponseError (Affjax.StatusCode 404) _)) =
   Right Nothing
 handle404AsNothing x = x
+
+handle404AsMempty
+  :: forall (a :: Type)
+   . Monoid a
+  => Either ClientError (Maybe a)
+  -> Either ClientError a
+handle404AsMempty = map (fromMaybe mempty) <<< handle404AsNothing
 
 --------------------------------------------------------------------------------
 -- Get utxos at address / by output reference
@@ -496,26 +503,20 @@ utxosAt address = runExceptT $
   utxosAtAddressOnPage page = runExceptT do
     -- Maximum number of results per page supported by Blockfrost:
     let maxNumResultsOnPage = 100
-    -- utxos <- ExceptT $ handleBlockfrostResponse <$>
-    --   blockfrostGetRequest (UtxosAtAddress address page maxNumResultsOnPage)
     utxos <- ExceptT $
       blockfrostGetRequest (UtxosAtAddress address page maxNumResultsOnPage)
-        <#> handleBlockfrostResponse >>> case _ of
-          Left (ClientHttpResponseError (Affjax.StatusCode 404) _) -> Right
-            mempty
-          e -> e
+        <#> handle404AsMempty <<< handleBlockfrostResponse
     case Array.length (unwrap utxos) < maxNumResultsOnPage of
       true -> pure utxos
       false -> append utxos <$> ExceptT (utxosAtAddressOnPage $ page + 1)
 
--- Map 404?
 getUtxoByOref
   :: TransactionInput
   -> BlockfrostServiceM (Either ClientError (Maybe TransactionOutput))
 getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
-  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <-
-    ExceptT $ handleBlockfrostResponse <$>
-      blockfrostGetRequest (UtxosOfTransaction txHash)
+  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <- ExceptT $
+    blockfrostGetRequest (UtxosOfTransaction txHash)
+      <#> handle404AsMempty <<< handleBlockfrostResponse
   traverse (ExceptT <<< resolveBlockfrostTxOutput)
     (snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap))
 
@@ -827,6 +828,8 @@ newtype BlockfrostUtxosOfTransaction =
 
 derive instance Generic BlockfrostUtxosOfTransaction _
 derive instance Newtype BlockfrostUtxosOfTransaction _
+derive newtype instance Semigroup BlockfrostUtxosOfTransaction
+derive newtype instance Monoid BlockfrostUtxosOfTransaction
 
 instance Show BlockfrostUtxosOfTransaction where
   show = genericShow
