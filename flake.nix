@@ -41,7 +41,9 @@
     };
 
     blockfrost.url = "github:mlabs-haskell/blockfrost-backend-ryo/aciceri/nix-flake";
-    db-sync.url = "github:mlabs-haskell/cardano-db-sync/aciceri/customConfig-input-fix";
+    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
+    db-sync.inputs.custom-config.follows = "empty";
+    empty.url = "github:input-output-hk/empty-flake";
   };
 
   outputs =

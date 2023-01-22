@@ -2619,11 +2619,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-Zd5w1I1Dwt783Q4WuBuCpedcwG1DrIgQGqabyF87prM=",
-        "path": "custom-config",
+        "path": "./custom-config",
         "type": "path"
       },
       "original": {
-        "path": "custom-config",
+        "path": "./custom-config",
         "type": "path"
       }
     },
@@ -2803,16 +2803,16 @@
         "utils": "utils_21"
       },
       "locked": {
-        "lastModified": 1673522919,
-        "narHash": "sha256-cX3mxaXm/ASRHiIOosHq+DXwsU5PbKwzhraEssGn8Kk=",
-        "owner": "mlabs-haskell",
+        "lastModified": 1670313550,
+        "narHash": "sha256-Gkn/hyK0xiDJZY1O5JEwuosMzar+IskC9xxeBts+0H4=",
+        "owner": "input-output-hk",
         "repo": "cardano-db-sync",
-        "rev": "e49d0a1fbf48e96bf0f09ffd98096d0f3ddd214e",
+        "rev": "1040fa9ec85fd75ce9f02dae2006170136793d02",
         "type": "github"
       },
       "original": {
-        "owner": "mlabs-haskell",
-        "ref": "aciceri/customConfig-input-fix",
+        "owner": "input-output-hk",
+        "ref": "13.1.0.0",
         "repo": "cardano-db-sync",
         "type": "github"
       }
@@ -3525,6 +3525,21 @@
       "original": {
         "owner": "srid",
         "repo": "emanote",
+        "type": "github"
+      }
+    },
+    "empty": {
+      "locked": {
+        "lastModified": 1630400035,
+        "narHash": "sha256-MWaVOCzuFwp09wZIW9iHq5wWen5C69I940N1swZLEQ0=",
+        "owner": "input-output-hk",
+        "repo": "empty-flake",
+        "rev": "2040a05b67bf9a669ce17eca56beb14b4206a99a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "empty-flake",
         "type": "github"
       }
     },
@@ -12788,6 +12803,7 @@
         ],
         "db-sync": "db-sync",
         "easy-purescript-nix": "easy-purescript-nix",
+        "empty": "empty",
         "flake-compat": "flake-compat_8",
         "iohk-nix-environments": "iohk-nix-environments",
         "kupo": "kupo",
