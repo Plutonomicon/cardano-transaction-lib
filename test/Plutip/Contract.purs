@@ -1461,7 +1461,7 @@ suite = do
               awaitTxConfirmed txId0
               awaitTxConfirmed txId1
 
-    group "Application of arguments to parametrized scripts" do
+    group "Application of arguments to parameterized scripts" do
       test "returns the same script when called without args" do
         withWallets unit \_ -> do
           result <- liftContractE $ applyArgs
