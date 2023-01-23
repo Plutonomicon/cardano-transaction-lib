@@ -53,6 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- `startPlutipCluster` error message now includes cluster startup failure details. ([#1407](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1407))
+
 ### Removed
 
 ### Fixed
