@@ -49,7 +49,7 @@ addr1 =
 -- state, and ogmios itself.
 suite :: TestPlanM (QueryM Unit) Unit
 suite = do
-  group "Aff Interface" do
+  group "Asynchronous requests interface" do
     test "UtxosAt Testnet" $ testUtxosAt testnet_addr1
     test "UtxosAt Mainnet" $ testUtxosAt addr1
     test "Get ChainTip" testGetChainTip
@@ -57,7 +57,7 @@ suite = do
     test "Get EraSummaries" testGetEraSummaries
     test "Get CurrentEpoch" testGetCurrentEpoch
     test "Get SystemStart" testGetSystemStart
-  group "Ogmios error" do
+  group "Ogmios error handling" do
     test "Ogmios fails with user-friendly message" do
       try testSubmitTxFailure >>= case _ of
         Right _ -> do
@@ -66,7 +66,7 @@ suite = do
         Left error -> do
           (Pattern "Server responded with `fault`" `indexOf` show error)
             `shouldSatisfy` isJust
-  group "Ogmios datum cache" do
+  group "ogmios-datum-cache" do
     test "Can process GetDatumByHash" do
       testOgmiosDatumCacheGetDatumByHash
     test "Can process GetDatumsByHashes" do
