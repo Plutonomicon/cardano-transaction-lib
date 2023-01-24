@@ -8,6 +8,7 @@ module Ctl.Examples.IncludeDatum
   , main
   , payToIncludeDatum
   , spendFromIncludeDatum
+  , contract
   ) where
 
 import Contract.Prelude
@@ -42,15 +43,18 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.IncludeDatum"
-    validator <- only42Script
-    let vhash = validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToIncludeDatum vhash
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromIncludeDatum vhash validator txId
+  runContract cfg contract
+
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.IncludeDatum"
+  validator <- only42Script
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToIncludeDatum vhash
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromIncludeDatum vhash validator txId
 
 datum :: Datum
 datum = Datum $ Integer $ BigInt.fromInt 42

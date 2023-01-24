@@ -4,6 +4,7 @@
 module Ctl.Examples.PlutusV2.InlineDatum
   ( main
   , example
+  , contract
   , checkDatumIsInlineScript
   , payToCheckDatumIsInline
   , payToCheckDatumIsInlineWrong
@@ -48,15 +49,18 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.PlutusV2.InlineDatum"
-    validator <- checkDatumIsInlineScript
-    let vhash = validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToCheckDatumIsInline vhash
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromCheckDatumIsInline vhash validator txId
+  runContract cfg contract
+
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.PlutusV2.InlineDatum"
+  validator <- checkDatumIsInlineScript
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToCheckDatumIsInline vhash
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromCheckDatumIsInline vhash validator txId
 
 plutusData :: PlutusData
 plutusData = Integer $ BigInt.fromInt 31415927
