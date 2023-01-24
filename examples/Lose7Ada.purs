@@ -5,6 +5,7 @@
 -- | then attempts to spend the two Ada, failing and losing the collateral.
 module Ctl.Examples.Lose7Ada
   ( main
+  , contract
   , example
   , alwaysFailsScript
   , payToAlwaysFails
@@ -47,15 +48,18 @@ main = example testnetNamiConfig
 
 example :: ConfigParams () -> Effect Unit
 example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.AlwaysFails"
-    validator <- alwaysFailsScript
-    let vhash = validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToAlwaysFails vhash
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromAlwaysFails vhash validator txId
+  runContract cfg contract
+
+contract :: Contract () Unit
+contract = do
+  logInfo' "Running Examples.AlwaysFails"
+  validator <- alwaysFailsScript
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToAlwaysFails vhash
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromAlwaysFails vhash validator txId
 
 payToAlwaysFails :: ValidatorHash -> Contract () TransactionHash
 payToAlwaysFails vhash = do
