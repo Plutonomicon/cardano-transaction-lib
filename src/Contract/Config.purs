@@ -33,6 +33,7 @@ import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad (ContractParams)
 import Ctl.Internal.Contract.QueryBackend
   ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
+  , defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   , mkCtlBackendParams
   )
@@ -89,6 +90,7 @@ testnetBlockfrostDevConfig mbApiKey =
   { backendParams: BlockfrostBackendParams
       { blockfrostApiKey: mbApiKey
       , blockfrostConfig: blockfrostPublicPreviewServerConfig
+      , confirmTxDelay: defaultConfirmTxDelay
       }
       ( Just
           { ogmiosConfig: defaultOgmiosWsConfig

@@ -6,9 +6,11 @@ module Ctl.Internal.Contract.AwaitTxConfirmed
 
 import Prelude
 
+import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.QueryBackend (getBlockfrostBackend)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.WaitUntilSlot (waitUntilSlot)
 import Ctl.Internal.Serialization.Address (Slot)
@@ -16,7 +18,7 @@ import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Either (either)
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
 import Data.Time.Duration (Milliseconds, Seconds(Seconds), fromDuration)
@@ -28,9 +30,11 @@ import Effect.Exception (throw)
 awaitTxConfirmed :: TransactionHash -> Contract Unit
 awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
 
+-- NOTE: This function will always fail if the timeout is less than the value
+-- of the Blockfrost `confirmTxDelay` parameter.
 awaitTxConfirmedWithTimeout :: Seconds -> TransactionHash -> Contract Unit
 awaitTxConfirmedWithTimeout timeoutSeconds txHash =
-  -- If timeout is infinity, do not use a timeout at all
+  -- If timeout is infinity, do not use a timeout at all.
   if unwrap timeoutSeconds == infinity then void findTx
   else do
     txFound <- parOneOf [ findTx, waitAndFail ]
@@ -39,14 +43,7 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
       "awaitTxConfirmedWithTimeout: timeout exceeded, Transaction not \
       \confirmed"
   where
-  -- Try to find the TX indefinitely, with a waiting period between each
-  -- request
-  findTx :: Contract Boolean
-  findTx =
-    isTxConfirmed txHash >>= \found ->
-      if found then pure true else liftAff (delay delayTime) *> findTx
-
-  -- Wait until the timeout elapses and return false
+  -- Wait until the timeout elapses and return false.
   waitAndFail :: Contract Boolean
   waitAndFail = do
     liftAff $ delay $ timeout
@@ -55,8 +52,33 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   timeout :: Milliseconds
   timeout = fromDuration timeoutSeconds
 
-  delayTime :: Milliseconds
-  delayTime = wrap 1000.0
+  -- Try to find the transaction indefinitely, with a waiting period between
+  -- each request.
+  --
+  -- If `confirmTxDelay` of `BlockfrostBackend` is set, wait the specified
+  -- number of seconds after the transaction is confirmed, then check the
+  -- transaction confirmation status again to handle possible rollbacks.
+  findTx :: Contract Boolean
+  findTx = do
+    confirmTxDelay <-
+      asks _.backend <#> (getBlockfrostBackend >=> _.confirmTxDelay)
+    worker (fromDuration <$> confirmTxDelay) false
+    where
+    worker :: Maybe Milliseconds -> Boolean -> Contract Boolean
+    worker confirmTxDelay foundBefore =
+      isTxConfirmed txHash >>= case _ of
+        -- Make sure that the transaction has not been rolled back after the
+        -- confirmation delay.
+        true | foundBefore ->
+          pure true
+        true ->
+          confirmTxDelay #
+            maybe (pure true) (\d -> liftAff (delay d) *> worker (Just d) true)
+        false ->
+          liftAff (delay delayTime) *> worker confirmTxDelay false
+      where
+      delayTime :: Milliseconds
+      delayTime = wrap 1000.0
 
 awaitTxConfirmedWithTimeoutSlots :: Int -> TransactionHash -> Contract Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash =

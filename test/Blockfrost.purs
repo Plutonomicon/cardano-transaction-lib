@@ -56,6 +56,7 @@ main = do
       ( testPlan
           { blockfrostConfig: blockfrostPublicPreviewServerConfig
           , blockfrostApiKey: Just apiKey
+          , confirmTxDelay: Nothing
           }
       )
 

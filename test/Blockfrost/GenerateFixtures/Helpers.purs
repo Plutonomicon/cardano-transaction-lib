@@ -21,6 +21,7 @@ import Contract.Config
   )
 import Ctl.Internal.Contract.QueryBackend
   ( BlockfrostBackend
+  , defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   )
 import Ctl.Internal.Hashing (md5HashHex)
@@ -39,6 +40,7 @@ blockfrostBackend = do
   pure
     { blockfrostConfig
     , blockfrostApiKey: Just blockfrostApiKey
+    , confirmTxDelay: defaultConfirmTxDelay
     }
 
 contractParams :: Effect ContractParams
@@ -51,6 +53,7 @@ contractParams = do
         mkBlockfrostBackendParams
           { blockfrostConfig
           , blockfrostApiKey: Just blockfrostApiKey
+          , confirmTxDelay: defaultConfirmTxDelay
           }
     , logLevel = Info
     , walletSpec = Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
