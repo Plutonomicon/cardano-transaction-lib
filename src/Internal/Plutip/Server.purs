@@ -266,7 +266,7 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
 
     txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
     awaitTxConfirmed txHash
-    let fundTotal = Array.foldr (+) zero $ join distrArray
+    let fundTotal = Array.foldl (+) zero $ join distrArray
     -- Use log so we can see, regardless of suppression
     log $ joinWith " "
       [ "Sent"
@@ -306,8 +306,8 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
     awaitTxConfirmed txHash
 
     let
-      (refundTotal :: BigInt) = Array.foldr
-        (\txorf acc -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+      (refundTotal :: BigInt) = Array.foldl
+        (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
         zero
         (Array.fromFoldable $ Map.values utxos)
 
@@ -675,7 +675,7 @@ startPlutipCluster cfg keysToGenerate = do
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
-    total = Array.foldr (sum >>> add) zero utxoDistribution
+    total = Array.foldl (sum >>> add) zero utxoDistribution
   in
     [ -- Take the total value of the utxos and add some extra on top
       -- of it to cover the possible transaction fees. Also make sure
