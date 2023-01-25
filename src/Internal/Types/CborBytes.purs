@@ -22,7 +22,6 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.ByteArray as ByteArray
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Data.Hashable (class Hashable)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
@@ -38,7 +37,6 @@ derive instance Newtype CborBytes _
 
 derive newtype instance Eq CborBytes
 derive newtype instance Ord CborBytes
-derive newtype instance Hashable CborBytes
 derive newtype instance Semigroup CborBytes
 derive newtype instance Monoid CborBytes
 derive newtype instance EncodeAeson CborBytes

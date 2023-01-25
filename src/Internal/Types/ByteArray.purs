@@ -27,7 +27,6 @@ import Aeson
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Char (toCharCode)
 import Data.Either (Either(Left), note)
-import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.String.CodeUnits (toCharArray)
@@ -58,9 +57,6 @@ instance Ord ByteArray where
         EQ -> 0
         LT -> 1
         GT -> -1
-
-instance Hashable ByteArray where
-  hash = hash <<< byteArrayToIntArray
 
 instance Semigroup ByteArray where
   append = concat_

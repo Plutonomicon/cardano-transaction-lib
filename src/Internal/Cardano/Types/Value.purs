@@ -106,7 +106,6 @@ import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Hashable (class Hashable, hash)
 import Data.Int (ceil) as Int
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List (List(Nil), all, (:))
@@ -224,7 +223,6 @@ newtype CurrencySymbol = CurrencySymbol ByteArray
 derive newtype instance Eq CurrencySymbol
 derive newtype instance FromData CurrencySymbol
 derive newtype instance FromMetadata CurrencySymbol
-derive newtype instance Hashable CurrencySymbol
 derive newtype instance Ord CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 derive newtype instance ToMetadata CurrencySymbol
@@ -540,9 +538,6 @@ instance Arbitrary AssetClass where
 
 instance Show AssetClass where
   show = genericShow
-
-instance Hashable AssetClass where
-  hash (AssetClass cs tn) = hash (cs /\ tn)
 
 assetToValue :: AssetClass -> BigInt -> Value
 assetToValue (AssetClass cs tn) quantity =

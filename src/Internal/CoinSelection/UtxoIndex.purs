@@ -44,9 +44,6 @@ import Data.Foldable (all, length) as Foldable
 import Data.Foldable (foldl)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.HashMap (HashMap)
-import Data.HashMap (alter, empty, lookup, toArrayBy, update) as HashMap
-import Data.Hashable (class Hashable, hash)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view, (^.))
 import Data.Lens.Iso (Iso', iso)
@@ -55,7 +52,8 @@ import Data.Lens.Setter ((%~))
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map
-  ( delete
+  ( alter
+  , delete
   , empty
   , insert
   , intersection
@@ -64,13 +62,13 @@ import Data.Map
   , singleton
   , size
   , toUnfoldable
+  , update
   ) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable, toUnfoldable) as Set
 import Data.Show.Generic (genericShow)
-import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Random (randomInt) as Random
@@ -88,11 +86,11 @@ import Type.Proxy (Proxy(Proxy))
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L176
 type UtxoIndexRec =
-  { indexAnyWith :: HashMap Asset UtxoMap
+  { indexAnyWith :: Map Asset UtxoMap
   -- ^ An index of all utxos that contain the given asset.
-  , indexSingletons :: HashMap Asset UtxoMap
+  , indexSingletons :: Map Asset UtxoMap
   -- ^ An index of all utxos that contain the given asset and no other assets.
-  , indexPairs :: HashMap Asset UtxoMap
+  , indexPairs :: Map Asset UtxoMap
   -- ^ An index of all utxos that contain the given asset and exactly one
   -- other asset.
   , utxos :: UtxoMap
@@ -115,13 +113,10 @@ data Asset = AssetLovelace | Asset AssetClass
 
 derive instance Generic Asset _
 derive instance Eq Asset
+derive instance Ord Asset
 
 instance Show Asset where
   show = genericShow
-
-instance Hashable Asset where
-  hash AssetLovelace = hash (Nothing :: Maybe AssetClass)
-  hash (Asset asset) = hash (Just asset)
 
 instance Arbitrary Asset where
   arbitrary = oneOf $ cons' (pure AssetLovelace) [ Asset <$> arbitrary ]
@@ -145,9 +140,9 @@ valueHasAsset amount (Asset asset) =
 -- | An index with no entries.
 emptyUtxoIndex :: UtxoIndex
 emptyUtxoIndex = UtxoIndex
-  { indexAnyWith: HashMap.empty
-  , indexSingletons: HashMap.empty
-  , indexPairs: HashMap.empty
+  { indexAnyWith: Map.empty
+  , indexSingletons: Map.empty
+  , indexPairs: Map.empty
   , utxos: Map.empty
   }
 
@@ -186,9 +181,9 @@ utxoIndexInsertEntry :: TxUnspentOutput -> UtxoIndex -> UtxoIndex
 utxoIndexInsertEntry (oref /\ out) =
   (_utxos %~ Map.insert oref out) <<< updateUtxoIndex out insertEntry
   where
-  insertEntry :: Asset -> HashMap Asset UtxoMap -> HashMap Asset UtxoMap
+  insertEntry :: Asset -> Map Asset UtxoMap -> Map Asset UtxoMap
   insertEntry =
-    HashMap.alter
+    Map.alter
       (Just <<< maybe (Map.singleton oref out) (Map.insert oref out))
 
 -- | Taken from cardano-wallet:
@@ -197,12 +192,12 @@ utxoIndexDeleteEntry :: TxUnspentOutput -> UtxoIndex -> UtxoIndex
 utxoIndexDeleteEntry (inp /\ out) =
   (_utxos %~ Map.delete inp) <<< updateUtxoIndex out deleteEntry
   where
-  deleteEntry :: Asset -> HashMap Asset UtxoMap -> HashMap Asset UtxoMap
-  deleteEntry = HashMap.update (Just <<< Map.delete inp)
+  deleteEntry :: Asset -> Map Asset UtxoMap -> Map Asset UtxoMap
+  deleteEntry = Map.update (Just <<< Map.delete inp)
 
 updateUtxoIndex
   :: TransactionOutput
-  -> (Asset -> HashMap Asset UtxoMap -> HashMap Asset UtxoMap)
+  -> (Asset -> Map Asset UtxoMap -> Map Asset UtxoMap)
   -> UtxoIndex
   -> UtxoIndex
 updateUtxoIndex out manageEntry =
@@ -291,9 +286,9 @@ selectRandomWithFilter utxoIndex selectionFilter =
       SelectAnyWith asset ->
         asset `lookupWith` _indexAnyWith
     where
-    lookupWith :: Asset -> Lens' UtxoIndex (HashMap Asset UtxoMap) -> UtxoMap
+    lookupWith :: Asset -> Lens' UtxoIndex (Map Asset UtxoMap) -> UtxoMap
     lookupWith asset getter =
-      fromMaybe Map.empty $ HashMap.lookup asset (utxoIndex ^. getter)
+      fromMaybe Map.empty $ Map.lookup asset (utxoIndex ^. getter)
 
 --------------------------------------------------------------------------------
 -- Lenses for accessing `UtxoIndex` fields
@@ -302,13 +297,13 @@ selectRandomWithFilter utxoIndex selectionFilter =
 _UtxoIndex :: Iso' UtxoIndex UtxoIndexRec
 _UtxoIndex = iso (\(UtxoIndex rec) -> rec) UtxoIndex
 
-_indexAnyWith :: Lens' UtxoIndex (HashMap Asset UtxoMap)
+_indexAnyWith :: Lens' UtxoIndex (Map Asset UtxoMap)
 _indexAnyWith = _UtxoIndex <<< prop (Proxy :: Proxy "indexAnyWith")
 
-_indexSingletons :: Lens' UtxoIndex (HashMap Asset UtxoMap)
+_indexSingletons :: Lens' UtxoIndex (Map Asset UtxoMap)
 _indexSingletons = _UtxoIndex <<< prop (Proxy :: Proxy "indexSingletons")
 
-_indexPairs :: Lens' UtxoIndex (HashMap Asset UtxoMap)
+_indexPairs :: Lens' UtxoIndex (Map Asset UtxoMap)
 _indexPairs = _UtxoIndex <<< prop (Proxy :: Proxy "indexPairs")
 
 _utxos :: Lens' UtxoIndex UtxoMap
@@ -392,10 +387,10 @@ checkUtxoIndexComplete utxoIndex =
             (_indexAnyWith `hasEntryForAsset` Asset asset)
     where
     hasEntryForAsset
-      :: Lens' UtxoIndex (HashMap Asset UtxoMap) -> Asset -> Boolean
+      :: Lens' UtxoIndex (Map Asset UtxoMap) -> Asset -> Boolean
     hasEntryForAsset getter asset =
       maybe false (eq out) $
-        (Map.lookup oref =<< HashMap.lookup asset (utxoIndex ^. getter))
+        (Map.lookup oref =<< Map.lookup asset (utxoIndex ^. getter))
 
 -- | Check that every indexed entry is required by some entry in the map of all
 -- | utxos.
@@ -409,12 +404,12 @@ checkUtxoIndexMinimal utxoIndex =
     && _indexAnyWith `testEntriesWith` txOutputHasAsset
   where
   testEntriesWith
-    :: Lens' UtxoIndex (HashMap Asset UtxoMap)
+    :: Lens' UtxoIndex (Map Asset UtxoMap)
     -> (TransactionOutput -> Asset -> Boolean)
     -> Boolean
   testEntriesWith subset test' =
     utxoIndex ^. subset
-      # HashMap.toArrayBy Tuple
+      # Map.toUnfoldable
       # Array.all \(asset /\ utxos) ->
           Array.all (entryMatches (flip test' asset)) (Map.toUnfoldable utxos)
     where
@@ -447,4 +442,3 @@ checkUtxoIndexMinimal utxoIndex =
   txOutputAssetCount :: TransactionOutput -> BigInt
   txOutputAssetCount =
     Foldable.length <<< Value.valueAssets <<< _.amount <<< unwrap
-
