@@ -27,7 +27,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 
--- | An array of Bytes containing CBOR data
+-- | An array of bytes containing CBOR data
 newtype CborBytes = CborBytes ByteArray
 
 instance Show CborBytes where
