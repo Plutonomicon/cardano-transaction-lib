@@ -945,10 +945,8 @@ suite = do
 
         let
           datum42 = Datum $ Integer $ BigInt.fromInt 42
-
-        datum42Hash <- liftM (error "Failed to hash datum") $ datumHash datum42
-        datum42Lookup <- liftM (error "Could not make lookup") $ Lookups.datum
-          datum42
+          datum42Hash = datumHash datum42
+          datum42Lookup = Lookups.datum datum42
 
         let
           transactionId :: TransactionHash
