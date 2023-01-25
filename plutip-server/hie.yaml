@@ -1,0 +1,12 @@
+cradle:
+  cabal:
+    - path: "./src"
+      component: "lib:plutip"
+    - path: "./test"
+      component: "test-suite:plutip-tests"
+    - path: "./local-cluster/"
+      component: "exe:local-cluster"
+    - path: "./contract-execution/"
+      component: "exe:contract-execution"
+    - path: "./plutip-server/"
+      component: "exe:plutip-server"

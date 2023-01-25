@@ -23,3 +23,6 @@ test-data/chrome-user-data
 test-data/preview
 tmp
 node_modules
+plutip-server/dist-newstyle/
+plutip-server/.stack-work/
+

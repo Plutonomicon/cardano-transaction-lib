@@ -4,7 +4,7 @@
   nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 
   inputs = {
-    nixpkgs.follows = "ogmios/nixpkgs";
+    nixpkgs.follows = "plutip/nixpkgs";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -12,7 +12,7 @@
     };
 
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    plutip.url = "github:mlabs-haskell/plutip?rev=8d1795d9ac3f9c6f31381104b25c71576eeba009";
+    # plutip.url = "github:mlabs-haskell/plutip?rev=8d1795d9ac3f9c6f31381104b25c71576eeba009";
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
     kupo-nixos.inputs.kupo.follows = "kupo";
 
@@ -40,6 +40,19 @@
     };
     easy-purescript-nix = {
       url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
+      flake = false;
+    };
+
+    # Plutip server related inputs
+    # todo: change this when https://github.com/mlabs-haskell/plutip/pull/169 is merged
+    plutip.url = "github:zmrocze/plutip/plutip-core";
+    haskell-nix.follows = "plutip/haskell-nix";
+    iohk-nix = {
+      follows = "plutip/iohk-nix";
+      flake = false;
+    };
+    CHaP = {
+      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
       flake = false;
     };
   };
@@ -189,6 +202,13 @@
             };
           };
         };
+
+      plutipServerFor = pkgs: import ./plutip-server {
+        inherit pkgs;
+        inherit (inputs) plutip CHaP iohk-nix;
+        inherit (pkgs) system;
+        src = ./plutip-server;
+      };
     in
     {
       overlay = builtins.trace
@@ -226,6 +246,10 @@
             });
           };
         };
+        plutip-server = nixpkgs.lib.composeManyExtensions [
+          inputs.haskell-nix.overlay
+          (import "${inputs.iohk-nix}/overlays/crypto")
+        ];
         runtime =
           (
             final: prev:
@@ -234,7 +258,8 @@
               in
               {
                 plutip-server =
-                  inputs.plutip.packages.${system}."plutip:exe:plutip-server";
+                  (plutipServerFor final).hsPkgs.plutip-server.components.exes.plutip-server;
+                #   inputs.plutip.packages.${system}."plutip:exe:plutip-server"
                 ogmios-datum-cache =
                   inputs.ogmios-datum-cache.defaultPackage.${system};
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
@@ -246,14 +271,21 @@
           );
       };
 
+      # flake from haskell.nix project
+      hsFlake = perSystem (system: (plutipServerFor (nixpkgsFor system)).flake { });
+
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
         default = (psProjectFor (nixpkgsFor system)).devShell;
+
+        # This can be used with `nix develop .#hsDevShell
+        hsDevShell = self.hsFlake.${system}.devShell;
       });
 
       packages = perSystem (system:
         (psProjectFor (nixpkgsFor system)).packages
+        // ((plutipServerFor (nixpkgsFor system)).flake { }).packages
       );
 
       apps = perSystem (system:

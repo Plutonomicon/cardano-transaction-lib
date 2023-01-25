@@ -1,0 +1,96 @@
+cabal-version:      3.0
+name:               plutip-server
+version:            0.2
+license-file:       LICENSE
+author:             mlabs
+maintainer:         TODO
+build-type:         Simple
+extra-source-files: CHANGELOG.md
+
+common common-language
+  default-extensions:
+    BangPatterns
+    DataKinds
+    DeriveAnyClass
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    EmptyDataDecls
+    ExplicitForAll
+    FlexibleContexts
+    FlexibleInstances
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    MonoLocalBinds
+    MultiParamTypeClasses
+    NamedFieldPuns
+    NumericUnderscores
+    OverloadedStrings
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    ScopedTypeVariables
+    StandaloneDeriving
+    TemplateHaskell
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    TypeSynonymInstances
+    ViewPatterns
+
+common common-configs
+  default-language: Haskell2010
+
+common common-ghc-options
+  ghc-options:
+    -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+    -fno-specialize -fno-strictness -fno-warn-orphans -fobject-code
+    -fplugin-opt PlutusTx.Plugin:defer-errors
+
+executable plutip-server
+  import:           common-language
+  import:           common-ghc-options
+  main-is:          Main.hs
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  build-depends:
+    , aeson
+    , async
+    , base
+    , base16-bytestring
+    , bytestring
+    , cardano-api
+    , cardano-ledger-core
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , data-default
+    , directory
+    , exceptions
+    , extra
+    , filepath
+    , http-types
+    , mtl
+    , optparse-applicative
+    , plutip
+    , positive
+    , servant-server
+    , stm
+    , text
+    , time
+    , unliftio
+    , wai
+    , wai-cors
+    , wai-logger
+    , warp
+
+  other-modules:
+    Api
+    Api.Handlers
+    Types
+
+  ghc-options:      -Wall -threaded -rtsopts
