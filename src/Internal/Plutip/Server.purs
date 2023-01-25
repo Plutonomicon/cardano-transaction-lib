@@ -266,7 +266,7 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
 
     txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
     awaitTxConfirmed txHash
-    let fundTotal = Array.foldr (flip (Array.foldr (+))) zero distrArray
+    let fundTotal = Array.foldr (+) zero $ join distrArray
     -- Use log so we can see, regardless of suppression
     log $ joinWith " "
       [ "Sent"
