@@ -4,8 +4,9 @@
 -- | address, (2) mints the specified non-Ada value (3) then sends it to the
 -- | owner's address with a datum attached.
 module Ctl.Examples.ContractTestUtils
-  ( ContractParams(ContractParams)
-  , contract
+  ( ContractParams
+  , mkContract
+  , mkChecks
   ) where
 
 import Contract.Prelude
@@ -29,12 +30,18 @@ import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
-import Contract.Test.Utils
-  ( ContractBasicAssertion
-  , ContractWrapAssertion
+import Contract.Test.Assert
+  ( ContractCheck
+  , assertOutputHasDatum
+  , assertOutputHasRefScript
+  , assertTxHasMetadata
+  , assertionToCheck
+  , checkExUnitsNotExceed
+  , checkGainAtAddress'
+  , checkLossAtAddress
+  , checkTokenGainAtAddress'
   , label
   )
-import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( TransactionHash
   , TransactionOutputWithRefScript
@@ -56,9 +63,10 @@ import Contract.Value (lovelaceValueOf, singleton) as Value
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Lens (view)
 
-newtype ContractParams = ContractParams
+type ContractParams =
   { receiverPkh :: PaymentPubKeyHash
   , receiverSkh :: Maybe StakePubKeyHash
   , adaToSend :: BigInt
@@ -68,55 +76,55 @@ newtype ContractParams = ContractParams
   , txMetadata :: Cip25Metadata
   }
 
-derive instance Newtype ContractParams _
-
 type ContractResult =
   { txHash :: TransactionHash
   , txFinalFee :: BigInt
   , txOutputUnderTest :: TransactionOutputWithRefScript
   }
 
-mkAssertions
+mkChecks
   :: ContractParams
-  -> Contract
-       ( Array (ContractWrapAssertion ContractResult)
-           /\ Array (ContractBasicAssertion ContractResult Unit)
-       )
-mkAssertions params@(ContractParams p) = do
+  -> Contract (Array (ContractCheck ContractResult))
+mkChecks p = do
   senderAddress <-
     liftedM "Failed to get sender address" $ head <$> getWalletAddresses
   receiverAddress <-
-    liftedM "Failed to get receiver address" (getReceiverAddress params)
+    liftedM "Failed to get receiver address" (getReceiverAddress p)
   let dhash = datumHash p.datumToAttach
   pure
-    $
-      [ TestUtils.assertGainAtAddress' (label receiverAddress "Receiver")
-          p.adaToSend
+    [ checkGainAtAddress' (label receiverAddress "Receiver")
+        p.adaToSend
 
-      , TestUtils.assertLossAtAddress (label senderAddress "Sender")
-          \{ txFinalFee } -> pure (p.adaToSend + txFinalFee)
+    , checkLossAtAddress (label senderAddress "Sender")
+        case _ of
+          Just { txFinalFee } -> pure (p.adaToSend + txFinalFee)
+          Nothing -> pure zero
 
-      , TestUtils.assertTokenGainAtAddress' (label senderAddress "Sender")
-          ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
-              p.tokensToMint
-          )
-      ]
-    /\
-      [ \{ txOutputUnderTest } ->
-          TestUtils.assertOutputHasDatum (OutputDatumHash dhash)
+    , checkTokenGainAtAddress' (label senderAddress "Sender")
+        ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
+            p.tokensToMint
+        )
+
+    , checkExUnitsNotExceed
+        { mem: BigInt.fromInt 800, steps: BigInt.fromInt 161100 }
+
+    , assertionToCheck "Sender's output has a datum"
+        \{ txOutputUnderTest } ->
+          assertOutputHasDatum (OutputDatumHash dhash)
             (label txOutputUnderTest "Sender's output with datum hash")
 
-      , \{ txOutputUnderTest } ->
-          TestUtils.assertOutputHasRefScript
+    , assertionToCheck "Output has a reference script"
+        \{ txOutputUnderTest } ->
+          assertOutputHasRefScript
             (scriptRefFromMintingPolicy p.mintingPolicy)
             (label txOutputUnderTest "Sender's output with reference script")
 
-      , \{ txHash } ->
-          TestUtils.assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
-      ]
+    , assertionToCheck "Contains CIP-25 metadata" \{ txHash } ->
+        assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
+    ]
 
-contract :: ContractParams -> Contract Unit
-contract params@(ContractParams p) = do
+mkContract :: ContractParams -> Contract ContractResult
+mkContract p = do
   logInfo' "Running Examples.ContractTestUtils"
   ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   ownSkh <- join <<< head <$> ownStakePubKeysHashes
@@ -147,33 +155,31 @@ contract params@(ContractParams p) = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy p.mintingPolicy
 
-  assertions <- mkAssertions params
-  void $ TestUtils.withAssertions assertions do
-    unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
-    balancedTx <- liftedE $ balanceTx unbalancedTxWithMetadata
-    balancedSignedTx <- signTransaction balancedTx
+  unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
+  balancedTx <- liftedE $ balanceTx unbalancedTxWithMetadata
+  balancedSignedTx <- signTransaction balancedTx
 
-    txId <- submit balancedSignedTx
-    logInfo' $ "Tx ID: " <> show txId
+  txId <- submit balancedSignedTx
+  logInfo' $ "Tx ID: " <> show txId
 
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully!"
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully!"
 
-    senderAddress <- liftedM "Failed to get sender address" $ head <$>
-      getWalletAddresses
-    utxos <- utxosAt senderAddress
+  senderAddress <- liftedM "Failed to get sender address" $ head <$>
+    getWalletAddresses
+  utxos <- utxosAt senderAddress
 
-    txOutputUnderTest <-
-      view _output <$>
-        liftContractM "Could not find required unspent output with datum hash"
-          (find hasDatumHash $ lookupTxHash txId utxos)
+  txOutputUnderTest <-
+    view _output <$>
+      liftContractM "Could not find required unspent output with datum hash"
+        (find hasDatumHash $ lookupTxHash txId utxos)
 
-    pure
-      { txHash: txId
-      , txFinalFee: getTxFinalFee balancedSignedTx
-      , txOutputUnderTest
-      }
+  pure
+    { txHash: txId
+    , txFinalFee: getTxFinalFee balancedSignedTx
+    , txOutputUnderTest
+    }
   where
   hasDatumHash :: TransactionUnspentOutput -> Boolean
   hasDatumHash = view _output >>> unwrap >>> _.output >>> unwrap >>> _.datum >>>
@@ -182,7 +188,7 @@ contract params@(ContractParams p) = do
       _ -> false
 
 getReceiverAddress :: ContractParams -> Contract (Maybe Address)
-getReceiverAddress (ContractParams { receiverPkh, receiverSkh }) =
+getReceiverAddress { receiverPkh, receiverSkh } =
   getNetworkId <#> \networkId ->
     case receiverSkh of
       Just skh ->

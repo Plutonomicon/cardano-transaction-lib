@@ -32,8 +32,14 @@ import Contract.Scripts
   , PlutusScript
   , applyArgs
   )
-import Contract.Test.Utils (ContractWrapAssertion, Labeled, label)
-import Contract.Test.Utils as TestUtils
+import Contract.Test.Assert
+  ( ContractCheck
+  , Labeled
+  , checkLossAtAddress
+  , checkTokenGainAtAddress'
+  , label
+  , runChecks
+  )
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Contract.Transaction
   ( TransactionInput
@@ -45,10 +51,8 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Control.Monad.Trans.Class (lift)
+import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
@@ -62,19 +66,21 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-mkAssertions
+mkChecks
   :: Address
   -> (CurrencySymbol /\ TokenName /\ BigInt)
-  -> Array (ContractWrapAssertion { txFinalFee :: BigInt })
-mkAssertions ownAddress nft =
+  -> Array (ContractCheck { txFinalFee :: BigInt })
+mkChecks ownAddress nft =
   let
     labeledOwnAddress :: Labeled Address
     labeledOwnAddress = label ownAddress "ownAddress"
   in
-    [ TestUtils.assertTokenGainAtAddress' labeledOwnAddress nft
+    [ checkTokenGainAtAddress' labeledOwnAddress nft
 
-    , TestUtils.assertLossAtAddress labeledOwnAddress
-        \{ txFinalFee } -> pure txFinalFee
+    , checkLossAtAddress labeledOwnAddress
+        case _ of
+          Nothing -> pure zero
+          Just { txFinalFee } -> pure txFinalFee
     ]
 
 contract :: Contract Unit
@@ -109,8 +115,8 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
       Lookups.mintingPolicy mp
         <> Lookups.unspentOutputs utxos
 
-  let assertions = mkAssertions ownAddress (cs /\ tn /\ one)
-  void $ TestUtils.withAssertions assertions do
+  let checks = mkChecks ownAddress (cs /\ tn /\ one)
+  void $ runChecks checks $ lift do
     { txHash, txFinalFee } <-
       submitTxFromConstraintsReturningFee lookups constraints
     logInfo' $ "Tx ID: " <> show txHash
@@ -141,4 +147,3 @@ mkOneShotMintingPolicy unappliedMintingPolicy oref =
     mintingPolicyArgs = Array.singleton (toData oref)
   in
     applyArgs unappliedMintingPolicy mintingPolicyArgs
-
