@@ -30,6 +30,7 @@ module Contract.Transaction
   , reindexSpentScriptRedeemers
   , signTransaction
   , submit
+  , submitE
   , submitTxFromConstraints
   , submitTxFromConstraintsReturningFee
   , withBalancedTx
@@ -41,6 +42,7 @@ module Contract.Transaction
 import Prelude
 
 import Aeson (class EncodeAeson)
+import Contract.ClientError (ClientError)
 import Contract.Metadata (GeneralTransactionMetadata)
 import Contract.Monad
   ( Contract
@@ -295,10 +297,19 @@ submit
   :: BalancedSignedTransaction
   -> Contract TransactionHash
 submit tx = do
-  queryHandle <- getQueryHandle
-  eiTxHash <- liftAff $ queryHandle.submitTx $ unwrap tx
+  eiTxHash <- submitE tx
   liftEither $ flip lmap eiTxHash \err -> error $
     "Failed to submit tx:\n" <> show err
+
+-- | Submits a `BalancedSignedTransaction`, which is the output of
+-- | `signTransaction`. Preserves the errors returned by the backend in
+-- | the case they need to be inspected.
+submitE
+  :: BalancedSignedTransaction
+  -> Contract (Either ClientError TransactionHash)
+submitE tx = do
+  queryHandle <- getQueryHandle
+  liftAff $ queryHandle.submitTx $ unwrap tx
 
 -- | Calculate the minimum transaction fee.
 calculateMinFee
