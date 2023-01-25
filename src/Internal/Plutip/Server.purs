@@ -136,7 +136,7 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect.Aff (Aff, Milliseconds(Milliseconds), delay, try)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
@@ -675,7 +675,7 @@ startPlutipCluster cfg keysToGenerate = do
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
-    total = Array.foldl (sum >>> add) zero utxoDistribution
+    total = Array.foldr (sum >>> add) zero utxoDistribution
   in
     [ -- Take the total value of the utxos and add some extra on top
       -- of it to cover the possible transaction fees. Also make sure
