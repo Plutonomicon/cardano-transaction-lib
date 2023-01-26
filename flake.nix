@@ -44,9 +44,9 @@
     };
 
     # Plutip server related inputs
-    # todo: change this when https://github.com/mlabs-haskell/plutip/pull/169 is merged
+    # TODO: change this when https://github.com/mlabs-haskell/plutip/pull/169 is merged
     plutip.url = "github:zmrocze/plutip/plutip-core";
-    haskell-nix.follows = "plutip/haskell-nix";
+    haskell-nix.url = "github:mlabs-haskell/haskell.nix";
     iohk-nix = {
       follows = "plutip/iohk-nix";
       flake = false;
