@@ -23,7 +23,6 @@ import Ctl.Internal.BalanceTx.Types
   , askCostModelsForLanguages
   , askNetworkId
   , asksConstraints
-  , liftEitherQueryM
   , liftQueryM
   )
 import Ctl.Internal.Cardano.Types.ScriptRef as ScriptRef
@@ -42,8 +41,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
+import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
-import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios) as QueryM
 import Ctl.Internal.QueryM.MinFee (calculateMinFee) as QueryM
 import Ctl.Internal.QueryM.Ogmios
@@ -124,8 +123,8 @@ evalExUnitsAndMinFee
   -> BalanceTxM (UnattachedUnbalancedTx /\ BigInt)
 evalExUnitsAndMinFee (PrebalancedTransaction unattachedTx) allUtxos = do
   -- Reindex `Spent` script redeemers:
-  reindexedUnattachedTx <- liftEitherQueryM $
-    reindexRedeemers unattachedTx <#> lmap ReindexRedeemersError
+  reindexedUnattachedTx <- liftEither $
+    reindexRedeemers unattachedTx # lmap ReindexRedeemersError
   -- Reattach datums and redeemers before evaluating ex units:
   let attachedTx = reattachDatumsAndRedeemers reindexedUnattachedTx
   -- Evaluate transaction ex units:
@@ -198,14 +197,14 @@ finalizeTransaction reindexedUnattachedTxWithExUnits utxos = do
 
 reindexRedeemers
   :: UnattachedUnbalancedTx
-  -> QueryM (Either ReindexErrors UnattachedUnbalancedTx)
+  -> Either ReindexErrors UnattachedUnbalancedTx
 reindexRedeemers
   unattachedTx@(UnattachedUnbalancedTx { redeemersTxIns }) =
   let
     inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
   in
     reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
-      map \redeemersTxInsReindexed ->
+      \redeemersTxInsReindexed ->
         unattachedTx # _redeemersTxIns .~ redeemersTxInsReindexed
 
 reattachDatumsAndRedeemers :: UnattachedUnbalancedTx -> Transaction
