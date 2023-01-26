@@ -542,7 +542,8 @@ reindexSpentScriptRedeemers
            (Array Transaction.Redeemer)
        )
 reindexSpentScriptRedeemers balancedTx =
-  wrapContract <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx
+  wrapContract <<< pure <<< ReindexRedeemers.reindexSpentScriptRedeemers
+    balancedTx
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 
