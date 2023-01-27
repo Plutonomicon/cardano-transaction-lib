@@ -136,7 +136,7 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect.Aff (Aff, Milliseconds(Milliseconds), delay, try)
+import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
@@ -230,7 +230,12 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       ( backupWallets env walletsArray *> fundWallets env walletsArray
           distrArray
       )
-      (returnFunds env walletsArray)
+      -- Retry fund returning until success or timeout. Submission will fail if
+      -- the node has seen the wallets utxos being spent previously, so retrying
+      -- will allow the wallets utxos to eventually represent a spendable set
+      ( \funds -> recovering returnFundsRetryPolicy ([ \_ _ -> pure true ])
+          \_ -> returnFunds env walletsArray funds
+      )
       \_ -> runContract
   where
   pureProxy :: forall (a :: Type). a -> Proxy a
@@ -261,36 +266,23 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
 
     txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
     awaitTxConfirmed txHash
-    let fundTotal = Array.foldr (flip (Array.foldr (+))) zero distrArray
+    let fundTotal = Array.foldl (+) zero $ join distrArray
     -- Use log so we can see, regardless of suppression
     log $ joinWith " "
       [ "Sent"
-      , show fundTotal
+      , BigInt.toString fundTotal
       , "lovelace to test wallets"
       ]
     pure fundTotal
 
+  returnFundsRetryPolicy :: RetryPolicy
+  returnFundsRetryPolicy = limitRetriesByCumulativeDelay
+    (Milliseconds 30_000.00)
+    (constantDelay $ Milliseconds 2_000.0)
+
   returnFunds :: ContractEnv -> Array KeyWallet -> BigInt -> Aff Unit
   returnFunds env walletsArray fundTotal = runContractInEnv env do
     logTrace' "Returning wallet funds"
-    log "here1"
-
-    -- We could delay until there's a delta?
-    let
-      go 0 = pure unit
-      go n = do
-        utxos <- Map.unions <<< fold <$> for walletsArray
-          (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
-        let
-          v = Array.foldr
-            (\txorf acc -> acc + valueToCoin' (txorf ^. _output ^. _amount))
-            zero
-            (Array.fromFoldable $ Map.values utxos)
-        log $ show v
-        liftAff $ delay $ wrap $ 2000.0
-        go (n - 1)
-
-    go 10
 
     utxos <- Map.unions <<< fold <$> for walletsArray
       (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
@@ -298,38 +290,32 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
     pkhs <- fold <$> for walletsArray
       (flip withKeyWallet ownPaymentPubKeysHashes)
 
-    log "here2"
     let
       constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
         <> foldMap mustBeSignedBy pkhs
       lookups = unspentOutputs utxos
 
     unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
-    log "here3"
     balancedTx <- liftedE $ balanceTx unbalancedTx
-    log "here4"
     balancedSignedTx <- Array.foldM
       (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
       (wrap $ unwrap balancedTx)
       walletsArray
-    log "here5"
-    -- We failed to submit
-    txHash <- try $ submit balancedSignedTx
-    log "here6"
-    either (log <<< show) awaitTxConfirmed txHash
-    log "here7"
+
+    txHash <- submit balancedSignedTx
+    awaitTxConfirmed txHash
 
     let
-      (refundTotal :: BigInt) = Array.foldr
-        (\txorf acc -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+      (refundTotal :: BigInt) = Array.foldl
+        (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
         zero
         (Array.fromFoldable $ Map.values utxos)
 
     log $ joinWith " "
       [ "Refunded"
-      , show refundTotal
+      , BigInt.toString refundTotal
       , "of"
-      , show fundTotal
+      , BigInt.toString fundTotal
       , "lovelace from test wallets"
       ]
 

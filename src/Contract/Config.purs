@@ -1,7 +1,6 @@
 -- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ContractParams`.
 module Contract.Config
   ( testnetConfig
-  , testnetBlockfrostDevConfig
   , testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
@@ -33,7 +32,6 @@ import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad (ContractParams)
 import Ctl.Internal.Contract.QueryBackend
   ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
-  , defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   , mkCtlBackendParams
   )
@@ -67,7 +65,6 @@ import Ctl.Internal.Wallet.Spec
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.UInt as UInt
 
 testnetConfig :: ContractParams
 testnetConfig =
@@ -75,33 +72,6 @@ testnetConfig =
       { ogmiosConfig: defaultOgmiosWsConfig
       , kupoConfig: defaultKupoServerConfig
       }
-  , networkId: TestnetId
-  , walletSpec: Nothing
-  , logLevel: Trace
-  , customLogger: Nothing
-  , suppressLogs: false
-  , hooks: emptyHooks
-  }
-
--- | Blockfrost public preview with CTL as backup
--- | Does not use the Kupo webpack proxy
-testnetBlockfrostDevConfig :: Maybe String -> ContractParams
-testnetBlockfrostDevConfig mbApiKey =
-  { backendParams: BlockfrostBackendParams
-      { blockfrostApiKey: mbApiKey
-      , blockfrostConfig: blockfrostPublicPreviewServerConfig
-      , confirmTxDelay: defaultConfirmTxDelay
-      }
-      ( Just
-          { ogmiosConfig: defaultOgmiosWsConfig
-          , kupoConfig:
-              { port: UInt.fromInt 1442
-              , host: "localhost"
-              , secure: false
-              , path: Nothing
-              }
-          }
-      )
   , networkId: TestnetId
   , walletSpec: Nothing
   , logLevel: Trace

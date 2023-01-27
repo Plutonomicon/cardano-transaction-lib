@@ -20,12 +20,15 @@ import Contract.BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
 import Contract.ScriptLookups as Lookups
-import Contract.Test.Utils
+import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
-  , ContractBasicAssertion
+  , ContractCheck
+  , assertContract
+  , assertionToCheck
+  , checkNewUtxosAtAddress
   , label
+  , runChecks
   )
-import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput
@@ -39,6 +42,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (singleton, valueOf) as Value
 import Contract.Wallet (KeyWallet, withKeyWallet)
+import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
@@ -63,18 +67,18 @@ type ContractResult =
 -- | correctly, i.e. their token quantities do not exceed the specified upper
 -- | limit of 4 tokens per change output.
 assertChangeOutputsPartitionedCorrectly
-  :: ContractBasicAssertion ContractResult Unit
-assertChangeOutputsPartitionedCorrectly
-  { txHash, changeAddress: addr, mintedToken: cs /\ tn } = do
-  let labeledAddr = label addr "changeAddress"
-  TestUtils.runContractAssertionM' $
-    TestUtils.checkNewUtxosAtAddress labeledAddr txHash \changeOutputs -> do
+  :: ContractCheck ContractResult
+assertChangeOutputsPartitionedCorrectly = assertionToCheck
+  "Change is correctly partitioned"
+  \{ txHash, changeAddress: addr, mintedToken: cs /\ tn } -> do
+    let labeledAddr = label addr "changeAddress"
+    checkNewUtxosAtAddress labeledAddr txHash \changeOutputs -> do
       let
         assertionFailure :: ContractAssertionFailure
         assertionFailure =
           CustomFailure "Change outputs were not partitioned correctly"
 
-      TestUtils.assertContract assertionFailure do
+      assertContract assertionFailure do
         let
           values :: Array Value
           values =
@@ -89,20 +93,21 @@ assertChangeOutputsPartitionedCorrectly
 -- | Checks that the utxo with the specified output reference
 -- | (`nonSpendableOref`) is not consumed during transaction balancing.
 assertSelectedUtxoIsNotSpent
-  :: ContractBasicAssertion ContractResult Unit
-assertSelectedUtxoIsNotSpent { changeAddress, nonSpendableOref } =
-  TestUtils.runContractAssertionM' do
-    utxos <- TestUtils.utxosAtAddress (label changeAddress "changeAddress")
-    let
-      assertionFailure :: ContractAssertionFailure
-      assertionFailure =
-        CustomFailure "The utxo marked as non-spendable has been spent"
+  :: ContractCheck ContractResult
+assertSelectedUtxoIsNotSpent =
+  assertionToCheck "Non-spendable UTxO hasn't been spent"
+    \{ changeAddress, nonSpendableOref } -> do
+      utxos <- lift $ utxosAt changeAddress
+      let
+        assertionFailure :: ContractAssertionFailure
+        assertionFailure =
+          CustomFailure "The utxo marked as non-spendable has been spent"
 
-    TestUtils.assertContract assertionFailure $
-      Map.member nonSpendableOref utxos
+      assertContract assertionFailure $
+        Map.member nonSpendableOref utxos
 
-assertions :: Array (ContractBasicAssertion ContractResult Unit)
-assertions =
+checks :: Array (ContractCheck ContractResult)
+checks =
   [ assertChangeOutputsPartitionedCorrectly
   , assertSelectedUtxoIsNotSpent
   ]
@@ -146,7 +151,7 @@ contract (ContractParams p) = do
         <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
-  void $ TestUtils.withAssertions assertions do
+  void $ runChecks checks $ lift do
     unbalancedTx <-
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 

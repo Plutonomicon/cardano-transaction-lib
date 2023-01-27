@@ -27,13 +27,7 @@ import Contract.Metadata
   , TransactionMetadatum(Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
-import Contract.Monad
-  ( Contract
-  , liftContractE
-  , liftContractM
-  , liftedE
-  , liftedM
-  )
+import Contract.Monad (Contract, liftContractE, liftContractM, liftedE, liftedM)
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -53,6 +47,7 @@ import Contract.Scripts
   , mintingPolicyHash
   , validatorHash
   )
+import Contract.Test.Assert (runChecks)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
@@ -84,6 +79,7 @@ import Contract.Value (Coin(Coin), coinToValue)
 import Contract.Value as Value
 import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
 import Control.Monad.Error.Class (try)
+import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
@@ -1255,16 +1251,21 @@ suite = do
 
         tn <- mkTokenName "TheToken"
 
-        withKeyWallet alice $ ContractTestUtils.contract $
-          ContractTestUtils.ContractParams
-            { receiverPkh
-            , receiverSkh
-            , adaToSend: BigInt.fromInt 5_000_000
-            , mintingPolicy
-            , tokensToMint: cs /\ tn /\ one /\ unit
-            , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-            , txMetadata: cip25MetadataFixture1
-            }
+        withKeyWallet alice do
+          let
+            params =
+              { receiverPkh
+              , receiverSkh
+              , adaToSend: BigInt.fromInt 5_000_000
+              , mintingPolicy
+              , tokensToMint: cs /\ tn /\ one /\ unit
+              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
+              , txMetadata: cip25MetadataFixture1
+              }
+
+          checks <- ContractTestUtils.mkChecks params
+          void $ runChecks checks $ lift do
+            ContractTestUtils.mkContract params
 
     test "Examples.BalanceTxConstraints" do
       let
@@ -1280,7 +1281,10 @@ suite = do
           BalanceTxConstraintsExample.ContractParams
             { aliceKeyWallet: alice, bobKeyWallet: bob }
 
-    skip $ group "Evaluation with additional UTxOs and tx chaining" do
+    -- FIXME These tests never require additionalUtxos to succeed. They do
+    -- not invoke a script.
+    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1392
+    group "Evaluation with additional UTxOs and tx chaining" do
       test "Examples.TxChaining" $
         let
           distribution :: InitialUTxOs

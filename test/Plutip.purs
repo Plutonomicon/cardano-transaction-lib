@@ -32,6 +32,7 @@ import Mote (group, test)
 import Mote.Monad (mapTest)
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
+import Test.Ctl.Plutip.Contract.Assert as Assert
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
@@ -46,6 +47,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
     Utils.interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
       $ group "Plutip" do
+          testPlutipContracts config Assert.suite
           Logging.suite
           testStartPlutipCluster
           testPlutipContracts config $ do
