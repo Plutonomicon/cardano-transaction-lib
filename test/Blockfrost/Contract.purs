@@ -4,6 +4,7 @@ module Test.Ctl.Blockfrost.Contract (main, suite) where
 
 import Prelude
 
+import Ctl.Internal.Contract.QueryBackend (defaultConfirmTxDelay)
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , ServerConfig
@@ -60,6 +61,7 @@ suite blockfrostConfig apiKey privateKey backupKeys = do
       { backendParams = mkBlockfrostBackendParams
           { blockfrostConfig
           , blockfrostApiKey: Just apiKey
+          , confirmTxDelay: defaultConfirmTxDelay
           }
       , walletSpec = Just $ UseKeys
           (PrivatePaymentKeyFile privateKey)
