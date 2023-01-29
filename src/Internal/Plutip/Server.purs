@@ -492,8 +492,9 @@ startPlutipCluster cfg keysToGenerate = do
         $ (decodeAeson <=< parseJsonStringToAeson) body
   either (liftEffect <<< throw <<< show) pure res >>=
     case _ of
-      ClusterStartupFailure _ -> do
-        liftEffect $ throw "Failed to start up cluster"
+      ClusterStartupFailure reason -> do
+        liftEffect $ throw $
+          "Failed to start up cluster. Reason: " <> show reason
       ClusterStartupSuccess response@{ privateKeys } ->
         case Array.uncons privateKeys of
           Nothing ->

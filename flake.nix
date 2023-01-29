@@ -4,7 +4,8 @@
   nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 
   inputs = {
-    nixpkgs.follows = "plutip/nixpkgs";
+    nixpkgs.follows = "ogmios/nixpkgs";
+    # nixpkgs = "nixpkgs";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -13,7 +14,7 @@
 
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
     # plutip.url = "github:mlabs-haskell/plutip?rev=8d1795d9ac3f9c6f31381104b25c71576eeba009";
-    kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/438799a67d0e6e17f21b7b3d0ae1b6325e505c61";
+    kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
     kupo-nixos.inputs.kupo.follows = "kupo";
 
     kupo = {
@@ -46,6 +47,7 @@
     # Plutip server related inputs
     # TODO: change this when https://github.com/mlabs-haskell/plutip/pull/169 is merged
     plutip.url = "github:zmrocze/plutip/plutip-core";
+    plutip-nixpkgs.follows = "plutip/nixpkgs";
     haskell-nix.url = "github:mlabs-haskell/haskell.nix";
     iohk-nix = {
       follows = "plutip/iohk-nix";
@@ -176,7 +178,7 @@
               name = "ctl-e2e-test";
               testMain = "Test.Ctl.E2E";
               env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
-              buildInputs = [ inputs.kupo-nixos.defaultPackage.${pkgs.system} ];
+              buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
@@ -203,12 +205,22 @@
           };
         };
 
-      plutipServerFor = pkgs: import ./plutip-server {
-        inherit pkgs;
-        inherit (inputs) plutip CHaP iohk-nix;
-        inherit (pkgs) system;
-        src = ./plutip-server;
-      };
+        plutipServerFor = system: 
+        let 
+          pkgs = import inputs.plutip-nixpkgs { 
+            inherit system; 
+            overlays = [
+              inputs.haskell-nix.overlay
+              (import "${inputs.iohk-nix}/overlays/crypto")
+            ];
+        };
+        in
+        import ./plutip-server {
+          inherit pkgs;
+          inherit (inputs) plutip CHaP iohk-nix;
+          inherit (pkgs) system;
+          src = ./plutip-server;
+        };
     in
     {
       overlay = builtins.trace
@@ -246,10 +258,10 @@
             });
           };
         };
-        plutip-server = nixpkgs.lib.composeManyExtensions [
-          inputs.haskell-nix.overlay
-          (import "${inputs.iohk-nix}/overlays/crypto")
-        ];
+        # plutip-server = nixpkgs.lib.composeManyExtensions [
+        #   inputs.haskell-nix.overlay
+        #   (import "${inputs.iohk-nix}/overlays/crypto")
+        # ];
         runtime =
           (
             final: prev:
@@ -258,12 +270,12 @@
               in
               {
                 plutip-server =
-                  (plutipServerFor final).hsPkgs.plutip-server.components.exes.plutip-server;
-                #   inputs.plutip.packages.${system}."plutip:exe:plutip-server"
+                  (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
+                #  inputs.plutip.packages.${system}."plutip:exe:plutip-server"
                 ogmios-datum-cache =
                   inputs.ogmios-datum-cache.defaultPackage.${system};
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
-                kupo = inputs.kupo-nixos.defaultPackage.${system};
+                kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
                 inherit cardano-configurations;
@@ -272,7 +284,7 @@
       };
 
       # flake from haskell.nix project
-      hsFlake = perSystem (system: (plutipServerFor (nixpkgsFor system)).flake { });
+      hsFlake = perSystem (system: (plutipServerFor system).flake { });
 
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
@@ -285,7 +297,7 @@
 
       packages = perSystem (system:
         (psProjectFor (nixpkgsFor system)).packages
-        // ((plutipServerFor (nixpkgsFor system)).flake { }).packages
+        // ((plutipServerFor system).flake { }).packages
       );
 
       apps = perSystem (system:

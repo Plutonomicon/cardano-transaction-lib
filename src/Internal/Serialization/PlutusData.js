@@ -6,6 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 exports._mkPlutusData_bytes = bytes => lib.PlutusData.new_bytes(bytes);
 exports._mkPlutusData_list = list => lib.PlutusData.new_list(list);

@@ -93,7 +93,7 @@ let
       # available in the shell environment. This can help with ensuring that
       # any e2e tests that you write and run with `Contract.Test.E2E` are
       # reproducible
-    , withChromium ? false
+    , withChromium ? true
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       with pkgs.lib;
@@ -389,6 +389,8 @@ let
       # Generated `node_modules` in the Nix store. Can be passed to have better
       # control over individual project components
     , nodeModules ? projectNodeModules
+      # If the spago bundle-module output should be included in the derivation
+    , includeBundledModule ? false
     , ...
     }: pkgs.runCommand "${name}"
       {
@@ -412,6 +414,7 @@ let
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
         mkdir ./dist
+        ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
         webpack --mode=production -c ${webpackConfig} -o ./dist \
           --entry ./${entrypoint}
         mkdir $out
