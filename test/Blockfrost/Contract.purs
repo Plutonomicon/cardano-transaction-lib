@@ -35,7 +35,7 @@ main = do
       launchAff_ do
         interpretWithConfig
           defaultConfig
-            { timeout = Just $ convertDuration $ 5.0 # Minutes }
+            { timeout = Just $ convertDuration $ 10.0 # Minutes }
           (suite blockfrostConfig apiKey privateKey backupKeys)
     _ -> do
       log $ joinWith "\n"

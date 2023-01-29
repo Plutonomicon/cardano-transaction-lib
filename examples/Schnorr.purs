@@ -76,7 +76,7 @@ prepTest = do
 
 -- | Attempt to unlock one utxo using an ECDSA signature
 testVerification
-  :: TransactionHash -> SchnorrRedeemer -> Contract () TransactionHash
+  :: TransactionHash -> SchnorrRedeemer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
@@ -108,7 +108,7 @@ testVerification txId ecdsaRed = do
   pure txId'
 
 -- | Testing ECDSA verification function on-chain
-testSchnorr :: TransactionHash -> Contract () TransactionHash
+testSchnorr :: TransactionHash -> Contract TransactionHash
 testSchnorr txId = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
