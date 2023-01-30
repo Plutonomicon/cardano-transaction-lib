@@ -1281,6 +1281,9 @@ suite = do
           BalanceTxConstraintsExample.ContractParams
             { aliceKeyWallet: alice, bobKeyWallet: bob }
 
+    -- FIXME These tests never require additionalUtxos to succeed. They do
+    -- not invoke a script.
+    -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1392
     group "Evaluation with additional UTxOs and tx chaining" do
       test "Examples.TxChaining" $
         let

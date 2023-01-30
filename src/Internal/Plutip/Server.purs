@@ -27,6 +27,7 @@ import Contract.Address
   )
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
+import Contract.Log (logTrace')
 import Contract.Monad
   ( Contract
   , ContractEnv
@@ -43,6 +44,7 @@ import Contract.Transaction
   , submitTxFromConstraints
   )
 import Contract.Utxos (utxosAt)
+import Contract.Value (valueToCoin')
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key
   ( keyWalletPrivatePaymentKey
@@ -95,6 +97,7 @@ import Ctl.Internal.Plutip.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
+import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
 import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
 import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Service.Error
@@ -114,15 +117,18 @@ import Ctl.Internal.Wallet (KeyWallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), either, isLeft)
 import Data.Foldable (fold, sum)
 import Data.HTTP.Method as Method
+import Data.Lens ((^.))
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (over, unwrap, wrap)
+import Data.String (joinWith)
 import Data.String.CodeUnits as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse, traverse_)
@@ -140,6 +146,7 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -213,7 +220,9 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       walletsArray = keyWallets (pureProxy distr) wallets
 
       runContract :: Aff Unit
-      runContract = runContractInEnv env { wallet = Nothing } $ mkTest wallets
+      runContract = runContractInEnv env { wallet = Nothing } do
+        logTrace' "Running contract"
+        mkTest wallets
 
     if Array.null walletsArray then
       runContract
@@ -221,7 +230,12 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       ( backupWallets env walletsArray *> fundWallets env walletsArray
           distrArray
       )
-      (\_ -> returnFunds env walletsArray)
+      -- Retry fund returning until success or timeout. Submission will fail if
+      -- the node has seen the wallets utxos being spent previously, so retrying
+      -- will allow the wallets utxos to eventually represent a spendable set
+      ( \funds -> recovering returnFundsRetryPolicy ([ \_ _ -> pure true ])
+          \_ -> returnFunds env walletsArray funds
+      )
       \_ -> runContract
   where
   pureProxy :: forall (a :: Type). a -> Proxy a
@@ -242,8 +256,9 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       (Path.concat [ folder, "stake_signing_key" ])
 
   fundWallets
-    :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff Unit
+    :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigInt
   fundWallets env walletsArray distrArray = runContractInEnv env do
+    logTrace' "Funding wallets"
     let
       constraints = flip foldMap (Array.zip walletsArray distrArray)
         \(wallet /\ walletDistr) -> flip foldMap walletDistr
@@ -251,11 +266,27 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
 
     txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
     awaitTxConfirmed txHash
+    let fundTotal = Array.foldl (+) zero $ join distrArray
+    -- Use log so we can see, regardless of suppression
+    log $ joinWith " "
+      [ "Sent"
+      , BigInt.toString fundTotal
+      , "lovelace to test wallets"
+      ]
+    pure fundTotal
 
-  returnFunds :: ContractEnv -> Array KeyWallet -> Aff Unit
-  returnFunds env walletsArray = runContractInEnv env do
+  returnFundsRetryPolicy :: RetryPolicy
+  returnFundsRetryPolicy = limitRetriesByCumulativeDelay
+    (Milliseconds 30_000.00)
+    (constantDelay $ Milliseconds 2_000.0)
+
+  returnFunds :: ContractEnv -> Array KeyWallet -> BigInt -> Aff Unit
+  returnFunds env walletsArray fundTotal = runContractInEnv env do
+    logTrace' "Returning wallet funds"
+
     utxos <- Map.unions <<< fold <$> for walletsArray
       (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
+
     pkhs <- fold <$> for walletsArray
       (flip withKeyWallet ownPaymentPubKeysHashes)
 
@@ -270,8 +301,23 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
       (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
       (wrap $ unwrap balancedTx)
       walletsArray
+
     txHash <- submit balancedSignedTx
     awaitTxConfirmed txHash
+
+    let
+      (refundTotal :: BigInt) = Array.foldl
+        (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+        zero
+        (Array.fromFoldable $ Map.values utxos)
+
+    log $ joinWith " "
+      [ "Refunded"
+      , BigInt.toString refundTotal
+      , "of"
+      , BigInt.toString fundTotal
+      , "lovelace from test wallets"
+      ]
 
   mustPayToKeyWallet
     :: forall (i :: Type) (o :: Type)
