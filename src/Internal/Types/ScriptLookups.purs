@@ -244,14 +244,14 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , emptyUnbalancedTx
   )
 import Data.Array (cons, filter, mapWithIndex, partition, toUnfoldable, zip)
-import Data.Array (singleton, union, (:)) as Array
+import Data.Array (length, singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt, fromInt)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens (non, (%=), (%~), (.=), (.~), (<>=))
+import Data.Lens (non, view, (%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -1303,19 +1303,19 @@ processConstraint mpsMap osMap c = do
       if dh' == dh then addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustRegisterStakePubKey skh -> runExceptT do
-      lift $ addCertificate
+      void $ lift $ addCertificate
         $ StakeRegistration
         $ keyHashCredential
         $ unwrap
         $ unwrap skh
     MustDeregisterStakePubKey pubKey -> runExceptT do
-      lift $ addCertificate
+      void $ lift $ addCertificate
         $ StakeDeregistration
         $ keyHashCredential
         $ unwrap
         $ unwrap pubKey
     MustRegisterStakeScript scriptHash -> runExceptT do
-      lift $ addCertificate
+      void $ lift $ addCertificate
         $ StakeRegistration
         $ scriptHashCredential
         $ unwrap scriptHash
@@ -1325,29 +1325,30 @@ processConstraint mpsMap osMap c = do
           ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
               plutusScript
           )
+      index <- lift $ addCertificate cert
+      let
         redeemer = T.Redeemer
           { tag: Cert
-          , index: zero -- hardcoded and tweaked after balancing.
+          , index: fromInt index
           , "data": unwrap redeemerData
           , exUnits: zero
           }
       ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
       ExceptT $ attachToCps attachRedeemer redeemer
-      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
-      lift $ addCertificate cert
+      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing) -- TODO: is needed?
     MustDeregisterStakeNativeScript stakeValidator -> do
-      addCertificate $ StakeDeregistration
+      void $ addCertificate $ StakeDeregistration
         $ scriptHashCredential
         $ unwrap
         $ nativeScriptStakeValidatorHash
             stakeValidator
       attachToCps attachNativeScript (unwrap stakeValidator)
     MustRegisterPool poolParams -> runExceptT do
-      lift $ addCertificate $ PoolRegistration poolParams
+      void $ lift $ addCertificate $ PoolRegistration poolParams
     MustRetirePool poolKeyHash epoch -> runExceptT do
-      lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
+      void $ lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
     MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
-      lift $ addCertificate $
+      void $ lift $ addCertificate $
         StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
           poolKeyHash
     MustDelegateStakePlutusScript stakeValidator redeemerData poolKeyHash ->
@@ -1358,18 +1359,19 @@ processConstraint mpsMap osMap c = do
                 stakeValidator
             )
             poolKeyHash
+        ix <- lift $ addCertificate cert
+        let
           redeemer = T.Redeemer
             { tag: Cert
-            , index: zero -- hardcoded and tweaked after balancing.
+            , index: fromInt ix
             , "data": unwrap redeemerData
             , exUnits: zero
             }
         ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
         ExceptT $ attachToCps attachRedeemer redeemer
-        _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
-        lift $ addCertificate cert
+        _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing) -- TODO: is needed?
     MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
-      addCertificate $ StakeDelegation
+      void $ addCertificate $ StakeDelegation
         ( scriptHashCredential $ unwrap $ nativeScriptStakeValidatorHash
             stakeValidator
         )
@@ -1490,12 +1492,16 @@ addDatum dat = runExceptT do
   ExceptT $ attachToCps attachDatum dat
   _datums <>= Array.singleton dat
 
+-- | Returns an index pointing to the location of the newly inserted certificate
+-- | in the array of transaction certificates.
 addCertificate
   :: forall (a :: Type)
    . Certificate
-  -> ConstraintsM a Unit
-addCertificate cert =
+  -> ConstraintsM a Int
+addCertificate cert = do
+  ix <- gets (view (_cpsToTxBody <<< _certs <<< non [] <<< to Array.length))
   _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
+  pure ix
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction

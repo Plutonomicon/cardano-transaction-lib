@@ -56,6 +56,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
+import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
@@ -135,7 +136,8 @@ instance
   ( UtxoDistribution headSpec headWallets
   , UtxoDistribution restSpec restWallets
   ) =>
-  UtxoDistribution (headSpec /\ restSpec) (headWallets /\ restWallets) where
+  UtxoDistribution (Tuple headSpec restSpec)
+    (Tuple headWallets restWallets) where
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
   decodeWallets d p = decodeWalletsDefault d p
