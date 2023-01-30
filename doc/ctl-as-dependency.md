@@ -82,6 +82,10 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
 - If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
 
+4. **Update your webpack config**
+
+- Sometimes the WebPack configuration also comes with breaking changes. Common source of problems are changes to `resolve.fallback`, `plugins` and `experiments` fields of the WebPack config. Use `git diff old-revision new-revision webpack.config.js` in the root of a cloned CTL repo, or use `git blame`.
+
 ## Using CTL from JS
 
 ### Bundling
