@@ -58,6 +58,8 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   -- If `confirmTxDelay` of `BlockfrostBackend` is set, wait the specified
   -- number of seconds after the transaction is confirmed, then check the
   -- transaction confirmation status again to handle possible rollbacks.
+  -- We do this due to asynchronous updates across API endpoints, the delay
+  -- should be enough time for the effects of the transaction to settle.
   findTx :: Contract Boolean
   findTx = do
     confirmTxDelay <-
