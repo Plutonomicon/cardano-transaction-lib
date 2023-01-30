@@ -50,7 +50,6 @@ import Data.Log.Message (Message)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Data.String as String
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
