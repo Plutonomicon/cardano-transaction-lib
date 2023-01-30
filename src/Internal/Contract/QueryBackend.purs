@@ -5,6 +5,7 @@ module Ctl.Internal.Contract.QueryBackend
   , CtlBackendParams
   , QueryBackend(BlockfrostBackend, CtlBackend)
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
+  , defaultConfirmTxDelay
   , getBlockfrostBackend
   , getCtlBackend
   , mkBlockfrostBackendParams
@@ -16,6 +17,7 @@ import Prelude
 import Ctl.Internal.QueryM (OgmiosWebSocket)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Time.Duration (Seconds(Seconds))
 
 --------------------------------------------------------------------------------
 -- QueryBackend
@@ -36,6 +38,7 @@ type CtlBackend =
 type BlockfrostBackend =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
+  , confirmTxDelay :: Maybe Seconds
   }
 
 getCtlBackend :: QueryBackend -> Maybe CtlBackend
@@ -62,7 +65,11 @@ type CtlBackendParams =
 type BlockfrostBackendParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
+  , confirmTxDelay :: Maybe Seconds
   }
+
+defaultConfirmTxDelay :: Maybe Seconds
+defaultConfirmTxDelay = Just $ Seconds 30.0
 
 mkCtlBackendParams :: CtlBackendParams -> QueryBackendParams
 mkCtlBackendParams = flip CtlBackendParams Nothing

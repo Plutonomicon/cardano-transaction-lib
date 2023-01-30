@@ -15,6 +15,7 @@ import Contract.Config
 import Contract.Monad (launchAff_)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip (testContractsInEnv)
+import Ctl.Internal.Contract.QueryBackend (defaultConfirmTxDelay)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.String (joinWith)
 import Data.Time.Duration (Minutes(Minutes), convertDuration)
@@ -34,7 +35,7 @@ main = do
       launchAff_ do
         interpretWithConfig
           defaultConfig
-            { timeout = Just $ convertDuration $ 5.0 # Minutes }
+            { timeout = Just $ convertDuration $ 10.0 # Minutes }
           (suite blockfrostConfig apiKey privateKey backupKeys)
     _ -> do
       log $ joinWith "\n"
@@ -60,6 +61,7 @@ suite blockfrostConfig apiKey privateKey backupKeys = do
       { backendParams = mkBlockfrostBackendParams
           { blockfrostConfig
           , blockfrostApiKey: Just apiKey
+          , confirmTxDelay: defaultConfirmTxDelay
           }
       , walletSpec = Just $ UseKeys
           (PrivatePaymentKeyFile privateKey)
