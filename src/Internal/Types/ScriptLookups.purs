@@ -1257,6 +1257,7 @@ processConstraint mpsMap osMap c = do
         [ UnindexedRedeemer
             { purpose: ForCert cert, datum: unwrap redeemerData }
         ]
+      void $ lift $ addCertificate cert
       ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
     MustDeregisterStakeNativeScript stakeValidator -> do
       void $ addCertificate $ StakeDeregistration

@@ -195,8 +195,8 @@ suite = do
           -- Register
           do
             let
-              constraints = mustRegisterStakeScript validatorHash1 <>
-                mustRegisterStakeScript validatorHash2
+              constraints = mustRegisterStakeScript validatorHash1
+                <> mustRegisterStakeScript validatorHash2
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
