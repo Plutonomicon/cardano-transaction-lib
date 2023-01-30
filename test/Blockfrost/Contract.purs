@@ -4,7 +4,6 @@ module Test.Ctl.Blockfrost.Contract (main, suite) where
 
 import Prelude
 
-import Ctl.Internal.Contract.QueryBackend (defaultConfirmTxDelay)
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , ServerConfig
@@ -16,6 +15,7 @@ import Contract.Config
 import Contract.Monad (launchAff_)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip (testContractsInEnv)
+import Ctl.Internal.Contract.QueryBackend (defaultConfirmTxDelay)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.String (joinWith)
 import Data.Time.Duration (Minutes(Minutes), convertDuration)
