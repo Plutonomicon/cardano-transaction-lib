@@ -1,8 +1,8 @@
 module Ctl.Internal.Helpers
   ( (</>)
+  , (<</>>)
   , (<<>>)
   , (<\>)
-  , (<</>>)
   , appendFirstMaybe
   , appendLastMaybe
   , appendMap
@@ -10,6 +10,7 @@ module Ctl.Internal.Helpers
   , bigIntToUInt
   , concatPaths
   , contentsProp
+  , delaySec
   , encodeMap
   , encodeTagged
   , encodeTagged'
@@ -26,6 +27,8 @@ module Ctl.Internal.Helpers
   , maybeArrayMerge
   , mkErrorRecord
   , notImplemented
+  , race
+  , raceMany
   , showWithParens
   , tagProp
   , uIntToBigInt
@@ -34,13 +37,16 @@ module Ctl.Internal.Helpers
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
-import Control.Monad.Error.Class (class MonadError, throwError)
+import Control.Alt ((<|>))
+import Control.Monad.Error.Class (class MonadError, throwError, try)
+import Control.Parallel (parallel, sequential)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Right), either)
+import Data.Foldable (class Foldable, foldl)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
@@ -53,6 +59,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
+import Data.Time.Duration (Seconds, convertDuration)
 import Data.Traversable (traverse)
 import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -60,6 +67,7 @@ import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
+import Effect.Aff (Aff, delay, never)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
@@ -282,3 +290,23 @@ concatPaths a b =
   right = fromMaybe b (stripPrefix (Pattern "/") b)
 
 infixr 5 concatPaths as <</>> -- </> is taken
+
+-- | Runs two `Aff` actions concurrently
+-- | Get resolved by the first which either resolves or throws
+-- | Expected properties:
+-- | race x y = race y x
+-- | race x (race y z) = race (race x y) z
+-- | race never x = x
+race :: forall (a :: Type). Aff a -> Aff a -> Aff a
+race f g = liftEither =<< sequential (parallel (try f) <|> parallel (try g))
+
+-- | Runs multiple `Aff` actions concurrently
+-- | raceMany [] = never
+-- | raceMany [f] = f
+-- | raceMany [f, g, h] = race (race f g) h
+raceMany
+  :: forall (a :: Type) (f :: Type -> Type). Foldable f => f (Aff a) -> Aff a
+raceMany = foldl race never
+
+delaySec :: Seconds -> Aff Unit
+delaySec seconds = delay $ convertDuration seconds

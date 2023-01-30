@@ -13,7 +13,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (liftedM, (<</>>))
+import Ctl.Internal.Helpers (delaySec, liftedM, raceMany, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
@@ -76,7 +76,7 @@ import Ctl.Internal.Wallet.Key
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), isLeft)
+import Data.Either (Either(Right, Left))
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
 import Data.Int as Int
@@ -94,15 +94,7 @@ import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Canceler(Canceler)
-  , fiberCanceler
-  , launchAff
-  , launchAff_
-  , makeAff
-  , try
-  )
+import Effect.Aff (Aff, Canceler(Canceler), makeAff, never, throwError)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
@@ -240,11 +232,11 @@ testPlan
 testPlan opts@{ tests } rt@{ wallets } =
   group "E2E tests" do
     for_ tests \testEntry@{ specString } -> test specString $ case testEntry of
-      { url, wallet: NoWallet } -> do
+      { url, wallet: NoWallet } ->
         withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing \browser ->
-          do
-            withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
-              subscribeToTestStatusUpdates page
+          withE2ETest opts.skipJQuery (wrap url) browser \{ page } ->
+            subscribeToTestStatusUpdates page
+
       { url, wallet: PlutipCluster } -> do
         let
           distr = withStakeKey privateStakeKey
@@ -269,10 +261,11 @@ testPlan opts@{ tests } rt@{ wallets } =
                     }
                 }
             withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing
-              \browser -> do
+              \browser ->
                 withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
                   setClusterSetup page clusterSetup
                   subscribeToTestStatusUpdates page
+
       { url, wallet: WalletExtension wallet } -> do
         { password, extensionId } <- liftEffect
           $ liftMaybe
@@ -303,26 +296,73 @@ testPlan opts@{ tests } rt@{ wallets } =
                   , confirmAccess: confirmAccess extensionId re
                   , sign: sign extensionId password re
                   }
-              makeAff $ \k -> do
+
+              subscribeToBrowserEvents page \waitNextEvent -> do
                 let
-                  rethrow aff = launchAff_ do
-                    res <- try aff
-                    when (isLeft res) $ liftEffect $ k res
-                map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
-                  subscribeToBrowserEvents page
-                    case _ of
-                      ConfirmAccess -> rethrow someWallet.confirmAccess
-                      Sign -> rethrow someWallet.sign
+                  handler event = do
+                    case event of
+                      ConfirmAccess -> do
+                        handler =<< raceMany
+                          [ someWallet.confirmAccess *> never
+                          , waitNextEvent
+                          , delaySec (Seconds 100.0) *>
+                              throwError (error nextAfterConfirmAccess)
+                          ]
+                      Sign -> do
+                        handler =<< raceMany
+                          [ someWallet.sign *> never
+                          , waitNextEvent
+                          , delaySec (Seconds 100.0) *>
+                              throwError (error nextAfterSign)
+                          ]
                       Success -> pure unit
-                      Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
+                      Failure err -> throwError $ error $ failureEventReceived
+                        err
+
+                handler =<< raceMany
+                  [ waitNextEvent
+                  , delaySec (Seconds 10.0) *>
+                      throwError (error noEventsReceived)
+                  ]
   where
+  noEventsReceived =
+    "Timeout reached when trying to connect to CTL Contract running\
+    \ in the browser. No events received.\
+    \ Is there a Contract with E2E hooks available\
+    \ at the URL you provided? Did you forget to run `npm run \
+    \e2e-serve`?"
+
+  nextAfterConfirmAccess =
+    "Timeout reached when trying to get the next event after ConfirmAccess"
+
+  nextAfterSign =
+    "Timeout reached when trying to get the next event after Sign"
+
+  failureEventReceived errStr = "Failure event received: " <> errStr
+
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents page
-      case _ of
-        Success -> pure unit
-        Failure err -> throw err
-        _ -> pure unit
+    subscribeToBrowserEvents page \waitNextEvent -> do
+      let
+
+        handler event =
+          case event of
+            ConfirmAccess -> handler =<< raceMany
+              [ waitNextEvent
+              , delaySec (Seconds 10.0) *> throwError
+                  (error nextAfterConfirmAccess)
+              ]
+            Sign -> handler =<< raceMany
+              [ waitNextEvent
+              , delaySec (Seconds 10.0) *> throwError (error nextAfterSign)
+              ]
+            Success -> pure unit
+            Failure err -> throwError $ error $ failureEventReceived err
+
+      handler =<< raceMany
+        [ waitNextEvent
+        , delaySec (Seconds 10.0) *> throwError (error noEventsReceived)
+        ]
 
 -- | Implements `browser` command.
 runBrowser

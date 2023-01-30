@@ -3,100 +3,71 @@
 -- | See `Ctl.Internal.Test.E2E.Feedback.Browser` for the corresponding APIs
 -- | for the NodeJS side.
 module Ctl.Internal.Test.E2E.Feedback.Node
-  ( getBrowserEvents
+  ( setClusterSetup
   , subscribeToBrowserEvents
-  , setClusterSetup
   ) where
 
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
-import Ctl.Internal.Helpers (liftEither)
+import Control.Lazy (fix)
+import Ctl.Internal.Helpers (delaySec, liftEither, race)
 import Ctl.Internal.QueryM (ClusterSetup)
-import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
-import Data.Array as Array
-import Data.Either (Either(Left), hush, note)
-import Data.Foldable (and)
-import Data.Maybe (Maybe(Just, Nothing))
+import Ctl.Internal.Test.E2E.Feedback (BrowserEvent)
+import Data.Either (hush, note)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Traversable (for, traverse_)
-import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Canceler(Canceler)
-  , Milliseconds(Milliseconds)
-  , delay
-  , forkAff
-  , killFiber
-  , launchAff_
-  , makeAff
-  , try
-  )
+import Effect.AVar as AVarSync
+import Effect.Aff (Aff, launchAff_)
+import Effect.Aff.AVar as AVar
 import Effect.Class (liftEffect)
 import Effect.Console as Console
-import Effect.Exception (error, throw)
+import Effect.Exception (error, message)
 import Effect.Ref as Ref
 import Effect.Uncurried (mkEffectFn1)
 import Foreign (unsafeFromForeign)
 import Toppokki as Toppokki
 
 -- | React to events raised by the browser
+-- |
+-- | Takes a page and a function which provides you with
+-- | a `wait` `Aff` action, wich, when performed, produce you the next `BrowserEvent`
+-- | or throws an error
 subscribeToBrowserEvents
   :: Toppokki.Page
-  -> (BrowserEvent -> Effect Unit)
+  -> (Aff BrowserEvent -> Aff Unit)
   -> Aff Unit
 subscribeToBrowserEvents page cont = do
   logs <- liftEffect $ Ref.new ""
-  let
-    addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
-  liftEffect $ Toppokki.onConsole
-    ( mkEffectFn1 \cm -> launchAff_ do
-        Toppokki.consoleMessageText cm >>= liftEffect <<< addLogLine
-    )
-    page
-  makeAff \f -> do
-    liftEffect $ Toppokki.onPageError
-      ( mkEffectFn1
-          ( \err -> do
-              allLogs <- Ref.read logs
-              Console.log allLogs
-              f $ Left err
-          )
-      )
-      page
-    let
-      -- Accepts a number of attempts left.
-      -- An attempt is successful if we get at least one event.
-      process :: Maybe Int -> Aff Unit
-      process attempts = do
-        events <- getBrowserEvents page
-        continue <- and <$> for events \event -> do
-          void $ liftEffect $ try $ cont event
-          case event of
-            Success -> pure false
-            Failure err -> liftEffect $ throw err
-            _ -> pure true
-        if continue then do
-          delay $ Milliseconds $ 1000.0
-          if Array.length events == 0 && attempts /= Just 0 then
-            process (flip sub one <$> attempts)
-          else if attempts == Just 0 then liftEffect $ f $ Left $ error
-            "Timeout reached when trying to connect to CTL Contract running\
-            \ in the browser. Is there a Contract with E2E hooks available\
-            \ at the URL you provided? Did you forget to run `npm run \
-            \e2e-serve`?"
-          else process Nothing
-        else pure unit
+  eventAVar <- AVar.empty
 
-    processFiber <- Ref.new Nothing
-    launchAff_ do
-      liftEffect <<< flip Ref.write processFiber <<< Just =<< forkAff do
-        try (process (Just firstTimeConnectionAttempts)) >>= liftEffect <<< f
-    pure $ Canceler \e -> do
-      liftEffect (Ref.read processFiber) >>= traverse_ (killFiber e)
-  where
-  -- How many times to try until we get any event?
-  firstTimeConnectionAttempts :: Int
-  firstTimeConnectionAttempts = 10
+  let addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
+
+  liftEffect do
+    flip Toppokki.onConsole page $
+      mkEffectFn1 \cm -> launchAff_ do
+        Toppokki.consoleMessageText cm >>= liftEffect <<< addLogLine
+
+    flip Toppokki.onPageError page $
+      mkEffectFn1 \err -> do
+        allLogs <- Ref.read logs
+        Console.log allLogs
+
+        let errStr = "Page error occured: " <> message err <> "\n" <> allLogs
+        AVarSync.kill (error errStr) eventAVar
+
+  let
+    -- Asyncronously gets browser events and pushes
+    -- to the `eventVAar` one by one.
+    watcher = fix \this -> do
+      getBrowserEvents page >>= traverse_ (_ `AVar.put` eventAVar)
+      delaySec (Seconds 0.5) *> this
+
+    handler = cont $ AVar.take eventAVar
+
+  -- Watcher loop, normally, runs forever
+  -- Gets resolved by handler or if watcher throws an error
+  race watcher handler
 
 getBrowserEvents
   :: Toppokki.Page -> Aff (Array BrowserEvent)
