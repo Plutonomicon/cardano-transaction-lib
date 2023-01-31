@@ -69,6 +69,7 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
+import Ctl.Examples.IncludeDatum (only42Script)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head, (!!))
 import Data.Array as Array
@@ -184,14 +185,19 @@ suite = do
               <*>
                 liftedM "Failed to get Stake PKH"
                   (join <<< head <$> ownStakePubKeysHashes)
-          validator <- alwaysSucceedsScript <#> unwrap >>>
+          validator1 <- alwaysSucceedsScript <#> unwrap >>>
             PlutusScriptStakeValidator
-          let validatorHash = plutusScriptStakeValidatorHash validator
+          validator2 <- only42Script <#> unwrap >>>
+            PlutusScriptStakeValidator
+          let
+            validatorHash1 = plutusScriptStakeValidatorHash validator1
+            validatorHash2 = plutusScriptStakeValidatorHash validator2
 
           -- Register
           do
             let
-              constraints = mustRegisterStakeScript validatorHash
+              constraints = mustRegisterStakeScript validatorHash1 <>
+                mustRegisterStakeScript validatorHash2
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
@@ -204,8 +210,11 @@ suite = do
           -- Deregister stake key
           do
             let
-              constraints = mustDeregisterStakePlutusScript validator
-                unitRedeemer
+              constraints =
+                mustDeregisterStakePlutusScript validator1
+                  unitRedeemer
+                  <> mustDeregisterStakePlutusScript validator2
+                    unitRedeemer
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
