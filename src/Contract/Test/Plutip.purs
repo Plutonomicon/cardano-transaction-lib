@@ -13,7 +13,7 @@ import Ctl.Internal.Plutip.Server
   ( PlutipTest
   , noWallet
   , runPlutipContract
-  , testContractsInEnv
+  , runPlutipTestsWithKeyDir
   , withPlutipContractEnv
   , withWallets
   ) as X

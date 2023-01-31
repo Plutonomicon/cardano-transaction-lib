@@ -9,7 +9,7 @@ module Ctl.Internal.Plutip.Server
   , testPlutipContracts
   , withWallets
   , noWallet
-  , testContractsInEnv
+  , runPlutipTestsWithKeyDir
   , PlutipTest
   ) where
 
@@ -189,17 +189,20 @@ withPlutipContractEnv plutipCfg distr cont = do
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
 
--- | Run `PlutipTest`s with an existing `ContractEnv`, not necessarily one
--- | created through `Plutip`.
+-- | Run `PlutipTest`s given `ContractParams` value, not necessarily containing
+-- | references to runtime services started with Plutip.
+-- | This function can be used to interpret `TestPlanM PlutipTest` in any
+-- | environment.
+-- |
 -- | Tests are funded by the wallet in the supplied environment.
 -- | The `FilePath` parameter should point to a directory to store generated
 -- | wallets, in the case where funds failed to be returned to the main wallet.
-testContractsInEnv
+runPlutipTestsWithKeyDir
   :: ContractParams
   -> FilePath
   -> TestPlanM PlutipTest Unit
   -> TestPlanM (Aff Unit) Unit
-testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
+runPlutipTestsWithKeyDir params backup = mapTest \(PlutipTest runPlutipTest) ->
   runPlutipTest \distr mkTest -> withContractEnv params \env -> do
     let
       distrArray :: Array (Array UtxoAmount)

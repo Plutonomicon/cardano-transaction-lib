@@ -2,6 +2,7 @@
 module Ctl.Internal.Test.E2E.Runner
   ( runE2ECommand
   , runE2ETests
+  , readBoolean
   ) where
 
 import Prelude

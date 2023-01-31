@@ -218,4 +218,3 @@ fixture4 = UnconfirmedTx
   { hash: TransactionHash $ hexToByteArrayUnsafe
       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   }
-

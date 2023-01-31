@@ -16,7 +16,6 @@ module Contract.Config
   , mainnetNuFiConfig
   , module Contract.Address
   , module Ctl.Internal.Contract.Monad
-  , module Ctl.Internal.Contract.QueryBackend
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys
@@ -31,10 +30,18 @@ import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad (ContractParams)
 import Ctl.Internal.Contract.QueryBackend
-  ( QueryBackendParams(CtlBackendParams, BlockfrostBackendParams)
+  ( BlockfrostBackendParams
+  , CtlBackend
+  , CtlBackendParams
+  , QueryBackend(BlockfrostBackend, CtlBackend)
+  , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
+  , defaultConfirmTxDelay
+  , getBlockfrostBackend
+  , getCtlBackend
   , mkBlockfrostBackendParams
   , mkCtlBackendParams
-  )
+  ) as X
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.ServerConfig
   ( Host
