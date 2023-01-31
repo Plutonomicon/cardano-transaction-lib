@@ -205,15 +205,15 @@
           };
         };
 
-        plutipServerFor = system: 
-        let 
-          pkgs = import inputs.plutip-nixpkgs { 
-            inherit system; 
+      plutipServerFor = system:
+        let
+          pkgs = import inputs.plutip-nixpkgs {
+            inherit system;
             overlays = [
               inputs.haskell-nix.overlay
               (import "${inputs.iohk-nix}/overlays/crypto")
             ];
-        };
+          };
         in
         import ./plutip-server {
           inherit pkgs;
