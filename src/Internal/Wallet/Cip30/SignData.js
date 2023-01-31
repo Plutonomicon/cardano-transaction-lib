@@ -6,6 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-message-signing-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 // -----------------------------------------------------------------------------
 // COSESign1Builder
