@@ -9,11 +9,13 @@ import Prelude
 
 import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
+import Ctl.Internal.Plutip.Blockfrost
+  ( runPlutipTestsWithKeyDir
+  ) as X
 import Ctl.Internal.Plutip.Server
   ( PlutipTest
   , noWallet
   , runPlutipContract
-  , runPlutipTestsWithKeyDir
   , withPlutipContractEnv
   , withWallets
   ) as X

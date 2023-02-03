@@ -21,5 +21,6 @@ output.js
 .idea/
 test-data/chrome-user-data
 test-data/preview
+test-data/keys
 tmp
 node_modules
