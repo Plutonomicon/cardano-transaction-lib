@@ -112,6 +112,12 @@ We are aware of two error messages that can be show to you if you are using wayl
 
 If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. You can use the `--extra-browser-args` argument for this, as in `e2e-test browser --extra-browser-args="--ozone-platform=wayland"` or the `E2E_EXTRA_BROWSER_ARGS` environment variable.
 
+### Q: How to keep the number of WebSocket connections to a minimum?
+
+Use only one `ContractEnv` value. They are implicitly created every time `runContract` is called, so avoid using this function if you need to run multiple `Contract`s.
+
+Instead, initialize the environment with `withContractEnv` and pass it to `runContractInEnv`. The former ensures that the environment is properly finalized, but it forces the developer to follow the bracket pattern, which is not always convenient. As an alternative, `mkContractEnv` can be used. If you are initializing a contract environment with `mkContractEnv` only once during the lifeteime of your app, you should be fine, but if you re-create it dynamically and do not finalize it with `stopContractEnv`, it's fairly easy to hit the max websocket connections limit, which is 200 for Firefox, not to mention that it would be forcing the server to keep the connections.
+
 ## Miscellaneous
 
 ### Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?
