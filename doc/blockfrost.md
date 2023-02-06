@@ -11,6 +11,7 @@
   - [5. Providing an API endpoint URL](#5-providing-an-api-endpoint-url)
   - [6. Extra configuration options](#6-extra-configuration-options)
   - [7. Test suite setup on PureScript side](#7-test-suite-setup-on-purescript-side)
+- [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -18,17 +19,19 @@ Thanks to [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791), CTL has
 
 The users can now run CTL contracts just by providing a Blockfrost API key and some ADA for the Contract to consume.
 
+For testing, we offer an automated test engine that allows to run with Blockfrost any test suite that was meant to be run on a [Plutip](./plutip-testing.md) cluster.
+
 ## Setting up a Blockfrost-powered test suite
 
 Public Blockfrost instances have endpoints for different networks. By default, the test suite is configured to run on `preview`.
 
-The configuration is stored in environment variables defined in [`test/blockfrost.env` file](../test/blockfrost.env).
+The configuration is stored in environment variables defined in [`test/blockfrost.env` file](../test/blockfrost.env), or a similar one in your project if it is initialized from the template.
 
-Here's how to make this configuration ready for use:
+Here's how to populate this configuration file to be ready for use:
 
 ### 1. Getting an API key
 
-Go to https://blockfrost.io to generate a new API key and specify it as `BLOCKFROST_API_KEY`
+Go to https://blockfrost.io to generate a new API key and specify it as `BLOCKFROST_API_KEY` in the config.
 
 ### 2. Generating private keys
 
@@ -60,7 +63,7 @@ Fund your address using the [testnet faucet](https://docs.cardano.org/cardano-te
 
 Point the test suite to your keys by setting `PRIVATE_PAYMENT_KEY_FILE` and `PRIVATE_STAKE_KEY_FILE` to the paths of your `.skey` files.
 
-If you are going to use an enterprise address (without a staking credential component), then do not provide the staking key file.
+If you are going to use an enterprise address (without a staking credential component), then do not provide the staking key file. The choice of using either type of addresses does not affect anything, because the test suite will be using the address only to distribute funds to other, temporary addresses.
 
 ### 4. Setting up a directory for temporary keys
 
@@ -98,3 +101,17 @@ It accepts a number of arguments:
 4. A Plutip test suite
 
 See [this example](../test/Blockfrost/Contract.purs), which can be executed with `npm run blockfrost-test` command. It will automatically load the exported variables from [`test/blockfrost.env`](../test/blockfrost.env).
+
+## Running `Contract`s with Blockfrost
+
+`mkBlockfrostBackendParams` can be called on a populated `BlockfrostBackendParams` to create a `QueryBackendParams` value. `backendParams` field of `ContractParams` uses a value of this type.
+
+```
+type BlockfrostBackendParams =
+  { blockfrostConfig :: ServerConfig
+  , blockfrostApiKey :: Maybe String
+  , confirmTxDelay :: Maybe Seconds
+  }
+```
+
+Use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
