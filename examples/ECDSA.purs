@@ -54,8 +54,7 @@ instance ToData ECDSARedemeer where
 
 contract :: Contract () Unit
 contract = do
-  void prepTest
-  void testECDSA
+  void $ prepTest >>= testECDSA
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract () TransactionHash
@@ -81,8 +80,9 @@ prepTest = do
   pure txId
 
 -- | Attempt to unlock one utxo using an ECDSA signature
-testVerification :: ECDSARedemeer -> Contract () TransactionHash
-testVerification ecdsaRed = do
+testVerification
+  :: TransactionHash -> ECDSARedemeer -> Contract () TransactionHash
+testVerification txId ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
@@ -94,31 +94,34 @@ testVerification ecdsaRed = do
 
   scriptUtxos <- utxosAt valAddr
   txIn <- liftContractM "No UTxOs found at validator address"
-    $ Set.findMin
+    $ Set.toUnfoldable
+    $ Set.filter (unwrap >>> _.transactionId >>> eq txId)
     $ Map.keys scriptUtxos
+
   let
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs scriptUtxos
+      <> Lookups.unspentOutputs
+        (Map.filterKeys ((unwrap >>> _.transactionId >>> eq txId)) scriptUtxos)
 
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustSpendScriptOutput txIn red
-  txId <- submitTxFromConstraints lookups constraints
-  logInfo' $ "Submitted ECDSA test verification tx: " <> show txId
-  awaitTxConfirmed txId
-  logInfo' $ "Transaction confirmed: " <> show txId
-  pure txId
+  txId' <- submitTxFromConstraints lookups constraints
+  logInfo' $ "Submitted ECDSA test verification tx: " <> show txId'
+  awaitTxConfirmed txId'
+  logInfo' $ "Transaction confirmed: " <> show txId'
+  pure txId'
 
 -- | Testing ECDSA verification function on-chain
-testECDSA :: Contract () TransactionHash
-testECDSA = do
+testECDSA :: TransactionHash -> Contract () TransactionHash
+testECDSA txId = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
     publicKey = deriveEcdsaSecp256k1PublicKey privateKey
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
   messageHash <- liftAff $ hashMessageSha256 message
   signature <- liftAff $ signEcdsaSecp256k1 privateKey messageHash
-  testVerification $
+  testVerification txId $
     ECDSARedemeer
       { msg: messageHash
       , sig: signature

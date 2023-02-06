@@ -12,6 +12,7 @@ import Contract.Address
   , getWalletCollateral
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
+  , scriptHashAddress
   )
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
@@ -35,6 +36,7 @@ import Contract.PlutusData
   , getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
+  , unitRedeemer
   )
 import Contract.Prelude (mconcat)
 import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArrayUnsafe)
@@ -55,10 +57,15 @@ import Contract.Test.Plutip
   )
 import Contract.Time (getEraSummaries)
 import Contract.Transaction
-  ( DataHash
+  ( BalanceTxError(BalanceInsufficientError)
+  , DataHash
+  , InvalidInContext(InvalidInContext)
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
+  , OutputDatum(OutputDatumHash, NoOutputDatum, OutputDatum)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
-  , TransactionHash
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
@@ -71,8 +78,8 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
-import Contract.Value (Coin(Coin), coinToValue)
+import Contract.Utxos (UtxoMap, getWalletBalance, utxosAt)
+import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
 import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
 import Control.Monad.Error.Class (try)
@@ -111,12 +118,14 @@ import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddress)
+import Ctl.Internal.Plutus.Types.Address (Address, pubKeyHashAddress)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , _input
+  , _output
   , lookupTxHash
   )
 import Ctl.Internal.Plutus.Types.Value (lovelaceValueOf)
@@ -132,14 +141,16 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
-import Data.Either (Either(Right), isLeft)
+import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, skip, test)
@@ -926,6 +937,129 @@ suite = do
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice SendsToken.contract
+
+    test "PlutusV1 forces balancer to select non-PlutusV2 inputs" do
+      let
+        distribution :: InitialUTxOs
+        distribution = [ BigInt.fromInt 5_000_000 ]
+
+      withWallets distribution \alice -> do
+        alicePkh <- withKeyWallet alice do
+          liftedM "Could not get own PKH" (head <$> ownPaymentPubKeysHashes)
+
+        validator <- AlwaysSucceeds.alwaysSucceedsScript
+
+        let
+          vhash = validatorHash validator
+          scriptAddress = scriptHashAddress vhash Nothing
+
+        let
+          datum42 = Datum $ Integer $ BigInt.fromInt 42
+          datum42Hash = datumHash datum42
+          datum42Lookup = Lookups.datum datum42
+
+        let
+          transactionId :: TransactionHash
+          transactionId = TransactionHash $ hexToByteArrayUnsafe
+            "a6b656487601c390a3bb61958c62369cb5d5a7597a68a9dccedb3dd68a60bfdd"
+
+          mkUtxo
+            :: UInt
+            -> Address
+            -> Value
+            -> OutputDatum
+            -> TransactionUnspentOutput
+          mkUtxo index address amount datum =
+            TransactionUnspentOutput
+              { input: TransactionInput
+                  { index
+                  , transactionId
+                  }
+              , output: TransactionOutputWithRefScript
+                  { scriptRef: Nothing
+                  , output: TransactionOutput
+                      { address
+                      , amount
+                      , datum
+                      , referenceScript: Nothing
+                      }
+                  }
+              }
+
+          aliceUtxo :: OutputDatum -> TransactionUnspentOutput
+          aliceUtxo = mkUtxo zero
+            (pubKeyHashAddress alicePkh Nothing)
+            (Value.lovelaceValueOf $ BigInt.fromInt 50_000_000)
+
+          alwaysSucceedsUtxo :: TransactionUnspentOutput
+          alwaysSucceedsUtxo = mkUtxo one
+            scriptAddress
+            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+            (OutputDatumHash datum42Hash)
+
+          -- Balance a transaction which requires selecting a utxo with a
+          -- certain datum
+          balanceWithDatum datum = withKeyWallet alice do
+            let
+              additionalUtxos :: UtxoMap
+              additionalUtxos =
+                Map.fromFoldable $ (Tuple <$> view _input <*> view _output) <$>
+                  [ alwaysSucceedsUtxo, aliceUtxo datum ]
+
+              value :: Value.Value
+              value = Value.lovelaceValueOf $ BigInt.fromInt 50_000_000
+
+              constraints :: TxConstraints Unit Unit
+              constraints = fold
+                [ Constraints.mustSpendScriptOutput
+                    (view _input alwaysSucceedsUtxo)
+                    unitRedeemer
+                , Constraints.mustPayToPubKey alicePkh value
+                ]
+
+              lookups :: Lookups.ScriptLookups PlutusData
+              lookups =
+                Lookups.validator validator
+                  <> Lookups.unspentOutputs additionalUtxos
+                  <> datum42Lookup
+
+              balanceTxConstraints
+                :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+              balanceTxConstraints =
+                BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
+
+            unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            balanceTxWithConstraints unbalancedTx balanceTxConstraints
+
+        let
+          hasInsufficientBalance
+            :: forall (a :: Type). Either BalanceTxError a -> Boolean
+          hasInsufficientBalance = case _ of
+            Left (BalanceInsufficientError _ _ (InvalidInContext amount))
+              | amount == Value.lovelaceValueOf (BigInt.fromInt 50_000_000) ->
+                  true
+            _ -> false
+
+        balanceWithDatum NoOutputDatum >>= flip shouldSatisfy isRight
+        balanceWithDatum (OutputDatum datum42) >>= flip shouldSatisfy
+          hasInsufficientBalance
+
+    test "InlineDatum" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          validator <- InlineDatum.checkDatumIsInlineScript
+          let vhash = validatorHash validator
+          logInfo' "Attempt to lock value with inline datum"
+          txId <- InlineDatum.payToCheckDatumIsInline vhash
+          awaitTxConfirmed txId
+          logInfo' "Try to spend locked values"
+          InlineDatum.spendFromCheckDatumIsInline vhash validator txId
 
     group "CIP-32 InlineDatums" do
       test "Use of CIP-32 InlineDatums" do

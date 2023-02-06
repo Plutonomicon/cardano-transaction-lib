@@ -60,11 +60,30 @@ import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
 import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
+import Ctl.Internal.BalanceTx.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( BalanceInsufficientError
+      , CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetChangeAddress
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CollateralReturnError
+      , CollateralReturnMinAdaValueCalcError
+      , ExUnitsEvaluationFailed
+      , InsufficientUtxoBalanceToCoverAsset
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  , ImpossibleError(Impossible)
+  , InvalidInContext(InvalidInContext)
+  ) as BalanceTxError
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -523,7 +542,8 @@ reindexSpentScriptRedeemers
            (Array Transaction.Redeemer)
        )
 reindexSpentScriptRedeemers balancedTx =
-  wrapContract <<< ReindexRedeemers.reindexSpentScriptRedeemers balancedTx
+  wrapContract <<< pure <<< ReindexRedeemers.reindexSpentScriptRedeemers
+    balancedTx
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 

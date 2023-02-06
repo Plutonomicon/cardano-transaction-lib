@@ -10,7 +10,7 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
-  - [Q: What are the common reasons behind InsufficientTxInputs error?](#q-what-are-the-common-reasons-behind-insufficienttxinputs-error)
+  - [Q: What are the common reasons behind BalanceInsufficientError?](#q-what-are-the-common-reasons-behind-balanceinsufficienterror)
 - [Time-related](#time-related)
   - [Q: Time-related functions behave strangely, what's the reason?](#q-time-related-functions-behave-strangely-whats-the-reason)
   - [Q: Time/slot conversion functions return `Nothing`. Why is that?](#q-timeslot-conversion-functions-return-nothing-why-is-that)
@@ -48,7 +48,7 @@ means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago
 
 ## Common Contract execution problems
 
-### Q: What are the common reasons behind InsufficientTxInputs error?
+### Q: What are the common reasons behind BalanceInsufficientError?
 
 Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 tAda to create another UTxO for the collateral.
 

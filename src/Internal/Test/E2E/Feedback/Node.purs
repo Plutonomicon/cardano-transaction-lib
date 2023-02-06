@@ -96,7 +96,7 @@ subscribeToBrowserEvents page cont = do
   where
   -- How many times to try until we get any event?
   firstTimeConnectionAttempts :: Int
-  firstTimeConnectionAttempts = 10
+  firstTimeConnectionAttempts = 30
 
 getBrowserEvents
   :: Toppokki.Page -> Aff (Array BrowserEvent)
