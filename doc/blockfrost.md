@@ -18,7 +18,7 @@
 
 Thanks to [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791), CTL has been extended with support for [Blockfrost](https://blockfrost.io/) as an alternative query layer.
 
-The users [can now run]((#running-contracts-with-blockfrost)) CTL contracts just by providing a Blockfrost API key and some ADA for the Contract to consume.
+The users [can now run](#running-contracts-with-blockfrost) CTL contracts just by providing a Blockfrost API key and some ADA for the Contract to consume.
 
 For testing, we offer an automated test engine that allows to run any `ContractTest` test suite with Blockfrost.
 
