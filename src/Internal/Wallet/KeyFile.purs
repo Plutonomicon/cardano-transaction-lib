@@ -15,6 +15,7 @@ import Prelude
 
 import Aeson (encodeAeson)
 import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Except (catchError)
 import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType
@@ -33,10 +34,9 @@ import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
-import Data.Either (either)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
-import Effect.Aff (Aff, try)
+import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Node.Encoding as Encoding
@@ -54,14 +54,13 @@ keyFromFile filePath ty = errorHandler do
     pure envelope.bytes
   where
   errorHandler action = do
-    try action >>= either
+    catchError action
       ( \err -> do
           liftEffect $ throw $
             "Unable to load key from file: " <> show filePath
               <> ", error: "
               <> show err
       )
-      pure
 
 privatePaymentKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivatePaymentKey
 privatePaymentKeyFromTextEnvelope (TextEnvelope envelope) = do

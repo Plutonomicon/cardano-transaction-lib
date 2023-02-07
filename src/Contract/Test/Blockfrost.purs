@@ -41,7 +41,7 @@ import Test.Spec.Runner (Config)
 -- |
 -- | - Private payment and (optionally) stake keys
 -- | - A directory to store temporary private keys that will be used in tests.
--- |   In case of a suddent test interruption, funds will not be lost since
+-- |   In case of a sudden test interruption, funds will not be lost because
 -- |   the private keys will be saved to files.
 type BlockfrostKeySetup =
   { privateKeySources ::
