@@ -341,12 +341,13 @@ withContractEnv params action = do
 -- ContractParams
 --------------------------------------------------------------------------------
 
--- | Options to construct a `ContractEnv` indirectly.
+-- | Options to construct an environment for a `Contract` to run.
+-- |
+-- | See `Contract.Config` for pre-defined values for testnet and mainnet.
 -- |
 -- | Use `runContract` to run a `Contract` within an implicity constructed
 -- | `ContractEnv` environment, or use `withContractEnv` if your application
--- | contains multiple contracts that can be run in parallel, reusing the same
--- | environment (see `withContractEnv`)
+-- | contains multiple contracts that can reuse the same environment.
 type ContractParams =
   { backendParams :: QueryBackendParams
   , networkId :: NetworkId

@@ -34,6 +34,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
 - [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
 - [CTL's runtime dependencies](./doc/runtime.md)
+- [Blockfrost support](./doc/blockfrost.md)
 - [Getting started writing CTL contracts](./doc/getting-started.md)
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
 - [Testing contracts with Plutip](./doc/plutip-testing.md)

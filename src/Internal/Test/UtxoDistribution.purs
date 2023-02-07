@@ -1,4 +1,4 @@
-module Ctl.Internal.Plutip.UtxoDistribution
+module Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
   , decodeWallets'
@@ -171,7 +171,7 @@ type WalletInfo =
 -- | the utxos at its enterprise address to its base address. Note
 -- | that this function clears the `usedTxOuts` cache, so it should
 -- | not be used if there could be items in the cache that shouldn't
--- | be cleared (this function is intended to be used only on plutip
+-- | be cleared (this function is intended to be used only on `ContractTest`
 -- | startup).
 transferFundsFromEnterpriseToBase
   :: PrivatePaymentKey

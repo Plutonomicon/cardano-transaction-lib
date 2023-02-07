@@ -1,8 +1,7 @@
--- | Module to run `Test.Ctl.Plutip.Contract`s suite without Plutip, using
--- | an already running instance of Blockfrost (preview).
--- |
+-- | An executable test suite that runs `Test.Scaffold.Main.suite` with
+-- | Blockfrost.
 -- | Use `npm run blockfrost-test` to run.
-module Test.Ctl.Blockfrost.Contract (main) where
+module Scaffold.Test.Blockfrost (main) where
 
 import Prelude
 
@@ -12,7 +11,7 @@ import Contract.Test.Blockfrost (executeContractTestsWithBlockfrost)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
-import Test.Ctl.Plutip.Contract as Plutip
+import Test.Scaffold.Main (suite)
 import Test.Spec.Runner (defaultConfig) as TestSpec
 
 main :: Effect Unit
@@ -21,4 +20,4 @@ main = launchAff_ do
     TestSpec.defaultConfig { timeout = Just $ Milliseconds 1000000.0 }
     testnetConfig { suppressLogs = true }
     Nothing
-    Plutip.suite
+    suite

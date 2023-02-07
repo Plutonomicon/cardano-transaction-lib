@@ -7,10 +7,6 @@ module Ctl.Internal.Plutip.Server
   , checkPlutipServer
   , stopChildProcessWithPort
   , testPlutipContracts
-  , withWallets
-  , noWallet
-  , testContractsInEnv
-  , PlutipTest
   ) where
 
 import Prelude
@@ -20,39 +16,9 @@ import Affjax as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Address
-  ( NetworkId(MainnetId)
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  )
-import Contract.Config (ContractParams)
-import Contract.Hashing (publicKeyHash)
-import Contract.Log (logTrace')
-import Contract.Monad
-  ( Contract
-  , ContractEnv
-  , liftContractM
-  , liftedE
-  , runContractInEnv
-  , withContractEnv
-  )
-import Contract.Transaction
-  ( awaitTxConfirmed
-  , balanceTx
-  , signTransaction
-  , submit
-  , submitTxFromConstraints
-  )
-import Contract.Utxos (utxosAt)
-import Contract.Value (valueToCoin')
-import Contract.Wallet (withKeyWallet)
-import Contract.Wallet.Key
-  ( keyWalletPrivatePaymentKey
-  , keyWalletPrivateStakeKey
-  , publicKeyFromPrivateKey
-  )
-import Contract.Wallet.KeyFile (privatePaymentKeyToFile, privateStakeKeyToFile)
-import Control.Monad.Error.Class (liftEither, liftMaybe)
+import Contract.Address (NetworkId(MainnetId))
+import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
+import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
@@ -63,7 +29,6 @@ import Ctl.Internal.Contract.Monad
   , stopContractEnv
   )
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
-import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
@@ -87,51 +52,39 @@ import Ctl.Internal.Plutip.Types
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
-  , UtxoAmount
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Plutip.UtxoDistribution
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  )
+import Ctl.Internal.Test.ContractTest
+  ( ContractTest(ContractTest)
+  , ContractTestPlan(ContractTestPlan)
+  , ContractTestPlanHandler
+  )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
-import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
-import Ctl.Internal.Serialization.Address (addressBech32)
-import Ctl.Internal.Service.Error
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx, unspentOutputs)
-import Ctl.Internal.Types.TxConstraints
-  ( TxConstraints
-  , mustBeSignedBy
-  , mustPayToPubKey
-  , mustPayToPubKeyAddress
-  , mustSpendPubKeyOutput
-  )
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
-import Ctl.Internal.Wallet (KeyWallet)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left), either, isLeft)
-import Data.Foldable (fold, sum)
+import Data.Foldable (sum)
 import Data.HTTP.Method as Method
-import Data.Lens ((^.))
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (over, unwrap, wrap)
-import Data.String (joinWith)
-import Data.String.CodeUnits as String
+import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Newtype (over, wrap)
+import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (foldMap, for, for_, sequence_, traverse, traverse_)
+import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -146,7 +99,6 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -154,10 +106,8 @@ import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
-import Node.FS.Aff (mkdir)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
-import Node.Path (concat) as Path
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -189,153 +139,6 @@ withPlutipContractEnv plutipCfg distr cont = do
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
 
--- | Run `PlutipTest`s with an existing `ContractEnv`, not necessarily one
--- | created through `Plutip`.
--- | Tests are funded by the wallet in the supplied environment.
--- | The `FilePath` parameter should point to a directory to store generated
--- | wallets, in the case where funds failed to be returned to the main wallet.
-testContractsInEnv
-  :: ContractParams
-  -> FilePath
-  -> TestPlanM PlutipTest Unit
-  -> TestPlanM (Aff Unit) Unit
-testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
-  runPlutipTest \distr mkTest -> withContractEnv params \env -> do
-    let
-      distrArray :: Array (Array UtxoAmount)
-      distrArray = encodeDistribution distr
-
-    privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey <#>
-      PrivateKeyResponse
-
-    wallets <-
-      liftMaybe
-        ( error
-            "Impossible happened: could not decode wallets. Please report as bug"
-        )
-        $ decodeWallets distr privateKeys
-
-    let
-      walletsArray :: Array KeyWallet
-      walletsArray = keyWallets (pureProxy distr) wallets
-
-      runContract :: Aff Unit
-      runContract = runContractInEnv env { wallet = Nothing } do
-        logTrace' "Running contract"
-        mkTest wallets
-
-    if Array.null walletsArray then
-      runContract
-    else Aff.bracket
-      ( backupWallets env walletsArray *> fundWallets env walletsArray
-          distrArray
-      )
-      -- Retry fund returning until success or timeout. Submission will fail if
-      -- the node has seen the wallets utxos being spent previously, so retrying
-      -- will allow the wallets utxos to eventually represent a spendable set
-      ( \funds -> recovering returnFundsRetryPolicy ([ \_ _ -> pure true ])
-          \_ -> returnFunds env walletsArray funds
-      )
-      \_ -> runContract
-  where
-  pureProxy :: forall (a :: Type). a -> Proxy a
-  pureProxy _ = Proxy
-
-  backupWallets :: ContractEnv -> Array KeyWallet -> Aff Unit
-  backupWallets env walletsArray = liftAff $ for_ walletsArray \wallet -> do
-    let
-      address = addressBech32 $ (unwrap wallet).address env.networkId
-      payment = keyWalletPrivatePaymentKey wallet
-      mbStake = keyWalletPrivateStakeKey wallet
-      folder = Path.concat [ backup, address ]
-
-    mkdir folder
-    privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
-      payment
-    for mbStake $ privateStakeKeyToFile
-      (Path.concat [ folder, "stake_signing_key" ])
-
-  fundWallets
-    :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigInt
-  fundWallets env walletsArray distrArray = runContractInEnv env do
-    logTrace' "Funding wallets"
-    let
-      constraints = flip foldMap (Array.zip walletsArray distrArray)
-        \(wallet /\ walletDistr) -> flip foldMap walletDistr
-          \value -> mustPayToKeyWallet wallet $ lovelaceValueOf value
-
-    txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
-    awaitTxConfirmed txHash
-    let fundTotal = Array.foldl (+) zero $ join distrArray
-    -- Use log so we can see, regardless of suppression
-    log $ joinWith " "
-      [ "Sent"
-      , BigInt.toString fundTotal
-      , "lovelace to test wallets"
-      ]
-    pure fundTotal
-
-  returnFundsRetryPolicy :: RetryPolicy
-  returnFundsRetryPolicy = limitRetriesByCumulativeDelay
-    (Milliseconds 30_000.00)
-    (constantDelay $ Milliseconds 2_000.0)
-
-  returnFunds :: ContractEnv -> Array KeyWallet -> BigInt -> Aff Unit
-  returnFunds env walletsArray fundTotal = runContractInEnv env do
-    logTrace' "Returning wallet funds"
-
-    utxos <- Map.unions <<< fold <$> for walletsArray
-      (flip withKeyWallet getWalletAddresses >=> traverse utxosAt)
-
-    pkhs <- fold <$> for walletsArray
-      (flip withKeyWallet ownPaymentPubKeysHashes)
-
-    let
-      constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
-        <> foldMap mustBeSignedBy pkhs
-      lookups = unspentOutputs utxos
-
-    unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
-    balancedTx <- liftedE $ balanceTx unbalancedTx
-    balancedSignedTx <- Array.foldM
-      (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
-      (wrap $ unwrap balancedTx)
-      walletsArray
-
-    txHash <- submit balancedSignedTx
-    awaitTxConfirmed txHash
-
-    let
-      (refundTotal :: BigInt) = Array.foldl
-        (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
-        zero
-        (Array.fromFoldable $ Map.values utxos)
-
-    log $ joinWith " "
-      [ "Refunded"
-      , BigInt.toString refundTotal
-      , "of"
-      , BigInt.toString fundTotal
-      , "lovelace from test wallets"
-      ]
-
-  mustPayToKeyWallet
-    :: forall (i :: Type) (o :: Type)
-     . KeyWallet
-    -> Value
-    -> TxConstraints i o
-  mustPayToKeyWallet wallet value =
-    let
-      convert = wrap <<< publicKeyHash <<< publicKeyFromPrivateKey
-      payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
-      mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
-    in
-      maybe
-        (mustPayToPubKey payment)
-        (mustPayToPubKeyAddress payment)
-        mbStake
-        value
-
 -- | Run `Contract`s in tests in a single Plutip instance.
 -- | NOTE: This uses `MoteT`s bracketting, and thus has the same caveats.
 -- |       Namely, brackets are run for each of the following groups and tests.
@@ -344,11 +147,11 @@ testContractsInEnv params backup = mapTest \(PlutipTest runPlutipTest) ->
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
-  -> TestPlanM PlutipTest Unit
+  -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
-  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution tp
-  runPlutipTestPlan \distr tests -> do
+  ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
+  runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
       (runCleanup cleanupRef)
@@ -388,63 +191,21 @@ whenError whenErrorAction action = do
   when (isLeft res) whenErrorAction
   liftEither res
 
--- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTest = PlutipTest
-  ( forall (r :: Type)
-     . ( forall (distr :: Type) (wallets :: Type)
-          . PlutipTestHandler distr wallets r
-       )
-    -> r
-  )
-
-type PlutipTestHandler :: Type -> Type -> Type -> Type
-type PlutipTestHandler distr wallets r =
-  UtxoDistribution distr wallets => distr -> (wallets -> Contract Unit) -> r
-
--- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
-withWallets
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => distr
-  -> (wallets -> Contract Unit)
-  -> PlutipTest
-withWallets distr tests = PlutipTest \h -> h distr tests
-
--- | Lift a `Contract` into `PlutipTest`
-noWallet :: Contract Unit -> PlutipTest
-noWallet = withWallets unit <<< const
-
--- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTestPlan = PlutipTestPlan
-  ( forall (r :: Type)
-     . ( forall (distr :: Type) (wallets :: Type)
-          . PlutipTestPlanHandler distr wallets r
-       )
-    -> r
-  )
-
-type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
-type PlutipTestPlanHandler distr wallets r =
-  UtxoDistribution distr wallets
-  => distr
-  -> TestPlanM (wallets -> Contract Unit) Unit
-  -> r
-
 -- | Lifts the utxo distributions of each test out of Mote, into a combined
 -- | distribution. Adapts the tests to pick their distribution out of the
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
-execDistribution :: TestPlanM PlutipTest Unit -> Aff PlutipTestPlan
+execDistribution :: TestPlanM ContractTest Unit -> Aff ContractTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
   where
-  go :: Array (Description Aff PlutipTest) -> PlutipTestPlan
-  go = flip execState emptyPlutipTestPlan <<< traverse_ case _ of
-    Test rm { bracket, label, value: PlutipTest runPlutipTest } ->
-      runPlutipTest \distr test -> do
+  go :: Array (Description Aff ContractTest) -> ContractTestPlan
+  go = flip execState emptyContractTestPlan <<< traverse_ case _ of
+    Test rm { bracket, label, value: ContractTest runTest } ->
+      runTest \distr test -> do
         addTests distr $ MoteT
           (tell [ Test rm { bracket, label, value: test } ])
     Group rm { bracket, label, value } -> do
-      let PlutipTestPlan runGroupPlan = go value
+      let ContractTestPlan runGroupPlan = go value
       runGroupPlan \distr tests ->
         addTests distr $ over MoteT
           (censor (pure <<< Group rm <<< { bracket, label, value: _ }))
@@ -452,15 +213,15 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
 
   addTests
     :: forall (distr :: Type) (wallets :: Type)
-     . PlutipTestPlanHandler distr wallets (State PlutipTestPlan Unit)
+     . ContractTestPlanHandler distr wallets (State ContractTestPlan Unit)
   addTests distr tests = do
-    modify_ \(PlutipTestPlan runPlutipTestPlan) -> runPlutipTestPlan
-      \distr' tests' -> PlutipTestPlan \h -> h (distr' /\ distr) do
+    modify_ \(ContractTestPlan runContractTestPlan) -> runContractTestPlan
+      \distr' tests' -> ContractTestPlan \h -> h (distr' /\ distr) do
         mapTest (_ <<< fst) tests'
         mapTest (_ <<< snd) tests
 
-  emptyPlutipTestPlan :: PlutipTestPlan
-  emptyPlutipTestPlan = PlutipTestPlan \h -> h unit (pure unit)
+  emptyContractTestPlan :: ContractTestPlan
+  emptyContractTestPlan = ContractTestPlan \h -> h unit (pure unit)
 
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | Can be used to run multiple `Contract`s using `runContractInEnv`.

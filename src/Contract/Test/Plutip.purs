@@ -3,6 +3,7 @@
 module Contract.Test.Plutip
   ( testPlutipContracts
   , module X
+  , PlutipTest
   ) where
 
 import Prelude
@@ -10,14 +11,10 @@ import Prelude
 import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Plutip.Server
-  ( PlutipTest
-  , noWallet
-  , runPlutipContract
-  , testContractsInEnv
+  ( runPlutipContract
   , withPlutipContractEnv
-  , withWallets
   ) as X
-import Ctl.Internal.Plutip.Server (PlutipTest, testPlutipContracts) as Server
+import Ctl.Internal.Plutip.Server (testPlutipContracts) as Server
 import Ctl.Internal.Plutip.Types
   ( InitialUTxODistribution
   , InitialUTxOs
@@ -26,16 +23,22 @@ import Ctl.Internal.Plutip.Types
   , UtxoAmount
   ) as X
 import Ctl.Internal.Plutip.Types (PlutipConfig)
-import Ctl.Internal.Plutip.UtxoDistribution
-  ( class UtxoDistribution
-  , withStakeKey
+import Ctl.Internal.Test.ContractTest (ContractTest)
+import Ctl.Internal.Test.ContractTest (ContractTest) as Server
+import Ctl.Internal.Test.ContractTest
+  ( noWallet
+  , withWallets
   ) as X
+import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution, withStakeKey) as X
 import Effect.Aff (Aff)
 import Mote (MoteT)
 
 -- | Run `Contract`s in tests in a single Plutip instance.
 testPlutipContracts
   :: PlutipConfig
-  -> MoteT Aff Server.PlutipTest Aff Unit
+  -> MoteT Aff Server.ContractTest Aff Unit
   -> MoteT Aff (Aff Unit) Aff Unit
 testPlutipContracts = Server.testPlutipContracts
+
+-- | Type synonym for backwards compatibility.
+type PlutipTest = ContractTest
