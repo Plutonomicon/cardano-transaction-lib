@@ -19,7 +19,6 @@ import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
-import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
@@ -70,6 +69,7 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiSign
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
+import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey

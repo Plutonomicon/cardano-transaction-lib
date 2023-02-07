@@ -7,7 +7,7 @@ import Prelude
 
 import Contract.Config (testnetConfig)
 import Contract.Monad (launchAff_)
-import Contract.Test.Blockfrost (executePlutipTestsWithBlockfrost)
+import Contract.Test.Blockfrost (executeContractTestsWithBlockfrost)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
@@ -16,7 +16,7 @@ import Test.Spec.Runner (defaultConfig) as TestSpec
 
 main :: Effect Unit
 main = launchAff_ do
-  executePlutipTestsWithBlockfrost
+  executeContractTestsWithBlockfrost
     TestSpec.defaultConfig { timeout = Just $ Milliseconds 1000000.0 }
     testnetConfig { suppressLogs = true }
     Nothing

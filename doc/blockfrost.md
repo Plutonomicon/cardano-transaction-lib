@@ -12,14 +12,15 @@
   - [6. Extra configuration options](#6-extra-configuration-options)
   - [7. Test suite setup on PureScript side](#7-test-suite-setup-on-purescript-side)
 - [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
+- [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 Thanks to [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791), CTL has been extended with support for [Blockfrost](https://blockfrost.io/) as an alternative query layer.
 
-The users can now run CTL contracts just by providing a Blockfrost API key and some ADA for the Contract to consume.
+The users [can now run]((#running-contracts-with-blockfrost)) CTL contracts just by providing a Blockfrost API key and some ADA for the Contract to consume.
 
-For testing, we offer an automated test engine that allows to run with Blockfrost any test suite that was meant to be run on a [Plutip](./plutip-testing.md) cluster.
+For testing, we offer an automated test engine that allows to run any `ContractTest` test suite with Blockfrost.
 
 ## Setting up a Blockfrost-powered test suite
 
@@ -67,7 +68,7 @@ If you are going to use an enterprise address (without a staking credential comp
 
 ### 4. Setting up a directory for temporary keys
 
-During testing, the test engine will move funds around according to the UTxO distribution specifications provided via `Contract.Test.Plutip.withWallets` calls in the test bodies. It will generate private keys as needed on the fly. The private keys will be stored in a special directory, to prevent loss of funds in case the test suite exits. Set `BACKUP_KEYS_DIR` to an existing directory where you would like the keys to be stored.
+During testing, the test engine will move funds around according to the UTxO distribution specifications provided via `Contract.Test.withWallets` calls in the test bodies. It will generate private keys as needed on the fly. The private keys will be stored in a special directory, to prevent loss of funds in case the test suite exits. Set `BACKUP_KEYS_DIR` to an existing directory where you would like the keys to be stored.
 
 ### 5. Providing an API endpoint URL
 
@@ -91,20 +92,20 @@ export TX_CONFIRMATION_DELAY_SECONDS=30
 
 ### 7. Test suite setup on PureScript side
 
-`executePlutipTestsWithBlockfrost` is a helper function that reads all the variables above and takes care of contract environment setup.
+`executeContractTestsWithBlockfrost` is a helper function that reads all the variables above and takes care of contract environment setup.
 
 It accepts a number of arguments:
 
-1. A test spec config, e.g. `Test.Spec.Runner.defaultConfig`
+1. A test spec config, e.g. `Test.Spec.Runner.defaultConfig` - it's probably better to increase the timeout.
 2. A `Contract` config, e.g. `Contract.Config.testnetConfig`
 3. An optional CTL runtime config
-4. A Plutip test suite
+4. A `ContractTest` suite
 
 See [this example](../test/Blockfrost/Contract.purs), which can be executed with `npm run blockfrost-test` command. It will automatically load the exported variables from [`test/blockfrost.env`](../test/blockfrost.env).
 
 ## Running `Contract`s with Blockfrost
 
-`mkBlockfrostBackendParams` can be called on a populated `BlockfrostBackendParams` to create a `QueryBackendParams` value. `backendParams` field of `ContractParams` uses a value of this type.
+`mkBlockfrostBackendParams` can be called on a populated `BlockfrostBackendParams` record to create a `QueryBackendParams` value. `backendParams` field of `ContractParams` uses a value of this type. And `ContractParams` can in turn be used with `runContract`.
 
 ```
 type BlockfrostBackendParams =
@@ -114,4 +115,8 @@ type BlockfrostBackendParams =
   }
 ```
 
-Use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
+For convenience, use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
+
+## See also
+
+- [Testing utilities for CTL](./test-utils.md).

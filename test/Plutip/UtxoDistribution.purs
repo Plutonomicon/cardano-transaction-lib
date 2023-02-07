@@ -40,9 +40,9 @@ import Control.Lazy (fix)
 import Ctl.Internal.Plutip.Types
   ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
-import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt

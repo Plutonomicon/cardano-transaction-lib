@@ -1,8 +1,8 @@
 -- | Running Plutip test plans with Blockfrost
 module Contract.Test.Blockfrost
   ( BlockfrostKeySetup
-  , runPlutipTestsWithBlockfrost
-  , executePlutipTestsWithBlockfrost
+  , runContractTestsWithBlockfrost
+  , executeContractTestsWithBlockfrost
   ) where
 
 import Prelude
@@ -18,9 +18,10 @@ import Contract.Config
   , WalletSpec(UseKeys)
   )
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Contract.Test.Plutip (PlutipTest, runPlutipTestsWithKeyDir)
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Internal.Test.ContractTest (ContractTest)
 import Ctl.Internal.Test.E2E.Runner (readBoolean)
+import Ctl.Internal.Test.KeyDir (runContractTestsWithKeyDir)
 import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
 import Data.Number as Number
 import Data.Time.Duration (Seconds(Seconds))
@@ -33,7 +34,7 @@ import Effect.Exception (error, throw)
 import Node.Process (lookupEnv)
 import Test.Spec.Runner (Config)
 
--- | All parameters that are needed to run Plutip-style tests using
+-- | All parameters that are needed to run Contract tests using
 -- | Blockfrost API.
 -- |
 -- | Includes:
@@ -71,20 +72,20 @@ type BlockfrostKeySetup =
 -- |
 -- | Avoid moving the funds around too much using `withWallets`
 -- | in the tests to save on both time and costs.
-runPlutipTestsWithBlockfrost
+runContractTestsWithBlockfrost
   :: ContractParams
   -> BlockfrostBackendParams
   -> Maybe CtlBackendParams
   -> BlockfrostKeySetup
-  -> TestPlanM PlutipTest Unit
+  -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
-runPlutipTestsWithBlockfrost
+runContractTestsWithBlockfrost
   contractParams
   backendParams
   mbCtlBackendParams
   { privateKeySources, testKeysDirectory }
   suite =
-  runPlutipTestsWithKeyDir
+  runContractTestsWithKeyDir
     config
     testKeysDirectory
     suite
@@ -97,14 +98,15 @@ runPlutipTestsWithBlockfrost
       }
 
 -- | Reads environment variables containing Blockfrost test suite configuration
--- | and runs a given test suite using `runPlutipTestsWithBlockfrost`.
-executePlutipTestsWithBlockfrost
+-- | parameters and runs a given test suite using
+-- | `runContractTestsWithBlockfrost`.
+executeContractTestsWithBlockfrost
   :: Config
   -> ContractParams
   -> Maybe CtlBackendParams
-  -> TestPlanM PlutipTest Unit
+  -> TestPlanM ContractTest Unit
   -> Aff Unit
-executePlutipTestsWithBlockfrost
+executeContractTestsWithBlockfrost
   testConfig
   contractParams
   mbCtlBackendParams
@@ -137,7 +139,8 @@ executePlutipTestsWithBlockfrost
       , confirmTxDelay
       }
   interpretWithConfig testConfig $
-    runPlutipTestsWithBlockfrost contractParams backendParams mbCtlBackendParams
+    runContractTestsWithBlockfrost contractParams backendParams
+      mbCtlBackendParams
       { privateKeySources:
           { payment: PrivatePaymentKeyFile privatePaymentKeyFile
           , stake: PrivateStakeKeyFile <$> mbPrivateStakeKeyFile

@@ -1,5 +1,5 @@
-module Ctl.Internal.Plutip.Blockfrost
-  ( runPlutipTestsWithKeyDir
+module Ctl.Internal.Test.KeyDir
+  ( runContractTestsWithKeyDir
   ) where
 
 import Prelude
@@ -43,20 +43,20 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.Plutip.Server (PlutipTest(PlutipTest))
 import Ctl.Internal.Plutip.Types
   ( PrivateKeyResponse(PrivateKeyResponse)
   , UtxoAmount
   )
-import Ctl.Internal.Plutip.UtxoDistribution
+import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
+import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
+import Ctl.Internal.Serialization.Address (addressBech32)
+import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.UtxoDistribution
   ( decodeWallets
   , encodeDistribution
   , keyWallets
   )
-import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
-import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
-import Ctl.Internal.Serialization.Address (addressBech32)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx, unspentOutputs)
 import Ctl.Internal.Types.TxConstraints
   ( TxConstraint(MustPayToPubKeyAddress)
@@ -105,28 +105,28 @@ import Node.Path (FilePath)
 import Node.Path (concat) as Path
 import Type.Prelude (Proxy(Proxy))
 
--- | Run `PlutipTest`s given `ContractParams` value, not necessarily containing
--- | references to runtime services started with Plutip.
--- | This function can be used to interpret `TestPlanM PlutipTest` in any
+-- | Runs `ContractTest`s given a `ContractParams` value.
+-- |
+-- | This function can be used to interpret `TestPlanM ContractTest` in any
 -- | environment.
 -- |
--- | Tests are funded by the wallet in the supplied environment.
+-- | Tests are funded by the wallet in the supplied `Contract` environment.
 -- | The `FilePath` parameter should point to a directory to store generated
--- | wallets, in the case where funds failed to be returned to the main wallet.
-runPlutipTestsWithKeyDir
+-- | private keys (to make sure that no funds or on-chain state are lost).
+runContractTestsWithKeyDir
   :: ContractParams
   -> FilePath
-  -> TestPlanM PlutipTest Unit
+  -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
-runPlutipTestsWithKeyDir params backup = do
-  mapTest \(PlutipTest runPlutipTest) -> do
+runContractTestsWithKeyDir params backup = do
+  mapTest \(ContractTest runContractTest) -> do
     withContractEnv params \env -> do
       keyWallets <- liftAff $ restoreWallets backup
       when (Array.length keyWallets > 0) do
         liftEffect $ Console.log
           "Checking the backup wallets for leftover funds..."
         returnFunds backup env keyWallets Nothing
-    runPlutipTest \distr mkTest -> withContractEnv params \env -> do
+    runContractTest \distr mkTest -> withContractEnv params \env -> do
       let
         distrArray :: Array (Array UtxoAmount)
         distrArray = encodeDistribution distr
@@ -283,7 +283,7 @@ noLogs action = do
       logError' "--------- END LOGS FOR WALLET FUNDS REDISTRIBUTION ---------"
       throwError $ error $
         "An exception has been thrown during funds redistribution in \
-        \Blockfrost test suite. Most likely, the wallet ran out of funds. \
+        \the test suite. Most likely, the wallet ran out of funds. \
         \It is probably not a problem with the Contract that is being tested. \
         \The error was: " <> show err
     Right res -> pure res
@@ -369,7 +369,7 @@ mustPayToKeyWallet wallet value =
     maybe
       -- We don't use `mustPayToPubKey payment` to avoid the compile-time
       -- warning that is tied to it (it should not be propagated to
-      -- `runPlutipTestsWithKeyDir`)
+      -- `runContractTestWithKeyDir`)
       (singleton <<< MustPayToPubKeyAddress payment Nothing Nothing Nothing)
       (mustPayToPubKeyAddress payment)
       mbStake

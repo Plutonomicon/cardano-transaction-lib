@@ -55,6 +55,9 @@ import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Partial.Unsafe (unsafePartial)
 
+-- | A config that is used to run tests on Plutip clusters.
+-- | Note that the test suite starts the services on the specified ports.
+-- | It does not expect them to be running.
 type PlutipConfig =
   { host :: String
   , port :: UInt
@@ -76,11 +79,15 @@ type ErrorMessage = String
 -- | UTxO amount in Lovelaces
 type UtxoAmount = BigInt
 
+-- | A list of UTxOs for a single wallet
 type InitialUTxOs = Array UtxoAmount
 
+-- | A wrapper that allows to specify a stake key to attach to a
+-- | generated pre-funded Address.
 data InitialUTxOsWithStakeKey =
   InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
 
+-- | A spec for distribution of UTxOs between wallets.
 type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest

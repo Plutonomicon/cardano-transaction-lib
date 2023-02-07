@@ -7,10 +7,6 @@ module Ctl.Internal.Plutip.Server
   , checkPlutipServer
   , stopChildProcessWithPort
   , testPlutipContracts
-  , withWallets
-  , noWallet
-  , PlutipTest(PlutipTest)
-  , PlutipTestHandler
   ) where
 
 import Prelude
@@ -58,17 +54,22 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Plutip.UtxoDistribution
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  )
+import Ctl.Internal.Test.ContractTest
+  ( ContractTest(ContractTest)
+  , ContractTestPlan(ContractTestPlan)
+  , ContractTestPlanHandler
+  )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Ctl.Internal.Service.Error
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
@@ -146,11 +147,11 @@ withPlutipContractEnv plutipCfg distr cont = do
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
-  -> TestPlanM PlutipTest Unit
+  -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
-  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution tp
-  runPlutipTestPlan \distr tests -> do
+  ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
+  runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
       (runCleanup cleanupRef)
@@ -190,63 +191,21 @@ whenError whenErrorAction action = do
   when (isLeft res) whenErrorAction
   liftEither res
 
--- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTest = PlutipTest
-  ( forall (r :: Type)
-     . ( forall (distr :: Type) (wallets :: Type)
-          . PlutipTestHandler distr wallets r
-       )
-    -> r
-  )
-
-type PlutipTestHandler :: Type -> Type -> Type -> Type
-type PlutipTestHandler distr wallets r =
-  UtxoDistribution distr wallets => distr -> (wallets -> Contract Unit) -> r
-
--- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
-withWallets
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => distr
-  -> (wallets -> Contract Unit)
-  -> PlutipTest
-withWallets distr tests = PlutipTest \h -> h distr tests
-
--- | Lift a `Contract` into `PlutipTest`
-noWallet :: Contract Unit -> PlutipTest
-noWallet = withWallets unit <<< const
-
--- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTestPlan = PlutipTestPlan
-  ( forall (r :: Type)
-     . ( forall (distr :: Type) (wallets :: Type)
-          . PlutipTestPlanHandler distr wallets r
-       )
-    -> r
-  )
-
-type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
-type PlutipTestPlanHandler distr wallets r =
-  UtxoDistribution distr wallets
-  => distr
-  -> TestPlanM (wallets -> Contract Unit) Unit
-  -> r
-
 -- | Lifts the utxo distributions of each test out of Mote, into a combined
 -- | distribution. Adapts the tests to pick their distribution out of the
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
-execDistribution :: TestPlanM PlutipTest Unit -> Aff PlutipTestPlan
+execDistribution :: TestPlanM ContractTest Unit -> Aff ContractTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
   where
-  go :: Array (Description Aff PlutipTest) -> PlutipTestPlan
-  go = flip execState emptyPlutipTestPlan <<< traverse_ case _ of
-    Test rm { bracket, label, value: PlutipTest runPlutipTest } ->
-      runPlutipTest \distr test -> do
+  go :: Array (Description Aff ContractTest) -> ContractTestPlan
+  go = flip execState emptyContractTestPlan <<< traverse_ case _ of
+    Test rm { bracket, label, value: ContractTest runTest } ->
+      runTest \distr test -> do
         addTests distr $ MoteT
           (tell [ Test rm { bracket, label, value: test } ])
     Group rm { bracket, label, value } -> do
-      let PlutipTestPlan runGroupPlan = go value
+      let ContractTestPlan runGroupPlan = go value
       runGroupPlan \distr tests ->
         addTests distr $ over MoteT
           (censor (pure <<< Group rm <<< { bracket, label, value: _ }))
@@ -254,15 +213,15 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
 
   addTests
     :: forall (distr :: Type) (wallets :: Type)
-     . PlutipTestPlanHandler distr wallets (State PlutipTestPlan Unit)
+     . ContractTestPlanHandler distr wallets (State ContractTestPlan Unit)
   addTests distr tests = do
-    modify_ \(PlutipTestPlan runPlutipTestPlan) -> runPlutipTestPlan
-      \distr' tests' -> PlutipTestPlan \h -> h (distr' /\ distr) do
+    modify_ \(ContractTestPlan runContractTestPlan) -> runContractTestPlan
+      \distr' tests' -> ContractTestPlan \h -> h (distr' /\ distr) do
         mapTest (_ <<< fst) tests'
         mapTest (_ <<< snd) tests
 
-  emptyPlutipTestPlan :: PlutipTestPlan
-  emptyPlutipTestPlan = PlutipTestPlan \h -> h unit (pure unit)
+  emptyContractTestPlan :: ContractTestPlan
+  emptyContractTestPlan = ContractTestPlan \h -> h unit (pure unit)
 
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | Can be used to run multiple `Contract`s using `runContractInEnv`.
