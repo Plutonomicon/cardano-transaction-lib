@@ -4,7 +4,9 @@ module Contract.Hashing
 
 import Contract.Scripts (plutusScriptStakeValidatorHash) as X
 import Ctl.Internal.Hashing
-  ( blake2b256Hash
+  ( blake2b224Hash
+  , blake2b224HashHex
+  , blake2b256Hash
   , blake2b256HashHex
   , datumHash
   , md5HashHex

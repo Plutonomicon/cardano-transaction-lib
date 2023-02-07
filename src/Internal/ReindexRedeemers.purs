@@ -43,13 +43,13 @@ reindexSpentScriptRedeemers
 reindexSpentScriptRedeemers inputs redeemersTxIns = do
   redeemersTxInsReindexed <-
     reindexSpentScriptRedeemers' inputs redeemersTxIns
-  Right $ map fst redeemersTxInsReindexed
+  pure $ map fst redeemersTxInsReindexed
 
 reindexSpentScriptRedeemers'
   :: Array TransactionInput
   -> Array RedeemersTxIn
   -> Either ReindexErrors (Array RedeemersTxIn)
-reindexSpentScriptRedeemers' inputs redeemersTxIns = do
+reindexSpentScriptRedeemers' inputs redeemersTxIns =
   traverse (reindex inputs) redeemersTxIns
   where
   reindex

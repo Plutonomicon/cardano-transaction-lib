@@ -12,6 +12,14 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 }
 lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
+exports.blake2b224Hash = bytesToHash => {
+  return Blake2.blake2b(bytesToHash, null, 28);
+};
+
+exports.blake2b224HashHex = bytesToHash => {
+  return Blake2.blake2bHex(bytesToHash, null, 28);
+};
+
 exports.blake2b256Hash = bytesToHash => {
   return Blake2.blake2b(bytesToHash, null, 32);
 };

@@ -578,8 +578,6 @@ type ConstraintsM (a :: Type) (b :: Type) =
 -- We could use `MonadError` to clean up the `ExceptT`s below although we can't
 -- use the type alias because they need to be fully applied so this is perhaps
 -- more readable.
--- Fix me: add execution units from Ogmios where this function should be
--- inside QueryM https://github.com/Plutonomicon/cardano-transaction-lib/issues/174
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
@@ -1079,21 +1077,14 @@ processConstraint mpsMap osMap c = do
       let value = fromPlutusValue plutusValue
       runExceptT $ _valueSpentBalancesOutputs <>= requireValue value
     MustSpendPubKeyOutput txo -> runExceptT do
-      txOut <- ExceptT $ lookupTxOutRef txo Nothing
-      -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
-      -- wallet address and `Just` as script address.
-      case txOut of
-        TransactionOutput { amount, datum: NoOutputDatum } -> do
-          -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
-          -- keeps track TransactionInput and TxInType (the input type, whether
-          -- consuming script, public key or simple script)
-          _cpsToTxBody <<< _inputs %= Set.insert txo
-          _valueSpentBalancesInputs <>= provideValue amount
-        _ -> throwError $ TxOutRefWrongType txo
+      TransactionOutput { amount } <- ExceptT $ lookupTxOutRef txo Nothing
+      -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
+      -- keeps track TransactionInput and TxInType (the input type, whether
+      -- consuming script, public key or simple script)
+      _cpsToTxBody <<< _inputs %= Set.insert txo
+      _valueSpentBalancesInputs <>= provideValue amount
     MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo scriptRefUnspentOut
-      -- Recall an Ogmios datum is a `Maybe String` where `Nothing` implies a
-      -- wallet address and `Just` as script address.
       case txOut of
         TransactionOutput { datum: NoOutputDatum } ->
           throwError $ TxOutRefWrongType txo
@@ -1111,9 +1102,6 @@ processConstraint mpsMap osMap c = do
                 ExceptT $ processScriptRefUnspentOut vHash scriptRefUnspentOut'
             -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
             -- Use the datum hash inside the lookup
-            -- Note: if we get `Nothing`, we have to throw eventhough that's a
-            -- valid input, because our `txOut` above is a Script address via
-            -- `Just`.
             case datum' of
               OutputDatumHash dHash -> do
                 dat <- ExceptT do
@@ -1269,8 +1257,6 @@ processConstraint mpsMap osMap c = do
                   , delegationCred: credentialToStakeCredential cred
                   }
             , amount
-            -- TODO: save correct and scriptRef, should be done in
-            -- Constraints API upgrade that follows Vasil
             , datum: datum'
             , scriptRef: scriptRef
             }

@@ -130,6 +130,7 @@ rec {
               "0.0.0.0"
               "--workdir"
               "kupo-db"
+              "--prune-utxo"
             ];
           };
         };

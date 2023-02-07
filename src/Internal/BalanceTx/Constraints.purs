@@ -7,17 +7,22 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
   , mustUseAdditionalUtxos
+  , mustUseCoinSelectionStrategy
   , mustUseUtxosAtAddress
   , mustUseUtxosAtAddresses
   , _additionalUtxos
   , _changeAddress
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
+  , _selectionStrategy
   , _srcAddresses
   ) where
 
 import Prelude
 
+import Ctl.Internal.BalanceTx.CoinSelection
+  ( SelectionStrategy(SelectionStrategyOptimal)
+  )
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -49,6 +54,7 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   , nonSpendableInputs :: Set TransactionInput
   , srcAddresses :: Maybe (Array Address)
   , changeAddress :: Maybe Address
+  , selectionStrategy :: SelectionStrategy
   }
 
 derive instance Newtype BalanceTxConstraints _
@@ -68,6 +74,9 @@ _srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
 
 _changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
 _changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
+
+_selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
+_selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
 
 newtype BalanceTxConstraintsBuilder =
   BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
@@ -90,6 +99,7 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     , nonSpendableInputs: mempty
     , srcAddresses: Nothing
     , changeAddress: Nothing
+    , selectionStrategy: SelectionStrategyOptimal
     }
 
 -- | Tells the balancer to send all generated change to a given address.
@@ -148,3 +158,8 @@ mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
+
+-- | Tells the balancer to use the given strategy for coin selection.
+mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
+mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
+

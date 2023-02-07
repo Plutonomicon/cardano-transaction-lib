@@ -73,6 +73,7 @@ You can edit this file as you like.
   , "quickcheck"
   , "quickcheck-combinators"
   , "quickcheck-laws"
+  , "random"
   , "rationals"
   , "record"
   , "refs"

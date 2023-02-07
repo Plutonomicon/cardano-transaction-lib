@@ -10,7 +10,7 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
-  - [Q: What are the common reasons behind InsufficientTxInputs error?](#q-what-are-the-common-reasons-behind-insufficienttxinputs-error)
+  - [Q: What are the common reasons behind BalanceInsufficientError?](#q-what-are-the-common-reasons-behind-balanceinsufficienterror)
 - [Time-related](#time-related)
   - [Q: Time-related functions behave strangely, what's the reason?](#q-time-related-functions-behave-strangely-whats-the-reason)
   - [Q: Time/slot conversion functions return `Nothing`. Why is that?](#q-timeslot-conversion-functions-return-nothing-why-is-that)
@@ -19,6 +19,7 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: Why `aeson` and not `argonaut`?](#q-why-aeson-and-not-argonaut)
 - [Environment-related](#environment-related)
   - [Q: I use wayland, the E2E browser fails on startup](#q-i-use-wayland-the-e2e-browser-fails-on-startup)
+  - [Q: How to keep the number of WebSocket connections to a minimum?](#q-how-to-keep-the-number-of-websocket-connections-to-a-minimum)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
   - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
@@ -48,7 +49,7 @@ means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago
 
 ## Common Contract execution problems
 
-### Q: What are the common reasons behind InsufficientTxInputs error?
+### Q: What are the common reasons behind BalanceInsufficientError?
 
 Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 tAda to create another UTxO for the collateral.
 
@@ -109,8 +110,15 @@ We are aware of two error messages that can be show to you if you are using wayl
       Error: Failed to launch the browser process!
     [76104:76104:1207/234245.704016:ERROR:ozone_platform_x11.cc(238)] Missing X server or $DISPLAY
     [76104:76104:1207/234245.704036:ERROR:env.cc(255)] The platform failed to initialize.  Exiting.</details>
+</details>
 
 If you are under wayland you need to add `--ozone-platform=wayland` to the arguments for the browser. You can use the `--extra-browser-args` argument for this, as in `e2e-test browser --extra-browser-args="--ozone-platform=wayland"` or the `E2E_EXTRA_BROWSER_ARGS` environment variable.
+
+### Q: How to keep the number of WebSocket connections to a minimum?
+
+Use only one `ContractEnv` value. They are implicitly created every time `runContract` is called, so avoid using this function if you need to run multiple `Contract`s.
+
+Instead, initialize the environment with `withContractEnv` and pass it to `runContractInEnv`. The former ensures that the environment is properly finalized, but it forces the developer to follow the bracket pattern, which is not always convenient. As an alternative, `mkContractEnv` can be used. If you are initializing a contract environment with `mkContractEnv` only once during the lifeteime of your app, you should be fine, but if you re-create it dynamically and do not finalize it with `stopContractEnv`, it's fairly easy to hit the max websocket connections limit, which is 200 for Firefox, not to mention that it would be forcing the server to keep the connections.
 
 ## Miscellaneous
 

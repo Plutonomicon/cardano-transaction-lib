@@ -1,5 +1,7 @@
 module Ctl.Internal.Hashing
-  ( blake2b256Hash
+  ( blake2b224Hash
+  , blake2b224HashHex
+  , blake2b256Hash
   , blake2b256HashHex
   , datumHash
   , md5HashHex
@@ -38,6 +40,10 @@ import Effect (Effect)
 import Node.Buffer (fromString, toString) as Buffer
 import Node.Crypto.Hash (createHash, digest, update) as Hash
 import Node.Encoding (Encoding(Hex, UTF8))
+
+foreign import blake2b224Hash :: ByteArray -> ByteArray
+
+foreign import blake2b224HashHex :: ByteArray -> String
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 

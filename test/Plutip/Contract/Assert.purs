@@ -180,7 +180,7 @@ suite = do
           printContractAssertionFailures failures `shouldEqual`
             "The following `Contract` assertions have failed: \n\
             \    1. Unexpected lovelace delta at address Sender (Expected: \
-            \fromString \"0\", Actual: fromString \"-5192058\")\n\n\
+            \fromString \"0\", Actual: fromString \"-5195758\")\n\n\
             \    2. Unexpected token delta (TokenName (hexToRawBytesUnsafe\
             \ \"546865546f6b656e\")) at address Sender (Expected: \
             \fromString \"2\", Actual: fromString \"1\")\n\n\

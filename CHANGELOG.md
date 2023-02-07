@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Unreleased](#unreleased)
+- [[Unreleased]](#unreleased)
   - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
@@ -43,23 +43,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Unreleased
+## [Unreleased]
 
 ### Added
 
+- `blake2b224Hash` and `blake2b224HashHex` functions for computing blake2b-224 hashes of arbitrary byte arrays ([#1323](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1323))
 - `bundlePursProject` allows passing of `includeBundledModule` flag to export the bundled JS module `spago bundle-module` outputs
-
 - `Contract.Transaction` exports `mkPoolPubKeyHash` and `poolPubKeyHashToBech32` for bech32 roundtripping ([#1360](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1360))
 - A test runner interface for Blockfrost (`Contract.Test.Blockfrost`). See [`blockfrost.md`](./doc/blockfrost.md) ([#1420](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1420))
 
 ### Changed
+
 - `SystemStart` now has `DateTime` (rather than `String`) as the underlying type ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
 - `EraSummaries` now does not have an `EncodeAeson` instance. Consider wrapping it in `OgmiosEraSummaries` for Aeson encoding. ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
-
 - Testing interface is re-implemented. Assertion functions from `Contract.Test.Utils` are moved to `Contract.Test.Assert`. See [the docs](./doc/test-utils.md) for info on the new interface. ([#1389](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1389))
-
+- Balancer no longer selects UTxOs which use PlutusV2 features when the transaction contains PlutusV1 scripts ([#1349](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1349))
 - `startPlutipCluster` error message now includes cluster startup failure details. ([#1407](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1407))
-
 - `PlutipTest` is now known as `Contract.Test.ContractTest`. It has been semantically untied from Plutip, because we now have another test runner for tests that rely on particular funds distributions - [Blockfrost](./doc/blockfrost.md). See `Contract.Test.Blockfrost.runContractTestsWithBlockfrost`.
 
 ### Removed

@@ -16,11 +16,11 @@ import Test.Ctl.Base64 as Base64
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
 import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
 import Test.Ctl.ByteArray as ByteArray
+import Test.Ctl.CoinSelection as CoinSelection
 import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
 import Test.Ctl.Deserialization as Deserialization
 import Test.Ctl.E2E.Route as E2E.Route
-import Test.Ctl.Equipartition as Equipartition
 import Test.Ctl.Hashing as Hashing
 import Test.Ctl.Internal.Plutus.Conversion.Address as Plutus.Conversion.Address
 import Test.Ctl.Internal.Plutus.Conversion.Value as Plutus.Conversion.Value
@@ -32,6 +32,7 @@ import Test.Ctl.Ogmios.Address as Ogmios.Address
 import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.Ctl.Parser as Parser
+import Test.Ctl.Partition as Partition
 import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Address as Serialization.Address
@@ -65,9 +66,9 @@ testPlan = do
   Cip30SignData.suite
   Data.suite
   Deserialization.suite
-  Equipartition.suite
   Hashing.suite
   Parser.suite
+  Partition.suite
   Plutus.Conversion.Address.suite
   Plutus.Conversion.Value.suite
   Plutus.Time.suite
@@ -91,3 +92,4 @@ testPlan = do
       <*> Types.Interval.systemStartFixture
   E2E.Route.suite
   MustSpendTotal.suite
+  CoinSelection.suite

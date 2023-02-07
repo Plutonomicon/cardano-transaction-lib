@@ -203,8 +203,8 @@ reindexRedeemers
   let
     inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
   in
-    reindexSpentScriptRedeemers' inputs redeemersTxIns #
-      map \redeemersTxInsReindexed ->
+    reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
+      \redeemersTxInsReindexed ->
         unattachedTx # _redeemersTxIns .~ redeemersTxInsReindexed
 
 reattachDatumsAndRedeemers :: UnattachedUnbalancedTx -> Transaction

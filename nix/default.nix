@@ -25,7 +25,7 @@
 let
   inherit (pkgs) system;
 
-  purs = pkgs.easy-ps.purs-0_14_5;
+  purs = pkgs.easy-ps.purs-0_14_9;
 
   spagoPkgs = import spagoPackages { inherit pkgs; };
 

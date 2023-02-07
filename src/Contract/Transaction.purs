@@ -27,7 +27,6 @@ module Contract.Transaction
   , module Transaction
   , module UnbalancedTx
   , module X
-  , reindexSpentScriptRedeemers
   , signTransaction
   , submit
   , submitE
@@ -58,11 +57,30 @@ import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (BalanceTxError) as BalanceTxError
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
 import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
+import Ctl.Internal.BalanceTx.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( BalanceInsufficientError
+      , CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetChangeAddress
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , CollateralReturnError
+      , CollateralReturnMinAdaValueCalcError
+      , ExUnitsEvaluationFailed
+      , InsufficientUtxoBalanceToCoverAsset
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  , ImpossibleError(Impossible)
+  , InvalidInContext(InvalidInContext)
+  ) as BalanceTxError
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -187,7 +205,7 @@ import Ctl.Internal.Plutus.Types.Value (Coin)
 import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
-import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as ReindexRedeemers
+import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as X
 import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -482,18 +500,6 @@ balanceAndLock
   :: UnattachedUnbalancedTx
   -> Contract FinalizedTransaction
 balanceAndLock = balanceAndLockWithConstraints <<< flip Tuple mempty
-
--- | Reindex the `Spend` redeemers. Since we insert to an ordered array, we must
--- | reindex the redeemers with such inputs. This must be crucially called after
--- | balancing when all inputs are in place so they cannot be reordered.
-reindexSpentScriptRedeemers
-  :: Array Transaction.TransactionInput
-  -> Array (Transaction.Redeemer /\ Maybe Transaction.TransactionInput)
-  -> Either
-       ReindexRedeemersExport.ReindexErrors
-       (Array Transaction.Redeemer)
-reindexSpentScriptRedeemers =
-  ReindexRedeemers.reindexSpentScriptRedeemers
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 
