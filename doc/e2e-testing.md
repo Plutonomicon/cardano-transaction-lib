@@ -8,6 +8,7 @@ CTL comes with advanced machinery for E2E testing in the browser, which can be u
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Parts Involved](#parts-involved)
+- [User perspective](#user-perspective)
 - [How to Run the Included Examples](#how-to-run-the-included-examples)
 - [How Wallets are Used](#how-wallets-are-used)
   - [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
@@ -31,13 +32,19 @@ CTL comes with advanced machinery for E2E testing in the browser, which can be u
 is used to drive the tests. Supported browsers are [Chromium](https://www.chromium.org/) and Google Chrome.
 The browser can be run headless (default) or headful (useful during test development).
 
-Any programs that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `make run-dev`). The test suite accepts a list of URLs.
+Any `Contract` that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `npm run e2e-test`). The test suite accepts a list of URLs.
 
 The test suite requires a set of CRX (chrome extension) files, as well as an archive with user settings. Extension and wallet settings can optionally be configured to be fetched from a URL.
 
 Each extension should be provided with its extension ID and wallet password.
 
 For a working example see `test/E2E.purs`. It can be run conveniently using `npm run e2e-test`.
+
+## User perspective
+
+- Use `npm run e2e-serve` to [serve]((#serving-the-contract-to-be-tested) the examples for testing.
+- Use `npm run e2e-test` to run the test suite in headless mode or `npm run e2e-test-debug` to enable the browser UI.
+- Use `npm run e2e-browser` to open the browser window with extensions pre-loaded. If you modify any setting (e.g. set a collateral), it's important to run `npm run e2e-pack-settings` **without running anything in between**. The test suite resets the settings by loading them from the settings archive before each test run.
 
 ## How to Run the Included Examples
 
@@ -191,7 +198,7 @@ Unarchive the CRX, put the encoded public key to `key` property of `manifest.jso
 
 ### Serving the Contract to be tested
 
-The test suite accepts URLs, which means that the Contract you want to test must be served.
+The test suite accepts URLs, which means that the `Contract` you want to test must be served.
 
 It's up to the user how to set up the web server (see `make run-dev` for an example), but in order for the testing engine to "see" the contract, the configuration parameters must be changed:
 
