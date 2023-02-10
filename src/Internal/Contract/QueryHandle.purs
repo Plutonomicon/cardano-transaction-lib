@@ -11,7 +11,8 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
+  ( PoolPubKeyHash
+  , Transaction
   , TransactionOutput
   , UtxoMap
   )
@@ -41,6 +42,7 @@ import Ctl.Internal.QueryM.Ogmios
   ( SubmitTxR(SubmitTxSuccess, SubmitFail)
   , TxEvaluationR
   )
+import Ctl.Internal.QueryM.Pools (getPoolIds) as QueryM
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
@@ -80,6 +82,7 @@ type QueryHandle =
   , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
   , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: AffE EraSummaries
+  , getPoolIds :: Aff (Either ClientError (Array PoolPubKeyHash))
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -114,6 +117,7 @@ queryHandleForCtlBackend contractEnv backend =
         (Serialization.convertTransaction tx)
       QueryM.evaluateTxOgmios txBytes additionalUtxos
   , getEraSummaries: Right <$> runQueryM' QueryM.getEraSummaries
+  , getPoolIds: Right <$> runQueryM' QueryM.getPoolIds
   }
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a
@@ -139,6 +143,7 @@ queryHandleForBlockfrostBackend contractEnv backend =
         logWarn' "Blockfrost does not support explicit additional utxos"
       Blockfrost.evaluateTx tx
   , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
+  , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a

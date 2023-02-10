@@ -59,7 +59,6 @@ module Ctl.Internal.Serialization.Address
   , enterpriseAddressNetworkId
   , paymentKeyHashEnterpriseAddress
   , scriptHashEnterpriseAddress
-  , networkIdtoInt
   , pointerAddress
   , pointerAddressPaymentCred
   , pointerAddressToAddress
@@ -361,7 +360,7 @@ baseAddress
      , delegationCred :: StakeCredential
      }
   -> BaseAddress
-baseAddress = _baseAddress networkIdtoInt
+baseAddress = _baseAddress networkIdToInt
 
 foreign import baseAddressPaymentCred :: BaseAddress -> StakeCredential
 foreign import baseAddressDelegationCred :: BaseAddress -> StakeCredential
@@ -381,8 +380,11 @@ instance EncodeAeson NetworkId where
     TestnetId -> encodeTagged' "TestnetId" {}
     MainnetId -> encodeTagged' "MainnetId" {}
 
-networkIdtoInt :: NetworkId -> Int
-networkIdtoInt = case _ of
+instance Ord NetworkId where
+  compare = compare `on` networkIdToInt
+
+networkIdToInt :: NetworkId -> Int
+networkIdToInt = case _ of
   TestnetId -> 0
   MainnetId -> 1
 
@@ -524,7 +526,7 @@ foreign import _enterpriseAddress
 enterpriseAddress
   :: { network :: NetworkId, paymentCred :: StakeCredential }
   -> EnterpriseAddress
-enterpriseAddress = _enterpriseAddress networkIdtoInt
+enterpriseAddress = _enterpriseAddress networkIdToInt
 
 paymentKeyHashEnterpriseAddress
   :: NetworkId -> Ed25519KeyHash -> EnterpriseAddress
@@ -580,7 +582,7 @@ pointerAddress
      , stakePointer :: Pointer
      }
   -> PointerAddress
-pointerAddress = _pointerAddress networkIdtoInt
+pointerAddress = _pointerAddress networkIdToInt
 
 paymentKeyHashPointerAddress
   :: NetworkId -> Ed25519KeyHash -> Pointer -> PointerAddress
@@ -631,7 +633,7 @@ foreign import _rewardAddress
 
 rewardAddress
   :: { network :: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
-rewardAddress = _rewardAddress networkIdtoInt
+rewardAddress = _rewardAddress networkIdToInt
 
 foreign import rewardAddressPaymentCred :: RewardAddress -> StakeCredential
 foreign import _rewardAddressFromAddress

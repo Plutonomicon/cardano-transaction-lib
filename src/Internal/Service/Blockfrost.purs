@@ -17,7 +17,11 @@ module Ctl.Internal.Service.Blockfrost
       , TransactionMetadata
       , UtxosAtAddress
       , UtxosOfTransaction
+      , PoolIds
+      , PoolParameters
+      , DelegationsAndRewards
       )
+  , BlockfrostStakeCredential(BlockfrostStakeCredential)
   , BlockfrostEraSummaries(BlockfrostEraSummaries)
   , BlockfrostMetadata(BlockfrostMetadata)
   , BlockfrostNativeScript(BlockfrostNativeScript)
@@ -47,6 +51,7 @@ module Ctl.Internal.Service.Blockfrost
   , runBlockfrostServiceTestM
   , submitTx
   , utxosAt
+  , getPoolIds
   ) where
 
 import Prelude
@@ -95,9 +100,11 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   )
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
+  , PoolPubKeyHash
   , Transaction
   , TransactionOutput(TransactionOutput)
   , UtxoMap
+  , poolPubKeyHashToBech32
   )
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
 import Ctl.Internal.Cardano.Types.Value
@@ -122,12 +129,15 @@ import Ctl.Internal.QueryM.Ogmios (TxEvaluationR)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
+  , NetworkId(TestnetId, MainnetId)
   , addressBech32
   , addressFromBech32
   )
 import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , ed25519KeyHashFromBytes
+  , ed25519KeyHashToBech32Unsafe
+  , scriptHashToBech32Unsafe
   , scriptHashToBytes
   )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
@@ -146,6 +156,7 @@ import Ctl.Internal.Service.Helpers
   , aesonString
   , decodeAssetClass
   )
+import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
@@ -169,10 +180,12 @@ import Ctl.Internal.Types.ProtocolParameters
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel
   )
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
+  ( Language(PlutusV2, PlutusV1)
+  , StakeValidatorHash
   , plutusV1Script
   , plutusV2Script
   )
@@ -315,6 +328,12 @@ data BlockfrostEndpoint
   | UtxosAtAddress Address Int Int
   -- /txs/{hash}/utxos
   | UtxosOfTransaction TransactionHash
+  -- /pools?page={page}&count={count}&order=asc
+  | PoolIds Int Int
+  -- /pools/{hash}
+  | PoolParameters PoolPubKeyHash
+  -- /accounts/{stake_address}
+  | DelegationsAndRewards BlockfrostStakeCredential
 
 derive instance Generic BlockfrostEndpoint _
 derive instance Eq BlockfrostEndpoint
@@ -357,6 +376,12 @@ realizeEndpoint endpoint =
         <> ("&count=" <> show count)
     UtxosOfTransaction txHash ->
       "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
+    PoolIds page count ->
+      "/pools?page=" <> show page <> "&count=" <> show count <> "&order=asc"
+    PoolParameters poolPubKeyHash ->
+      "/pool/" <> poolPubKeyHashToBech32 poolPubKeyHash
+    DelegationsAndRewards credential ->
+      "/accounts/" <> blockfrostStakeCredentialToBech32 credential
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -680,6 +705,24 @@ getEraSummaries = runExceptT do
   (eraSummaries :: BlockfrostEraSummaries) <-
     ExceptT $ handleBlockfrostResponse <$> blockfrostGetRequest EraSummaries
   pure $ unwrap eraSummaries
+
+--------------------------------------------------------------------------------
+-- Staking pool IDs
+--------------------------------------------------------------------------------
+
+getPoolIds :: BlockfrostServiceM (Either ClientError (Array PoolPubKeyHash))
+getPoolIds = runExceptT do
+  ExceptT (poolsOnPage 1)
+  where
+  poolsOnPage
+    :: Int -> BlockfrostServiceM (Either ClientError (Array PoolPubKeyHash))
+  poolsOnPage page = runExceptT do
+    let maxResultsOnPage = 100 -- blockfrost constant
+    poolIds <- ExceptT $
+      blockfrostGetRequest (PoolIds page maxResultsOnPage)
+        <#> handle404AsMempty <<< handleBlockfrostResponse
+    if Array.length poolIds < maxResultsOnPage then pure poolIds
+    else append poolIds <$> ExceptT (poolsOnPage $ page + 1)
 
 --------------------------------------------------------------------------------
 -- BlockfrostSystemStart
@@ -1105,6 +1148,29 @@ instance DecodeAeson BlockfrostCurrentEpoch where
 unwrapBlockfrostCurrentEpoch :: BlockfrostCurrentEpoch -> BigInt
 unwrapBlockfrostCurrentEpoch = unwrap
 
+data BlockfrostStakeCredential = BlockfrostStakeCredential NetworkId
+  (Either StakePubKeyHash StakeValidatorHash)
+
+derive instance Generic BlockfrostStakeCredential _
+
+derive instance Eq BlockfrostStakeCredential
+derive instance Ord BlockfrostStakeCredential
+
+instance Show BlockfrostStakeCredential where
+  show = genericShow
+
+blockfrostStakeCredentialToBech32 :: BlockfrostStakeCredential -> Bech32String
+blockfrostStakeCredentialToBech32 = case _ of
+  BlockfrostStakeCredential networkId (Left stakePubKeyHash) ->
+    ed25519KeyHashToBech32Unsafe ("stake" <> networkIdTag networkId)
+      (unwrap $ unwrap stakePubKeyHash)
+  BlockfrostStakeCredential networkId (Right stakeValidatorHash) ->
+    scriptHashToBech32Unsafe ("stake" <> networkIdTag networkId)
+      (unwrap stakeValidatorHash)
+  where
+  networkIdTag TestnetId = "_test"
+  networkIdTag MainnetId = ""
+
 --------------------------------------------------------------------------------
 -- BlockfrostProtocolParameters
 --------------------------------------------------------------------------------
@@ -1240,4 +1306,3 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , collateralPercent: raw.collateral_percent
       , maxCollateralInputs: raw.max_collateral_inputs
       }
-
