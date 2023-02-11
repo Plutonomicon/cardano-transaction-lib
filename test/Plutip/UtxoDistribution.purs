@@ -26,6 +26,7 @@ import Contract.Monad (Contract, liftedM)
 import Contract.Test.Plutip
   ( class UtxoDistribution
   , InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , runPlutipContract
   , withStakeKey
   )
@@ -33,14 +34,10 @@ import Contract.Transaction
   ( TransactionInput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import Contract.Utxos (utxosAt)
+import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
-import Ctl.Internal.Plutip.Types
-  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
-  )
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)

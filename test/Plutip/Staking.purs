@@ -12,6 +12,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
+import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
@@ -32,7 +33,6 @@ import Contract.Scripts
   )
 import Contract.Staking
   ( getPoolIds
-  , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )

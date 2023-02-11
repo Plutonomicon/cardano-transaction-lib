@@ -12,6 +12,7 @@ import Contract.Test.Blockfrost (executeContractTestsWithBlockfrost)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
+import Test.Ctl.Integration as IntegrationTest
 import Test.Ctl.Plutip.Contract as Plutip
 import Test.Spec.Runner (defaultConfig) as TestSpec
 
@@ -21,4 +22,6 @@ main = launchAff_ do
     TestSpec.defaultConfig { timeout = Just $ Milliseconds 1000000.0 }
     testnetConfig { suppressLogs = true }
     Nothing
-    Plutip.suite
+    do
+      Plutip.suite
+      IntegrationTest.stakingSuite

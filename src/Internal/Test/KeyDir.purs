@@ -43,17 +43,14 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.Plutip.Types
-  ( PrivateKeyResponse(PrivateKeyResponse)
-  , UtxoAmount
-  )
 import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
 import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
 import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
-  ( decodeWallets
+  ( UtxoAmount
+  , decodeWallets
   , encodeDistribution
   , keyWallets
   )
@@ -131,8 +128,7 @@ runContractTestsWithKeyDir params backup = do
         distrArray :: Array (Array UtxoAmount)
         distrArray = encodeDistribution distr
 
-      privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey <#>
-        PrivateKeyResponse
+      privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey
 
       wallets <-
         liftMaybe

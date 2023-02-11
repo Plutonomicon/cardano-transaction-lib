@@ -15,21 +15,24 @@ import Ctl.Internal.Plutip.Server
   , withPlutipContractEnv
   ) as X
 import Ctl.Internal.Plutip.Server (testPlutipContracts) as Server
-import Ctl.Internal.Plutip.Types
-  ( InitialUTxODistribution
-  , InitialUTxOs
-  , InitialUTxOsWithStakeKey
-  , PlutipConfig
-  , UtxoAmount
-  ) as X
 import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Ctl.Internal.Plutip.Types
+  ( PlutipConfig
+  ) as X
 import Ctl.Internal.Test.ContractTest (ContractTest)
 import Ctl.Internal.Test.ContractTest (ContractTest) as Server
 import Ctl.Internal.Test.ContractTest
   ( noWallet
   , withWallets
   ) as X
-import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution, withStakeKey) as X
+import Ctl.Internal.Test.UtxoDistribution
+  ( class UtxoDistribution
+  , InitialUTxODistribution
+  , InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , UtxoAmount
+  , withStakeKey
+  ) as X
 import Effect.Aff (Aff)
 import Mote (MoteT)
 

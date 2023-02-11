@@ -3,11 +3,7 @@ module Test.Ctl.QueryM.AffInterface (suite) where
 import Prelude
 
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM
-  ( QueryM
-  , getChainTip
-  , submitTxOgmios
-  )
+import Ctl.Internal.QueryM (QueryM, getChainTip, submitTxOgmios)
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)

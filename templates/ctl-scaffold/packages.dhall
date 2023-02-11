@@ -349,6 +349,8 @@ let additions =
           , "unfoldable"
           , "untagged-union"
           , "variant"
+          , "web-storage"
+          , "web-html"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
         , version = "1816887c0772652f01bbd82ed42d759daa816d1d"

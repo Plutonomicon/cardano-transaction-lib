@@ -1,6 +1,7 @@
 module Ctl.Internal.Service.Blockfrost
   ( BlockfrostChainTip(BlockfrostChainTip)
   , BlockfrostCurrentEpoch(BlockfrostCurrentEpoch)
+  , BlockfrostRewards
   , BlockfrostEndpoint
       ( BlockchainGenesis
       , DatumCbor
@@ -52,6 +53,8 @@ module Ctl.Internal.Service.Blockfrost
   , submitTx
   , utxosAt
   , getPoolIds
+  , getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
   ) where
 
 import Prelude
@@ -60,7 +63,7 @@ import Aeson
   ( class DecodeAeson
   , Aeson
   , Finite
-  , JsonDecodeError(TypeMismatch, AtKey, MissingValue)
+  , JsonDecodeError(TypeMismatch, MissingValue, AtKey)
   , decodeAeson
   , decodeJsonString
   , getField
@@ -70,12 +73,19 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   , unpackFinite
+  , (.:)
+  , (.:!)
   )
 import Affjax (Error, Response, URL, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Contract.RewardAddress
+  ( rewardAddressToBech32
+  , stakePubKeyHashRewardAddress
+  , stakeValidatorHashRewardAddress
+  )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
@@ -126,18 +136,17 @@ import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
 import Ctl.Internal.QueryM.Ogmios (TxEvaluationR)
+import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
-  , NetworkId(TestnetId, MainnetId)
+  , NetworkId
   , addressBech32
   , addressFromBech32
   )
 import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , ed25519KeyHashFromBytes
-  , ed25519KeyHashToBech32Unsafe
-  , scriptHashToBech32Unsafe
   , scriptHashToBytes
   )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
@@ -473,9 +482,10 @@ withRequestResponseTracing requestData performRequest = do
   requestMessage :: String
   requestMessage = case requestData of
     BlockfrostGetRequestData endpoint ->
-      show { endpoint }
+      show { endpoint, url: realizeEndpoint endpoint }
     BlockfrostPostRequestData endpoint mediaType _ ->
-      show { endpoint, mediaType {- mbContent -} }
+      show
+        { endpoint, mediaType {- mbContent -} , url: realizeEndpoint endpoint }
 
 --------------------------------------------------------------------------------
 -- Blockfrost response handling
@@ -723,6 +733,43 @@ getPoolIds = runExceptT do
         <#> handle404AsMempty <<< handleBlockfrostResponse
     if Array.length poolIds < maxResultsOnPage then pure poolIds
     else append poolIds <$> ExceptT (poolsOnPage $ page + 1)
+
+--------------------------------------------------------------------------------
+-- Delegations and rewards
+--------------------------------------------------------------------------------
+
+getPubKeyHashDelegationsAndRewards
+  :: NetworkId
+  -> StakePubKeyHash
+  -> BlockfrostServiceM (Either ClientError (Maybe DelegationsAndRewards))
+getPubKeyHashDelegationsAndRewards networkId stakePubKeyHash = runExceptT do
+  rewards <- ExceptT $
+    blockfrostGetRequest
+      ( DelegationsAndRewards $ BlockfrostStakeCredential networkId
+          (Left stakePubKeyHash)
+      )
+      <#> handle404AsNothing <<< handleBlockfrostResponse
+  pure $ rewards <#> \(BlockfrostRewards r) ->
+    { rewards: r.withdrawable_amount
+    , delegate: r.pool_id
+    }
+
+getValidatorHashDelegationsAndRewards
+  :: NetworkId
+  -> StakeValidatorHash
+  -> BlockfrostServiceM (Either ClientError (Maybe DelegationsAndRewards))
+getValidatorHashDelegationsAndRewards networkId stakeValidatorHash = runExceptT
+  do
+    rewards <- ExceptT $
+      blockfrostGetRequest
+        ( DelegationsAndRewards $ BlockfrostStakeCredential networkId
+            (Right stakeValidatorHash)
+        )
+        <#> handle404AsNothing <<< handleBlockfrostResponse
+    pure $ rewards <#> \(BlockfrostRewards r) ->
+      { rewards: r.withdrawable_amount
+      , delegate: r.pool_id
+      }
 
 --------------------------------------------------------------------------------
 -- BlockfrostSystemStart
@@ -1162,14 +1209,11 @@ instance Show BlockfrostStakeCredential where
 blockfrostStakeCredentialToBech32 :: BlockfrostStakeCredential -> Bech32String
 blockfrostStakeCredentialToBech32 = case _ of
   BlockfrostStakeCredential networkId (Left stakePubKeyHash) ->
-    ed25519KeyHashToBech32Unsafe ("stake" <> networkIdTag networkId)
-      (unwrap $ unwrap stakePubKeyHash)
+    rewardAddressToBech32 $ stakePubKeyHashRewardAddress networkId
+      stakePubKeyHash
   BlockfrostStakeCredential networkId (Right stakeValidatorHash) ->
-    scriptHashToBech32Unsafe ("stake" <> networkIdTag networkId)
-      (unwrap stakeValidatorHash)
-  where
-  networkIdTag TestnetId = "_test"
-  networkIdTag MainnetId = ""
+    rewardAddressToBech32 $ stakeValidatorHashRewardAddress networkId
+      stakeValidatorHash
 
 --------------------------------------------------------------------------------
 -- BlockfrostProtocolParameters
@@ -1305,4 +1349,27 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , maxValueSize: unwrap raw.max_val_size
       , collateralPercent: raw.collateral_percent
       , maxCollateralInputs: raw.max_collateral_inputs
+      }
+
+--------------------------------------------------------------------------------
+-- BlockfrostRewards
+--------------------------------------------------------------------------------
+
+newtype BlockfrostRewards = BlockfrostRewards
+  { pool_id :: Maybe PoolPubKeyHash
+  , withdrawable_amount :: Maybe Coin
+  }
+
+instance DecodeAeson BlockfrostRewards where
+  decodeAeson aeson = do
+    obj <- decodeAeson aeson
+    pool_id <- obj .: "pool_id"
+    withdrawable_amount_mb_str <- obj .:! "withdrawable_amount"
+    withdrawable_amount <- for withdrawable_amount_mb_str
+      \withdrawable_amount_str ->
+        note (TypeMismatch "BigInt") $ map Coin $ BigInt.fromString
+          withdrawable_amount_str
+    pure $ BlockfrostRewards
+      { pool_id
+      , withdrawable_amount
       }

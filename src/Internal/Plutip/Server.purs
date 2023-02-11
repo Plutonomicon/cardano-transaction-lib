@@ -45,8 +45,6 @@ import Ctl.Internal.Plutip.Spawn
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxODistribution
-  , InitialUTxOs
   , PlutipConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
@@ -65,6 +63,8 @@ import Ctl.Internal.Test.ContractTest
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
+  , InitialUTxODistribution
+  , InitialUTxOs
   , decodeWallets
   , encodeDistribution
   , keyWallets
@@ -81,7 +81,7 @@ import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
-import Data.Newtype (over, wrap)
+import Data.Newtype (over, unwrap, wrap)
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
@@ -319,7 +319,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         wallets <-
           liftContractM
             "Impossible happened: could not decode wallets. Please report as bug"
-            $ decodeWallets distr response.privateKeys
+            $ decodeWallets distr (unwrap <$> response.privateKeys)
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets

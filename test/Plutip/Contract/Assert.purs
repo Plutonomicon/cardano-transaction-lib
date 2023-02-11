@@ -6,18 +6,19 @@ import Prelude
 import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Monad (liftedM)
 import Contract.PlutusData (PlutusData(Integer))
+import Contract.Test (ContractTest)
 import Contract.Test.Assert
   ( checkExUnitsNotExceed
   , collectAssertionFailures
   , printContractAssertionFailures
   )
-import Contract.Test.Plutip (InitialUTxOs, PlutipTest, withWallets)
+import Contract.Test.Mote (TestPlanM)
+import Contract.Test.Plutip (InitialUTxOs, withWallets)
 import Contract.Wallet (withKeyWallet)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Either (isLeft, isRight)
@@ -29,7 +30,7 @@ import Mote (group, test)
 import Test.Ctl.Fixtures (cip25MetadataFixture1)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
-suite :: TestPlanM PlutipTest Unit
+suite :: TestPlanM ContractTest Unit
 suite = do
   group "Assertions interface" do
     let

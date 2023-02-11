@@ -72,6 +72,7 @@ module Test.Ctl.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
+  , ed25519KeyHash1
   ) where
 
 import Prelude

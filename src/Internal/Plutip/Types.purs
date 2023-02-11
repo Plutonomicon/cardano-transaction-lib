@@ -2,9 +2,6 @@ module Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ErrorMessage
   , FilePath
-  , InitialUTxOs
-  , InitialUTxODistribution
-  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
   , ClusterStartupRequest(ClusterStartupRequest)
   , PrivateKeyResponse(PrivateKeyResponse)
@@ -19,7 +16,6 @@ module Ctl.Internal.Plutip.Types
       )
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse(StopClusterSuccess, StopClusterFailure)
-  , UtxoAmount
   ) where
 
 import Prelude
@@ -38,10 +34,9 @@ import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.ServerConfig (ServerConfig)
+import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
-import Ctl.Internal.Wallet.Key (PrivateStakeKey)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
@@ -75,20 +70,6 @@ type PlutipConfig =
 type FilePath = String
 
 type ErrorMessage = String
-
--- | UTxO amount in Lovelaces
-type UtxoAmount = BigInt
-
--- | A list of UTxOs for a single wallet
-type InitialUTxOs = Array UtxoAmount
-
--- | A wrapper that allows to specify a stake key to attach to a
--- | generated pre-funded Address.
-data InitialUTxOsWithStakeKey =
-  InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
-
--- | A spec for distribution of UTxOs between wallets.
-type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution

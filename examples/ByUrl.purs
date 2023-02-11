@@ -4,11 +4,13 @@ import Prelude
 
 import Contract.Config
   ( ContractParams
+  , blockfrostPublicPreviewServerConfig
   , mainnetFlintConfig
   , mainnetGeroConfig
   , mainnetLodeConfig
   , mainnetNamiConfig
   , mainnetNuFiConfig
+  , mkBlockfrostBackendParams
   , testnetEternlConfig
   , testnetFlintConfig
   , testnetGeroConfig
@@ -44,15 +46,40 @@ import Ctl.Internal.Wallet.Cip30Mock
   )
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Just, Nothing), isNothing)
+import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import Effect.Console as Console
 import Test.Ctl.ApplyArgs as ApplyArgs
+import Web.HTML (window)
+import Web.HTML.Window (localStorage)
+import Web.Storage.Storage (getItem)
 
 main :: Effect Unit
 main = do
-  addLinks wallets examples
-  route wallets examples
+  -- Read Blockfrost API key from the browser storage.
+  -- To set it up, run `npm run e2e-browser` and follow the instructions.
+  mbApiKey <- getBlockfrostApiKey
+  let
+    walletsWithBlockfrost =
+      wallets `Map.union` Map.fromFoldable
+        [ "blockfrost-nami-preview" /\ mkBlockfrostPreviewNamiConfig mbApiKey /\
+            Nothing
+        ]
+  addLinks walletsWithBlockfrost examples
+  route walletsWithBlockfrost examples
+
+getBlockfrostApiKey :: Effect (Maybe String)
+getBlockfrostApiKey = do
+  storage <- localStorage =<< window
+  res <- getItem "BLOCKFROST_API_KEY" storage
+  when (isNothing res) do
+    Console.log
+      "Set BLOCKFROST_API_KEY LocalStorage key to use Blockfrost services."
+    Console.log "Run this in the browser console:"
+    Console.log "  localStorage.setItem('BLOCKFROST_API_KEY', 'your-key-here');"
+  pure res
 
 wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 wallets = Map.fromFoldable
@@ -73,6 +100,16 @@ wallets = Map.fromFoldable
   , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
   , "plutip-nufi-mock" /\ mainnetNuFiConfig /\ Just MockNuFi
   ]
+
+mkBlockfrostPreviewNamiConfig :: Maybe String -> ContractParams
+mkBlockfrostPreviewNamiConfig apiKey =
+  testnetNamiConfig
+    { backendParams = mkBlockfrostBackendParams
+        { blockfrostConfig: blockfrostPublicPreviewServerConfig
+        , blockfrostApiKey: apiKey
+        , confirmTxDelay: Just (Seconds 30.0)
+        }
+    }
 
 examples :: Map E2ETestName (Contract Unit)
 examples = Map.fromFoldable

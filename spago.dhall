@@ -93,6 +93,8 @@ You can edit this file as you like.
   , "unfoldable"
   , "untagged-union"
   , "variant"
+  , "web-html"
+  , "web-storage"
   ]
 , packages = ./packages.dhall
 , sources =

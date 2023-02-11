@@ -37,14 +37,20 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, CurrentEpoch) as Ogmios
 import Ctl.Internal.QueryM.Ogmios
-  ( SubmitTxR(SubmitTxSuccess, SubmitFail)
+  ( AdditionalUtxoSet
+  , CurrentEpoch
+  , SubmitTxR(SubmitFail, SubmitTxSuccess)
   , TxEvaluationR
   )
-import Ctl.Internal.QueryM.Pools (getPoolIds) as QueryM
+import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
+import Ctl.Internal.QueryM.Pools
+  ( getPoolIds
+  , getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  ) as QueryM
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
-import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
@@ -55,6 +61,8 @@ import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
+import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either(Left, Right))
@@ -77,12 +85,16 @@ type QueryHandle =
   , isTxConfirmed :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: AffE Chain.Tip
-  , getCurrentEpoch :: Aff Ogmios.CurrentEpoch
+  , getCurrentEpoch :: Aff CurrentEpoch
   -- TODO Capture errors from all backends
   , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
-  , evaluateTx :: Transaction -> Ogmios.AdditionalUtxoSet -> Aff TxEvaluationR
+  , evaluateTx :: Transaction -> AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: AffE EraSummaries
-  , getPoolIds :: Aff (Either ClientError (Array PoolPubKeyHash))
+  , getPoolIds :: AffE (Array PoolPubKeyHash)
+  , getPubKeyHashDelegationsAndRewards ::
+      NetworkId -> StakePubKeyHash -> AffE (Maybe DelegationsAndRewards)
+  , getValidatorHashDelegationsAndRewards ::
+      NetworkId -> StakeValidatorHash -> AffE (Maybe DelegationsAndRewards)
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -118,7 +130,14 @@ queryHandleForCtlBackend contractEnv backend =
       QueryM.evaluateTxOgmios txBytes additionalUtxos
   , getEraSummaries: Right <$> runQueryM' QueryM.getEraSummaries
   , getPoolIds: Right <$> runQueryM' QueryM.getPoolIds
+  , getPubKeyHashDelegationsAndRewards: \_ pubKeyHash ->
+      Right <$> runQueryM'
+        (QueryM.getPubKeyHashDelegationsAndRewards pubKeyHash)
+  , getValidatorHashDelegationsAndRewards: \_ validatorHash ->
+      Right <$> runQueryM'
+        (QueryM.getValidatorHashDelegationsAndRewards validatorHash)
   }
+
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a
   runQueryM' = runQueryM contractEnv backend
@@ -144,6 +163,16 @@ queryHandleForBlockfrostBackend contractEnv backend =
       Blockfrost.evaluateTx tx
   , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
+  , getPubKeyHashDelegationsAndRewards: \networkId stakePubKeyHash ->
+      runBlockfrostServiceM'
+        ( Blockfrost.getPubKeyHashDelegationsAndRewards networkId
+            stakePubKeyHash
+        )
+  , getValidatorHashDelegationsAndRewards: \networkId stakeValidatorHash ->
+      runBlockfrostServiceM'
+        ( Blockfrost.getValidatorHashDelegationsAndRewards networkId
+            stakeValidatorHash
+        )
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a

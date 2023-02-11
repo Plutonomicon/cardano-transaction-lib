@@ -1,6 +1,5 @@
 module Contract.Staking
   ( getPoolIds
-  , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   , module X
@@ -9,15 +8,11 @@ module Contract.Staking
 import Prelude
 
 import Contract.Monad (Contract)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PoolPubKeyHash
-  , PoolRegistrationParams
-  )
-import Ctl.Internal.Contract.Monad (wrapQueryM)
+import Control.Monad.Reader (asks)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
-import Ctl.Internal.QueryM.Pools as QueryM
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Either (either)
@@ -33,19 +28,23 @@ getPoolIds = do
     queryHandle.getPoolIds
       >>= either (liftEffect <<< throw <<< show) pure
 
-getPoolParameters
-  :: PoolPubKeyHash
-  -> Contract PoolRegistrationParams
-getPoolParameters = wrapQueryM <<< QueryM.getPoolParameters
-
 getPubKeyHashDelegationsAndRewards
   :: StakePubKeyHash
   -> Contract (Maybe DelegationsAndRewards)
-getPubKeyHashDelegationsAndRewards =
-  wrapQueryM <<< QueryM.getPubKeyHashDelegationsAndRewards
+getPubKeyHashDelegationsAndRewards stakePubKeyHash = do
+  queryHandle <- getQueryHandle
+  networkId <- asks _.networkId
+  liftAff do
+    queryHandle.getPubKeyHashDelegationsAndRewards networkId stakePubKeyHash
+      >>= either (liftEffect <<< throw <<< show) pure
 
 getValidatorHashDelegationsAndRewards
   :: StakeValidatorHash
   -> Contract (Maybe DelegationsAndRewards)
-getValidatorHashDelegationsAndRewards =
-  wrapQueryM <<< QueryM.getValidatorHashDelegationsAndRewards
+getValidatorHashDelegationsAndRewards stakeValidatorHash = do
+  queryHandle <- getQueryHandle
+  networkId <- asks _.networkId
+  liftAff do
+    queryHandle.getValidatorHashDelegationsAndRewards networkId
+      stakeValidatorHash
+      >>= either (liftEffect <<< throw <<< show) pure

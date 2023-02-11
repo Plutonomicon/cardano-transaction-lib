@@ -49,11 +49,11 @@ import Contract.Scripts
   , mintingPolicyHash
   , validatorHash
   )
+import Contract.Test (ContractTest)
 import Contract.Test.Assert (runChecks)
 import Contract.Test.Plutip
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
-  , PlutipTest
   , withStakeKey
   , withWallets
   )
@@ -176,7 +176,7 @@ import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
-suite :: TestPlanM PlutipTest Unit
+suite :: TestPlanM ContractTest Unit
 suite = do
   group "Contract interface" do
     test "Collateral selection: UTxO with lower amount is selected" do
