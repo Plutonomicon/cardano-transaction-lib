@@ -296,8 +296,12 @@ runBalancer p = do
 
   partitionAndFilterUtxos
     :: BalanceTxM { spendable :: UtxoMap, invalidInContext :: UtxoMap }
-  partitionAndFilterUtxos =
-    asksConstraints Constraints._nonSpendableInputs <#>
+  partitionAndFilterUtxos = do
+    -- get collateral inputs to mark them as unspendable
+    collateralInputs <- liftContract $ getWalletCollateral <#>
+      fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
+    asksConstraints
+      Constraints._nonSpendableInputs <#> append collateralInputs >>>
       \nonSpendableInputs ->
         foldr
           ( \(oref /\ output) acc ->
