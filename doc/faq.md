@@ -11,6 +11,7 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
   - [Q: What are the common reasons behind BalanceInsufficientError?](#q-what-are-the-common-reasons-behind-balanceinsufficienterror)
+  - [Q: CTL consumed my collateral](#q-ctl-consumed-my-collateral)
 - [Time-related](#time-related)
   - [Q: Time-related functions behave strangely, what's the reason?](#q-time-related-functions-behave-strangely-whats-the-reason)
   - [Q: Time/slot conversion functions return `Nothing`. Why is that?](#q-timeslot-conversion-functions-return-nothing-why-is-that)
@@ -51,7 +52,15 @@ means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago
 
 ### Q: What are the common reasons behind BalanceInsufficientError?
 
-Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 tAda to create another UTxO for the collateral.
+Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 Ada to create another UTxO for the collateral.
+
+Another thing to keep in mind is that due to [min-ada requirements](https://docs.cardano.org/native-tokens/minimum-ada-value-requirement/), the amount of Ada that is required to be *consumed* by a Tx is higher than the amount that must be *spent*, because CTL creates change UTxOs. The amount of Ada that should be present on a wallet depends on a number of factors, including the amount and quantity of tokens in the users wallet.
+
+### Q: CTL consumed my collateral
+
+CTL does not consume wallet collateral normally, but it still can happen.
+
+In order to get the collateral UTxO, CTL uses the wallet and then marks the returned UTxO as locked internally. But some wallets (e.g. Gero) do not return the collateral the moment it is set, waiting for Tx confirmation first. In case a collateral is set right before the contract is started, CTL can accidentally spend the collateral, because we rely on CTL's own query layer to get a list of available UTxOs, and the wallet state may lag behind it, not returning the collateral to filter out at that moment.
 
 ## Time-related
 
