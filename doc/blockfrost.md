@@ -68,11 +68,17 @@ If you are going to use an enterprise address (without a staking credential comp
 
 ### 4. Setting up a directory for temporary keys
 
-During testing, the test engine will move funds around according to the UTxO distribution specifications provided via `Contract.Test.withWallets` calls in the test bodies. It will generate private keys as needed on the fly. The private keys will be stored in a special directory, to prevent loss of funds in case the test suite exits. Set `BACKUP_KEYS_DIR` to an existing directory where you would like the keys to be stored.
+During testing, the test engine will move funds around according to the UTxO distribution specifications provided via `Contract.Test.withWallets` calls in the test bodies. It will generate private keys as needed on the fly. The private keys will be stored in a special directory, to prevent loss of funds in case the test suite suddently exits. Set `BACKUP_KEYS_DIR` to an existing directory where you would like the keys to be stored.
+
+In this directory, keys will be stored in subdirs named as addresses that are derived from these keys. Most of these directories will contain a file named `inactive`. It indicates that the test suite assumes that there are no funds left (because they have been withdrawn successfully).
+
+Each test run generates fresh keys that will be stored indefinitely, and it's up to the user to decide when to delete the corresponding directories. The reason why the keys are not being disposed of automatically is because there may be some on-chain state uniquely tied to them that the user may not want to lose access to.
 
 ### 5. Providing an API endpoint URL
 
-Parts of the endpoint URLs are specified separately, e.g. `https://cardano-preview.blockfrost.io/api/v0/` becomes:
+Blockfrost dashboard provides endpoint URLs for your projects.
+
+In the test suite configuration, parts of the endpoint URLs are specified separately, e.g. `https://cardano-preview.blockfrost.io/api/v0/` becomes:
 
 ```bash
 export BLOCKFROST_PORT=443 # https -> 443, http -> 80
@@ -83,8 +89,8 @@ export BLOCKFROST_PATH="/api/v0"
 
 ### 6. Extra configuration options
 
-If your tests are failing because the effects of the transaction do not seem
-to propagate, try increasing the delay after transaction submission. Blockfrost does not update the query layer state consistently, so this is the best workaround we can have.
+If the tests are failing because the effects of the transaction do not seem
+to propagate, it is possible to increase the delay after transaction submission. Blockfrost does not update the query layer state atomically (proxied Ogmios eval-tx endpoint seems to lag behind the DB), so this is the best workaround we can have:
 
 ```bash
 export TX_CONFIRMATION_DELAY_SECONDS=30

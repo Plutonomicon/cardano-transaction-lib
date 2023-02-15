@@ -22,7 +22,8 @@ import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Test.ContractTest (ContractTest)
 import Ctl.Internal.Test.E2E.Runner (readBoolean)
 import Ctl.Internal.Test.KeyDir (runContractTestsWithKeyDir)
-import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing, maybe)
+import Data.Newtype (unwrap)
 import Data.Number as Number
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt as UInt
@@ -128,7 +129,9 @@ executeContractTestsWithBlockfrost
     liftEffect $ Console.warn $
       "Warning: It is recommended to set TX_CONFIRMATION_DELAY_SECONDS to at "
         <> "least 20 seconds to let the changes propagate after transaction "
-        <> "submission."
+        <> "submission. Current value: "
+        <> show (fromMaybe 0.0 (unwrap <$> confirmTxDelay))
+        <> "s."
   testKeysDirectory <- getEnvVariable "BACKUP_KEYS_DIR"
     "Please specify a directory to store temporary private keys in"
   blockfrostConfig <- liftEffect $ readBlockfrostServerConfig

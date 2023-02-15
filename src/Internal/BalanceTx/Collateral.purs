@@ -53,7 +53,7 @@ addTxCollateral collateral transaction =
 -- | to `minRequiredCollateral`, returns unmodified transaction (see NOTE).
 -- |
 -- | NOTE: Collateral cannot be less than `minRequiredCollateral` when
--- | selected using `selectCollateral` function in this module.
+-- | selected using `selectCollateral` function
 addTxCollateralReturn
   :: Array TransactionUnspentOutput
   -> Transaction

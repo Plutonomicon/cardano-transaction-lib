@@ -22,6 +22,8 @@ Our nix environment includes CTL backend services, but for now Blockfrost can be
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## CTL Backend
 
+Info in this section only applies to CTL backend services.
+
 The services that are currently **required** are:
 
 - [Ogmios](https://ogmios.dev)

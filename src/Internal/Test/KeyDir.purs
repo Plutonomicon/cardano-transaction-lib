@@ -4,7 +4,11 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Contract.Address (getWalletAddresses, ownPaymentPubKeysHashes)
+import Contract.Address
+  ( addressToBech32
+  , getWalletAddresses
+  , ownPaymentPubKeysHashes
+  )
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
 import Contract.Log (logError', logTrace')
@@ -24,7 +28,7 @@ import Contract.Transaction
   , submit
   , submitTxFromConstraints
   )
-import Contract.Utxos (utxosAt)
+import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (valueToCoin')
 import Contract.Wallet (privateKeysToKeyWallet, withKeyWallet)
 import Contract.Wallet.Key
@@ -69,7 +73,7 @@ import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Right, Left), hush)
-import Data.Foldable (fold)
+import Data.Foldable (fold, sum)
 import Data.Lens ((^.))
 import Data.List (List(Cons, Nil))
 import Data.List as List
@@ -91,9 +95,8 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
-import Effect.Console as Console
-import Effect.Exception (error)
+import Effect.Class.Console (info)
+import Effect.Exception (error, throw)
 import Effect.Ref as Ref
 import Mote.Monad (mapTest)
 import Node.Encoding (Encoding(UTF8))
@@ -118,47 +121,95 @@ runContractTestsWithKeyDir
 runContractTestsWithKeyDir params backup = do
   mapTest \(ContractTest runContractTest) -> do
     withContractEnv params \env -> do
-      keyWallets <- liftAff $ restoreWallets backup
-      when (Array.length keyWallets > 0) do
-        liftEffect $ Console.log
+      keyWalletArr <- liftAff $ restoreWallets backup
+      when (Array.length keyWalletArr > 0) do
+        liftEffect $ info
           "Checking the backup wallets for leftover funds..."
-        returnFunds backup env keyWallets Nothing
-    runContractTest \distr mkTest -> withContractEnv params \env -> do
-      let
-        distrArray :: Array (Array UtxoAmount)
-        distrArray = encodeDistribution distr
+        returnFunds backup env keyWalletArr Nothing false
+      runContractTest \distr mkTest -> do
+        addressStr /\ balance <- runContractInEnv env $ noLogs do
+          address <-
+            liftMaybe
+              ( error
+                  "Impossible happened: unable to get own address"
+              ) =<< (getWalletAddresses <#> Array.head)
+          addressStr <- addressToBech32 address
+          balance <- getWalletBalance <#> fold
+          pure $ addressStr /\ balance
+        let
+          distrArray :: Array (Array UtxoAmount)
+          distrArray = encodeDistribution distr
 
-      privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey
+        -- Check if we have enough funds to distribute them (with some extra
+        -- room). The fact our estimations are not precise is not a problem,
+        -- because it is expected that test wallets have thousands of ADA.
+        let
+          distrTotalAmount :: BigInt
+          distrTotalAmount = sum $ map sum distrArray
 
-      wallets <-
-        liftMaybe
-          ( error
-              "Impossible happened: could not decode wallets. Please report as bug"
+          minAdaRoughEstimation :: BigInt
+          minAdaRoughEstimation = BigInt.fromInt 1_000_000
+
+          feesToDistribute :: BigInt
+          feesToDistribute =
+            -- fees + minAda for all UTxOs, overestimated
+            BigInt.fromInt 2_000_000 +
+              minAdaRoughEstimation * BigInt.fromInt
+                (sum (Array.length <$> distrArray))
+
+        -- check if we have enough funds
+        when (valueToCoin' balance <= distrTotalAmount + feesToDistribute) do
+          liftEffect $ throw $
+            "The test engine cannot satisfy the requested ADA distribution "
+              <> "because there are not enough funds left. \n\n"
+              <> "Total required value is: "
+              <> BigInt.toString distrTotalAmount
+              <> " Lovelace (estimated)\n"
+              <> "Total available value is: "
+              <> BigInt.toString (valueToCoin' balance)
+              <> "\nThe test suite is using this address: "
+              <> addressStr
+              <> "\nFund it to continue."
+
+        -- generate wallets
+        privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey
+        wallets <-
+          liftMaybe
+            ( error
+                "Impossible happened: could not decode wallets. Please report as bug"
+            )
+            $ decodeWallets distr privateKeys
+
+        let
+          walletsArray :: Array KeyWallet
+          walletsArray = keyWallets (pureProxy distr) wallets
+
+          runTheContract :: Aff Unit
+          runTheContract = runContractInEnv env { wallet = Nothing } do
+            mkTest wallets
+
+        -- We want to distinguish between successful and non-successful runs
+        hasRunRef <- liftEffect $ Ref.new false
+
+        if Array.null walletsArray then
+          runTheContract
+        else Aff.bracket
+          ( do
+              backupWallets backup env walletsArray
+              fundWallets env walletsArray distrArray
           )
-          $ decodeWallets distr privateKeys
-
-      let
-        walletsArray :: Array KeyWallet
-        walletsArray = keyWallets (pureProxy distr) wallets
-
-        runContract :: Aff Unit
-        runContract = runContractInEnv env { wallet = Nothing } do
-          mkTest wallets
-
-      if Array.null walletsArray then
-        runContract
-      else Aff.bracket
-        ( backupWallets backup env walletsArray *> fundWallets env walletsArray
-            distrArray
-        )
-        -- Retry fund returning until success or timeout. Submission will fail if
-        -- the node has seen the wallets utxos being spent previously, so retrying
-        -- will allow the wallets utxos to eventually represent a spendable set
-        ( \funds -> recovering returnFundsRetryPolicy ([ \_ _ -> pure true ])
-            \_ -> returnFunds backup env walletsArray (Just funds) *>
-              runContractInEnv env (markAsInactive backup walletsArray)
-        )
-        \_ -> runContract
+          -- Retry fund returning until success or timeout. Submission will fail if
+          -- the node has seen the wallets utxos being spent previously, so retrying
+          -- will allow the wallets utxos to eventually represent a spendable set
+          ( \funds -> recovering returnFundsRetryPolicy ([ \_ _ -> pure true ])
+              \_ -> do
+                hasRun <- liftEffect $ Ref.read hasRunRef
+                returnFunds backup env walletsArray (Just funds) hasRun
+                runContractInEnv env (markAsInactive backup walletsArray)
+          )
+          \_ -> do
+            runTheContract
+            liftEffect $ Ref.write true hasRunRef
   where
   pureProxy :: forall (a :: Type). a -> Proxy a
   pureProxy _ = Proxy
@@ -180,7 +231,7 @@ markAsInactive backup wallets = do
       inactiveFlagFile = Path.concat [ backup, address, "inactive" ]
     liftAff $ writeTextFile UTF8 inactiveFlagFile $
       "This address was marked as inactive. "
-        <> "The test suite assumes that there are no funds left on it. "
+        <> "The test engine assumes that there are no funds left on it. "
         <> "You can check it by inspecting the address on a chain explorer."
 
 -- | Restore all wallets from the backups that are not marked as inactive.
@@ -250,7 +301,7 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   awaitTxConfirmed txHash
   let fundTotal = Array.foldl (+) zero $ join distrArray
   -- Use log so we can see, regardless of suppression
-  log $ joinWith " "
+  info $ joinWith " "
     [ "Sent"
     , BigInt.toString fundTotal
     , "lovelace to test wallets"
@@ -292,62 +343,74 @@ returnFundsRetryPolicy = limitRetriesByCumulativeDelay
 -- | Find all non-empty wallets and return the funds.
 -- | Accepts an optional expected Lovelace number to be returned.
 returnFunds
-  :: FilePath -> ContractEnv -> Array KeyWallet -> Maybe BigInt -> Aff Unit
-returnFunds backup env allWalletsArray mbFundTotal = runContractInEnv env $
-  noLogs do
-    nonEmptyWallets <- catMaybes <$> for allWalletsArray \wallet -> do
-      withKeyWallet wallet do
-        utxoMap <- liftedM "Failed to get utxos" $
-          (getWalletAddresses <#> Array.head) >>= traverse utxosAt
-        if Map.isEmpty utxoMap then do
-          markAsInactive backup [ wallet ]
-          pure Nothing
-        else pure $ Just (utxoMap /\ wallet)
+  :: FilePath
+  -> ContractEnv
+  -> Array KeyWallet
+  -> Maybe BigInt
+  -> Boolean
+  -> Aff Unit
+returnFunds backup env allWalletsArray mbFundTotal hasRun = runContractInEnv env
+  $
+    noLogs do
+      nonEmptyWallets <- catMaybes <$> for allWalletsArray \wallet -> do
+        withKeyWallet wallet do
+          utxoMap <- liftedM "Failed to get utxos" $
+            (getWalletAddresses <#> Array.head) >>= traverse utxosAt
+          if Map.isEmpty utxoMap then do
+            markAsInactive backup [ wallet ]
+            pure Nothing
+          else pure $ Just (utxoMap /\ wallet)
 
-    when (Array.length nonEmptyWallets /= 0) do
-      -- Print the messages only if we are running during initial fund recovery
-      when (isNothing mbFundTotal) do
-        log $ "Non-empty wallets found: " <> show (Array.length nonEmptyWallets)
-        log $ "Trying to return the funds back to the main wallet before " <>
-          "starting the test suite..."
-      let utxos = nonEmptyWallets # map fst # Map.unions
+      when (Array.length nonEmptyWallets /= 0) do
+        -- Print the messages only if we are running during initial fund recovery
+        when (isNothing mbFundTotal) do
+          info $ "Non-empty wallets found: " <> show
+            (Array.length nonEmptyWallets)
+          info $ "Returning ADA back to the main wallet before " <>
+            "starting the test suite..."
+        let utxos = nonEmptyWallets # map fst # Map.unions
 
-      pkhs <- fold <$> for nonEmptyWallets
-        (snd >>> flip withKeyWallet ownPaymentPubKeysHashes)
+        pkhs <- fold <$> for nonEmptyWallets
+          (snd >>> flip withKeyWallet ownPaymentPubKeysHashes)
 
-      let
-        constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
-          <> foldMap mustBeSignedBy pkhs
-        lookups = unspentOutputs utxos
+        let
+          constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
+            <> foldMap mustBeSignedBy pkhs
+          lookups = unspentOutputs utxos
 
-      unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
-      balancedTx <- liftedE $ balanceTx unbalancedTx
-      balancedSignedTx <- Array.foldM
-        (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
-        (wrap $ unwrap balancedTx)
-        (nonEmptyWallets <#> snd)
+        unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
+        balancedTx <- liftedE $ balanceTx unbalancedTx
+        balancedSignedTx <- Array.foldM
+          (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
+          (wrap $ unwrap balancedTx)
+          (nonEmptyWallets <#> snd)
 
-      txHash <- submit balancedSignedTx
-      awaitTxConfirmed txHash
+        txHash <- submit balancedSignedTx
+        awaitTxConfirmed txHash
 
-      let
-        (refundTotal :: BigInt) = Array.foldl
-          (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
-          zero
-          (Array.fromFoldable $ Map.values utxos)
+        let
+          (refundTotal :: BigInt) = Array.foldl
+            (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+            zero
+            (Array.fromFoldable $ Map.values utxos)
 
-      log $ joinWith " " $
-        [ "Refunded"
-        , BigInt.toString refundTotal
-        , "Lovelace"
-        ] <> maybe []
-          ( \fundTotal ->
-              [ "of"
-              , BigInt.toString fundTotal
-              , "Lovelace from test wallets"
-              ]
-          )
-          mbFundTotal
+        info $ joinWith " " $
+          [ "Refunded"
+          , BigInt.toString refundTotal
+          , "Lovelace"
+          ] <> maybe []
+            ( \fundTotal ->
+                [ "of"
+                , BigInt.toString fundTotal
+                , "Lovelace from test wallets"
+                ]
+            )
+            mbFundTotal
+        for_ mbFundTotal \fundTotal -> do
+          when (fundTotal == refundTotal && hasRun) do
+            info $ "The test below didn't spend any ADA. Perhaps it does not "
+              <> "need any funds to succeed. Consider using `noWallet` to "
+              <> "skip funds distribution step"
 
 -- | A helper function that abstracts away conversion between `KeyWallet` and
 -- | its address and just gives us a `TxConstraints` value.
