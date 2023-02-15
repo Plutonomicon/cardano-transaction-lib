@@ -294,45 +294,50 @@ runBalancer p = do
   partitionAndFilterUtxos
     :: BalanceTxM { spendable :: UtxoMap, invalidInContext :: UtxoMap }
   partitionAndFilterUtxos = do
-    -- get collateral inputs to mark them as unspendable
-    collateralInputs <- liftContract $ getWalletCollateral <#>
-      fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
-    asksConstraints
-      Constraints._nonSpendableInputs <#> append collateralInputs >>>
-      \nonSpendableInputs ->
-        foldr
-          ( \(oref /\ output) acc ->
-              let
-                hasInlineDatum :: Boolean
-                hasInlineDatum = case (unwrap output).datum of
-                  OutputDatum _ -> true
-                  _ -> false
+    isCip30 <- isJust <$> askCip30Wallet
+    -- Get collateral inputs to mark them as unspendable.
+    -- Some CIP-30 wallets don't allow to sign Txs that spend it.
+    nonSpendableCollateralInputs <-
+      if isCip30 then
+        liftContract $ getWalletCollateral <#>
+          fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
+      else mempty
+    asksConstraints Constraints._nonSpendableInputs <#>
+      append nonSpendableCollateralInputs >>>
+        \nonSpendableInputs ->
+          foldr
+            ( \(oref /\ output) acc ->
+                let
+                  hasInlineDatum :: Boolean
+                  hasInlineDatum = case (unwrap output).datum of
+                    OutputDatum _ -> true
+                    _ -> false
 
-                hasScriptRef :: Boolean
-                hasScriptRef = isJust (unwrap output).scriptRef
+                  hasScriptRef :: Boolean
+                  hasScriptRef = isJust (unwrap output).scriptRef
 
-                spendable :: Boolean
-                spendable = not $ Set.member oref nonSpendableInputs ||
-                  Set.member oref
-                    (p.unbalancedTx ^. _body' <<< _referenceInputs)
+                  spendable :: Boolean
+                  spendable = not $ Set.member oref nonSpendableInputs ||
+                    Set.member oref
+                      (p.unbalancedTx ^. _body' <<< _referenceInputs)
 
-                validInContext :: Boolean
-                validInContext = not $ txHasPlutusV1 &&
-                  (hasInlineDatum || hasScriptRef)
-              in
-                case spendable, validInContext of
-                  true, true -> acc
-                    { spendable = Map.insert oref output acc.spendable }
-                  true, false -> acc
-                    { invalidInContext = Map.insert oref output
-                        acc.invalidInContext
-                    }
-                  _, _ -> acc
-          )
-          { spendable: Map.empty
-          , invalidInContext: Map.empty
-          }
-          (Map.toUnfoldable p.utxos :: Array _)
+                  validInContext :: Boolean
+                  validInContext = not $ txHasPlutusV1 &&
+                    (hasInlineDatum || hasScriptRef)
+                in
+                  case spendable, validInContext of
+                    true, true -> acc
+                      { spendable = Map.insert oref output acc.spendable }
+                    true, false -> acc
+                      { invalidInContext = Map.insert oref output
+                          acc.invalidInContext
+                      }
+                    _, _ -> acc
+            )
+            { spendable: Map.empty
+            , invalidInContext: Map.empty
+            }
+            (Map.toUnfoldable p.utxos :: Array _)
 
   mainLoop :: BalancerState -> BalanceTxM FinalizedTransaction
   mainLoop = worker <<< PrebalanceTx
