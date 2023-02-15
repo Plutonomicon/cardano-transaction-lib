@@ -413,20 +413,20 @@ suite = do
         distribution
           :: InitialUTxOs /\ InitialUTxOs /\ InitialUTxOs /\ InitialUTxOs
         distribution =
-          [ BigInt.fromInt 2_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigInt.fromInt 50_000_000
+          , BigInt.fromInt 50_000_000
           ]
             /\
-              [ BigInt.fromInt 2_000_000_000
-              , BigInt.fromInt 2_000_000_000
+              [ BigInt.fromInt 50_000_000
+              , BigInt.fromInt 50_000_000
               ]
             /\
-              [ BigInt.fromInt 2_000_000_000
-              , BigInt.fromInt 2_000_000_000
+              [ BigInt.fromInt 50_000_000
+              , BigInt.fromInt 50_000_000
               ]
             /\
-              [ BigInt.fromInt 2_000_000_000
-              , BigInt.fromInt 2_000_000_000
+              [ BigInt.fromInt 50_000_000
+              , BigInt.fromInt 50_000_000
               ]
       withWallets distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
@@ -502,7 +502,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -530,7 +530,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -572,7 +572,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -615,7 +615,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -657,7 +657,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -700,7 +700,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice NativeScriptMints.contract
@@ -735,7 +735,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
 
         datum1 :: Datum
@@ -799,7 +799,7 @@ suite = do
     test "GetScriptByHash" do
       let
         distribution :: InitialUTxOs
-        distribution = [ BigInt.fromInt 2_000_000_000 ]
+        distribution = [ BigInt.fromInt 50_000_000 ]
 
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -835,7 +835,7 @@ suite = do
     test "Getting transaction metadata" do
       let
         distribution :: InitialUTxOs
-        distribution = [ BigInt.fromInt 2_000_000_000 ]
+        distribution = [ BigInt.fromInt 50_000_000 ]
 
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -862,7 +862,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
 
       withWallets distribution \alice -> do
@@ -889,7 +889,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -928,7 +928,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 100_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         checkUtxoDistribution distribution alice
@@ -938,7 +938,7 @@ suite = do
       let
         aliceUtxos =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 100_000_000
+          , BigInt.fromInt 50_000_000
           ]
         distribution = withStakeKey privateStakeKey aliceUtxos
       withWallets distribution \alice -> do
@@ -952,7 +952,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
@@ -971,7 +971,7 @@ suite = do
           distribution :: InitialUTxOsWithStakeKey
           distribution = withStakeKey privateStakeKey
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
@@ -994,7 +994,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice SendsToken.contract
@@ -1110,7 +1110,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -1128,7 +1128,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
@@ -1145,7 +1145,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
@@ -1162,7 +1162,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
@@ -1182,7 +1182,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
@@ -1203,7 +1203,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice ->
           withKeyWallet alice PaysWithDatum.contract
@@ -1213,7 +1213,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -1230,7 +1230,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -1248,8 +1248,8 @@ suite = do
           distribution :: InitialUTxOs /\ InitialUTxOs
           distribution =
             [ BigInt.fromInt 10_000_000
-            , BigInt.fromInt 2_000_000_000
-            ] /\ [ BigInt.fromInt 2_000_000_000 ]
+            , BigInt.fromInt 50_000_000
+            ] /\ [ BigInt.fromInt 50_000_000 ]
         withWallets distribution \(alice /\ seed) -> do
           validator <- AlwaysFails.alwaysFailsScript
           let vhash = validatorHash validator
@@ -1303,7 +1303,7 @@ suite = do
                     )
                   <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
                     ( asset <>
-                        (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000_000)
+                        (Value.lovelaceValueOf $ BigInt.fromInt 50_000_000)
                     )
 
                 lookups :: Lookups.ScriptLookups Void
@@ -1329,7 +1329,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice ->
           withKeyWallet alice ReferenceScripts.contract
@@ -1341,7 +1341,7 @@ suite = do
             distribution :: InitialUTxOsWithStakeKey
             distribution = withStakeKey privateStakeKey
               [ BigInt.fromInt 5_000_000
-              , BigInt.fromInt 2_000_000_000
+              , BigInt.fromInt 50_000_000
               ]
           withWallets distribution \alice ->
             withKeyWallet alice ReferenceScripts.contract
@@ -1352,7 +1352,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice ->
           withKeyWallet alice ReferenceInputs.contract
@@ -1362,7 +1362,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice ->
           withKeyWallet alice ReferenceInputsAndScripts.contract
@@ -1372,7 +1372,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice ->
         withKeyWallet alice OneShotMinting.contract
@@ -1382,7 +1382,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice ->
         withKeyWallet alice OneShotMintingV2.contract
@@ -1391,7 +1391,7 @@ suite = do
       let
         initialUtxos :: InitialUTxOs
         initialUtxos =
-          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+          [ BigInt.fromInt 50_000_000, BigInt.fromInt 50_000_000 ]
 
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution = initialUtxos /\ initialUtxos
@@ -1425,7 +1425,7 @@ suite = do
       let
         initialUtxos :: InitialUTxOs
         initialUtxos =
-          [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+          [ BigInt.fromInt 50_000_000, BigInt.fromInt 50_000_000 ]
 
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution = initialUtxos /\ initialUtxos
@@ -1450,7 +1450,7 @@ suite = do
       -- TODO
       -- investigate why this test failed with `valueNotConserved` error
       -- see https://github.com/Plutonomicon/cardano-transaction-lib/issues/1174
-      skip $ test "Evaluation with additional UTxOs with native scripts" do
+      test "Evaluation with additional UTxOs with native scripts" do
         let
           distribution :: InitialUTxOs
           distribution =
@@ -1697,7 +1697,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
@@ -1736,7 +1736,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
@@ -1748,7 +1748,7 @@ suite = do
                 ] -> do
                 let amount = (unwrap output).amount
                 unless
-                  (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+                  (amount == lovelaceValueOf (BigInt.fromInt 50_000_000))
                   $ throw "Wrong UTxO selected as collateral"
               Just _ -> do
                 throw $ "More than one UTxO in collateral. " <>
@@ -1759,7 +1759,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           utxos <- withCip30Mock alice MockNami do
@@ -1771,7 +1771,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           mockAddress <- withCip30Mock alice MockNami do
@@ -1787,7 +1787,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
@@ -1801,18 +1801,16 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
             getWalletBalance >>= flip shouldSatisfy
-              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
-                  BigInt.fromInt 3_000_000
+              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
               )
           withCip30Mock alice MockNami do
             getWalletBalance >>= flip shouldSatisfy
-              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1000 *
-                  BigInt.fromInt 3_000_000
+              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
               )
 
       test "getWalletBalance works (2)" do
@@ -1833,7 +1831,7 @@ suite = do
           distribution :: InitialUTxOs
           distribution =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
@@ -1845,7 +1843,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -1855,7 +1853,7 @@ suite = do
         distribution :: InitialUTxOs
         distribution =
           [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
