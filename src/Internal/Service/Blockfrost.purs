@@ -47,7 +47,7 @@ module Ctl.Internal.Service.Blockfrost
   , getSystemStart
   , getTxMetadata
   , getUtxoByOref
-  , isTxConfirmed
+  , doesTxExist
   , runBlockfrostServiceM
   , runBlockfrostServiceTestM
   , submitTx
@@ -649,10 +649,10 @@ evaluateTx tx = do
 -- Check transaction confirmation status
 --------------------------------------------------------------------------------
 
-isTxConfirmed
+doesTxExist
   :: TransactionHash
   -> BlockfrostServiceM (Either ClientError Boolean)
-isTxConfirmed txHash = do
+doesTxExist txHash = do
   response <- blockfrostGetRequest $ Transaction txHash
   pure case handleBlockfrostResponse response of
     Right (_ :: Aeson) -> Right true

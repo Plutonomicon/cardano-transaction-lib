@@ -96,10 +96,10 @@ testPlan backend = group "Blockfrost" do
           TxWithNoMetadata _ -> Left GetTxMetadataMetadataEmptyOrMissingError
           UnconfirmedTx _ -> Left GetTxMetadataTxNotFoundError
       test "isTxConfirmed" do
-        eConfirmed <- runBlockfrost $ Blockfrost.isTxConfirmed $
+        eExists <- runBlockfrost $ Blockfrost.doesTxExist $
           fixtureHash fixture
-        confirmed <- liftEither $ lmap (error <<< show) eConfirmed
-        confirmed `shouldEqual` case fixture of
+        exists <- liftEither $ lmap (error <<< show) eExists
+        exists `shouldEqual` case fixture of
           TxWithMetadata _ -> true
           TxWithNoMetadata _ -> true
           UnconfirmedTx _ -> false

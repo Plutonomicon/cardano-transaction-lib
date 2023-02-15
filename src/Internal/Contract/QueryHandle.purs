@@ -82,7 +82,7 @@ type QueryHandle =
       TransactionHash
       -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
-  , isTxConfirmed :: TransactionHash -> AffE Boolean
+  , doesTxExist :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: AffE Chain.Tip
   , getCurrentEpoch :: Aff CurrentEpoch
@@ -110,7 +110,7 @@ queryHandleForCtlBackend contractEnv backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
-  , isTxConfirmed: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
+  , doesTxExist: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
   , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
   , utxosAt: runQueryM' <<< Kupo.utxosAt
   , getChainTip: Right <$> runQueryM' QueryM.getChainTip
@@ -148,7 +148,7 @@ queryHandleForBlockfrostBackend contractEnv backend =
   { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
   , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
   , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
-  , isTxConfirmed: runBlockfrostServiceM' <<< Blockfrost.isTxConfirmed
+  , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip

@@ -2,18 +2,15 @@
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , awaitTxConfirmed
-  , awaitTxConfirmedWithTimeout
-  , awaitTxConfirmedWithTimeoutSlots
   , balanceTx
+  , balanceTxM
   , balanceTxWithConstraints
   , balanceTxs
   , balanceTxsWithConstraints
-  , balanceTxM
   , calculateMinFee
-  , getTxMetadata
   , createAdditionalUtxos
   , getTxFinalFee
+  , getTxMetadata
   , module BalanceTxError
   , module FinalizedTransaction
   , module NativeScript
@@ -21,9 +18,9 @@ module Contract.Transaction
   , module PTransaction
   , module PTransactionUnspentOutput
   , module ReindexRedeemersExport
-  , module Scripts
   , module ScriptLookups
   , module ScriptRef
+  , module Scripts
   , module Transaction
   , module UnbalancedTx
   , module X
@@ -171,7 +168,8 @@ import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
-  ) as Contract
+  , isTxConfirmed
+  ) as X
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
@@ -523,38 +521,6 @@ getTxMetadata
 getTxMetadata th = do
   queryHandle <- getQueryHandle
   liftAff $ queryHandle.getTxMetadata th
-
--- | Wait until a transaction with given hash is confirmed.
--- | Use `awaitTxConfirmedWithTimeout` if you want to limit the time of waiting.
--- | Will fail to confirm if the transaction includes no outputs on the
--- | CtlBackend
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
-awaitTxConfirmed
-  :: TransactionHash
-  -> Contract Unit
-awaitTxConfirmed = Contract.awaitTxConfirmed
-
--- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
--- | Throws an exception on timeout.
--- | Will fail to confirm if the transaction includes no outputs on the
--- | CtlBackend
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
-awaitTxConfirmedWithTimeout
-  :: Seconds
-  -> TransactionHash
-  -> Contract Unit
-awaitTxConfirmedWithTimeout = Contract.awaitTxConfirmedWithTimeout
-
--- | Same as `awaitTxConfirmed`, but allows to specify a timeout in slots for waiting.
--- | Throws an exception on timeout.
--- | Will fail to confirm if the transaction includes no outputs on the
--- | CtlBackend
--- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
-awaitTxConfirmedWithTimeoutSlots
-  :: Int
-  -> TransactionHash
-  -> Contract Unit
-awaitTxConfirmedWithTimeoutSlots = Contract.awaitTxConfirmedWithTimeoutSlots
 
 -- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the
