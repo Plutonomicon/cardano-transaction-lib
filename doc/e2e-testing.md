@@ -43,8 +43,9 @@ For a working example see `test/E2E.purs`. It can be run conveniently using `npm
 
 The process is as follows:
 
-1. run `make run-dev`.
-2. In another shell, run `npm run e2e-test`.
+1. run `npm run e2e-serve` in one shell
+2. run `nix run -L .#ctl-runtime` in another shell
+3. run `npm run e2e-test` in the third shell
 
 ## How Wallets are Used
 
