@@ -4,6 +4,14 @@ import Prelude
 
 import Contract.Config
   ( ContractParams
+  , WalletSpec
+      ( ConnectToNami
+      , ConnectToGero
+      , ConnectToLode
+      , ConnectToEternl
+      , ConnectToFlint
+      , ConnectToNuFi
+      )
   , blockfrostPublicPreviewServerConfig
   , mainnetFlintConfig
   , mainnetGeroConfig
@@ -11,6 +19,7 @@ import Contract.Config
   , mainnetNamiConfig
   , mainnetNuFiConfig
   , mkBlockfrostBackendParams
+  , testnetConfig
   , testnetEternlConfig
   , testnetFlintConfig
   , testnetGeroConfig
@@ -64,8 +73,30 @@ main = do
   let
     walletsWithBlockfrost =
       wallets `Map.union` Map.fromFoldable
-        [ "blockfrost-nami-preview" /\ mkBlockfrostPreviewNamiConfig mbApiKey /\
-            Nothing
+        [ "blockfrost-nami-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToNami }
+            /\ Nothing
+        , "blockfrost-gero-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToGero }
+            /\ Nothing
+        , "blockfrost-eternl-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToEternl }
+            /\ Nothing
+        , "blockfrost-lode-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToLode }
+            /\ Nothing
+        , "blockfrost-flint-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToFlint }
+            /\ Nothing
+        , "blockfrost-nufi-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToNuFi }
+            /\ Nothing
         ]
   addLinks walletsWithBlockfrost examples
   route walletsWithBlockfrost examples
@@ -101,9 +132,9 @@ wallets = Map.fromFoldable
   , "plutip-nufi-mock" /\ mainnetNuFiConfig /\ Just MockNuFi
   ]
 
-mkBlockfrostPreviewNamiConfig :: Maybe String -> ContractParams
-mkBlockfrostPreviewNamiConfig apiKey =
-  testnetNamiConfig
+mkBlockfrostPreviewConfig :: Maybe String -> ContractParams
+mkBlockfrostPreviewConfig apiKey =
+  testnetConfig
     { backendParams = mkBlockfrostBackendParams
         { blockfrostConfig: blockfrostPublicPreviewServerConfig
         , blockfrostApiKey: apiKey
