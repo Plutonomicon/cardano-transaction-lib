@@ -42,7 +42,7 @@ For a working example see `test/E2E.purs`. It can be run conveniently using `npm
 
 ## User perspective
 
-- Use `npm run e2e-serve` to [serve]((#serving-the-contract-to-be-tested) the examples for testing.
+- Use `npm run e2e-serve` to [serve](#serving-the-contract-to-be-tested) the examples for testing.
 - Use `npm run e2e-test` to run the test suite in headless mode or `npm run e2e-test-debug` to enable the browser UI.
 - Use `npm run e2e-browser` to open the browser window with extensions pre-loaded. If you modify any setting (e.g. set a collateral), it's important to run `npm run e2e-pack-settings` **without running anything in between**. The test suite resets the settings by loading them from the settings archive before each test run.
 
