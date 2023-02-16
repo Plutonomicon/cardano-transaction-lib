@@ -11,6 +11,7 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
   - [Q: What are the common reasons behind BalanceInsufficientError?](#q-what-are-the-common-reasons-behind-balanceinsufficienterror)
+  - [Q: CTL consumed my collateral](#q-ctl-consumed-my-collateral)
 - [Time-related](#time-related)
   - [Q: Time-related functions behave strangely, what's the reason?](#q-time-related-functions-behave-strangely-whats-the-reason)
   - [Q: Time/slot conversion functions return `Nothing`. Why is that?](#q-timeslot-conversion-functions-return-nothing-why-is-that)
@@ -19,10 +20,11 @@ This document lists common problems encountered by CTL users and developers.
   - [Q: Why `aeson` and not `argonaut`?](#q-why-aeson-and-not-argonaut)
 - [Environment-related](#environment-related)
   - [Q: I use wayland, the E2E browser fails on startup](#q-i-use-wayland-the-e2e-browser-fails-on-startup)
+  - [Q: How to keep the number of WebSocket connections to a minimum?](#q-how-to-keep-the-number-of-websocket-connections-to-a-minimum)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
   - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
-  - [How can I write my own Nix derivations using the project returned by `purescriptProject`?](#how-can-i-write-my-own-nix-derivations-using-the-project-returned-by-purescriptproject)
+  - [Q: How can I write my own Nix derivations using the project returned by `purescriptProject`?](#q-how-can-i-write-my-own-nix-derivations-using-the-project-returned-by-purescriptproject)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Bundling-related
@@ -50,7 +52,15 @@ means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago
 
 ### Q: What are the common reasons behind BalanceInsufficientError?
 
-Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 tAda to create another UTxO for the collateral.
+Most contracts require at least two UTxOs to run (one will be used as a collateral). If you use a wallet with only one UTxO, e.g. a new wallet you just funded from the faucet, you need to send yourself at least 5 Ada to create another UTxO for the collateral.
+
+Another thing to keep in mind is that due to [min-ada requirements](https://docs.cardano.org/native-tokens/minimum-ada-value-requirement/), the amount of Ada that is required to be *consumed* by a Tx is higher than the amount that must be *spent*, because CTL creates change UTxOs. The amount of Ada that should be present on a wallet depends on a number of factors, including the amount and quantity of tokens in the users wallet.
+
+### Q: CTL consumed my collateral
+
+CTL does not consume wallet collateral normally, but it still can happen.
+
+In order to get the collateral UTxO, CTL uses the wallet and then marks the returned UTxO as locked internally. But some wallets (e.g. Gero) do not return the collateral the moment it is set, waiting for Tx confirmation first. In case a collateral is set right before the contract is started, CTL can accidentally spend the collateral, because we rely on CTL's own query layer to get a list of available UTxOs, and the wallet state may lag behind it, not returning the collateral to filter out at that moment.
 
 ## Time-related
 
@@ -127,20 +137,9 @@ This is because the node hasn't fully synced. The protocol parameter name change
 
 ### Q: Why do I get an error from `foreign.js` when running Plutip tests locally?
 
-The most likely reason for this is that spawning the external processes from `Contract.Test.Plutip` fails. Make sure that all of the required services are on your `$PATH` (see more [here](./runtime.md); you can also set `shell.withRuntime = true;` to ensure that these are always added to your shell environment when running `nix develop`). Also, check your logs closely. You might see something like:
+The most likely reason for this is that spawning the external processes from `Contract.Test.Plutip` fails. Make sure that all of the required services are on your `$PATH` (see more [here](./runtime.md); you can also set `shell.withRuntime = true;` to ensure that these are always added to your shell environment when running `nix develop`).
 
-```
-/home/me/ctl-project/output/Effect.Aff/foreign.js:532
-                throw util.fromLeft(step);
-                ^
-
-Error: Command failed: initdb /tmp/nix-shell.2AQ4vD/nix-shell.6SMFfq/6s0mchkxl6w9m3m7/postgres/data
-initdb: error: invalid locale settings; check LANG and LC_* environment variables
-```
-
-The last line is the the most important part. Postgres will fail if your locale is not configured correctly. We _could_ try to do this in the `shellHook` when creating the project `devShell`, but dealing with locales is non-trivial and could cause more issues than it solves. You can find more information online regarding this error and how to potentially solve it, for example [here](https://stackoverflow.com/questions/41956994/initdb-bin-invalid-locale-settings-check-lang-and-lc-environment-variables) and [here](https://askubuntu.com/questions/114759/warning-setlocale-lc-all-cannot-change-locale).
-
-### How can I write my own Nix derivations using the project returned by `purescriptProject`?
+### Q: How can I write my own Nix derivations using the project returned by `purescriptProject`?
 
 If the different derivation builders that `purescriptProject` gives you out-of-the-box (e.g. `runPursTest`, `bundlePursProject`, etc...) are not sufficient, you can access the compiled project (all of the original `src` argument plus the `output` directory that `purs` produces) and the generated `node_modules` using the `compiled` and `nodeModules` attributes, respectively. These can be used to write your own derivations without needing to recompile the entire project (that is, the generated output can be shared between all of your Nix components). For example:
 

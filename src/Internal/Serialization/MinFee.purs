@@ -10,12 +10,14 @@ import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.Types (ExUnitPrices, Transaction)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.ProtocolParameters
+  ( ProtocolParameters(ProtocolParameters)
+  )
 import Data.Array as Array
 import Data.Lens ((.~))
 import Data.Maybe (Maybe(Just), fromJust, fromMaybe)

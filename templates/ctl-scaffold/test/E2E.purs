@@ -4,7 +4,7 @@ module Scaffold.Test.E2E.Serve where
 import Contract.Prelude
 
 import Contract.Config
-  ( ConfigParams
+  ( ContractParams
   , mainnetFlintConfig
   , mainnetGeroConfig
   , mainnetLodeConfig
@@ -29,7 +29,7 @@ main = do
   addLinks configs tests
   route configs tests
 
-configs :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+configs :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 configs = Map.fromFoldable
   [ "nami" /\ testnetNamiConfig /\ Nothing
   , "gero" /\ testnetGeroConfig /\ Nothing
@@ -47,7 +47,7 @@ configs = Map.fromFoldable
   , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
   ]
 
-tests :: Map E2ETestName (Contract () Unit)
+tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable
   [ "Contract" /\ Scaffold.contract
   -- Add more `Contract`s here

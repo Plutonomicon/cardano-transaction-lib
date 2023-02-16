@@ -1,3 +1,5 @@
+<!-- DOCTOC SKIP -->
+
 # Video introduction
 
 We [provide](https://drive.google.com/file/d/1ELVvL4WLKTQLg4VJMzt0yj8C0H8xsXS1/view?usp=sharing) a screencast video showcasing some features of CTL.

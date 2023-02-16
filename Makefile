@@ -1,7 +1,6 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: run-dev run-build check-format format run-datum-cache-postgres-console
-		query-testnet-tip clean check-explicit-exports
+.PHONY: run-dev run-build check-format format query-testnet-tip clean check-explicit-exports
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
@@ -46,9 +45,6 @@ format:
 	make check-explicit-exports
 	make check-examples-imports
 	make check-whitespace
-
-run-datum-cache-postgres-console:
-	@nix shell nixpkgs#postgresql -c psql postgresql://ctxlib:ctxlib@localhost:5432
 
 query-preview-testnet-tip:
 	CARDANO_NODE_SOCKET_PATH=${preview-node-ipc}/node.socket cardano-cli query tip \

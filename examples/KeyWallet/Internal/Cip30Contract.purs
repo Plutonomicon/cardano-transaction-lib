@@ -27,7 +27,7 @@ import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)
 
 runKeyWalletContract_
-  :: (RawBytes -> Contract () Unit) -> Effect Unit
+  :: (RawBytes -> Contract Unit) -> Effect Unit
 runKeyWalletContract_ contract =
   HtmlForm.mkForm \input log' unlock ->
     launchAff_ $ flip catchError (errorHandler log' unlock) $ do

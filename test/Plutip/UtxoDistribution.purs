@@ -26,6 +26,7 @@ import Contract.Monad (Contract, liftedM)
 import Contract.Test.Plutip
   ( class UtxoDistribution
   , InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , runPlutipContract
   , withStakeKey
   )
@@ -33,16 +34,12 @@ import Contract.Transaction
   ( TransactionInput
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   )
-import Contract.Utxos (utxosAt)
+import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet (KeyWallet, withKeyWallet)
 import Control.Lazy (fix)
-import Ctl.Internal.Plutip.Types
-  ( InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
-  )
-import Ctl.Internal.Plutip.UtxoDistribution (encodeDistribution, keyWallets)
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
@@ -115,11 +112,11 @@ suite = group "UtxoDistribution" do
             checkUtxoDistribution randDistr
 
 checkUtxoDistribution
-  :: forall distr wallet (r :: Row Type)
+  :: forall (distr :: Type) (wallet :: Type)
    . UtxoDistribution distr wallet
   => distr
   -> wallet
-  -> Contract r Unit
+  -> Contract Unit
 checkUtxoDistribution distr wallets = do
   let
     walletsArray = keyWallets (Proxy :: Proxy distr) wallets
@@ -188,7 +185,7 @@ withArbUtxoDistr d f = case d of
   UDTuple x y ->
     withArbUtxoDistr x (\d1 -> withArbUtxoDistr y (f <<< (d1 /\ _)))
 
-assertContract :: forall (r :: Row Type). String -> Boolean -> Contract r Unit
+assertContract :: String -> Boolean -> Contract Unit
 assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 
 -- | For a plutip test wallet, assert that any utxos held by the
@@ -197,13 +194,13 @@ assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 -- | address, otherwise it assumes the expected address is the
 -- | enterprise address.
 assertUtxosAtPlutipWalletAddress
-  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
+  :: KeyWallet -> Contract Unit
 assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
   maybeStake <- join <<< head <$> ownStakePubKeysHashes
   when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
 
 assertNoUtxosAtEnterpriseAddress
-  :: forall (r :: Row Type). KeyWallet -> Contract r Unit
+  :: KeyWallet -> Contract Unit
 assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
   assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
     ( payPubKeyHashEnterpriseAddress
@@ -212,7 +209,7 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
           (head <$> ownPaymentPubKeysHashes)
     )
 
-assertNoUtxosAtAddress :: forall (r :: Row Type). Address -> Contract r Unit
+assertNoUtxosAtAddress :: Address -> Contract Unit
 assertNoUtxosAtAddress addr = do
   utxos <- utxosAt addr
   assertContract "Expected address to not hold utxos" $ Map.isEmpty utxos
@@ -220,9 +217,8 @@ assertNoUtxosAtAddress addr = do
 -- | For each wallet, assert that there is a one-to-one correspondance
 -- | between its utxo set and its expected utxo amounts.
 assertCorrectDistribution
-  :: forall (r :: Row Type)
-   . Array (KeyWallet /\ InitialUTxOs)
-  -> Contract r Unit
+  :: Array (KeyWallet /\ InitialUTxOs)
+  -> Contract Unit
 assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
   withKeyWallet wallet do
     addr <- liftedM "Could not get wallet address" $ head <$> getWalletAddresses

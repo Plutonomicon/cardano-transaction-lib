@@ -5,18 +5,19 @@ module Test.Ctl.Plutip.Contract.NetworkId
 import Prelude
 
 import Contract.Address (addressFromBech32) as Address
-import Contract.Test.Plutip (PlutipTest, noWallet)
+import Contract.Test (ContractTest)
+import Contract.Test.Mote (TestPlanM)
+import Contract.Test.Plutip (noWallet)
 import Ctl.Internal.Plutus.Conversion.Address (fromPlutusAddress)
 import Ctl.Internal.Serialization.Address (NetworkId(MainnetId), addressBech32)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
 
-suite :: TestPlanM PlutipTest Unit
+suite :: TestPlanM ContractTest Unit
 suite = group "NetworkId Tests" $ do
   test "Mainnet Address in Mainnet Env" testMainnetAddress
 
-testMainnetAddress :: PlutipTest
+testMainnetAddress :: ContractTest
 testMainnetAddress = noWallet do
   let
     bechstr =

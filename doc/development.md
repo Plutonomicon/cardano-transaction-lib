@@ -105,7 +105,7 @@ Don't forget to update the [template `package.json`](../templates/ctl-scaffold/p
 
 ## Switching development networks
 
-Set new `network.name` and `network.magic` in `runtime.nix`. Point `datumCache.blockFetcher.firstBlock` to a correct block/slot. Also see [Changing network configurations](./runtime.md#changing-network-configurations)
+Set new `network.name` and `network.magic` in `runtime.nix`. Also see [Changing network configurations](./runtime.md#changing-network-configurations)
 
 ## Maintaining the template
 

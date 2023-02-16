@@ -52,12 +52,12 @@ instance ToData ECDSARedemeer where
   toData (ECDSARedemeer { msg, sig, pk }) = Constr BigNum.zero
     [ toData msg, toData sig, toData pk ]
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   void $ prepTest >>= testECDSA
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
-prepTest :: Contract () TransactionHash
+prepTest :: Contract TransactionHash
 prepTest = do
   validator <- liftContractM "Caonnot get validator" getValidator
   let
@@ -81,7 +81,7 @@ prepTest = do
 
 -- | Attempt to unlock one utxo using an ECDSA signature
 testVerification
-  :: TransactionHash -> ECDSARedemeer -> Contract () TransactionHash
+  :: TransactionHash -> ECDSARedemeer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
@@ -113,7 +113,7 @@ testVerification txId ecdsaRed = do
   pure txId'
 
 -- | Testing ECDSA verification function on-chain
-testECDSA :: TransactionHash -> Contract () TransactionHash
+testECDSA :: TransactionHash -> Contract TransactionHash
 testECDSA txId = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let

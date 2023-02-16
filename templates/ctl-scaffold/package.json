@@ -7,6 +7,7 @@
     "test": "test"
   },
   "scripts": {
+    "blockfrost-test": "source ./test/blockfrost.env && spago run --main Scaffold.Test.Blockfrost",
     "test": "spago run --main Test.Scaffold.Main",
     "e2e-serve": "make e2e-serve",
     "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run'",

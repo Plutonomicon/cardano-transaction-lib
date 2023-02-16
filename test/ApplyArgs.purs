@@ -30,7 +30,7 @@ foreign import scripts :: Object String
 main :: Effect Unit
 main = launchAff_ $ interpret $ suite
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   traverse_ (uncurry $ compareApplied v1) $ Tuple <$> v1ScriptPaths <*> params
   traverse_ (uncurry $ compareApplied v2) $ Tuple <$> v2ScriptPaths <*> params

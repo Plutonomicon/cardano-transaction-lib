@@ -1,10 +1,13 @@
 module Ctl.Internal.Deserialization.NativeScript
   ( convertNativeScript
+  , decodeNativeScript
   ) where
 
 import Prelude
 
+import Aeson (JsonDecodeError(TypeMismatch))
 import Ctl.Internal.Cardano.Types.NativeScript as T
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.FfiHelpers
   ( ContainerHelper
   , containerHelper
@@ -21,6 +24,9 @@ import Ctl.Internal.Serialization.Types
   , TimelockStart
   )
 import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Data.Either (Either, note)
+import Data.Newtype (wrap)
 
 type ConvertNativeScript (r :: Type) =
   { scriptPubkey :: ScriptPubkey -> r
@@ -30,6 +36,13 @@ type ConvertNativeScript (r :: Type) =
   , timelockStart :: TimelockStart -> r
   , timelockExpiry :: TimelockExpiry -> r
   }
+
+decodeNativeScript :: ByteArray -> Either JsonDecodeError T.NativeScript
+decodeNativeScript scriptBytes = do
+  nativeScript <-
+    flip note (fromBytes $ wrap scriptBytes) $
+      TypeMismatch "decodeNativeScript: from_bytes() call failed"
+  pure $ convertNativeScript nativeScript
 
 convertNativeScript :: NativeScript -> T.NativeScript
 convertNativeScript ns = _convertNativeScript

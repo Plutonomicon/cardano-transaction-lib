@@ -12,7 +12,7 @@ import Effect.Exception (error)
 
 foreign import alwaysSucceedsV2 :: String
 
-alwaysSucceedsScriptV2 :: Contract () Validator
+alwaysSucceedsScriptV2 :: Contract Validator
 alwaysSucceedsScriptV2 =
   liftMaybe (error "Error decoding alwaysSucceeds") do
     envelope <- decodeTextEnvelope alwaysSucceedsV2

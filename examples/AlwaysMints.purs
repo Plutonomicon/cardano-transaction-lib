@@ -11,7 +11,7 @@ module Ctl.Examples.AlwaysMints
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
@@ -34,7 +34,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysMints"
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
@@ -53,7 +53,7 @@ contract = do
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 
@@ -64,7 +64,7 @@ alwaysMintsPolicyMaybe = do
   envelope <- decodeTextEnvelope alwaysMints
   PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
-alwaysMintsPolicy :: Contract () MintingPolicy
+alwaysMintsPolicy :: Contract MintingPolicy
 alwaysMintsPolicy =
   liftMaybe (error "Error decoding alwaysMintsPolicy")
     alwaysMintsPolicyMaybe

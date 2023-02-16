@@ -13,6 +13,8 @@ import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
+import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
+import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
 import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.CoinSelection as CoinSelection
 import Test.Ctl.Data as Data
@@ -29,7 +31,6 @@ import Test.Ctl.NativeScript as NativeScript
 import Test.Ctl.Ogmios.Address as Ogmios.Address
 import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
-import Test.Ctl.OgmiosDatumCache as OgmiosDatumCache
 import Test.Ctl.Parser as Parser
 import Test.Ctl.Partition as Partition
 import Test.Ctl.ProtocolParams as ProtocolParams
@@ -77,11 +78,12 @@ testPlan = do
   Transaction.suite
   TxOutput.suite
   UsedTxOuts.suite
-  OgmiosDatumCache.suite
   Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
+  Blockfrost.Aeson.suite
+  Blockfrost.ProtocolParameters.suite
   Types.TokenName.suite
   Types.Transaction.suite
   Ctl.Data.Interval.suite

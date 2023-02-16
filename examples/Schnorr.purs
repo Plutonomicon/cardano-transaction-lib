@@ -48,12 +48,12 @@ instance ToData SchnorrRedeemer where
   toData (SchnorrRedeemer { msg, sig, pk }) = Constr BigNum.zero
     [ toData msg, toData sig, toData pk ]
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   void $ prepTest >>= testSchnorr
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
-prepTest :: Contract () TransactionHash
+prepTest :: Contract TransactionHash
 prepTest = do
   validator <- liftContractM "Caonnot get validator" getValidator
   let
@@ -76,7 +76,7 @@ prepTest = do
 
 -- | Attempt to unlock one utxo using an ECDSA signature
 testVerification
-  :: TransactionHash -> SchnorrRedeemer -> Contract () TransactionHash
+  :: TransactionHash -> SchnorrRedeemer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
@@ -108,7 +108,7 @@ testVerification txId ecdsaRed = do
   pure txId'
 
 -- | Testing ECDSA verification function on-chain
-testSchnorr :: TransactionHash -> Contract () TransactionHash
+testSchnorr :: TransactionHash -> Contract TransactionHash
 testSchnorr txId = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let

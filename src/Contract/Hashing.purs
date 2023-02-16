@@ -9,7 +9,9 @@ import Ctl.Internal.Hashing
   , blake2b256Hash
   , blake2b256HashHex
   , datumHash
+  , md5HashHex
   , plutusScriptHash
+  , scriptRefHash
   , sha256Hash
   , sha256HashHex
   , sha3_256Hash

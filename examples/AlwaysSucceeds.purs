@@ -14,7 +14,7 @@ module Ctl.Examples.AlwaysSucceeds
 import Contract.Prelude
 
 import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
@@ -42,7 +42,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysSucceeds"
   validator <- alwaysSucceedsScript
@@ -53,11 +53,11 @@ contract = do
   logInfo' "Tx submitted successfully, Try to spend locked values"
   spendFromAlwaysSucceeds vhash validator txId
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-payToAlwaysSucceeds :: ValidatorHash -> Contract () TransactionHash
+payToAlwaysSucceeds :: ValidatorHash -> Contract TransactionHash
 payToAlwaysSucceeds vhash = do
   -- Send to own stake credential. This is used to test mustPayToScriptAddress.
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
@@ -87,7 +87,7 @@ spendFromAlwaysSucceeds
   :: ValidatorHash
   -> Validator
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   -- Use own stake credential if available
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
@@ -119,7 +119,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
 
 foreign import alwaysSucceeds :: String
 
-alwaysSucceedsScript :: Contract () Validator
+alwaysSucceedsScript :: Contract Validator
 alwaysSucceedsScript =
   liftMaybe (error "Error decoding alwaysSucceeds") do
     envelope <- decodeTextEnvelope alwaysSucceeds

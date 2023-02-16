@@ -3,6 +3,7 @@ module Ctl.Examples.Helpers
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
+  , mustPayToPubKeyStakeAddressWithScriptRef
   , submitAndLog
   ) where
 
@@ -16,26 +17,24 @@ import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( BalancedSignedTransaction
+  , ScriptRef
   , awaitTxConfirmed
-  , getTxByHash
   , submit
   )
 import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
-import Effect.Exception (throw)
 
 mkCurrencySymbol
-  :: forall (r :: Row Type)
-   . Contract r MintingPolicy
-  -> Contract r (MintingPolicy /\ CurrencySymbol)
+  :: Contract MintingPolicy
+  -> Contract (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
   cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
-mkTokenName :: forall (r :: Row Type). String -> Contract r TokenName
+mkTokenName :: String -> Contract TokenName
 mkTokenName =
   liftContractM "Cannot make token name"
     <<< (Value.mkTokenName <=< byteArrayFromAscii)
@@ -64,15 +63,22 @@ mustPayToPubKeyStakeAddressWithDatum pkh Nothing datum dtp =
 mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) datum dtp =
   Constraints.mustPayToPubKeyAddressWithDatum pkh skh datum dtp
 
+mustPayToPubKeyStakeAddressWithScriptRef
+  :: forall (i :: Type) (o :: Type)
+   . PaymentPubKeyHash
+  -> Maybe StakePubKeyHash
+  -> ScriptRef
+  -> Value
+  -> Constraints.TxConstraints i o
+mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing scriptRef =
+  Constraints.mustPayToPubKeyWithScriptRef pkh scriptRef
+mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
+  Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef
+
 submitAndLog
-  :: forall (r :: Row Type). BalancedSignedTransaction -> Contract r Unit
+  :: BalancedSignedTransaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId
   awaitTxConfirmed txId
-  mbTransaction <- getTxByHash txId
-  logInfo' $ "Retrieved tx: " <> show mbTransaction
-  liftEffect $ when (isNothing mbTransaction) do
-    void $ throw "Unable to get Tx contents"
-    when (mbTransaction /= Just (unwrap bsTx)) do
-      throw "Tx contents do not match"
+  logInfo' $ "Confirmed Tx ID: " <> show txId

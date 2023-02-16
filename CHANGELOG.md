@@ -47,16 +47,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- **Blockfrost support** - see [`blockfrost.md`](./doc/blockfrost.md) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- A test runner interface for Blockfrost (`Contract.Test.Blockfrost`). See [`blockfrost.md`](./doc/blockfrost.md) ([#1420](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1420))
 - `blake2b224Hash` and `blake2b224HashHex` functions for computing blake2b-224 hashes of arbitrary byte arrays ([#1323](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1323))
 - `bundlePursProject` allows passing of `includeBundledModule` flag to export the bundled JS module `spago bundle-module` outputs
 - `Contract.Transaction` exports `mkPoolPubKeyHash` and `poolPubKeyHashToBech32` for bech32 roundtripping ([#1360](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1360))
+- `Contract.isTxConfirmed` function to check if a transaction is confirmed at the moment.
 
 ### Changed
-- Balancer no longer selects UTxOs which use PlutusV2 features when the transaction contains PlutusV1 scripts ([#1349](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1349))
 
+- **Contract interface change:** `Contract` does not have a row type parameter anymore. Use `ReaderT` or pass values explicitly to access them during runtime.
+- **Contract interface change:** `ConfigParams r` is replaced by `ContractParams` with the same purpose.
+- `SystemStart` now has `DateTime` (rather than `String`) as the underlying type ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- `EraSummaries` now does not have an `EncodeAeson` instance. Consider wrapping it in `OgmiosEraSummaries` for Aeson encoding. ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- Testing interface is re-implemented. Assertion functions from `Contract.Test.Utils` are moved to `Contract.Test.Assert`. See [the docs](./doc/test-utils.md) for info on the new interface. ([#1389](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1389))
+- Balancer no longer selects UTxOs which use PlutusV2 features when the transaction contains PlutusV1 scripts ([#1349](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1349))
 - `startPlutipCluster` error message now includes cluster startup failure details. ([#1407](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1407))
+- `PlutipTest` is now known as `Contract.Test.ContractTest`. It has been semantically untied from Plutip, because we now have another test runner for tests that rely on particular funds distributions - [Blockfrost](./doc/blockfrost.md). See `Contract.Test.Blockfrost.runContractTestsWithBlockfrost` ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- `Contract.Staking.getPoolParameters` has been moved to `Contract.Backend.Ogmios.getPoolParameters`. This function only runs with Ogmios backend, because Blockfrost [does not provide](https://github.com/blockfrost/blockfrost-backend-ryo/issues/82) all the required values ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- Use of [CIP-40](https://cips.cardano.org/cips/cip40/) collateral output is now enabled with CIP-30 wallets ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260)).
+- `reindexSpentScriptRedeemers` is no longer in Contract (it's pure) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
 
 ### Removed
+
+- **Important** [Ogmios Datum Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) is no longer a runtime dependency of CTL, as well as its Postgres DB - if updating, remove them from your runtime.
 
 ### Fixed
 - CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))

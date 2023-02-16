@@ -11,7 +11,9 @@
   },
   "scripts": {
     "test": "npm run unit-test && npm run integration-test && npm run plutip-test && npm run staking-test",
+    "start-runtime": "nix run -L .#ctl-runtime",
     "integration-test": "spago run --main Test.Ctl.Integration",
+    "blockfrost-test": "source ./test/blockfrost.env && spago run --main Test.Ctl.Blockfrost.Contract",
     "unit-test": "spago run --main Test.Ctl.Unit",
     "plutip-test": "spago run --main Test.Ctl.Plutip",
     "staking-test": "spago run --main Test.Ctl.Plutip.Staking",

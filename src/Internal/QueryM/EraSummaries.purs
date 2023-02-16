@@ -6,10 +6,12 @@ module Ctl.Internal.QueryM.EraSummaries
 import Prelude
 
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
-import Ctl.Internal.QueryM.Ogmios (EraSummaries, queryEraSummariesCall) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (queryEraSummariesCall) as Ogmios
+import Ctl.Internal.Types.EraSummaries (EraSummaries)
+import Data.Newtype (unwrap)
 
 -- | Get `EraSummaries` as used for Slot arithemetic. Details can be found
 -- | https://ogmios.dev/api/ under "eraSummaries" query
-getEraSummaries :: QueryM Ogmios.EraSummaries
+getEraSummaries :: QueryM EraSummaries
 getEraSummaries =
-  mkOgmiosRequest Ogmios.queryEraSummariesCall _.eraSummaries unit
+  unwrap <$> mkOgmiosRequest Ogmios.queryEraSummariesCall _.eraSummaries unit

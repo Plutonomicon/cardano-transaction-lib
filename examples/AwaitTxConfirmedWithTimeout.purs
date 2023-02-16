@@ -10,7 +10,7 @@ module Ctl.Examples.AwaitTxConfirmedWithTimeout
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
@@ -23,11 +23,11 @@ import Control.Monad.Error.Class (try)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running AwaitTxConfirmedWithTimeout"
   let

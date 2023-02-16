@@ -72,8 +72,8 @@ import Ctl.Internal.BalanceTx.Types
   , askCoinsPerUtxoUnit
   , askNetworkId
   , asksConstraints
-  , liftEitherQueryM
-  , liftQueryM
+  , liftContract
+  , liftEitherContract
   , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
@@ -109,22 +109,16 @@ import Ctl.Internal.Cardano.Types.Value
   , posNonAdaAsset
   , valueToCoin'
   )
-import Ctl.Internal.Cardano.Types.Value
-  ( assetToValue
-  , getAssetQuantity
-  , valueAssets
-  ) as Value
+import Ctl.Internal.Cardano.Types.Value as Value
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
+import Ctl.Internal.Contract (getProtocolParameters)
+import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract.Wallet
+import Ctl.Internal.Contract.Wallet (getWalletCollateral)
 import Ctl.Internal.Helpers ((??))
 import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.Plutus.Conversion (toPlutusValue)
-import Ctl.Internal.QueryM (QueryM, getProtocolParameters)
-import Ctl.Internal.QueryM (getChangeAddress, getWalletAddresses) as QueryM
-import Ctl.Internal.QueryM.Utxos
-  ( filterLockedUtxos
-  , getWalletCollateral
-  , utxosAt
-  )
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
@@ -146,8 +140,9 @@ import Data.Array.NonEmpty
   , zip
   , zipWith
   ) as NEArray
+import Data.Array.NonEmpty as NEA
 import Data.BigInt (BigInt)
-import Data.Either (Either, note)
+import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
@@ -155,23 +150,24 @@ import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (TagSet)
 import Data.Log.Tag (fromArray, tag) as TagSet
 import Data.Map (empty, insert, lookup, toUnfoldable, union) as Map
-import Data.Maybe (Maybe(Nothing, Just), fromJust, fromMaybe, isJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Partial.Unsafe (unsafePartial)
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
 balanceTxWithConstraints
   :: UnattachedUnbalancedTx
   -> BalanceTxConstraintsBuilder
-  -> QueryM (Either BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   pparams <- getProtocolParameters
+  queryHandle <- getQueryHandle
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
@@ -181,13 +177,14 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
 
     srcAddrs <-
       asksConstraints Constraints._srcAddresses
-        >>= maybe (liftQueryM QueryM.getWalletAddresses) pure
+        >>= maybe (liftContract Contract.Wallet.getWalletAddresses) pure
 
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherQueryM $ parTraverse utxosAt srcAddrs <#>
-      traverse (note CouldNotGetUtxos)
-        >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+    utxos <- liftEitherContract $
+      parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs <#>
+        traverse (note CouldNotGetUtxos)
+          >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
     unbalancedCollTx <-
       case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -203,7 +200,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
         -- involved with the contract in the unbalanced transaction:
         utxos `Map.union` (unbalancedTx ^. _unbalancedTx <<< _utxoIndex)
 
-    availableUtxos <- liftQueryM $ filterLockedUtxos allUtxos
+    availableUtxos <- liftContract $ filterLockedUtxos allUtxos
 
     selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
@@ -220,7 +217,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   getChangeAddress :: BalanceTxM Address
   getChangeAddress =
     liftMaybe CouldNotGetChangeAddress
-      =<< maybe (liftQueryM QueryM.getChangeAddress) (pure <<< Just)
+      =<< maybe (liftContract Contract.Wallet.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
 
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
@@ -232,12 +229,9 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
   setTransactionCollateral changeAddr transaction = do
     collateral <-
-      liftEitherQueryM $ note CouldNotGetCollateral <$> getWalletCollateral
+      liftEitherContract $ note CouldNotGetCollateral <$> getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
-    -- Don't mess with Cip30 collateral
-    isCip30 <- isJust <$> askCip30Wallet
-    if isCip30 then pure collaterisedTx
-    else addTxCollateralReturn collateral collaterisedTx changeAddr
+    addTxCollateralReturn collateral collaterisedTx changeAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -299,42 +293,51 @@ runBalancer p = do
 
   partitionAndFilterUtxos
     :: BalanceTxM { spendable :: UtxoMap, invalidInContext :: UtxoMap }
-  partitionAndFilterUtxos =
+  partitionAndFilterUtxos = do
+    isCip30 <- isJust <$> askCip30Wallet
+    -- Get collateral inputs to mark them as unspendable.
+    -- Some CIP-30 wallets don't allow to sign Txs that spend it.
+    nonSpendableCollateralInputs <-
+      if isCip30 then
+        liftContract $ getWalletCollateral <#>
+          fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
+      else mempty
     asksConstraints Constraints._nonSpendableInputs <#>
-      \nonSpendableInputs ->
-        foldr
-          ( \(oref /\ output) acc ->
-              let
-                hasInlineDatum :: Boolean
-                hasInlineDatum = case (unwrap output).datum of
-                  OutputDatum _ -> true
-                  _ -> false
+      append nonSpendableCollateralInputs >>>
+        \nonSpendableInputs ->
+          foldr
+            ( \(oref /\ output) acc ->
+                let
+                  hasInlineDatum :: Boolean
+                  hasInlineDatum = case (unwrap output).datum of
+                    OutputDatum _ -> true
+                    _ -> false
 
-                hasScriptRef :: Boolean
-                hasScriptRef = isJust (unwrap output).scriptRef
+                  hasScriptRef :: Boolean
+                  hasScriptRef = isJust (unwrap output).scriptRef
 
-                spendable :: Boolean
-                spendable = not $ Set.member oref nonSpendableInputs ||
-                  Set.member oref
-                    (p.unbalancedTx ^. _body' <<< _referenceInputs)
+                  spendable :: Boolean
+                  spendable = not $ Set.member oref nonSpendableInputs ||
+                    Set.member oref
+                      (p.unbalancedTx ^. _body' <<< _referenceInputs)
 
-                validInContext :: Boolean
-                validInContext = not $ txHasPlutusV1 &&
-                  (hasInlineDatum || hasScriptRef)
-              in
-                case spendable, validInContext of
-                  true, true -> acc
-                    { spendable = Map.insert oref output acc.spendable }
-                  true, false -> acc
-                    { invalidInContext = Map.insert oref output
-                        acc.invalidInContext
-                    }
-                  _, _ -> acc
-          )
-          { spendable: Map.empty
-          , invalidInContext: Map.empty
-          }
-          (Map.toUnfoldable p.utxos :: Array _)
+                  validInContext :: Boolean
+                  validInContext = not $ txHasPlutusV1 &&
+                    (hasInlineDatum || hasScriptRef)
+                in
+                  case spendable, validInContext of
+                    true, true -> acc
+                      { spendable = Map.insert oref output acc.spendable }
+                    true, false -> acc
+                      { invalidInContext = Map.insert oref output
+                          acc.invalidInContext
+                      }
+                    _, _ -> acc
+            )
+            { spendable: Map.empty
+            , invalidInContext: Map.empty
+            }
+            (Map.toUnfoldable p.utxos :: Array _)
 
   mainLoop :: BalancerState -> BalanceTxM FinalizedTransaction
   mainLoop = worker <<< PrebalanceTx
@@ -621,10 +624,10 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
   where
   worker :: BigInt -> NonEmptyArray ChangeValue -> Array Value
   worker adaRequired = NEArray.uncons >>> case _ of
-    { head: x, tail: xs }
-      | not (null xs) && adaAvailable < adaRequired && noTokens x ->
-          worker (adaRequired - x.minCoin) (fromArrayUnsafe xs)
-
+    { head: x, tail }
+      | Just xs <- NEA.fromArray tail
+      , adaAvailable < adaRequired && noTokens x ->
+          worker (adaRequired - x.minCoin) xs
     { head: x, tail: xs } ->
       let
         changeValues :: NonEmptyArray ChangeValue
@@ -650,9 +653,6 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
     assignMinCoin :: ChangeValue -> Value
     assignMinCoin { value: (Value _ assets), minCoin } =
       mkValue (wrap minCoin) assets
-
-    fromArrayUnsafe :: forall (a :: Type). Array a -> NonEmptyArray a
-    fromArrayUnsafe = unsafePartial fromJust <<< NEArray.fromArray
 
   adaRequiredAtStart :: NonEmptyArray ChangeValue -> BigInt
   adaRequiredAtStart = sum <<< map _.minCoin

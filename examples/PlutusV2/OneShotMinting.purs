@@ -11,7 +11,7 @@ module Ctl.Examples.PlutusV2.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Monad
   ( Contract
   , launchAff_
@@ -31,22 +31,22 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract =
   mkContractWithAssertions "Examples.PlutusV2.OneShotMinting"
     oneShotMintingPolicyV2
 
 foreign import oneShotMinting :: String
 
-oneShotMintingPolicyV2 :: TransactionInput -> Contract () MintingPolicy
+oneShotMintingPolicyV2 :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicyV2 =
   map PlutusMintingPolicy <<< oneShotMintingPolicyScriptV2
 
-oneShotMintingPolicyScriptV2 :: TransactionInput -> Contract () PlutusScript
+oneShotMintingPolicyScriptV2 :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScriptV2 txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
