@@ -183,8 +183,8 @@ suite = do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
         distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 20_000_000
           ] /\
             [ BigInt.fromInt 2_000_000_000 ]
       withWallets distribution \(alice /\ bob) -> do
@@ -196,7 +196,7 @@ suite = do
                   { output: TransactionOutputWithRefScript { output } }
               ] -> do
               let amount = (unwrap output).amount
-              unless (amount == lovelaceValueOf (BigInt.fromInt 1_000_000_000))
+              unless (amount == lovelaceValueOf (BigInt.fromInt 10_000_000))
                 $ throw "Wrong UTxO selected as collateral"
             Just _ -> do
               -- not a bug, but unexpected
@@ -208,8 +208,8 @@ suite = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 20_000_000
           ]
       withWallets distribution \alice -> do
         checkUtxoDistribution distribution alice
@@ -223,8 +223,8 @@ suite = do
       do
         let
           aliceUtxos =
-            [ BigInt.fromInt 2_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            [ BigInt.fromInt 20_000_000
+            , BigInt.fromInt 20_000_000
             ]
           distribution = withStakeKey privateStakeKey aliceUtxos
 
@@ -242,12 +242,12 @@ suite = do
       do
         let
           aliceUtxos =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            [ BigInt.fromInt 20_000_000
+            , BigInt.fromInt 20_000_000
             ]
           bobUtxos =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            [ BigInt.fromInt 20_000_000
+            , BigInt.fromInt 20_000_000
             ]
 
           distribution :: InitialUTxOs /\ InitialUTxOs
@@ -276,11 +276,11 @@ suite = do
         let
           aliceUtxos =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 20_000_000
             ]
           bobUtxos =
             [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            , BigInt.fromInt 20_000_000
             ]
           distribution =
             withStakeKey privateStakeKey aliceUtxos
@@ -316,20 +316,20 @@ suite = do
         distribution
           :: InitialUTxOs /\ InitialUTxOs /\ InitialUTxOs /\ InitialUTxOs
         distribution =
-          [ BigInt.fromInt 2_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigInt.fromInt 20_000_000
+          , BigInt.fromInt 20_000_000
           ]
             /\
-              [ BigInt.fromInt 2_000_000_000
-              , BigInt.fromInt 2_000_000_000
+              [ BigInt.fromInt 20_000_000
+              , BigInt.fromInt 20_000_000
               ]
             /\
-              [ BigInt.fromInt 2_000_000_000
-              , BigInt.fromInt 2_000_000_000
+              [ BigInt.fromInt 20_000_000
+              , BigInt.fromInt 20_000_000
               ]
             /\
-              [ BigInt.fromInt 2_000_000_000
-              , BigInt.fromInt 2_000_000_000
+              [ BigInt.fromInt 20_000_000
+              , BigInt.fromInt 20_000_000
               ]
       withWallets distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
