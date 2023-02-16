@@ -286,7 +286,6 @@ import Data.Map (empty, insert) as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.Time.Duration (Seconds)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst)
 import Data.Tuple.Nested (type (/\), (/\))

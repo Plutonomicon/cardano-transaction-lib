@@ -156,7 +156,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, skip, test)
+import Mote (group, test)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
