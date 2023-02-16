@@ -125,10 +125,10 @@ executeContractTestsWithBlockfrost
     lookupEnv "PRIVATE_STAKE_KEY_FILE" <#> notEmptyString
   confirmTxDelay <- liftEffect $
     lookupEnv "TX_CONFIRMATION_DELAY_SECONDS" >>= parseConfirmationDelay
-  when (confirmTxDelay < Just (Seconds 20.0)) do
+  when (confirmTxDelay < Just (Seconds 30.0)) do
     liftEffect $ Console.warn $
       "Warning: It is recommended to set TX_CONFIRMATION_DELAY_SECONDS to at "
-        <> "least 20 seconds to let the changes propagate after transaction "
+        <> "least 30 seconds to let the changes propagate after transaction "
         <> "submission. Current value: "
         <> show (fromMaybe 0.0 (unwrap <$> confirmTxDelay))
         <> "s."

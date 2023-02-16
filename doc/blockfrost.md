@@ -9,9 +9,13 @@
   - [3. Funding your address](#3-funding-your-address)
   - [4. Setting up a directory for temporary keys](#4-setting-up-a-directory-for-temporary-keys)
   - [5. Providing an API endpoint URL](#5-providing-an-api-endpoint-url)
-  - [6. Extra configuration options](#6-extra-configuration-options)
+  - [6. Setting Tx confirmation delay](#6-setting-tx-confirmation-delay)
   - [7. Test suite setup on PureScript side](#7-test-suite-setup-on-purescript-side)
 - [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
+- [Limitations](#limitations)
+  - [Performance](#performance)
+  - [Transaction chaining](#transaction-chaining)
+  - [Getting pool parameters](#getting-pool-parameters)
 - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -87,13 +91,22 @@ export BLOCKFROST_SECURE=true # Use HTTPS
 export BLOCKFROST_PATH="/api/v0"
 ```
 
-### 6. Extra configuration options
+### 6. Setting Tx confirmation delay
 
-If the tests are failing because the effects of the transaction do not seem
-to propagate, it is possible to increase the delay after transaction submission. Blockfrost does not update the query layer state atomically (proxied Ogmios eval-tx endpoint seems to lag behind the DB), so this is the best workaround we can have:
+We introduce an artificial delay after Tx confirmation to ensure that the changes propagate to Blockfrost's query layer.
+Blockfrost does not update the query layer state atomically (proxied Ogmios eval-tx endpoint seems to lag behind the DB), and we have no way to query it, so this is the best workaround we can have.
+If the tests are failing because the effects of the transaction do not seem to propagate (the symptom is unexpected errors from Ogmios), it is possible to increase the delay by setting the environment variable for the test suite:
 
 ```bash
 export TX_CONFIRMATION_DELAY_SECONDS=30
+```
+
+The "safe" value in practice is 30 seconds.
+
+If there's a problem with UTxO set syncrhonization, most commonly Blockfrost returns error code 400 on transaction submission:
+
+```
+[TRACE] 2023-02-16T12:26:13.019Z { body: "{\"error\":\"Bad Request\",\"message\":\"\\\"transaction submit error ShelleyTxValidationError ShelleyBasedEraBabbage (ApplyTxError [UtxowFailure (UtxoFailure (FromAlonzoUtxoFail (ValueNotConservedUTxO ...
 ```
 
 ### 7. Test suite setup on PureScript side
@@ -122,6 +135,22 @@ type BlockfrostBackendParams =
 ```
 
 For convenience, use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
+
+## Limitations
+
+### Performance
+
+The main disadvantage of using Blockfrost in comparison with CTL backend is speed of Tx confirmation (see [here](#6-setting-tx-confirmation-delay) for explanation).
+
+### Transaction chaining
+
+Blockfrost is proxying [Ogmios](https://ogmios.dev) to provide an endpoint for execution units evaluation. This Ogmios endpoint normally [accepts a parameter](https://ogmios.dev/mini-protocols/local-tx-submission/#additional-utxo-set) that allows to specify additional UTxOs that should be considered. Transaction chaining is relying on this feature to allow Ogmios to "see" the newly created UTxOs. But Blockfrost seems to not pass this parameter to Ogmios ([issue](https://github.com/blockfrost/blockfrost-backend-ryo/issues/85)).
+
+### Getting pool parameters
+
+`getPoolParameters` function only runs with Ogmios backend, see [here](https://github.com/blockfrost/blockfrost-backend-ryo/issues/82) for more context.
+
+It is not used for constraints resolution, the only way to make it run is to call it manually.
 
 ## See also
 

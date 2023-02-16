@@ -349,8 +349,8 @@ returnFunds
   -> Maybe BigInt
   -> Boolean
   -> Aff Unit
-returnFunds backup env allWalletsArray mbFundTotal hasRun = runContractInEnv env
-  $
+returnFunds backup env allWalletsArray mbFundTotal hasRun =
+  runContractInEnv env $
     noLogs do
       nonEmptyWallets <- catMaybes <$> for allWalletsArray \wallet -> do
         withKeyWallet wallet do
