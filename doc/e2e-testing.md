@@ -45,6 +45,7 @@ For a working example see `test/E2E.purs`. It can be run conveniently using `npm
 - Use `npm run e2e-serve` to [serve](#serving-the-contract-to-be-tested) the examples for testing.
 - Use `npm run e2e-test` to run the test suite in headless mode or `npm run e2e-test-debug` to enable the browser UI.
 - Use `npm run e2e-browser` to open the browser window with extensions pre-loaded. If you modify any setting (e.g. set a collateral), it's important to run `npm run e2e-pack-settings` **without running anything in between**. The test suite resets the settings by loading them from the settings archive before each test run.
+- To [pack and unpack](#how-wallets-are-used) extension settings to or from the archive file `npm run e2e-pack-settings` and `npm run e2e-unpack-settings` scripts should be used, respectively.
 
 ## How to Run the Included Examples
 
@@ -213,6 +214,10 @@ Hooks are a special feature that allows to run arbitrary code during various sta
 Note that the test closes successfully after the first successful `Contract` execution, so if your scenario involves multiple `Contract`s, remove `onSuccess` hooks from every `Contract` except the last one, or manually run `e2eFeedbackHooks.onSuccess` (it's just an `Effect` action).
 
 CTL offers a function to serve the `Contract`s to be tested with a router, that dispatches contracts and configuration parameters based on query part of the URL.
+
+It also builds a page with a table consisting of links to all possible examples with all possible environments, that looks like this:
+
+![Headless browser test suite - served examples](./images/e2e.png)
 
 See [this file](../templates/ctl-scaffold/test/E2E.purs) for a quick example:
 
