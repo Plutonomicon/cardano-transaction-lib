@@ -7,7 +7,7 @@ module Ctl.Examples.SendsToken (main, example, contract) where
 import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
@@ -31,11 +31,11 @@ import Data.Array (head)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SendsToken"
 
@@ -45,7 +45,7 @@ contract = do
   sendToken >>= awaitTxConfirmed
   logInfo' "Tx submitted successfully!"
 
-mintToken :: Contract () TransactionHash
+mintToken :: Contract TransactionHash
 mintToken = do
   mp /\ value <- tokenValue
   let
@@ -57,7 +57,7 @@ mintToken = do
 
   submitTxFromConstraints lookups constraints
 
-sendToken :: Contract () TransactionHash
+sendToken :: Contract TransactionHash
 sendToken = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   skh <- join <<< head <$> ownStakePubKeysHashes
@@ -71,7 +71,7 @@ sendToken = do
 
   submitTxFromConstraints lookups constraints
 
-tokenValue :: Contract () (MintingPolicy /\ Value)
+tokenValue :: Contract (MintingPolicy /\ Value)
 tokenValue = do
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "TheToken"

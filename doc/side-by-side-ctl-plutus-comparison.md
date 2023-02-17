@@ -23,45 +23,16 @@ both of them.
 The current definition of `Contract` in CTL is :
 
 ```PureScript
-type QueryConfig =
-  {  -- configuration options used on initialization to construct `QueryRuntime`
+type ContractEnv =
+  { -- Internal type holding connections to backend services, ledger
+    -- constants which are fixed during contract evaluation, and user defined
+    -- values like the choice of wallet and logger.
   }
 
-type QueryRuntime =
-  { -- Part of `QueryEnv` that is reusable between contracts (internal type)
-  }
-
--- | `QueryEnv` contains everything needed for `QueryM` to run.
-type QueryEnv (r :: Row Type) =
-  { config :: QueryConfig
-  , runtime :: QueryRuntime
-  , extraConfig :: { | r }
-  }
-
-type DefaultQueryEnv = QueryEnv ()
-
-type QueryM (a :: Type) = ReaderT DefaultQueryEnv (LoggerT Aff) a
-
-type QueryMExtended (r :: Row Type) (a :: Type) = ReaderT (QueryEnv r)
-  (LoggerT Aff)
-  a
-
-newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r a)
+newtype Contract (a :: Type) = Contract (ReaderT ContractEnv Aff a)
 ```
 
-In CTL we have a general environment type
-
-```PureScript
-newtype ContractEnv (r :: Row Type) = ContractEnv (QueryEnv r)
-```
-
-it stores the needed parameters to connect to an `Ogmios` server,
-wallets and more things, this configuration uses the PureScript native
-[row polymorphism](https://en.wikipedia.org/wiki/Row_polymorphism) to make it  extensible for both CTL developers and users.
-You can find a little discussion about row polymorphism [here](https://hgiasac.github.io/posts/2018-11-18-Record-Row-Type-and-Row-Polymorphism.html).
-
-The parameter `a` as in `Plutus` refers to a return value wrapped by `Contract`.
-
+The parameter `a`, as in `Plutus` also, refers to a return value wrapped by `Contract`.
 
 Note that in Plutus right now we have the following definition for `Contract`:
 
@@ -81,21 +52,14 @@ newtype Contract w (s :: Row *) e a = Contract { unContract :: Eff (ContractEffs
 ```
 
 The Plutus `Contract` environment is specialized to just two values and is fixed.
-Also, Plutus `Contract` uses a phantom type `s` to contract schema
+Also, Plutus `Contract` uses a phantom type `s` for the contract schema
 and parameters `w` for a writer and `e` for errors.
 In the case of CTL we don't have the contract schema parameter or the writer
-parameter since CTL definition allows performing arbitrary effects.
-This is possible  since the definition of `LoggerT` is:
-
-```PureScript
-newtype LoggerT m a = LoggerT ((Message -> m Unit) -> m a)
-```
-
-The use of `Aff` inside `LoggerT` allows us to use asynchronous effects
-inside the logger. In particular, this has a similar effect as using `IO`
-in Haskell, although isn't the same. Of course we can log to console
-using just `Aff` but `LoggerT` provide us with structured logging.
-
+parameter since the definition of CTL allows performing arbitrary effects, from
+the use of `Aff`. `Aff` allows us to use asynchronous effects, which has a
+similar effect as using `IO` in Haskell, although isn't the same. While most
+effectful actions are defined directly in terms of those provided by `Aff`,
+logging is provided by a configurable logger stored in `ContractEnv`.
 
 
 ## Contract comparison
@@ -177,7 +141,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Prelude
 import Data.BigInt as BigInt
 
-give :: ValidatorHash -> Contract () TransactionHash
+give :: ValidatorHash -> Contract TransactionHash
 give vhash = do
   let
     constraints :: Constraints.TxConstraints Unit Unit
@@ -232,11 +196,12 @@ module Contract.Utxos ...
 .
 .
 .
--- | This module defines query functionality via Ogmios to get utxos.
--- | Gets utxos at an (internal) `Address` in terms of a Plutus Address`.
--- | Results may vary depending on `Wallet` type. See `QueryM` for more details
--- | on wallet variance.
-utxosAt :: forall (r :: Row Type). Address -> Contract r (Maybe UtxoMap)
+-- | Queries for utxos at the given Plutus `Address`.
+utxosAt
+  :: forall (address :: Type)
+   . PlutusAddress address
+  => address
+  -> Contract UtxoMap
 ```
 
 
@@ -254,7 +219,7 @@ grab
   :: ValidatorHash
   -> Validator
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 grab vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- fromMaybe Map.empty <$> utxosAt scriptAddress

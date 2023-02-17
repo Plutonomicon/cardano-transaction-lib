@@ -8,6 +8,7 @@ CTL comes with advanced machinery for E2E testing in the browser, which can be u
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Parts Involved](#parts-involved)
+- [User perspective](#user-perspective)
 - [How to Run the Included Examples](#how-to-run-the-included-examples)
 - [How Wallets are Used](#how-wallets-are-used)
   - [Where to Find the Installed Extensions](#where-to-find-the-installed-extensions)
@@ -31,7 +32,7 @@ CTL comes with advanced machinery for E2E testing in the browser, which can be u
 is used to drive the tests. Supported browsers are [Chromium](https://www.chromium.org/) and Google Chrome.
 The browser can be run headless (default) or headful (useful during test development).
 
-Any programs that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `make run-dev`). The test suite accepts a list of URLs.
+Any `Contract` that should be tested must be deployed and running on some testserver (e.g. for the included examples we use `npm run e2e-test`). The test suite accepts a list of URLs.
 
 The test suite requires a set of CRX (chrome extension) files, as well as an archive with user settings. Extension and wallet settings can optionally be configured to be fetched from a URL.
 
@@ -39,12 +40,19 @@ Each extension should be provided with its extension ID and wallet password.
 
 For a working example see `test/E2E.purs`. It can be run conveniently using `npm run e2e-test`.
 
+## User perspective
+
+- Use `npm run e2e-serve` to [serve](#serving-the-contract-to-be-tested) the examples for testing.
+- Use `npm run e2e-test` to run the test suite in headless mode or `npm run e2e-test-debug` to enable the browser UI.
+- Use `npm run e2e-browser` to open the browser window with extensions pre-loaded. If you modify any setting (e.g. set a collateral), it's important to run `npm run e2e-pack-settings` **without running anything in between**. The test suite resets the settings by loading them from the settings archive before each test run.
+
 ## How to Run the Included Examples
 
 The process is as follows:
 
-1. run `make run-dev`.
-2. In another shell, run `npm run e2e-test`.
+1. run `npm run e2e-serve` in one shell
+2. run `nix run -L .#ctl-runtime` in another shell
+3. run `npm run e2e-test` in the third shell
 
 ## How Wallets are Used
 
@@ -131,8 +139,6 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 |------------------------------------------------------------------------|-----------------------------|----------------------------|
 | E2E+Plutip: Plutip port number                                         | `--plutip-port`             | `PLUTIP_PORT`              |
 | E2E+Plutip: Ogmios port number                                         | `--ogmios-port`             | `OGMIOS_PORT`              |
-| E2E+Plutip: ODC port number                                            | `--ogmios-datum-cache-port` | `OGMIOS_DATUM_CACHE_PORT`  |
-| E2E+Plutip: Postgres port                                              | `--postgres-port`           | `POSTGRES_PORT`            |
 | E2E+Plutip: Kupo port                                                  | `--kupo-port`               | `KUPO_PORT`                |
 
 The default configuration can be found in `test/e2e.env`.
@@ -193,7 +199,7 @@ Unarchive the CRX, put the encoded public key to `key` property of `manifest.jso
 
 ### Serving the Contract to be tested
 
-The test suite accepts URLs, which means that the Contract you want to test must be served.
+The test suite accepts URLs, which means that the `Contract` you want to test must be served.
 
 It's up to the user how to set up the web server (see `make run-dev` for an example), but in order for the testing engine to "see" the contract, the configuration parameters must be changed:
 
@@ -218,7 +224,7 @@ main = do
   -- Serves the appropriate `Contract` with e2eTestHooks
   route configs tests
 
-configs :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+configs :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 configs = Map.fromFoldable
   [ "nami" /\ testnetNamiConfig /\ Nothing
   , "gero" /\ testnetGeroConfig /\ Nothing
@@ -231,7 +237,7 @@ configs = Map.fromFoldable
   , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
   ]
 
-tests :: Map E2ETestName (Contract () Unit)
+tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable
   [ "Contract" /\ Scaffold.contract
   -- Add more `Contract`s here
@@ -288,13 +294,13 @@ It's possible to run headless browser tests on top of a temporary plutip cluster
 
 To do that, it's enough to define a config name that:
 
-- uses a `ConfigParams` value with `networkId` set to `MainnetId`.
+- uses a `ContractParams` value with `networkId` set to `MainnetId`.
 - Specifies a wallet mock (e.g. `MockNami`)
 
 E.g.:
 
 ```purescript
-wallets :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
+wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 wallets = Map.fromFoldable
   [ "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
   , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero

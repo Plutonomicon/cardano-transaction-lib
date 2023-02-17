@@ -620,6 +620,7 @@ newtype PoolPubKeyHash = PoolPubKeyHash Ed25519KeyHash
 
 derive instance Newtype PoolPubKeyHash _
 derive instance Eq PoolPubKeyHash
+derive instance Ord PoolPubKeyHash
 derive instance Generic PoolPubKeyHash _
 
 instance EncodeAeson PoolPubKeyHash where

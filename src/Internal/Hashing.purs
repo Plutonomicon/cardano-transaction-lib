@@ -1,7 +1,10 @@
 module Ctl.Internal.Hashing
-  ( blake2b256Hash
+  ( blake2b224Hash
+  , blake2b224HashHex
+  , blake2b256Hash
   , blake2b256HashHex
   , datumHash
+  , md5HashHex
   , plutusScriptHash
   , sha256Hash
   , sha256HashHex
@@ -33,6 +36,14 @@ import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.Newtype (unwrap, wrap)
+import Effect (Effect)
+import Node.Buffer (fromString, toString) as Buffer
+import Node.Crypto.Hash (createHash, digest, update) as Hash
+import Node.Encoding (Encoding(Hex, UTF8))
+
+foreign import blake2b224Hash :: ByteArray -> ByteArray
+
+foreign import blake2b224HashHex :: ByteArray -> String
 
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 
@@ -50,6 +61,12 @@ foreign import sha256HashHex :: ByteArray -> String
 foreign import sha3_256Hash :: ByteArray -> ByteArray
 
 foreign import sha3_256HashHex :: ByteArray -> String
+
+md5HashHex :: String -> Effect String
+md5HashHex contents = do
+  buf <- Buffer.fromString contents UTF8
+  digest <- Hash.createHash "md5" >>= Hash.update buf >>= Hash.digest
+  Buffer.toString Hex digest
 
 datumHash :: Datum -> DataHash
 datumHash =

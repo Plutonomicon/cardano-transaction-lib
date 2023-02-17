@@ -42,19 +42,17 @@ import Effect.Class (liftEffect)
 -- There does not appear to be a way around this.
 
 setAuxiliaryData
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
+  :: UnattachedUnbalancedTx
   -> AuxiliaryData
-  -> Contract r UnattachedUnbalancedTx
+  -> Contract UnattachedUnbalancedTx
 setAuxiliaryData tx auxData = liftEffect do
   auxDataHash <- hashAuxiliaryData auxData
   pure (tx # _auxiliaryData ?~ auxData # _auxiliaryDataHash ?~ auxDataHash)
 
 setGeneralTxMetadata
-  :: forall (r :: Row Type)
-   . UnattachedUnbalancedTx
+  :: UnattachedUnbalancedTx
   -> GeneralTransactionMetadata
-  -> Contract r UnattachedUnbalancedTx
+  -> Contract UnattachedUnbalancedTx
 setGeneralTxMetadata tx generalMetadata =
   let
     auxData = fromMaybe mempty (view _auxiliaryData tx)
@@ -62,11 +60,11 @@ setGeneralTxMetadata tx generalMetadata =
     setAuxiliaryData tx (auxData # _metadata ?~ generalMetadata)
 
 setTxMetadata
-  :: forall (r :: Row Type) (m :: Type)
+  :: forall (m :: Type)
    . MetadataType m
   => UnattachedUnbalancedTx
   -> m
-  -> Contract r UnattachedUnbalancedTx
+  -> Contract UnattachedUnbalancedTx
 setTxMetadata tx =
   setGeneralTxMetadata tx <<< toGeneralTxMetadata
 

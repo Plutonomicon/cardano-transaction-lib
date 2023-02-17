@@ -24,9 +24,9 @@ import Data.UInt (UInt)
 import Effect.Ref (read) as Ref
 
 getLockedInputs
-  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
+  :: Contract (Map TransactionHash (Set UInt))
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
+  cache <- asks _.usedTxOuts
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
@@ -64,9 +64,8 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   liftEffect unlock
   where
   submitAndLog
-    :: forall (r :: Row Type)
-     . BalancedSignedTransaction
-    -> Contract r TransactionHash
+    :: BalancedSignedTransaction
+    -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId

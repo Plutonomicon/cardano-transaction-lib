@@ -9,7 +9,7 @@ module Ctl.Internal.E2E.Route
 
 import Prelude
 
-import Contract.Config (ConfigParams)
+import Contract.Config (ContractParams)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
 import Contract.Wallet
@@ -20,6 +20,7 @@ import Contract.Wallet
 import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
@@ -50,7 +51,7 @@ import Effect.Exception (error, throw)
 -- | A name of some particular test. Used in the URL
 type E2ETestName = String
 
--- | A name of some particular E2E test environment (`ConfigParams` and possible
+-- | A name of some particular E2E test environment (`ContractParams` and possible
 -- | CIP-30 mock). Used in the URL for routing
 type E2EConfigName = String
 
@@ -102,8 +103,8 @@ parseRoute queryString =
     mkPrivateKey str <#> PrivateStakeKey
 
 addLinks
-  :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
-  -> Map E2ETestName (Contract () Unit)
+  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 addLinks configMaps testMaps = do
   let
@@ -133,8 +134,8 @@ addLinks configMaps testMaps = do
 -- | from the cluster should be used. If there's no local cluster, an error
 -- | will be thrown.
 route
-  :: Map E2EConfigName (ConfigParams () /\ Maybe WalletMock)
-  -> Map E2ETestName (Contract () Unit)
+  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 route configs tests = do
   queryString <- fold <<< last <<< split (Pattern "?") <$> _queryString
@@ -172,11 +173,13 @@ route configs tests = do
               # maybe identity setClusterOptions mbClusterSetup
         do
           runContract configWithHooks
-            $ withCip30Mock (privateKeysToKeyWallet paymentKey stakeKey) mock
+            $ withCip30Mock
+                (privateKeysToKeyWallet paymentKey stakeKey)
+                mock
                 test
   where
   -- Eternl does not initialize instantly. We have to add a small delay.
-  delayIfEternl :: forall (r :: Row Type). ConfigParams r -> Aff Unit
+  delayIfEternl :: ContractParams -> Aff Unit
   delayIfEternl config =
     case config.walletSpec of
       Just ConnectToEternl ->
@@ -201,17 +204,17 @@ route configs tests = do
 
   -- Override config values with parameters from cluster setup
   setClusterOptions
-    :: forall (r :: Row Type). ClusterSetup -> ConfigParams r -> ConfigParams r
+    :: ClusterSetup -> ContractParams -> ContractParams
   setClusterOptions
     { ogmiosConfig
-    , datumCacheConfig
     , kupoConfig
     }
     config =
     config
-      { ogmiosConfig = ogmiosConfig
-      , datumCacheConfig = datumCacheConfig
-      , kupoConfig = kupoConfig
+      { backendParams = mkCtlBackendParams
+          { ogmiosConfig: ogmiosConfig
+          , kupoConfig: kupoConfig
+          }
       }
 
 foreign import _queryString :: Effect String

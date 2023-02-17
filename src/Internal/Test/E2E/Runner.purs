@@ -2,6 +2,7 @@
 module Ctl.Internal.Test.E2E.Runner
   ( runE2ECommand
   , runE2ETests
+  , readBoolean
   ) where
 
 import Prelude
@@ -12,12 +13,13 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Contract.Hooks (emptyHooks)
+import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
-import Ctl.Internal.Plutip.UtxoDistribution (withStakeKey)
-import Ctl.Internal.QueryM (ClusterSetup, emptyHooks)
+import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
@@ -67,6 +69,7 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiSign
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
+import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
@@ -84,7 +87,7 @@ import Data.List (intercalate)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.String (Pattern(Pattern))
 import Data.String (contains, null, split, toLower, toUpper, trim) as String
@@ -198,20 +201,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , ogmiosDatumCacheConfig:
-      { port: fromMaybe (UInt.fromInt defaultPorts.ogmiosDatumCache)
-          options.ogmiosDatumCachePort
-      , host: "127.0.0.1"
-      , secure: false
-      , path: Nothing
-      }
-  , postgresConfig:
-      { host: "127.0.0.1"
-      , port: fromMaybe (UInt.fromInt 5438) options.postgresPort
-      , user: "ctxlib"
-      , password: "ctxlib"
-      , dbname: "ctxlib"
-      }
   , kupoConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt defaultPorts.kupo) options.kupoPort
@@ -258,16 +247,16 @@ testPlan opts@{ tests } rt@{ wallets } =
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
         liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
           \env wallet -> do
-            let
-              (clusterSetup :: ClusterSetup) =
-                { ogmiosConfig: (unwrap env).config.ogmiosConfig
-                , datumCacheConfig: (unwrap env).config.datumCacheConfig
-                , kupoConfig: (unwrap env).config.kupoConfig
+            (clusterSetup :: ClusterSetup) <- case env.backend of
+              CtlBackend backend _ -> pure
+                { ogmiosConfig: backend.ogmios.config
+                , kupoConfig: backend.kupoConfig
                 , keys:
                     { payment: keyWalletPrivatePaymentKey wallet
                     , stake: keyWalletPrivateStakeKey wallet
                     }
                 }
+              _ -> liftEffect $ throw "Unsupported backend"
             withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing
               \browser -> do
                 withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
@@ -356,8 +345,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "testTimeout")
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
-            <<< delete (Proxy :: Proxy "ogmiosDatumCachePort")
-            <<< delete (Proxy :: Proxy "postgresPort")
             <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
         )
@@ -369,17 +356,11 @@ readPorts testOptions = do
     readPortNumber "PLUTIP" testOptions.plutipPort
   ogmiosPort <-
     readPortNumber "OGMIOS" testOptions.ogmiosPort
-  ogmiosDatumCachePort <-
-    readPortNumber "OGMIOS_DATUM_CACHE" testOptions.ogmiosDatumCachePort
-  postgresPort <-
-    readPortNumber "POSTGRES" testOptions.postgresPort
   kupoPort <-
     readPortNumber "KUPO" testOptions.kupoPort
   pure
     { plutipPort
     , ogmiosPort
-    , ogmiosDatumCachePort
-    , postgresPort
     , kupoPort
     }
   where

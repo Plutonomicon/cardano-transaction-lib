@@ -1,5 +1,5 @@
 -- | Provides basics types and operations for working with JSON RPC protocol
--- | used by Ogmios and ogmios-datum-cache
+-- | used by Ogmios
 module Ctl.Internal.QueryM.JsonWsp
   ( JsonWspRequest
   , JsonWspResponse

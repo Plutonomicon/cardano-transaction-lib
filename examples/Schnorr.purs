@@ -48,13 +48,12 @@ instance ToData SchnorrRedeemer where
   toData (SchnorrRedeemer { msg, sig, pk }) = Constr BigNum.zero
     [ toData msg, toData sig, toData pk ]
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
-  void prepTest
-  void testSchnorr
+  void $ prepTest >>= testSchnorr
 
 -- | Prepare the ECDSA test by locking some funds at the validator address
-prepTest :: Contract () TransactionHash
+prepTest :: Contract TransactionHash
 prepTest = do
   validator <- liftContractM "Caonnot get validator" getValidator
   let
@@ -76,8 +75,9 @@ prepTest = do
   pure txId
 
 -- | Attempt to unlock one utxo using an ECDSA signature
-testVerification :: SchnorrRedeemer -> Contract () TransactionHash
-testVerification ecdsaRed = do
+testVerification
+  :: TransactionHash -> SchnorrRedeemer -> Contract TransactionHash
+testVerification txId ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
@@ -89,30 +89,33 @@ testVerification ecdsaRed = do
 
   scriptUtxos <- utxosAt valAddr
   txIn <- liftContractM "No UTxOs found at validator address"
-    $ Set.findMin
+    $ Set.toUnfoldable
+    $ Set.filter (unwrap >>> _.transactionId >>> eq txId)
     $ Map.keys scriptUtxos
+
   let
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs scriptUtxos
+      <> Lookups.unspentOutputs
+        (Map.filterKeys ((unwrap >>> _.transactionId >>> eq txId)) scriptUtxos)
 
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustSpendScriptOutput txIn red
-  txId <- submitTxFromConstraints lookups constraints
-  logInfo' $ "Submitted Schnorr test verification tx: " <> show txId
-  awaitTxConfirmed txId
-  logInfo' $ "Transaction confirmed: " <> show txId
-  pure txId
+  txId' <- submitTxFromConstraints lookups constraints
+  logInfo' $ "Submitted Schnorr test verification tx: " <> show txId'
+  awaitTxConfirmed txId'
+  logInfo' $ "Transaction confirmed: " <> show txId'
+  pure txId'
 
 -- | Testing ECDSA verification function on-chain
-testSchnorr :: Contract () TransactionHash
-testSchnorr = do
+testSchnorr :: TransactionHash -> Contract TransactionHash
+testSchnorr txId = do
   privateKey <- liftEffect $ randomSecp256k1PrivateKey
   let
     publicKey = deriveSchnorrSecp256k1PublicKey privateKey
     message = byteArrayFromIntArrayUnsafe [ 0, 1, 2, 3 ]
   signature <- liftAff $ signSchnorrSecp256k1 privateKey message
-  testVerification $
+  testVerification txId $
     SchnorrRedeemer
       { msg: message
       , sig: signature

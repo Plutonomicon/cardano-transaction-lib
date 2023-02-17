@@ -68,8 +68,9 @@ type DeserializedDataSignature =
 
 testCip30SignData :: TestInput -> Aff Unit
 testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
-  address <-
-    privateKeysToAddress (unwrap privateKey) (unwrap <$> privateStakeKey)
+  let
+    address = privateKeysToAddress (unwrap privateKey)
+      (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
   dataSignature <- liftEffect $ signData privatePaymentKey address payload

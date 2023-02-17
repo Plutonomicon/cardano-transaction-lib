@@ -8,8 +8,8 @@ module Ctl.Internal.BalanceTx.Types
   , askCostModelsForLanguages
   , askNetworkId
   , asksConstraints
-  , liftEitherQueryM
-  , liftQueryM
+  , liftEitherContract
+  , liftContract
   , withBalanceTxConstraints
   ) where
 
@@ -28,9 +28,9 @@ import Ctl.Internal.BalanceTx.Constraints
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
-import Ctl.Internal.QueryM (QueryEnv, QueryM)
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
+import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
 import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Scripts (Language)
 import Ctl.Internal.Wallet (Cip30Wallet, cip30Wallet)
@@ -48,37 +48,38 @@ import Data.Show.Generic (genericShow)
 type BalanceTxMContext = { constraints :: BalanceTxConstraints }
 
 type BalanceTxM (a :: Type) =
-  ExceptT BalanceTxError (ReaderT BalanceTxMContext QueryM) a
+  ExceptT BalanceTxError (ReaderT BalanceTxMContext Contract) a
 
-liftQueryM :: forall (a :: Type). QueryM a -> BalanceTxM a
-liftQueryM = lift <<< lift
+liftContract :: forall (a :: Type). Contract a -> BalanceTxM a
+liftContract = lift <<< lift
 
-liftEitherQueryM
-  :: forall (a :: Type). QueryM (Either BalanceTxError a) -> BalanceTxM a
-liftEitherQueryM = ExceptT <<< lift
+liftEitherContract
+  :: forall (a :: Type). Contract (Either BalanceTxError a) -> BalanceTxM a
+liftEitherContract = ExceptT <<< lift
 
 asksConstraints
   :: forall (a :: Type). Lens' BalanceTxConstraints a -> BalanceTxM a
 asksConstraints l = asks (view l <<< _.constraints)
 
-asksQueryEnv :: forall (a :: Type). (QueryEnv () -> a) -> BalanceTxM a
-asksQueryEnv = lift <<< lift <<< asks
+asksContractEnv :: forall (a :: Type). (ContractEnv -> a) -> BalanceTxM a
+asksContractEnv = lift <<< lift <<< asks
 
 askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
 askCoinsPerUtxoUnit =
-  asksQueryEnv (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.runtime)
+  asksContractEnv
+    (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.ledgerConstants)
 
 askCip30Wallet :: BalanceTxM (Maybe Cip30Wallet)
-askCip30Wallet = asksQueryEnv (cip30Wallet <=< _.wallet <<< _.runtime)
+askCip30Wallet = asksContractEnv (cip30Wallet <=< _.wallet)
 
 askNetworkId :: BalanceTxM NetworkId
-askNetworkId = asksQueryEnv (_.networkId <<< _.config)
+askNetworkId = asksContractEnv _.networkId
 
 withBalanceTxConstraints
   :: forall (a :: Type)
    . BalanceTxConstraintsBuilder
-  -> ReaderT BalanceTxMContext QueryM a
-  -> QueryM a
+  -> ReaderT BalanceTxMContext Contract a
+  -> Contract a
 withBalanceTxConstraints constraintsBuilder =
   flip runReaderT { constraints }
   where
@@ -87,7 +88,7 @@ withBalanceTxConstraints constraintsBuilder =
 
 askCostModelsForLanguages :: Set Language -> BalanceTxM Costmdls
 askCostModelsForLanguages languages =
-  asksQueryEnv (_.costModels <<< unwrap <<< _.pparams <<< _.runtime)
+  asksContractEnv (_.costModels <<< unwrap <<< _.pparams <<< _.ledgerConstants)
     <#> over Costmdls (Map.filterKeys (flip Set.member languages))
 
 newtype FinalizedTransaction = FinalizedTransaction Transaction

@@ -2,11 +2,11 @@ module Contract.ProtocolParameters
   ( getProtocolParameters
   ) where
 
-import Contract.Monad (Contract, wrapContract)
-import Ctl.Internal.QueryM (getProtocolParameters) as QueryM
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters)
+import Contract.Monad (Contract)
+import Ctl.Internal.Contract (getProtocolParameters) as Contract
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 
 -- | Returns the `ProtocolParameters` from the `Contract` environment.
 -- | Note that this is not necessarily the current value from the ledger.
-getProtocolParameters :: forall (r :: Row Type). Contract r ProtocolParameters
-getProtocolParameters = wrapContract QueryM.getProtocolParameters
+getProtocolParameters :: Contract ProtocolParameters
+getProtocolParameters = Contract.getProtocolParameters

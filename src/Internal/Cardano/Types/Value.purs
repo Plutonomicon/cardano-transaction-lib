@@ -1,10 +1,12 @@
 module Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
+  ( AssetClass(AssetClass)
+  , Coin(Coin)
   , CurrencySymbol
   , NonAdaAsset
   , Value(Value)
   , class Negate
   , class Split
+  , assetToValue
   , coinToValue
   , currencyMPSHash
   , eq
@@ -12,6 +14,7 @@ module Ctl.Internal.Cardano.Types.Value
   , filterNonAda
   , flattenNonAdaValue
   , geq
+  , getAssetQuantity
   , getCurrencySymbol
   , getLovelace
   , getNonAdaAsset
@@ -46,6 +49,8 @@ module Ctl.Internal.Cardano.Types.Value
   , unionWith
   , unionWithNonAda
   , unwrapNonAdaAsset
+  , valueAssetClasses
+  , valueAssets
   , valueOf
   , valueToCoin
   , valueToCoin'
@@ -63,11 +68,11 @@ import Aeson
   )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Equipartition (class Equipartition, equipartition)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Ctl.Internal.Partition (class Equipartition, equipartition)
 import Ctl.Internal.Serialization.Hash
   ( ScriptHash
   , scriptHashFromBytes
@@ -76,6 +81,7 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
+  , byteArrayFromIntArrayUnsafe
   , byteArrayToHex
   , byteLength
   , hexToByteArray
@@ -89,6 +95,7 @@ import Ctl.Internal.Types.TokenName
   , mkTokenNames
   )
 import Data.Array (cons, filter)
+import Data.Array (fromFoldable) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
@@ -105,6 +112,7 @@ import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
 import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
+import Data.Map.Gen (genMap)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
@@ -114,6 +122,8 @@ import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Gen (Gen, chooseInt, suchThat, vectorOf)
 
 -- `Negate` and `Split` seem a bit too contrived, and their purpose is to
 -- combine similar behaviour without satisfying any useful laws. I wonder
@@ -150,6 +160,9 @@ derive newtype instance Ord Coin
 derive newtype instance DecodeAeson Coin
 derive newtype instance EncodeAeson Coin
 derive newtype instance Equipartition Coin
+
+instance Arbitrary Coin where
+  arbitrary = Coin <<< fromInt <$> suchThat arbitrary (_ >= zero)
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
@@ -214,6 +227,11 @@ derive newtype instance Ord CurrencySymbol
 derive newtype instance ToData CurrencySymbol
 derive newtype instance ToMetadata CurrencySymbol
 
+instance Arbitrary CurrencySymbol where
+  arbitrary =
+    unsafePartial fromJust <<< mkCurrencySymbol <<< byteArrayFromIntArrayUnsafe
+      <$> vectorOf 28 (chooseInt 0 255)
+
 instance Show CurrencySymbol where
   show (CurrencySymbol cs) = "(CurrencySymbol " <> show cs <> ")"
 
@@ -256,6 +274,17 @@ mkUnsafeAdaSymbol byteArr =
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive newtype instance Eq NonAdaAsset
+
+instance Arbitrary NonAdaAsset where
+  arbitrary =
+    NonAdaAsset <$>
+      genMap
+        (arbitrary :: Gen CurrencySymbol)
+        ( flip suchThat (not Map.isEmpty) $
+            genMap
+              (arbitrary :: Gen TokenName)
+              (fromInt <$> suchThat arbitrary (_ >= one) :: Gen BigInt)
+        )
 
 instance Show NonAdaAsset where
   show (NonAdaAsset nonAdaAsset) = "(NonAdaAsset " <> show nonAdaAsset <> ")"
@@ -411,6 +440,9 @@ data Value = Value Coin NonAdaAsset
 derive instance Generic Value _
 derive instance Eq Value
 
+instance Arbitrary Value where
+  arbitrary = Value <$> arbitrary <*> arbitrary
+
 instance Show Value where
   show = genericShow
 
@@ -454,8 +486,8 @@ instance Equipartition Value where
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenBundle.hs#L381
 equipartitionValueWithTokenQuantityUpperBound
-  :: Value -> BigInt -> NonEmptyArray Value
-equipartitionValueWithTokenQuantityUpperBound value maxTokenQuantity =
+  :: BigInt -> Value -> NonEmptyArray Value
+equipartitionValueWithTokenQuantityUpperBound maxTokenQuantity value =
   let
     Value coin nonAdaAssets = value
     ms /\ numParts =
@@ -490,6 +522,37 @@ mkSingletonValue' curSymbol tokenName amount = do
   pure
     if isAdaCs then Value (Coin amount) mempty
     else Value mempty $ mkSingletonNonAdaAsset curSymbol tokenName amount
+
+--------------------------------------------------------------------------------
+-- AssetClass
+--------------------------------------------------------------------------------
+
+data AssetClass = AssetClass CurrencySymbol TokenName
+
+derive instance Generic AssetClass _
+derive instance Eq AssetClass
+derive instance Ord AssetClass
+
+instance Arbitrary AssetClass where
+  arbitrary = AssetClass <$> arbitrary <*> arbitrary
+
+instance Show AssetClass where
+  show = genericShow
+
+assetToValue :: AssetClass -> BigInt -> Value
+assetToValue (AssetClass cs tn) quantity =
+  mkValue mempty (mkSingletonNonAdaAsset cs tn quantity)
+
+getAssetQuantity :: AssetClass -> Value -> BigInt
+getAssetQuantity (AssetClass cs tn) value = valueOf value cs tn
+
+valueAssets :: Value -> Array (AssetClass /\ BigInt)
+valueAssets (Value _ assets) =
+  Array.fromFoldable (flattenNonAdaValue assets)
+    <#> \(cs /\ tn /\ quantity) -> AssetClass cs tn /\ quantity
+
+valueAssetClasses :: Value -> Array AssetClass
+valueAssetClasses = map fst <<< valueAssets
 
 --------------------------------------------------------------------------------
 -- Helpers

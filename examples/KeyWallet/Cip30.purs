@@ -11,7 +11,6 @@ import Contract.Monad (Contract)
 import Contract.Prim.ByteArray (RawBytes)
 import Contract.Wallet
   ( getChangeAddress
-  , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   , signData
@@ -24,11 +23,10 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = runKeyWalletContract_ mkContract
 
-mkContract :: RawBytes -> Contract () Unit
+mkContract :: RawBytes -> Contract Unit
 mkContract dat = do
   logInfo' "Running Examples.KeyWallet.Cip30"
   logInfo' "Funtions that depend on `Contract`"
-  _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
   mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
   changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
@@ -44,8 +42,8 @@ mkContract dat = do
     :: forall (a :: Type)
      . Show a
     => String
-    -> Contract () a
-    -> Contract () a
+    -> Contract a
+    -> Contract a
   performAndLog logMsg cont = do
     result <- cont
     logInfo' $ logMsg <> ": " <> show result

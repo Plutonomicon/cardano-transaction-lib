@@ -8,9 +8,11 @@ import Prelude
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
+  , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
+import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
@@ -31,7 +33,6 @@ import Contract.Scripts
   )
 import Contract.Staking
   ( getPoolIds
-  , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
@@ -67,7 +68,6 @@ import Contract.TxConstraints
 import Contract.Value (lovelaceValueOf)
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
-import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.IncludeDatum (only42Script)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
@@ -120,7 +120,7 @@ suite = do
   let
     -- A routine function that filters out retiring pool from the list of available
     -- pools
-    selectPoolId :: Contract () PoolPubKeyHash
+    selectPoolId :: Contract PoolPubKeyHash
     selectPoolId = do
       pools <- getPoolIds
       logInfo' "Pool IDs:"
@@ -297,7 +297,7 @@ suite = do
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
-        networkId <- asks $ unwrap >>> _.config >>> _.networkId
+        networkId <- getNetworkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $
             publicKeyFromPrivateKey (unwrap privateStakeKey)
@@ -372,7 +372,7 @@ suite = do
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
         let
-          waitEpoch :: forall (r :: Row Type). Epoch -> Contract r Epoch
+          waitEpoch :: Epoch -> Contract Epoch
           waitEpoch epoch = do
             epochNow <- getCurrentEpoch
             if unwrap epochNow >= unwrap epoch then pure epochNow

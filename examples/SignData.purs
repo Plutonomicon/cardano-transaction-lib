@@ -2,7 +2,7 @@ module Ctl.Examples.SignData (main, example, contract) where
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Prim.ByteArray (RawBytes, rawBytesFromAscii)
@@ -16,10 +16,10 @@ import Test.Ctl.Wallet.Cip30.SignData (checkCip30SignDataResponse)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignData"
 
@@ -35,7 +35,7 @@ contract = do
   payload :: RawBytes
   payload = unsafePartial fromJust $ rawBytesFromAscii "Hello world!"
 
-  testSignDataWithAddress :: String -> Address -> Contract () Unit
+  testSignDataWithAddress :: String -> Address -> Contract Unit
   testSignDataWithAddress addressLabel address = do
     dataSignature <-
       signData address payload

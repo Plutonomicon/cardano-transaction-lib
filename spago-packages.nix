@@ -281,6 +281,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "crypto" = pkgs.stdenv.mkDerivation {
+        name = "crypto";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/oreshinya/purescript-crypto.git";
+          rev = "cbc19e06c5e4d528e7733633e50c070b1aa0f77e";
+          sha256 = "142p9f0mg1yi4bccg3jwhhyn4k4yy5fskh08p05n9sfym27ss126";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "datetime" = pkgs.stdenv.mkDerivation {
         name = "datetime";
         version = "v5.0.2";
@@ -401,6 +413,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "fixed-points" = pkgs.stdenv.mkDerivation {
+        name = "fixed-points";
+        version = "v6.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-fixed-points.git";
+          rev = "3b643d948479aee7cd3e36c95258f1f84df0c35f";
+          sha256 = "0w2j0sarylzsmg8b228pmn3qndif0bzw2vmxrx30ar15qy7jdb5d";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "foldable-traversable" = pkgs.stdenv.mkDerivation {
         name = "foldable-traversable";
         version = "v5.0.1";
@@ -456,6 +480,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-form-urlencoded.git";
           rev = "860b2c4bf0a848322d2077faaefbeb98762cb8d6";
           sha256 = "1pi3vxix10crisisnd94li1vmmgiawlh5lgl51z7ssd9azygg0b0";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "formatters" = pkgs.stdenv.mkDerivation {
+        name = "formatters";
+        version = "v6.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-formatters.git";
+          rev = "b2e65b2bccd09a3c17a396f07e13e5cdca90e4e4";
+          sha256 = "02c43sv6ci2698mjkmvkv3cjv99ilxv8ii8x7n9wqf18r4hlmk0y";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

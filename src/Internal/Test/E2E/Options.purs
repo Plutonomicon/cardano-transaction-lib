@@ -95,8 +95,6 @@ type TestOptions = Record
 type ClusterPortsOptions_ (r :: Row Type) =
   ( plutipPort :: Maybe UInt
   , ogmiosPort :: Maybe UInt
-  , ogmiosDatumCachePort :: Maybe UInt
-  , postgresPort :: Maybe UInt
   , kupoPort :: Maybe UInt
   | r
   )
@@ -331,15 +329,11 @@ uintParser = eitherReader \str ->
 defaultPorts
   :: { kupo :: Int
      , ogmios :: Int
-     , ogmiosDatumCache :: Int
      , plutip :: Int
-     , postgres :: Int
      }
 defaultPorts =
   { plutip: 8087
   , ogmios: 1345
-  , ogmiosDatumCache: 10005
-  , postgres: 5438
   , kupo: 1443
   }
 
@@ -361,22 +355,6 @@ clusterPortsOptionsParser = ado
         showPort "OGMIOS" defaultPorts.ogmios
     , metavar "PORT"
     ]
-  ogmiosDatumCachePort <- option (Just <$> uintParser) $ fold
-    [ long "ogmios-datum-cache-port"
-    , help "Ogmios Datum Cache port for use with local Plutip cluster"
-    , value Nothing
-    , showDefaultWith $ const $
-        showPort "OGMIOS_DATUM_CACHE" defaultPorts.ogmiosDatumCache
-    , metavar "PORT"
-    ]
-  postgresPort <- option (Just <$> uintParser) $ fold
-    [ long "postgres-port"
-    , help "Postgres port for use with local Plutip cluster"
-    , value Nothing
-    , showDefaultWith $ const $
-        showPort "POSTGRES" defaultPorts.postgres
-    , metavar "PORT"
-    ]
   kupoPort <- option (Just <$> uintParser) $ fold
     [ long "kupo-port"
     , help "Kupo port for use with local Plutip cluster"
@@ -388,8 +366,6 @@ clusterPortsOptionsParser = ado
   in
     { plutipPort
     , ogmiosPort
-    , ogmiosDatumCachePort
-    , postgresPort
     , kupoPort
     }
   where

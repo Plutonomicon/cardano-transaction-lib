@@ -13,7 +13,7 @@ module Ctl.Examples.IncludeDatum
 import Contract.Prelude
 
 import Contract.Address (scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
@@ -40,7 +40,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.IncludeDatum"
@@ -55,7 +55,7 @@ example cfg = launchAff_ do
 datum :: Datum
 datum = Datum $ Integer $ BigInt.fromInt 42
 
-payToIncludeDatum :: ValidatorHash -> Contract () TransactionHash
+payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
 payToIncludeDatum vhash =
   let
     constraints :: TxConstraints Unit Unit
@@ -75,7 +75,7 @@ spendFromIncludeDatum
   :: ValidatorHash
   -> Validator
   -> TransactionHash
-  -> Contract () Unit
+  -> Contract Unit
 spendFromIncludeDatum vhash validator txId = do
   let scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
@@ -97,7 +97,7 @@ spendFromIncludeDatum vhash validator txId = do
 foreign import includeDatum :: String
 
 -- | checks if the datum equals 42
-only42Script :: Contract () Validator
+only42Script :: Contract Validator
 only42Script =
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum

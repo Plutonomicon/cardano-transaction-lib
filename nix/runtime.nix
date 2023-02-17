@@ -12,8 +12,7 @@ rec {
     };
     # *All* of these values are optional, and shown with their default
     # values. If you need even more customization, you can use `overideAttrs`
-    # to change the values after calling `buildCtlRuntime` (e.g. a secrets
-    # volume for the `postgres` service)
+    # to change the values after calling `buildCtlRuntime`
     node = {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
@@ -21,29 +20,6 @@ rec {
       tag = "1.35.4";
     };
     ogmios = { port = 1337; };
-    postgres = {
-      # User-facing port on host machine.
-      # Can be set to null in order to not bind postgres port to host.
-      # Postgres will always be accessible via `postgres:5432` from
-      # containers.
-      port = 5432;
-      user = "ctl";
-      password = "ctl";
-      db = "ctl-${network.name}";
-    };
-    datumCache = {
-      port = 9999;
-      controlApiToken = "";
-      blockFetcher = {
-        firstBlock = {
-          slot = 1345203;
-          id = "8f027f183cc72dc90d4cdb8b5815deaef4b57d5a10f078ebfce87cadf9cae688";
-        };
-        autoStart = true;
-        startFromLast = false;
-        filter = builtins.toJSON { const = true; };
-      };
-    };
     kupo = {
       port = 1442;
       since = "origin";
@@ -154,6 +130,7 @@ rec {
               "0.0.0.0"
               "--workdir"
               "kupo-db"
+              "--prune-utxo"
             ];
           };
         };
@@ -178,55 +155,6 @@ rec {
             ];
           };
         };
-        "postgres-${network.name}" = {
-          service = {
-            image = "postgres:13";
-            ports =
-              if postgres.port == null
-              then [ ]
-              else [ "${toString postgres.port}:5432" ];
-            environment = {
-              POSTGRES_USER = "${postgres.user}";
-              POSTGRES_PASSWORD = "${postgres.password}";
-              POSTGRES_DB = "${postgres.db}";
-            };
-          };
-        };
-        ogmios-datum-cache =
-          let
-            filter = inputs.nixpkgs.lib.strings.replaceStrings
-              [ "\"" "\\" ] [ "\\\"" "\\\\" ]
-              datumCache.blockFetcher.filter;
-          in
-          {
-            service = {
-              useHostStore = true;
-              ports = [ (bindPort datumCache.port) ];
-              restart = "on-failure";
-              depends_on = [ "postgres-${network.name}" "ogmios" ];
-              command = [
-                "${pkgs.bash}/bin/sh"
-                "-c"
-                ''
-                  ${pkgs.ogmios-datum-cache}/bin/ogmios-datum-cache \
-                    --log-level warn \
-                    --use-latest \
-                    --server-api "${toString datumCache.controlApiToken}" \
-                    --server-port ${toString datumCache.port} \
-                    --ogmios-address ogmios \
-                    --ogmios-port ${toString ogmios.port} \
-                    --db-port 5432 \
-                    --db-host postgres-${network.name} \
-                    --db-user "${postgres.user}" \
-                    --db-name "${postgres.db}" \
-                    --db-password "${postgres.password}" \
-                    --block-slot ${toString datumCache.blockFetcher.firstBlock.slot} \
-                    --block-hash "${datumCache.blockFetcher.firstBlock.id}" \
-                    --block-filter "${filter}"
-                ''
-              ];
-            };
-          };
       };
     in
     {
