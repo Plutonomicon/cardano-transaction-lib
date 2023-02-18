@@ -33,7 +33,6 @@ import Ctl.Internal.Deserialization.Keys
   , privateKeyToBech32
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.QueryM.Ogmios (CoinsPerUtxoUnit)
 import Ctl.Internal.Serialization
   ( publicKeyHash
   )
@@ -49,6 +48,7 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Cip30.SignData (signData) as Cip30SignData
@@ -67,7 +67,7 @@ import Effect.Class (liftEffect)
 -- Key backend
 -------------------------------------------------------------------------------
 newtype KeyWallet = KeyWallet
-  { address :: NetworkId -> Aff Address
+  { address :: NetworkId -> Address
   , selectCollateral ::
       CoinsPerUtxoUnit
       -> Int
@@ -122,20 +122,22 @@ keyWalletPrivateStakeKey :: KeyWallet -> Maybe PrivateStakeKey
 keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
 
 privateKeysToAddress
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Aff Address
+  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Address
 privateKeysToAddress payKey mbStakeKey network = do
   let pubPayKey = publicKeyFromPrivateKey (unwrap payKey)
   case mbStakeKey of
-    Just stakeKey -> do
-      pubStakeKey <- pure $ publicKeyFromPrivateKey (unwrap stakeKey)
-      pure $ baseAddressToAddress $
-        baseAddress
-          { network
-          , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
-          , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
-          }
+    Just stakeKey ->
+      let
+        pubStakeKey = publicKeyFromPrivateKey (unwrap stakeKey)
+      in
+        baseAddressToAddress $
+          baseAddress
+            { network
+            , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
+            , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
+            }
 
-    Nothing -> pure $ pubPayKey # publicKeyHash
+    Nothing -> pubPayKey # publicKeyHash
       >>> keyHashCredential
       >>> { network, paymentCred: _ }
       >>> enterpriseAddress
@@ -143,16 +145,17 @@ privateKeysToAddress payKey mbStakeKey network = do
 
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
-privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
-  { address
-  , selectCollateral
-  , signTx
-  , signData
-  , paymentKey: payKey
-  , stakeKey: mbStakeKey
-  }
+privateKeysToKeyWallet payKey mbStakeKey =
+  KeyWallet
+    { address
+    , selectCollateral
+    , signTx
+    , signData
+    , paymentKey: payKey
+    , stakeKey: mbStakeKey
+    }
   where
-  address :: NetworkId -> Aff Address
+  address :: NetworkId -> Address
   address = privateKeysToAddress payKey mbStakeKey
 
   selectCollateral
@@ -180,5 +183,5 @@ privateKeysToKeyWallet payKey mbStakeKey = KeyWallet
 
   signData :: NetworkId -> RawBytes -> Aff DataSignature
   signData networkId payload = do
-    addr <- address networkId
-    liftEffect $ Cip30SignData.signData (unwrap payKey) addr payload
+    liftEffect $ Cip30SignData.signData (unwrap payKey) (address networkId)
+      payload

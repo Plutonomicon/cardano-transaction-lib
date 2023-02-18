@@ -38,13 +38,20 @@ module Contract.Address
 
 import Prelude
 
-import Contract.Monad (Contract, liftContractM, liftedM, wrapContract)
+import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Prelude (liftM)
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
   ) as Address
+import Ctl.Internal.Contract.Wallet
+  ( getWalletAddresses
+  , getWalletCollateral
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeysHashes
+  ) as Contract
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -68,13 +75,6 @@ import Ctl.Internal.Plutus.Types.Address
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.QueryM
-  ( getNetworkId
-  , getWalletAddresses
-  , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
-  ) as QueryM
-import Ctl.Internal.QueryM.Utxos (getWalletCollateral) as QueryM
 import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
@@ -130,19 +130,17 @@ import Prim.TypeError (class Warn, Text)
 
 -- | Get an `Address` of the browser wallet.
 getWalletAddress
-  :: forall (r :: Row Type)
-   . Warn
+  :: Warn
        ( Text
            "This function returns only one `Adress` even in case multiple `Adress`es are available. Use `getWalletAdresses` instead"
        )
-  => Contract r (Maybe Address)
+  => Contract (Maybe Address)
 getWalletAddress = head <$> getWalletAddresses
 
 -- | Get all the `Address`es of the browser wallet.
-getWalletAddresses
-  :: forall (r :: Row Type). Contract r (Array Address)
+getWalletAddresses :: Contract (Array Address)
 getWalletAddresses = do
-  addresses <- wrapContract QueryM.getWalletAddresses
+  addresses <- Contract.getWalletAddresses
   traverse
     ( liftM
         (error "getWalletAddresses: failed to deserialize `Address`")
@@ -152,19 +150,17 @@ getWalletAddresses = do
 
 -- | Get an `AddressWithNetworkTag` of the browser wallet.
 getWalletAddressWithNetworkTag
-  :: forall (r :: Row Type)
-   . Warn
+  :: Warn
        ( Text
            "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use `getWalletAddressesWithNetworkTag` instead"
        )
-  => Contract r (Maybe AddressWithNetworkTag)
+  => Contract (Maybe AddressWithNetworkTag)
 getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
 
--- | Get all the `AddressWithNetworkTag` of the browser wallet discarding errors.
-getWalletAddressesWithNetworkTag
-  :: forall (r :: Row Type). Contract r (Array AddressWithNetworkTag)
+-- | Get all the `AddressWithNetworkTag`s of the browser wallet discarding errors.
+getWalletAddressesWithNetworkTag :: Contract (Array AddressWithNetworkTag)
 getWalletAddressesWithNetworkTag = do
-  addresses <- wrapContract QueryM.getWalletAddresses
+  addresses <- Contract.getWalletAddresses
   traverse
     ( liftM
         ( error
@@ -176,13 +172,13 @@ getWalletAddressesWithNetworkTag = do
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
--- | E.g. Nami creates a hardcoded 5 Ada collateral.
+-- | E.g. Nami creates a hard-coded 5 Ada collateral.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
 getWalletCollateral
-  :: forall (r :: Row Type). Contract r (Maybe (Array TransactionUnspentOutput))
+  :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
-  mtxUnspentOutput <- wrapContract QueryM.getWalletCollateral
+  mtxUnspentOutput <- Contract.getWalletCollateral
   for mtxUnspentOutput $ traverse $
     liftedM
       "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
@@ -191,40 +187,35 @@ getWalletCollateral = do
 
 -- | Gets a wallet `PaymentPubKeyHash` via `getWalletAddresses`.
 ownPaymentPubKeyHash
-  :: forall (r :: Row Type)
-   . Warn
+  :: Warn
        ( Text
            "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHash`es are available. Use `ownPaymentPubKeysHashes` instead"
        )
-  => Contract r (Maybe PaymentPubKeyHash)
+  => Contract (Maybe PaymentPubKeyHash)
 ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
 
 -- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
-ownPaymentPubKeysHashes
-  :: forall (r :: Row Type). Contract r (Array PaymentPubKeyHash)
-ownPaymentPubKeysHashes = wrapContract QueryM.ownPaymentPubKeyHashes
+ownPaymentPubKeysHashes :: Contract (Array PaymentPubKeyHash)
+ownPaymentPubKeysHashes = Contract.ownPaymentPubKeyHashes
 
 ownStakePubKeyHash
-  :: forall (r :: Row Type)
-   . Warn
+  :: Warn
        ( Text
            "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHash`es are available. Use `ownStakePubKeysHashes` instead"
        )
-  => Contract r (Maybe StakePubKeyHash)
+  => Contract (Maybe StakePubKeyHash)
 ownStakePubKeyHash = join <<< head <$> ownStakePubKeysHashes
 
-ownStakePubKeysHashes
-  :: forall (r :: Row Type). Contract r (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = wrapContract QueryM.ownStakePubKeysHashes
+ownStakePubKeysHashes :: Contract (Array (Maybe StakePubKeyHash))
+ownStakePubKeysHashes = Contract.ownStakePubKeysHashes
 
-getNetworkId
-  :: forall (r :: Row Type). Contract r NetworkId
-getNetworkId = wrapContract QueryM.getNetworkId
+getNetworkId :: Contract NetworkId
+getNetworkId = asks _.networkId
 
 --------------------------------------------------------------------------------
 -- Helpers via Cardano helpers, these are helpers from the CSL equivalent
--- that converts either input or output to a Plutus Address.
--- Helpers by deconstructing/constructing the Plutus Address are exported under
+-- that convert either input or output to a Plutus Address.
+-- Helpers that deconstruct/construct the Plutus Address are exported under
 -- `module Address`
 --------------------------------------------------------------------------------
 
@@ -244,7 +235,7 @@ addressWithNetworkTagFromBech32 str = do
 
 -- | Convert `Address` to `Bech32String`, using current `NetworkId` provided by
 -- | `Contract` configuration to determine the network tag.
-addressToBech32 :: forall (r :: Row Type). Address -> Contract r Bech32String
+addressToBech32 :: Address -> Contract Bech32String
 addressToBech32 address = do
   networkId <- getNetworkId
   pure $ addressWithNetworkTagToBech32
@@ -253,7 +244,7 @@ addressToBech32 address = do
 -- | Convert `Bech32String` to `Address`, asserting that the address `networkId`
 -- | corresponds to the contract environment `networkId`
 addressFromBech32
-  :: forall (r :: Row Type). Bech32String -> Contract r Address
+  :: Bech32String -> Contract Address
 addressFromBech32 str = do
   networkId <- getNetworkId
   cslAddress <- liftContractM "addressFromBech32: unable to read address" $

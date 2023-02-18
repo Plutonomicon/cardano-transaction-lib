@@ -31,6 +31,8 @@ module Ctl.Internal.Cardano.Types.Transaction
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , PoolPubKeyHash(PoolPubKeyHash)
+  , mkPoolPubKeyHash
+  , poolPubKeyHashToBech32
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
@@ -105,13 +107,7 @@ import Ctl.Internal.Deserialization.Keys
   , publicKeyFromBech32
   )
 import Ctl.Internal.FromData (class FromData, fromData)
-import Ctl.Internal.Helpers
-  ( appendMap
-  , encodeMap
-  , encodeTagged'
-  , (</>)
-  , (<<>>)
-  )
+import Ctl.Internal.Helpers (appendMap, encodeMap, encodeTagged', (</>), (<<>>))
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -122,6 +118,7 @@ import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
   , ed25519KeyHashToBech32
+  , ed25519KeyHashToBech32Unsafe
   )
 import Ctl.Internal.Serialization.Keys
   ( bech32FromEd25519Signature
@@ -160,12 +157,12 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
+import Data.String.Utils (startsWith)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Partial.Unsafe (unsafePartial)
-import Untagged.Union (asOneOf)
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -399,6 +396,8 @@ type ProtocolParamUpdate =
   , maxTxExUnits :: Maybe ExUnits
   , maxBlockExUnits :: Maybe ExUnits
   , maxValueSize :: Maybe UInt
+  , collateralPercentage :: Maybe UInt
+  , maxCollateralInputs :: Maybe UInt
   }
 
 type ExUnitPrices =
@@ -621,6 +620,7 @@ newtype PoolPubKeyHash = PoolPubKeyHash Ed25519KeyHash
 
 derive instance Newtype PoolPubKeyHash _
 derive instance Eq PoolPubKeyHash
+derive instance Ord PoolPubKeyHash
 derive instance Generic PoolPubKeyHash _
 
 instance EncodeAeson PoolPubKeyHash where
@@ -639,6 +639,14 @@ instance Show PoolPubKeyHash where
     \ed25519KeyHashFromBech32 "
       <> show (ed25519KeyHashToBech32 "pool" kh)
       <> ")))"
+
+mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
+mkPoolPubKeyHash str
+  | startsWith "pool" str = PoolPubKeyHash <$> ed25519KeyHashFromBech32 str
+  | otherwise = Nothing
+
+poolPubKeyHashToBech32 :: PoolPubKeyHash -> Bech32String
+poolPubKeyHashToBech32 = unwrap >>> ed25519KeyHashToBech32Unsafe "pool"
 
 data Certificate
   = StakeRegistration StakeCredential
@@ -853,7 +861,8 @@ mkFromCslPubKey :: Serialization.PublicKey -> PublicKey
 mkFromCslPubKey = PublicKey <<< bytesFromPublicKey
 
 convertPubKey :: PublicKey -> Serialization.PublicKey
-convertPubKey (PublicKey bs) = unsafePartial $ fromJust <<< fromBytes <<< unwrap
+convertPubKey (PublicKey bs) = unsafePartial
+  $ fromJust <<< fromBytes <<< wrap <<< unwrap
   $ bs
 
 derive newtype instance Eq PublicKey
@@ -872,15 +881,16 @@ instance Show PublicKey where
 newtype Ed25519Signature = Ed25519Signature RawBytes
 
 mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
-mkEd25519Signature = map (Ed25519Signature <<< wrap <<< toBytes <<< asOneOf) <<<
-  ed25519SignatureFromBech32
+mkEd25519Signature =
+  map (Ed25519Signature <<< wrap <<< unwrap <<< toBytes) <<<
+    ed25519SignatureFromBech32
 
 mkFromCslEd25519Signature :: Serialization.Ed25519Signature -> Ed25519Signature
-mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< toBytes <<< asOneOf
+mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< unwrap <<< toBytes
 
 convertEd25519Signature :: Ed25519Signature -> Serialization.Ed25519Signature
 convertEd25519Signature (Ed25519Signature bs) = unsafePartial
-  $ fromJust <<< fromBytes <<< unwrap
+  $ fromJust <<< fromBytes <<< wrap <<< unwrap
   $ bs
 
 derive newtype instance Eq Ed25519Signature

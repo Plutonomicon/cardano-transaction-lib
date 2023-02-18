@@ -7,11 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5";
+        version = "bfd8f4dcd0522a076320f9dc710c24817438e02e";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5";
-          sha256 = "1rzpf861gy86k9f3iydd3d02f78dh9fv22cbw650lyn5zjm0l3an";
+          rev = "bfd8f4dcd0522a076320f9dc710c24817438e02e";
+          sha256 = "1ywm51wqvwjqfrmhav6m4hyl9il3h77yyhzgyhvkvg0lkc0nn575";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -199,11 +199,11 @@ let
 
     "bignumber" = pkgs.stdenv.mkDerivation {
         name = "bignumber";
-        version = "58c51448be23c05caf51cde45bb3b09cc7169447";
+        version = "705923edd892a3397b90d28ce7db9a7181dcd599";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-bignumber";
-          rev = "58c51448be23c05caf51cde45bb3b09cc7169447";
-          sha256 = "1q0zyq0ni2vcr99bnxn37ah6f1h3z9mhda4f0549x925mzm25d04";
+          rev = "705923edd892a3397b90d28ce7db9a7181dcd599";
+          sha256 = "0wddkx161xk457r1mb1f1r79l8qgxja0xhdvxjd1ai43nwp9cgkf";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -211,11 +211,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "744c3e4441e96abd0f10f57229602f251c863266";
+        version = "ee5233d556bce8aee7fd1c2934641b72eecae196";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "744c3e4441e96abd0f10f57229602f251c863266";
-          sha256 = "0w9d7083355r0zbpwkbrcbgg4f8gzwrcxga2g680xaklxz8gbshk";
+          rev = "ee5233d556bce8aee7fd1c2934641b72eecae196";
+          sha256 = "1cwv1zyhkjbvrks7v1x0scl8bv1p5n1k50ca91yxh4vk8hxfz9qk";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -288,6 +288,18 @@ let
           url = "https://github.com/purescript/purescript-control.git";
           rev = "18d582e311f1f8523f9eb55fb93c91bd21e22837";
           sha256 = "06dc06yli4g5yr8fb9sdpqbhiaff37g977qcsbds9q2mlhnjgfx9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "crypto" = pkgs.stdenv.mkDerivation {
+        name = "crypto";
+        version = "v4.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/oreshinya/purescript-crypto.git";
+          rev = "cbc19e06c5e4d528e7733633e50c070b1aa0f77e";
+          sha256 = "142p9f0mg1yi4bccg3jwhhyn4k4yy5fskh08p05n9sfym27ss126";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -413,6 +425,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "fixed-points" = pkgs.stdenv.mkDerivation {
+        name = "fixed-points";
+        version = "v6.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-fixed-points.git";
+          rev = "3b643d948479aee7cd3e36c95258f1f84df0c35f";
+          sha256 = "0w2j0sarylzsmg8b228pmn3qndif0bzw2vmxrx30ar15qy7jdb5d";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "foldable-traversable" = pkgs.stdenv.mkDerivation {
         name = "foldable-traversable";
         version = "v5.0.1";
@@ -468,6 +492,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-form-urlencoded.git";
           rev = "860b2c4bf0a848322d2077faaefbeb98762cb8d6";
           sha256 = "1pi3vxix10crisisnd94li1vmmgiawlh5lgl51z7ssd9azygg0b0";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "formatters" = pkgs.stdenv.mkDerivation {
+        name = "formatters";
+        version = "v6.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-formatters.git";
+          rev = "b2e65b2bccd09a3c17a396f07e13e5cdca90e4e4";
+          sha256 = "02c43sv6ci2698mjkmvkv3cjv99ilxv8ii8x7n9wqf18r4hlmk0y";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

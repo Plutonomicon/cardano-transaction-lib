@@ -1,4 +1,4 @@
--- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ConfigParams`.
+-- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ContractParams`.
 module Contract.Config
   ( testnetConfig
   , testnetNamiConfig
@@ -15,25 +15,40 @@ module Contract.Config
   , mainnetLodeConfig
   , mainnetNuFiConfig
   , module Contract.Address
-  , module Contract.Monad
+  , module Ctl.Internal.Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys
-  , module Ctl.Internal.QueryM.ServerConfig
+  , module Ctl.Internal.ServerConfig
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
   , module X
   ) where
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Contract.Monad (ConfigParams)
+import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
+import Ctl.Internal.Contract.Hooks (emptyHooks)
+import Ctl.Internal.Contract.Monad (ContractParams)
+import Ctl.Internal.Contract.QueryBackend
+  ( BlockfrostBackendParams
+  , CtlBackend
+  , CtlBackendParams
+  , QueryBackend(BlockfrostBackend, CtlBackend)
+  , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
+  , defaultConfirmTxDelay
+  , getBlockfrostBackend
+  , getCtlBackend
+  , mkBlockfrostBackendParams
+  , mkCtlBackendParams
+  ) as X
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.QueryM (emptyHooks)
-import Ctl.Internal.QueryM (emptyHooks) as X
-import Ctl.Internal.QueryM.ServerConfig
+import Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig
-  , defaultDatumCacheWsConfig
+  , blockfrostPublicMainnetServerConfig
+  , blockfrostPublicPreprodServerConfig
+  , blockfrostPublicPreviewServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   )
@@ -58,13 +73,13 @@ import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
 
-testnetConfig :: ConfigParams ()
+testnetConfig :: ContractParams
 testnetConfig =
-  { ogmiosConfig: defaultOgmiosWsConfig
-  , datumCacheConfig: defaultDatumCacheWsConfig
-  , kupoConfig: defaultKupoServerConfig
+  { backendParams: mkCtlBackendParams
+      { ogmiosConfig: defaultOgmiosWsConfig
+      , kupoConfig: defaultKupoServerConfig
+      }
   , networkId: TestnetId
-  , extraConfig: {}
   , walletSpec: Nothing
   , logLevel: Trace
   , customLogger: Nothing
@@ -72,41 +87,41 @@ testnetConfig =
   , hooks: emptyHooks
   }
 
-testnetNamiConfig :: ConfigParams ()
+testnetNamiConfig :: ContractParams
 testnetNamiConfig = testnetConfig { walletSpec = Just ConnectToNami }
 
-testnetGeroConfig :: ConfigParams ()
+testnetGeroConfig :: ContractParams
 testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
 
-testnetFlintConfig :: ConfigParams ()
+testnetFlintConfig :: ContractParams
 testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
 
-testnetEternlConfig :: ConfigParams ()
+testnetEternlConfig :: ContractParams
 testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
 
-testnetLodeConfig :: ConfigParams ()
+testnetLodeConfig :: ContractParams
 testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 
-testnetNuFiConfig :: ConfigParams ()
+testnetNuFiConfig :: ContractParams
 testnetNuFiConfig = testnetConfig { walletSpec = Just ConnectToNuFi }
 
-mainnetConfig :: ConfigParams ()
+mainnetConfig :: ContractParams
 mainnetConfig = testnetConfig { networkId = MainnetId }
 
-mainnetNamiConfig :: ConfigParams ()
+mainnetNamiConfig :: ContractParams
 mainnetNamiConfig = mainnetConfig { walletSpec = Just ConnectToNami }
 
-mainnetGeroConfig :: ConfigParams ()
+mainnetGeroConfig :: ContractParams
 mainnetGeroConfig = mainnetConfig { walletSpec = Just ConnectToGero }
 
-mainnetFlintConfig :: ConfigParams ()
+mainnetFlintConfig :: ContractParams
 mainnetFlintConfig = mainnetConfig { walletSpec = Just ConnectToFlint }
 
-mainnetEternlConfig :: ConfigParams ()
+mainnetEternlConfig :: ContractParams
 mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
 
-mainnetLodeConfig :: ConfigParams ()
+mainnetLodeConfig :: ContractParams
 mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }
 
-mainnetNuFiConfig :: ConfigParams ()
+mainnetNuFiConfig :: ContractParams
 mainnetNuFiConfig = mainnetConfig { walletSpec = Just ConnectToNuFi }

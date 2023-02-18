@@ -27,7 +27,7 @@ The following caveats alway applies when using CTL from your project:
 CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of your own project to use the same setup as we do, e.g. the same packages and PS builders:
 
 - `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), run CTL contracts on a private testnet using Plutip (`runPlutipTest`), or build Pursuit documentation (`buildSearchablePursDocs` and `launchSearchablePursDocs`)
-- `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, `ogmios-datum-cache` and `plutip-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
+- `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, and `plutip-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
 
 We've split the overlays into two components to allow users to more easily choose which parts of CTL's Nix infrastructure they would like to directly consume. For example, some users do not require a pre-packaged runtime and would prefer to build it themselves with more control over its components (e.g. by directly using `ogmios` from their own `inputs`). Such users might still like to use our `purescript` overlay -- splitting the `overlays` allows us to support this. `overlays.runtime` also contains several haskell.nix packages which may cause issues with `hackage.nix` versions in your own project.
 
@@ -81,6 +81,10 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 - Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
 - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
 - If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
+
+4. **Update your webpack config**
+
+- Sometimes the WebPack configuration also comes with breaking changes. Common source of problems are changes to `resolve.fallback`, `plugins` and `experiments` fields of the WebPack config. Use `git diff old-revision new-revision webpack.config.js` in the root of a cloned CTL repo, or use `git blame`.
 
 ## Using CTL from JS
 

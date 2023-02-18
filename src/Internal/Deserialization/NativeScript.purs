@@ -1,16 +1,16 @@
 module Ctl.Internal.Deserialization.NativeScript
   ( convertNativeScript
+  , decodeNativeScript
   ) where
 
 import Prelude
 
-import Control.Alt ((<|>))
+import Aeson (JsonDecodeError(TypeMismatch))
 import Ctl.Internal.Cardano.Types.NativeScript as T
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.FfiHelpers
   ( ContainerHelper
-  , MaybeFfiHelper
   , containerHelper
-  , maybeFfiHelper
   )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
@@ -24,65 +24,42 @@ import Ctl.Internal.Serialization.Types
   , TimelockStart
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Data.Maybe (Maybe)
-import Data.Traversable (traverse)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Data.Either (Either, note)
+import Data.Newtype (wrap)
 
-convertNativeScript :: NativeScript -> Maybe T.NativeScript
-convertNativeScript ns =
-  convertScriptPubKey ns
-    <|> convertScriptAll ns
-    <|> convertScriptAny ns
-    <|> convertScriptNOfK ns
-    <|> convertTimelockStart ns
-    <|> convertTimelockExpiry ns
+type ConvertNativeScript (r :: Type) =
+  { scriptPubkey :: ScriptPubkey -> r
+  , scriptAll :: ScriptAll -> r
+  , scriptAny :: ScriptAny -> r
+  , scriptNOfK :: ScriptNOfK -> r
+  , timelockStart :: TimelockStart -> r
+  , timelockExpiry :: TimelockExpiry -> r
+  }
 
-convertScriptPubKey :: NativeScript -> Maybe T.NativeScript
-convertScriptPubKey ns = do
-  T.ScriptPubkey <<< scriptPubkey_addr_keyhash <$>
-    getScriptPubkey maybeFfiHelper ns
+decodeNativeScript :: ByteArray -> Either JsonDecodeError T.NativeScript
+decodeNativeScript scriptBytes = do
+  nativeScript <-
+    flip note (fromBytes $ wrap scriptBytes) $
+      TypeMismatch "decodeNativeScript: from_bytes() call failed"
+  pure $ convertNativeScript nativeScript
 
-convertScriptAll :: NativeScript -> Maybe T.NativeScript
-convertScriptAll ns = do
-  scriptAll <- getScriptAll maybeFfiHelper ns
-  T.ScriptAll <$> traverse convertNativeScript
-    (scriptAllScripts containerHelper scriptAll)
+convertNativeScript :: NativeScript -> T.NativeScript
+convertNativeScript ns = _convertNativeScript
+  { scriptPubkey: T.ScriptPubkey <<< scriptPubkey_addr_keyhash
+  , scriptAll: T.ScriptAll <<< map convertNativeScript <<< scriptAllScripts
+      containerHelper
+  , scriptAny: T.ScriptAny <<< map convertNativeScript <<< scriptAnyScripts
+      containerHelper
+  , scriptNOfK: T.ScriptNOfK <$> scriptNOfK_n <*>
+      (map convertNativeScript <<< scriptNOfKScripts containerHelper)
+  , timelockStart: T.TimelockStart <<< Slot <<< timelockStart_slot
+  , timelockExpiry: T.TimelockExpiry <<< Slot <<< timelockExpiry_slot
+  }
+  ns
 
-convertScriptAny :: NativeScript -> Maybe T.NativeScript
-convertScriptAny ns = do
-  scriptAny <- getScriptAny maybeFfiHelper ns
-  T.ScriptAny <$> traverse convertNativeScript
-    (scriptAnyScripts containerHelper scriptAny)
-
-convertScriptNOfK :: NativeScript -> Maybe T.NativeScript
-convertScriptNOfK ns = do
-  scriptNOfK <- getScriptNOfK maybeFfiHelper ns
-  res <- traverse convertNativeScript
-    (scriptNOfKScripts containerHelper scriptNOfK)
-  pure $ T.ScriptNOfK (scriptNOfK_n scriptNOfK) res
-
-convertTimelockStart :: NativeScript -> Maybe T.NativeScript
-convertTimelockStart =
-  map (T.TimelockStart <<< Slot <<< timelockStart_slot)
-    <<< getTimelockStart maybeFfiHelper
-
-convertTimelockExpiry :: NativeScript -> Maybe T.NativeScript
-convertTimelockExpiry = do
-  map (T.TimelockExpiry <<< Slot <<< timelockExpiry_slot)
-    <<< getTimelockExpiry maybeFfiHelper
-
-foreign import getScriptPubkey
-  :: MaybeFfiHelper -> NativeScript -> Maybe ScriptPubkey
-
-foreign import getScriptAll :: MaybeFfiHelper -> NativeScript -> Maybe ScriptAll
-foreign import getScriptAny :: MaybeFfiHelper -> NativeScript -> Maybe ScriptAny
-foreign import getScriptNOfK
-  :: MaybeFfiHelper -> NativeScript -> Maybe ScriptNOfK
-
-foreign import getTimelockStart
-  :: MaybeFfiHelper -> NativeScript -> Maybe TimelockStart
-
-foreign import getTimelockExpiry
-  :: MaybeFfiHelper -> NativeScript -> Maybe TimelockExpiry
+foreign import _convertNativeScript
+  :: ConvertNativeScript T.NativeScript -> NativeScript -> T.NativeScript
 
 foreign import scriptPubkey_addr_keyhash :: ScriptPubkey -> Ed25519KeyHash
 foreign import scriptAllScripts

@@ -97,13 +97,7 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , type (@@)
   , PNil
   )
-import Ctl.Internal.QueryM.Ogmios
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , SystemStart
-  , aesonObject
-  , slotLengthFactor
-  )
+import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
@@ -112,10 +106,15 @@ import Ctl.Internal.Types.BigNum
   , fromBigInt
   , maxValue
   , one
-  , toBigIntUnsafe
+  , toBigInt
   , zero
   ) as BigNum
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  )
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
+import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
@@ -123,7 +122,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.JSDate (getTime, parse)
 import Data.Lattice
   ( class BoundedJoinSemilattice
   , class BoundedMeetSemilattice
@@ -138,7 +136,6 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Class (liftEffect)
 import Foreign.Object (Object)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
@@ -279,31 +276,31 @@ instance Ord a => MeetSemilattice (Interval a) where
 -- This instance is written to be compatible with plutus.
 instance (ToData a, Ord a, Semiring a) => ToData (Interval a) where
   toData (FiniteInterval start end) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData $ lowerBound start
         , toData $ strictUpperBound (end + one)
         ]
     )
   toData (StartAt end) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData $ strictUpperBound (end + one)
         ]
     )
   toData (EndAt start) =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData $ lowerBound start
         , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData AlwaysInterval =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound NegInf true :: LowerBound a)
         , toData (UpperBound PosInf true :: UpperBound a)
         ]
     )
   toData EmptyInterval =
-    ( Constr (BigInt.fromInt 0)
+    ( Constr BigNum.zero
         [ toData (LowerBound PosInf true :: LowerBound a)
         , toData (UpperBound NegInf true :: UpperBound a)
         ]
@@ -320,7 +317,7 @@ instance Ord a => BoundedJoinSemilattice (Interval a) where
 
 -- This instance is written to be compatible with plutus.
 instance (FromData a, Ord a, Ring a) => FromData (Interval a) where
-  fromData (Constr index [ lower, upper ]) | index == zero = do
+  fromData (Constr index [ lower, upper ]) | index == BigNum.zero = do
     (LowerBound start startBool) <- fromData lower
     (UpperBound end endBool) <- fromData upper
     case
@@ -708,8 +705,6 @@ slotToPosixTime
   -> Slot
   -> Effect (Either SlotToPosixTimeError POSIXTime)
 slotToPosixTime eraSummaries sysStart slot = runExceptT do
-  -- Get JSDate:
-  sysStartD <- liftEffect $ parse $ unwrap sysStart
   -- Find current era:
   currentEra <- liftEither $ findSlotEraSummary eraSummaries slot
   -- Convert absolute slot (relative to System start) to relative slot of era
@@ -719,9 +714,7 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
     relSlot
   absTime <- liftEither $ absTimeFromRelTime currentEra relTime
   -- Get POSIX time for system start
-  sysStartPosix <- liftM CannotGetBigIntFromNumber
-    $ BigInt.fromNumber
-    $ getTime sysStartD
+  sysStartPosix <- liftM CannotGetBigIntFromNumber $ sysStartUnixTime sysStart
   -- Add the system start time to the absolute time relative to system start
   -- to get overall POSIXTime
   pure $ wrap $ sysStartPosix + unwrap absTime
@@ -741,13 +734,13 @@ findSlotEraSummary (EraSummaries eraSummaries) slot =
   note (CannotFindSlotInEraSummaries slot) $ find pred eraSummaries
   where
   biSlot :: BigInt
-  biSlot = BigNum.toBigIntUnsafe $ unwrap slot
+  biSlot = BigNum.toBigInt $ unwrap slot
 
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    BigNum.toBigIntUnsafe (unwrap (unwrap start).slot) <= biSlot
+    BigNum.toBigInt (unwrap (unwrap start).slot) <= biSlot
       && maybe true
-        ((<) biSlot <<< BigNum.toBigIntUnsafe <<< unwrap <<< _.slot <<< unwrap)
+        ((<) biSlot <<< BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
         end
 
 -- This doesn't need to be exported but we can do it for tests.
@@ -815,8 +808,8 @@ relSlotFromSlot
   :: EraSummary -> Slot -> Either SlotToPosixTimeError RelSlot
 relSlotFromSlot (EraSummary { start }) s@(Slot slot) = do
   let
-    startSlot = BigNum.toBigIntUnsafe $ unwrap (unwrap start).slot
-    biSlot = BigNum.toBigIntUnsafe slot
+    startSlot = BigNum.toBigInt $ unwrap (unwrap start).slot
+    biSlot = BigNum.toBigInt slot
   unless (startSlot <= biSlot) (throwError $ StartingSlotGreaterThanSlot s)
   pure $ wrap $ biSlot - startSlot
 
@@ -949,12 +942,8 @@ posixTimeToSlot
   -> POSIXTime
   -> Effect (Either PosixTimeToSlotError Slot)
 posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
-  -- Get JSDate:
-  sysStartD <- liftEffect $ parse $ unwrap sysStart
-  -- Get POSIX time for system start
-  sysStartPosix <- liftM CannotGetBigIntFromNumber'
-    $ BigInt.fromNumber
-    $ getTime sysStartD
+  -- Get POSIX time for system start:
+  sysStartPosix <- liftM CannotGetBigIntFromNumber' $ sysStartUnixTime sysStart
   -- Ensure the time we are converting is after the system start, otherwise
   -- we have negative slots.
   unless (sysStartPosix <= pt)
@@ -1026,7 +1015,7 @@ slotFromRelSlot
   (EraSummary { start, end })
   (RelSlot relSlot /\ mt@(ModTime modTime)) = do
   let
-    startSlot = BigNum.toBigIntUnsafe $ unwrap (unwrap start).slot
+    startSlot = BigNum.toBigInt $ unwrap (unwrap start).slot
     -- Round down to the nearest Slot to accept Milliseconds as input.
     slot = startSlot + relSlot -- relative to system start
     -- If `EraSummary` doesn't have an end, the condition is automatically
@@ -1036,7 +1025,7 @@ slotFromRelSlot
     -- required to be in the distant future. Onchain, this uses POSIXTime which
     -- is stable, unlike Slots.
     endSlot = maybe (slot + one)
-      (BigNum.toBigIntUnsafe <<< unwrap <<< _.slot <<< unwrap)
+      (BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
       end
   bnSlot <- liftM CannotGetBigNumFromBigInt' $ BigNum.fromBigInt slot
   -- Check we are less than the end slot, or if equal, there is no excess:

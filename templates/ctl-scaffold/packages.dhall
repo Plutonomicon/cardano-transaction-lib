@@ -146,7 +146,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "9fd6e8241881d4b8ed9dcb6a80b166d3683f87b5"
+        , version = "bfd8f4dcd0522a076320f9dc710c24817438e02e"
         }
       , sequences =
         { dependencies =
@@ -257,25 +257,27 @@ let additions =
           , "tuples"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-bignumber"
-        , version = "58c51448be23c05caf51cde45bb3b09cc7169447"
+        , version = "705923edd892a3397b90d28ce7db9a7181dcd599"
         }
       , cardano-transaction-lib =
         { dependencies =
           [ "aeson"
-          , "argonaut-codecs"
           , "aff"
           , "aff-promise"
           , "aff-retry"
           , "affjax"
           , "argonaut"
+          , "argonaut-codecs"
           , "arraybuffer-types"
           , "arrays"
           , "avar"
           , "bifunctors"
           , "bigints"
+          , "bignumber"
           , "checked-exceptions"
           , "console"
           , "control"
+          , "crypto"
           , "datetime"
           , "debug"
           , "effect"
@@ -286,6 +288,7 @@ let additions =
           , "foldable-traversable"
           , "foreign"
           , "foreign-object"
+          , "formatters"
           , "functions"
           , "gen"
           , "heterogeneous"
@@ -346,9 +349,11 @@ let additions =
           , "unfoldable"
           , "untagged-union"
           , "variant"
+          , "web-storage"
+          , "web-html"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "744c3e4441e96abd0f10f57229602f251c863266"
+        , version = "ee5233d556bce8aee7fd1c2934641b72eecae196"
         }
       , noble-secp256k1 =
         { dependencies =

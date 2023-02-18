@@ -36,13 +36,13 @@ Both CTL and Plutus define `Contract` monads for constructing, balancing, and su
 **CTL**:
 
 ```purescript
-newtype Contract (r :: Row Type) (a :: Type) = Contract (QueryMExtended r a)
+newtype Contract (a :: Type) = Contract (ReaderT ContractEnv Aff a)
 ```
 
 where
 
-- `QueryMExtended` is an internal monad transformer stack based on `ReaderT` over `Aff` (Purescript's monad for asynchronous effects, with no Haskell analogue).
-- `r` extends the record serving as the reader environment
+- `ContractEnv` is an internal type containing references to various backend services, configurations and ledger constants
+- `Aff` (Purescript's monad for asynchronous effects, with no Haskell analogue, the closest being IO).
 
 **Plutus**:
 
@@ -58,7 +58,7 @@ where
 
 As this direct comparison illustrates, CTL's `Contract` is significantly simpler than Plutus'. Importantly, CTL's `Contract` **allows for arbitrary effects**. This makes `Writer` capabilities redundant in CTL, for instance, as all communication between `Contract`s can be done in a more direct manner (e.g. logging or HTTP calls).
 
-CTL also has no concept of a "schema" for `Contract`s as there is no equivalent of an endpoint as in PAB. That is, effects written in `Contract` are not activated in some way and can instead be called normally from Purescript code. Note that despite the similar appearance of the kind signatures above, where `Row Type` appears in the signature of both `Contract`s, they are practically and conceptually unrelated. The extensible record contained in CTL's `Contract` allows users to easily extend the reader environment in which their contracts execute. For instance, you may wish to expose some global state across all of your contracts, perhaps a unique `CurrencySymbol` that will be created in one contract and read by several others. Instead of threading this state throughout as parameters, you could use a `Ref (Maybe CurrencySymbol)` (`Ref`s are analogous to Haskell's `IORef`) and write your contracts with types signatures similar to `forall (r :: Row Type). Contract (cs :: Ref (Maybe CurrencySymbol) | r) Unit`. `cs` would then be accessible from your contracts using normal `MonadReader` methods (or more precisely those of `MonadAsk` in the case of Purescript).
+CTL also has no concept of a "schema" for `Contract`s as there is no equivalent of an endpoint as in PAB. That is, effects written in `Contract` are not activated in some way and can instead be called normally from Purescript code.
 
 For library users, CTL's `Contract` is less opaque than Plutus'. The `Contract` newtype can be unwrapped to expose the inner monad transformer stack, whose internal structure will be immediately recognizable to developers familiar `transformers`-style stacks. `Contract` also has instances for various typeclasses, making it possible to write `mtl`-style effects.
 
@@ -137,7 +137,7 @@ As noted above, all scripts and various script newtypes (`Validator`, `MintingPo
 
 #### Applying arguments to parameterized scripts
 
-We support applying arguments to parameterized scripts with `Contract.Scripts.applyArgs`. It allows you to apply a list of `PlutusData` arguments to any type isomorphic to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
+We support applying arguments to parameterized scripts with `Contract.Scripts.applyArgs`. It allows you to apply a list of `PlutusData` arguments to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
 
 - All of your domain types must have `Contract.PlutusData.ToData` instances (or some other way of converting them to `PlutusData`)
 - You must employ a workaround, illustrated by the following examples, in your off-chain code to ensure that the applied scripts are valid for both on- and off-chain code. This essentially consists of creating an wrapper which accepts `Data` arguments for your parameterized scripts:

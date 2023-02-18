@@ -10,12 +10,14 @@ import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
-import Ctl.Internal.QueryM.Ogmios (ProtocolParameters(ProtocolParameters))
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.Types (ExUnitPrices, Transaction)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.ProtocolParameters
+  ( ProtocolParameters(ProtocolParameters)
+  )
 import Data.Array as Array
 import Data.Lens ((.~))
 import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
@@ -39,14 +41,12 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
   let tx = addFakeSignatures selfSigners txNoSigs
   cslTx <- liftEffect $ Serialization.convertTransaction tx
   minFee <- liftMaybe (error "Unable to calculate min_fee") $
-    BigNum.toBigInt =<< _minFee maybeFfiHelper cslTx
+    BigNum.toBigInt <$> _minFee maybeFfiHelper cslTx
       (BigNum.fromUInt pparams.txFeeFixed)
       (BigNum.fromUInt pparams.txFeePerByte)
   let exUnitPrices = pparams.prices
   exUnitPricesCsl <- liftEffect $ Serialization.convertExUnitPrices exUnitPrices
-  minScriptFee <-
-    liftMaybe (error "Unable to calculate min_script_fee") $
-      BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
+  let minScriptFee = BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
   pure $ wrap $ minFee + minScriptFee
 
 -- | Adds fake signatures for each expected signature of a transaction.

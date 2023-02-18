@@ -10,7 +10,7 @@ module Ctl.Examples.SatisfiesAnyOf
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash) as Hashing
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, runContract)
@@ -22,14 +22,12 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Control.Monad.Error.Class (liftMaybe)
 import Data.BigInt as BigInt
-import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg do
     logInfo' "Running Examples.SatisfiesAnyOf"
@@ -38,13 +36,12 @@ example cfg = launchAff_ do
 wrongDatum :: Datum
 wrongDatum = Datum $ Integer $ BigInt.fromInt 42
 
-testMustSatisfyAnyOf :: Contract () Unit
+testMustSatisfyAnyOf :: Contract Unit
 testMustSatisfyAnyOf = do
-  wrongDatumHash <- liftMaybe (error "Cannot get DatumHash") $ Hashing.datumHash
-    wrongDatum
-  correctDatumHash <- liftMaybe (error "Cannot get DatumHash") $
-    Hashing.datumHash unitDatum
   let
+    wrongDatumHash = Hashing.datumHash wrongDatum
+    correctDatumHash = Hashing.datumHash unitDatum
+
     constraints :: TxConstraints Unit Unit
     constraints = Constraints.mustSatisfyAnyOf
       [ Constraints.mustHashDatum wrongDatumHash unitDatum

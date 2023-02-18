@@ -7,39 +7,87 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+- [[v5.0.0]](#v500)
   - [Added](#added)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-1)
   - [Changed](#changed)
   - [Removed](#removed)
-  - [Fixed](#fixed-1)
+  - [Fixed](#fixed)
   - [Runtime Dependencies](#runtime-dependencies)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
+  - [Fixed](#fixed-1)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-1)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-2)
   - [Changed](#changed-1)
   - [Removed](#removed-1)
   - [Fixed](#fixed-2)
   - [Runtime Dependencies](#runtime-dependencies-1)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-3)
   - [Changed](#changed-2)
   - [Removed](#removed-2)
   - [Fixed](#fixed-3)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-4)
-  - [Removed](#removed-3)
   - [Changed](#changed-3)
+  - [Removed](#removed-3)
   - [Fixed](#fixed-4)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-5)
+  - [Removed](#removed-4)
+  - [Changed](#changed-4)
   - [Fixed](#fixed-5)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-6)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-7)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## [v5.0.0]
+
+### Added
+
+- **Blockfrost support** - see [`blockfrost.md`](./doc/blockfrost.md) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- A test runner interface for Blockfrost (`Contract.Test.Blockfrost`). See [`blockfrost.md`](./doc/blockfrost.md) ([#1420](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1420))
+- `blake2b224Hash` and `blake2b224HashHex` functions for computing blake2b-224 hashes of arbitrary byte arrays ([#1323](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1323))
+- `bundlePursProject` allows passing of `includeBundledModule` flag to export the bundled JS module `spago bundle-module` outputs
+- `Contract.Transaction` exports `mkPoolPubKeyHash` and `poolPubKeyHashToBech32` for bech32 roundtripping ([#1360](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1360))
+- `Contract.isTxConfirmed` function to check if a transaction is confirmed at the moment.
+
+### Changed
+
+- **Contract interface change:** `Contract` does not have a row type parameter anymore. Use `ReaderT` or pass values explicitly to access them during runtime.
+- **Contract interface change:** `ConfigParams r` is replaced by `ContractParams` with the same purpose.
+- `SystemStart` now has `DateTime` (rather than `String`) as the underlying type ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- `EraSummaries` now does not have an `EncodeAeson` instance. Consider wrapping it in `OgmiosEraSummaries` for Aeson encoding. ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- Testing interface is re-implemented. Assertion functions from `Contract.Test.Utils` are moved to `Contract.Test.Assert`. See [the docs](./doc/test-utils.md) for info on the new interface. ([#1389](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1389))
+- Balancer no longer selects UTxOs which use PlutusV2 features when the transaction contains PlutusV1 scripts ([#1349](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1349))
+- `startPlutipCluster` error message now includes cluster startup failure details. ([#1407](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1407))
+- `PlutipTest` is now known as `Contract.Test.ContractTest`. It has been semantically untied from Plutip, because we now have another test runner for tests that rely on particular funds distributions - [Blockfrost](./doc/blockfrost.md). See `Contract.Test.Blockfrost.runContractTestsWithBlockfrost` ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- `Contract.Staking.getPoolParameters` has been moved to `Contract.Backend.Ogmios.getPoolParameters`. This function only runs with Ogmios backend, because Blockfrost [does not provide](https://github.com/blockfrost/blockfrost-backend-ryo/issues/82) all the required values ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- Use of [CIP-40](https://cips.cardano.org/cips/cip40/) collateral output is now enabled with CIP-30 wallets ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260)).
+- `reindexSpentScriptRedeemers` is no longer in Contract (it's pure) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+
+### Removed
+
+- **Important** [Ogmios Datum Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) is no longer a runtime dependency of CTL, as well as its Postgres DB - if updating, remove them from your runtime.
+
+### Fixed
+- CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))
+- Critical upstream fix in [`purescript-bignumber`](https://github.com/mlabs-haskell/purescript-bignumber/pull/2)
+- `OutputDatum` aeson encoding now roundtrips ([#1388](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1388))
+- Fix incorrect redeemer indexing for Plutus stake validator scripts ([#1417](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1417))
+
+### Runtime Dependencies
+
+- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7
+- [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
+- [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.4
+- [Plutip](https://github.com/mlabs-haskell/plutip) - commit 8d1795d9ac3f9c6f31381104b25c71576eeba009
 
 ## [v4.0.2] - 2023-01-17
 
@@ -65,6 +113,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Running plutip servers attaches on SIGINT handlers and therefore node will not exit by default. ([#1231](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1231)).
 - `TestPlanM`, `interpret` and `interpretWithConfig` are now public in `Contract.Test.Mote` and our custom `consoleReporter` in `Contract.Test.Mote.ConsoleReporter`. ([#1261](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1261)).
+- Internal datum conversions are now total, resulting in some datum-related Contract functions dropping the use of `Maybe`, for example `datumHash`, `convertPlutusData` and their related functions. ([#1284](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1284)).
 - CIP-25 `policy_id` and `asset_name` metadata keys no longer include a `0x` prefix for compatibility with Blockfrost ([#1309](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1309)).
 - `purescript-aeson` package has been updated:
   - the performance has generally been improved

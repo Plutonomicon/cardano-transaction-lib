@@ -5,11 +5,8 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
-  )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -41,15 +38,15 @@ import Data.UInt (UInt)
 import Effect.Ref as Ref
 
 getLockedInputs
-  :: forall (r :: Row Type). Contract r (Map TransactionHash (Set UInt))
+  :: Contract (Map TransactionHash (Set UInt))
 getLockedInputs = do
-  cache <- asks (_.usedTxOuts <<< _.runtime <<< unwrap)
+  cache <- asks _.usedTxOuts
   liftEffect $ Ref.read $ unwrap cache
 
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
@@ -91,15 +88,14 @@ contract = do
 
   where
   submitAndLog
-    :: forall (r :: Row Type)
-     . BalancedSignedTransaction
-    -> Contract r TransactionHash
+    :: BalancedSignedTransaction
+    -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx
     logInfo' $ "Tx ID: " <> show txId
     pure txId
 
-  hasSufficientUtxos :: forall (r :: Row Type). Contract r Boolean
+  hasSufficientUtxos :: Contract Boolean
   hasSufficientUtxos = do
     let
       -- 4 Ada: enough to cover 2 Ada transfer and fees
@@ -112,6 +108,6 @@ contract = do
 
     pure $ length walletValidUtxos >= 2 -- 2 transactions
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract

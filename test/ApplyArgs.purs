@@ -3,6 +3,7 @@ module Test.Ctl.ApplyArgs (main, suite, contract) where
 import Contract.Prelude
 
 import Contract.Monad (Contract, launchAff_)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(List, Map, Bytes, Constr), toData)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Scripts (PlutusScript)
@@ -29,7 +30,7 @@ foreign import scripts :: Object String
 main :: Effect Unit
 main = launchAff_ $ interpret $ suite
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   traverse_ (uncurry $ compareApplied v1) $ Tuple <$> v1ScriptPaths <*> params
   traverse_ (uncurry $ compareApplied v2) $ Tuple <$> v2ScriptPaths <*> params
@@ -84,12 +85,12 @@ params =
       , List [ un, bytes ]
       , longBytes
       , Map [ (i 5 /\ i 7), (bytes /\ i 8) ]
-      , Constr (fromInt 102) [ i 7, List [ un, bytes, longBytes ] ]
-      , Constr (fromInt 5)
+      , Constr (BigNum.fromInt 102) [ i 7, List [ un, bytes, longBytes ] ]
+      , Constr (BigNum.fromInt 5)
           [ List []
           , List [ i 1 ]
           , Map []
-          , Map [ (i 1 /\ un), (i 2 /\ Constr (fromInt 2) [ i 2 ]) ]
+          , Map [ (i 1 /\ un), (i 2 /\ Constr (BigNum.fromInt 2) [ i 2 ]) ]
           ]
       ] /\ "big-arg"
     )

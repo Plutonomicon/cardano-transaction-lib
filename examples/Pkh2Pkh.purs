@@ -6,7 +6,7 @@ module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
@@ -22,7 +22,7 @@ import Data.BigInt as BigInt
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
@@ -43,6 +43,6 @@ contract = do
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract

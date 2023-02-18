@@ -9,7 +9,7 @@ import Contract.Address
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo, logInfo')
 import Contract.Monad
   ( Contract
@@ -46,10 +46,10 @@ import Test.QuickCheck.Gen (randomSampleOne)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Utxos"
   pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash

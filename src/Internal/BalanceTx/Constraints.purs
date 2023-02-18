@@ -7,17 +7,22 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
   , mustUseAdditionalUtxos
+  , mustUseCoinSelectionStrategy
   , mustUseUtxosAtAddress
   , mustUseUtxosAtAddresses
   , _additionalUtxos
   , _changeAddress
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
+  , _selectionStrategy
   , _srcAddresses
   ) where
 
 import Prelude
 
+import Ctl.Internal.BalanceTx.CoinSelection
+  ( SelectionStrategy(SelectionStrategyOptimal)
+  )
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -49,6 +54,7 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   , nonSpendableInputs :: Set TransactionInput
   , srcAddresses :: Maybe (Array Address)
   , changeAddress :: Maybe Address
+  , selectionStrategy :: SelectionStrategy
   }
 
 derive instance Newtype BalanceTxConstraints _
@@ -68,6 +74,9 @@ _srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
 
 _changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
 _changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
+
+_selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
+_selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
 
 newtype BalanceTxConstraintsBuilder =
   BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
@@ -90,6 +99,7 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     , nonSpendableInputs: mempty
     , srcAddresses: Nothing
     , changeAddress: Nothing
+    , selectionStrategy: SelectionStrategyOptimal
     }
 
 -- | Tells the balancer to send all generated change to a given address.
@@ -103,7 +113,7 @@ mustSendChangeToAddress
 mustSendChangeToAddress =
   wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
 
--- | Tells the balancer to use utxos at given addresses.
+-- | Tells the balancer to use UTxO's at given addresses.
 -- | If this constraint is not set, then the default addresses owned by the
 -- | wallet are used.
 -- |
@@ -114,7 +124,7 @@ mustUseUtxosAtAddresses
 mustUseUtxosAtAddresses networkId =
   wrap <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
 
--- | Tells the balancer to use utxos at a given address.
+-- | Tells the balancer to use UTxO's at a given address.
 -- | If this constraint is not set, then the default addresses owned by the
 -- | wallet are used.
 -- |
@@ -133,18 +143,23 @@ mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
 mustGenChangeOutsWithMaxTokenQuantity =
   wrap <<< setJust _maxChangeOutputTokenQuantity <<< max one
 
--- | Tells the balancer not to spend utxos with the specified output references.
+-- | Tells the balancer not to spend UTxO's with the specified output references.
 mustNotSpendUtxosWithOutRefs
   :: Set TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
 
--- | Tells the balancer not to spend a utxo with the specified output reference.
+-- | Tells the balancer not to spend a UTxO with the specified output reference.
 mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
--- | Tells the balancer to use the provided utxo set when evaluating script
+-- | Tells the balancer to use the provided UTxO set when evaluating script
 -- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
--- | Note that you need to use `unspentOutputs` lookup to make these utxos
+-- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
+
+-- | Tells the balancer to use the given strategy for coin selection.
+mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
+mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
+

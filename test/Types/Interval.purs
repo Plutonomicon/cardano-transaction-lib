@@ -9,10 +9,11 @@ import Prelude
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM.Ogmios (EraSummaries, SystemStart)
+import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( Interval
   , POSIXTime(POSIXTime)
@@ -30,10 +31,12 @@ import Ctl.Internal.Types.Interval
   , slotToPosixTime
   , to
   )
+import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
+import Data.Newtype (unwrap)
 import Data.Traversable (traverse_)
 import Effect (Effect)
 import Effect.Exception (error)
@@ -82,11 +85,13 @@ loadOgmiosFixture query hash = do
 
 eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture =
-  loadOgmiosFixture "eraSummaries" "bbf8b1d7d2487e750104ec2b5a31fa86"
+  (unwrap :: OgmiosEraSummaries -> EraSummaries) <$>
+    loadOgmiosFixture "eraSummaries" "bbf8b1d7d2487e750104ec2b5a31fa86"
 
 systemStartFixture :: Effect SystemStart
 systemStartFixture =
-  loadOgmiosFixture "systemStart" "ed0caad81f6936e0c122ef6f3c7de5e8"
+  (unwrap :: OgmiosSystemStart -> SystemStart) <$>
+    loadOgmiosFixture "systemStart" "ed0caad81f6936e0c122ef6f3c7de5e8"
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit
 testPosixTimeToSlot eraSummaries sysStart = do

@@ -15,6 +15,7 @@ import Prelude
 
 import Aeson (encodeAeson)
 import Control.Monad.Error.Class (liftMaybe)
+import Control.Monad.Except (catchError)
 import Ctl.Internal.Cardano.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType
@@ -37,13 +38,13 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
-import Effect.Exception (error)
+import Effect.Exception (error, throw)
 import Node.Encoding as Encoding
 import Node.FS.Sync (readTextFile, writeTextFile)
 import Node.Path (FilePath)
 
 keyFromFile :: FilePath -> TextEnvelopeType -> Aff ByteArray
-keyFromFile filePath ty = do
+keyFromFile filePath ty = errorHandler do
   fileContents <- liftEffect $ readTextFile Encoding.UTF8 filePath
   let errorMsg = error "Error while decoding key"
   liftMaybe errorMsg do
@@ -51,6 +52,15 @@ keyFromFile filePath ty = do
     -- Check TextEnvelope type match to desirable
     unless (envelope.type_ == ty) Nothing
     pure envelope.bytes
+  where
+  errorHandler action = do
+    catchError action
+      ( \err -> do
+          liftEffect $ throw $
+            "Unable to load key from file: " <> show filePath
+              <> ", error: "
+              <> show err
+      )
 
 privatePaymentKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivatePaymentKey
 privatePaymentKeyFromTextEnvelope (TextEnvelope envelope) = do

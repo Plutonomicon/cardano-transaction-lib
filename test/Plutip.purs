@@ -4,8 +4,9 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Test.Plutip (testPlutipContracts)
+import Contract.Test.Plutip (noWallet, testPlutipContracts)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutip.Server
   ( checkPlutipServer
   , startPlutipCluster
@@ -28,10 +29,14 @@ import Effect.Aff
   , launchAff
   )
 import Mote (group, test)
+import Mote.Monad (mapTest)
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
+import Test.Ctl.Plutip.Contract.Assert as Assert
+import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
+import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
@@ -42,9 +47,15 @@ main = interruptOnSignal SIGINT =<< launchAff do
     Utils.interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
       $ group "Plutip" do
+          testPlutipContracts config Assert.suite
           Logging.suite
           testStartPlutipCluster
-          testPlutipContracts config Contract.suite
+          testPlutipContracts config $ do
+            flip mapTest QueryM.AffInterface.suite
+              (noWallet <<< wrapQueryM)
+
+            NetworkId.suite
+            Contract.suite
           UtxoDistribution.suite
 
 testStartPlutipCluster :: TestPlanM (Aff Unit) Unit

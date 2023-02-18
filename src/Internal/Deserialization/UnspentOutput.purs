@@ -1,7 +1,6 @@
 module Ctl.Internal.Deserialization.UnspentOutput
   ( convertUnspentOutput
   , mkTransactionUnspentOutput
-  , newTransactionUnspentOutputFromBytes
   , convertInput
   , convertOutput
   , convertValue
@@ -50,7 +49,6 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
@@ -68,22 +66,23 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
-import Data.UInt as UInt
-import Untagged.Union (asOneOf)
+import Data.UInt (UInt)
 
 convertUnspentOutput
   :: TransactionUnspentOutput -> Maybe T.TransactionUnspentOutput
 convertUnspentOutput tuo = do
-  input <- convertInput $ getInput tuo
+  let
+    input = convertInput $ getInput tuo
   output <- convertOutput $ getOutput tuo
   pure $ T.TransactionUnspentOutput { input, output }
 
-convertInput :: TransactionInput -> Maybe T.TransactionInput
+convertInput :: TransactionInput -> T.TransactionInput
 convertInput input = do
-  index <- UInt.fromInt' $ getTransactionIndex input
-  pure $ T.TransactionInput
-    { transactionId: T.TransactionHash $ toBytes
-        (asOneOf $ getTransactionHash input)
+  let
+    index = getTransactionIndex input
+  T.TransactionInput
+    { transactionId: T.TransactionHash $ unwrap $ toBytes $
+        getTransactionHash input
     , index
     }
 
@@ -94,26 +93,27 @@ convertOutput output = do
     address = getAddress output
     mbDataHash =
       getDataHash maybeFfiHelper output <#>
-        asOneOf >>> toBytes >>> T.DataHash
+        toBytes >>> unwrap >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail
-    Just datumValue, Nothing -> OutputDatum <<< wrap <$> convertPlutusData
-      datumValue
+    Just datumValue, Nothing -> pure $ OutputDatum $ wrap $
+      convertPlutusData datumValue
     Nothing, Just datumHash -> pure $ OutputDatumHash datumHash
     Nothing, Nothing -> pure NoOutputDatum
-  scriptRef <- getScriptRef maybeFfiHelper output # traverse convertScriptRef
+  let
+    scriptRef = getScriptRef maybeFfiHelper output <#> convertScriptRef
   pure $ T.TransactionOutput
     { address, amount, datum, scriptRef }
 
-convertScriptRef :: ScriptRef -> Maybe T.ScriptRef
+convertScriptRef :: ScriptRef -> T.ScriptRef
 convertScriptRef = withScriptRef
-  (convertNativeScript >>> map T.NativeScriptRef)
-  (convertPlutusScript >>> map T.PlutusScriptRef)
+  (convertNativeScript >>> T.NativeScriptRef)
+  (convertPlutusScript >>> T.PlutusScriptRef)
 
 convertValue :: Value -> Maybe T.Value
 convertValue value = do
-  coin <- BigNum.toBigInt $ getCoin value
+  let coin = BigNum.toBigInt $ getCoin value
   -- multiasset is optional
   multiasset <- for (getMultiAsset maybeFfiHelper value) \multiasset -> do
     let
@@ -141,7 +141,7 @@ convertValue value = do
               map Map.fromFoldable
         )
     -- convert BigNum values, possibly failing
-    traverse (traverse BigNum.toBigInt) multiasset''
+    pure $ map (map BigNum.toBigInt) multiasset''
   pure
     $ T.mkValue (T.Coin coin)
     $ T.mkNonAdaAsset (fromMaybe Map.empty multiasset)
@@ -149,7 +149,7 @@ convertValue value = do
 foreign import getInput :: TransactionUnspentOutput -> TransactionInput
 foreign import getOutput :: TransactionUnspentOutput -> TransactionOutput
 foreign import getTransactionHash :: TransactionInput -> TransactionHash
-foreign import getTransactionIndex :: TransactionInput -> Int
+foreign import getTransactionIndex :: TransactionInput -> UInt
 foreign import getAddress :: TransactionOutput -> Address
 foreign import getPlutusData
   :: MaybeFfiHelper -> TransactionOutput -> Maybe PlutusData
@@ -182,11 +182,3 @@ foreign import getDataHash
 
 foreign import mkTransactionUnspentOutput
   :: TransactionInput -> TransactionOutput -> TransactionUnspentOutput
-
-foreign import _newTransactionUnspentOutputFromBytes
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionUnspentOutput
-
-newTransactionUnspentOutputFromBytes
-  :: ByteArray -> Maybe TransactionUnspentOutput
-newTransactionUnspentOutputFromBytes = _newTransactionUnspentOutputFromBytes
-  maybeFfiHelper

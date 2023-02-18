@@ -8,9 +8,11 @@ import Prelude
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
+  , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
+import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
@@ -31,7 +33,6 @@ import Contract.Scripts
   )
 import Contract.Staking
   ( getPoolIds
-  , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
@@ -42,6 +43,7 @@ import Contract.Transaction
   ( Epoch(Epoch)
   , PoolPubKeyHash(PoolPubKeyHash)
   , balanceTx
+  , mkPoolPubKeyHash
   , signTransaction
   , vrfKeyHashFromBytes
   )
@@ -66,10 +68,10 @@ import Contract.TxConstraints
 import Contract.Value (lovelaceValueOf)
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
-import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
+import Ctl.Examples.IncludeDatum (only42Script)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
-import Data.Array (head)
+import Data.Array (head, (!!))
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Foldable (for_)
@@ -90,6 +92,7 @@ import Effect.Aff
   , launchAff
   )
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
@@ -108,6 +111,25 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
+  -- We must never select this pool, because it retires at the third epoch
+  -- (this is Plutip internal knowledge)
+  -- https://github.com/mlabs-haskell/plutip/blob/7f2d59abd911dd11310404863cdedb2886902ebf/src/Test/Plutip/Internal/Cluster.hs#L692
+  retiringPoolId <- liftEffect $ liftM (error "unable to decode poolId bech32")
+    $ mkPoolPubKeyHash
+        "pool1rv7ur8r2hz02lly9q8ehtwcrcydl3m2arqmndvwcqsfavgaemt6"
+  let
+    -- A routine function that filters out retiring pool from the list of available
+    -- pools
+    selectPoolId :: Contract PoolPubKeyHash
+    selectPoolId = do
+      pools <- getPoolIds
+      logInfo' "Pool IDs:"
+      logInfo' $ show pools
+      for_ pools \poolId -> do
+        logInfo' "Pool parameters"
+        logInfo' <<< show =<< getPoolParameters poolId
+      liftM (error "unable to get any pools")
+        (Array.filter (_ /= retiringPoolId) pools !! 1)
   group "Staking" do
     group "Stake keys: register & deregister" do
       test "PubKey" do
@@ -163,14 +185,19 @@ suite = do
               <*>
                 liftedM "Failed to get Stake PKH"
                   (join <<< head <$> ownStakePubKeysHashes)
-          validator <- alwaysSucceedsScript <#> unwrap >>>
+          validator1 <- alwaysSucceedsScript <#> unwrap >>>
             PlutusScriptStakeValidator
-          let validatorHash = plutusScriptStakeValidatorHash validator
+          validator2 <- only42Script <#> unwrap >>>
+            PlutusScriptStakeValidator
+          let
+            validatorHash1 = plutusScriptStakeValidatorHash validator1
+            validatorHash2 = plutusScriptStakeValidatorHash validator2
 
           -- Register
           do
             let
-              constraints = mustRegisterStakeScript validatorHash
+              constraints = mustRegisterStakeScript validatorHash1 <>
+                mustRegisterStakeScript validatorHash2
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
@@ -183,8 +210,11 @@ suite = do
           -- Deregister stake key
           do
             let
-              constraints = mustDeregisterStakePlutusScript validator
-                unitRedeemer
+              constraints =
+                mustDeregisterStakePlutusScript validator1
+                  unitRedeemer
+                  <> mustDeregisterStakePlutusScript validator2
+                    unitRedeemer
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
@@ -267,7 +297,7 @@ suite = do
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
-        networkId <- asks $ unwrap >>> _.config >>> _.networkId
+        networkId <- getNetworkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $
             publicKeyFromPrivateKey (unwrap privateStakeKey)
@@ -317,11 +347,6 @@ suite = do
         -- List pools: the pool must appear in the list
         do
           pools <- getPoolIds
-          logInfo' "Pool IDs:"
-          logInfo' $ show pools
-          for_ pools \poolId -> do
-            logInfo' "Pool parameters"
-            logInfo' <<< show =<< getPoolParameters poolId
           pools `shouldSatisfy` Array.elem poolOperator
 
         currentEpoch <- getCurrentEpoch
@@ -347,7 +372,7 @@ suite = do
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
         let
-          waitEpoch :: forall (r :: Row Type). Epoch -> Contract r Epoch
+          waitEpoch :: Epoch -> Contract Epoch
           waitEpoch epoch = do
             epochNow <- getCurrentEpoch
             if unwrap epochNow >= unwrap epoch then pure epochNow
@@ -360,11 +385,6 @@ suite = do
         -- List pools: the pool must not appear in the list
         do
           pools <- getPoolIds
-          logInfo' "Pool IDs:"
-          logInfo' $ show pools
-          for_ pools \poolId -> do
-            logInfo' "Pool parameters"
-            logInfo' <<< show =<< getPoolParameters poolId
           pools `shouldSatisfy` Array.notElem poolOperator
 
     test "Plutus Stake script: delegate to existing pool & withdraw rewards" do
@@ -414,15 +434,8 @@ suite = do
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-          -- List pools
-          poolId <- do
-            pools <- getPoolIds
-            logInfo' "Pool IDs:"
-            logInfo' $ show pools
-            for_ pools \poolId -> do
-              logInfo' "Pool parameters"
-              logInfo' <<< show =<< getPoolParameters poolId
-            liftM (error "unable to get any pools") (pools Array.!! 2)
+          -- Select a pool
+          poolId <- selectPoolId
 
           -- Delegate
           do
@@ -537,14 +550,7 @@ suite = do
         withKeyWallet bob do
 
           -- Select first pool
-          poolId <- do
-            pools <- getPoolIds
-            logInfo' "Pool IDs:"
-            logInfo' $ show pools
-            for_ pools \poolId -> do
-              logInfo' "Pool parameters"
-              logInfo' <<< show =<< getPoolParameters poolId
-            liftM (error "unable to get any pools") (pools Array.!! 2)
+          poolId <- selectPoolId
 
           -- Delegate
           do
@@ -625,15 +631,8 @@ suite = do
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
-          -- List pools
-          poolId <- do
-            pools <- getPoolIds
-            logInfo' "Pool IDs:"
-            logInfo' $ show pools
-            for_ pools \poolId -> do
-              logInfo' "Pool parameters"
-              logInfo' <<< show =<< getPoolParameters poolId
-            liftM (error "unable to get any pools") (head pools)
+          -- Select a pool ID
+          poolId <- selectPoolId
 
           -- Delegate
           do

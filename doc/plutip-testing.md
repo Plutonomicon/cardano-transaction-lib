@@ -13,6 +13,7 @@
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
+  - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Architecture
@@ -22,8 +23,6 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - `plutip-server` to launch a local `cardano-node` cluster
 - [`ogmios`](https://ogmios.dev/)
 - [`kupo`](https://cardanosolutions.github.io/kupo/)
-- [`ogmios-datum-cache`](https://github.com/mlabs-haskell/ogmios-datum-cache)
-- PostgreSQL: `initdb`, `createdb` and `psql` for `ogmios-datum-cache` storage
 
 All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.
 
@@ -43,7 +42,7 @@ runPlutipContract
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> (wallets -> Contract () a)
+  -> (wallets -> Contract a)
   -> Aff a
 ```
 
@@ -111,10 +110,10 @@ withWallets
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
   => distr
-  -> (wallets -> Contract () Unit)
+  -> (wallets -> Contract Unit)
   -> PlutipTest
 
-noWallet :: Contract () Unit -> PlutipTest
+noWallet :: Contract Unit -> PlutipTest
 noWallet test = withWallets unit (const test)
 ```
 
@@ -193,3 +192,7 @@ let
 Although stake keys serve no real purpose in plutip context, they allow to use base addresses, and thus allow to have the same code for plutip testing, in-browser tests and production.
 
 Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
+
+### See also
+
+- To actually write the test bodies, [assertions library](./test-utils.md) can be useful.

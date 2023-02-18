@@ -3,6 +3,7 @@ module Ctl.Internal.Helpers
   , (<<>>)
   , (<\>)
   , (<</>>)
+  , (??)
   , appendFirstMaybe
   , appendLastMaybe
   , appendMap
@@ -16,6 +17,7 @@ module Ctl.Internal.Helpers
   , filterMapM
   , filterMapWithKeyM
   , fromJustEff
+  , fromMaybeFlipped
   , fromRightEff
   , liftEither
   , liftM
@@ -282,3 +284,8 @@ concatPaths a b =
   right = fromMaybe b (stripPrefix (Pattern "/") b)
 
 infixr 5 concatPaths as <</>> -- </> is taken
+
+fromMaybeFlipped :: forall (a :: Type). Maybe a -> a -> a
+fromMaybeFlipped = flip fromMaybe
+
+infixl 5 fromMaybeFlipped as ??

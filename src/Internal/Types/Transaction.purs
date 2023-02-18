@@ -11,13 +11,24 @@ import Prelude
 import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
+import Ctl.Internal.Types.BigNum (zero) as BigNum
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  )
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
-import Data.UInt (UInt)
+import Data.UInt (UInt, toInt)
+import Test.QuickCheck.Arbitrary
+  ( class Arbitrary
+  , class Coarbitrary
+  , coarbitrary
+  )
+import Test.QuickCheck.Gen (chooseInt, vectorOf)
 
 newtype TransactionInput = TransactionInput
   { transactionId :: TransactionHash
@@ -46,7 +57,7 @@ instance Show TransactionInput where
 
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
 instance FromData TransactionInput where
-  fromData (Constr n [ txId, idx ]) | n == zero =
+  fromData (Constr n [ txId, idx ]) | n == BigNum.zero =
     TransactionInput <$>
       ({ transactionId: _, index: _ } <$> fromData txId <*> fromData idx)
   fromData _ = Nothing
@@ -54,7 +65,11 @@ instance FromData TransactionInput where
 -- `Constr` is used for indexing, and `TransactionInput` is always zero-indexed
 instance ToData TransactionInput where
   toData (TransactionInput { transactionId, index }) =
-    Constr zero [ toData transactionId, toData index ]
+    Constr BigNum.zero [ toData transactionId, toData index ]
+
+instance Coarbitrary TransactionInput where
+  coarbitrary (TransactionInput input) generator =
+    coarbitrary (toInt input.index) $ coarbitrary input.transactionId generator
 
 -- | 32-bytes blake2b256 hash of a tx body.
 -- | NOTE. Plutus docs might incorrectly state that it uses
@@ -78,12 +93,20 @@ instance Show TransactionHash where
 
 -- Plutus actually has this as a zero indexed record
 instance FromData TransactionHash where
-  fromData (Constr n [ bytes ]) | n == zero = TransactionHash <$> fromData bytes
+  fromData (Constr n [ bytes ]) | n == BigNum.zero = TransactionHash <$>
+    fromData bytes
   fromData _ = Nothing
 
 -- Plutus actually has this as a zero indexed record
 instance ToData TransactionHash where
-  toData (TransactionHash bytes) = Constr zero [ toData bytes ]
+  toData (TransactionHash bytes) = Constr BigNum.zero [ toData bytes ]
+
+instance Arbitrary TransactionHash where
+  arbitrary =
+    wrap <<< byteArrayFromIntArrayUnsafe <$> vectorOf 32 (chooseInt 0 255)
+
+instance Coarbitrary TransactionHash where
+  coarbitrary (TransactionHash bytes) generator = coarbitrary bytes generator
 
 newtype DataHash = DataHash ByteArray
 

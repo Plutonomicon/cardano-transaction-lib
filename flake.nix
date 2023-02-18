@@ -1,13 +1,10 @@
 {
   description = "cardano-transaction-lib";
 
-  nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+  nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 
   inputs = {
-    iohk-nix.follows = "ogmios/iohk-nix";
-    haskell-nix.follows = "ogmios/haskell-nix";
     nixpkgs.follows = "ogmios/nixpkgs";
-    CHaP.follows = "ogmios/CHaP";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -24,11 +21,8 @@
       flake = false;
     };
 
-    ogmios-datum-cache.url = "github:mlabs-haskell/ogmios-datum-cache/862c6bfcb6110b8fe816e26b3bba105dfb492b24";
-
-    # ogmios and ogmios-datum-cache nixos modules (remove and replace with the above after merging and updating)
+    # ogmios nixos module (remove and replace with the above after merging and updating)
     ogmios-nixos.url = "github:mlabs-haskell/ogmios";
-    ogmios-datum-cache-nixos.url = "github:mlabs-haskell/ogmios-datum-cache/marton/nixos-module";
 
     cardano-node.follows = "ogmios-nixos/cardano-node";
     # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
@@ -50,10 +44,7 @@
   outputs =
     { self
     , nixpkgs
-    , haskell-nix
-    , iohk-nix
     , cardano-configurations
-    , CHaP
     , ...
     }@inputs:
     let
@@ -72,7 +63,6 @@
             ogmios-fixtures = inputs.ogmios;
           })
         ];
-        inherit (haskell-nix) config;
         inherit system;
       };
 
@@ -242,8 +232,6 @@
               {
                 plutip-server =
                   inputs.plutip.packages.${system}."plutip:exe:plutip-server";
-                ogmios-datum-cache =
-                  inputs.ogmios-datum-cache.defaultPackage.${system};
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 buildCtlRuntime = buildCtlRuntime final;
@@ -436,11 +424,7 @@
             services.ogmios.package =
               inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
           }
-          inputs.ogmios-datum-cache-nixos.nixosModules.ogmios-datum-cache
-          {
-            services.ogmios-datum-cache.package =
-              inputs.ogmios-datum-cache.packages.x86_64-linux."ogmios-datum-cache";
-          }
+          inputs.kupo-nixos.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {

@@ -13,13 +13,13 @@ import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId(MainnetId)
-  , addressBytes
   , intToNetworkId
   )
 import Ctl.Internal.Serialization.Keys
   ( bytesFromPublicKey
   , publicKeyFromPrivateKey
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey, PublicKey)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ByteArray (byteArrayFromIntArrayUnsafe)
@@ -68,8 +68,9 @@ type DeserializedDataSignature =
 
 testCip30SignData :: TestInput -> Aff Unit
 testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
-  address <-
-    privateKeysToAddress (unwrap privateKey) (unwrap <$> privateStakeKey)
+  let
+    address = privateKeysToAddress (unwrap privateKey)
+      (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
   dataSignature <- liftEffect $ signData privatePaymentKey address payload
@@ -103,7 +104,7 @@ checkCip30SignDataResponse address { key, signature } = do
 
     assertTrue "COSE_Sign1's \"address\" header must be set to address bytes"
       ( getCoseSign1ProtectedHeaderAddress coseSign1
-          == Just (addressBytes address)
+          == Just (toBytes address)
       )
 
   checkCoseKeyHeaders :: COSEKey -> Aff Unit
@@ -128,7 +129,7 @@ checkCip30SignDataResponse address { key, signature } = do
   checkVerification coseSign1 coseKey = do
     publicKey <-
       errMaybe "COSE_Key's x (-2) header must be set to public key bytes"
-        (getCoseKeyHeaderX coseKey >>= (fromBytes <<< unwrap))
+        $ getCoseKeyHeaderX coseKey >>= fromBytes <<< wrap <<< unwrap
     sigStructBytes <- getSignedData coseSign1
     assertTrue "Signature verification failed"
       =<< verifySignature coseSign1 publicKey sigStructBytes

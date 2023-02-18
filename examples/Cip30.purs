@@ -8,7 +8,7 @@ module Ctl.Examples.Cip30
 
 import Contract.Prelude
 
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Prim.ByteArray (rawBytesFromAscii)
@@ -16,7 +16,6 @@ import Contract.Wallet
   ( WalletExtension
   , apiVersion
   , getChangeAddress
-  , getNetworkId
   , getRewardAddresses
   , getUnusedAddresses
   , getWallet
@@ -34,7 +33,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   mWallet <- runContract cfg getWallet
   let mSupportWallet = walletToWalletExtension =<< mWallet
@@ -60,11 +59,10 @@ nonConfigFunctions extensionWallet = do
     result <- f extensionWallet
     log $ msg <> ":" <> (show result)
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Cip30"
   logInfo' "Funtions that depend on `Contract`"
-  _ <- performAndLog "getNetworkId" getNetworkId
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
@@ -84,8 +82,8 @@ contract = do
     :: forall (a :: Type)
      . Show a
     => String
-    -> Contract () a
-    -> Contract () a
+    -> Contract a
+    -> Contract a
   performAndLog logMsg cont = do
     result <- cont
     logInfo' $ logMsg <> ": " <> show result

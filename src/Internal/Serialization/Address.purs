@@ -11,14 +11,12 @@ module Ctl.Internal.Serialization.Address
   , PointerAddress
   , RewardAddress
   , StakeCredential
-  , addressBytes
   , addressBech32
   , addressNetworkId
   , intToNetworkId
   , keyHashCredential
   , scriptHashCredential
   , withStakeCredential
-  , stakeCredentialToBytes
   , baseAddress
   , baseAddressPaymentCred
   , baseAddressDelegationCred
@@ -32,8 +30,6 @@ module Ctl.Internal.Serialization.Address
   , NetworkId(MainnetId, TestnetId)
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
-  , stakeCredentialFromBytes
-  , addressFromBytes
   , addressFromBech32
   , addressPaymentCred
   , addressStakeCred
@@ -45,8 +41,6 @@ module Ctl.Internal.Serialization.Address
   , baseAddressNetworkId
   , byronAddressToBase58
   , byronAddressFromBase58
-  , byronAddressFromBytes
-  , byronAddressBytes
   , byronProtocolMagic
   , byronAddressAttributes
   , byronAddressNetworkId
@@ -65,7 +59,6 @@ module Ctl.Internal.Serialization.Address
   , enterpriseAddressNetworkId
   , paymentKeyHashEnterpriseAddress
   , scriptHashEnterpriseAddress
-  , networkIdtoInt
   , pointerAddress
   , pointerAddressPaymentCred
   , pointerAddressToAddress
@@ -114,11 +107,13 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
 import Data.Either (note)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt)
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Gen (chooseInt)
 
 newtype Slot = Slot BigNum
 
@@ -323,6 +318,7 @@ instance EncodeAeson StakeCredential where
 foreign import _addressFromBech32
   :: MaybeFfiHelper -> Bech32String -> Maybe Address
 
+-- We can't use FromBytes class here, because of cyclic dependencies
 foreign import _addressFromBytes :: MaybeFfiHelper -> CborBytes -> Maybe Address
 foreign import addressBytes :: Address -> CborBytes
 foreign import addressBech32 :: Address -> Bech32String
@@ -364,7 +360,7 @@ baseAddress
      , delegationCred :: StakeCredential
      }
   -> BaseAddress
-baseAddress = _baseAddress networkIdtoInt
+baseAddress = _baseAddress networkIdToInt
 
 foreign import baseAddressPaymentCred :: BaseAddress -> StakeCredential
 foreign import baseAddressDelegationCred :: BaseAddress -> StakeCredential
@@ -384,8 +380,11 @@ instance EncodeAeson NetworkId where
     TestnetId -> encodeTagged' "TestnetId" {}
     MainnetId -> encodeTagged' "MainnetId" {}
 
-networkIdtoInt :: NetworkId -> Int
-networkIdtoInt = case _ of
+instance Ord NetworkId where
+  compare = compare `on` networkIdToInt
+
+networkIdToInt :: NetworkId -> Int
+networkIdToInt = case _ of
   TestnetId -> 0
   MainnetId -> 1
 
@@ -394,6 +393,9 @@ derive instance Generic NetworkId _
 
 instance Show NetworkId where
   show = genericShow
+
+instance Arbitrary NetworkId where
+  arbitrary = fromMaybe MainnetId <<< intToNetworkId <$> chooseInt 0 1
 
 paymentKeyHashStakeKeyHashAddress
   :: NetworkId -> Ed25519KeyHash -> Ed25519KeyHash -> BaseAddress
@@ -524,7 +526,7 @@ foreign import _enterpriseAddress
 enterpriseAddress
   :: { network :: NetworkId, paymentCred :: StakeCredential }
   -> EnterpriseAddress
-enterpriseAddress = _enterpriseAddress networkIdtoInt
+enterpriseAddress = _enterpriseAddress networkIdToInt
 
 paymentKeyHashEnterpriseAddress
   :: NetworkId -> Ed25519KeyHash -> EnterpriseAddress
@@ -580,7 +582,7 @@ pointerAddress
      , stakePointer :: Pointer
      }
   -> PointerAddress
-pointerAddress = _pointerAddress networkIdtoInt
+pointerAddress = _pointerAddress networkIdToInt
 
 paymentKeyHashPointerAddress
   :: NetworkId -> Ed25519KeyHash -> Pointer -> PointerAddress
@@ -631,7 +633,7 @@ foreign import _rewardAddress
 
 rewardAddress
   :: { network :: NetworkId, paymentCred :: StakeCredential } -> RewardAddress
-rewardAddress = _rewardAddress networkIdtoInt
+rewardAddress = _rewardAddress networkIdToInt
 
 foreign import rewardAddressPaymentCred :: RewardAddress -> StakeCredential
 foreign import _rewardAddressFromAddress

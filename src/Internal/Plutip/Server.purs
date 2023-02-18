@@ -7,9 +7,6 @@ module Ctl.Internal.Plutip.Server
   , checkPlutipServer
   , stopChildProcessWithPort
   , testPlutipContracts
-  , withWallets
-  , noWallet
-  , PlutipTest
   ) where
 
 import Prelude
@@ -20,62 +17,59 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Monad
-  ( Contract
-  , ContractEnv(ContractEnv)
-  , liftContractM
-  , runContractInEnv
-  )
+import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
-import Control.Parallel (parallel, sequential)
+import Ctl.Internal.Contract.Hooks (emptyHooks)
+import Ctl.Internal.Contract.Monad
+  ( buildBackend
+  , getLedgerConstants
+  , stopContractEnv
+  )
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers ((<</>>))
+import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
   , OnSignalRef
   , cleanupOnSigint
-  , cleanupOnSigint'
   , cleanupTmpDir
   , removeOnSignal
   , spawn
   , stop
-  , waitForStop
   )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
-  , InitialUTxODistribution
-  , InitialUTxOs
   , PlutipConfig
-  , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Plutip.UtxoDistribution
+import Ctl.Internal.Service.Error
+  ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  )
+import Ctl.Internal.Test.ContractTest
+  ( ContractTest(ContractTest)
+  , ContractTestPlan(ContractTestPlan)
+  , ContractTestPlanHandler
+  )
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
+  , InitialUTxODistribution
+  , InitialUTxOs
   , decodeWallets
   , encodeDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Ctl.Internal.QueryM
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  , Logger
-  , emptyHooks
-  , mkLogger
-  , stopQueryRuntime
-  )
-import Ctl.Internal.QueryM as QueryM
-import Ctl.Internal.QueryM.Logging (setupLogs)
-import Ctl.Internal.QueryM.UniqueId (uniqueId)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
@@ -86,16 +80,15 @@ import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (over, unwrap, wrap)
-import Data.String.CodeUnits as String
+import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect (Effect)
 import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
@@ -123,7 +116,7 @@ runPlutipContract
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> (wallets -> Contract () a)
+  -> (wallets -> Contract a)
   -> Aff a
 runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
   \env wallets ->
@@ -136,7 +129,7 @@ withPlutipContractEnv
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> (ContractEnv () -> wallets -> Aff a)
+  -> (ContractEnv -> wallets -> Aff a)
   -> Aff a
 withPlutipContractEnv plutipCfg distr cont = do
   cleanupRef <- liftEffect $ Ref.new mempty
@@ -154,11 +147,11 @@ withPlutipContractEnv plutipCfg distr cont = do
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
-  -> TestPlanM PlutipTest Unit
+  -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
-  PlutipTestPlan runPlutipTestPlan <- lift $ execDistribution tp
-  runPlutipTestPlan \distr tests -> do
+  ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
+  runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
       (runCleanup cleanupRef)
@@ -198,63 +191,21 @@ whenError whenErrorAction action = do
   when (isLeft res) whenErrorAction
   liftEither res
 
--- | Represents `Contract`s that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTest = PlutipTest
-  ( forall (r :: Type)
-     . ( forall (distr :: Type) (wallets :: Type)
-          . PlutipTestHandler distr wallets r
-       )
-    -> r
-  )
-
-type PlutipTestHandler :: Type -> Type -> Type -> Type
-type PlutipTestHandler distr wallets r =
-  UtxoDistribution distr wallets => distr -> (wallets -> Contract () Unit) -> r
-
--- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
-withWallets
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => distr
-  -> (wallets -> Contract () Unit)
-  -> PlutipTest
-withWallets distr tests = PlutipTest \h -> h distr tests
-
--- | Lift a `Contract` into `PlutipTest`
-noWallet :: Contract () Unit -> PlutipTest
-noWallet = withWallets unit <<< const
-
--- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
-newtype PlutipTestPlan = PlutipTestPlan
-  ( forall (r :: Type)
-     . ( forall (distr :: Type) (wallets :: Type)
-          . PlutipTestPlanHandler distr wallets r
-       )
-    -> r
-  )
-
-type PlutipTestPlanHandler :: Type -> Type -> Type -> Type
-type PlutipTestPlanHandler distr wallets r =
-  UtxoDistribution distr wallets
-  => distr
-  -> TestPlanM (wallets -> Contract () Unit) Unit
-  -> r
-
 -- | Lifts the utxo distributions of each test out of Mote, into a combined
 -- | distribution. Adapts the tests to pick their distribution out of the
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
-execDistribution :: TestPlanM PlutipTest Unit -> Aff PlutipTestPlan
+execDistribution :: TestPlanM ContractTest Unit -> Aff ContractTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
   where
-  go :: Array (Description Aff PlutipTest) -> PlutipTestPlan
-  go = flip execState emptyPlutipTestPlan <<< traverse_ case _ of
-    Test rm { bracket, label, value: PlutipTest runPlutipTest } ->
-      runPlutipTest \distr test -> do
+  go :: Array (Description Aff ContractTest) -> ContractTestPlan
+  go = flip execState emptyContractTestPlan <<< traverse_ case _ of
+    Test rm { bracket, label, value: ContractTest runTest } ->
+      runTest \distr test -> do
         addTests distr $ MoteT
           (tell [ Test rm { bracket, label, value: test } ])
     Group rm { bracket, label, value } -> do
-      let PlutipTestPlan runGroupPlan = go value
+      let ContractTestPlan runGroupPlan = go value
       runGroupPlan \distr tests ->
         addTests distr $ over MoteT
           (censor (pure <<< Group rm <<< { bracket, label, value: _ }))
@@ -262,15 +213,15 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
 
   addTests
     :: forall (distr :: Type) (wallets :: Type)
-     . PlutipTestPlanHandler distr wallets (State PlutipTestPlan Unit)
+     . ContractTestPlanHandler distr wallets (State ContractTestPlan Unit)
   addTests distr tests = do
-    modify_ \(PlutipTestPlan runPlutipTestPlan) -> runPlutipTestPlan
-      \distr' tests' -> PlutipTestPlan \h -> h (distr' /\ distr) do
+    modify_ \(ContractTestPlan runContractTestPlan) -> runContractTestPlan
+      \distr' tests' -> ContractTestPlan \h -> h (distr' /\ distr) do
         mapTest (_ <<< fst) tests'
         mapTest (_ <<< snd) tests
 
-  emptyPlutipTestPlan :: PlutipTestPlan
-  emptyPlutipTestPlan = PlutipTestPlan \h -> h unit (pure unit)
+  emptyContractTestPlan :: ContractTestPlan
+  emptyContractTestPlan = ContractTestPlan \h -> h unit (pure unit)
 
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | Can be used to run multiple `Contract`s using `runContractInEnv`.
@@ -286,7 +237,7 @@ startPlutipContractEnv
   -> distr
   -> Ref (Array (Aff Unit))
   -> Aff
-       { env :: ContractEnv ()
+       { env :: ContractEnv
        , wallets :: wallets
        , printLogs :: Aff Unit
        , clearLogs :: Aff Unit
@@ -295,10 +246,8 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
   startPlutipServer'
   ourKey /\ response <- startPlutipCluster'
-  startPostgres' response
   startOgmios' response
   startKupo' response
-  startOgmiosDatumCache' response
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure
@@ -344,14 +293,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
 
-  startPostgres' :: ClusterStartupParameters -> Aff Unit
-  startPostgres' response =
-    bracket (startPostgresServer plutipCfg.postgresConfig response)
-      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.postgresConfig.port)
-      \(process /\ workingDir /\ _) -> do
-        liftEffect $ cleanupTmpDir process workingDir
-        void $ configurePostgresServer plutipCfg.postgresConfig
-
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
     bracket (startOgmios plutipCfg response)
@@ -366,32 +307,26 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         liftEffect $ cleanupTmpDir process workdir
         pure unit
 
-  startOgmiosDatumCache' :: ClusterStartupParameters -> Aff Unit
-  startOgmiosDatumCache' response =
-    bracket (startOgmiosDatumCache plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.ogmiosDatumCacheConfig.port) $ const
-      (pure unit)
-
   mkWallets'
-    :: ContractEnv ()
+    :: ContractEnv
     -> PrivatePaymentKey
     -> ClusterStartupParameters
     -> Aff wallets
   mkWallets' env ourKey response = do
     runContractInEnv
-      (over wrap (_ { config { customLogger = Just (\_ _ -> pure unit) } }) env)
+      env { customLogger = Just (\_ _ -> pure unit) }
       do
         wallets <-
           liftContractM
             "Impossible happened: could not decode wallets. Please report as bug"
-            $ decodeWallets distr response.privateKeys
+            $ decodeWallets distr (unwrap <$> response.privateKeys)
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
 
   mkContractEnv'
     :: Aff
-         { env :: ContractEnv ()
+         { env :: ContractEnv
          , printLogs :: Aff Unit
          , clearLogs :: Aff Unit
          }
@@ -404,7 +339,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       configLogger = Just $ map liftEffect <<< addLogEntry
 
     bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
-      (liftEffect <<< stopContractEnv)
+      stopContractEnv
       \env -> pure
         { env
         , printLogs: liftEffect printLogs
@@ -417,16 +352,12 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
           (mkLogger plutipCfg.logLevel plutipCfg.customLogger)
           plutipCfg.customLogger
       )
-      (liftEffect <<< stopContractEnv)
+      stopContractEnv
       \env -> pure
         { env
         , printLogs: pure unit
         , clearLogs: pure unit
         }
-
-  -- a version of Contract.Monad.stopContractEnv without a compile-time warning
-  stopContractEnv :: ContractEnv () -> Effect Unit
-  stopContractEnv env = stopQueryRuntime (unwrap env).runtime
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
@@ -437,8 +368,6 @@ configCheck cfg = do
       [ cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.kupoConfig.port /\ "kupo"
-      , cfg.ogmiosDatumCacheConfig.port /\ "ogmios-datum-cache"
-      , cfg.postgresConfig.port /\ "postgres"
       ]
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
@@ -492,8 +421,9 @@ startPlutipCluster cfg keysToGenerate = do
         $ (decodeAeson <=< parseJsonStringToAeson) body
   either (liftEffect <<< throw <<< show) pure res >>=
     case _ of
-      ClusterStartupFailure _ -> do
-        liftEffect $ throw "Failed to start up cluster"
+      ClusterStartupFailure reason -> do
+        liftEffect $ throw $
+          "Failed to start up cluster. Reason: " <> show reason
       ClusterStartupSuccess response@{ privateKeys } ->
         case Array.uncons privateKeys of
           Nothing ->
@@ -567,11 +497,12 @@ startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
   let
     workdir = tmpDir <</>> "kupo-db"
+    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  sig <- liftEffect $ cleanupOnSigint' workdir
+  sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
   pure (childProcess /\ workdir /\ sig)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
@@ -616,81 +547,6 @@ checkPlutipServer cfg = do
     $ const
     $ stopPlutipCluster cfg
 
-startPostgresServer
-  :: PostgresConfig
-  -> ClusterStartupParameters
-  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
-startPostgresServer pgConfig params = do
-  tmpDir <- liftEffect tmpdir
-  randomStr <- liftEffect $ uniqueId ""
-  let
-    workingDir = tmpDir <</>> randomStr
-    databaseDir = workingDir <</>> "postgres/data"
-    postgresSocket = workingDir <</>> "postgres"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
-  sig <- liftEffect $ cleanupOnSigint workingDir testClusterDir
-  waitForStop =<< spawn "initdb"
-    [ "--locale=C", "--encoding=UTF-8", databaseDir ]
-    defaultSpawnOptions
-    Nothing
-  pgChildProcess <- spawn "postgres"
-    [ "-D"
-    , databaseDir
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-h"
-    , pgConfig.host
-    , "-k"
-    , postgresSocket
-    ]
-    defaultSpawnOptions
-    Nothing
-  pure (pgChildProcess /\ workingDir /\ sig)
-
-configurePostgresServer
-  :: PostgresConfig -> Aff Unit
-configurePostgresServer pgConfig = do
-  defaultRecovering $ waitForStop =<< spawn "psql"
-    [ "-h"
-    , pgConfig.host
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-d"
-    , "postgres"
-    , "-c"
-    , "\\q"
-    ]
-    defaultSpawnOptions
-    Nothing
-  waitForStop =<< spawn "psql"
-    [ "-h"
-    , pgConfig.host
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-d"
-    , "postgres"
-    , "-c"
-    , "CREATE ROLE " <> pgConfig.user
-        <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
-        <> pgConfig.password
-        <> "';"
-    ]
-    defaultSpawnOptions
-    Nothing
-  waitForStop =<< spawn "createdb"
-    [ "-h"
-    , pgConfig.host
-    , "-p"
-    , UInt.toString pgConfig.port
-    , "-U"
-    , pgConfig.user
-    , "-O"
-    , pgConfig.user
-    , pgConfig.dbname
-    ]
-    defaultSpawnOptions
-    Nothing
-
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
 stopChildProcessWithPort port childProcess = do
@@ -712,100 +568,36 @@ stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
         liftEffect $ throw "retry"
   liftEffect $ removeOnSignal sig
 
-startOgmiosDatumCache
-  :: PlutipConfig
-  -> ClusterStartupParameters
-  -> Aff ManagedProcess
-startOgmiosDatumCache cfg _params = do
-  apiKey <- liftEffect $ uniqueId "token"
-  let
-    arguments :: Array String
-    arguments =
-      [ "--server-api"
-      , apiKey
-      , "--server-port"
-      , UInt.toString cfg.ogmiosDatumCacheConfig.port
-      , "--ogmios-address"
-      , cfg.ogmiosDatumCacheConfig.host
-      , "--ogmios-port"
-      , UInt.toString cfg.ogmiosConfig.port
-      , "--db-port"
-      , UInt.toString cfg.postgresConfig.port
-      , "--db-host"
-      , cfg.postgresConfig.host
-      , "--db-user"
-      , cfg.postgresConfig.user
-      , "--db-name"
-      , cfg.postgresConfig.dbname
-      , "--db-password"
-      , cfg.postgresConfig.password
-      , "--use-latest"
-      , "--from-origin"
-      ]
-  spawn "ogmios-datum-cache" arguments defaultSpawnOptions
-    -- Wait for "Intersection found" string in the output
-    $ Just
-    $ String.indexOf (Pattern "Intersection found")
-        >>> maybe NoOp (const Success)
-
 mkClusterContractEnv
   :: PlutipConfig
   -> Logger
   -> Maybe (LogLevel -> Message -> Aff Unit)
-  -> Aff (ContractEnv ())
+  -> Aff ContractEnv
 mkClusterContractEnv plutipCfg logger customLogger = do
-  datumCacheWsRef <- liftEffect $ Ref.new Nothing
-  datumCacheWs /\ ogmiosWs <- sequential $
-    Tuple
-      <$> parallel
-        ( QueryM.mkDatumCacheWebSocketAff datumCacheWsRef logger
-            QueryM.defaultDatumCacheWsConfig
-              { port = plutipCfg.ogmiosDatumCacheConfig.port
-              , host = plutipCfg.ogmiosDatumCacheConfig.host
-              }
-        )
-      <*> parallel
-        ( QueryM.mkOgmiosWebSocketAff datumCacheWsRef logger
-            QueryM.defaultOgmiosWsConfig
-              { port = plutipCfg.ogmiosConfig.port
-              , host = plutipCfg.ogmiosConfig.host
-              }
-        )
   usedTxOuts <- newUsedTxOuts
-  pparams <- QueryM.getProtocolParametersAff ogmiosWs logger
-  pure $ ContractEnv
-    { config:
-        { ogmiosConfig: plutipCfg.ogmiosConfig
-        , datumCacheConfig: plutipCfg.ogmiosDatumCacheConfig
-        , kupoConfig: plutipCfg.kupoConfig
-        , networkId: MainnetId
-        , logLevel: plutipCfg.logLevel
-        , walletSpec: Nothing
-        , customLogger: customLogger
-        , suppressLogs: plutipCfg.suppressLogs
-        , hooks: emptyHooks
-        }
-    , runtime:
-        { ogmiosWs
-        , datumCacheWs
-        , wallet: Nothing
-        , usedTxOuts
-        , pparams
-        }
-    , extraConfig: {}
+  backend <- buildBackend logger $ mkCtlBackendParams
+    { ogmiosConfig: plutipCfg.ogmiosConfig
+    , kupoConfig: plutipCfg.kupoConfig
+    }
+  ledgerConstants <- getLedgerConstants
+    plutipCfg { customLogger = customLogger }
+    backend
+  pure
+    { backend
+    , networkId: MainnetId
+    , logLevel: plutipCfg.logLevel
+    , walletSpec: Nothing
+    , customLogger: customLogger
+    , suppressLogs: plutipCfg.suppressLogs
+    , hooks: emptyHooks
+    , wallet: Nothing
+    , usedTxOuts
+    , ledgerConstants
     }
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
-
-defaultRecovering :: forall (a :: Type). Aff a -> Aff a
-defaultRecovering f =
-  recovering retryPolicy ([ \_ _ -> pure true ]) $ const f
-  where
-  retryPolicy :: RetryPolicy
-  retryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
-    constantDelay (Milliseconds 100.0)
 
 mkServerEndpointUrl :: PlutipConfig -> String -> String
 mkServerEndpointUrl cfg path = do

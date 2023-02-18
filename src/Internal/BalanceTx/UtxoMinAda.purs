@@ -10,9 +10,6 @@ import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), lovelaceValueOf)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.QueryM.Ogmios
-  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
-  )
 import Ctl.Internal.Serialization (convertTxOutput)
 import Ctl.Internal.Serialization.Types (DataCost)
 import Ctl.Internal.Serialization.Types (TransactionOutput) as Csl
@@ -21,8 +18,10 @@ import Ctl.Internal.Types.BigNum
   ( fromBigInt
   , maxValue
   , toBigInt
-  , toBigIntUnsafe
   ) as BigNum
+import Ctl.Internal.Types.ProtocolParameters
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
+  )
 import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)
 import Effect (Effect)
@@ -49,10 +48,10 @@ utxoMinAdaValue coinsPerUtxoUnit txOutput = do
         (BigNum.fromBigInt n)
   pure $ minAdaForOutput maybeFfiHelper cslTxOutput dataCost
     -- useful spy: BigNum.toBigInt >>= (pure <<< spy "utxoMinAdaValue")
-    >>= BigNum.toBigInt
+    <#> BigNum.toBigInt
 
 adaOnlyUtxoMinAdaValue :: CoinsPerUtxoUnit -> Effect BigInt
 adaOnlyUtxoMinAdaValue coinsPerUtxoUnit =
   map (unsafePartial fromJust) <<< utxoMinAdaValue coinsPerUtxoUnit <<<
     fakeOutputWithValue
-    $ lovelaceValueOf (BigNum.toBigIntUnsafe BigNum.maxValue)
+    $ lovelaceValueOf (BigNum.toBigInt BigNum.maxValue)

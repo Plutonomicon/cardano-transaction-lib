@@ -8,7 +8,6 @@ module Contract.PlutusData
   , getDatumsByHashesWithErrors
   , module DataSchema
   , module Datum
-  , module ExportQueryM
   , module Hashing
   , module IsData
   , module Nat
@@ -23,7 +22,9 @@ module Contract.PlutusData
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
+import Control.Parallel (parTraverse)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
 import Ctl.Internal.FromData
   ( class FromData
@@ -33,7 +34,7 @@ import Ctl.Internal.FromData
   , FromDataError
       ( ArgsWantedButGot
       , FromDataFailed
-      , BigIntToIntFailed
+      , BigNumToIntFailed
       , IndexWantedButGot
       , WantedConstrGot
       )
@@ -67,17 +68,6 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , PNil
   , PSchema
   ) as DataSchema
-import Ctl.Internal.QueryM
-  ( DatumCacheListeners
-  , DatumCacheWebSocket
-  , defaultDatumCacheWsConfig
-  , mkDatumCacheWebSocketAff
-  ) as ExportQueryM
-import Ctl.Internal.QueryM
-  ( getDatumByHash
-  , getDatumsByHashes
-  , getDatumsByHashesWithErrors
-  ) as QueryM
 import Ctl.Internal.Serialization (serializeData) as Serialization
 import Ctl.Internal.ToData
   ( class ToData
@@ -93,7 +83,7 @@ import Ctl.Internal.ToData
   , toDataWithSchema
   ) as ToData
 import Ctl.Internal.TypeLevel.Nat (Nat, S, Z) as Nat
-import Ctl.Internal.Types.Datum (DataHash)
+import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -107,30 +97,34 @@ import Ctl.Internal.Types.Redeemer
   , redeemerHash
   , unitRedeemer
   ) as Redeemer
-import Data.Either (Either)
+import Data.Either (Either(Left, Right), hush)
 import Data.Map (Map)
-import Data.Maybe (Maybe)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Tuple (Tuple(Tuple))
+import Effect.Aff.Class (liftAff)
 
--- | Get a `PlutusData` given a `DatumHash`.
-getDatumByHash
-  :: forall (r :: Row Type)
-   . DataHash
-  -> Contract r (Maybe Datum.Datum)
-getDatumByHash = wrapContract <<< QueryM.getDatumByHash
+-- | Retrieve the full resolved datum associated to a given datum hash.
+getDatumByHash :: DataHash -> Contract (Maybe Datum)
+getDatumByHash dataHash = do
+  queryHandle <- getQueryHandle
+  liftAff $ join <<< hush <$> queryHandle.getDatumByHash dataHash
 
--- | Get `PlutusData`s given an `Array` of `DataHash`.
--- | This function discards all possible error getting a `DataHash`.
-getDatumsByHashes
-  :: forall (r :: Row Type)
-   . Array DataHash
-  -> Contract r (Map DataHash Datum.Datum)
-getDatumsByHashes = wrapContract <<< QueryM.getDatumsByHashes
+-- | Retrieve full resolved datums associated with given datum hashes.
+-- | The resulting `Map` will only contain datums that have been successfully
+-- | resolved.
+getDatumsByHashes :: Array DataHash -> Contract (Map DataHash Datum)
+getDatumsByHashes hashes =
+  Map.mapMaybe hush <$> getDatumsByHashesWithErrors hashes
 
--- | Get `PlutusData`s given an `Array` of `DataHash`.
--- | In case of error, the returned string contains the needed information.
+-- | Retrieve full resolved datums associated with given datum hashes.
+-- | Errors are returned per datum.
 getDatumsByHashesWithErrors
-  :: forall (r :: Row Type)
-   . Array DataHash
-  -> Contract r (Map DataHash (Either String Datum.Datum))
-getDatumsByHashesWithErrors = wrapContract <<<
-  QueryM.getDatumsByHashesWithErrors
+  :: Array DataHash -> Contract (Map DataHash (Either String Datum))
+getDatumsByHashesWithErrors hashes = do
+  queryHandle <- getQueryHandle
+  liftAff $ Map.fromFoldable <$> flip parTraverse hashes
+    \dh -> queryHandle.getDatumByHash dh <#> Tuple dh <<< case _ of
+      Right (Just datum) -> Right datum
+      Right Nothing -> Left "Datum not found"
+      Left err -> Left $ show err

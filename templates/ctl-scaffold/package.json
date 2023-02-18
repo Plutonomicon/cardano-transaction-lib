@@ -7,6 +7,7 @@
     "test": "test"
   },
   "scripts": {
+    "blockfrost-test": "source ./test/blockfrost.env && spago run --main Scaffold.Test.Blockfrost",
     "test": "spago run --main Test.Scaffold.Main",
     "e2e-serve": "make e2e-serve",
     "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run'",
@@ -20,15 +21,18 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "apply-args-browser": "0.0.1",
-    "apply-args-nodejs": "0.0.1",
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
-    "@emurgo/cardano-serialization-lib-browser": "^11.1.1-alpha.1",
-    "@emurgo/cardano-serialization-lib-nodejs": "11.1.1-alpha.1",
-    "base64-js": "^1.5.1",
+    "@emurgo/cardano-serialization-lib-browser": "11.2.1",
+    "@emurgo/cardano-serialization-lib-nodejs": "11.2.1",
+    "@mlabs-haskell/csl-gc-wrapper": "^1.0.1",
+    "@mlabs-haskell/json-bigint": " 1.0.0",
     "@noble/secp256k1": "^1.7.0",
+    "apply-args-browser": "0.0.1",
+    "apply-args-nodejs": "0.0.1",
+    "base64-js": "^1.5.1",
     "big-integer": "1.6.51",
+    "bignumber.js": "^9.1.1",
     "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
     "jssha": "3.2.0",
@@ -37,8 +41,7 @@
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
     "ws": "8.4.0",
-    "xhr2": "0.2.1",
-    "@mlabs-haskell/json-bigint": " 1.0.0"
+    "xhr2": "0.2.1"
   },
   "devDependencies": {
     "buffer": "6.0.3",

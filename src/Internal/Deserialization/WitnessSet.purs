@@ -5,7 +5,6 @@ module Ctl.Internal.Deserialization.WitnessSet
   , convertVkeyWitnesses
   , convertVkeyWitness
   , convertWitnessSet
-  , deserializeWitnessSet
   , plutusScriptBytes
   ) where
 
@@ -53,22 +52,18 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData (PlutusData) as T
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
-import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (for, traverse)
 import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
 
-deserializeWitnessSet :: ByteArray -> Maybe TransactionWitnessSet
-deserializeWitnessSet = _deserializeWitnessSet maybeFfiHelper
-
 convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
 convertWitnessSet ws = do
-  nativeScripts <- for (getNativeScripts maybeFfiHelper ws) convertNativeScripts
+  let
+    nativeScripts = getNativeScripts maybeFfiHelper ws <#> convertNativeScripts
+    plutusScripts = getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
+    plutusData = getWitnessSetPlutusData maybeFfiHelper ws <#> convertPlutusList
   redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
-  plutusData <- for (getWitnessSetPlutusData maybeFfiHelper ws)
-    convertPlutusList
-  plutusScripts <- for (getPlutusScripts maybeFfiHelper ws) convertPlutusScripts
   pure $ T.TransactionWitnessSet
     { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     , nativeScripts
@@ -93,9 +88,9 @@ convertVkeyWitness witness =
 convertVkey :: Vkey -> T.Vkey
 convertVkey = T.Vkey <<< T.mkFromCslPubKey <<< vkeyPublicKey
 
-convertNativeScripts :: NativeScripts -> Maybe (Array T.NativeScript)
+convertNativeScripts :: NativeScripts -> Array T.NativeScript
 convertNativeScripts nativeScripts =
-  for (extractNativeScripts nativeScripts) convertNativeScript
+  extractNativeScripts nativeScripts <#> convertNativeScript
 
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
@@ -105,18 +100,18 @@ convertBootstraps = extractBootstraps >>> map \bootstrap ->
   , attributes: getBootstrapAttributes bootstrap
   }
 
-convertPlutusScripts :: PlutusScripts -> Maybe (Array S.PlutusScript)
+convertPlutusScripts :: PlutusScripts -> Array S.PlutusScript
 convertPlutusScripts plutusScripts =
-  for (extractPlutusScripts plutusScripts) convertPlutusScript
+  extractPlutusScripts plutusScripts <#> convertPlutusScript
 
-convertPlutusScript :: PlutusScript -> Maybe S.PlutusScript
-convertPlutusScript plutusScript =
-  hush do
-    language <- convertLanguage $ plutusScriptVersion plutusScript
-    pure $ curry S.PlutusScript (plutusScriptBytes plutusScript) language
+convertPlutusScript :: PlutusScript -> S.PlutusScript
+convertPlutusScript plutusScript = do
+  let
+    language = convertLanguage $ plutusScriptVersion plutusScript
+  curry S.PlutusScript (plutusScriptBytes plutusScript) language
 
-convertPlutusList :: PlutusList -> Maybe (Array T.PlutusData)
-convertPlutusList = extractPlutusData >>> traverse convertPlutusData
+convertPlutusList :: PlutusList -> Array T.PlutusData
+convertPlutusList = extractPlutusData >>> map convertPlutusData
 
 convertRedeemers :: Redeemers -> Maybe (Array T.Redeemer)
 convertRedeemers = extractRedeemers >>> traverse convertRedeemer
@@ -124,9 +119,10 @@ convertRedeemers = extractRedeemers >>> traverse convertRedeemer
 convertRedeemer :: Redeemer -> Maybe T.Redeemer
 convertRedeemer redeemer = do
   tag <- convertRedeemerTag $ getRedeemerTag redeemer
-  index <- BigNum.toBigInt $ getRedeemerIndex redeemer
-  exUnits <- convertExUnits $ getExUnits redeemer
-  data_ <- convertPlutusData $ getRedeemerPlutusData redeemer
+  let
+    index = BigNum.toBigInt $ getRedeemerIndex redeemer
+    exUnits = convertExUnits $ getExUnits redeemer
+    data_ = convertPlutusData $ getRedeemerPlutusData redeemer
   pure $ T.Redeemer
     { tag
     , index
@@ -142,11 +138,13 @@ convertRedeemerTag tag = case getRedeemerTagKind tag of
   3 -> Just Tag.Reward
   _ -> Nothing
 
-convertExUnits :: ExUnits -> Maybe T.ExUnits
-convertExUnits eu = do
-  mem <- BigNum.toBigInt $ getExUnitsMem eu
-  steps <- BigNum.toBigInt $ getExUnitsSteps eu
-  pure { mem, steps }
+convertExUnits :: ExUnits -> T.ExUnits
+convertExUnits eu =
+  let
+    mem = BigNum.toBigInt $ getExUnitsMem eu
+    steps = BigNum.toBigInt $ getExUnitsSteps eu
+  in
+    { mem, steps }
 
 foreign import getVkeywitnesses
   :: MaybeFfiHelper -> TransactionWitnessSet -> Maybe Vkeywitnesses
@@ -197,5 +195,3 @@ foreign import getRedeemerPlutusData :: Redeemer -> PlutusData
 foreign import getExUnits :: Redeemer -> ExUnits
 foreign import getExUnitsMem :: ExUnits -> BigNum
 foreign import getExUnitsSteps :: ExUnits -> BigNum
-foreign import _deserializeWitnessSet
-  :: MaybeFfiHelper -> ByteArray -> Maybe TransactionWitnessSet

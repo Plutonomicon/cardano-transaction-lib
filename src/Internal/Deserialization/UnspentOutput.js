@@ -6,6 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 const call = property => object => object[property]();
 const callMaybe = property => maybe => object => {
@@ -64,10 +65,3 @@ exports.extractAssets = extractDict;
 exports.getDataHash = callMaybe("data_hash");
 exports.mkTransactionUnspentOutput = input => output =>
   lib.TransactionUnspentOutput.new(input, output);
-exports._newTransactionUnspentOutputFromBytes = maybe => bytes => {
-  try {
-    return maybe.just(lib.TransactionUnspentOutput.from_bytes(bytes));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};

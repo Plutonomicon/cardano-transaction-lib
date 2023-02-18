@@ -10,6 +10,15 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
+
+exports.blake2b224Hash = bytesToHash => {
+  return Blake2.blake2b(bytesToHash, null, 28);
+};
+
+exports.blake2b224HashHex = bytesToHash => {
+  return Blake2.blake2bHex(bytesToHash, null, 28);
+};
 
 exports.blake2b256Hash = bytesToHash => {
   return Blake2.blake2b(bytesToHash, null, 32);
@@ -20,7 +29,7 @@ exports.blake2b256HashHex = bytesToHash => {
 };
 
 exports.hashPlutusData = plutusData => {
-  return lib.hash_plutus_data(plutusData).to_bytes();
+  return lib.hash_plutus_data(plutusData);
 };
 
 exports.hashPlutusScript = script => script.hash();

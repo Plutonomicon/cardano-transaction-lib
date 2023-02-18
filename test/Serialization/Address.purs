@@ -3,12 +3,11 @@ module Test.Ctl.Serialization.Address (suite) where
 import Prelude
 
 import Contract.Address (addressWithNetworkTagFromBech32)
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
-  , addressBytes
   , addressFromBech32
-  , addressFromBytes
   , addressNetworkId
   , baseAddressDelegationCred
   , baseAddressFromAddress
@@ -30,8 +29,6 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressPaymentCred
   , rewardAddressToAddress
   , scriptHashCredential
-  , stakeCredentialFromBytes
-  , stakeCredentialToBytes
   , stakeCredentialToKeyHash
   , stakeCredentialToScriptHash
   )
@@ -41,10 +38,11 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
-import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -68,7 +66,7 @@ mPkh :: Maybe Ed25519KeyHash
 mPkh = ed25519KeyHashFromBech32 pkhBech32
 
 mScriptHash :: Maybe ScriptHash
-mScriptHash = scriptHashFromBytes $ hexToRawBytesUnsafe scriptHashHex
+mScriptHash = scriptHashFromBytes $ hexToByteArrayUnsafe scriptHashHex
 
 addressFunctionsTest :: TestPlanM (Aff Unit) Unit
 addressFunctionsTest = test "Address tests" $ do
@@ -81,9 +79,9 @@ addressFunctionsTest = test "Address tests" $ do
     addressFromBech32 bechstr
   bechstr `shouldEqual` addressBech32 addr1
   addressFromBech32 "randomstuff" `shouldEqual` Nothing
-  let addrBts = addressBytes addr1
+  let addrBts = toBytes addr1
   addr2 <- errMaybe "addressFromBech32 failed on valid bech32" $
-    addressFromBytes addrBts
+    fromBytes addrBts
   addr2 `shouldEqual` addr1
   addressNetworkId addr2 `shouldEqual` MainnetId
   testnetAddr <-
@@ -103,20 +101,18 @@ stakeCredentialTests = test "StakeCredential tests" $ do
   let
     pkhCred = keyHashCredential $ pkh
     schCred = scriptHashCredential $ scrh
-    pkhCredBytes = stakeCredentialToBytes pkhCred
-    schCredBytes = stakeCredentialToBytes schCred
+    pkhCredBytes = toBytes pkhCred
+    schCredBytes = toBytes schCred
 
-  pkhCred2 <- errMaybe "stakeCredentialFromBytes failed on valid bytes" $
-    stakeCredentialFromBytes
-      pkhCredBytes
+  pkhCred2 <- errMaybe "StakeCredential FromBytes failed on valid bytes" $
+    fromBytes pkhCredBytes
   pkh2 <- errMaybe "stakeCredentialToKeyHash failed" $ stakeCredentialToKeyHash
     pkhCred2
   pkh2 `shouldEqual` pkh
   stakeCredentialToScriptHash pkhCred2 `shouldEqual` Nothing
 
-  schCred2 <- errMaybe "takeCredentialFromBytes failed on valid bytes" $
-    stakeCredentialFromBytes
-      schCredBytes
+  schCred2 <- errMaybe "StakeCredential FromBytes failed on valid bytes" $
+    fromBytes schCredBytes
   sch2 <- errMaybe "stakeCredentialToScriptHash failed" $
     stakeCredentialToScriptHash schCred2
   sch2 `shouldEqual` scrh

@@ -3,11 +3,11 @@ module Ctl.Examples.Wallet (example, contract) where
 import Contract.Prelude
 
 import Contract.Address (getWalletAddresses, getWalletCollateral)
-import Contract.Config (ConfigParams)
+import Contract.Config (ContractParams)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Utxos (getWalletBalance, getWalletUtxos)
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   log "Address:"
   log <<< show =<< getWalletAddresses
@@ -18,6 +18,6 @@ contract = do
   log "UTxOs:"
   log <<< show =<< getWalletUtxos
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract

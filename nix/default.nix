@@ -25,7 +25,7 @@
 let
   inherit (pkgs) system;
 
-  purs = pkgs.easy-ps.purs-0_14_5;
+  purs = pkgs.easy-ps.purs-0_14_9;
 
   spagoPkgs = import spagoPackages { inherit pkgs; };
 
@@ -93,7 +93,7 @@ let
       # available in the shell environment. This can help with ensuring that
       # any e2e tests that you write and run with `Contract.Test.E2E` are
       # reproducible
-    , withChromium ? false
+    , withChromium ? true
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       with pkgs.lib;
@@ -128,9 +128,7 @@ let
               lists.optional withRuntime (
                 [
                   pkgs.ogmios
-                  pkgs.ogmios-datum-cache
                   pkgs.plutip-server
-                  pkgs.postgresql
                   pkgs.kupo
                 ]
               )
@@ -239,7 +237,7 @@ let
   # the following required `buildInputs` available in your own package set:
   #
   #  - `ogmios`
-  #  - `ogmios-datum-cache`
+  #  - `kupo`
   #  - `plutip-server`
   #
   runPlutipTest =
@@ -247,9 +245,7 @@ let
     runPursTest (
       args // {
         buildInputs = with pkgs; [
-          postgresql
           ogmios
-          ogmios-datum-cache
           plutip-server
           kupo
         ]
@@ -328,15 +324,15 @@ let
         buildInputs = with pkgs; [
           project
           nodeModules
-          postgresql
           ogmios
-          ogmios-datum-cache
+          kupo
           plutip-server
           chromium
           python38 # To serve bundled CTL
           # Utils needed by E2E test code
           which # used to check for browser availability
           gnutar # used unpack settings archive within E2E test code
+          curl # used to query for the web server to start (see below)
         ] ++ (args.buildInputs or [ ]);
         NODE_PATH = "${nodeModules}/lib/node_modules";
       } // env)
@@ -352,13 +348,15 @@ let
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
-        export OGMIOS_DATUM_CACHE_PORT=10005
-        export POSTGRES_PORT=5438
         export E2E_SKIP_JQUERY_DOWNLOAD=true
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
         python -m http.server 4008 --directory ${bundledPursProject}/dist &
-        sleep 3 # Wait for it to start serving
+        until curl -S http://127.0.0.1:4008/index.html &>/dev/null; do
+          echo "Trying to connect to webserver...";
+          sleep 0.1;
+        done;
+
 
         ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
         mkdir $out
@@ -384,6 +382,8 @@ let
       # Generated `node_modules` in the Nix store. Can be passed to have better
       # control over individual project components
     , nodeModules ? projectNodeModules
+      # If the spago bundle-module output should be included in the derivation
+    , includeBundledModule ? false
     , ...
     }: pkgs.runCommand "${name}"
       {
@@ -407,6 +407,7 @@ let
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
         mkdir ./dist
+        ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
         webpack --mode=production -c ${webpackConfig} -o ./dist \
           --entry ./${entrypoint}
         mkdir $out

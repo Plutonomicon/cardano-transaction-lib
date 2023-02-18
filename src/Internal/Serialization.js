@@ -6,6 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 const setter = prop => obj => value => () => obj["set_" + prop](value);
 
@@ -43,14 +44,8 @@ exports.newTransaction = body => witness_set => auxiliary_data => () =>
 exports.newTransaction_ = body => witness_set => () =>
   lib.Transaction.new(body, witness_set);
 
-exports.newTransactionUnspentOutputFromBytes = bytes => () =>
-  lib.TransactionUnspentOutput.from_bytes(bytes);
-
 exports.newTransactionUnspentOutput = input => output => () =>
   lib.TransactionUnspentOutput.new(input, output);
-
-exports.newTransactionWitnessSetFromBytes = bytes => () =>
-  lib.TransactionWitnessSet.from_bytes(bytes);
 
 exports.newMultiAsset = () => lib.MultiAsset.new();
 
@@ -121,9 +116,6 @@ exports.addRedeemer = rs => r => () => rs.add(r);
 
 exports.setTxBodyReferenceInputs = txBody => referenceInputs => () =>
   txBody.set_reference_inputs(referenceInputs);
-
-exports.newScriptDataHashFromBytes = bytes => () =>
-  lib.ScriptDataHash.from_bytes(bytes);
 
 exports.setTxBodyScriptDataHash = setter("script_data_hash");
 
@@ -244,8 +236,8 @@ exports.transactionBodySetValidityStartInterval = setter(
   "validity_start_interval_bignum"
 );
 
-exports.transactionBodySetAuxiliaryDataHash = txBody => hashBytes => () =>
-  txBody.set_auxiliary_data_hash(lib.AuxiliaryDataHash.from_bytes(hashBytes));
+exports.transactionBodySetAuxiliaryDataHash = txBody => hash => () =>
+  txBody.set_auxiliary_data_hash(hash);
 
 exports.convertPoolOwners = containerHelper => keyHashes => () =>
   containerHelper.pack(lib.Ed25519KeyHashes, keyHashes);
@@ -271,12 +263,7 @@ exports.newMultiHostName = dnsName => () =>
   );
 
 exports.newPoolMetadata = url => hash => () =>
-  lib.PoolMetadata.new(lib.URL.new(url), lib.PoolMetadataHash.from_bytes(hash));
-
-exports.newGenesisHash = bytes => () => lib.GenesisHash.from_bytes(bytes);
-
-exports.newGenesisDelegateHash = bytes => () =>
-  lib.GenesisDelegateHash.from_bytes(bytes);
+  lib.PoolMetadata.new(lib.URL.new(url), hash);
 
 exports.newMoveInstantaneousRewardToOtherPot = pot => amount => () =>
   lib.MoveInstantaneousReward.new_to_other_pot(pot, amount);
@@ -348,6 +335,10 @@ exports.ppuSetMaxTxExUnits = setter("max_tx_ex_units");
 exports.ppuSetMaxBlockExUnits = setter("max_block_ex_units");
 
 exports.ppuSetMaxValueSize = setter("max_value_size");
+
+exports.ppuSetCollateralPercentage = setter("collateral_percentage");
+
+exports.ppuSetMaxCollateralInputs = setter("max_collateral_inputs");
 
 exports.newProtocolParamUpdate = () => lib.ProtocolParamUpdate.new();
 

@@ -28,7 +28,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
 import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset)
 import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Types.BigNum (maxValue, toBigIntUnsafe) as BigNum
+import Ctl.Internal.Types.BigNum (maxValue, toBigInt) as BigNum
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
@@ -53,7 +53,7 @@ addTxCollateral collateral transaction =
 -- | to `minRequiredCollateral`, returns unmodified transaction (see NOTE).
 -- |
 -- | NOTE: Collateral cannot be less than `minRequiredCollateral` when
--- | selected using `selectCollateral` function in this module.
+-- | selected using `selectCollateral` function
 addTxCollateralReturn
   :: Array TransactionUnspentOutput
   -> Transaction
@@ -80,7 +80,7 @@ addTxCollateralReturn collateral transaction ownAddress =
   setTxCollateralReturn collAdaValue collNonAdaAsset = do
     let
       maxBigNumAdaValue :: Coin
-      maxBigNumAdaValue = wrap (BigNum.toBigIntUnsafe BigNum.maxValue)
+      maxBigNumAdaValue = wrap (BigNum.toBigInt BigNum.maxValue)
 
       collReturnOutputRec =
         { address: ownAddress

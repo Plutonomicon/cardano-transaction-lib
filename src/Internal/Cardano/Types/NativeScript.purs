@@ -24,7 +24,7 @@ import Ctl.Internal.Metadata.Helpers (errExpectedObject)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (fromString)
-import Ctl.Internal.Types.RawBytes (hexToRawBytesUnsafe)
+import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Data.Array.NonEmpty (fromFoldable)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -55,7 +55,9 @@ instance Arbitrary NativeScript where
     [ ScriptPubkey <$> (pure pk)
     , ScriptAll <$> sized (\i -> resize (i `div` 2) arbitrary)
     , ScriptAny <$> sized (\i -> resize (i `div` 2) arbitrary)
-    , ScriptNOfK <$> arbitrary <*> sized (\i -> resize (i `div` 2) arbitrary)
+    , ScriptNOfK
+        <$> suchThat (arbitrary :: Gen Int) (_ >= 0)
+        <*> sized (\i -> resize (i `div` 2) arbitrary)
     , TimelockStart <$> map
         (wrap <<< (unsafePartial $ fromJust <<< fromString <<< show))
         (suchThat (arbitrary :: Gen Int) (_ > 0))
@@ -66,7 +68,7 @@ instance Arbitrary NativeScript where
     where
     pk :: Ed25519KeyHash
     pk = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
-      hexToRawBytesUnsafe
+      hexToByteArrayUnsafe
         "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 instance DecodeAeson NativeScript where

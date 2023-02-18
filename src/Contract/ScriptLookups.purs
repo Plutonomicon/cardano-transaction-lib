@@ -16,7 +16,7 @@ module Contract.ScriptLookups
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
+import Contract.Monad (Contract)
 import Ctl.Internal.IsData (class IsData)
 import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
@@ -37,7 +37,6 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotConvertPOSIXTimeRange
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , MkTypedTxOutFailed
       , TypedTxOutHasNoDatumHash
       , CannotHashMintingPolicy
       , CannotHashValidator
@@ -75,28 +74,28 @@ import Data.Maybe (Maybe)
 -- | a separate call. In particular, this should be called in conjuction with
 -- | `balanceTx` and  `signTransaction`.
 mkUnbalancedTx
-  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+  :: forall (validator :: Type) (datum :: Type)
        (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
   => ScriptLookups.ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> Contract r
+  -> Contract
        ( Either
            ScriptLookups.MkUnbalancedTxError
            ScriptLookups.UnattachedUnbalancedTx
        )
-mkUnbalancedTx lookups = wrapContract <<< SL.mkUnbalancedTx lookups
+mkUnbalancedTx = SL.mkUnbalancedTx
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
 mkUnbalancedTxM
-  :: forall (r :: Row Type) (validator :: Type) (datum :: Type)
+  :: forall (validator :: Type) (datum :: Type)
        (redeemer :: Type)
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
   => ScriptLookups.ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> Contract r (Maybe ScriptLookups.UnattachedUnbalancedTx)
+  -> Contract (Maybe ScriptLookups.UnattachedUnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
