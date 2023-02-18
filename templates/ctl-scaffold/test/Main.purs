@@ -11,6 +11,7 @@ import Contract.Test.Plutip
   , PlutipConfig
   , PlutipTest
   , testPlutipContracts
+  , withKeyWallet
   , withWallets
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
@@ -24,7 +25,7 @@ import Effect.Aff
   , effectCanceler
   , launchAff
   )
-import Mote (test)
+import Mote (group, test)
 import Scaffold (contract)
 import Test.Spec.Runner (defaultConfig)
 
@@ -38,15 +39,17 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 suite :: TestPlanM PlutipTest Unit
 suite = do
-  test "Print PubKey" do
-    let
-      distribution :: InitialUTxOs
-      distribution =
-        [ BigInt.fromInt 5_000_000
-        , BigInt.fromInt 2_000_000_000
-        ]
-    withWallets distribution \_ -> do
-      contract
+  group "Project tests" do
+    test "Print PubKey" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000_000
+          ]
+      withWallets distribution \wallet -> do
+        withKeyWallet wallet do
+          contract
 
 config :: PlutipConfig
 config =
