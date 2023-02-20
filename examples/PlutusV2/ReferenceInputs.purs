@@ -8,7 +8,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -19,12 +19,13 @@ import Contract.Monad
   , runContract
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Test.Utils
+import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
-  , ContractBasicAssertion
-  , label
+  , ContractCheck
+  , assertContract
+  , assertionToCheck
+  , runChecks
   )
-import Contract.Test.Utils as TestUtils
 import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionInput
@@ -38,6 +39,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
+import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head) as Array
 import Data.BigInt (fromInt) as BigInt
@@ -48,10 +50,10 @@ import Data.Set (member) as Set
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
 
@@ -77,7 +79,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  void $ TestUtils.withAssertions assertions do
+  void $ runChecks checks $ lift do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     balancedSignedTx <- signTransaction =<< liftedE (balanceTx unbalancedTx)
     txHash <- submit balancedSignedTx
@@ -93,33 +95,30 @@ type ContractResult =
   , balancedSignedTx :: BalancedSignedTransaction
   }
 
-assertTxContainsReferenceInput :: ContractBasicAssertion () ContractResult Unit
-assertTxContainsReferenceInput { balancedSignedTx, referenceInput } =
-  let
-    assertionFailure :: ContractAssertionFailure
-    assertionFailure =
-      CustomFailure "Could not find given input in `referenceInputs`"
-  in
-    TestUtils.runContractAssertionM' do
-      TestUtils.assertContract assertionFailure do
+assertTxContainsReferenceInput :: ContractCheck ContractResult
+assertTxContainsReferenceInput =
+  assertionToCheck "Tx contains a reference input"
+    \{ balancedSignedTx, referenceInput } -> do
+      let
+        assertionFailure :: ContractAssertionFailure
+        assertionFailure = CustomFailure
+          "Could not find given input in `referenceInputs`"
+      assertContract assertionFailure do
         Set.member referenceInput
           (unwrap balancedSignedTx ^. _body <<< _referenceInputs)
 
-assertReferenceInputNotSpent :: ContractBasicAssertion () ContractResult Unit
-assertReferenceInputNotSpent { ownAddress, referenceInput } =
-  let
-    assertionFailure :: ContractAssertionFailure
-    assertionFailure =
-      CustomFailure "Reference input has been spent"
-  in
-    TestUtils.runContractAssertionM' do
-      utxos <- TestUtils.utxosAtAddress (label ownAddress "ownAddress")
-      TestUtils.assertContract assertionFailure do
-        Map.member referenceInput utxos
+assertReferenceInputNotSpent :: ContractCheck ContractResult
+assertReferenceInputNotSpent = assertionToCheck "A reference input UTxO"
+  \{ ownAddress, referenceInput } -> do
+    let
+      assertionFailure :: ContractAssertionFailure
+      assertionFailure = CustomFailure "Reference input has been spent"
+    utxos <- lift $ utxosAt ownAddress
+    assertContract assertionFailure do
+      Map.member referenceInput utxos
 
-assertions :: Array (ContractBasicAssertion () ContractResult Unit)
-assertions =
+checks :: Array (ContractCheck ContractResult)
+checks =
   [ assertTxContainsReferenceInput
   , assertReferenceInputNotSpent
   ]
-

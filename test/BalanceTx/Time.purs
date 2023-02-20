@@ -81,7 +81,7 @@ suite = do
   where
   run = runContract testnetConfig { suppressLogs = true }
 
-mkTestFromSingleInterval :: Interval POSIXTime -> Contract () Unit
+mkTestFromSingleInterval :: Interval POSIXTime -> Contract Unit
 mkTestFromSingleInterval interval = do
   let
     constraint = mustValidateIn interval
@@ -93,7 +93,7 @@ mkTestFromSingleInterval interval = do
         returnedInterval <- getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` interval
 
-testEmptyInterval :: Contract () Unit
+testEmptyInterval :: Contract Unit
 testEmptyInterval = do
   let
     constraint = mustValidateIn never
@@ -102,7 +102,7 @@ testEmptyInterval = do
     Left _ -> pure unit
     Right utx -> fail $ "Empty interval must fail : " <> show utx
 
-testEmptyMultipleIntervals :: Contract () Unit
+testEmptyMultipleIntervals :: Contract Unit
 testEmptyMultipleIntervals = do
   let
     intervals =
@@ -116,7 +116,7 @@ testEmptyMultipleIntervals = do
     Right utx -> fail $ "Empty interval must fail : " <> show utx
 
 mkTestMultipleInterval
-  :: Array (Interval POSIXTime) -> Interval POSIXTime -> Contract () Unit
+  :: Array (Interval POSIXTime) -> Interval POSIXTime -> Contract Unit
 mkTestMultipleInterval intervals expected = do
   let
     constraint = foldMap mustValidateIn intervals
@@ -149,12 +149,12 @@ unsafeSubtractOne value = wrap <<< fromJust
 --------------------------------------------------------------------------------
 
 getTimeFromUnbalanced
-  :: UnattachedUnbalancedTx -> Contract () (Interval POSIXTime)
+  :: UnattachedUnbalancedTx -> Contract (Interval POSIXTime)
 getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
   where
   body = (_transaction <<< _body) `view` (unwrap utx).unbalancedTx
 
-toPosixTime :: Slot -> Contract () POSIXTime
+toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do
   eraSummaries <- getEraSummaries
   systemStart <- getSystemStart
@@ -163,7 +163,7 @@ toPosixTime time = do
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value
 
-toPosixTimeRange :: Interval Slot -> Contract () (Interval POSIXTime)
+toPosixTimeRange :: Interval Slot -> Contract (Interval POSIXTime)
 toPosixTimeRange range = do
   eraSummaries <- getEraSummaries
   systemStart <- getSystemStart
@@ -176,7 +176,7 @@ toPosixTimeRange range = do
 validityToPosixTime
   :: forall (r :: Row Type)
    . { validityStartInterval :: Maybe Slot, ttl :: Maybe Slot | r }
-  -> Contract () (Interval POSIXTime)
+  -> Contract (Interval POSIXTime)
 validityToPosixTime { validityStartInterval, ttl: timeToLive } =
   case validityStartInterval of
     Just start ->

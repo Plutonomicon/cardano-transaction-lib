@@ -2,11 +2,7 @@ module Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ErrorMessage
   , FilePath
-  , InitialUTxOs
-  , InitialUTxODistribution
-  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , PlutipConfig
-  , PostgresConfig
   , ClusterStartupRequest(ClusterStartupRequest)
   , PrivateKeyResponse(PrivateKeyResponse)
   , ClusterStartupFailureReason
@@ -20,7 +16,6 @@ module Ctl.Internal.Plutip.Types
       )
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse(StopClusterSuccess, StopClusterFailure)
-  , UtxoAmount
   ) where
 
 import Prelude
@@ -35,14 +30,13 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.QueryM (Hooks)
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig)
 import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.ServerConfig (ServerConfig)
+import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
-import Ctl.Internal.Wallet.Key (PrivateStakeKey)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
@@ -56,16 +50,16 @@ import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Partial.Unsafe (unsafePartial)
 
+-- | A config that is used to run tests on Plutip clusters.
+-- | Note that the test suite starts the services on the specified ports.
+-- | It does not expect them to be running.
 type PlutipConfig =
   { host :: String
   , port :: UInt
   , logLevel :: LogLevel
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
-  , ogmiosDatumCacheConfig :: ServerConfig
   , kupoConfig :: ServerConfig
-  -- Should be synchronized with `defaultConfig.postgres` in `flake.nix`
-  , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
@@ -73,27 +67,9 @@ type PlutipConfig =
       { slotLength :: Seconds }
   }
 
-type PostgresConfig =
-  { host :: String
-  , port :: UInt
-  , user :: String
-  , password :: String
-  , dbname :: String
-  }
-
 type FilePath = String
 
 type ErrorMessage = String
-
--- | UTxO amount in Lovelaces
-type UtxoAmount = BigInt
-
-type InitialUTxOs = Array UtxoAmount
-
-data InitialUTxOsWithStakeKey =
-  InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
-
-type InitialUTxODistribution = Array InitialUTxOs
 
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution

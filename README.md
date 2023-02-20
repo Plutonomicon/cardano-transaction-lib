@@ -34,15 +34,20 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
 - [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
 - [CTL's runtime dependencies](./doc/runtime.md)
+- [Blockfrost support](./doc/blockfrost.md)
 - [Getting started writing CTL contracts](./doc/getting-started.md)
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
-- [Testing contracts with Plutip](./doc/plutip-testing.md)
-- [End-to-end testing with headless browsers](./doc/e2e-testing.md)
+- [Testing overview](./doc/testing.md)
+  - [Testing contracts with Plutip](./doc/plutip-testing.md)
+  - [End-to-end testing with headless browsers](./doc/e2e-testing.md)
+  - [Utilities for testing](./doc/test-utils.md)
 - [CIP-25 NFT standard support](./doc/cip-25-nfts.md)
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)
 - [Ada staking support](./doc/staking.md)
+- [SECP256k1 support (CIP-49)](./doc/secp256k1-support.md)
 - [FAQs](./doc/faq.md)
+- [Feature overview video](./doc/video-intro.md)
 - [Development workflows for CTL](./doc/development.md)
 
 You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
@@ -81,7 +86,7 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
    - This has been solved using Ogmios & Kupo
    - We [will support](https://cardano.ideascale.com/c/idea/420791) an alternative [BlockFrost](https://blockfrost.io/) backend as well in the future
 3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
-   - `ogmios-datum-cache` solves this problem
+   - `Kupo` solves this problem
 4. How do we get wallet data?
    - This is done via browser-based light wallet integration in the browser based on CIP-30
 5. How closely should we follow Plutus' `Contract` API?

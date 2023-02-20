@@ -30,6 +30,8 @@ module Ctl.Internal.Wallet
   , apiVersion
   , name
   , icon
+  , actionBasedOnWallet
+  , callCip30Wallet
   ) where
 
 import Prelude
@@ -65,6 +67,7 @@ import Data.Newtype (over, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, error)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
@@ -87,7 +90,8 @@ data WalletExtension
   | NuFiWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet payKey
+mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
+  payKey
   mbStakeKey
 
 foreign import _enableWallet :: String -> Effect (Promise Cip30Connection)
@@ -280,3 +284,27 @@ dummySign tx@(Transaction { witnessSet: tws@(TransactionWitnessSet ws) }) =
               "ed25519_sig1ynufn5umzl746ekpjtzt2rf58ep0wg6mxpgyezh8vx0e8jpgm3kuu3tgm453wlz4rq5yjtth0fnj0ltxctaue0dgc2hwmysr9jvhjzswt86uk"
           )
     )
+
+actionBasedOnWallet
+  :: forall (m :: Type -> Type) (a :: Type)
+   . MonadAff m
+  => (Cip30Wallet -> Cip30Connection -> Aff a)
+  -> (KeyWallet -> m a)
+  -> Wallet
+  -> m a
+actionBasedOnWallet walletAction keyWalletAction =
+  case _ of
+    Eternl wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Nami wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Gero wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Flint wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Lode wallet -> liftAff $ callCip30Wallet wallet walletAction
+    NuFi wallet -> liftAff $ callCip30Wallet wallet walletAction
+    KeyWallet kw -> keyWalletAction kw
+
+callCip30Wallet
+  :: forall (a :: Type)
+   . Cip30Wallet
+  -> (Cip30Wallet -> (Cip30Connection -> Aff a))
+  -> Aff a
+callCip30Wallet wallet act = act wallet wallet.connection

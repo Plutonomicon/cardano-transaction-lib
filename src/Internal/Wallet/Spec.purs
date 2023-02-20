@@ -10,10 +10,32 @@ module Ctl.Internal.Wallet.Spec
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , mkWalletBySpec
   ) where
 
+import Prelude
+
+import Ctl.Internal.Wallet
+  ( Wallet
+  , WalletExtension
+      ( NamiWallet
+      , GeroWallet
+      , FlintWallet
+      , EternlWallet
+      , LodeWallet
+      , NuFiWallet
+      )
+  , mkKeyWallet
+  , mkWalletAff
+  )
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Ctl.Internal.Wallet.KeyFile
+  ( privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
+  )
 import Data.Maybe (Maybe)
+import Data.Traversable (for)
+import Effect.Aff (Aff)
 import Node.Path (FilePath)
 
 data PrivatePaymentKeySource
@@ -33,3 +55,21 @@ data WalletSpec
   | ConnectToEternl
   | ConnectToLode
   | ConnectToNuFi
+
+mkWalletBySpec :: WalletSpec -> Aff Wallet
+mkWalletBySpec = case _ of
+  UseKeys paymentKeySpec mbStakeKeySpec -> do
+    privatePaymentKey <- case paymentKeySpec of
+      PrivatePaymentKeyFile filePath ->
+        privatePaymentKeyFromFile filePath
+      PrivatePaymentKeyValue key -> pure key
+    mbPrivateStakeKey <- for mbStakeKeySpec case _ of
+      PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
+      PrivateStakeKeyValue key -> pure key
+    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
+  ConnectToNami -> mkWalletAff NamiWallet
+  ConnectToGero -> mkWalletAff GeroWallet
+  ConnectToFlint -> mkWalletAff FlintWallet
+  ConnectToEternl -> mkWalletAff EternlWallet
+  ConnectToLode -> mkWalletAff LodeWallet
+  ConnectToNuFi -> mkWalletAff NuFiWallet

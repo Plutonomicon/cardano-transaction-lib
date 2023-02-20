@@ -8,9 +8,11 @@ import Prelude
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
+  , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
+import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
@@ -31,7 +33,6 @@ import Contract.Scripts
   )
 import Contract.Staking
   ( getPoolIds
-  , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
@@ -67,8 +68,8 @@ import Contract.TxConstraints
 import Contract.Value (lovelaceValueOf)
 import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
-import Control.Monad.Reader (asks)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
+import Ctl.Examples.IncludeDatum (only42Script)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head, (!!))
 import Data.Array as Array
@@ -119,7 +120,7 @@ suite = do
   let
     -- A routine function that filters out retiring pool from the list of available
     -- pools
-    selectPoolId :: Contract () PoolPubKeyHash
+    selectPoolId :: Contract PoolPubKeyHash
     selectPoolId = do
       pools <- getPoolIds
       logInfo' "Pool IDs:"
@@ -184,14 +185,19 @@ suite = do
               <*>
                 liftedM "Failed to get Stake PKH"
                   (join <<< head <$> ownStakePubKeysHashes)
-          validator <- alwaysSucceedsScript <#> unwrap >>>
+          validator1 <- alwaysSucceedsScript <#> unwrap >>>
             PlutusScriptStakeValidator
-          let validatorHash = plutusScriptStakeValidatorHash validator
+          validator2 <- only42Script <#> unwrap >>>
+            PlutusScriptStakeValidator
+          let
+            validatorHash1 = plutusScriptStakeValidatorHash validator1
+            validatorHash2 = plutusScriptStakeValidatorHash validator2
 
           -- Register
           do
             let
-              constraints = mustRegisterStakeScript validatorHash
+              constraints = mustRegisterStakeScript validatorHash1 <>
+                mustRegisterStakeScript validatorHash2
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
@@ -204,8 +210,11 @@ suite = do
           -- Deregister stake key
           do
             let
-              constraints = mustDeregisterStakePlutusScript validator
-                unitRedeemer
+              constraints =
+                mustDeregisterStakePlutusScript validator1
+                  unitRedeemer
+                  <> mustDeregisterStakePlutusScript validator2
+                    unitRedeemer
 
               lookups :: Lookups.ScriptLookups Void
               lookups =
@@ -288,7 +297,7 @@ suite = do
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
-        networkId <- asks $ unwrap >>> _.config >>> _.networkId
+        networkId <- getNetworkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $
             publicKeyFromPrivateKey (unwrap privateStakeKey)
@@ -363,7 +372,7 @@ suite = do
           liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
 
         let
-          waitEpoch :: forall (r :: Row Type). Epoch -> Contract r Epoch
+          waitEpoch :: Epoch -> Contract Epoch
           waitEpoch epoch = do
             epochNow <- getCurrentEpoch
             if unwrap epochNow >= unwrap epoch then pure epochNow

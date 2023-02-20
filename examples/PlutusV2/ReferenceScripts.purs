@@ -7,7 +7,7 @@ module Ctl.Examples.PlutusV2.ReferenceScripts
 import Contract.Prelude
 
 import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
@@ -38,11 +38,11 @@ import Data.Map (toUnfoldable) as Map
 main :: Effect Unit
 main = example testnetNamiConfig
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceScripts"
   validator <- alwaysSucceedsScriptV2
@@ -60,7 +60,7 @@ contract = do
   spendFromAlwaysSucceeds vhash txId
 
 payWithScriptRefToAlwaysSucceeds
-  :: ValidatorHash -> ScriptRef -> Contract () TransactionHash
+  :: ValidatorHash -> ScriptRef -> Contract TransactionHash
 payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`
@@ -87,7 +87,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
 
   submitTxFromConstraints lookups constraints
 
-spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract () Unit
+spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract Unit
 spendFromAlwaysSucceeds vhash txId = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`

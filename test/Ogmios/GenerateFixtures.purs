@@ -5,8 +5,8 @@ module Test.Ctl.Ogmios.GenerateFixtures
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
-import Contract.Monad (ListenerSet)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.JsWebSocket
   ( _mkWebSocket
@@ -17,7 +17,8 @@ import Ctl.Internal.JsWebSocket
   , _wsSend
   )
 import Ctl.Internal.QueryM
-  ( WebSocket(WebSocket)
+  ( ListenerSet
+  , WebSocket(WebSocket)
   , WebsocketDispatch
   , defaultMessageListener
   , defaultOgmiosWsConfig
@@ -27,7 +28,7 @@ import Ctl.Internal.QueryM
   )
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
-import Ctl.Internal.QueryM.ServerConfig (ServerConfig, mkWsUrl)
+import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
@@ -43,9 +44,6 @@ import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
 
 -- A simple websocket for testing
--- TODO Generalize websocket constructors using type classes traversing rows
--- to factor mk{Ogmios{DatumCache,},}WebSocket into a single implementation
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/664
 mkWebSocket
   :: forall (a :: Type) (b :: Type)
    . DecodeAeson b
@@ -88,8 +86,6 @@ mkWebSocketAff
   -> Aff (WebSocket (ListenerSet a b))
 mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
-
-foreign import md5 :: String -> String
 
 data Query = Query (JsonWspCall Unit Aeson) String
 
@@ -136,9 +132,9 @@ main =
       pure { resp, query: shown }
 
     for_ resps \{ resp, query } -> do
+      let resp' = stringifyAeson resp
+      respMd5 <- liftEffect $ md5HashHex resp'
       let
-        resp' = stringifyAeson resp
-        respMd5 = md5 resp'
         fp = concat
           [ "fixtures"
           , "test"

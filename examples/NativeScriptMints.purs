@@ -9,7 +9,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
   )
-import Contract.Config (ConfigParams, testnetNamiConfig)
+import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
@@ -33,7 +33,7 @@ import Data.BigInt as BigInt
 main :: Effect Unit
 main = example testnetNamiConfig
 
-contract :: Contract () Unit
+contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
@@ -59,7 +59,7 @@ contract = do
 
   toSelfContract cs tn $ BigInt.fromInt 50
 
-toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract () Unit
+toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract Unit
 toSelfContract cs tn amount = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
   skh <- join <<< head <$> ownStakePubKeysHashes
@@ -78,7 +78,7 @@ toSelfContract cs tn amount = do
   awaitTxConfirmed txId
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"
 
-example :: ConfigParams () -> Effect Unit
+example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 

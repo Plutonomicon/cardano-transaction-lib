@@ -31,14 +31,22 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Serialization.Types (NativeScript)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  , hexToByteArray
+  )
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
 import Ctl.Internal.Types.RawBytes (RawBytes, rawBytesToHex)
 import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromJust, maybe)
 import Data.Newtype (unwrap, wrap)
+import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Gen (chooseInt, vectorOf)
 
 -- We can't use ToBytes class here, because of cyclic dependencies
 -- | Encodes the hash to `CborBytes`
@@ -118,6 +126,11 @@ instance DecodeAeson Ed25519KeyHash where
 
 instance EncodeAeson Ed25519KeyHash where
   encodeAeson = encodeAeson <<< rawBytesToHex <<< ed25519KeyHashToBytes
+
+instance Arbitrary Ed25519KeyHash where
+  arbitrary =
+    unsafePartial fromJust <<< ed25519KeyHashFromBytes <<<
+      byteArrayFromIntArrayUnsafe <$> vectorOf 28 (chooseInt 0 255)
 
 -- | Convert ed25519KeyHash to Bech32 representation with given prefix.
 -- | Will crash if prefix is invalid (length, mixed-case, etc)

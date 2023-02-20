@@ -7,63 +7,107 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Unreleased](#unreleased)
+- [[Unreleased]](#unreleased)
+  - [Fixed](#fixed)
+- [[v5.0.0]](#v500)
   - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
-  - [Fixed](#fixed)
+  - [Fixed](#fixed-1)
   - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
+  - [Fixed](#fixed-2)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
   - [Added](#added-1)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
+  - [Added](#added-2)
   - [Changed](#changed-1)
   - [Removed](#removed-1)
-  - [Fixed](#fixed-1)
+  - [Fixed](#fixed-3)
   - [Runtime Dependencies](#runtime-dependencies-1)
 - [[3.0.0] - 2022-11-21](#300---2022-11-21)
-  - [Added](#added-2)
+  - [Added](#added-3)
   - [Changed](#changed-2)
   - [Removed](#removed-2)
-  - [Fixed](#fixed-2)
+  - [Fixed](#fixed-4)
   - [Runtime Dependencies](#runtime-dependencies-2)
 - [[2.0.0] - 2022-09-12](#200---2022-09-12)
-  - [Added](#added-3)
+  - [Added](#added-4)
   - [Changed](#changed-3)
   - [Removed](#removed-3)
-  - [Fixed](#fixed-3)
+  - [Fixed](#fixed-5)
 - [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
-  - [Added](#added-4)
+  - [Added](#added-5)
   - [Removed](#removed-4)
   - [Changed](#changed-4)
-  - [Fixed](#fixed-4)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
-  - [Fixed](#fixed-5)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
   - [Fixed](#fixed-6)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+  - [Fixed](#fixed-7)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-8)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Unreleased
+## [Unreleased]
+
+### Fixed
+
+- Error message from `reconnecting-websocket` is passed correctly in `Ctl.Internal.JsWebSocket._onWsError` ([#1403](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1403))
+
+## [v5.0.0]
 
 ### Added
 
+- **Blockfrost support** - see [`blockfrost.md`](./doc/blockfrost.md) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- A test runner interface for Blockfrost (`Contract.Test.Blockfrost`). See [`blockfrost.md`](./doc/blockfrost.md) ([#1420](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1420))
+- `blake2b224Hash` and `blake2b224HashHex` functions for computing blake2b-224 hashes of arbitrary byte arrays ([#1323](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1323))
 - `bundlePursProject` allows passing of `includeBundledModule` flag to export the bundled JS module `spago bundle-module` outputs
-
 - `Contract.Transaction` exports `mkPoolPubKeyHash` and `poolPubKeyHashToBech32` for bech32 roundtripping ([#1360](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1360))
+- `Contract.isTxConfirmed` function to check if a transaction is confirmed at the moment.
 
 ### Changed
 
+- **Contract interface change:** `Contract` does not have a row type parameter anymore. Use `ReaderT` or pass values explicitly to access them during runtime.
+- **Contract interface change:** `ConfigParams r` is replaced by `ContractParams` with the same purpose.
+- `SystemStart` now has `DateTime` (rather than `String`) as the underlying type ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- `EraSummaries` now does not have an `EncodeAeson` instance. Consider wrapping it in `OgmiosEraSummaries` for Aeson encoding. ([#1377](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1377))
+- Testing interface is re-implemented. Assertion functions from `Contract.Test.Utils` are moved to `Contract.Test.Assert`. See [the docs](./doc/test-utils.md) for info on the new interface. ([#1389](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1389))
+- Balancer no longer selects UTxOs which use PlutusV2 features when the transaction contains PlutusV1 scripts ([#1349](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1349))
+- `startPlutipCluster` error message now includes cluster startup failure details. ([#1407](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1407))
+- `PlutipTest` is now known as `Contract.Test.ContractTest`. It has been semantically untied from Plutip, because we now have another test runner for tests that rely on particular funds distributions - [Blockfrost](./doc/blockfrost.md). See `Contract.Test.Blockfrost.runContractTestsWithBlockfrost` ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- `Contract.Staking.getPoolParameters` has been moved to `Contract.Backend.Ogmios.getPoolParameters`. This function only runs with Ogmios backend, because Blockfrost [does not provide](https://github.com/blockfrost/blockfrost-backend-ryo/issues/82) all the required values ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+- Use of [CIP-40](https://cips.cardano.org/cips/cip40/) collateral output is now enabled with CIP-30 wallets ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260)).
+- `reindexSpentScriptRedeemers` is no longer in Contract (it's pure) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
+
 ### Removed
+
+- **Important** [Ogmios Datum Cache](https://github.com/mlabs-haskell/ogmios-datum-cache) is no longer a runtime dependency of CTL, as well as its Postgres DB - if updating, remove them from your runtime.
 
 ### Fixed
 - CIP-25 strings are now being split into chunks whose sizes are less than or equal to 64 to adhere to the CIP-25 standard ([#1343](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1343))
 - Critical upstream fix in [`purescript-bignumber`](https://github.com/mlabs-haskell/purescript-bignumber/pull/2)
 - `OutputDatum` aeson encoding now roundtrips ([#1388](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1388))
-- Error message from `reconnecting-websocket` is passed correctly in `Ctl.Internal.JsWebSocket._onWsError` ([#1403](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1403))
+- Fix incorrect redeemer indexing for Plutus stake validator scripts ([#1417](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1417))
 
 ### Runtime Dependencies
 
-TBD
+- [Ogmios](https://github.com/mlabs-haskell/ogmios) - v5.5.7
+- [Kupo](https://github.com/CardanoSolutions/kupo) - v2.2.0
+- [Cardano-Node](https://github.com/input-output-hk/cardano-node/) - v1.35.4
+- [Plutip](https://github.com/mlabs-haskell/plutip) - commit 8d1795d9ac3f9c6f31381104b25c71576eeba009
+
+## [v4.0.2] - 2023-01-17
+
+### Fixed
+
+- Fixed nix build issue on MacOS systems
+
+## [v4.0.1] - 2022-12-20
+
+### Added
+
+- Added a SECP256k1 explainer document ([#1346](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1346))
 
 ## [v4.0.0] - 2022-12-15
 
@@ -118,7 +162,7 @@ TBD
 - `DecodeAeson` instance for `NativeScript` data type ([#1069](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1069)).
 - `Contract.Wallet` exports `mkWalletBySpec` ([#1157](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1157))
 - `ctl-server` NixOS module ([#1194](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1194)). See [nix/test-nixos-configuration.nix](nix/test-nixos-configuration.nix) for example usage and [nix/ctl-server-nixos-module.nix](https://github.com/Plutonomicon/cardano-transaction-lib/blob/43b31399ac743be385b7ee38066a794e5c3c199c/nix/ctl-server-nixos-module.nix).
-- Ability to run E2E tests on private Plutip testnets using CIP-30 wallet mock - see [the docs](./doc/e2e-testing.md#using-cip-30-mock-with-plutip)  ([#1166](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1166))
+- Ability to run E2E tests on private Plutip testnets using CIP-30 wallet mock - see [the docs](./doc/e2e-testing.md#using-cip-30-mock-with-plutip) ([#1166](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1166))
 - `Contract.Plutarch.Types` module with `PRational` type which is a newtype of Rational with `ToData` and `FromData` instance which are compatible with Plutarch ([#1221](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1221))
 - New constraints for stake operations ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060)):
   - Pool registration (`mustRegisterPool`)
@@ -157,7 +201,7 @@ TBD
 - Adapted Gero wallet extension to `preview` network in E2E test suite ([#1086](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1086))
 - `Contact.TextEnvelope` how provides more type safe interface with simplified error handling ([#988](https://github.com/Plutonomicon/cardano-transaction-lib/issues/988))
 - Forbid minting zero tokens. ([#1156](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156))
-- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Adress)`.  ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
+- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Adress)`. ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
 - `pubKeyHashAddress` and `scriptHashAddress` now both accept an optional `Credential` that corresponds to the staking component of the address ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `utxosAt` and `getUtxo` now use Kupo internally, `utxosAt` returns `UtxoMap` without `Maybe` context. The users will need to set `kupoConfig` in `ConfigParams`. ([#1185](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1185))
 - `Interval` type is redesigned to restrain some finite intervals to be expressed in the system ([#1041](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041))
@@ -173,6 +217,7 @@ TBD
 - `Contract.Address` re-exports from `Contract.Scripts` ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `Contract.Address.ownPubKeyHash` and `ownPubKeyHashes` - these are not needed, use `ownPaymentPubKeyHash` / `ownPaymentPubKeyHashes` ([#1211](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1211))
 - `mustBalanceTxWithAddress` and `mustBalanceTxWithAddresses` balancer constraints - use a combination of `mustUseUtxosAtAddresses` and `mustSendChangeToAddress` to get the same behaviour ([#1243](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1243))
+
 ### Fixed
 
 - Fix absence of `getUtxos` method in CIP-30 mock ([#1026](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1026))
@@ -201,7 +246,7 @@ TBD
 - `withStakeKey` utility that allows providing a stake key to be used by `KeyWallet`s in Plutip environment ([#838](https://github.com/Plutonomicon/cardano-transaction-lib/pull/838))
 - `Alt` and `Plus` instances for `Contract`.
 - `Contract.Utxos.getUtxo` call to get a single utxo at a given output reference
-- `Contract.Monad.withContractEnv` function  that constructs and finalizes a contract environment that is usable inside a bracket callback. **This is the intended way to run multiple contracts**. ([#731](https://github.com/Plutonomicon/cardano-transaction-lib/pull/731))
+- `Contract.Monad.withContractEnv` function that constructs and finalizes a contract environment that is usable inside a bracket callback. **This is the intended way to run multiple contracts**. ([#731](https://github.com/Plutonomicon/cardano-transaction-lib/pull/731))
 - `Contract.Monad.stopContractEnv` function to finalize a contract environment (close the `WebSockets`). It should be used together with `mkContractEnv`, and is not needed with `withContractEnv`. ([#731](https://github.com/Plutonomicon/cardano-transaction-lib/pull/731))
 - `Contract.Config` module that contains everything needed to create and manipulate `ConfigParams`, as well as a number of `ConfigParams` fixtures for common use cases. ([#731](https://github.com/Plutonomicon/cardano-transaction-lib/pull/731))
 - `Contract.Monad.askConfig` and `Contract.Monad.asksConfig` functions to access user-defined configurations. ([#731](https://github.com/Plutonomicon/cardano-transaction-lib/pull/731))
@@ -214,7 +259,7 @@ TBD
 - `Contract.Transaction.balanceTxWithOwnAddress` and `Contract.Transaction.balanceTxsWithOwnAddress` to override an `Address` used in `balanceTx` internally ([#775](https://github.com/Plutonomicon/cardano-transaction-lib/pull/775))
 - `Contract.Transaction.awaitTxConfirmedWithTimeoutSlots` waits a specified number of slots for a transaction to succeed. ([#790](https://github.com/Plutonomicon/cardano-transaction-lib/pull/790))
 - `Contract.Transaction.submitE` like submit but uses an `Either (Array Aeson) TransactionHash` to handle a SubmitFail response from Ogmios
-- `Contract.Chain.waitNSlots`,  `Contract.Chain.currentSlot` and `Contract.Chain.currentTime` a function to wait at least `N` number of slots and functions to get the current time in `Slot` or `POSIXTime`. ([#740](https://github.com/Plutonomicon/cardano-transaction-lib/issues/740))
+- `Contract.Chain.waitNSlots`, `Contract.Chain.currentSlot` and `Contract.Chain.currentTime` a function to wait at least `N` number of slots and functions to get the current time in `Slot` or `POSIXTime`. ([#740](https://github.com/Plutonomicon/cardano-transaction-lib/issues/740))
 - `Contract.Transaction.getTxByHash` to retrieve contents of an on-chain transaction.
 - `project.launchSearchablePursDocs` to create an `apps` output for serving Pursuit documentation locally ([#816](https://github.com/Plutonomicon/cardano-transaction-lib/issues/816))
 - `Contract.PlutusData.IsData` type class (`ToData` + `FromData`) ([#809](https://github.com/Plutonomicon/cardano-transaction-lib/pull/809))
@@ -231,7 +276,7 @@ TBD
 - Flint wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))
 - Support for `NativeScript`s in constraints interface: `mustPayToNativeScript` and `mustSpendNativeScriptOutput` functions ([#869](https://github.com/Plutonomicon/cardano-transaction-lib/pull/869))
 - `Contract.Test.Cip30Mock` module to mock CIP-30 wallet interface using `KeyWallet`. The mock can be used for testing without a wallet (even in NodeJS environment). This increases test coverage for CTL code. ([#784](https://github.com/Plutonomicon/cardano-transaction-lib/issues/784))
-- `Plutus.Types.AssocMap.AssocMap` now has `TraversableWithIndex`,  `FoldableWithIndex`,  `FunctorWithIndex` instances ([#943](https://github.com/Plutonomicon/cardano-transaction-lib/pull/943))
+- `Plutus.Types.AssocMap.AssocMap` now has `TraversableWithIndex`, `FoldableWithIndex`, `FunctorWithIndex` instances ([#943](https://github.com/Plutonomicon/cardano-transaction-lib/pull/943))
 - The return value of `purescriptProject` now includes the project with its compiled `output` and its generated `node_modules` (under the `compiled` and `nodeModules` attributes, respectively) ([#956](https://github.com/Plutonomicon/cardano-transaction-lib/pull/956))
 - `Contract.Utxos.getWalletUtxos` function that calls CIP-30 `getUtxos` method. ([#961](https://github.com/Plutonomicon/cardano-transaction-lib/issues/961))
 - Lode wallet support ([#556](https://github.com/Plutonomicon/cardano-transaction-lib/issues/556))

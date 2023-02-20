@@ -3,7 +3,7 @@ module Ctl.Internal.QueryM.Pools
   , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
-  , DelegationsAndRewards
+  , module X
   ) where
 
 import Prelude
@@ -12,7 +12,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( PoolPubKeyHash
   , PoolRegistrationParams
   )
-import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios
@@ -28,6 +27,8 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashToBytes
   )
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
+import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
+import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Map as Map
@@ -61,11 +62,6 @@ getPoolParameters poolPubKeyHash = do
         }
     )
     res
-
-type DelegationsAndRewards =
-  { rewards :: Maybe Coin
-  , delegate :: Maybe PoolPubKeyHash
-  }
 
 getValidatorHashDelegationsAndRewards
   :: StakeValidatorHash -> QueryM (Maybe DelegationsAndRewards)

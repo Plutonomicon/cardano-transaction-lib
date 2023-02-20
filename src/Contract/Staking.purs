@@ -1,42 +1,50 @@
 module Contract.Staking
   ( getPoolIds
-  , getPoolParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
+  , module X
   ) where
 
 import Prelude
 
-import Contract.Monad (Contract, wrapContract)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PoolPubKeyHash
-  , PoolRegistrationParams
-  )
+import Contract.Monad (Contract)
+import Control.Monad.Reader (asks)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
+import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
-import Ctl.Internal.QueryM.Pools as QueryM
+import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Data.Either (either)
 import Data.Maybe (Maybe)
+import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 
-getPoolIds :: forall (r :: Row Type). Contract r (Array PoolPubKeyHash)
-getPoolIds = wrapContract QueryM.getPoolIds
-
-getPoolParameters
-  :: forall (r :: Row Type)
-   . PoolPubKeyHash
-  -> Contract r PoolRegistrationParams
-getPoolParameters poolId = wrapContract $ QueryM.getPoolParameters poolId
+getPoolIds :: Contract (Array PoolPubKeyHash)
+getPoolIds = do
+  queryHandle <- getQueryHandle
+  liftAff $
+    queryHandle.getPoolIds
+      >>= either (liftEffect <<< throw <<< show) pure
 
 getPubKeyHashDelegationsAndRewards
-  :: forall (r :: Row Type)
-   . StakePubKeyHash
-  -> Contract r (Maybe DelegationsAndRewards)
-getPubKeyHashDelegationsAndRewards =
-  wrapContract <<< QueryM.getPubKeyHashDelegationsAndRewards
+  :: StakePubKeyHash
+  -> Contract (Maybe DelegationsAndRewards)
+getPubKeyHashDelegationsAndRewards stakePubKeyHash = do
+  queryHandle <- getQueryHandle
+  networkId <- asks _.networkId
+  liftAff do
+    queryHandle.getPubKeyHashDelegationsAndRewards networkId stakePubKeyHash
+      >>= either (liftEffect <<< throw <<< show) pure
 
 getValidatorHashDelegationsAndRewards
-  :: forall (r :: Row Type)
-   . StakeValidatorHash
-  -> Contract r (Maybe DelegationsAndRewards)
-getValidatorHashDelegationsAndRewards =
-  wrapContract <<< QueryM.getValidatorHashDelegationsAndRewards
+  :: StakeValidatorHash
+  -> Contract (Maybe DelegationsAndRewards)
+getValidatorHashDelegationsAndRewards stakeValidatorHash = do
+  queryHandle <- getQueryHandle
+  networkId <- asks _.networkId
+  liftAff do
+    queryHandle.getValidatorHashDelegationsAndRewards networkId
+      stakeValidatorHash
+      >>= either (liftEffect <<< throw <<< show) pure

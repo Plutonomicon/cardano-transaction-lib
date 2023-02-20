@@ -20,6 +20,7 @@ import Ctl.Internal.Serialization.Types
   ( AuxiliaryDataHash
   , DataHash
   , Ed25519Signature
+  , GeneralTransactionMetadata
   , GenesisDelegateHash
   , GenesisHash
   , Mint
@@ -32,6 +33,7 @@ import Ctl.Internal.Serialization.Types
   , Transaction
   , TransactionBody
   , TransactionHash
+  , TransactionMetadatum
   , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
@@ -67,6 +69,12 @@ instance FromBytes Ed25519KeyHash where
 
 instance FromBytes Ed25519Signature where
   fromBytes' = fromBytesImpl "Ed25519Signature"
+
+instance FromBytes GeneralTransactionMetadata where
+  fromBytes' = fromBytesImpl "GeneralTransactionMetadata"
+
+instance FromBytes TransactionMetadatum where
+  fromBytes' = fromBytesImpl "TransactionMetadatum"
 
 instance FromBytes GenesisDelegateHash where
   fromBytes' = fromBytesImpl "GenesisDelegateHash"

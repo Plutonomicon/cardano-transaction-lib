@@ -13,10 +13,10 @@ import Effect.Exception (error)
 
 foreign import alwaysMintsV2 :: String
 
-alwaysMintsPolicyV2 :: Contract () MintingPolicy
+alwaysMintsPolicyV2 :: Contract MintingPolicy
 alwaysMintsPolicyV2 = PlutusMintingPolicy <$> alwaysMintsPolicyScriptV2
 
-alwaysMintsPolicyScriptV2 :: Contract () PlutusScript
+alwaysMintsPolicyScriptV2 :: Contract PlutusScript
 alwaysMintsPolicyScriptV2 =
   liftMaybe (error "Error decoding alwaysMintsV2") do
     envelope <- decodeTextEnvelope alwaysMintsV2
