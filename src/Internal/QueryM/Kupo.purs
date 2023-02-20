@@ -22,6 +22,7 @@ import Aeson
   )
 import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
+import Affjax.StatusCode (StatusCode(StatusCode))
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
 import Control.Monad.Error.Class (throwError)
@@ -88,17 +89,19 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
+import Data.Lens (_Right, to, (^?))
 import Data.Map (Map)
 import Data.Map (fromFoldable, isEmpty, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), drop, indexOf, splitAt) as String
+import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (toString) as UInt
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as Object
@@ -460,9 +463,23 @@ kupoGetRequestAff
   :: ServerConfig
   -> String
   -> Aff (Either Affjax.Error (Affjax.Response String))
-kupoGetRequestAff config endpoint = do
-  Affjax.request $ Affjax.defaultRequest
+kupoGetRequestAff = kupoGetRequestRetryAff (Milliseconds 1000.0)
+
+-- | Retry on `503 Service Unavailable` error with exponentially-increasing
+-- | interval (to not DOS the service even more).
+kupoGetRequestRetryAff
+  :: Milliseconds
+  -> ServerConfig
+  -> String
+  -> Aff (Either Affjax.Error (Affjax.Response String))
+kupoGetRequestRetryAff delayMs config endpoint = do
+  result <- Affjax.request $ Affjax.defaultRequest
     { method = Left GET
     , url = mkHttpUrl config <> endpoint
     , responseFormat = Affjax.ResponseFormat.string
     }
+  if result ^? _Right <<< to _.status == Just (StatusCode 503) then
+    delay delayMs *>
+      kupoGetRequestRetryAff (Milliseconds (unwrap delayMs * 2.0)) config
+        endpoint
+  else pure result
