@@ -45,7 +45,17 @@ exports._onWsConnect = ws => fn => () => {
 
 exports._onWsError = ws => fn => () => {
   const listener = function (event) {
-    fn(event.message)();
+    if (
+      "message" in event &&
+      typeof event.message === "string" &&
+      event.message.length > 0
+    ) {
+      fn(event.message)();
+    } else if ("error" in event && event.error instanceof Error) {
+      fn(event.error.toString())();
+    } else {
+      fn(event.toString())();
+    }
   };
   ws.addEventListener("error", listener);
   ws.finalizers.push(() => {
