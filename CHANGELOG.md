@@ -8,38 +8,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [[Unreleased]](#unreleased)
-  - [Fixed](#fixed)
-- [[v5.0.0]](#v500)
   - [Added](#added)
   - [Changed](#changed)
+  - [Fixed](#fixed)
   - [Removed](#removed)
+- [[v5.0.0]](#v500)
+  - [Added](#added-1)
+  - [Changed](#changed-1)
+  - [Removed](#removed-1)
   - [Fixed](#fixed-1)
   - [Runtime Dependencies](#runtime-dependencies)
 - [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-2)
 - [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
-  - [Added](#added-1)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-2)
-  - [Changed](#changed-1)
-  - [Removed](#removed-1)
-  - [Fixed](#fixed-3)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-3)
   - [Changed](#changed-2)
   - [Removed](#removed-2)
-  - [Fixed](#fixed-4)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Fixed](#fixed-3)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-4)
   - [Changed](#changed-3)
   - [Removed](#removed-3)
+  - [Fixed](#fixed-4)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Added](#added-5)
+  - [Changed](#changed-4)
+  - [Removed](#removed-4)
   - [Fixed](#fixed-5)
 - [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
-  - [Added](#added-5)
-  - [Removed](#removed-4)
-  - [Changed](#changed-4)
+  - [Added](#added-6)
+  - [Removed](#removed-5)
+  - [Changed](#changed-5)
   - [Fixed](#fixed-6)
 - [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-7)
@@ -51,9 +54,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
+### Added
+
+- Automatic retries for `403 Service Unavailable` Kupo request errors. Retry attempts happen with exponentially increasing intervals ([#1436](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1436))
+
+### Changed
+
 ### Fixed
 
+- `ConnectToNuFi` now reexported in `Contract.Wallet` ([#1435](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1435))
 - Error message from `reconnecting-websocket` is passed correctly in `Ctl.Internal.JsWebSocket._onWsError` ([#1403](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1403))
+
+### Removed
 
 ## [v5.0.0]
 
