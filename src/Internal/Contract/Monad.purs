@@ -2,6 +2,7 @@ module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
   , ContractEnv
   , ContractParams
+  , ContractTimeParams
   , LedgerConstants
   , ParContract(ParContract)
   , mkContractEnv
@@ -72,6 +73,7 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Time.Duration (Milliseconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
@@ -158,13 +160,16 @@ runContractInEnv contractEnv =
 -- ContractEnv
 --------------------------------------------------------------------------------
 
--- `LedgerConstants` contains values that technically may change, but we assume
--- to be constant during Contract evaluation
+-- | `LedgerConstants` contains values that technically may change, but we assume
+-- | to be constant during Contract evaluation.
 type LedgerConstants =
   { pparams :: ProtocolParameters
   , systemStart :: SystemStart
   }
 
+-- | A record containing `Contract` environment - everything a `Contract` needs
+-- | to run. It is recommended to use one environment per application to save
+-- | on websocket connections and to keep track of `UsedTxOuts`.
 type ContractEnv =
   { backend :: QueryBackend
   , networkId :: NetworkId
@@ -176,6 +181,7 @@ type ContractEnv =
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
   , ledgerConstants :: LedgerConstants
+  , timeParams :: ContractTimeParams
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -198,7 +204,7 @@ mkContractEnv params = do
       wallet <- buildWallet
       pure $ merge { wallet }
     -- Compose the sub-builders together
-    in b1 >>> b2 >>> merge { usedTxOuts }
+    in b1 >>> b2 >>> merge { usedTxOuts, timeParams: params.timeParams }
 
   pure $ build envBuilder constants
   where
@@ -341,6 +347,12 @@ withContractEnv params action = do
 -- ContractParams
 --------------------------------------------------------------------------------
 
+-- | Delays and timeouts for internal query functions.
+type ContractTimeParams =
+  { syncWallet :: { delay :: Milliseconds, timeout :: Milliseconds }
+  , syncBackend :: { delay :: Milliseconds, timeout :: Milliseconds }
+  }
+
 -- | Options to construct an environment for a `Contract` to run.
 -- |
 -- | See `Contract.Config` for pre-defined values for testnet and mainnet.
@@ -357,6 +369,7 @@ type ContractParams =
   -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   , hooks :: Hooks
+  , timeParams :: ContractTimeParams
   }
 
 --------------------------------------------------------------------------------

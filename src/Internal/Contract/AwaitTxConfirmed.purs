@@ -10,6 +10,7 @@ import Prelude
 import Contract.Monad (liftedE)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf)
+import Ctl.Internal.BalanceTx.Sync (syncWalletWithTransaction)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.QueryBackend (getBlockfrostBackend)
@@ -88,6 +89,7 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
     when isBlockfrost do
       tryUntilTrue delayTime (utxosPresentForTxHash txHash)
       for_ confirmTxDelay (liftAff <<< delay <<< fromDuration)
+    syncWalletWithTransaction txHash
     pure true
     where
     delayTime :: Milliseconds
@@ -125,6 +127,7 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
   tryUntilTrue delayTime do
     checkSlotLimit limitSlot
     utxosPresentForTxHash txHash
+  syncWalletWithTransaction txHash
   where
   addSlots :: Int -> Slot -> Contract Slot
   addSlots n slot =

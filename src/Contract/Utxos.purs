@@ -13,7 +13,6 @@ import Prelude
 
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
-import Contract.Transaction (TransactionInput, TransactionOutput)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletBalance, getWalletUtxos) as Utxos
@@ -24,9 +23,10 @@ import Ctl.Internal.Plutus.Conversion
   )
 import Ctl.Internal.Plutus.Conversion.Value (toPlutusValue)
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Maybe (Maybe)
 import Effect.Aff.Class (liftAff)
 

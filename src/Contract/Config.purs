@@ -72,6 +72,7 @@ import Ctl.Internal.Wallet.Spec
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Time.Duration (Milliseconds(Milliseconds))
 
 testnetConfig :: ContractParams
 testnetConfig =
@@ -85,6 +86,12 @@ testnetConfig =
   , customLogger: Nothing
   , suppressLogs: false
   , hooks: emptyHooks
+  , timeParams:
+      { syncWallet:
+          { delay: Milliseconds 1_000.0, timeout: Milliseconds 100_000.0 }
+      , syncBackend:
+          { delay: Milliseconds 3_000.0, timeout: Milliseconds 100_000.0 }
+      }
   }
 
 testnetNamiConfig :: ContractParams

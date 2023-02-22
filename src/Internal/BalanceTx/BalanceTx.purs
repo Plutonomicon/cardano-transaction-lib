@@ -6,6 +6,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
+import Contract.Log (logTrace')
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (trace) as Logger
@@ -45,12 +46,12 @@ import Ctl.Internal.BalanceTx.Error
   ) as BalanceTxErrorExport
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
-      ( CouldNotGetChangeAddress
-      , CouldNotGetCollateral
-      , CouldNotGetUtxos
-      , UtxoLookupFailedFor
+      ( UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
       , BalanceInsufficientError
+      , CouldNotGetCollateral
+      , CouldNotGetChangeAddress
+      , CouldNotGetUtxos
       )
   , InvalidInContext(InvalidInContext)
   )
@@ -64,6 +65,7 @@ import Ctl.Internal.BalanceTx.Helpers
   , _transaction'
   , _unbalancedTx
   )
+import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
@@ -114,8 +116,11 @@ import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletAddresses) as Contract.Wallet
-import Ctl.Internal.Contract.Wallet (getWalletCollateral)
+import Ctl.Internal.Contract.Wallet
+  ( getChangeAddress
+  , getWalletCollateral
+  , getWalletUtxos
+  ) as Wallet
 import Ctl.Internal.Helpers ((??))
 import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.Plutus.Conversion (toPlutusValue)
@@ -167,7 +172,6 @@ balanceTxWithConstraints
   -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   pparams <- getProtocolParameters
-  queryHandle <- getQueryHandle
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let
@@ -175,16 +179,29 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
       certsFee = getStakingBalance (unbalancedTx ^. _transaction')
         depositValuePerCert
 
-    srcAddrs <-
-      asksConstraints Constraints._srcAddresses
-        >>= maybe (liftContract Contract.Wallet.getWalletAddresses) pure
-
     changeAddr <- getChangeAddress
 
-    utxos <- liftEitherContract $
-      parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs <#>
-        traverse (note CouldNotGetUtxos)
-          >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+    mbSrcAddrs <- asksConstraints Constraints._srcAddresses
+
+    utxos <- liftEitherContract do
+      case mbSrcAddrs of
+        -- Use wallet UTxOs.
+        Nothing -> do
+          syncBackendWithWallet
+          note CouldNotGetUtxos <$> do
+            Wallet.getWalletUtxos
+        -- Use UTxOs from source addresses
+        Just srcAddrs -> do
+          queryHandle <- getQueryHandle
+          -- Even though some of the addresses may be controlled by the wallet,
+          -- we can't query the wallet for available UTxOs, because there's no
+          -- way to tell it to return UTxOs only from specific subset of the
+          -- addresses controlled by a CIP-30 wallet.
+          -- `utxosAt` calls are expensive when there are a lot of wallets to
+          -- check.
+          parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs
+            <#> traverse (note CouldNotGetUtxos)
+              >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
     unbalancedCollTx <-
       case Array.null (unbalancedTx ^. _redeemersTxIns) of
@@ -201,6 +218,9 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
         utxos `Map.union` (unbalancedTx ^. _unbalancedTx <<< _utxoIndex)
 
     availableUtxos <- liftContract $ filterLockedUtxos allUtxos
+    logTrace' $ "balanceTxWithConstraints: all UTxOs: " <> show allUtxos
+    logTrace' $ "balanceTxWithConstraints: available UTxOs: " <> show
+      availableUtxos
 
     selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
@@ -217,7 +237,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   getChangeAddress :: BalanceTxM Address
   getChangeAddress =
     liftMaybe CouldNotGetChangeAddress
-      =<< maybe (liftContract Contract.Wallet.getChangeAddress) (pure <<< Just)
+      =<< maybe (liftContract Wallet.getChangeAddress) (pure <<< Just)
       =<< asksConstraints Constraints._changeAddress
 
   unbalancedTxWithNetworkId :: BalanceTxM Transaction
@@ -229,7 +249,8 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
   setTransactionCollateral changeAddr transaction = do
     collateral <-
-      liftEitherContract $ note CouldNotGetCollateral <$> getWalletCollateral
+      liftEitherContract $ note CouldNotGetCollateral <$>
+        Wallet.getWalletCollateral
     let collaterisedTx = addTxCollateral collateral transaction
     addTxCollateralReturn collateral collaterisedTx changeAddr
 
@@ -299,7 +320,7 @@ runBalancer p = do
     -- Some CIP-30 wallets don't allow to sign Txs that spend it.
     nonSpendableCollateralInputs <-
       if isCip30 then
-        liftContract $ getWalletCollateral <#>
+        liftContract $ Wallet.getWalletCollateral <#>
           fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
       else mempty
     asksConstraints Constraints._nonSpendableInputs <#>

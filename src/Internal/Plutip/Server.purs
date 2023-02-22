@@ -17,6 +17,7 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
+import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
@@ -593,6 +594,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants
+    , timeParams: testnetConfig.timeParams -- no effect when KeyWallet is used
     }
 
 defaultRetryPolicy :: RetryPolicy
