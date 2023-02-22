@@ -31,10 +31,8 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Contract.Wallet (getWalletUtxos)
+import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
 import Data.Array (head) as Array
 import Data.BigInt (fromInt) as BigInt
@@ -54,7 +52,6 @@ contract = do
   logInfo' "Running Examples.Utxos"
   pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
   skh <- ownStakePubKeyHash
-  address <- liftedM "Failed to get own address" getWalletAddress
 
   datum <- liftEffect
     $ Datum
@@ -62,7 +59,7 @@ contract = do
     <<< BigInt.fromInt
     <$> randomSampleOne arbitrary
 
-  utxos <- utxosAt address
+  utxos <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
   oref <-
     liftContractM "Utxo set is empty"
       (map fst <<< Array.head <<< Map.toUnfoldable $ utxos)
@@ -100,7 +97,7 @@ contract = do
   awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"
 
-  utxos' <- utxosAt address
+  utxos' <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
   logInfo (tag "utxos" $ show utxos') "Utxos after transaction confirmation:"
 
 --------------------------------------------------------------------------------
@@ -120,4 +117,3 @@ mustPayWithDatumAndScriptRef pkh Nothing =
   Constraints.mustPayToPubKeyWithDatumAndScriptRef pkh
 mustPayWithDatumAndScriptRef pkh (Just skh) =
   Constraints.mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh
-
