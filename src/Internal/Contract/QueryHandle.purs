@@ -31,6 +31,7 @@ import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
+  , getOutputAddressesByTxHash
   , getScriptByHash
   , getTxMetadata
   , getUtxoByOref
@@ -82,12 +83,13 @@ type QueryHandle =
       TransactionHash
       -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
+  , getOutputAddressesByTxHash :: TransactionHash -> AffE (Array Address)
   , doesTxExist :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: AffE Chain.Tip
   , getCurrentEpoch :: Aff CurrentEpoch
   -- TODO Capture errors from all backends
-  , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
+  , submitTx :: Transaction -> AffE TransactionHash
   , evaluateTx :: Transaction -> AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: AffE EraSummaries
   , getPoolIds :: AffE (Array PoolPubKeyHash)
@@ -110,6 +112,7 @@ queryHandleForCtlBackend contractEnv backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
+  , getOutputAddressesByTxHash: runQueryM' <<< Kupo.getOutputAddressesByTxHash
   , doesTxExist: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
   , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
   , utxosAt: runQueryM' <<< Kupo.utxosAt
@@ -148,6 +151,8 @@ queryHandleForBlockfrostBackend contractEnv backend =
   { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
   , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
   , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
+  , getOutputAddressesByTxHash: runBlockfrostServiceM' <<<
+      Blockfrost.getOutputAddressesByTxHash
   , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt

@@ -3,6 +3,7 @@ module Ctl.Internal.QueryM.Kupo
   , getScriptByHash
   , getTxMetadata
   , getUtxoByOref
+  , getOutputAddressesByTxHash
   , isTxConfirmed
   , isTxConfirmedAff
   , utxosAt
@@ -83,6 +84,7 @@ import Ctl.Internal.Types.Transaction
   )
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
@@ -91,7 +93,7 @@ import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Lens (_Right, to, (^?))
 import Data.Map (Map)
-import Data.Map (fromFoldable, isEmpty, lookup) as Map
+import Data.Map (fromFoldable, isEmpty, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -131,6 +133,22 @@ getUtxoByOref oref = runExceptT do
     outputIndex :: String
     outputIndex = UInt.toString index
 
+    txHashHex :: String
+    txHashHex = byteArrayToHex (unwrap txHash)
+
+-- | Specialized function to get addresses only, without resolving script
+-- | references. Used internally.
+getOutputAddressesByTxHash
+  :: TransactionHash -> QueryM (Either ClientError (Array Address))
+getOutputAddressesByTxHash txHash = runExceptT do
+  (kupoUtxoMap :: KupoUtxoMap) <- ExceptT $ handleAffjaxResponse <$>
+    kupoGetRequest endpoint
+  pure $ Array.fromFoldable (Map.values $ unwrap kupoUtxoMap) <#>
+    unwrap >>> _.address
+  where
+  endpoint :: String
+  endpoint = "/matches/*@" <> txHashHex <> "?unspent"
+    where
     txHashHex :: String
     txHashHex = byteArrayToHex (unwrap txHash)
 
