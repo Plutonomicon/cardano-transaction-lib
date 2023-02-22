@@ -154,10 +154,11 @@ mkCip30Mock pKey mSKey = do
         utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
         let
-          -- filter UTxOs that will be used as collateral
+          -- filter out UTxOs that will be used as collateral
           nonCollateralUtxos =
             Map.filter
-              (flip Array.elem (collateralUtxos <#> unwrap >>> _.output))
+              (\utxo ->
+                not $ Array.elem utxo (collateralUtxos <#> unwrap >>> _.output))
               utxos
         -- Convert to CSL representation and serialize
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
