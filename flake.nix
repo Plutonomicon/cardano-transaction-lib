@@ -40,8 +40,9 @@
       flake = false;
     };
 
-    blockfrost.url = "github:mlabs-haskell/blockfrost-backend-ryo/aciceri/nix-flake";
-    db-sync.url = "github:mlabs-haskell/cardano-db-sync/aciceri/customConfig-input-fix";
+    # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo";
+    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
   };
 
   outputs =
