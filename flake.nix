@@ -238,6 +238,8 @@
                   inputs.plutip.packages.${system}."plutip:exe:plutip-server";
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
+                cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+                blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
                 inherit cardano-configurations;
