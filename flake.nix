@@ -134,6 +134,7 @@
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
+                blockfrost-backend-ryo
               ];
             };
           };
