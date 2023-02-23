@@ -29,7 +29,7 @@ rec {
     kupo = {
       port = 1442;
       since = "origin";
-      match = "*/*"; # matches Shelley addresses onlsy
+      match = "*/*"; # matches Shelley addresses only
       tag = "v2.2.0";
       # TODO: Do we want to support connection through ogmios?
     };
