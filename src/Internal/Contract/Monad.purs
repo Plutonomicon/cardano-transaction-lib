@@ -73,7 +73,7 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Time.Duration (Milliseconds)
+import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
@@ -349,8 +349,9 @@ withContractEnv params action = do
 
 -- | Delays and timeouts for internal query functions.
 type ContractTimeParams =
-  { syncWallet :: { delay :: Milliseconds, timeout :: Milliseconds }
-  , syncBackend :: { delay :: Milliseconds, timeout :: Milliseconds }
+  { syncWallet :: { delay :: Milliseconds, timeout :: Seconds }
+  , syncBackend :: { delay :: Milliseconds, timeout :: Seconds }
+  , awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Maybe Seconds }
   }
 
 -- | Options to construct an environment for a `Contract` to run.

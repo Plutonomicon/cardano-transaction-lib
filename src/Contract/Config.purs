@@ -72,7 +72,7 @@ import Ctl.Internal.Wallet.Spec
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 
 testnetConfig :: ContractParams
 testnetConfig =
@@ -91,9 +91,11 @@ testnetConfig =
           -- As clarified in Eternl discord, they synchronize with the server every 2
           -- minutes, so 125 seconds would probably be enough.
           -- For other wallets, it is not very important
-          { delay: Milliseconds 1_000.0, timeout: Milliseconds 130_000.0 }
+          { delay: Milliseconds 1_000.0, timeout: Seconds 130.0 }
       , syncBackend:
-          { delay: Milliseconds 3_000.0, timeout: Milliseconds 100_000.0 }
+          { delay: Milliseconds 3_000.0, timeout: Seconds 100.0 }
+      , awaitTxConfirmed:
+          { delay: Milliseconds 1_000.0, timeout: Nothing }
       }
   }
 

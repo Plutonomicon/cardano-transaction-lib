@@ -35,7 +35,7 @@ import Data.Maybe (Maybe, fromMaybe, isJust)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Time.Duration (Milliseconds)
+import Data.Time.Duration (Milliseconds, fromDuration)
 import Data.Traversable (traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\))
@@ -62,7 +62,7 @@ syncBackendWithWallet = whenM isCip30Wallet do
             "synchronization with the wallet..."
         liftAff (delay delayMs)
         sync
-  parOneOf [ sync, waitAndLogError timeout errorMessage ]
+  parOneOf [ sync, waitAndLogError (fromDuration timeout) errorMessage ]
   where
   errorMessage = "Failed to wait for wallet state synchronization (timeout). "
     <> "Continuing anyway. Consider increasing `timeParams.syncBackend.timeout`"
@@ -111,7 +111,7 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
     logTrace' $
       "Transaction output addresses: " <> show ownAddresses
   else do
-    parOneOf [ sync, waitAndLogError timeout errorMessage ]
+    parOneOf [ sync, waitAndLogError (fromDuration timeout) errorMessage ]
   where
   errorMessage =
     "syncWalletWithTransaction: Failed to wait for wallet state "
@@ -146,7 +146,7 @@ syncWalletWithInputs txInputs = do
       <> "following inputs: "
       <> show ownInputUtxos
   let
-    go = do
+    sync = do
       walletUtxos <- Utxos.getWalletUtxos <#> fromMaybe Map.empty
       let difference = ownInputUtxos `Map.difference` walletUtxos
       if Map.isEmpty difference then do
@@ -156,8 +156,8 @@ syncWalletWithInputs txInputs = do
           <> "does not know about: "
           <> show difference
         liftAff $ delay delayMs
-        go
-  parOneOf [ go, waitAndLogError timeout errorMessage ]
+        sync
+  parOneOf [ sync, waitAndLogError (fromDuration timeout) errorMessage ]
   where
   errorMessage =
     "syncWalletWithInputs: timeout while waiting for wallet"

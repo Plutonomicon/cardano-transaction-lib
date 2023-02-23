@@ -24,6 +24,7 @@ import Aeson
 import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
+import Contract.Log (logTrace')
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
 import Control.Monad.Error.Class (throwError)
@@ -168,9 +169,13 @@ getScriptByHash scriptHash = do
 -- FIXME: This can only confirm transactions with at least one output.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 isTxConfirmed :: TransactionHash -> QueryM (Either ClientError (Maybe Slot))
-isTxConfirmed th = do
+isTxConfirmed txHash = do
   config <- asks (_.kupoConfig <<< _.config)
-  liftAff $ isTxConfirmedAff config th
+  do
+    -- Do this clumsy special case logging. It's better than sending it silently
+    let endpoint = "/matches/*@" <> byteArrayToHex (unwrap txHash)
+    logTrace' $ "sending kupo request: " <> endpoint
+  liftAff $ isTxConfirmedAff config txHash
 
 -- Exported due to Ogmios requiring confirmations at a websocket level
 isTxConfirmedAff
@@ -475,6 +480,7 @@ kupoGetRequest
   :: String -> QueryM (Either Affjax.Error (Affjax.Response String))
 kupoGetRequest endpoint = do
   config <- asks (_.kupoConfig <<< _.config)
+  logTrace' $ "sending kupo request: " <> endpoint
   liftAff $ kupoGetRequestAff config endpoint
 
 kupoGetRequestAff

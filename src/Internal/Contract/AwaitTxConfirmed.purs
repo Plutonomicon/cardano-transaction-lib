@@ -23,14 +23,10 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Data.Either (either)
-import Data.Maybe (isJust, maybe)
+import Data.Maybe (fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
-import Data.Time.Duration
-  ( Milliseconds(Milliseconds)
-  , Seconds(Seconds)
-  , fromDuration
-  )
+import Data.Time.Duration (Milliseconds, Seconds(Seconds), fromDuration)
 import Data.Traversable (for_)
 import Data.UInt as UInt
 import Effect.Aff (delay)
@@ -43,14 +39,16 @@ import Effect.Exception (throw)
 -- | Will fail to confirm if the transaction includes no outputs.
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 awaitTxConfirmed :: TransactionHash -> Contract Unit
-awaitTxConfirmed = awaitTxConfirmedWithTimeout (Seconds infinity)
+awaitTxConfirmed txHash = do
+  { timeout } <- asks (_.timeParams >>> _.awaitTxConfirmed)
+  awaitTxConfirmedWithTimeout (fromMaybe (Seconds infinity) timeout) txHash
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.
 -- | Will fail to confirm if the transaction includes no outputs.
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 awaitTxConfirmedWithTimeout :: Seconds -> TransactionHash -> Contract Unit
-awaitTxConfirmedWithTimeout timeoutSeconds txHash =
+awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
   -- If timeout is infinity, do not use a timeout at all.
   if unwrap timeoutSeconds == infinity then void waitForConfirmation
   else do
@@ -82,18 +80,16 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash =
   -- query, so we need to check for the utxos separately.
   waitForConfirmation :: Contract Boolean
   waitForConfirmation = do
-    tryUntilTrue delayTime (doesTxExist txHash)
+    { delay: delayMs } <- asks (_.timeParams >>> _.awaitTxConfirmed)
+    tryUntilTrue delayMs (doesTxExist txHash)
     confirmTxDelay <-
       asks _.backend <#> (getBlockfrostBackend >=> _.confirmTxDelay)
     isBlockfrost <- asks _.backend <#> getBlockfrostBackend >>> isJust
     when isBlockfrost do
-      tryUntilTrue delayTime (utxosPresentForTxHash txHash)
+      tryUntilTrue delayMs (utxosPresentForTxHash txHash)
       for_ confirmTxDelay (liftAff <<< delay <<< fromDuration)
     syncWalletWithTransaction txHash
     pure true
-    where
-    delayTime :: Milliseconds
-    delayTime = wrap 1000.0
 
 -- Perform the check until it returns true.
 tryUntilTrue :: Milliseconds -> Contract Boolean -> Contract Unit
@@ -120,11 +116,12 @@ utxosPresentForTxHash txHash = do
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 awaitTxConfirmedWithTimeoutSlots :: Int -> TransactionHash -> Contract Unit
 awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
+  { delay: delayMs } <- asks (_.timeParams >>> _.awaitTxConfirmed)
   limitSlot <- getCurrentSlot >>= addSlots timeoutSlots
-  tryUntilTrue delayTime do
+  tryUntilTrue delayMs do
     checkSlotLimit limitSlot
     doesTxExist txHash
-  tryUntilTrue delayTime do
+  tryUntilTrue delayMs do
     checkSlotLimit limitSlot
     utxosPresentForTxHash txHash
   syncWalletWithTransaction txHash
@@ -148,9 +145,6 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
       liftEffect $ throw $
         "awaitTxConfirmedWithTimeoutSlots: \
         \ timeout exceeded, Transaction not confirmed"
-
-  delayTime :: Milliseconds
-  delayTime = Milliseconds 1000.0
 
 -- | Checks if a Tx is known to the query layer. It may still be unconfirmed.
 doesTxExist :: TransactionHash -> Contract Boolean
