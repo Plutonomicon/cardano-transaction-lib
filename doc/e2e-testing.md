@@ -116,7 +116,6 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | URL of settings archive asset                                          | `--settings-archive-url`    | `E2E_SETTINGS_ARCHIVE_URL` |
 | Path to the user data directory                                        | `--chrome-user-data`        | `E2E_CHROME_USER_DATA`     |
 | Extra browser CLI arguments                                            | `--extra-browser-args`      | `E2E_EXTRA_BROWSER_ARGS`   |
-| Skip downloading jQuery (allows to run E2E+Plutip tests fully offline) | `--skip-jquery-download`    | `E2E_SKIP_JQUERY_DOWNLOAD` |
 |------------------------------------------------------------------------|-----------------------------|----------------------------|
 | Eternl CRX URL                                                         | `--eternl-crx-url`          | `ETERNL_CRX_URL`           |
 | Eternl CRX file                                                        | `--eternl-crx`              | `ETERNL_CRX`               |
