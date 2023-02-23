@@ -39,6 +39,7 @@ rec {
     };
     blockfrost = {
       enable = false;
+      port = 3000;
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
     # corresponds directly to YAML that would be written in a `docker-compose` file,
@@ -94,6 +95,8 @@ rec {
       nodeDbVol = "node-${config.network.name}-db";
       nodeIpcVol = "node-${config.network.name}-ipc";
       kupoDbVol = "kupo-${config.network.name}-db";
+      dbSyncStateVol = "db-sync-state-${config.network.name}";
+      dbSyncTmpVol = "db-sync-tmp-${config.network.name}";
       nodeSocketPath = "/ipc/node.socket";
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
@@ -170,7 +173,7 @@ rec {
         };
         "postgres-${network.name}" = {
           service = {
-            image = "postgres:13";
+            image = "postgres:13"; # TODO do not use non reproducible Docker images
             ports =
               if postgres.port == null
               then [ ]
@@ -183,44 +186,53 @@ rec {
           };
         };
       } // (if config.blockfrost.enable then {
-        "db-sync-${network.name}" = {
-          build.image = pkgs.lib.mkForce inputs.db-sync.packages.${pkgs.system}.dockerImage;
-          service = {
-            useHostStore = true;
-            environment = {
-              NETWORK = network.name;
-              POSTGRES_HOST = "postgres-${network.name}";
-              POSTGRES_PORT = postgres.port;
-              POSTGRES_USER = postgres.user;
-              PGPASSWORD = postgres.password;
-              # POSTGRES_PASSWORD = postgres.password;
-            };
-            depends_on = [ "postgres-${network.name}" ];
-            volumes = [
-              "${nodeIpcVol}:/ipc"
-              "${config.cardano-configurations}/network/${config.network.name}/cardano-db-sync:/config"
-              "${config.cardano-configurations}/network/${config.network.name}/genesis:/genesis"
-            ];
+        "db-sync-${network.name}".service = {
+          useHostStore = true;
+          depends_on = [ "postgres-${network.name}" ];
+          volumes = [
+            "${dbSyncStateVol}:/state"
+            "${config.cardano-configurations}/network/${config.network.name}:/config"
+            "${nodeIpcVol}:/ipc"
+            "${dbSyncTmpVol}:/tmp"
+          ];
+          environment = {
+            PGPASSFILE = (pkgs.writeText "PGPASSFILE"
+              "postgres-${network.name}:${toString postgres.port}:${postgres.db}:${postgres.user}:${postgres.password}").outPath;
+            PGPASSWORD = postgres.password;
           };
+          command = let
+            start-db-sync = pkgs.writeShellApplication {
+              name = "start-db-sync";
+              runtimeInputs = with pkgs; [ bash busybox cardano-db-sync postgresql ];
+              text  = ''
+                mkdir -p /bin
+                ln -sf "${pkgs.bash}/bin/sh" /bin/sh
+                cardano-db-sync \
+                  --config /config/cardano-db-sync/config.json \
+                  --socket-path /ipc/node.socket \
+                  --state-dir /state \
+                  --schema-dir ${inputs.db-sync}/schema
+                '';
+              };
+            in [ "${start-db-sync}/bin/start-db-sync" ];
         };
-        blockfrost = {
-          build.image = pkgs.lib.mkForce inputs.blockfrost.packages.${pkgs.system}.dockerImage;
-          service = {
-            useHostStore = true;
-            ports = [ (bindPort 3000) ];
-            environment ={
-              BLOCKFROST_CONFIG_SERVER_PORT = 3000;
-              BLOCKFROST_CONFIG_SERVER_LISTEN_ADDRESS = "0.0.0.0";
-              BLOCKFROST_CONFIG_SERVER_DEBUG= "false";
-              BLOCKFROST_CONFIG_DBSYNC_HOST = "postgres-${network.name}:5432";
-              BLOCKFROST_CONFIG_DBSYNC_USER = postgres.user;
-              BLOCKFROST_CONFIG_DBSYNC_DATABASE = postgres.db;
-              BLOCKFROST_CONFIG_DBSYNC_MAX_CONN = "1";
-              BLOCKFROST_CONFIG_NETWORK = "preview";
-              BLOCKFROST_CONFIG_TOKEN_REGISTRY_URL = "https://tokens.cardano.org";
-              PGPASSWORD = postgres.password;
-            };
+        blockfrost.service = {
+          useHostStore = true;
+          ports = [ (bindPort blockfrost.port) ];
+          environment ={
+            BLOCKFROST_CONFIG_SERVER_PORT = toString blockfrost.port;
+            BLOCKFROST_CONFIG_SERVER_LISTEN_ADDRESS = "0.0.0.0";
+            BLOCKFROST_CONFIG_SERVER_DEBUG= "false";
+            # FIXME after https://github.com/blockfrost/blockfrost-backend-ryo/issues/88
+            BLOCKFROST_CONFIG_DBSYNC_HOST = "postgres-${network.name}";
+            BLOCKFROST_CONFIG_DBSYNC_USER = postgres.user;
+            BLOCKFROST_CONFIG_DBSYNC_DATABASE = postgres.db;
+            BLOCKFROST_CONFIG_DBSYNC_MAX_CONN = "1";
+            BLOCKFROST_CONFIG_NETWORK = "${network.name}";
+            BLOCKFROST_CONFIG_TOKEN_REGISTRY_URL = "https://tokens.cardano.org";
+            PGPASSWORD = postgres.password;
           };
+          command = [ "${pkgs.blockfrost-backend-ryo}/bin/blockfrost-backend-ryo" ];
         };
       } else {});
     in
@@ -231,7 +243,10 @@ rec {
             "${nodeDbVol}" = { };
             "${nodeIpcVol}" = { };
             "${kupoDbVol}" = { };
-          };
+          } // (if config.blockfrost.enable then {
+            "${dbSyncStateVol}" = { };
+            "${dbSyncTmpVol}" = { };
+          } else {});
         }
         config.extraDockerCompose;
       services = pkgs.lib.recursiveUpdate defaultServices config.extraServices;
