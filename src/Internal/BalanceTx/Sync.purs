@@ -52,8 +52,8 @@ syncBackendWithWallet = whenM isCip30 do
       liftAff (delay delayMs)
       sync delayMs
   errorMessage = "Failed to wait for wallet state synchronization (timeout). "
-    <> "Continuing anyway. Consider increasing timeParams.syncBackend.timeout "
-    <> "in ContractParams"
+    <> "Continuing anyway. Consider increasing `timeParams.syncBackend.timeout`"
+    <> " in `ContractParams`"
 
 -- | Wait until the wallet can see the UTxOs created by a given transaction.
 -- | This function assumes that the transaction has already been confirmed

@@ -88,7 +88,10 @@ testnetConfig =
   , hooks: emptyHooks
   , timeParams:
       { syncWallet:
-          { delay: Milliseconds 1_000.0, timeout: Milliseconds 100_000.0 }
+          -- As clarified in Eternl discord, they synchronize with the server every 2
+          -- minutes, so 125 seconds would probably be enough.
+          -- For other wallets, it is not very important
+          { delay: Milliseconds 1_000.0, timeout: Milliseconds 130_000.0 }
       , syncBackend:
           { delay: Milliseconds 3_000.0, timeout: Milliseconds 100_000.0 }
       }

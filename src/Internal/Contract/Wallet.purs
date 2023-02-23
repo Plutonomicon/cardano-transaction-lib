@@ -40,18 +40,15 @@ import Ctl.Internal.Types.PubKeyHash
   , StakePubKeyHash
   )
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Wallet
-  ( Wallet
-  , actionBasedOnWallet
-  )
+import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Data.Array (catMaybes, cons, foldMap, head)
+import Data.Array (catMaybes, cons, foldMap, foldr)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold, foldl)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple.Nested ((/\))
@@ -200,8 +197,10 @@ getWalletUtxos = do
     actionBasedOnWallet
       (\w conn -> w.getUtxos conn <#> map toUtxoMap)
       \_ -> do
-        mbAddress <- getWalletAddresses <#> head
-        map join $ for mbAddress $ map hush <<< liftAff <<< queryHandle.utxosAt
+        (addresses :: Array Address) <- getWalletAddresses
+        res :: Array (Maybe UtxoMap) <- for addresses $
+          map hush <<< liftAff <<< queryHandle.utxosAt
+        pure $ Just $ foldr Map.union Map.empty $ map (fromMaybe Map.empty) res
   where
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map
