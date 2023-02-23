@@ -24,6 +24,7 @@ import Ctl.Internal.Contract.Wallet
 import Ctl.Internal.Contract.Wallet as Utxos
 import Ctl.Internal.Helpers (liftEither, liftedM)
 import Ctl.Internal.Serialization.Address (Address)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Wallet (cip30Wallet)
 import Data.Array as Array
@@ -58,7 +59,8 @@ syncBackendWithWallet = whenM isCip30Wallet do
       logTrace' "syncBackendWithWallet: synchronization finished"
     else do
       logTrace' $
-        "syncBackendWithWallet: waiting for query layer state synchronization..."
+        "syncBackendWithWallet: waiting for query layer state " <>
+          "synchronization with the wallet..."
       liftAff (delay delayMs)
       sync delayMs
   errorMessage = "Failed to wait for wallet state synchronization (timeout). "
@@ -102,14 +104,17 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
         logTrace' "syncWalletWithTransaction: synchronization finished"
         pure unit
     else do
-      logTrace'
-        "syncWalletWithTransaction: Waiting for wallet state synchronization..."
+      logTrace' $
+        "syncWalletWithTransaction: waiting for wallet state synchronization "
+          <> "with the query layer, querying for Tx: "
+          <> byteArrayToHex (unwrap txHash)
       liftAff (delay delayMs)
       sync delayMs
   errorMessage =
-    "Failed to wait for wallet state synchronization. Continuing anyway. "
-      <> "This may indicate UTxO locking in use in the wallet. Consider "
-      <> "increasing `timeParams.syncWallet.timeout` in `ContractParams`"
+    "syncWalletWithTransaction: Failed to wait for wallet state "
+      <> "synchronization. Continuing anyway. This may indicate UTxO locking"
+      <> " in use in the wallet. Consider increasing "
+      <> "`timeParams.syncWallet.timeout` in `ContractParams`"
 
 -- | Waits untill all provided transaction inputs appear in the UTxO
 -- | set provided by the wallet.
@@ -119,7 +124,6 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
 -- | keys to use for signing. As a result, we get `MissingVKeyWitnesses`.
 syncWalletWithInputs :: Array TransactionInput -> Contract Unit
 syncWalletWithInputs txInputs = do
-  logTrace' "syncWalletWithInputs: starting"
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncWallet)
   ownAddrs <- getControlledAddresses
   ownInputUtxos <- txInputs #
@@ -134,12 +138,16 @@ syncWalletWithInputs txInputs = do
               <<< unwrap
           )
       )
+  logTrace' $
+    "syncWalletWithInputs: waiting for UTxO set to synchronize with the "
+      <> "following inputs: "
+      <> show ownInputUtxos
   let
     go = do
       walletUtxos <- Utxos.getWalletUtxos <#> fromMaybe Map.empty
       let difference = ownInputUtxos `Map.difference` walletUtxos
       if Map.isEmpty difference then do
-        logTrace' "syncWalletWithInputs: finished"
+        logTrace' "syncWalletWithInputs: synchronization finished"
       else do
         liftAff $ delay delayMs
         logTrace' $ "syncWalletWithInputs: remaining UTxOs that the wallet "
@@ -151,7 +159,7 @@ syncWalletWithInputs txInputs = do
   errorMessage =
     "syncWalletWithInputs: timeout while waiting for wallet"
       <> " UTxO set and CTL query layer UTxO set to synchronize "
-      <> "(`timeParams.syncWallet.timeout` in `ContractParams`)"
+      <> "(see `timeParams.syncWallet.timeout` in `ContractParams`)"
 
 -- | Without plutus conversion
 getUtxo' :: TransactionInput -> Contract (Maybe Cardano.TransactionOutput)
