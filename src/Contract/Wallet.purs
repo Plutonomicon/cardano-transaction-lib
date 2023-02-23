@@ -59,6 +59,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToLode
       , ConnectToEternl
+      , ConnectToNuFi
       )
   )
 import Data.Maybe (Maybe(Just))
