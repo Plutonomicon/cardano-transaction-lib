@@ -21,10 +21,6 @@ rec {
     };
     ogmios = { port = 1337; };
     postgres = {
-      # User-facing port on host machine.
-      # Can be set to null in order to not bind postgres port to host.
-      # Postgres will always be accessible via `postgres:5432` from
-      # containers.
       port = 5432;
       user = "ctl";
       password = "ctl";
