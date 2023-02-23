@@ -201,29 +201,31 @@ rec {
               "postgres-${network.name}:${toString postgres.port}:${postgres.db}:${postgres.user}:${postgres.password}").outPath;
             PGPASSWORD = postgres.password;
           };
-          command = let
-            start-db-sync = pkgs.writeShellApplication {
-              name = "start-db-sync";
-              runtimeInputs = with pkgs; [ bash busybox cardano-db-sync postgresql ];
-              text  = ''
-                mkdir -p /bin
-                ln -sf "${pkgs.bash}/bin/sh" /bin/sh
-                cardano-db-sync \
-                  --config /config/cardano-db-sync/config.json \
-                  --socket-path /ipc/node.socket \
-                  --state-dir /state \
-                  --schema-dir ${inputs.db-sync}/schema
+          command =
+            let
+              start-db-sync = pkgs.writeShellApplication {
+                name = "start-db-sync";
+                runtimeInputs = with pkgs; [ bash busybox cardano-db-sync postgresql ];
+                text = ''
+                  mkdir -p /bin
+                  ln -sf "${pkgs.bash}/bin/sh" /bin/sh
+                  cardano-db-sync \
+                    --config /config/cardano-db-sync/config.json \
+                    --socket-path /ipc/node.socket \
+                    --state-dir /state \
+                    --schema-dir ${inputs.db-sync}/schema
                 '';
               };
-            in [ "${start-db-sync}/bin/start-db-sync" ];
+            in
+            [ "${start-db-sync}/bin/start-db-sync" ];
         };
         blockfrost.service = {
           useHostStore = true;
           ports = [ (bindPort blockfrost.port) ];
-          environment ={
+          environment = {
             BLOCKFROST_CONFIG_SERVER_PORT = toString blockfrost.port;
             BLOCKFROST_CONFIG_SERVER_LISTEN_ADDRESS = "0.0.0.0";
-            BLOCKFROST_CONFIG_SERVER_DEBUG= "false";
+            BLOCKFROST_CONFIG_SERVER_DEBUG = "false";
             # FIXME after https://github.com/blockfrost/blockfrost-backend-ryo/issues/88
             BLOCKFROST_CONFIG_DBSYNC_HOST = "postgres-${network.name}";
             BLOCKFROST_CONFIG_DBSYNC_USER = postgres.user;
@@ -235,7 +237,7 @@ rec {
           };
           command = [ "${pkgs.blockfrost-backend-ryo}/bin/blockfrost-backend-ryo" ];
         };
-      } else {});
+      } else { });
     in
     {
       docker-compose.raw = pkgs.lib.recursiveUpdate
@@ -247,7 +249,7 @@ rec {
           } // (if config.blockfrost.enable then {
             "${dbSyncStateVol}" = { };
             "${dbSyncTmpVol}" = { };
-          } else {});
+          } else { });
         }
         config.extraDockerCompose;
       services = pkgs.lib.recursiveUpdate defaultServices config.extraServices;
