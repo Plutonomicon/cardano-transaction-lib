@@ -29,8 +29,8 @@ import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
   , ContractCheck
   , assertContract
+  , assertNewUtxosAtAddress
   , assertionToCheck
-  , checkNewUtxosAtAddress
   , label
   , runChecks
   )
@@ -104,7 +104,7 @@ assertTxCreatesOutputWithInlineDatum = assertionToCheck
       assertionFailure :: ContractAssertionFailure
       assertionFailure =
         CustomFailure "Could not find output with given inline datum"
-    checkNewUtxosAtAddress (label address "ownAddress") txHash
+    assertNewUtxosAtAddress (label address "ownAddress") txHash
       \outputs ->
         assertContract assertionFailure $
           hasOutputWithOutputDatum (OutputDatum datum) outputs
@@ -118,7 +118,7 @@ assertTxCreatesOutputWithDatumHash = assertionToCheck
       assertionFailure :: ContractAssertionFailure
       assertionFailure =
         CustomFailure "Could not find output with given datum hash"
-    checkNewUtxosAtAddress (label address "ownAddress") txHash
+    assertNewUtxosAtAddress (label address "ownAddress") txHash
       \outputs ->
         assertContract assertionFailure $
           hasOutputWithOutputDatum (OutputDatumHash datumHash) outputs

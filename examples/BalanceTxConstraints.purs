@@ -24,8 +24,8 @@ import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
   , ContractCheck
   , assertContract
+  , assertNewUtxosAtAddress
   , assertionToCheck
-  , checkNewUtxosAtAddress
   , label
   , runChecks
   )
@@ -72,7 +72,7 @@ assertChangeOutputsPartitionedCorrectly = assertionToCheck
   "Change is correctly partitioned"
   \{ txHash, changeAddress: addr, mintedToken: cs /\ tn } -> do
     let labeledAddr = label addr "changeAddress"
-    checkNewUtxosAtAddress labeledAddr txHash \changeOutputs -> do
+    assertNewUtxosAtAddress labeledAddr txHash \changeOutputs -> do
       let
         assertionFailure :: ContractAssertionFailure
         assertionFailure =
