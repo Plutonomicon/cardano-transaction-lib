@@ -48,21 +48,22 @@ import Effect.Exception (error)
 syncBackendWithWallet :: Contract Unit
 syncBackendWithWallet = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncBackend)
-  parOneOf [ sync delayMs, waitAndLogError timeout errorMessage ]
+  let
+    sync :: Contract Unit
+    sync = do
+      utxos <- getWalletUtxos <#> fromMaybe Map.empty
+      allFound <- all isJust <$> traverse getUtxo'
+        (fst <$> Map.toUnfoldableUnordered utxos :: Array TransactionInput)
+      if allFound then do
+        logTrace' "syncBackendWithWallet: synchronization finished"
+      else do
+        logTrace' $
+          "syncBackendWithWallet: waiting for query layer state " <>
+            "synchronization with the wallet..."
+        liftAff (delay delayMs)
+        sync
+  parOneOf [ sync, waitAndLogError timeout errorMessage ]
   where
-  sync :: Milliseconds -> Contract Unit
-  sync delayMs = do
-    utxos <- getWalletUtxos <#> fromMaybe Map.empty
-    allFound <- all isJust <$> traverse getUtxo'
-      (fst <$> Map.toUnfoldableUnordered utxos :: Array TransactionInput)
-    if allFound then do
-      logTrace' "syncBackendWithWallet: synchronization finished"
-    else do
-      logTrace' $
-        "syncBackendWithWallet: waiting for query layer state " <>
-          "synchronization with the wallet..."
-      liftAff (delay delayMs)
-      sync delayMs
   errorMessage = "Failed to wait for wallet state synchronization (timeout). "
     <> "Continuing anyway. Consider increasing `timeParams.syncBackend.timeout`"
     <> " in `ContractParams`"
@@ -78,6 +79,23 @@ syncWalletWithTransaction :: TransactionHash -> Contract Unit
 syncWalletWithTransaction txHash = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncWallet)
   queryHandle <- getQueryHandle
+
+  let
+    sync :: Contract Unit
+    sync = do
+      inputs <- map fst <<< Map.toUnfoldable <<< fromMaybe Map.empty <$>
+        getWalletUtxos
+      if Array.any (\input -> (unwrap input).transactionId == txHash) inputs then
+        do
+          logTrace' "syncWalletWithTransaction: synchronization finished"
+          pure unit
+      else do
+        logTrace' $
+          "syncWalletWithTransaction: waiting for wallet state synchronization "
+            <> "with the query layer, querying for Tx: "
+            <> byteArrayToHex (unwrap txHash)
+        liftAff (delay delayMs)
+        sync
   -- Collect all the addresses controlled by the wallet
   -- (reward addresses are omitted on purpose, we don't need them)
   ownAddresses <- getControlledAddresses
@@ -93,23 +111,8 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
     logTrace' $
       "Transaction output addresses: " <> show ownAddresses
   else do
-    parOneOf [ sync delayMs, waitAndLogError timeout errorMessage ]
+    parOneOf [ sync, waitAndLogError timeout errorMessage ]
   where
-  sync :: Milliseconds -> Contract Unit
-  sync delayMs = do
-    inputs <- map fst <<< Map.toUnfoldable <<< fromMaybe Map.empty <$>
-      getWalletUtxos
-    if Array.any (\input -> (unwrap input).transactionId == txHash) inputs then
-      do
-        logTrace' "syncWalletWithTransaction: synchronization finished"
-        pure unit
-    else do
-      logTrace' $
-        "syncWalletWithTransaction: waiting for wallet state synchronization "
-          <> "with the query layer, querying for Tx: "
-          <> byteArrayToHex (unwrap txHash)
-      liftAff (delay delayMs)
-      sync delayMs
   errorMessage =
     "syncWalletWithTransaction: Failed to wait for wallet state "
       <> "synchronization. Continuing anyway. This may indicate UTxO locking"
@@ -149,10 +152,10 @@ syncWalletWithInputs txInputs = do
       if Map.isEmpty difference then do
         logTrace' "syncWalletWithInputs: synchronization finished"
       else do
-        liftAff $ delay delayMs
         logTrace' $ "syncWalletWithInputs: remaining UTxOs that the wallet "
           <> "does not know about: "
           <> show difference
+        liftAff $ delay delayMs
         go
   parOneOf [ go, waitAndLogError timeout errorMessage ]
   where

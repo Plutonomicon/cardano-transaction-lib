@@ -5,7 +5,6 @@ import Contract.Prelude
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
-  , getWalletAddress
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
@@ -28,7 +27,6 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
 import Contract.Wallet (getWalletUtxos)
