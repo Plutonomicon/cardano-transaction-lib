@@ -96,6 +96,7 @@ rec {
       nodeSocketPath = "/ipc/node.socket";
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
+        # TODO make this use `cardano-node` from flake inputs
         cardano-node = {
           service = {
             image = "inputoutput/cardano-node:${node.tag}";
@@ -119,6 +120,7 @@ rec {
             ];
           };
         };
+        # TODO make this use `kupo` from flake inputs
         kupo = {
           service = {
             image = "cardanosolutions/kupo:${kupo.tag}";
@@ -146,6 +148,7 @@ rec {
             ];
           };
         };
+        # TODO make this use `ogmios` from flake inputs
         ogmios = {
           service = {
             useHostStore = true;
@@ -167,9 +170,11 @@ rec {
             ];
           };
         };
+        # TODO do not directly use Docker images
+        # Arion allow to run NixOS in containers, explore this direction
         "postgres-${network.name}" = {
           service = {
-            image = "postgres:13"; # TODO do not use non reproducible Docker images
+            image = "postgres:15.2";
             ports =
               if postgres.port == null
               then [ ]
