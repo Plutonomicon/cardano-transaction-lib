@@ -14,6 +14,7 @@ import Prelude
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
 import Control.Monad.Reader.Class (asks)
+import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletBalance, getWalletUtxos) as Utxos
 import Ctl.Internal.Plutus.Conversion
@@ -57,7 +58,9 @@ getUtxo oref = do
 
 getWalletBalance
   :: Contract (Maybe Value)
-getWalletBalance = Utxos.getWalletBalance <#> map toPlutusValue
+getWalletBalance = do
+  syncBackendWithWallet
+  Utxos.getWalletBalance <#> map toPlutusValue
 
 -- | Similar to `utxosAt` called on own address, except that it uses CIP-30
 -- | wallet state and not query layer state.
@@ -68,6 +71,7 @@ getWalletBalance = Utxos.getWalletBalance <#> map toPlutusValue
 getWalletUtxos
   :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
+  syncBackendWithWallet
   mCardanoUtxos <- Utxos.getWalletUtxos
   for mCardanoUtxos $
     liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
