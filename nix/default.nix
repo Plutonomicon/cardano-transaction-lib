@@ -405,7 +405,7 @@ let
         chmod -R +rwx .
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
-        mkdir ./dist
+        mkdir -p ./dist
         ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
         webpack --mode=production -c ${webpackConfig} -o ./dist \
           --entry ./${entrypoint}

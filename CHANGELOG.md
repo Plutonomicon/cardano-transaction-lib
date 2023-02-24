@@ -71,6 +71,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Performance issues when using Eternl in multi-address mode
 - `ConnectToNuFi` now reexported in `Contract.Wallet` ([#1435](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1435))
 - Fix a bug in UTxO selection in `Cip30Mock` (that affected `Cip30Mock` users) ([1437](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1437))
+- Fixed `bundlePursProject` crashing if build output directory exists ([#1438](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1438))
+- Better reporting for WebSocket errors  ([#1403](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1403))
 
 ### Removed
 
