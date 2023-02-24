@@ -46,6 +46,7 @@ import Ctl.Internal.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
   ) as Address
+import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
 import Ctl.Internal.Contract.Wallet
   ( getWalletAddresses
   , getWalletCollateral
@@ -178,6 +179,14 @@ getWalletAddressesWithNetworkTag = do
 getWalletCollateral
   :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
+  whenM
+    ( asks
+        ( _.synchronizationParams
+            >>> _.syncBackendWithWallet
+            >>> _.beforeCip30Methods
+        )
+    )
+    syncBackendWithWallet
   mtxUnspentOutput <- Contract.getWalletCollateral
   for mtxUnspentOutput $ traverse $
     liftedM

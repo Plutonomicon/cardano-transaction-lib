@@ -17,7 +17,11 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Config (testnetConfig)
+import Contract.Config
+  ( defaultSynchronizationParams
+  , defaultTimeParams
+  , testnetConfig
+  )
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
@@ -192,7 +196,7 @@ whenError whenErrorAction action = do
   when (isLeft res) whenErrorAction
   liftEither res
 
--- | Lifts the utxo distributions of each test out of Mote, into a combined
+-- | Lifts the UTxO distributions of each test out of Mote, into a combined
 -- | distribution. Adapts the tests to pick their distribution out of the
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
@@ -382,10 +386,10 @@ configCheck cfg = do
     "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
 -- | Start the plutip cluster, initializing the state with the given
--- | utxo distribution. Also initializes an extra payment key (aka
--- | `ourKey`) with some utxos for use with further plutip
+-- | UTxO distribution. Also initializes an extra payment key (aka
+-- | `ourKey`) with some UTxOs for use with further plutip
 -- | setup. `ourKey` has funds proportional to the total amount of the
--- | utxos in the passed distribution, so it can be used to handle
+-- | UTxOs in the passed distribution, so it can be used to handle
 -- | transaction fees.
 startPlutipCluster
   :: PlutipConfig
@@ -433,16 +437,16 @@ startPlutipCluster cfg keysToGenerate = do
           Just { head: PrivateKeyResponse ourKey, tail } ->
             pure $ PrivatePaymentKey ourKey /\ response { privateKeys = tail }
 
--- | Calculate the initial utxos needed for `ourKey` to cover
+-- | Calculate the initial UTxOs needed for `ourKey` to cover
 -- | transaction costs for the given initial distribution
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
     total = Array.foldr (sum >>> add) zero utxoDistribution
   in
-    [ -- Take the total value of the utxos and add some extra on top
+    [ -- Take the total value of the UTxOs and add some extra on top
       -- of it to cover the possible transaction fees. Also make sure
-      -- we don't request a 0 ada utxo
+      -- we don't request a 0 ada UTxO
       total + BigInt.fromInt 1_000_000_000
     ]
 
@@ -594,7 +598,9 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants
-    , timeParams: testnetConfig.timeParams -- no effect when KeyWallet is used
+    -- timeParams have no effect when KeyWallet is used
+    , timeParams: defaultTimeParams
+    , synchronizationParams: defaultSynchronizationParams
     }
 
 defaultRetryPolicy :: RetryPolicy

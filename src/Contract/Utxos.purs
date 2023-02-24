@@ -11,10 +11,15 @@ module Contract.Utxos
 
 import Prelude
 
+import Contract.Log (logWarn')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
+import Ctl.Internal.BalanceTx.Sync
+  ( getControlledAddresses
+  , isCip30Wallet
+  , syncBackendWithWallet
+  )
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletBalance, getWalletUtxos) as Utxos
 import Ctl.Internal.Plutus.Conversion
@@ -29,19 +34,38 @@ import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Maybe (Maybe)
+import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)
 
--- | Queries for utxos at the given Plutus `Address`.
+-- | Queries for UTxOs at the given `Address`.
+-- |
+-- | **Note**: calling `utxosAt` on an address controlled by the light
+-- | wallet may result in hard-to-debug problems with wallet interactions.
+-- | The developers should not assume that all UTxOs that are available on
+-- | wallet addresses are actually spendable. See the docs for UTxO locking
+-- | in `doc/query-layers.md`. Using `getWalletUtxos` is a way to avoid the
+-- | potential problems. This function will raise a warning in the logs if
+-- | wallet address is used.
 utxosAt
   :: forall (address :: Type)
    . PlutusAddress address
   => address
   -> Contract UtxoMap
-utxosAt address = do
+utxosAt addressAny = do
   networkId <- asks _.networkId
+  let address = fromPlutusAddress networkId $ getAddress addressAny
   queryHandle <- getQueryHandle
-  let cardanoAddr = fromPlutusAddress networkId (getAddress address)
-  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosAt cardanoAddr
+  whenM isCip30Wallet do
+    walletAddresses <- getControlledAddresses
+    when (address `Set.member` walletAddresses) do
+      logWarn' $
+        "utxosAt: you are calling `utxosAt` on an address controlled by the"
+          <> " wallet. This may result in hard-to-debug problems with wallet "
+          <> "interactions. The developers should not assume that all UTxOs "
+          <> "that are available on wallet addresses are actually spendable. "
+          <> "See the docs for UTxO locking in `doc/query-layers.md`. Using "
+          <> "`getWalletUtxos` is a way to avoid the potential problems."
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosAt address
   liftContractM "utxosAt: failed to convert utxos"
     $ toPlutusUtxoMap cardanoUtxoMap
 
@@ -59,7 +83,12 @@ getUtxo oref = do
 getWalletBalance
   :: Contract (Maybe Value)
 getWalletBalance = do
-  syncBackendWithWallet
+  whenM
+    ( asks $ _.synchronizationParams
+        >>> _.syncBackendWithWallet
+        >>> _.beforeCip30Methods
+    )
+    syncBackendWithWallet
   Utxos.getWalletBalance <#> map toPlutusValue
 
 -- | Similar to `utxosAt` called on own address, except that it uses CIP-30
@@ -71,7 +100,13 @@ getWalletBalance = do
 getWalletUtxos
   :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
-  syncBackendWithWallet
+  whenM
+    ( asks $
+        _.synchronizationParams
+          >>> _.syncBackendWithWallet
+          >>> _.beforeCip30Methods
+    )
+    syncBackendWithWallet
   mCardanoUtxos <- Utxos.getWalletUtxos
   for mCardanoUtxos $
     liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<

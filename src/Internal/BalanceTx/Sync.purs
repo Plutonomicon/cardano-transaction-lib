@@ -3,8 +3,9 @@
 module Ctl.Internal.BalanceTx.Sync
   ( syncBackendWithWallet
   , syncWalletWithTransaction
-  , syncWalletWithInputs
+  , syncWalletWithTxInputs
   , isCip30Wallet
+  , getControlledAddresses
   ) where
 
 import Prelude
@@ -29,7 +30,6 @@ import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Wallet (cip30Wallet)
 import Data.Array as Array
 import Data.Bifunctor (bimap)
-import Data.Foldable (all)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe, isJust)
 import Data.Newtype (unwrap)
@@ -37,32 +37,45 @@ import Data.Set (Set)
 import Data.Set as Set
 import Data.Time.Duration (Milliseconds, fromDuration)
 import Data.Traversable (traverse)
-import Data.Tuple (fst)
+import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
-import Effect.Exception (error)
+import Effect.Class (liftEffect)
+import Effect.Exception (error, throw)
 
 -- | Wait until all UTxOs that the wallet returns are visible in the
 -- | query layer.
 syncBackendWithWallet :: Contract Unit
 syncBackendWithWallet = whenM isCip30Wallet do
-  { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncBackend)
+  { delay: delayMs, timeout } <- asks $ _.timeParams >>> _.syncBackend
+  { errorOnTimeout } <- asks $
+    _.synchronizationParams >>> _.syncBackendWithWallet
   let
-    sync :: Contract Unit
-    sync = do
+    sync :: Array TransactionInput -> Contract Unit
+    sync alreadyFound = do
       utxos <- getWalletUtxos <#> fromMaybe Map.empty
-      allFound <- all isJust <$> traverse getUtxo'
-        (fst <$> Map.toUnfoldableUnordered utxos :: Array TransactionInput)
-      if allFound then do
+      let
+        -- all utxos from the wallet, except of those we have already seen
+        notYetFoundUtxos :: Array TransactionInput
+        notYetFoundUtxos =
+          Array.filter (not <<< flip Array.elem alreadyFound)
+            $ fst <$> Map.toUnfoldableUnordered utxos
+      -- split the UTxOs into known to the query layer and not yet known
+      { yes: newlyFound, no: stillNotFound } <- Array.partition (snd >>> isJust)
+        <$> traverse (\input -> Tuple input <$> getUtxo' input) notYetFoundUtxos
+      if Array.null stillNotFound then do
         logTrace' "syncBackendWithWallet: synchronization finished"
       else do
         logTrace' $
           "syncBackendWithWallet: waiting for query layer state " <>
             "synchronization with the wallet..."
         liftAff (delay delayMs)
-        sync
-  parOneOf [ sync, waitAndLogError (fromDuration timeout) errorMessage ]
+        sync (map fst newlyFound <> alreadyFound)
+  parOneOf
+    [ sync []
+    , waitAndError errorOnTimeout (fromDuration timeout) errorMessage
+    ]
   where
   errorMessage = "Failed to wait for wallet state synchronization (timeout). "
     <> "Continuing anyway. Consider increasing `timeParams.syncBackend.timeout`"
@@ -74,21 +87,25 @@ syncBackendWithWallet = whenM isCip30Wallet do
 -- | This function does not have any effect if `KeyWallet` is used.
 -- | This function does not have any effect if none of the outputs are at
 -- | addresses controlled by the wallet.
+-- | The assumption is that the transaction has at least one output and that it
+-- | hasn't been consumed by another transaction yet.
 -- | You don't need to use this function if you use `awaitTxConfirmed*`.
 syncWalletWithTransaction :: TransactionHash -> Contract Unit
 syncWalletWithTransaction txHash = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncWallet)
+  { errorOnTimeout } <- asks $
+    _.synchronizationParams >>> _.syncWalletWithTransaction
   queryHandle <- getQueryHandle
-
   let
     sync :: Contract Unit
     sync = do
       inputs <- map fst <<< Map.toUnfoldable <<< fromMaybe Map.empty <$>
         getWalletUtxos
+      -- We can wait for just one, because once we have it, we know that
+      -- the tx effects have propagated to the wallet (Txs are atomic)
       if Array.any (\input -> (unwrap input).transactionId == txHash) inputs then
         do
           logTrace' "syncWalletWithTransaction: synchronization finished"
-          pure unit
       else do
         logTrace' $
           "syncWalletWithTransaction: waiting for wallet state synchronization "
@@ -103,15 +120,18 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
     queryHandle.getOutputAddressesByTxHash txHash <#>
       bimap (error <<< show) Set.fromFoldable
   if Set.isEmpty (Set.intersection ownAddresses outputAddresses) then do
-    logWarn' $
-      "Skipping wait for wallet state synchronization, because the " <>
-        "transaction does not include outputs controlled by this wallet."
+    logWarn' $ "syncWalletWithTransaction: "
+      <> "Skipping wait for wallet state synchronization, because the "
+      <> "transaction does not include outputs controlled by this wallet."
     logTrace' $
       "Wallet addresses: " <> show ownAddresses
     logTrace' $
       "Transaction output addresses: " <> show ownAddresses
   else do
-    parOneOf [ sync, waitAndLogError (fromDuration timeout) errorMessage ]
+    parOneOf
+      [ sync
+      , waitAndError errorOnTimeout (fromDuration timeout) errorMessage
+      ]
   where
   errorMessage =
     "syncWalletWithTransaction: Failed to wait for wallet state "
@@ -119,15 +139,20 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
       <> " in use in the wallet. Consider increasing "
       <> "`timeParams.syncWallet.timeout` in `ContractParams`"
 
--- | Waits untill all provided transaction inputs appear in the UTxO
+-- | Waits until all provided transaction inputs appear in the UTxO
 -- | set provided by the wallet.
 -- | This is a hacky solution to the problem of wallets not seeing UTxOs that
 -- | hasn't been fully confirmed at the moment of a `sign()` call.
--- | Since it can't detect UTxO origin, it can't decide which of the private
--- | keys to use for signing. As a result, we get `MissingVKeyWitnesses`.
-syncWalletWithInputs :: Array TransactionInput -> Contract Unit
-syncWalletWithInputs txInputs = do
+-- | The problem is, since the wallet can't detect UTxO origin, it can't decide
+-- | which of the private keys to use for signing.
+-- | As a result, we get `MissingVKeyWitnesses`.
+-- | You don't have to call this function before `signTx`, because its use is
+-- | enabled by default.
+syncWalletWithTxInputs :: Array TransactionInput -> Contract Unit
+syncWalletWithTxInputs txInputs = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncWallet)
+  { errorOnTimeout } <- asks $
+    _.synchronizationParams >>> _.syncWalletWithTxInputs
   ownAddrs <- getControlledAddresses
   ownInputUtxos <- txInputs #
     traverse
@@ -142,7 +167,7 @@ syncWalletWithInputs txInputs = do
           )
       )
   logTrace' $
-    "syncWalletWithInputs: waiting for UTxO set to synchronize with the "
+    "syncWalletWithTxInputs: waiting for UTxO set to synchronize with the "
       <> "following inputs: "
       <> show ownInputUtxos
   let
@@ -150,26 +175,30 @@ syncWalletWithInputs txInputs = do
       walletUtxos <- Utxos.getWalletUtxos <#> fromMaybe Map.empty
       let difference = ownInputUtxos `Map.difference` walletUtxos
       if Map.isEmpty difference then do
-        logTrace' "syncWalletWithInputs: synchronization finished"
+        logTrace' "syncWalletWithTxInputs: synchronization finished"
       else do
-        logTrace' $ "syncWalletWithInputs: remaining UTxOs that the wallet "
+        logTrace' $ "syncWalletWithTxInputs: remaining UTxOs that the wallet "
           <> "does not know about: "
           <> show difference
         liftAff $ delay delayMs
         sync
-  parOneOf [ sync, waitAndLogError (fromDuration timeout) errorMessage ]
+  parOneOf
+    [ sync, waitAndError errorOnTimeout (fromDuration timeout) errorMessage ]
   where
   errorMessage =
-    "syncWalletWithInputs: timeout while waiting for wallet"
+    "syncWalletWithTxInputs: timeout while waiting for wallet"
       <> " UTxO set and CTL query layer UTxO set to synchronize "
       <> "(see `timeParams.syncWallet.timeout` in `ContractParams`)"
 
--- | Without plutus conversion
+-- | A version without plutus conversion for internal use.
 getUtxo' :: TransactionInput -> Contract (Maybe Cardano.TransactionOutput)
 getUtxo' oref = do
   queryHandle <- getQueryHandle
   liftedE $ liftAff $ queryHandle.getUtxoByOref oref
 
+-- | Get all addresses contolled by a wallet:
+-- | `getUsedAddresses`, `getUnusedAddresses` and `getChangeAddress` combined.
+-- | Reward addresses are not included.
 getControlledAddresses :: Contract (Set Address)
 getControlledAddresses = do
   used <- getWalletAddresses <#> Set.fromFoldable
@@ -180,7 +209,10 @@ getControlledAddresses = do
 isCip30Wallet :: Contract Boolean
 isCip30Wallet = asks $ isJust <<< (cip30Wallet <=< _.wallet)
 
-waitAndLogError :: Milliseconds -> String -> Contract Unit
-waitAndLogError timeout errorMessage = do
+-- | If the first argument is true, it will throw. Otherwise, that would be a
+-- | console.error call.
+waitAndError :: Boolean -> Milliseconds -> String -> Contract Unit
+waitAndError errorOnTimeout timeout errorMessage = do
   liftAff $ delay timeout
-  logError' errorMessage
+  if errorOnTimeout then liftEffect $ throw errorMessage
+  else logError' errorMessage

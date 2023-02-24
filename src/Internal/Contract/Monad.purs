@@ -3,6 +3,7 @@ module Ctl.Internal.Contract.Monad
   , ContractEnv
   , ContractParams
   , ContractTimeParams
+  , ContractSynchronizationParams
   , LedgerConstants
   , ParContract(ParContract)
   , mkContractEnv
@@ -182,6 +183,7 @@ type ContractEnv =
   , usedTxOuts :: UsedTxOuts
   , ledgerConstants :: LedgerConstants
   , timeParams :: ContractTimeParams
+  , synchronizationParams :: ContractSynchronizationParams
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -204,8 +206,12 @@ mkContractEnv params = do
       wallet <- buildWallet
       pure $ merge { wallet }
     -- Compose the sub-builders together
-    in b1 >>> b2 >>> merge { usedTxOuts, timeParams: params.timeParams }
-
+    in
+      b1 >>> b2 >>> merge
+        { usedTxOuts
+        , timeParams: params.timeParams
+        , synchronizationParams: params.synchronizationParams
+        }
   pure $ build envBuilder constants
   where
   logger :: Logger
@@ -349,9 +355,21 @@ withContractEnv params action = do
 
 -- | Delays and timeouts for internal query functions.
 type ContractTimeParams =
-  { syncWallet :: { delay :: Milliseconds, timeout :: Seconds }
+  { awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Maybe Seconds }
+  , syncWallet :: { delay :: Milliseconds, timeout :: Seconds }
   , syncBackend :: { delay :: Milliseconds, timeout :: Seconds }
-  , awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Maybe Seconds }
+  }
+
+type ContractSynchronizationParams =
+  { syncBackendWithWallet ::
+      { errorOnTimeout :: Boolean
+      , beforeCip30Methods :: Boolean
+      , beforeBalancing :: Boolean
+      }
+  , syncWalletWithTxInputs ::
+      { errorOnTimeout :: Boolean, beforeCip30Sign :: Boolean }
+  , syncWalletWithTransaction ::
+      { errorOnTimeout :: Boolean, beforeTxConfirmed :: Boolean }
   }
 
 -- | Options to construct an environment for a `Contract` to run.
@@ -371,6 +389,7 @@ type ContractParams =
   , suppressLogs :: Boolean
   , hooks :: Hooks
   , timeParams :: ContractTimeParams
+  , synchronizationParams :: ContractSynchronizationParams
   }
 
 --------------------------------------------------------------------------------

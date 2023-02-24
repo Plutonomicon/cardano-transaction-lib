@@ -88,7 +88,12 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
     when isBlockfrost do
       tryUntilTrue delayMs (utxosPresentForTxHash txHash)
       for_ confirmTxDelay (liftAff <<< delay <<< fromDuration)
-    syncWalletWithTransaction txHash
+    whenM
+      ( asks $ _.synchronizationParams
+          >>> _.syncWalletWithTransaction
+          >>> _.beforeTxConfirmed
+      )
+      $ syncWalletWithTransaction txHash
     pure true
 
 -- Perform the check until it returns true.
@@ -124,7 +129,12 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
   tryUntilTrue delayMs do
     checkSlotLimit limitSlot
     utxosPresentForTxHash txHash
-  syncWalletWithTransaction txHash
+  whenM
+    ( asks $ _.synchronizationParams
+        >>> _.syncWalletWithTransaction
+        >>> _.beforeTxConfirmed
+    )
+    $ syncWalletWithTransaction txHash
   where
   addSlots :: Int -> Slot -> Contract Slot
   addSlots n slot =
@@ -132,11 +142,13 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
       unwrap slot `BigNum.add` BigNum.fromInt n
 
   getCurrentSlot :: Contract Slot
-  getCurrentSlot = getChainTip >>= case _ of
-    Chain.TipAtGenesis -> do
-      liftAff $ delay $ wrap 1000.0
-      getCurrentSlot
-    Chain.Tip (Chain.ChainTip { slot }) -> pure slot
+  getCurrentSlot = do
+    { delay: delayMs } <- asks $ _.timeParams >>> _.awaitTxConfirmed
+    getChainTip >>= case _ of
+      Chain.TipAtGenesis -> do
+        liftAff $ delay delayMs
+        getCurrentSlot
+      Chain.Tip (Chain.ChainTip { slot }) -> pure slot
 
   checkSlotLimit :: Slot -> Contract Unit
   checkSlotLimit limitSlot = do

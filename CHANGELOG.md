@@ -56,15 +56,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- Automatic retries for `403 Service Unavailable` Kupo request errors. Retry attempts happen with exponentially increasing intervals ([#1436](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1436))
+- **[IMPORTANT]** New machinery to achieve better synchronization between wallets and query layer has been added. This affects all CTL-based apps when light wallet browser extensions are in use. See [here](./doc/query-layers.md) for more info.
+- Automatic retries for `503 Service Unavailable` Kupo request errors. Retry attempts happen with exponentially increasing intervals ([#1436](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1436))
 - New functions in the assertion library to track changes in CIP-30 wallet total balance - see `Contract.Test.Assert`
 
 ### Changed
 
+- **[IMPORTANT]** It is no more recommended to use `utxosAt` to get UTxOs at light wallet addresses. It may be a source of application bugs in some cases due to how wallets operate. Please see *Synchronization and wallet UTxO locking* section [here](./doc/query-layers.md).
+- All uses of `utxosAt` call have been replaced with `getWalletUtxos` in the balancer.
+- `ContractParams` has new fields: `ContractTimeParams` and `ContractSynchronizationParams`. Default values are `Contract.Config.defaultTimeParams` and `Contract.Config.defaultSynchronizationParams` .
+
 ### Fixed
 
+- Performance issues when using Eternl in multi-address mode
 - `ConnectToNuFi` now reexported in `Contract.Wallet` ([#1435](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1435))
-- Fix a bug in UTxO selection in `Cip30Mock` (only affects Cip30Mock users) ([1437](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1437))
+- Fix a bug in UTxO selection in `Cip30Mock` (that affected `Cip30Mock` users) ([1437](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1437))
 
 ### Removed
 

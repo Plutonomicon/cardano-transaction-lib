@@ -10,6 +10,7 @@ import Contract.Log (logTrace')
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (trace) as Logger
+import Control.Monad.Reader (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
@@ -187,7 +188,13 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
       case mbSrcAddrs of
         -- Use wallet UTxOs.
         Nothing -> do
-          syncBackendWithWallet
+          whenM
+            ( asks $ _.synchronizationParams
+                >>> _.syncBackendWithWallet
+                >>> _.beforeBalancing
+            )
+            do
+              syncBackendWithWallet
           note CouldNotGetUtxos <$> do
             Wallet.getWalletUtxos
         -- Use UTxOs from source addresses
@@ -197,7 +204,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
           -- we can't query the wallet for available UTxOs, because there's no
           -- way to tell it to return UTxOs only from specific subset of the
           -- addresses controlled by a CIP-30 wallet.
-          -- `utxosAt` calls are expensive when there are a lot of wallets to
+          -- `utxosAt` calls are expensive when there are a lot of addresses to
           -- check.
           parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs
             <#> traverse (note CouldNotGetUtxos)

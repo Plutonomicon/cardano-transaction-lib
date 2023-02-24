@@ -14,8 +14,11 @@ module Contract.Config
   , mainnetEternlConfig
   , mainnetLodeConfig
   , mainnetNuFiConfig
+  , defaultSynchronizationParams
+  , disabledSynchronizationParams
+  , strictSynchronizationParams
+  , defaultTimeParams
   , module Contract.Address
-  , module Ctl.Internal.Contract.Monad
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys
@@ -28,7 +31,16 @@ module Contract.Config
 import Contract.Address (NetworkId(MainnetId, TestnetId))
 import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
-import Ctl.Internal.Contract.Monad (ContractParams)
+import Ctl.Internal.Contract.Monad
+  ( ContractParams
+  , ContractSynchronizationParams
+  , ContractTimeParams
+  )
+import Ctl.Internal.Contract.Monad
+  ( ContractParams
+  , ContractSynchronizationParams
+  , ContractTimeParams
+  ) as X
 import Ctl.Internal.Contract.QueryBackend
   ( BlockfrostBackendParams
   , CtlBackend
@@ -86,17 +98,69 @@ testnetConfig =
   , customLogger: Nothing
   , suppressLogs: false
   , hooks: emptyHooks
-  , timeParams:
-      { syncWallet:
-          -- As clarified in Eternl discord, they synchronize with the server every 2
-          -- minutes, so 125 seconds would probably be enough.
-          -- For other wallets, it is not very important
-          { delay: Milliseconds 1_000.0, timeout: Seconds 130.0 }
-      , syncBackend:
-          { delay: Milliseconds 3_000.0, timeout: Seconds 100.0 }
-      , awaitTxConfirmed:
-          { delay: Milliseconds 1_000.0, timeout: Nothing }
+  , timeParams: defaultTimeParams
+  , synchronizationParams: defaultSynchronizationParams
+  }
+
+-- | - `syncWallet` specifies delay and timeout for `syncWalletWithTransaction`
+-- | and `syncWalletWithTxInputs` synchronization primitives.
+-- | See `doc/query-layers.md` for more info.
+-- | - `syncBackend` specifies delay and timeout for `syncBackendWithWallet`
+-- | synchronization primitive.
+-- | See `doc/query-layers.md` for more info.
+-- | - `awaitTxConfirmed` specifies default delay and timeout for
+-- | `awaitTxConfirmed` call.
+defaultTimeParams :: ContractTimeParams
+defaultTimeParams =
+  { syncWallet:
+      -- As clarified in Eternl discord, they synchronize with the server every 2
+      -- minutes, so 125 seconds would probably be enough.
+      -- For other wallets, it is not very important
+      { delay: Milliseconds 1_000.0, timeout: Seconds 125.0 }
+  , syncBackend:
+      -- Operations are costly, so the delay is 3 set to seconds
+      { delay: Milliseconds 3_000.0, timeout: Seconds 120.0 }
+  , awaitTxConfirmed:
+      -- CIP-30 calls are cheap, so the delay can be just 1 second
+      { delay: Milliseconds 1_000.0, timeout: Nothing }
+  }
+
+-- | Default synchronization parameters with all synchronization primitives
+-- | enabled. `errorOnTimeout` options are all set to `false`.
+-- | See `doc/query-layers.md` for more info.
+defaultSynchronizationParams :: ContractSynchronizationParams
+defaultSynchronizationParams =
+  { syncBackendWithWallet:
+      { errorOnTimeout: false, beforeCip30Methods: true, beforeBalancing: true }
+  , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: true }
+  , syncWalletWithTransaction:
+      { errorOnTimeout: false, beforeTxConfirmed: true }
+  }
+
+-- | Synchronization parameters with all synchronization primitives enabled
+-- | and `errorOnTimeout` values set to `true`.
+-- | See `doc/query-layers.md` for more info.
+strictSynchronizationParams :: ContractSynchronizationParams
+strictSynchronizationParams =
+  { syncBackendWithWallet:
+      { errorOnTimeout: true, beforeCip30Methods: true, beforeBalancing: true }
+  , syncWalletWithTxInputs: { errorOnTimeout: true, beforeCip30Sign: true }
+  , syncWalletWithTransaction: { errorOnTimeout: true, beforeTxConfirmed: true }
+  }
+
+-- | Synchronization parameters that make all synchronization primitives
+-- | a no-op.
+-- | See `doc/query-layers.md` for more info.
+disabledSynchronizationParams :: ContractSynchronizationParams
+disabledSynchronizationParams =
+  { syncBackendWithWallet:
+      { errorOnTimeout: false
+      , beforeCip30Methods: false
+      , beforeBalancing: false
       }
+  , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: false }
+  , syncWalletWithTransaction:
+      { errorOnTimeout: false, beforeTxConfirmed: false }
   }
 
 testnetNamiConfig :: ContractParams

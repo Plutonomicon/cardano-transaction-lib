@@ -5,7 +5,7 @@ module Ctl.Internal.Contract.Sign
 import Prelude
 
 import Control.Monad.Reader (asks)
-import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncWalletWithInputs)
+import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncWalletWithTxInputs)
 import Ctl.Internal.Cardano.Types.Transaction (_body, _inputs, _witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as Transaction
 import Ctl.Internal.Contract.Monad (Contract)
@@ -30,7 +30,13 @@ signTransaction tx = do
   hooks <- asks _.hooks
   for_ hooks.beforeSign (void <<< liftEffect <<< try)
   whenM isCip30Wallet do
-    syncWalletWithInputs $ fromFoldable $ tx ^. _body <<< _inputs
+    whenM
+      ( asks $ _.synchronizationParams
+          >>> _.syncWalletWithTxInputs
+          >>> _.beforeCip30Sign
+      )
+      do
+        syncWalletWithTxInputs $ fromFoldable $ tx ^. _body <<< _inputs
   withWallet case _ of
     Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
     Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
