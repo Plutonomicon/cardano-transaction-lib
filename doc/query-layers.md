@@ -91,7 +91,7 @@ Note that it is possible to set `timeout` to `Seconds infinity`.
 
 ### Synchronization and wallet UTxO locking
 
-`Contract.Utxos.utxosAt` function returns a set of UTxOs at a given address. It looks reasonable to assume that if we call utxosAt at all wallet's addresses we will get the same set of UTxOs that [CIP-30](https://cips.cardano.org/cips/cip30/) `getUtxos` method would return (eventually). But it is not, in fact, true.
+`Contract.Utxos.utxosAt` function returns a set of UTxOs at a given address by calling Kupo or Blockfrost, depending on the backend. It seems reasonable to assume that if we call `utxosAt` at all wallet's addresses we will get the same set of UTxOs that [CIP-30](https://cips.cardano.org/cips/cip30/) `getUtxos` method would return (eventually). But it is not, in fact, true.
 
 *UTxO locking* is a wallet feature that allows to hide certain UTxOs from results of CIP-30 calls, making them invisible to dApps. Among the wallets we support, it is currently only present in Eternl:
 
@@ -99,9 +99,11 @@ Note that it is possible to set `timeout` to `Seconds infinity`.
 
 UTxO locking does not play well with `syncWalletWithTxInputs` and `syncWalletWithTransaction`, because the set of UTxOs these functions poll for may contain locked UTxOs, and thus the synchronization can fail by timeout (either with an exception or a console warning, see `errorOnTimeout` configuration parameter above).
 
-However, the developer can easily safeguard against this problem:
+However, the developer can easily safeguard against this problem by following one simple rule:
 
 - `utxosAt` should not be used to get UTxOs present on wallet's addresses. Instead, `Contract.Wallet.getWalletUtxos` should be used.
+
+`utxosAt` will log a warning to the console when used with a wallet's address.
 
 ### Historical notes
 
