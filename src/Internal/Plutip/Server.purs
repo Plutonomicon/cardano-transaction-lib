@@ -20,7 +20,6 @@ import Contract.Address (NetworkId(MainnetId))
 import Contract.Config
   ( defaultSynchronizationParams
   , defaultTimeParams
-  , testnetConfig
   )
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
