@@ -17,47 +17,49 @@ module Contract.Test.Assert
   , ExpectedActual(ExpectedActual)
   , Label
   , Labeled(Labeled)
-  , assertContractExpectedActual
   , assertContract
+  , assertContractEqual
+  , assertContractExpectedActual
   , assertContractMaybe
-  , checkLovelaceDeltaAtAddress
+  , assertNewUtxosAtAddress
+  , assertNewUtxosInWallet
   , assertOutputHasDatum
   , assertOutputHasRefScript
   , assertTxHasMetadata
-  , checkValueDeltaAtAddress
   , assertionToCheck
   , checkExUnitsNotExceed
   , checkGainAtAddress
   , checkGainAtAddress'
+  , checkGainInWallet
+  , checkGainInWallet'
   , checkLossAtAddress
   , checkLossAtAddress'
-  , assertNewUtxosAtAddress
+  , checkLossInWallet
+  , checkLossInWallet'
+  , checkLovelaceDeltaAtAddress
+  , checkLovelaceDeltaInWallet
   , checkTokenDeltaAtAddress
+  , checkTokenDeltaInWallet
   , checkTokenGainAtAddress
   , checkTokenGainAtAddress'
+  , checkTokenGainInWallet
+  , checkTokenGainInWallet'
   , checkTokenLossAtAddress
   , checkTokenLossAtAddress'
+  , checkTokenLossInWallet
+  , checkTokenLossInWallet'
+  , checkValueDeltaAtAddress
+  , checkValueDeltaInWallet
   , collectAssertionFailures
   , label
   , noLabel
+  , printContractAssertionFailure
+  , printContractAssertionFailures
+  , printExpectedActual
+  , printLabeled
   , runChecks
   , tellFailure
   , unlabel
-  , printLabeled
-  , printExpectedActual
-  , printContractAssertionFailure
-  , printContractAssertionFailures
-  , checkValueDeltaInWallet
-  , checkLovelaceDeltaInWallet
-  , checkGainInWallet
-  , checkGainInWallet'
-  , checkLossInWallet
-  , checkLossInWallet'
-  , checkTokenDeltaInWallet
-  , checkTokenGainInWallet
-  , checkTokenGainInWallet'
-  , checkTokenLossInWallet
-  , checkTokenLossInWallet'
   ) where
 
 import Prelude
@@ -74,6 +76,7 @@ import Contract.Transaction
   )
 import Contract.Utxos (getWalletBalance, utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
+import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.Error.Class as E
 import Control.Monad.Reader (ReaderT, ask, local, mapReaderT, runReaderT)
@@ -103,8 +106,8 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens (non, to, traversed, view, (%~), (^.), (^..))
 import Data.Lens.Record (prop)
 import Data.List (List(Cons, Nil))
-import Data.Map (filterKeys, lookup, values) as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Map (empty, filterKeys, lookup, values) as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.Show.Generic (genericShow)
 import Data.String (trim) as String
@@ -280,7 +283,8 @@ type ContractCheck a =
 -- | Create a check that simply asserts something about a `Contract` result.
 -- |
 -- | If a `Contract` throws an exception, the assertion is never checked,
--- | because the result is never computed.
+-- | because the result is never computed. In this case, a warning will be
+-- | printed, containing the given description.
 assertionToCheck
   :: forall (a :: Type)
    . String
@@ -322,6 +326,19 @@ assertContractExpectedActual
 assertContractExpectedActual mkAssertionFailure expected actual =
   assertContract (mkAssertionFailure $ ExpectedActual expected actual)
     (expected == actual)
+
+assertContractEqual
+  :: forall (a :: Type)
+   . Eq a
+  => Show a
+  => a
+  -> a
+  -> ContractAssertion Unit
+assertContractEqual = assertContractExpectedActual
+  \(ExpectedActual expected actual) -> CustomFailure $
+    "assertContractEqual: failure, expected:\n" <> show expected
+      <> "\ngot:\n"
+      <> show actual
 
 -- | Like `runChecks`, but does not throw a user-readable report, collecting
 -- | the exceptions instead.
@@ -372,6 +389,7 @@ runChecks assertions contract = do
 
 ----------------------- UTxOs ---------------------------------------------------
 
+-- | Assert some property of address UTxOs created by a Transaction.
 assertNewUtxosAtAddress
   :: forall (a :: Type)
    . Labeled Address
@@ -380,6 +398,17 @@ assertNewUtxosAtAddress
   -> ContractAssertion a
 assertNewUtxosAtAddress addr txHash check =
   lift (utxosAt $ unlabel addr) >>= \utxos ->
+    check $ Array.fromFoldable $ Map.values $
+      Map.filterKeys (\oref -> (unwrap oref).transactionId == txHash) utxos
+
+-- | Assert some property of wallet UTxOs created by a Transaction.
+assertNewUtxosInWallet
+  :: forall (a :: Type)
+   . TransactionHash
+  -> (Array TransactionOutputWithRefScript -> ContractAssertion a)
+  -> ContractAssertion a
+assertNewUtxosInWallet txHash check =
+  lift getWalletUtxos >>= fromMaybe Map.empty >>> \utxos ->
     check $ Array.fromFoldable $ Map.values $
       Map.filterKeys (\oref -> (unwrap oref).transactionId == txHash) utxos
 

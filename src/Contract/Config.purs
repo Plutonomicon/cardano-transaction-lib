@@ -84,6 +84,7 @@ import Ctl.Internal.Wallet.Spec
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Number (infinity)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 
 testnetConfig :: ContractParams
@@ -122,7 +123,8 @@ defaultTimeParams =
       { delay: Milliseconds 3_000.0, timeout: Seconds 120.0 }
   , awaitTxConfirmed:
       -- CIP-30 calls are cheap, so the delay can be just 1 second
-      { delay: Milliseconds 1_000.0, timeout: Nothing }
+      { delay: Milliseconds 1_000.0, timeout: Seconds infinity }
+  , waitUntilSlot: { delay: Milliseconds 1_000.0 }
   }
 
 -- | Default synchronization parameters with all synchronization primitives

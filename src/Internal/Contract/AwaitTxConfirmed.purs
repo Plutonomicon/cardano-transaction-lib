@@ -23,10 +23,10 @@ import Ctl.Internal.Types.Transaction
   , TransactionInput(TransactionInput)
   )
 import Data.Either (either)
-import Data.Maybe (fromMaybe, isJust, maybe)
+import Data.Maybe (isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Number (infinity)
-import Data.Time.Duration (Milliseconds, Seconds(Seconds), fromDuration)
+import Data.Time.Duration (Milliseconds, Seconds, fromDuration)
 import Data.Traversable (for_)
 import Data.UInt as UInt
 import Effect.Aff (delay)
@@ -41,7 +41,7 @@ import Effect.Exception (throw)
 awaitTxConfirmed :: TransactionHash -> Contract Unit
 awaitTxConfirmed txHash = do
   { timeout } <- asks (_.timeParams >>> _.awaitTxConfirmed)
-  awaitTxConfirmedWithTimeout (fromMaybe (Seconds infinity) timeout) txHash
+  awaitTxConfirmedWithTimeout timeout txHash
 
 -- | Same as `awaitTxConfirmed`, but allows to specify a timeout in seconds for waiting.
 -- | Throws an exception on timeout.

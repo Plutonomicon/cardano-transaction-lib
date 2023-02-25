@@ -354,8 +354,14 @@ withContractEnv params action = do
 --------------------------------------------------------------------------------
 
 -- | Delays and timeouts for internal query functions.
+-- |
+-- | - `awaitTxConfirmed.delay` - how frequently should we query for Tx in
+-- | `Contract.Transaction.awaitTxConfirmed`
+-- |
+-- | - For info on `syncBackend` and syncWallet` see `doc/query-layers.md`
 type ContractTimeParams =
-  { awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Maybe Seconds }
+  { awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Seconds }
+  , waitUntilSlot :: { delay :: Milliseconds }
   , syncWallet :: { delay :: Milliseconds, timeout :: Seconds }
   , syncBackend :: { delay :: Milliseconds, timeout :: Seconds }
   }
