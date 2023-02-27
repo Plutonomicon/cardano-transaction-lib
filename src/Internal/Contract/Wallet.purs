@@ -21,7 +21,7 @@ import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Cardano.Types.Value (Value, valueToCoin)
 import Ctl.Internal.Cardano.Types.Value (geq, lovelaceValueOf) as Value
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
@@ -47,6 +47,7 @@ import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold, foldl)
+import Data.Function (on)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
@@ -155,23 +156,35 @@ getWalletCollateral = do
     -}
     targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
     utxoValue u = (unwrap (unwrap u).output).amount
-    sufficientUtxos = mbCollateralUTxOs <#> \colUtxos ->
-      foldl
-        ( \us u ->
-            if foldMap utxoValue us `Value.geq` targetCollateral then us
-            else cons u us
-        )
-        []
-        colUtxos
 
-  for_ sufficientUtxos \collateralUTxOs -> do
+    -- used for sorting by ADA value in descending order
+    compareNegatedAdaValues
+      :: TransactionUnspentOutput -> TransactionUnspentOutput -> Ordering
+    compareNegatedAdaValues =
+      compare `on`
+        ( unwrap >>> _.output >>> unwrap >>> _.amount >>> valueToCoin >>> unwrap
+            >>> negate
+        )
+
+    consumeUntilEnough
+      :: Array TransactionUnspentOutput
+      -> TransactionUnspentOutput
+      -> Array TransactionUnspentOutput
+    consumeUntilEnough utxos utxo =
+      if foldMap utxoValue utxos `Value.geq` targetCollateral then utxos
+      else cons utxo utxos
+    mbSufficientUtxos = mbCollateralUTxOs <#>
+      foldl consumeUntilEnough [] <<< Array.sortBy compareNegatedAdaValues
+  for_ mbSufficientUtxos \sufficientUtxos -> do
     let
       tooManyCollateralUTxOs =
-        UInt.fromInt (Array.length collateralUTxOs) >
+        UInt.fromInt (Array.length sufficientUtxos) >
           maxCollateralInputs
     when tooManyCollateralUTxOs do
-      liftEffect $ throw tooManyCollateralUTxOsError
-  pure sufficientUtxos
+      liftEffect $ throw $ tooManyCollateralUTxOsError
+        <> " Minimal set of UTxOs to cover the collateral are: "
+        <> show sufficientUtxos
+  pure mbSufficientUtxos
   where
   tooManyCollateralUTxOsError =
     "Wallet returned too many UTxOs as collateral. This is likely a bug in \
