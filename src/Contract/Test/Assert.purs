@@ -11,6 +11,7 @@ module Contract.Test.Assert
       , UnexpectedMetadataValue
       , UnexpectedRefScriptInOutput
       , UnexpectedTokenDelta
+      , FailedToGetExpectedValue
       )
   , ContractAssertion
   , ContractCheck
@@ -139,6 +140,7 @@ data ContractAssertionFailure
       (ExpectedActual (Maybe ScriptRef))
   | UnexpectedTokenDelta (Maybe (Labeled Address)) TokenName
       (ExpectedActual BigInt)
+  | FailedToGetExpectedValue String
   | MaxExUnitsExceeded (ExpectedActual ExUnits)
   | CustomFailure String
   | SkippedTest String
@@ -168,7 +170,8 @@ printContractAssertionFailures failures =
       )
   errorText =
     if Array.length errors > 0 then
-      "The following `Contract` assertions have failed: \n    "
+      "In addition to the error above, the following `Contract` assertions"
+        <> " have failed:\n    "
         <> listFailures errors
         <> "\n\n"
     else ""
@@ -217,9 +220,13 @@ printContractAssertionFailure = case _ of
     "Unexpected token delta " <> show tn <> " at address "
       <> printLabeled addr
       <> printExpectedActual expectedActual
+
   UnexpectedTokenDelta Nothing tn expectedActual ->
     "Unexpected token delta " <> show tn <> " in wallet: "
       <> printExpectedActual expectedActual
+
+  FailedToGetExpectedValue err ->
+    "Error while trying to get expected value: " <> err
 
   MaxExUnitsExceeded expectedActual ->
     "ExUnits limit exceeded: " <> printExpectedActual expectedActual
@@ -492,16 +499,18 @@ checkLovelaceDeltaAtAddress addr getExpected comp contract = do
   where
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
-    expected <- lift $ getExpected result
-    let
-      actual :: BigInt
-      actual = valueToCoin' valueAfter - valueToCoin' valueBefore
+    lift (E.try $ getExpected result) >>= either
+      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      \expected -> do
+        let
+          actual :: BigInt
+          actual = valueToCoin' valueAfter - valueToCoin' valueBefore
 
-      unexpectedLovelaceDelta :: ContractAssertionFailure
-      unexpectedLovelaceDelta =
-        UnexpectedLovelaceDelta (Just addr) (ExpectedActual expected actual)
+          unexpectedLovelaceDelta :: ContractAssertionFailure
+          unexpectedLovelaceDelta =
+            UnexpectedLovelaceDelta (Just addr) (ExpectedActual expected actual)
 
-    assertContract unexpectedLovelaceDelta (comp actual expected)
+        assertContract unexpectedLovelaceDelta (comp actual expected)
 
 -- | Requires that the computed amount of lovelace was gained at the address
 -- | by calling the contract.
@@ -555,16 +564,18 @@ checkTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
   where
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
-    expected <- lift $ getExpected result
-    let
-      actual :: BigInt
-      actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
+    lift (E.try $ getExpected result) >>= either
+      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      \expected -> do
+        let
+          actual :: BigInt
+          actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
 
-      unexpectedTokenDelta :: ContractAssertionFailure
-      unexpectedTokenDelta =
-        UnexpectedTokenDelta (Just addr) tn (ExpectedActual expected actual)
+          unexpectedTokenDelta :: ContractAssertionFailure
+          unexpectedTokenDelta =
+            UnexpectedTokenDelta (Just addr) tn (ExpectedActual expected actual)
 
-    assertContract unexpectedTokenDelta (comp actual expected)
+        assertContract unexpectedTokenDelta (comp actual expected)
 
 -- | Requires that the computed number of tokens was gained at the address
 -- | by calling the contract.
@@ -639,16 +650,18 @@ checkLovelaceDeltaInWallet getExpected comp contract = do
   where
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
-    expected <- lift $ getExpected result
-    let
-      actual :: BigInt
-      actual = valueToCoin' valueAfter - valueToCoin' valueBefore
+    lift (E.try $ getExpected result) >>= either
+      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      \expected -> do
+        let
+          actual :: BigInt
+          actual = valueToCoin' valueAfter - valueToCoin' valueBefore
 
-      unexpectedLovelaceDelta :: ContractAssertionFailure
-      unexpectedLovelaceDelta =
-        UnexpectedLovelaceDelta Nothing (ExpectedActual expected actual)
+          unexpectedLovelaceDelta :: ContractAssertionFailure
+          unexpectedLovelaceDelta =
+            UnexpectedLovelaceDelta Nothing (ExpectedActual expected actual)
 
-    assertContract unexpectedLovelaceDelta (comp actual expected)
+        assertContract unexpectedLovelaceDelta (comp actual expected)
 
 -- | Requires that the computed amount of lovelace was gained in the wallet
 -- | by calling the contract.
@@ -697,16 +710,18 @@ checkTokenDeltaInWallet (cs /\ tn) getExpected comp contract =
   where
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
-    expected <- lift $ getExpected result
-    let
-      actual :: BigInt
-      actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
+    lift (E.try $ getExpected result) >>= either
+      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      \expected -> do
+        let
+          actual :: BigInt
+          actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
 
-      unexpectedTokenDelta :: ContractAssertionFailure
-      unexpectedTokenDelta =
-        UnexpectedTokenDelta Nothing tn (ExpectedActual expected actual)
+          unexpectedTokenDelta :: ContractAssertionFailure
+          unexpectedTokenDelta =
+            UnexpectedTokenDelta Nothing tn (ExpectedActual expected actual)
 
-    assertContract unexpectedTokenDelta (comp actual expected)
+        assertContract unexpectedTokenDelta (comp actual expected)
 
 -- | Requires that the computed number of tokens was gained in the wallet
 -- | by calling the contract.
