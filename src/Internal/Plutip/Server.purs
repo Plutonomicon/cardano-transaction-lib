@@ -17,10 +17,7 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
-import Contract.Config
-  ( defaultSynchronizationParams
-  , defaultTimeParams
-  )
+import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
@@ -86,6 +83,7 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just), maybe)
 import Data.Newtype (over, unwrap, wrap)
+import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
@@ -586,6 +584,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
   ledgerConstants <- getLedgerConstants
     plutipCfg { customLogger = customLogger }
     backend
+  backendKnownTxs <- liftEffect $ Ref.new Set.empty
   pure
     { backend
     , networkId: MainnetId
@@ -600,6 +599,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     -- timeParams have no effect when KeyWallet is used
     , timeParams: defaultTimeParams
     , synchronizationParams: defaultSynchronizationParams
+    , knownTxs: { backend: backendKnownTxs }
     }
 
 defaultRetryPolicy :: RetryPolicy

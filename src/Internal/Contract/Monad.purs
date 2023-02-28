@@ -65,6 +65,7 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -74,6 +75,8 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
@@ -81,6 +84,8 @@ import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
 
@@ -184,6 +189,9 @@ type ContractEnv =
   , ledgerConstants :: LedgerConstants
   , timeParams :: ContractTimeParams
   , synchronizationParams :: ContractSynchronizationParams
+  , knownTxs ::
+      { backend :: Ref (Set TransactionHash)
+      }
   }
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -196,6 +204,7 @@ mkContractEnv params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
 
   usedTxOuts <- newUsedTxOuts
+  backend <- liftEffect $ Ref.new Set.empty
 
   envBuilder <- sequential ado
     b1 <- parallel do
@@ -211,6 +220,7 @@ mkContractEnv params = do
         { usedTxOuts
         , timeParams: params.timeParams
         , synchronizationParams: params.synchronizationParams
+        , knownTxs: { backend }
         }
   pure $ build envBuilder constants
   where

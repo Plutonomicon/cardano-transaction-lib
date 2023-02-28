@@ -53,7 +53,7 @@ import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
-import Effect.Exception (error)
+import Effect.Exception (error, throw)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -69,7 +69,8 @@ mkChecks nft =
   [ checkTokenGainInWallet' nft
   , checkLossInWallet
       case _ of
-        Nothing -> pure zero
+        Nothing -> liftEffect $ throw $
+          "Unable to estimate expected loss in wallet"
         Just { txFinalFee } -> pure txFinalFee
   ]
 

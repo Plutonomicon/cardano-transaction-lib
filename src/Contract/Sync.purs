@@ -2,7 +2,6 @@
 -- | See `doc/query-layers.md`.
 module Contract.Sync
   ( module X
-  , withoutSync
   ) where
 
 import Contract.Config (disabledSynchronizationParams)
@@ -12,10 +11,5 @@ import Ctl.Internal.BalanceTx.Sync
   ( syncBackendWithWallet
   , syncWalletWithTransaction
   , syncWalletWithTxInputs
+  , withoutSync
   ) as X
-
--- | A helper to set `synchronizationParams` to `disabledSynchronizationParams`
--- | locally.
-withoutSync :: forall (a :: Type). Contract a -> Contract a
-withoutSync = do
-  local \cfg -> cfg { synchronizationParams = disabledSynchronizationParams }

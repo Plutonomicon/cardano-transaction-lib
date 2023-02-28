@@ -6,15 +6,19 @@ module Ctl.Internal.BalanceTx.Sync
   , syncWalletWithTxInputs
   , isCip30Wallet
   , getControlledAddresses
+  , withoutSync
+  , disabledSynchronizationParams
   ) where
 
 import Prelude
 
 import Contract.Log (logError', logTrace', logWarn')
 import Contract.Monad (Contract, liftedE)
+import Control.Monad.Reader (local)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf)
 import Ctl.Internal.Cardano.Types.Transaction as Cardano
+import Ctl.Internal.Contract.Monad (ContractSynchronizationParams)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
@@ -43,6 +47,7 @@ import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
+import Effect.Ref as Ref
 
 -- | Wait until all UTxOs that the wallet returns are visible in the
 -- | query layer.
@@ -51,19 +56,31 @@ syncBackendWithWallet = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks $ _.timeParams >>> _.syncBackend
   { errorOnTimeout } <- asks $
     _.synchronizationParams >>> _.syncBackendWithWallet
+  knownTxsRef <- asks (_.knownTxs >>> _.backend)
   let
-    sync :: Array TransactionInput -> Contract Unit
-    sync alreadyFound = do
+    sync :: Contract Unit
+    sync = do
       utxos <- getWalletUtxos <#> fromMaybe Map.empty
+      alreadyFoundTxs <- liftEffect $ Ref.read knownTxsRef
       let
+        isAlreadyFoundUtxo =
+          flip Set.member alreadyFoundTxs <<< _.transactionId <<< unwrap
+
         -- all utxos from the wallet, except of those we have already seen
         notYetFoundUtxos :: Array TransactionInput
         notYetFoundUtxos =
-          Array.filter (not <<< flip Array.elem alreadyFound)
+          Array.filter (not <<< isAlreadyFoundUtxo)
             $ fst <$> Map.toUnfoldableUnordered utxos
       -- split the UTxOs into known to the query layer and not yet known
       { yes: newlyFound, no: stillNotFound } <- Array.partition (snd >>> isJust)
         <$> traverse (\input -> Tuple input <$> getUtxo' input) notYetFoundUtxos
+      -- Mark newly found TxIds as known
+      liftEffect $ Ref.modify_
+        ( Set.union
+            $ Set.fromFoldable
+            $ newlyFound <#> fst >>> unwrap >>> _.transactionId
+        )
+        knownTxsRef
       if Array.null stillNotFound then do
         logTrace' "syncBackendWithWallet: synchronization finished"
       else do
@@ -71,9 +88,9 @@ syncBackendWithWallet = whenM isCip30Wallet do
           "syncBackendWithWallet: waiting for query layer state " <>
             "synchronization with the wallet..."
         liftAff (delay delayMs)
-        sync (map fst newlyFound <> alreadyFound)
+        sync
   parOneOf
-    [ sync []
+    [ sync
     , waitAndError errorOnTimeout (fromDuration timeout) errorMessage
     ]
   where
@@ -189,6 +206,27 @@ syncWalletWithTxInputs txInputs = whenM isCip30Wallet do
     "syncWalletWithTxInputs: timeout while waiting for wallet"
       <> " UTxO set and CTL query layer UTxO set to synchronize "
       <> "(see `timeParams.syncWallet.timeout` in `ContractParams`)"
+
+-- | A helper to set `synchronizationParams` to `disabledSynchronizationParams`
+-- | locally.
+withoutSync :: forall (a :: Type). Contract a -> Contract a
+withoutSync = do
+  local \cfg -> cfg { synchronizationParams = disabledSynchronizationParams }
+
+-- | Synchronization parameters that make all synchronization primitives
+-- | a no-op.
+-- | See `doc/query-layers.md` for more info.
+disabledSynchronizationParams :: ContractSynchronizationParams
+disabledSynchronizationParams =
+  { syncBackendWithWallet:
+      { errorOnTimeout: false
+      , beforeCip30Methods: false
+      , beforeBalancing: false
+      }
+  , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: false }
+  , syncWalletWithTransaction:
+      { errorOnTimeout: false, beforeTxConfirmed: false }
+  }
 
 -- | A version without plutus conversion for internal use.
 getUtxo' :: TransactionInput -> Contract (Maybe Cardano.TransactionOutput)

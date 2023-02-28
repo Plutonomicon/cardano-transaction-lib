@@ -11,9 +11,10 @@ module Contract.Utxos
 
 import Prelude
 
-import Contract.Log (logWarn')
+import Contract.Log (logTrace', logWarn')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
+import Contract.Value as Value
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.BalanceTx.Sync
   ( getControlledAddresses
@@ -21,19 +22,21 @@ import Ctl.Internal.BalanceTx.Sync
   , syncBackendWithWallet
   )
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
-import Ctl.Internal.Contract.Wallet (getWalletBalance, getWalletUtxos) as Utxos
+import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusTxOutput
   , toPlutusUtxoMap
   )
-import Ctl.Internal.Plutus.Conversion.Value (toPlutusValue)
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.Types.Transaction (TransactionInput)
+import Data.Foldable (foldr)
+import Data.Map as Map
 import Data.Maybe (Maybe)
+import Data.Newtype (unwrap)
 import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)
 
@@ -83,13 +86,17 @@ getUtxo oref = do
 getWalletBalance
   :: Contract (Maybe Value)
 getWalletBalance = do
+  logTrace' "getWalletBalance"
   whenM
     ( asks $ _.synchronizationParams
         >>> _.syncBackendWithWallet
         >>> _.beforeCip30Methods
     )
     syncBackendWithWallet
-  Utxos.getWalletBalance <#> map toPlutusValue
+  let
+    getUtxoValue = unwrap >>> _.output >>> unwrap >>> _.amount
+    sumValues = foldr (Value.unionWith add) mempty
+  getWalletUtxos <#> map (Map.values >>> map getUtxoValue >>> sumValues)
 
 -- | Similar to `utxosAt` called on own address, except that it uses CIP-30
 -- | wallet state and not query layer state.
@@ -100,6 +107,7 @@ getWalletBalance = do
 getWalletUtxos
   :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
+  logTrace' "getWalletUtxos"
   whenM
     ( asks $
         _.synchronizationParams
@@ -107,7 +115,7 @@ getWalletUtxos = do
           >>> _.beforeCip30Methods
     )
     syncBackendWithWallet
-  mCardanoUtxos <- Utxos.getWalletUtxos
+  mCardanoUtxos <- Wallet.getWalletUtxos
   for mCardanoUtxos $
     liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
       toPlutusUtxoMap

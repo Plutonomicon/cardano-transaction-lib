@@ -15,7 +15,6 @@ module Contract.Config
   , mainnetLodeConfig
   , mainnetNuFiConfig
   , defaultSynchronizationParams
-  , disabledSynchronizationParams
   , strictSynchronizationParams
   , defaultTimeParams
   , module Contract.Address
@@ -29,6 +28,9 @@ module Contract.Config
   ) where
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
+import Ctl.Internal.BalanceTx.Sync
+  ( disabledSynchronizationParams
+  ) as X
 import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
@@ -148,21 +150,6 @@ strictSynchronizationParams =
       { errorOnTimeout: true, beforeCip30Methods: true, beforeBalancing: true }
   , syncWalletWithTxInputs: { errorOnTimeout: true, beforeCip30Sign: true }
   , syncWalletWithTransaction: { errorOnTimeout: true, beforeTxConfirmed: true }
-  }
-
--- | Synchronization parameters that make all synchronization primitives
--- | a no-op.
--- | See `doc/query-layers.md` for more info.
-disabledSynchronizationParams :: ContractSynchronizationParams
-disabledSynchronizationParams =
-  { syncBackendWithWallet:
-      { errorOnTimeout: false
-      , beforeCip30Methods: false
-      , beforeBalancing: false
-      }
-  , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: false }
-  , syncWalletWithTransaction:
-      { errorOnTimeout: false, beforeTxConfirmed: false }
   }
 
 testnetNamiConfig :: ContractParams

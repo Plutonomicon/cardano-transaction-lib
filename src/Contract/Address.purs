@@ -38,6 +38,7 @@ module Contract.Address
 
 import Prelude
 
+import Contract.Log (logTrace')
 import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Prelude (liftM)
 import Control.Monad.Error.Class (throwError)
@@ -179,6 +180,7 @@ getWalletAddressesWithNetworkTag = do
 getWalletCollateral
   :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
+  logTrace' "getWalletCollateral"
   whenM
     ( asks
         ( _.synchronizationParams
