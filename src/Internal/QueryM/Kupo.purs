@@ -172,8 +172,10 @@ isTxConfirmed :: TransactionHash -> QueryM (Either ClientError (Maybe Slot))
 isTxConfirmed txHash = do
   config <- asks (_.kupoConfig <<< _.config)
   do
-    -- Do this clumsy special case logging. It's better than sending it silently
+    -- we don't add `?unspent`, because we only care about existence of UTxOs,
+    -- possibly they can be consumed
     let endpoint = "/matches/*@" <> byteArrayToHex (unwrap txHash)
+    -- Do this clumsy special case logging. It's better than sending it silently
     logTrace' $ "sending kupo request: " <> endpoint
   liftAff $ isTxConfirmedAff config txHash
 

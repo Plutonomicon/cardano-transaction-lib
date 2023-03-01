@@ -115,7 +115,7 @@ import Data.String (trim) as String
 import Data.String.Common (joinWith) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error, throw, try)
+import Effect.Exception (Error, error, message, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Type.Proxy (Proxy(Proxy))
@@ -171,7 +171,7 @@ printContractAssertionFailures failures =
   errorText =
     if Array.length errors > 0 then
       "In addition to the error above, the following `Contract` assertions"
-        <> " have failed:\n    "
+        <> " have failed:\n\n    "
         <> listFailures errors
         <> "\n\n"
     else ""
@@ -392,7 +392,8 @@ runChecks assertions contract = do
     liftEffect $ throwError $ error errorReport
   where
   reportException :: Error -> String
-  reportException error = "\n\nAn exception has been thrown: \n\n" <> show error
+  reportException error = "\n\nAn exception has been thrown: \n\n" <> message
+    error
 
 ----------------------- UTxOs ---------------------------------------------------
 
@@ -500,7 +501,7 @@ checkLovelaceDeltaAtAddress addr getExpected comp contract = do
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
     lift (E.try $ getExpected result) >>= either
-      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      (tellFailure <<< FailedToGetExpectedValue <<< message)
       \expected -> do
         let
           actual :: BigInt
@@ -565,7 +566,7 @@ checkTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
     lift (E.try $ getExpected result) >>= either
-      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      (tellFailure <<< FailedToGetExpectedValue <<< message)
       \expected -> do
         let
           actual :: BigInt
@@ -651,7 +652,7 @@ checkLovelaceDeltaInWallet getExpected comp contract = do
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
     lift (E.try $ getExpected result) >>= either
-      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      (tellFailure <<< FailedToGetExpectedValue <<< message)
       \expected -> do
         let
           actual :: BigInt
@@ -711,7 +712,7 @@ checkTokenDeltaInWallet (cs /\ tn) getExpected comp contract =
   check :: Maybe a -> Value -> Value -> ContractAssertion Unit
   check result valueBefore valueAfter = do
     lift (E.try $ getExpected result) >>= either
-      (tellFailure <<< FailedToGetExpectedValue <<< show)
+      (tellFailure <<< FailedToGetExpectedValue <<< message)
       \expected -> do
         let
           actual :: BigInt
