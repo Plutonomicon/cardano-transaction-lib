@@ -93,7 +93,7 @@ let
       # available in the shell environment. This can help with ensuring that
       # any e2e tests that you write and run with `Contract.Test.E2E` are
       # reproducible
-    , withChromium ? true
+    , withChromium ? pkgs.stdenv.isLinux
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       with pkgs.lib;
