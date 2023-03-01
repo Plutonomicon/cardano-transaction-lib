@@ -36,6 +36,7 @@ import Data.Array as Array
 import Data.Bifunctor (bimap)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe, isJust)
+import Data.Monoid (guard)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -56,6 +57,11 @@ syncBackendWithWallet = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks $ _.timeParams >>> _.syncBackend
   { errorOnTimeout } <- asks $
     _.synchronizationParams >>> _.syncBackendWithWallet
+  let
+    errorMessage = "Failed to wait for wallet state synchronization (timeout). "
+      <> guard (not errorOnTimeout) "Continuing anyway. "
+      <> "Consider increasing `timeParams.syncBackend.timeout`"
+      <> " in `ContractParams`"
   knownTxsRef <- asks (_.knownTxs >>> _.backend)
   let
     sync :: Contract Unit
@@ -93,10 +99,6 @@ syncBackendWithWallet = whenM isCip30Wallet do
     [ sync
     , waitAndError errorOnTimeout (fromDuration timeout) errorMessage
     ]
-  where
-  errorMessage = "Failed to wait for wallet state synchronization (timeout). "
-    <> "Continuing anyway. Consider increasing `timeParams.syncBackend.timeout`"
-    <> " in `ContractParams`"
 
 -- | Wait until the wallet can see the UTxOs created by a given transaction.
 -- | This function assumes that the transaction has already been confirmed
@@ -112,6 +114,13 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncWallet)
   { errorOnTimeout } <- asks $
     _.synchronizationParams >>> _.syncWalletWithTransaction
+  let
+    errorMessage = "syncWalletWithTransaction: Failed to wait for wallet state "
+      <> "synchronization. "
+      <> guard (not errorOnTimeout) "Continuing anyway. "
+      <> "This may indicate UTxO locking"
+      <> " in use in the wallet. Consider increasing "
+      <> "`timeParams.syncWallet.timeout` in `ContractParams`"
   queryHandle <- getQueryHandle
   let
     sync :: Contract Unit
@@ -149,12 +158,6 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
       [ sync
       , waitAndError errorOnTimeout (fromDuration timeout) errorMessage
       ]
-  where
-  errorMessage =
-    "syncWalletWithTransaction: Failed to wait for wallet state "
-      <> "synchronization. Continuing anyway. This may indicate UTxO locking"
-      <> " in use in the wallet. Consider increasing "
-      <> "`timeParams.syncWallet.timeout` in `ContractParams`"
 
 -- | Waits until all provided transaction inputs appear in the UTxO
 -- | set provided by the wallet.
@@ -211,7 +214,7 @@ syncWalletWithTxInputs txInputs = whenM isCip30Wallet do
 -- | locally.
 withoutSync :: forall (a :: Type). Contract a -> Contract a
 withoutSync = do
-  local \cfg -> cfg { synchronizationParams = disabledSynchronizationParams }
+  local _ { synchronizationParams = disabledSynchronizationParams }
 
 -- | Synchronization parameters that make all synchronization primitives
 -- | a no-op.
