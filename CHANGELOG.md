@@ -79,6 +79,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Fixed `bundlePursProject` crashing if build output directory exists ([#1438](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1438))
 - Better reporting for WebSocket errors  ([#1403](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1403))
 - `Contract.Test.Assert`: handle exceptions coming from callbacks that calculate expected values  (in `checkLovelaceDeltaAtAddress`, `checkTokenDeltaAtAddress`, `checkLovelaceDeltaInWallet` and `checkTokenDeltaInWallet`), propagate original error messages correctly ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
+- Fixed collateral selection - sort the UTxOs by ADA value in descending order, before selecting them for collateral, to ensure that if a combination that satisfies the requirements is possible, it will be selected. The bug affected CIP-30 wallets. ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 
 ### Removed
 

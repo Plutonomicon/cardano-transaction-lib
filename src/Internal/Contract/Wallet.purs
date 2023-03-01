@@ -210,7 +210,7 @@ getWalletUtxos = do
     actionBasedOnWallet
       (\w conn -> w.getUtxos conn <#> map toUtxoMap)
       \_ -> do
-        (addresses :: Array Address) <- getWalletAddresses
+        addresses :: Array Address <- getWalletAddresses
         res :: Array (Maybe UtxoMap) <- for addresses $
           map hush <<< liftAff <<< queryHandle.utxosAt
         pure $ Just $ foldr Map.union Map.empty $ map (fromMaybe Map.empty) res
