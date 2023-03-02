@@ -31,24 +31,27 @@
 
 Please explore our documentation to discover how to use CTL, how to set up its runtime, and how it compares to Plutus/PAB:
 
-- [Super quick start](./doc/getting-started.md#setting-up-a-new-project)
+- [Super quick start](./doc/getting-started.md)
 - [Adding CTL as a dependency](./doc/ctl-as-dependency.md)
 - [CTL's runtime dependencies](./doc/runtime.md)
 - [Blockfrost support](./doc/blockfrost.md)
 - [Getting started writing CTL contracts](./doc/getting-started.md)
+- [Importing Plutus Scripts](./doc/importing-scripts.md)
 - [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
 - [Testing overview](./doc/testing.md)
   - [Testing contracts with Plutip](./doc/plutip-testing.md)
   - [End-to-end testing with headless browsers](./doc/e2e-testing.md)
   - [Utilities for testing](./doc/test-utils.md)
+- [Backend and wallet state synchronization](./doc/query-layers.md)
 - [CIP-25 NFT standard support](./doc/cip-25-nfts.md)
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)
 - [Ada staking support](./doc/staking.md)
 - [SECP256k1 support (CIP-49)](./doc/secp256k1-support.md)
+- [Babbage features support](./doc/babbage-features.md)
 - [FAQs](./doc/faq.md)
 - [Feature overview video](./doc/video-intro.md)
-- [Development workflows for CTL](./doc/development.md)
+- [Development workflows for CTL itself](./doc/development.md)
 
 You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
 

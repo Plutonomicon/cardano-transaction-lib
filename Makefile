@@ -61,6 +61,8 @@ run-ci-actions:
 	nix build -L .#checks.x86_64-linux.ctl-staking-test
 	nix build -L .#checks.x86_64-linux.examples-imports-check
 
+pandoc:
+	./scripts/generate-html-docs.sh
 
 clean:
 	@ rm -r .psc-ide-port || true

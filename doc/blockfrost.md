@@ -4,13 +4,13 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Setting up a Blockfrost-powered test suite](#setting-up-a-blockfrost-powered-test-suite)
-  - [1. Getting an API key](#1-getting-an-api-key)
-  - [2. Generating private keys](#2-generating-private-keys)
-  - [3. Funding your address](#3-funding-your-address)
-  - [4. Setting up a directory for temporary keys](#4-setting-up-a-directory-for-temporary-keys)
-  - [5. Providing an API endpoint URL](#5-providing-an-api-endpoint-url)
-  - [6. Setting Tx confirmation delay](#6-setting-tx-confirmation-delay)
-  - [7. Test suite setup on PureScript side](#7-test-suite-setup-on-purescript-side)
+  - [Getting an API key](#getting-an-api-key)
+  - [Generating private keys](#generating-private-keys)
+  - [Funding your address](#funding-your-address)
+  - [Setting up a directory for temporary keys](#setting-up-a-directory-for-temporary-keys)
+  - [Providing an API endpoint URL](#providing-an-api-endpoint-url)
+  - [Setting Tx confirmation delay](#setting-tx-confirmation-delay)
+  - [Test suite setup on PureScript side](#test-suite-setup-on-purescript-side)
 - [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
 - [Limitations](#limitations)
   - [Performance](#performance)
@@ -34,11 +34,11 @@ The configuration is stored in environment variables defined in [`test/blockfros
 
 Here's how to populate this configuration file to be ready for use:
 
-### 1. Getting an API key
+### Getting an API key
 
 Go to https://blockfrost.io to generate a new API key and specify it as `BLOCKFROST_API_KEY` in the config.
 
-### 2. Generating private keys
+### Generating private keys
 
 Follow https://developers.cardano.org/docs/stake-pool-course/handbook/keys-addresses/ to generate a private payment key (and, optionally, a stake key).
 
@@ -62,7 +62,7 @@ For public testnets, get it from [cardano-configurations repo](https://github.co
 
 The common values are 1 for `preprod` and 2 for `preview`.
 
-### 3. Funding your address
+### Funding your address
 
 Fund your address using the [testnet faucet](https://docs.cardano.org/cardano-testnet/tools/faucet). Make sure you are sending the funds in the correct network.
 
@@ -70,7 +70,7 @@ Point the test suite to your keys by setting `PRIVATE_PAYMENT_KEY_FILE` and `PRI
 
 If you are going to use an enterprise address (without a staking credential component), then do not provide the staking key file. The choice of using either type of addresses does not affect anything, because the test suite will be using the address only to distribute funds to other, temporary addresses.
 
-### 4. Setting up a directory for temporary keys
+### Setting up a directory for temporary keys
 
 During testing, the test engine will move funds around according to the UTxO distribution specifications provided via `Contract.Test.withWallets` calls in the test bodies. It will generate private keys as needed on the fly. The private keys will be stored in a special directory, to prevent loss of funds in case the test suite suddently exits. Set `BACKUP_KEYS_DIR` to an existing directory where you would like the keys to be stored.
 
@@ -78,7 +78,7 @@ In this directory, keys will be stored in subdirs named as addresses that are de
 
 Each test run generates fresh keys that will be stored indefinitely, and it's up to the user to decide when to delete the corresponding directories. The reason why the keys are not being disposed of automatically is because there may be some on-chain state uniquely tied to them that the user may not want to lose access to.
 
-### 5. Providing an API endpoint URL
+### Providing an API endpoint URL
 
 Blockfrost dashboard provides endpoint URLs for your projects.
 
@@ -91,7 +91,7 @@ export BLOCKFROST_SECURE=true # Use HTTPS
 export BLOCKFROST_PATH="/api/v0"
 ```
 
-### 6. Setting Tx confirmation delay
+### Setting Tx confirmation delay
 
 We introduce an artificial delay after Tx confirmation to ensure that the changes propagate to Blockfrost's query layer.
 Blockfrost does not update the query layer state atomically (proxied Ogmios eval-tx endpoint seems to lag behind the DB), and we have no way to query it, so this is the best workaround we can have.
@@ -109,7 +109,7 @@ If there's a problem with UTxO set syncrhonization, most commonly Blockfrost ret
 [TRACE] 2023-02-16T12:26:13.019Z { body: "{\"error\":\"Bad Request\",\"message\":\"\\\"transaction submit error ShelleyTxValidationError ShelleyBasedEraBabbage (ApplyTxError [UtxowFailure (UtxoFailure (FromAlonzoUtxoFail (ValueNotConservedUTxO ...
 ```
 
-### 7. Test suite setup on PureScript side
+### Test suite setup on PureScript side
 
 `executeContractTestsWithBlockfrost` is a helper function that reads all the variables above and takes care of contract environment setup.
 

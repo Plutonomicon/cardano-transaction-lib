@@ -1,6 +1,6 @@
 # Getting Started with CTL
 
-This guide will help you get started writing contracts with CTL. Please also see our guide [comparing CTL with Plutus/PAB](./plutus-comparison.md) which offers a more abstract overview of the project.
+This guide will help you get started writing contracts with CTL.
 
 **Table of Contents**
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -21,6 +21,7 @@ This guide will help you get started writing contracts with CTL. Please also see
   - [Without a light wallet](#without-a-light-wallet)
   - [With a light wallet](#with-a-light-wallet)
   - [Plutip integration](#plutip-integration)
+- [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -40,7 +41,7 @@ The easiest way to create a new CTL project is to use our `ctl-scaffold` flake t
 
 A new project can be initialized as follows:
 
-```
+```bash
 $ mkdir new-project && cd new-project
 $ nix flake init -t github:Plutonomicon/cardano-transaction-lib
 $ git init
@@ -234,3 +235,7 @@ For full testing with browser-based light wallets see [E2E Testing in the Browse
 ### Plutip integration
 
 Plutip is a tool for testing contracts on a local testnet. See [CTL integration with Plutip](./plutip-testing.md).
+
+## See also
+
+- [comparing CTL with Plutus/PAB](./plutus-comparison.md)
