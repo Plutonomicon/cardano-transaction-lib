@@ -1805,12 +1805,12 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
-            getWalletBalance >>= flip shouldSatisfy
-              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
+            getWalletBalance >>= shouldEqual
+              ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
               )
           withCip30Mock alice MockNami do
-            getWalletBalance >>= flip shouldSatisfy
-              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
+            getWalletBalance >>= shouldEqual
+              ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
               )
 
       test "getWalletBalance works (2)" do

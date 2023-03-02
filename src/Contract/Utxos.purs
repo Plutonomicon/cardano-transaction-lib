@@ -11,6 +11,7 @@ module Contract.Utxos
 
 import Prelude
 
+import Contract.Address (getWalletCollateral)
 import Contract.Log (logTrace', logWarn')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
@@ -20,6 +21,7 @@ import Ctl.Internal.BalanceTx.Sync
   ( getControlledAddresses
   , isCip30Wallet
   , syncBackendWithWallet
+  , withoutSync
   )
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
@@ -33,11 +35,12 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.Foldable (foldr)
+import Data.Foldable (fold, foldr)
 import Data.Map as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Set (member) as Set
+import Data.Tuple.Nested ((/\))
 import Effect.Aff.Class (liftAff)
 
 -- | Queries for UTxOs at the given `Address`.
@@ -96,7 +99,14 @@ getWalletBalance = do
   let
     getUtxoValue = unwrap >>> _.output >>> unwrap >>> _.amount
     sumValues = foldr (Value.unionWith add) mempty
-  getWalletUtxos <#> map (Map.values >>> map getUtxoValue >>> sumValues)
+  -- include both spendable UTxOs and collateral
+  utxos <- getWalletUtxos <#> fromMaybe Map.empty
+  collateralUtxos <- withoutSync getWalletCollateral <#> fold >>> toUtxoMap
+  let allUtxos = Map.union utxos collateralUtxos
+  pure $ pure $ sumValues $ map getUtxoValue $ Map.values allUtxos
+  where
+  toUtxoMap = Map.fromFoldable <<< map
+    (unwrap >>> \({ input, output }) -> input /\ output)
 
 -- | Similar to `utxosAt` called on own address, except that it uses CIP-30
 -- | wallet state and not query layer state.
