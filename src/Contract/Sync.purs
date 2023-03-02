@@ -4,9 +4,6 @@ module Contract.Sync
   ( module X
   ) where
 
-import Contract.Config (disabledSynchronizationParams)
-import Contract.Monad (Contract)
-import Control.Monad.Reader (local)
 import Ctl.Internal.BalanceTx.Sync
   ( syncBackendWithWallet
   , syncWalletWithTransaction
