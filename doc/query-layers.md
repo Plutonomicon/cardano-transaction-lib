@@ -73,7 +73,7 @@ type ContractSynchronizationParams =
 
 - `before*` boolean value fields allow to enable or disable the delays (see above for correspondence between synchronization rules and function names).
 - `errorOnTimeout` field controls whether a given synchronization primitive should throw an exception when timeouts are reached, or just print a warning to the console. It is set to `false` by default, use `Contract.Config.strictSynchronizationParams` to throw.
-- Use `Contract.Config.disabledSynchronizationParams` to disable synchronization completely (this brings back CTL pre-v5.1.0 behavior)
+- Use `Contract.Config.disabledSynchronizationParams` to disable synchronization completely (this brings back CTL pre-v5.1.0 behavior). Additionally, `Contract.Sync.withoutSync` helper function can be used to disable synchronization locally in `Contract` context.
 
 The timeouts themselves can be configured using `timeParams` field of `ContractParams`:
 

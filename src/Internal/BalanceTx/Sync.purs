@@ -214,7 +214,8 @@ syncWalletWithTxInputs txInputs = whenM isCip30Wallet do
       <> "(see `timeParams.syncWallet.timeout` in `ContractParams`)"
 
 -- | A helper to set `synchronizationParams` to `disabledSynchronizationParams`
--- | locally.
+-- | locally, thus skipping the synchronization process during execution of
+-- | the `Contract`.
 withoutSync :: forall (a :: Type). Contract a -> Contract a
 withoutSync = do
   local _ { synchronizationParams = disabledSynchronizationParams }
