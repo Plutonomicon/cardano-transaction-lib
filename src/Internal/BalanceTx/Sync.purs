@@ -16,17 +16,21 @@ import Contract.Log (logError', logTrace', logWarn')
 import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader (local)
 import Control.Monad.Reader.Class (asks)
-import Control.Parallel (parOneOf)
+import Control.Parallel (parOneOf, parTraverse, parallel, sequential)
+import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.Transaction as Cardano
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput
+  )
 import Ctl.Internal.Contract.Monad (ContractSynchronizationParams)
 import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
   , getUnusedAddresses
   , getWalletAddresses
+  , getWalletCollateral
   , getWalletUtxos
   )
-import Ctl.Internal.Contract.Wallet as Utxos
 import Ctl.Internal.Helpers (liftEither, liftedM)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
@@ -35,13 +39,12 @@ import Ctl.Internal.Wallet (cip30Wallet)
 import Data.Array as Array
 import Data.Bifunctor (bimap)
 import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe, isJust)
+import Data.Maybe (Maybe, fromMaybe, isJust, maybe)
 import Data.Monoid (guard)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Time.Duration (Milliseconds, fromDuration)
-import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (delay)
@@ -66,7 +69,7 @@ syncBackendWithWallet = whenM isCip30Wallet do
   let
     sync :: Contract Unit
     sync = do
-      utxos <- getWalletUtxos <#> fromMaybe Map.empty
+      utxos <- getControlledUtxos
       alreadyFoundTxs <- liftEffect $ Ref.read knownTxsRef
       let
         isAlreadyFoundUtxo =
@@ -79,7 +82,8 @@ syncBackendWithWallet = whenM isCip30Wallet do
             $ fst <$> Map.toUnfoldableUnordered utxos
       -- split the UTxOs into known to the query layer and not yet known
       { yes: newlyFound, no: stillNotFound } <- Array.partition (snd >>> isJust)
-        <$> traverse (\input -> Tuple input <$> getUtxo' input) notYetFoundUtxos
+        <$> parTraverse (\input -> Tuple input <$> getUtxo' input)
+          notYetFoundUtxos
       -- Mark newly found TxIds as known
       liftEffect $ Ref.modify_
         ( Set.union
@@ -125,8 +129,7 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
   let
     sync :: Contract Unit
     sync = do
-      inputs <- map fst <<< Map.toUnfoldable <<< fromMaybe Map.empty <$>
-        getWalletUtxos
+      inputs <- map fst <<< Map.toUnfoldable <$> getControlledUtxos
       -- We can wait for just one, because once we have it, we know that
       -- the tx effects have propagated to the wallet (Txs are atomic)
       if Array.any (\input -> (unwrap input).transactionId == txHash) inputs then
@@ -175,7 +178,7 @@ syncWalletWithTxInputs txInputs = whenM isCip30Wallet do
     _.synchronizationParams >>> _.syncWalletWithTxInputs
   ownAddrs <- getControlledAddresses
   ownInputUtxos <- txInputs #
-    traverse
+    parTraverse
       ( \txInput -> do
           utxo <- liftedM (error "Could not get utxo") $ getUtxo' txInput
           pure (txInput /\ utxo)
@@ -192,7 +195,7 @@ syncWalletWithTxInputs txInputs = whenM isCip30Wallet do
       <> show ownInputUtxos
   let
     sync = do
-      walletUtxos <- Utxos.getWalletUtxos <#> fromMaybe Map.empty
+      walletUtxos <- getControlledUtxos
       let difference = ownInputUtxos `Map.difference` walletUtxos
       if Map.isEmpty difference then do
         logTrace' "syncWalletWithTxInputs: synchronization finished"
@@ -242,10 +245,22 @@ getUtxo' oref = do
 -- | Reward addresses are not included.
 getControlledAddresses :: Contract (Set Address)
 getControlledAddresses = do
-  used <- getWalletAddresses <#> Set.fromFoldable
-  unused <- getUnusedAddresses <#> Set.fromFoldable
-  change <- getChangeAddress <#> Set.fromFoldable
-  pure $ used `Set.union` unused `Set.union` change
+  sequential $ combine
+    <$> parallel (getWalletAddresses <#> Set.fromFoldable)
+    <*> parallel (getUnusedAddresses <#> Set.fromFoldable)
+    <*> parallel (getChangeAddress <#> Set.fromFoldable)
+  where
+  combine used unused change = used `Set.union` unused `Set.union` change
+
+getControlledUtxos :: Contract UtxoMap
+getControlledUtxos = do
+  sequential $ Map.union
+    <$> parallel (getWalletCollateral <#> maybe Map.empty toUtxoMap)
+    <*> parallel (getWalletUtxos <#> fromMaybe Map.empty)
+  where
+  toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
+  toUtxoMap = Map.fromFoldable <<< map
+    (unwrap >>> \({ input, output }) -> input /\ output)
 
 isCip30Wallet :: Contract Boolean
 isCip30Wallet = asks $ isJust <<< (cip30Wallet <=< _.wallet)
