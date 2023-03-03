@@ -17,6 +17,7 @@ module Ctl.Internal.Contract.Wallet
 import Prelude
 
 import Control.Monad.Reader.Trans (asks)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
@@ -42,7 +43,7 @@ import Ctl.Internal.Types.PubKeyHash
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Data.Array (catMaybes, cons, foldMap, foldr)
+import Data.Array (cons, foldMap, foldr)
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
@@ -51,7 +52,7 @@ import Data.Function (on)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, for_, traverse)
+import Data.Traversable (for_, traverse)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
@@ -97,15 +98,16 @@ getWallet :: Contract (Maybe Wallet)
 getWallet = asks _.wallet
 
 ownPubKeyHashes :: Contract (Array PubKeyHash)
-ownPubKeyHashes = catMaybes <$> do
+ownPubKeyHashes = do
   getWalletAddresses >>= traverse \address -> do
     paymentCred <-
       liftM
-        ( error $
-            "Unable to get payment credential from Address"
-        ) $
+        (error $ "Unable to get payment credential from Address") $
         addressPaymentCred address
-    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
+    -- scripts are impossible here, so `stakeCredentialToKeyHash` will never
+    -- return `Nothing` (`catMaybes` is safe)
+    liftM (error "Impossible happened: CIP-30 method returned script address")
+      $ stakeCredentialToKeyHash paymentCred <#> wrap
 
 ownPaymentPubKeyHashes :: Contract (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
@@ -198,7 +200,7 @@ getWalletBalance = do
     actionBasedOnWallet _.getBalance \_ -> do
       -- Implement via `utxosAt`
       addresses <- getWalletAddresses
-      fold <$> for addresses \address -> do
+      fold <$> flip parTraverse addresses \address -> do
         liftAff $ queryHandle.utxosAt address <#> hush >>> map
           -- Combine `Value`s
           (fold <<< map _.amount <<< map unwrap <<< Map.values)
@@ -211,7 +213,7 @@ getWalletUtxos = do
       (\w conn -> w.getUtxos conn <#> map toUtxoMap)
       \_ -> do
         addresses :: Array Address <- getWalletAddresses
-        res :: Array (Maybe UtxoMap) <- for addresses $
+        res :: Array (Maybe UtxoMap) <- flip parTraverse addresses $
           map hush <<< liftAff <<< queryHandle.utxosAt
         pure $ Just $ foldr Map.union Map.empty $ map (fromMaybe Map.empty) res
   where
