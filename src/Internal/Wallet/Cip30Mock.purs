@@ -19,15 +19,25 @@ import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Serialization
   ( convertTransactionUnspentOutput
   , convertValue
+  , publicKeyHash
   , toBytes
   )
 import Ctl.Internal.Serialization.Address
   ( Address
-  , NetworkId(TestnetId, MainnetId)
+  , NetworkId(MainnetId, TestnetId)
   )
+import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
+import Ctl.Internal.Types.PubKeyHash
+  ( PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  )
+import Ctl.Internal.Types.RewardAddress
+  ( rewardAddressToBytes
+  , stakePubKeyHashRewardAddress
+  )
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
@@ -44,7 +54,7 @@ import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
@@ -145,6 +155,16 @@ mkCip30Mock pKey mSKey = do
       byteArrayToHex $ unwrap $ toBytes
         ((unwrap keyWallet).address env.networkId :: Address)
 
+    mbRewardAddressHex = mSKey <#> \stakeKey ->
+      let
+        stakePubKey = publicKeyFromPrivateKey (unwrap stakeKey)
+        stakePubKeyHash = publicKeyHash stakePubKey
+        rewardAddress = stakePubKeyHashRewardAddress env.networkId
+          $ StakePubKeyHash
+          $ PubKeyHash stakePubKeyHash
+      in
+        byteArrayToHex $ unwrap $ rewardAddressToBytes rewardAddress
+
   pure $
     { getNetworkId: fromAff $ pure $
         case env.networkId of
@@ -183,7 +203,7 @@ mkCip30Mock pKey mSKey = do
     , getChangeAddress: fromAff do
         pure addressHex
     , getRewardAddresses: fromAff do
-        pure []
+        pure (maybe [] pure mbRewardAddressHex)
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
