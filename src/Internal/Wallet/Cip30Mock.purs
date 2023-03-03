@@ -154,10 +154,10 @@ mkCip30Mock pKey mSKey = do
         utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
         let
-          collateralOutputs = collateralUtxos <#> unwrap >>> _.output
+          collateralOutputs = collateralUtxos <#> unwrap >>> _.input
           -- filter out UTxOs that will be used as collateral
           nonCollateralUtxos =
-            Map.filter (not <<< flip Array.elem collateralOutputs) utxos
+            Map.filterKeys (not <<< flip Array.elem collateralOutputs) utxos
         -- Convert to CSL representation and serialize
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
@@ -183,7 +183,7 @@ mkCip30Mock pKey mSKey = do
     , getChangeAddress: fromAff do
         pure addressHex
     , getRewardAddresses: fromAff do
-        pure [ addressHex ]
+        pure []
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
