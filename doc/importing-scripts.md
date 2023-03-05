@@ -137,4 +137,4 @@ Note that we specified plutus version.
 
 ### Plutarch
 
-You can use [`ply`](https://github.com/mlabs-haskell/ply).
+You can use [`ply`](https://github.com/mlabs-haskell/ply) and [`ply-ctl`](https://github.com/mlabs-haskell/ply-ctl).
