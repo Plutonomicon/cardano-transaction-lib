@@ -51,9 +51,9 @@ For a working example see `test/E2E.purs`. It can be run conveniently using `npm
 
 The process is as follows:
 
-1. run `npm run e2e-serve` in one shell
-2. run `nix run -L .#ctl-runtime` in another shell
-3. run `npm run e2e-test` in the third shell
+1. run `npm run e2e-serve` in Nix shell (enter `nix develop`)
+2. run `npm run start-runtime` in another shell (can be outside of `nix develop` shell)
+3. run `npm run e2e-test` in second Nix shell (enter `nix develop`)
 
 ## How Wallets are Used
 
