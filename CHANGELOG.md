@@ -57,6 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 - Automatic retries for `403 Service Unavailable` Kupo request errors. Retry attempts happen with exponentially increasing intervals ([#1436](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1436))
+- Configuration options for Kupo in `buildCtlRuntime` ([`deferDbIndexes`](https://cardanosolutions.github.io/kupo/#section/Getting-started/-defer-db-indexes) and [`pruneUtxo`](https://cardanosolutions.github.io/kupo/#section/Getting-started/-prune-utxo)) ([#1448](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1448))
 
 ### Changed
 
