@@ -424,7 +424,7 @@ mustPayToKeyWallet
   -> TxConstraints i o
 mustPayToKeyWallet wallet value =
   let
-    convert = wrap <<< publicKeyHash <<< publicKeyFromPrivateKey
+    convert = publicKeyHash <<< publicKeyFromPrivateKey
     payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
     mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
   in

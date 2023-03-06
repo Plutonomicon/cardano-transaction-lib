@@ -193,8 +193,7 @@ balanceTxWithConstraints unbalancedTx constraintsBuilder = do
                 >>> _.syncBackendWithWallet
                 >>> _.beforeBalancing
             )
-            do
-              syncBackendWithWallet
+            syncBackendWithWallet
           note CouldNotGetUtxos <$> do
             Wallet.getWalletUtxos
         -- Use UTxOs from source addresses

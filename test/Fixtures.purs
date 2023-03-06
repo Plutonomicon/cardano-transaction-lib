@@ -582,9 +582,10 @@ txFixture4 =
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
-            , StakeDelegation stake1 (wrap ed25519KeyHash1)
+            , StakeDelegation stake1
+                (PoolPubKeyHash $ PubKeyHash ed25519KeyHash1)
             , PoolRegistration
-                { operator: wrap ed25519KeyHash1
+                { operator: PoolPubKeyHash $ PubKeyHash ed25519KeyHash1
                 , vrfKeyhash: unsafePartial $ fromJust $
                     hexToByteArray
                       "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
@@ -617,7 +618,7 @@ txFixture4 =
                     }
                 }
             , PoolRetirement
-                { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
+                { poolKeyHash: PoolPubKeyHash $ PubKeyHash ed25519KeyHash1
                 , epoch: Epoch one
                 }
             , GenesisKeyDelegation

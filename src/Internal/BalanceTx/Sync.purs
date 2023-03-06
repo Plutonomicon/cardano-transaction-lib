@@ -113,6 +113,11 @@ syncBackendWithWallet = whenM isCip30Wallet do
 -- | The assumption is that the transaction has at least one output and that it
 -- | hasn't been consumed by another transaction yet.
 -- | You don't need to use this function if you use `awaitTxConfirmed*`.
+-- |
+-- | Theoretically, this function does not work well with UTxO locking feature
+-- | of Eternl wallet, but in practice, there's a very low chance that the user
+-- | will lock a UTxO right after submitting a Tx before we see it.
+-- | Please read `doc/query-layers.md` for more context.
 syncWalletWithTransaction :: TransactionHash -> Contract Unit
 syncWalletWithTransaction txHash = whenM isCip30Wallet do
   { delay: delayMs, timeout } <- asks (_.timeParams >>> _.syncWallet)
@@ -124,7 +129,8 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
       <> guard (not errorOnTimeout) "Continuing anyway. "
       <> "This may indicate UTxO locking"
       <> " in use in the wallet. Consider increasing "
-      <> "`timeParams.syncWallet.timeout` in `ContractParams`"
+      <> "`timeParams.syncWallet.timeout` in `ContractParams`. "
+      <> "See `doc/query-layers.md` for more info."
   queryHandle <- getQueryHandle
   let
     sync :: Contract Unit
@@ -144,10 +150,11 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
         sync
   -- Collect all the addresses controlled by the wallet
   -- (reward addresses are omitted on purpose, we don't need them)
-  ownAddresses <- getControlledAddresses
-  outputAddresses <- liftAff $ liftEither =<< do
-    queryHandle.getOutputAddressesByTxHash txHash <#>
-      bimap (error <<< show) Set.fromFoldable
+  ownAddresses /\ outputAddresses <- sequential do
+    Tuple <$> parallel getControlledAddresses <*> parallel do
+      liftAff $ liftEither =<< do
+        queryHandle.getOutputAddressesByTxHash txHash <#>
+          bimap (error <<< show) Set.fromFoldable
   if Set.isEmpty (Set.intersection ownAddresses outputAddresses) then do
     logWarn' $ "syncWalletWithTransaction: "
       <> "Skipping wait for wallet state synchronization, because the "

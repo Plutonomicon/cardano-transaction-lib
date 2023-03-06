@@ -7,7 +7,6 @@ import Prelude
 
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
   , getNetworkId
   , ownPaymentPubKeysHashes
   , ownStakePubKeysHashes
@@ -36,6 +35,7 @@ import Contract.Staking
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
+import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getCurrentEpoch)
@@ -70,7 +70,6 @@ import Contract.Wallet (withKeyWallet)
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.IncludeDatum (only42Script)
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head, (!!))
 import Data.Array as Array
 import Data.BigInt as BigInt
@@ -326,7 +325,7 @@ suite = do
                   }
               , rewardAccount
               , poolOwners:
-                  [ PaymentPubKeyHash $ PubKeyHash $ publicKeyHash $
+                  [ PaymentPubKeyHash $ publicKeyHash $
                       publicKeyFromPrivateKey
                         (unwrap privateStakeKey)
                   ]
