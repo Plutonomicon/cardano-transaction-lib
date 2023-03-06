@@ -6,6 +6,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   lib = require("@emurgo/cardano-serialization-lib-nodejs");
 }
+lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 const fromBytes = name => helper => bytes => {
   try {
