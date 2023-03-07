@@ -13,6 +13,7 @@
   - [7. Test suite setup on PureScript side](#7-test-suite-setup-on-purescript-side)
 - [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
 - [Running Blockfrost locally](#running-blockfrost-locally)
+  - [Configuration](#configuration)
   - [Synchronization](#synchronization)
 - [Limitations](#limitations)
   - [Performance](#performance)
@@ -140,11 +141,33 @@ For convenience, use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPre
 
 ## Running Blockfrost locally
 
+Blockfrost can be started locally using [blockfrost-backend-ryo](https://github.com/blockfrost/blockfrost-backend-ryo) distribution. It is included in CTL runtime as optional service, use `npm run start-blockfrost-runtime` instead of `npm run start-runtime`.
+
+The differences are:
+
+- There's no need to provide an API key
+- `/tx/submit` and `/utils/txs/evaluate` endpoints are not provided by the distribution, so Ogmios should be used for these.
+
+### Configuration
+
+Configuration is the same as above, but `mkSelfHostedBlockfrostBackendParams` should be used, to specify Ogmios and Kupo parameters (only Ogmios will in fact be used).
+
+The Blockfrost test suite can also be configured for local runtime, see [`blockfrost-local.env`](../test/blockfrost-local.env) for an example.
+
+To let it connect to local Ogmios, the parameters should be provided separately:
+
+```bash
+export OGMIOS_PORT=1337
+export OGMIOS_HOST=127.0.0.1
+export OGMIOS_PATH=""
+export OGMIOS_SECURE=false
+```
+
 ### Synchronization
 
-Synchronization takes 30 minutes or more.
+`cardano-db-sync` takes 30 minutes or more to synchronize with `preview` network (and many hours with `mainnet`).
 
-`cardano-db-sync` will print messages like these, so you can estimate the sync progress knowing the latest epoch number.
+It will print messages like these, so you can estimate the sync progress knowing the latest epoch number:
 
 ```
 db-sync-preview_1   | [db-sync-node:Info:70] [2023-03-06 15:09:27.39 UTC] Starting epoch 38
