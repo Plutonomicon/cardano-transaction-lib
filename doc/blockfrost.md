@@ -12,6 +12,8 @@
   - [6. Setting Tx confirmation delay](#6-setting-tx-confirmation-delay)
   - [7. Test suite setup on PureScript side](#7-test-suite-setup-on-purescript-side)
 - [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
+- [Running Blockfrost locally](#running-blockfrost-locally)
+  - [Synchronization](#synchronization)
 - [Limitations](#limitations)
   - [Performance](#performance)
   - [Transaction chaining](#transaction-chaining)
@@ -135,6 +137,19 @@ type BlockfrostBackendParams =
 ```
 
 For convenience, use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
+
+## Running Blockfrost locally
+
+### Synchronization
+
+Synchronization takes 30 minutes or more.
+
+`cardano-db-sync` will print messages like these, so you can estimate the sync progress knowing the latest epoch number.
+
+```
+db-sync-preview_1   | [db-sync-node:Info:70] [2023-03-06 15:09:27.39 UTC] Starting epoch 38
+db-sync-preview_1   | [db-sync-node:Info:70] [2023-03-06 15:09:27.40 UTC] epochPluginInsertBlockDetails: epoch 37
+```
 
 ## Limitations
 
