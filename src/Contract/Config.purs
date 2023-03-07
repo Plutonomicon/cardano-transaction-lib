@@ -40,6 +40,7 @@ import Ctl.Internal.Contract.QueryBackend
   , getCtlBackend
   , mkBlockfrostBackendParams
   , mkCtlBackendParams
+  , mkSelfHostedBlockfrostBackendParams
   ) as X
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)

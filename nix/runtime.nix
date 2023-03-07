@@ -222,6 +222,7 @@ rec {
         blockfrost.service = {
           useHostStore = true;
           ports = [ (bindPort blockfrost.port) ];
+          depends_on = [ "db-sync-${network.name}" "postgres-${network.name}" ];
           environment = {
             BLOCKFROST_CONFIG_SERVER_PORT = toString blockfrost.port;
             BLOCKFROST_CONFIG_SERVER_LISTEN_ADDRESS = "0.0.0.0";

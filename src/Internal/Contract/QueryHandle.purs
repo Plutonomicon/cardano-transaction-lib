@@ -1,6 +1,7 @@
 module Ctl.Internal.Contract.QueryHandle
   ( queryHandleForCtlBackend
   , queryHandleForBlockfrostBackend
+  , queryHandleForSelfHostedBlockfrostBackend
   ) where
 
 import Prelude
@@ -124,3 +125,25 @@ queryHandleForBlockfrostBackend logParams backend =
   runBlockfrostServiceM' = runBlockfrostServiceM
     (fromMaybe logWithLevel logParams.customLogger logParams.logLevel)
     backend
+
+queryHandleForSelfHostedBlockfrostBackend
+  :: forall rest
+   . LogParams rest
+  -> BlockfrostBackend
+  -> (forall (a :: Type). LogParams rest -> CtlBackend -> QueryM a -> Aff a)
+  -> CtlBackend
+  -> QueryHandle
+queryHandleForSelfHostedBlockfrostBackend
+  params
+  blockfrostBackend
+  runQueryM
+  ctlBackend =
+  let
+    blockfrostQueryHandle = queryHandleForBlockfrostBackend params
+      blockfrostBackend
+    ctlQueryHandle = queryHandleForCtlBackend runQueryM params ctlBackend
+  in
+    blockfrostQueryHandle
+      { evaluateTx = ctlQueryHandle.evaluateTx
+      , submitTx = ctlQueryHandle.submitTx -- TODO
+      }

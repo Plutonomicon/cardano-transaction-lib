@@ -47,6 +47,7 @@ import Ctl.Internal.Contract.QueryBackend
 import Ctl.Internal.Contract.QueryHandle
   ( queryHandleForBlockfrostBackend
   , queryHandleForCtlBackend
+  , queryHandleForSelfHostedBlockfrostBackend
   )
 import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
@@ -78,7 +79,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
@@ -193,10 +194,14 @@ getQueryHandle = asks _.handle
 mkQueryHandle :: forall rest. LogParams rest -> QueryBackend -> QueryHandle
 mkQueryHandle params queryBackend =
   case queryBackend of
-    CtlBackend backend _ ->
-      queryHandleForCtlBackend runQueryM params backend
-    BlockfrostBackend backend _ -> do
-      queryHandleForBlockfrostBackend params backend
+    CtlBackend ctlBackend _ ->
+      queryHandleForCtlBackend runQueryM params ctlBackend
+    BlockfrostBackend blockfrostBackend Nothing -> do
+      queryHandleForBlockfrostBackend params blockfrostBackend
+    BlockfrostBackend blockfrostBackend (Just ctlBackend) -> do
+      queryHandleForSelfHostedBlockfrostBackend params blockfrostBackend
+        runQueryM
+        ctlBackend
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
