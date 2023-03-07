@@ -14,6 +14,8 @@ module Ctl.Internal.Contract.Monad
   , buildBackend
   , getLedgerConstants
   , filterLockedUtxos
+  , getQueryHandle
+  , mkQueryHandle
   ) where
 
 import Prelude
@@ -34,6 +36,7 @@ import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Contract.Hooks (Hooks)
+import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
   , CtlBackendParams
@@ -41,6 +44,11 @@ import Ctl.Internal.Contract.QueryBackend
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
   , getCtlBackend
   )
+import Ctl.Internal.Contract.QueryHandle
+  ( queryHandleForBlockfrostBackend
+  , queryHandleForCtlBackend
+  )
+import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
@@ -167,6 +175,7 @@ type LedgerConstants =
 
 type ContractEnv =
   { backend :: QueryBackend
+  , handle :: QueryHandle
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -177,6 +186,17 @@ type ContractEnv =
   , usedTxOuts :: UsedTxOuts
   , ledgerConstants :: LedgerConstants
   }
+
+getQueryHandle :: Contract QueryHandle
+getQueryHandle = asks _.handle
+
+mkQueryHandle :: forall rest. LogParams rest -> QueryBackend -> QueryHandle
+mkQueryHandle params queryBackend =
+  case queryBackend of
+    CtlBackend backend _ ->
+      queryHandleForCtlBackend runQueryM params backend
+    BlockfrostBackend backend _ -> do
+      queryHandleForBlockfrostBackend params backend
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
@@ -193,7 +213,8 @@ mkContractEnv params = do
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
       ledgerConstants <- getLedgerConstants params backend
-      pure $ merge { backend, ledgerConstants }
+      pure $ merge
+        { backend, ledgerConstants, handle: mkQueryHandle params backend }
     b2 <- parallel do
       wallet <- buildWallet
       pure $ merge { wallet }
@@ -372,17 +393,18 @@ wrapQueryM qm = do
   contractEnv <- ask
   liftAff $ runQueryM contractEnv ctlBackend qm
 
-runQueryM :: forall (a :: Type). ContractEnv -> CtlBackend -> QueryM a -> Aff a
-runQueryM contractEnv ctlBackend =
-  flip runReaderT (mkQueryEnv contractEnv ctlBackend) <<< unwrap
+runQueryM
+  :: forall (a :: Type) rest. LogParams rest -> CtlBackend -> QueryM a -> Aff a
+runQueryM params ctlBackend =
+  flip runReaderT (mkQueryEnv params ctlBackend) <<< unwrap
 
-mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv
-mkQueryEnv contractEnv ctlBackend =
+mkQueryEnv :: forall rest. LogParams rest -> CtlBackend -> QueryEnv
+mkQueryEnv params ctlBackend =
   { config:
       { kupoConfig: ctlBackend.kupoConfig
-      , logLevel: contractEnv.logLevel
-      , customLogger: contractEnv.customLogger
-      , suppressLogs: contractEnv.suppressLogs
+      , logLevel: params.logLevel
+      , customLogger: params.customLogger
+      , suppressLogs: params.suppressLogs
       }
   , runtime:
       { ogmiosWs: ctlBackend.ogmios.ws

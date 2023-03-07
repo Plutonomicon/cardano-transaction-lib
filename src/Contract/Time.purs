@@ -22,7 +22,7 @@ import Contract.Chain
 import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
 import Ctl.Internal.QueryM.Ogmios

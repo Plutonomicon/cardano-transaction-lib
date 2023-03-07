@@ -1,18 +1,14 @@
 module Ctl.Internal.Contract.QueryHandle
-  ( getQueryHandle
+  ( queryHandleForCtlBackend
+  , queryHandleForBlockfrostBackend
   ) where
 
 import Prelude
 
 import Contract.Log (logDebug', logWarn')
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.Contract.Monad (Contract, ContractEnv, runQueryM)
-import Ctl.Internal.Contract.QueryBackend
-  ( BlockfrostBackend
-  , CtlBackend
-  , QueryBackend(BlockfrostBackend, CtlBackend)
-  )
+import Ctl.Internal.Contract.LogParams (LogParams)
+import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend, CtlBackend)
 import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Helpers (logWithLevel)
@@ -49,16 +45,13 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 
-getQueryHandle :: Contract QueryHandle
-getQueryHandle = ask <#> \contractEnv ->
-  case contractEnv.backend of
-    CtlBackend backend _ ->
-      queryHandleForCtlBackend contractEnv backend
-    BlockfrostBackend backend _ -> do
-      queryHandleForBlockfrostBackend contractEnv backend
-
-queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
-queryHandleForCtlBackend contractEnv backend =
+queryHandleForCtlBackend
+  :: forall rest
+   . (forall (a :: Type). LogParams rest -> CtlBackend -> QueryM a -> Aff a)
+  -> LogParams rest
+  -> CtlBackend
+  -> QueryHandle
+queryHandleForCtlBackend runQueryM params backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
@@ -92,11 +85,11 @@ queryHandleForCtlBackend contractEnv backend =
 
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a
-  runQueryM' = runQueryM contractEnv backend
+  runQueryM' = runQueryM params backend
 
 queryHandleForBlockfrostBackend
-  :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend contractEnv backend =
+  :: forall rest. LogParams rest -> BlockfrostBackend -> QueryHandle
+queryHandleForBlockfrostBackend logParams backend =
   { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
   , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
   , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
@@ -129,5 +122,5 @@ queryHandleForBlockfrostBackend contractEnv backend =
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM
-    (fromMaybe logWithLevel contractEnv.customLogger contractEnv.logLevel)
+    (fromMaybe logWithLevel logParams.customLogger logParams.logLevel)
     backend

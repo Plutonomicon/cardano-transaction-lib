@@ -7,8 +7,7 @@ import Prelude
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction (_body, _inputs, _witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as Transaction
-import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.Wallet
   ( getWalletAddresses
   , getWalletUtxos
@@ -99,4 +98,3 @@ walletWaitForInputs txInputs = do
   -- minutes, so 150 seconds would probably be enough to also account for
   -- possible network latency.
   go 150
-

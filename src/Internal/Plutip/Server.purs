@@ -26,6 +26,7 @@ import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
   , getLedgerConstants
+  , mkQueryHandle
   , stopContractEnv
   )
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
@@ -338,7 +339,12 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     let
       configLogger = Just $ map liftEffect <<< addLogEntry
 
-    bracket (mkClusterContractEnv plutipCfg suppressedLogger configLogger)
+    bracket
+      ( mkClusterContractEnv
+          plutipCfg { customLogger = configLogger }
+          suppressedLogger
+          configLogger
+      )
       stopContractEnv
       \env -> pure
         { env
@@ -584,6 +590,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     backend
   pure
     { backend
+    , handle: mkQueryHandle plutipCfg backend
     , networkId: MainnetId
     , logLevel: plutipCfg.logLevel
     , walletSpec: Nothing

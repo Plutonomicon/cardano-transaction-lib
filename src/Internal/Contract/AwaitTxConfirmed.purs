@@ -11,9 +11,8 @@ import Contract.Monad (liftedE)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf)
 import Ctl.Internal.Contract (getChainTip)
-import Ctl.Internal.Contract.Monad (Contract)
+import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.QueryBackend (getBlockfrostBackend)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain

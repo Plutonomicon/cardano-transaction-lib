@@ -171,7 +171,7 @@ import Ctl.Internal.Contract.AwaitTxConfirmed
   , isTxConfirmed
   ) as X
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Contract.QueryHandle.Error
   ( GetTxMetadataError

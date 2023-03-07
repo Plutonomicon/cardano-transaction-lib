@@ -10,7 +10,7 @@ import Prelude
 import Contract.Monad (Contract)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)

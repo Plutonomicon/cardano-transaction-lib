@@ -15,7 +15,7 @@ import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
 import Contract.Transaction (TransactionInput, TransactionOutput)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletBalance, getWalletUtxos) as Utxos
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress

@@ -14,8 +14,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses, getWalletCollateral)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
@@ -121,4 +120,3 @@ getSelfSigners tx additionalUtxos = do
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
-
