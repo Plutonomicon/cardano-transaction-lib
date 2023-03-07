@@ -6,11 +6,7 @@ module Test.Ctl.Blockfrost.Contract (main) where
 
 import Prelude
 
-import Contract.Config
-  ( defaultKupoServerConfig
-  , defaultOgmiosWsConfig
-  , testnetConfig
-  )
+import Contract.Config (testnetConfig)
 import Contract.Monad (launchAff_)
 import Contract.Test.Blockfrost (executeContractTestsWithBlockfrost)
 import Data.Maybe (Maybe(Just))
