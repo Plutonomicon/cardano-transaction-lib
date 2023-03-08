@@ -74,6 +74,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `getWalletBalance` is now implemented via `getWalletUtxos` ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `PoolPubKeyHash` is now a wrapper over `PubKeyHash` instead of `Ed25519KeyHash` ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `Contract.Wallet.Key.publicKeyFromPrivateKey` uses `PublicKey` type from public API ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
+- `plutip-server` was moved from [Plutip repo](https://github.com/mlabs-haskell/plutip) to CTL ([#1415](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1415))
 
 ### Fixed
 
