@@ -9,7 +9,13 @@ This document outlines development workflows for CTL itself. You may also wish t
 
 - [Nix environment](#nix-environment)
 - [Launching services for development](#launching-services-for-development)
-- [Building, testing, and running the PS project](#building-testing-and-running-the-ps-project)
+- [Workflows](#workflows)
+  - [Building](#building)
+  - [Testing](#testing)
+    - [With NodeJS](#with-nodejs)
+    - [With Nix](#with-nix)
+    - [Nix checks](#nix-checks)
+    - [Bundling for the browser](#bundling-for-the-browser)
 - [Generating PS documentation](#generating-ps-documentation)
 - [Adding PS/JS dependencies](#adding-psjs-dependencies)
   - [Purescript](#purescript)
@@ -52,22 +58,50 @@ To develop locally, you can use one the CTL flake to launch all required service
   $ arion --prebuilt-file ./result up
   ```
 
-## Building, testing, and running the PS project
+## Workflows
 
-- To build the project **without bundling and for a NodeJS environment**:
-  - `nix build` _or_
-  - `spago build`
-- To test the project, currently only supported when running in a NodeJS environment:
-  - Use `npm run test`, or, if you need to test some specific functionality:
-    - `npm run unit-test` for unit tests (no need for a runtime)
-    - `npm run integration-test` for integration tests (requires a runtime started)
-    - `npm run plutip-test` for Plutip integration tests (does not require a runtime)
-    - `npm run staking-test` to run Plutip-powered tests for ADA staking functionality
-    - `npm run blockfrost-test` for [Blockfrost-powered tests](./blockfrost.md) (does not require a runtime, but needs a Blockfrost API key)
-  - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
-- To run or build/bundle the project for the browser:
-  - `npm run e2e-serve` will start a Webpack development server at `localhost:4008`
-  - `npm run build` will output a Webpack-bundled example module to `dist` (or `nix build -L .#ctl-example-bundle-web` to build an example module using Nix into `./result/`)
+### Building
+
+To **build** the project **without bundling and for a NodeJS environment**:
+
+- `nix build` _or_
+- `spago build`
+
+### Testing
+
+#### With NodeJS
+
+- `npm run unit-test` for unit tests (no need for a runtime) -  [entry point](../test/Unit.purs)
+- `npm run integration-test` for integration tests (requires a [runtime](./runtime.md#ctl-backend)) -  [entry point](../test/Integration.purs)
+- `npm run plutip-test` for Plutip integration tests (does not require a runtime) - [entry point](../test/Plutip.purs)
+- `npm run staking-test` to run [Plutip](./plutip-testing.md)-powered tests for ADA staking functionality - [entry point](../test/Plutip/Staking.purs)
+- `npm run blockfrost-test` for [Blockfrost-powered tests](./blockfrost.md) (does not require a runtime, but needs [some setup](./blockfrost.md#setting-up-a-blockfrost-powered-test-suite)) - [entry point](../test/Blockfrost/Contract.purs)
+- `npm run blockfrost-local-test` for self-hosted [Blockfrost-powered tests](./blockfrost.md) (requires a [local Blockfrost runtime](./blockfrost.md#running-blockfrost-locally)) - [entry point](../test/Blockfrost/Contract.purs)
+- `npm run e2e-test` for [tests with a headless browser](./e2e-testing.md) (requires a runtime and the tests served via HTTP)
+
+#### With Nix
+
+Here and below, `<SYSTEM>` should be replaced with [one of the supported systems](https://github.com/Plutonomicon/cardano-transaction-lib/blob/15fd9c5b683df47134dce4a0479f1edc30d4b6f7/flake.nix#L51) that you use, e.g. `x86_64-linux`.
+
+- Unit tests: `nix build .#checks.<SYSTEM>.ctl-unit-test`
+- [E2E tests in Nix with wallet mocks](./e2e-testing.md#using-cip-30-mock-with-plutip): `nix build -L .#checks.<SYSTEM>.ctl-e2e-test`
+- Contract tests ([Plutip](./plutip-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-plutip-test`
+- [Staking](./staking.md) tests ([Plutip](./plutip-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-staking-test`
+
+#### Nix checks
+
+- Check formatting: `nix build -L .#checks.<SYSTEM>.formatting-check`
+- Check correctness of `package.json` dependencies in template: `nix build -L .#checks.<SYSTEM>.template-deps-json`
+- Check correctness of Spago dependencies in template: `nix build -L .#checks.<SYSTEM>.template-dhall-diff`
+- Check that CTL revisions match in Spago package set and Nix in template: `nix build -L .#checks.<SYSTEM>.template-version`
+- Check that examples don't use internal modules: `nix build -L .#checks.<SYSTEM>.examples-imports-check`
+
+### Bundling for the browser
+
+To run or build/bundle the project for the browser:
+
+- `npm run e2e-serve` will start a Webpack development server at `localhost:4008`, which is required for [E2E tests](./e2e-testing.md)
+- `npm run build` will output a Webpack-bundled example module to `dist` (or `nix build -L .#ctl-example-bundle-web` to build an example module using Nix into `./result/`)
 
 By default, Webpack will build a [Purescript module](../examples/ByUrl.purs) that serves multiple example `Contract`s depending on URL (see [here](./e2e-testing.md#serving-the-contract-to-be-tested)). You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
