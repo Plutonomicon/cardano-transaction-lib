@@ -15,7 +15,7 @@ This document outlines development workflows for CTL itself. You may also wish t
     - [With NodeJS](#with-nodejs)
     - [With Nix](#with-nix)
     - [Nix checks](#nix-checks)
-    - [Bundling for the browser](#bundling-for-the-browser)
+  - [Bundling for the browser](#bundling-for-the-browser)
 - [Generating PS documentation](#generating-ps-documentation)
 - [Adding PS/JS dependencies](#adding-psjs-dependencies)
   - [Purescript](#purescript)

@@ -207,7 +207,8 @@ type ContractEnv =
 getQueryHandle :: Contract QueryHandle
 getQueryHandle = asks _.handle
 
-mkQueryHandle :: forall rest. LogParams rest -> QueryBackend -> QueryHandle
+mkQueryHandle
+  :: forall (rest :: Row Type). LogParams rest -> QueryBackend -> QueryHandle
 mkQueryHandle params queryBackend =
   case queryBackend of
     CtlBackend ctlBackend _ ->
@@ -448,11 +449,16 @@ wrapQueryM qm = do
   liftAff $ runQueryM contractEnv ctlBackend qm
 
 runQueryM
-  :: forall (a :: Type) rest. LogParams rest -> CtlBackend -> QueryM a -> Aff a
+  :: forall (a :: Type) (rest :: Row Type)
+   . LogParams rest
+  -> CtlBackend
+  -> QueryM a
+  -> Aff a
 runQueryM params ctlBackend =
   flip runReaderT (mkQueryEnv params ctlBackend) <<< unwrap
 
-mkQueryEnv :: forall rest. LogParams rest -> CtlBackend -> QueryEnv
+mkQueryEnv
+  :: forall (rest :: Row Type). LogParams rest -> CtlBackend -> QueryEnv
 mkQueryEnv params ctlBackend =
   { config:
       { kupoConfig: ctlBackend.kupoConfig

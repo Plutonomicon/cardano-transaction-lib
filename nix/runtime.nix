@@ -170,6 +170,7 @@ rec {
             ];
           };
         };
+      } // (if config.blockfrost.enable then {
         # TODO do not directly use Docker images
         # Arion allow to run NixOS in containers, explore this direction
         "postgres-${network.name}" = {
@@ -186,7 +187,6 @@ rec {
             };
           };
         };
-      } // (if config.blockfrost.enable then {
         "db-sync-${network.name}".service = {
           useHostStore = true;
           depends_on = [ "postgres-${network.name}" ];
