@@ -45,7 +45,7 @@ Running `nix develop` in the root of the repository will place you in a developm
 
 To develop locally, you can use one the CTL flake to launch all required services (using default configuration values):
 
-- The easiest way: `nix run -L .#ctl-runtime` will both build and run the services
+- The easiest way: `npm run start-runtime` will both build and run the services
 - The same, but indirectly in your shell:
   ```
   $ nix build -L .#ctl-runtime
@@ -59,16 +59,19 @@ To develop locally, you can use one the CTL flake to launch all required service
   - `spago build`
 - To test the project, currently only supported when running in a NodeJS environment:
   - Use `npm run test`, or, if you need to test some specific functionality:
-    - `npm run unit-test` for unit tests
-    - `npm run integration-test` for integration tests (requires ctl-runtime running)
-    - `npm run plutip-test` for Plutip integration tests (does not require ctl-runtime)
+    - `npm run unit-test` for unit tests (no need for a runtime)
+    - `npm run integration-test` for integration tests (requires a runtime started)
+    - `npm run plutip-test` for Plutip integration tests (does not require a runtime)
+    - `npm run staking-test` to run Plutip-powered tests for ADA staking functionality
+    - `npm run blockfrost-test` for [Blockfrost-powered tests](./blockfrost.md) (does not require a runtime, but needs a Blockfrost API key)
   - `nix build .#checks.<SYSTEM>.ctl-unit-test` will build and run the unit tests (useful for CI)
 - To run or build/bundle the project for the browser:
-  - `make run-dev` _or_ `npm run dev` will start a Webpack development server at `localhost:4008`
-  - `make run-build` _or_ `npm run build` will output a Webpack-bundled example module to `dist`
-  - `nix build -L .#ctl-example-bundle-web` will build an example module using Nix and Webpack
+  - `npm run e2e-serve` will start a Webpack development server at `localhost:4008`
+  - `npm run build` will output a Webpack-bundled example module to `dist` (or `nix build -L .#ctl-example-bundle-web` to build an example module using Nix into `./result/`)
 
-By default, Webpack will build a [small Purescript example](../examples/Pkh2Pkh.purs). Make sure to follow the [instructions for setting up Nami](./runtime.md#other-requirements) before running the examples. You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
+By default, Webpack will build a [Purescript module](../examples/ByUrl.purs) that serves multiple example `Contract`s depending on URL (see [here](./e2e-testing.md#serving-the-contract-to-be-tested)). You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
+
+You will also need a light wallet extension pre-configured.
 
 **Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
 

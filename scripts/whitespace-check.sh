@@ -11,7 +11,7 @@ LICENSE
 Makefile
 webpack.config.js
 package.json
-doc/
+doc/*.md
 examples/
 fixtures/scripts/
 scripts/

@@ -72,6 +72,9 @@ import Effect.Class (liftEffect)
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 
+-- NOTE: this data type is defined like this on purpose, don't change it
+-- to `(Cip30Wallet /\ WalletExtension)`. The motivation is to make it simpler
+-- to special-case each wallet in the future, if needed.
 data Wallet
   = Nami Cip30Wallet
   | Gero Cip30Wallet

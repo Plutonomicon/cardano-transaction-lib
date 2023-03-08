@@ -4,6 +4,7 @@
 - [Configuring balancing process](#configuring-balancing-process)
   - [Balancer constraints](#balancer-constraints)
   - [Concurrent spending](#concurrent-spending)
+  - [Synchronization](#synchronization)
   - [Balancing process limitations](#balancing-process-limitations)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -23,9 +24,13 @@ CTL allows tweaking the default balancer behavior by letting the user impose con
 
 ## Concurrent spending
 
-Attempting to spend UTxOs concurrently leads to some of the transactions being rejected. To ensure that no concurrent spending is happening, CTL uses it's own UTxO locking machinery. `balanceTxs` and `balanceTxsWithConstraints` functions can be used to construct multiple transactions at once, ensuring that the sets of inputs do not intersect.
+Attempting to spend UTxOs concurrently leads to some of the transactions being rejected. To ensure that no concurrent spending is happening, CTL uses it's own UTxO locking machinery. `balanceTxs` or `balanceTxsWithConstraints` can be used to construct multiple transactions at once, ensuring that the sets of inputs do not intersect.
 
 Obviously, the number of available UTxOs must be greater than the number of transactions. CTL will throw an exception if it's not the case.
+
+## Synchronization
+
+Before balancing, CTL synchronizes the wallet with the query layer, i.e. waits until all UTxOs that the wallet returns are visible in the query layer. Thus the situation when the query layer refuses to validate a Tx (either during ex-units evaluation or on Tx submission) is only possible due to a rollback. Please see [our docs for query layer synchronization](./query-layers.md).
 
 ## Balancing process limitations
 

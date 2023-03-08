@@ -7,7 +7,7 @@ import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Log (logInfo')
+import Contract.Log (logInfo', logWarn')
 import Contract.Monad
   ( Contract
   , launchAff_
@@ -21,8 +21,10 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , signTransaction
   , submit
+  , submitTxFromConstraints
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
@@ -54,8 +56,9 @@ contract = do
     ownStakePubKeysHashes
 
   -- Early fail if not enough utxos present for 2 transactions
-  unlessM hasSufficientUtxos $ throwContractError
-    "Insufficient Utxos for 2 transactions"
+  unlessM hasSufficientUtxos do
+    logWarn' "Insufficient Utxos for 2 transactions"
+    createAdditionalUtxos
 
   let
     constraints :: Constraints.TxConstraints Void Void
@@ -107,6 +110,33 @@ contract = do
       <$> getWalletUtxos
 
     pure $ length walletValidUtxos >= 2 -- 2 transactions
+
+createAdditionalUtxos :: Contract Unit
+createAdditionalUtxos = do
+  logInfo' "Creating additional UTxOs for SignMultiple example"
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
+    ownStakePubKeysHashes
+
+  let
+    constraints :: Constraints.TxConstraints Void Void
+    constraints =
+      Constraints.mustPayToPubKeyAddress pkh skh
+        ( Value.lovelaceValueOf
+            $ BigInt.fromInt 2_000_000
+        ) <>
+        Constraints.mustPayToPubKeyAddress pkh skh
+          ( Value.lovelaceValueOf
+              $ BigInt.fromInt 2_000_000
+          )
+
+    lookups :: Lookups.ScriptLookups Void
+    lookups = mempty
+
+  txId <- submitTxFromConstraints lookups constraints
+
+  awaitTxConfirmedWithTimeout (wrap 100.0) txId
+  logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

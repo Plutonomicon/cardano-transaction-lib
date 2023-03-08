@@ -3,7 +3,6 @@ module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
   , module Contract.Address
-  , module Contract.Utxos
   , module X
   , module Deserialization.Keys
   , module Wallet
@@ -16,7 +15,7 @@ import Prelude
 
 import Contract.Address (getWalletAddress, getWalletCollateral)
 import Contract.Monad (Contract)
-import Contract.Utxos (getWalletUtxos) as Contract.Utxos
+import Contract.Utxos (getWalletUtxos) as X
 import Control.Monad.Reader (local)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
@@ -59,6 +58,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToLode
       , ConnectToEternl
+      , ConnectToNuFi
       )
   )
 import Data.Maybe (Maybe(Just))

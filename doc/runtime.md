@@ -15,8 +15,6 @@ Our nix environment includes CTL backend services, but for now Blockfrost can be
   - [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
   - [Changing network configurations](#changing-network-configurations)
 - [Blockfrost Backend](#blockfrost-backend)
-  - [Blockfrost backend limitations](#blockfrost-backend-limitations)
-    - [Transaction confirmation delays](#transaction-confirmation-delays)
 - [Wallet requirements](#wallet-requirements)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -63,25 +61,7 @@ When changing networks, make sure that `network.magic` is correctly synchronized
 
 ## Blockfrost Backend
 
-Blockfrost backend can be configured by providing a record of values to `mkBlockfrostBackendParams`:
-
-```purescript
-type BlockfrostBackendParams =
-  { blockfrostConfig :: ServerConfig
-  , blockfrostApiKey :: Maybe String
-  , confirmTxDelay :: Maybe Seconds
-  }
-
-mkBlockfrostBackendParams :: BlockfrostBackendParams -> QueryBackendParams
-```
-
-Note that it is possible to use CTL runtime services alongside with Blockfrost for queries it does not support by modifying the `QueryBackendParams` value manually (`CtlBackendParams` is an optional parameter of its constructor).
-
-### Blockfrost backend limitations
-
-#### Transaction confirmation delays
-
-State does not propagate to the chain consistently the moment a transaction gets submitted. So, there's a certain artificial delay that gets added after each Tx submission. You can adjust it with `confirmTxDelay` parameter of `BlockfrostBackendParams`. 20-30 seconds is recommended.
+See [here](./blockfrost.md) for the documentation.
 
 ## Wallet requirements
 

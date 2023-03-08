@@ -136,6 +136,8 @@ type BlockfrostBackendParams =
 
 For convenience, use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
 
+Note that it is possible to use CTL runtime services alongside with Blockfrost for queries it does not support by modifying the `QueryBackendParams` value manually (`CtlBackendParams` is an optional parameter of its constructor).
+
 ## Limitations
 
 ### Performance

@@ -25,6 +25,8 @@ rec {
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
       tag = "v2.2.0";
+      deferDbIndexes = true; # whether to pass --defer-db-indexes
+      pruneUtxo = true; # whether to pass --prune-utxo
       # TODO: Do we want to support connection through ogmios?
     };
     # Additional config that will be included in Arion's `docker-compose.raw`. This
@@ -123,15 +125,17 @@ rec {
               "${nodeSocketPath}"
               "--since"
               "${kupo.since}"
-              "--defer-db-indexes"
               "--match"
               "${"${kupo.match}"}"
               "--host"
               "0.0.0.0"
               "--workdir"
               "kupo-db"
-              "--prune-utxo"
-            ];
+            ] ++ (
+              pkgs.lib.lists.optional kupo.pruneUtxo "--prune-utxo"
+            ) ++ (
+              pkgs.lib.lists.optional kupo.deferDbIndexes "--defer-db-indexes"
+            );
           };
         };
         ogmios = {
