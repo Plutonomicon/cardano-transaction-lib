@@ -31,6 +31,8 @@ rec {
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
       tag = "v2.2.0";
+      deferDbIndexes = true; # whether to pass --defer-db-indexes
+      pruneUtxo = true; # whether to pass --prune-utxo
       # TODO: Do we want to support connection through ogmios?
     };
     blockfrost = {
@@ -137,15 +139,17 @@ rec {
               "${nodeSocketPath}"
               "--since"
               "${kupo.since}"
-              "--defer-db-indexes"
               "--match"
               "${"${kupo.match}"}"
               "--host"
               "0.0.0.0"
               "--workdir"
               "kupo-db"
-              "--prune-utxo"
-            ];
+            ] ++ (
+              pkgs.lib.lists.optional kupo.pruneUtxo "--prune-utxo"
+            ) ++ (
+              pkgs.lib.lists.optional kupo.deferDbIndexes "--defer-db-indexes"
+            );
           };
         };
         # TODO make this use `ogmios` from flake inputs

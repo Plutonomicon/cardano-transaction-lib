@@ -26,3 +26,6 @@ test-data/mainnet
 test-data/keys
 tmp
 node_modules
+plutip-server/dist-newstyle/
+plutip-server/.stack-work/
+

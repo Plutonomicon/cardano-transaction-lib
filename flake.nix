@@ -12,7 +12,6 @@
     };
 
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    plutip.url = "github:mlabs-haskell/plutip?rev=8d1795d9ac3f9c6f31381104b25c71576eeba009";
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
     kupo-nixos.inputs.kupo.follows = "kupo";
 
@@ -41,8 +40,21 @@
     };
 
     # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo";
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/49269a9adb27b370209a61de2f5407945112860a";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
+
+    # Plutip server related inputs
+    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
+    plutip-nixpkgs.follows = "plutip/nixpkgs";
+    haskell-nix.url = "github:mlabs-haskell/haskell.nix";
+    iohk-nix = {
+      follows = "plutip/iohk-nix";
+      flake = false;
+    };
+    CHaP = {
+      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+      flake = false;
+    };
   };
 
   outputs =
@@ -191,6 +203,23 @@
             };
           };
         };
+
+      plutipServerFor = system:
+        let
+          pkgs = import inputs.plutip-nixpkgs {
+            inherit system;
+            overlays = [
+              inputs.haskell-nix.overlay
+              (import "${inputs.iohk-nix}/overlays/crypto")
+            ];
+          };
+        in
+        import ./plutip-server {
+          inherit pkgs;
+          inherit (inputs) plutip CHaP iohk-nix;
+          inherit (pkgs) system;
+          src = ./plutip-server;
+        };
     in
     {
       overlay = builtins.trace
@@ -236,7 +265,7 @@
               in
               {
                 plutip-server =
-                  inputs.plutip.packages.${system}."plutip:exe:plutip-server";
+                  (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
@@ -248,14 +277,21 @@
           );
       };
 
+      # flake from haskell.nix project
+      hsFlake = perSystem (system: (plutipServerFor system).flake { });
+
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
         default = (psProjectFor (nixpkgsFor system)).devShell;
+
+        # This can be used with `nix develop .#hsDevShell
+        hsDevShell = self.hsFlake.${system}.devShell;
       });
 
       packages = perSystem (system:
         (psProjectFor (nixpkgsFor system)).packages
+        // ((plutipServerFor system).flake { }).packages
       );
 
       apps = perSystem (system:
