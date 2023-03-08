@@ -3,6 +3,7 @@ module Ctl.Internal.QueryM.Kupo
   , getScriptByHash
   , getTxMetadata
   , getUtxoByOref
+  , getOutputAddressesByTxHash
   , isTxConfirmed
   , isTxConfirmedAff
   , utxosAt
@@ -23,6 +24,7 @@ import Aeson
 import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
+import Contract.Log (logTrace')
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
 import Control.Monad.Error.Class (throwError)
@@ -83,6 +85,7 @@ import Ctl.Internal.Types.Transaction
   )
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
@@ -91,7 +94,7 @@ import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Lens (_Right, to, (^?))
 import Data.Map (Map)
-import Data.Map (fromFoldable, isEmpty, lookup) as Map
+import Data.Map (fromFoldable, isEmpty, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -134,6 +137,22 @@ getUtxoByOref oref = runExceptT do
     txHashHex :: String
     txHashHex = byteArrayToHex (unwrap txHash)
 
+-- | Specialized function to get addresses only, without resolving script
+-- | references. Used internally.
+getOutputAddressesByTxHash
+  :: TransactionHash -> QueryM (Either ClientError (Array Address))
+getOutputAddressesByTxHash txHash = runExceptT do
+  (kupoUtxoMap :: KupoUtxoMap) <- ExceptT $ handleAffjaxResponse <$>
+    kupoGetRequest endpoint
+  pure $ Array.fromFoldable (Map.values $ unwrap kupoUtxoMap) <#>
+    unwrap >>> _.address
+  where
+  endpoint :: String
+  endpoint = "/matches/*@" <> txHashHex <> "?unspent"
+    where
+    txHashHex :: String
+    txHashHex = byteArrayToHex (unwrap txHash)
+
 getDatumByHash :: DataHash -> QueryM (Either ClientError (Maybe Datum))
 getDatumByHash (DataHash dataHashBytes) = do
   let endpoint = "/datums/" <> byteArrayToHex dataHashBytes
@@ -150,9 +169,15 @@ getScriptByHash scriptHash = do
 -- FIXME: This can only confirm transactions with at least one output.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
 isTxConfirmed :: TransactionHash -> QueryM (Either ClientError (Maybe Slot))
-isTxConfirmed th = do
+isTxConfirmed txHash = do
   config <- asks (_.kupoConfig <<< _.config)
-  liftAff $ isTxConfirmedAff config th
+  do
+    -- we don't add `?unspent`, because we only care about existence of UTxOs,
+    -- possibly they can be consumed
+    let endpoint = "/matches/*@" <> byteArrayToHex (unwrap txHash)
+    -- Do this clumsy special case logging. It's better than sending it silently
+    logTrace' $ "sending kupo request: " <> endpoint
+  liftAff $ isTxConfirmedAff config txHash
 
 -- Exported due to Ogmios requiring confirmations at a websocket level
 isTxConfirmedAff
@@ -457,6 +482,7 @@ kupoGetRequest
   :: String -> QueryM (Either Affjax.Error (Affjax.Response String))
 kupoGetRequest endpoint = do
   config <- asks (_.kupoConfig <<< _.config)
+  logTrace' $ "sending kupo request: " <> endpoint
   liftAff $ kupoGetRequestAff config endpoint
 
 kupoGetRequestAff

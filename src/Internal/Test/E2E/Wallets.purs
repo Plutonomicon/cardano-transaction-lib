@@ -233,7 +233,10 @@ flintSign _ _ _ = do
 
 getJQuery :: RunningE2ETest -> Aff String
 getJQuery re =
-  liftM (error "JQuery not available (E2E_SKIP_JQUERY_DOWNLOAD=true)") re.jQuery
+  liftM (error errMessage) re.jQuery
+  where
+  errMessage =
+    "JQuery not available (wrong E2E runtime type? Please report as bug)"
 
 lodeConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 lodeConfirmAccess extId re = do

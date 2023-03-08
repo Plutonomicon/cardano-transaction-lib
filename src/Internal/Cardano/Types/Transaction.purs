@@ -134,7 +134,7 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.PlutusData (PlutusData)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
+import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash(PubKeyHash))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
@@ -616,7 +616,7 @@ type PoolRegistrationParams =
   , poolMetadata :: Maybe PoolMetadata
   }
 
-newtype PoolPubKeyHash = PoolPubKeyHash Ed25519KeyHash
+newtype PoolPubKeyHash = PoolPubKeyHash PubKeyHash
 
 derive instance Newtype PoolPubKeyHash _
 derive instance Eq PoolPubKeyHash
@@ -625,28 +625,30 @@ derive instance Generic PoolPubKeyHash _
 
 instance EncodeAeson PoolPubKeyHash where
   encodeAeson (PoolPubKeyHash kh) =
-    encodeAeson (ed25519KeyHashToBech32 "pool" kh)
+    encodeAeson (ed25519KeyHashToBech32 "pool" $ unwrap kh)
 
 instance DecodeAeson PoolPubKeyHash where
   decodeAeson aeson = do
     str <- decodeAeson aeson
-    PoolPubKeyHash <$> note (TypeMismatch "PoolPubKeyHash")
+    PoolPubKeyHash <<< PubKeyHash <$> note (TypeMismatch "PoolPubKeyHash")
       (ed25519KeyHashFromBech32 str)
 
 instance Show PoolPubKeyHash where
   show (PoolPubKeyHash kh) =
     "(PoolPubKeyHash (Ed25519KeyHash (unsafePartial $ fromJust $ \
     \ed25519KeyHashFromBech32 "
-      <> show (ed25519KeyHashToBech32 "pool" kh)
+      <> show (ed25519KeyHashToBech32 "pool" $ unwrap kh)
       <> ")))"
 
 mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
 mkPoolPubKeyHash str
-  | startsWith "pool" str = PoolPubKeyHash <$> ed25519KeyHashFromBech32 str
+  | startsWith "pool" str = PoolPubKeyHash <<< PubKeyHash <$>
+      ed25519KeyHashFromBech32 str
   | otherwise = Nothing
 
 poolPubKeyHashToBech32 :: PoolPubKeyHash -> Bech32String
-poolPubKeyHashToBech32 = unwrap >>> ed25519KeyHashToBech32Unsafe "pool"
+poolPubKeyHashToBech32 = unwrap >>> unwrap >>> ed25519KeyHashToBech32Unsafe
+  "pool"
 
 data Certificate
   = StakeRegistration StakeCredential

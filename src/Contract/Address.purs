@@ -38,6 +38,7 @@ module Contract.Address
 
 import Prelude
 
+import Contract.Log (logTrace')
 import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Prelude (liftM)
 import Control.Monad.Error.Class (throwError)
@@ -46,6 +47,7 @@ import Ctl.Internal.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
   ) as Address
+import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
 import Ctl.Internal.Contract.Wallet
   ( getWalletAddresses
   , getWalletCollateral
@@ -178,6 +180,15 @@ getWalletAddressesWithNetworkTag = do
 getWalletCollateral
   :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
+  logTrace' "getWalletCollateral"
+  whenM
+    ( asks
+        ( _.synchronizationParams
+            >>> _.syncBackendWithWallet
+            >>> _.beforeCip30Methods
+        )
+    )
+    syncBackendWithWallet
   mtxUnspentOutput <- Contract.getWalletCollateral
   for mtxUnspentOutput $ traverse $
     liftedM

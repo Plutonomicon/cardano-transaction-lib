@@ -336,7 +336,7 @@ convertCertificate = _convertCert certConvHelper
   certConvHelper =
     { stakeDeregistration: T.StakeDeregistration
     , stakeRegistration: T.StakeRegistration
-    , stakeDelegation: \sc -> T.StakeDelegation sc <<< wrap
+    , stakeDelegation: \sc -> T.StakeDelegation sc <<< wrap <<< wrap
     , poolRegistration: convertPoolRegistration
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
@@ -365,7 +365,7 @@ convertPoolRegistration params = do
   let
     relays = convertRelay <$> poolParamsRelays containerHelper params
   T.PoolRegistration
-    { operator: PoolPubKeyHash $ poolParamsOperator params
+    { operator: PoolPubKeyHash $ wrap $ poolParamsOperator params
     , vrfKeyhash: VRFKeyHash $ poolParamsVrfKeyhash params
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
@@ -438,7 +438,7 @@ convertPoolRetirement
   -> UInt
   -> T.Certificate
 convertPoolRetirement poolKeyHash epoch = do
-  T.PoolRetirement { poolKeyHash: wrap poolKeyHash, epoch: wrap epoch }
+  T.PoolRetirement { poolKeyHash: wrap $ wrap poolKeyHash, epoch: wrap epoch }
 
 convertMint :: Csl.Mint -> T.Mint
 convertMint mint = T.Mint $ mkNonAdaAsset

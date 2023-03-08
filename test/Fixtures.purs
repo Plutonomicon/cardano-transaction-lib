@@ -19,6 +19,7 @@ module Test.Ctl.Fixtures
   , cip25MetadataJsonFixture2
   , cip25MetadataJsonFixture3
   , currencySymbol1
+  , ed25519KeyHash1
   , ed25519KeyHashFixture1
   , fullyAppliedScriptFixture
   , mkSampleTx
@@ -30,6 +31,7 @@ module Test.Ctl.Fixtures
   , nativeScriptFixture5
   , nativeScriptFixture6
   , nativeScriptFixture7
+  , nullPaymentPubKeyHash
   , ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   , partiallyAppliedScriptFixture
@@ -72,7 +74,6 @@ module Test.Ctl.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
-  , ed25519KeyHash1
   ) where
 
 import Prelude
@@ -144,6 +145,7 @@ import Ctl.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
+import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
 import Ctl.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
 import Ctl.Internal.Metadata.Cip25.V2
@@ -175,9 +177,14 @@ import Ctl.Internal.Types.ByteArray
   , hexToByteArray
   , hexToByteArrayUnsafe
   )
+import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Ctl.Internal.Types.PlutusData as PD
+import Ctl.Internal.Types.PubKeyHash
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , PubKeyHash(PubKeyHash)
+  )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress))
 import Ctl.Internal.Types.Scripts
@@ -575,9 +582,10 @@ txFixture4 =
         , certs: Just
             [ StakeRegistration stake1
             , StakeDeregistration stake1
-            , StakeDelegation stake1 (wrap ed25519KeyHash1)
+            , StakeDelegation stake1
+                (PoolPubKeyHash $ PubKeyHash ed25519KeyHash1)
             , PoolRegistration
-                { operator: wrap ed25519KeyHash1
+                { operator: PoolPubKeyHash $ PubKeyHash ed25519KeyHash1
                 , vrfKeyhash: unsafePartial $ fromJust $
                     hexToByteArray
                       "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
@@ -610,7 +618,7 @@ txFixture4 =
                     }
                 }
             , PoolRetirement
-                { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
+                { poolKeyHash: PoolPubKeyHash $ PubKeyHash ed25519KeyHash1
                 , epoch: Epoch one
                 }
             , GenesisKeyDelegation
@@ -1470,3 +1478,12 @@ fullyAppliedScriptFixture =
     \2333573466e1c00800404003c0152002333500b22333573466e3c00800404003c011220100\
     \10091326353008009498cd4015d680119a802bae0011200120011200112001122002122001\
     \20014c01021820004c010544746573740001"
+
+nullPaymentPubKeyHash :: PaymentPubKeyHash
+nullPaymentPubKeyHash = PaymentPubKeyHash $ PubKeyHash
+  $ unsafePartial
+  $ fromJust
+  $ fromBytes
+  $ CborBytes
+  $ hexToByteArrayUnsafe
+      "f9dca21a6c826ec8acb4cf395cbc24351937bfe6560b2683ab8b415f"
