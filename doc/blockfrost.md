@@ -144,6 +144,7 @@ type BlockfrostBackendParams =
 
 For convenience, use `blockfrostPublicMainnetServerConfig`, `blockfrostPublicPreviewServerConfig` or `blockfrostPublicPreprodServerConfig` for pre-configured `ServerConfig` setups.
 
+
 ## Running Blockfrost locally
 
 Blockfrost can be started locally using [blockfrost-backend-ryo](https://github.com/blockfrost/blockfrost-backend-ryo) distribution. It is included in CTL runtime as optional service, use `npm run start-blockfrost-runtime` instead of `npm run start-runtime`.

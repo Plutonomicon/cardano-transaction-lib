@@ -93,7 +93,7 @@ let
       # available in the shell environment. This can help with ensuring that
       # any e2e tests that you write and run with `Contract.Test.E2E` are
       # reproducible
-    , withChromium ? true
+    , withChromium ? pkgs.stdenv.isLinux
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       with pkgs.lib;
@@ -348,7 +348,6 @@ let
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
-        export E2E_SKIP_JQUERY_DOWNLOAD=true
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
         python -m http.server 4008 --directory ${bundledPursProject}/dist &
@@ -406,7 +405,7 @@ let
         chmod -R +rwx .
         spago bundle-module --no-install --no-build -m "${main}" \
           --to ${bundledModuleName}
-        mkdir ./dist
+        mkdir -p ./dist
         ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
         webpack --mode=production -c ${webpackConfig} -o ./dist \
           --entry ./${entrypoint}

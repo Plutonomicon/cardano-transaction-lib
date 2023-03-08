@@ -12,6 +12,7 @@
     "blockfrost-test": "source ./test/blockfrost.env && spago run --main Scaffold.Test.Blockfrost",
     "blockfrost-local-test": "source ./test/blockfrost-local.env && spago run --main Scaffold.Test.Blockfrost",
     "e2e-serve": "make e2e-serve",
+    "start-runtime": "nix run -L .#ctl-scaffold-runtime",
     "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run'",
     "e2e-test-debug": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run --no-headless'",
     "e2e-browser": "source ./test/e2e.env && spago run --main Scaffold.Test.E2E -a 'e2e-test browser'",

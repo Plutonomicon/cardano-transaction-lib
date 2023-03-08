@@ -36,25 +36,26 @@ module Ctl.Internal.Service.Blockfrost
   , BlockfrostSystemStart(BlockfrostSystemStart)
   , OnBlockfrostRawGetResponseHook
   , OnBlockfrostRawPostResponseHook
+  , doesTxExist
   , evaluateTx
   , getChainTip
   , getCurrentEpoch
   , getDatumByHash
   , getEraSummaries
+  , getOutputAddressesByTxHash
+  , getPoolIds
   , getProtocolParameters
+  , getPubKeyHashDelegationsAndRewards
   , getScriptByHash
   , getScriptInfo
   , getSystemStart
   , getTxMetadata
   , getUtxoByOref
-  , doesTxExist
+  , getValidatorHashDelegationsAndRewards
   , runBlockfrostServiceM
   , runBlockfrostServiceTestM
   , submitTx
   , utxosAt
-  , getPoolIds
-  , getPubKeyHashDelegationsAndRewards
-  , getValidatorHashDelegationsAndRewards
   ) where
 
 import Prelude
@@ -554,6 +555,17 @@ getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
       <#> handle404AsMempty <<< handleBlockfrostResponse
   traverse (ExceptT <<< resolveBlockfrostTxOutput)
     (snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap))
+
+-- | Specialized function to get addresses only, without resolving script
+-- | references. Used internally.
+getOutputAddressesByTxHash
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError (Array Address))
+getOutputAddressesByTxHash txHash = runExceptT do
+  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <- ExceptT $
+    blockfrostGetRequest (UtxosOfTransaction txHash)
+      <#> handle404AsMempty <<< handleBlockfrostResponse
+  pure $ _.address <<< unwrap <<< snd <$> unwrap blockfrostUtxoMap
 
 --------------------------------------------------------------------------------
 -- Get datum by hash

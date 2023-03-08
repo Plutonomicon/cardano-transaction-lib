@@ -39,6 +39,6 @@ Here are a few tips on how to get started with testing your code.
 
 [Headless browser test suite](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/e2e-testing.md) allows to run user contracts with real wallet browser extensions automatically.
 
-- Start the CTL runtime: `nix run -L .#ctl-scaffold-runtime`
-- run `npm run e2e-serve` from Nix shell
-- run `npm run e2e-test` from Nix shell
+- Start the CTL runtime services: `npm run start-runtime`
+- run `npm run e2e-serve` from Nix shell to start a web server
+- run `npm run e2e-test` from Nix shell to run the test suite

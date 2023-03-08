@@ -9,7 +9,7 @@ import Prelude
 
 import Contract.Log (logTrace')
 import Control.Monad.Error.Class (liftEither)
-import Control.Monad.Reader.Class (asks)
+import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
@@ -43,6 +43,7 @@ import Effect.Now (now)
 waitUntilSlot :: Slot -> Contract Chain.Tip
 waitUntilSlot futureSlot = do
   queryHandle <- getQueryHandle
+  { delay: retryDelay } <- asks $ _.timeParams >>> _.waitUntilSlot
   getChainTip >>= case _ of
     tip@(Chain.Tip (Chain.ChainTip { slot }))
       | slot >= futureSlot -> pure tip
@@ -54,10 +55,6 @@ waitUntilSlot futureSlot = do
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
-          -- `timePadding` in slots
-          -- If there are less than `slotPadding` slots remaining, start querying for chainTip
-          -- repeatedly, because it's possible that at any given moment Ogmios suddenly
-          -- synchronizes with node that is also synchronized with global time.
           getLag eraSummaries systemStart slot >>= logLag slotLengthMs
           futureTime <-
             liftEffect
@@ -86,9 +83,6 @@ waitUntilSlot futureSlot = do
       liftAff $ delay retryDelay
       waitUntilSlot futureSlot
   where
-  retryDelay :: Milliseconds
-  retryDelay = wrap 1000.0
-
   logLag :: Number -> Milliseconds -> Contract Unit
   logLag slotLengthMs (Milliseconds lag) = do
     logTrace' $
@@ -96,7 +90,7 @@ waitUntilSlot futureSlot = do
         <> show (lag / slotLengthMs)
         <> " slots."
 
--- | Calculate difference between estimated POSIX time of given slot
+-- | Calculate difference between estimated POSIX time of a given slot
 -- | and current time.
 getLag
   :: EraSummaries
@@ -117,8 +111,8 @@ getLag eraSummaries sysStart nowSlot = do
     BigInt.fromNumber nowMs
   pure $ wrap $ BigInt.toNumber $ nowMsBigInt - unwrap nowPosixTime
 
--- | Estimate how long we want to wait if we want to wait until `timePadding`
--- | milliseconds before a given `POSIXTime`.
+-- | Estimate how long we want to wait if we want to wait for a given
+-- | `POSIXTime` starting from now.
 estimateDelayUntil :: POSIXTime -> Contract Milliseconds
 estimateDelayUntil futureTimePosix = do
   futureTimeSec <- posixTimeToSeconds futureTimePosix

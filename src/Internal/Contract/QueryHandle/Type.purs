@@ -40,6 +40,7 @@ type QueryHandle =
       TransactionHash
       -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
+  , getOutputAddressesByTxHash :: TransactionHash -> AffE (Array Address)
   , doesTxExist :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
   , getChainTip :: AffE Chain.Tip

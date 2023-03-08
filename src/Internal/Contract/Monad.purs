@@ -2,6 +2,8 @@ module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
   , ContractEnv
   , ContractParams
+  , ContractTimeParams
+  , ContractSynchronizationParams
   , LedgerConstants
   , ParContract(ParContract)
   , mkContractEnv
@@ -72,6 +74,7 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -81,12 +84,17 @@ import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
+import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
 
@@ -167,13 +175,16 @@ runContractInEnv contractEnv =
 -- ContractEnv
 --------------------------------------------------------------------------------
 
--- `LedgerConstants` contains values that technically may change, but we assume
--- to be constant during Contract evaluation
+-- | `LedgerConstants` contains values that technically may change, but we assume
+-- | to be constant during Contract evaluation.
 type LedgerConstants =
   { pparams :: ProtocolParameters
   , systemStart :: SystemStart
   }
 
+-- | A record containing `Contract` environment - everything a `Contract` needs
+-- | to run. It is recommended to use one environment per application to save
+-- | on websocket connections and to keep track of `UsedTxOuts`.
 type ContractEnv =
   { backend :: QueryBackend
   , handle :: QueryHandle
@@ -186,6 +197,11 @@ type ContractEnv =
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
   , ledgerConstants :: LedgerConstants
+  , timeParams :: ContractTimeParams
+  , synchronizationParams :: ContractSynchronizationParams
+  , knownTxs ::
+      { backend :: Ref (Set TransactionHash)
+      }
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -213,6 +229,7 @@ mkContractEnv params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
 
   usedTxOuts <- newUsedTxOuts
+  backend <- liftEffect $ Ref.new Set.empty
 
   envBuilder <- sequential ado
     b1 <- parallel do
@@ -224,8 +241,13 @@ mkContractEnv params = do
       wallet <- buildWallet
       pure $ merge { wallet }
     -- Compose the sub-builders together
-    in b1 >>> b2 >>> merge { usedTxOuts }
-
+    in
+      b1 >>> b2 >>> merge
+        { usedTxOuts
+        , timeParams: params.timeParams
+        , synchronizationParams: params.synchronizationParams
+        , knownTxs: { backend }
+        }
   pure $ build envBuilder constants
   where
   logger :: Logger
@@ -367,6 +389,31 @@ withContractEnv params action = do
 -- ContractParams
 --------------------------------------------------------------------------------
 
+-- | Delays and timeouts for internal query functions.
+-- |
+-- | - `awaitTxConfirmed.delay` - how frequently should we query for Tx in
+-- | `Contract.Transaction.awaitTxConfirmed`
+-- |
+-- | - For info on `syncBackend` and syncWallet` see `doc/query-layers.md`
+type ContractTimeParams =
+  { awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Seconds }
+  , waitUntilSlot :: { delay :: Milliseconds }
+  , syncWallet :: { delay :: Milliseconds, timeout :: Seconds }
+  , syncBackend :: { delay :: Milliseconds, timeout :: Seconds }
+  }
+
+type ContractSynchronizationParams =
+  { syncBackendWithWallet ::
+      { errorOnTimeout :: Boolean
+      , beforeCip30Methods :: Boolean
+      , beforeBalancing :: Boolean
+      }
+  , syncWalletWithTxInputs ::
+      { errorOnTimeout :: Boolean, beforeCip30Sign :: Boolean }
+  , syncWalletWithTransaction ::
+      { errorOnTimeout :: Boolean, beforeTxConfirmed :: Boolean }
+  }
+
 -- | Options to construct an environment for a `Contract` to run.
 -- |
 -- | See `Contract.Config` for pre-defined values for testnet and mainnet.
@@ -383,6 +430,8 @@ type ContractParams =
   -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   , hooks :: Hooks
+  , timeParams :: ContractTimeParams
+  , synchronizationParams :: ContractSynchronizationParams
   }
 
 --------------------------------------------------------------------------------
