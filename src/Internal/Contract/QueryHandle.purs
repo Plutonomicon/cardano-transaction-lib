@@ -145,5 +145,5 @@ queryHandleForSelfHostedBlockfrostBackend
   in
     blockfrostQueryHandle
       { evaluateTx = ctlQueryHandle.evaluateTx
-      , submitTx = ctlQueryHandle.submitTx -- TODO
+      , submitTx = ctlQueryHandle.submitTx
       }

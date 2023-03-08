@@ -50,6 +50,7 @@ import Ctl.Internal.ServerConfig
   , blockfrostPublicMainnetServerConfig
   , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
+  , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   )
