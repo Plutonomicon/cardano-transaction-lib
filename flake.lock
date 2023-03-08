@@ -6666,17 +6666,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1676628683,
-        "narHash": "sha256-2qXuSc8BzfI2VAwQ7ntxckxiUiWef7TDl8PpI2RpxHE=",
-        "owner": "zmrocze",
+        "lastModified": 1678283073,
+        "narHash": "sha256-eh//MOBA7+Lmzu4fhhqpKBTlgTJxEq36jPQkVYwu6Ts=",
+        "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "6689f062fc95f64678dbabf4fef1d186cc46937c",
+        "rev": "89cf822c213f6a4278a88c8a8bb982696c649e76",
         "type": "github"
       },
       "original": {
-        "owner": "zmrocze",
-        "ref": "plutip-core",
+        "owner": "mlabs-haskell",
         "repo": "plutip",
+        "rev": "89cf822c213f6a4278a88c8a8bb982696c649e76",
         "type": "github"
       }
     },

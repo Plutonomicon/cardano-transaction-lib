@@ -5,7 +5,6 @@
 
   inputs = {
     nixpkgs.follows = "ogmios/nixpkgs";
-    # nixpkgs = "nixpkgs";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -13,7 +12,6 @@
     };
 
     ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    # plutip.url = "github:mlabs-haskell/plutip?rev=8d1795d9ac3f9c6f31381104b25c71576eeba009";
     kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
     kupo-nixos.inputs.kupo.follows = "kupo";
 
@@ -42,8 +40,7 @@
     };
 
     # Plutip server related inputs
-    # TODO: change this when https://github.com/mlabs-haskell/plutip/pull/169 is merged
-    plutip.url = "github:zmrocze/plutip/plutip-core";
+    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
     plutip-nixpkgs.follows = "plutip/nixpkgs";
     haskell-nix.url = "github:mlabs-haskell/haskell.nix";
     iohk-nix = {
@@ -255,10 +252,6 @@
             });
           };
         };
-        # plutip-server = nixpkgs.lib.composeManyExtensions [
-        #   inputs.haskell-nix.overlay
-        #   (import "${inputs.iohk-nix}/overlays/crypto")
-        # ];
         runtime =
           (
             final: prev:
