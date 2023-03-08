@@ -21,6 +21,7 @@ This document lists common problems encountered by CTL users and developers.
 - [Environment-related](#environment-related)
   - [Q: I use wayland, the E2E browser fails on startup](#q-i-use-wayland-the-e2e-browser-fails-on-startup)
   - [Q: How to keep the number of WebSocket connections to a minimum?](#q-how-to-keep-the-number-of-websocket-connections-to-a-minimum)
+  - [Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'](#package-chromium-10505195125-is-not-supported-on-x86_64-darwin)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
   - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
@@ -128,6 +129,12 @@ If you are under wayland you need to add `--ozone-platform=wayland` to the argum
 Use only one `ContractEnv` value. They are implicitly created every time `runContract` is called, so avoid using this function if you need to run multiple `Contract`s.
 
 Instead, initialize the environment with `withContractEnv` and pass it to `runContractInEnv`. The former ensures that the environment is properly finalized, but it forces the developer to follow the bracket pattern, which is not always convenient. As an alternative, `mkContractEnv` can be used. If you are initializing a contract environment with `mkContractEnv` only once during the lifeteime of your app, you should be fine, but if you re-create it dynamically and do not finalize it with `stopContractEnv`, it's fairly easy to hit the max websocket connections limit, which is 200 for Firefox, not to mention that it would be forcing the server to keep the connections.
+
+### Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'
+
+Chromium is used in [E2E test suite](./e2e-testing.md). Chromium is pinned in nix shell by default, because system versions of chromium may be affected by [this bug](https://bugs.chromium.org/p/chromium/issues/detail?id=706008#c39)
+
+To disable, set `withChromium` to `false` in [`purescriptProject`'s `shell` argument](https://github.com/Plutonomicon/cardano-transaction-lib/blob/946818b72e3ac1321feebe2944ca2986da2ddc01/templates/ctl-scaffold/flake.nix#L96).
 
 ## Miscellaneous
 

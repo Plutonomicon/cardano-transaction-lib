@@ -348,7 +348,6 @@ let
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
-        export E2E_SKIP_JQUERY_DOWNLOAD=true
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
         python -m http.server 4008 --directory ${bundledPursProject}/dist &

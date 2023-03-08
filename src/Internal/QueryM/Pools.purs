@@ -51,6 +51,7 @@ getPoolParameters poolPubKeyHash = do
   poolIdStr <-
     liftM (error "Unable to encode pool pubkey hash to bech32")
       $ ed25519KeyHashToBech32 "pool"
+      $ unwrap
       $ unwrap poolPubKeyHash
   res <- liftM (error "Unable to find pool ID in the response") $ Map.lookup
     poolIdStr

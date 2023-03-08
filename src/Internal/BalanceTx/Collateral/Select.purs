@@ -85,7 +85,7 @@ instance Ord CollateralCandidate where
     byNumOfInputs = List.length <<< Tuple.fst <<< unwrap
 
     byAdaValue :: CollateralCandidate -> BigInt
-    byAdaValue = foldl adaValue' zero <<< Tuple.fst <<< unwrap
+    byAdaValue = foldl consumeUtxoAdaValue zero <<< Tuple.fst <<< unwrap
 
 mkCollateralCandidate
   :: List TransactionUnspentOutput /\ Maybe ReturnOutMinAdaValue
@@ -125,7 +125,8 @@ selectCollateral coinsPerUtxoUnit maxCollateralInputs =
       (\x -> Tuple x <$> collateralReturnMinAdaValue coinsPerUtxoUnit x)
     -- Filter out all utxo combinations
     -- with total Ada value < `minRequiredCollateral`:
-    <<< List.filter (\x -> foldl adaValue' zero x >= minRequiredCollateral)
+    <<< List.filter
+      (\x -> foldl consumeUtxoAdaValue zero x >= minRequiredCollateral)
     -- Get all possible non-empty utxo combinations
     -- with the number of utxos <= `maxCollateralInputs`:
     <<< combinations maxCollateralInputs
@@ -161,8 +162,8 @@ adaValue :: TransactionUnspentOutput -> BigInt
 adaValue =
   Value.valueToCoin' <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
-adaValue' :: BigInt -> TransactionUnspentOutput -> BigInt
-adaValue' init = add init <<< adaValue
+consumeUtxoAdaValue :: BigInt -> TransactionUnspentOutput -> BigInt
+consumeUtxoAdaValue acc = add acc <<< adaValue
 
 nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
 nonAdaAsset =
