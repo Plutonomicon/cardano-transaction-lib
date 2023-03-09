@@ -164,8 +164,8 @@ runContractTestsWithKeyDir params backup = do
             "The test engine cannot satisfy the requested ADA distribution "
               <> "because there are not enough funds left. \n\n"
               <> "Total required value is: "
-              <> BigInt.toString distrTotalAmount
-              <> " Lovelace (estimated)\n"
+              <> showLovelace distrTotalAmount
+              <> " (estimated)\n"
               <> "Total available value is: "
               <> BigInt.toString (valueToCoin' balance)
               <> "\nThe test suite is using this address: "
@@ -305,8 +305,8 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   -- Use log so we can see, regardless of suppression
   info $ joinWith " "
     [ "Sent"
-    , BigInt.toString fundTotal
-    , "lovelace to test wallets"
+    , showLovelace fundTotal
+    , "to test wallets"
     ]
   pure fundTotal
 
@@ -399,13 +399,12 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
 
         info $ joinWith " " $
           [ "Refunded"
-          , BigInt.toString refundTotal
-          , "Lovelace"
+          , showLovelace refundTotal
           ] <> maybe []
             ( \fundTotal ->
                 [ "of"
-                , BigInt.toString fundTotal
-                , "Lovelace from test wallets"
+                , showLovelace fundTotal
+                , "from test wallets"
                 ]
             )
             mbFundTotal
@@ -414,6 +413,15 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             info $ "The test below didn't spend any ADA. Perhaps it does not "
               <> "need any funds to succeed. Consider using `noWallet` to "
               <> "skip funds distribution step"
+
+showLovelace :: BigInt -> String
+showLovelace n =
+  if isAdaExact then BigInt.toString (n `div` million) <> " ADA"
+  else BigInt.toString n <> " Lovelace"
+  where
+  million = BigInt.fromInt 1_000_000
+  isAdaExact =
+    (n `div` million) * million == n
 
 -- | A helper function that abstracts away conversion between `KeyWallet` and
 -- | its address and just gives us a `TxConstraints` value.

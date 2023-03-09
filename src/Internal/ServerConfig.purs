@@ -4,6 +4,7 @@ module Ctl.Internal.ServerConfig
   , blockfrostPublicMainnetServerConfig
   , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
+  , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   , mkHttpUrl
@@ -66,6 +67,14 @@ blockfrostPublicMainnetServerConfig =
   , host: "cardano-mainnet.blockfrost.io"
   , secure: true
   , path: Just "/api/v0"
+  }
+
+blockfrostSelfHostedServerConfig :: ServerConfig
+blockfrostSelfHostedServerConfig =
+  { port: UInt.fromInt 3000
+  , host: "127.0.0.1"
+  , secure: false
+  , path: Just ""
   }
 
 mkHttpUrl :: ServerConfig -> Url

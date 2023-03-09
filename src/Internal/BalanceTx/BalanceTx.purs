@@ -115,8 +115,7 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Cardano.Types.Value as Value
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
 import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
   , getWalletCollateral

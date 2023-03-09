@@ -3,8 +3,7 @@ module Ctl.Internal.Contract (getChainTip, getProtocolParameters) where
 import Prelude
 
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Types.Chain (Tip)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Data.Either (either)

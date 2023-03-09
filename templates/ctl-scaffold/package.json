@@ -7,8 +7,10 @@
     "test": "test"
   },
   "scripts": {
-    "blockfrost-test": "source ./test/blockfrost.env && spago run --main Scaffold.Test.Blockfrost",
+    "start-blockfrost-runtime": "nix run -L .#ctl-scaffold-blockfrost-runtime",
     "test": "spago run --main Test.Scaffold.Main",
+    "blockfrost-test": "source ./test/blockfrost.env && spago run --main Scaffold.Test.Blockfrost",
+    "blockfrost-local-test": "source ./test/blockfrost-local.env && spago run --main Scaffold.Test.Blockfrost",
     "e2e-serve": "make e2e-serve",
     "start-runtime": "nix run -L .#ctl-scaffold-runtime",
     "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run'",

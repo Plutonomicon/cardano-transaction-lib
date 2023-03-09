@@ -28,7 +28,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   ) as NativeScript
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
 import Ctl.Internal.Scripts
   ( mintingPolicyHash

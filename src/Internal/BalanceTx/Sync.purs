@@ -22,8 +22,10 @@ import Ctl.Internal.Cardano.Types.Transaction as Cardano
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Contract.Monad (ContractSynchronizationParams)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad
+  ( ContractSynchronizationParams
+  , getQueryHandle
+  )
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
   , getUnusedAddresses

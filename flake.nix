@@ -39,6 +39,10 @@
       flake = false;
     };
 
+    # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/49269a9adb27b370209a61de2f5407945112860a";
+    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
+
     # Plutip server related inputs
     plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
     plutip-nixpkgs.follows = "plutip/nixpkgs";
@@ -142,6 +146,7 @@
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
+                blockfrost-backend-ryo
               ];
             };
           };
@@ -263,6 +268,8 @@
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
                 ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
+                cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+                blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
                 inherit cardano-configurations;
@@ -293,6 +300,7 @@
         in
         (psProjectFor pkgs).apps // {
           ctl-runtime = pkgs.launchCtlRuntime { };
+          ctl-runtime-blockfrost = pkgs.launchCtlRuntime { blockfrost.enable = true; };
           default = self.apps.${system}.ctl-runtime;
           vm = {
             type = "app";

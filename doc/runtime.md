@@ -33,6 +33,8 @@ The services that are currently **required** are:
   - You **must** use Kupo v2.2.0 or greater with CTL
   - Like Ogmios, Kupo requires a running Cardano node
 
+To start all of them for tests, run `npm run start-runtime`.
+
 ### Using NixOS module
 
 CTL's dependencies can be configured and started via NixOS modules. See [nix/test-nixos-configuration.nix](../nix/test-nixos-configuration.nix) for example.

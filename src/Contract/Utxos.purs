@@ -23,7 +23,7 @@ import Ctl.Internal.BalanceTx.Sync
   , syncBackendWithWallet
   , withoutSync
   )
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress

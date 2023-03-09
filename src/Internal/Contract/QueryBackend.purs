@@ -9,6 +9,7 @@ module Ctl.Internal.Contract.QueryBackend
   , getBlockfrostBackend
   , getCtlBackend
   , mkBlockfrostBackendParams
+  , mkSelfHostedBlockfrostBackendParams
   , mkCtlBackendParams
   ) where
 
@@ -76,3 +77,8 @@ mkCtlBackendParams = flip CtlBackendParams Nothing
 
 mkBlockfrostBackendParams :: BlockfrostBackendParams -> QueryBackendParams
 mkBlockfrostBackendParams = flip BlockfrostBackendParams Nothing
+
+mkSelfHostedBlockfrostBackendParams
+  :: BlockfrostBackendParams -> CtlBackendParams -> QueryBackendParams
+mkSelfHostedBlockfrostBackendParams bf ctl = BlockfrostBackendParams bf
+  (Just ctl)
