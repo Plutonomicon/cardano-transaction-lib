@@ -38,8 +38,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   )
 import Ctl.Internal.Cardano.Types.Value (Value)
-import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftM)

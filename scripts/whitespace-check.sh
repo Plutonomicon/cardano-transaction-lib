@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Checks that files don't have trailing whitespaces in them
+
 files="
 *.md
 *.nix

@@ -2,6 +2,8 @@ module Ctl.Internal.Contract.Monad
   ( Contract(Contract)
   , ContractEnv
   , ContractParams
+  , ContractTimeParams
+  , ContractSynchronizationParams
   , LedgerConstants
   , ParContract(ParContract)
   , mkContractEnv
@@ -14,6 +16,8 @@ module Ctl.Internal.Contract.Monad
   , buildBackend
   , getLedgerConstants
   , filterLockedUtxos
+  , getQueryHandle
+  , mkQueryHandle
   ) where
 
 import Prelude
@@ -34,6 +38,7 @@ import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Contract.Hooks (Hooks)
+import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend
   ( CtlBackend
   , CtlBackendParams
@@ -41,6 +46,12 @@ import Ctl.Internal.Contract.QueryBackend
   , QueryBackendParams(BlockfrostBackendParams, CtlBackendParams)
   , getCtlBackend
   )
+import Ctl.Internal.Contract.QueryHandle
+  ( queryHandleForBlockfrostBackend
+  , queryHandleForCtlBackend
+  , queryHandleForSelfHostedBlockfrostBackend
+  )
+import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
@@ -63,6 +74,7 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -70,14 +82,19 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
+import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
 
@@ -158,15 +175,19 @@ runContractInEnv contractEnv =
 -- ContractEnv
 --------------------------------------------------------------------------------
 
--- `LedgerConstants` contains values that technically may change, but we assume
--- to be constant during Contract evaluation
+-- | `LedgerConstants` contains values that technically may change, but we assume
+-- | to be constant during Contract evaluation.
 type LedgerConstants =
   { pparams :: ProtocolParameters
   , systemStart :: SystemStart
   }
 
+-- | A record containing `Contract` environment - everything a `Contract` needs
+-- | to run. It is recommended to use one environment per application to save
+-- | on websocket connections and to keep track of `UsedTxOuts`.
 type ContractEnv =
   { backend :: QueryBackend
+  , handle :: QueryHandle
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
@@ -176,7 +197,28 @@ type ContractEnv =
   , wallet :: Maybe Wallet
   , usedTxOuts :: UsedTxOuts
   , ledgerConstants :: LedgerConstants
+  , timeParams :: ContractTimeParams
+  , synchronizationParams :: ContractSynchronizationParams
+  , knownTxs ::
+      { backend :: Ref (Set TransactionHash)
+      }
   }
+
+getQueryHandle :: Contract QueryHandle
+getQueryHandle = asks _.handle
+
+mkQueryHandle
+  :: forall (rest :: Row Type). LogParams rest -> QueryBackend -> QueryHandle
+mkQueryHandle params queryBackend =
+  case queryBackend of
+    CtlBackend ctlBackend _ ->
+      queryHandleForCtlBackend runQueryM params ctlBackend
+    BlockfrostBackend blockfrostBackend Nothing -> do
+      queryHandleForBlockfrostBackend params blockfrostBackend
+    BlockfrostBackend blockfrostBackend (Just ctlBackend) -> do
+      queryHandleForSelfHostedBlockfrostBackend params blockfrostBackend
+        runQueryM
+        ctlBackend
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
 -- | Consider using `withContractEnv` if possible - otherwise use
@@ -188,18 +230,25 @@ mkContractEnv params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
 
   usedTxOuts <- newUsedTxOuts
+  backend <- liftEffect $ Ref.new Set.empty
 
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
       ledgerConstants <- getLedgerConstants params backend
-      pure $ merge { backend, ledgerConstants }
+      pure $ merge
+        { backend, ledgerConstants, handle: mkQueryHandle params backend }
     b2 <- parallel do
       wallet <- buildWallet
       pure $ merge { wallet }
     -- Compose the sub-builders together
-    in b1 >>> b2 >>> merge { usedTxOuts }
-
+    in
+      b1 >>> b2 >>> merge
+        { usedTxOuts
+        , timeParams: params.timeParams
+        , synchronizationParams: params.synchronizationParams
+        , knownTxs: { backend }
+        }
   pure $ build envBuilder constants
   where
   logger :: Logger
@@ -341,6 +390,31 @@ withContractEnv params action = do
 -- ContractParams
 --------------------------------------------------------------------------------
 
+-- | Delays and timeouts for internal query functions.
+-- |
+-- | - `awaitTxConfirmed.delay` - how frequently should we query for Tx in
+-- | `Contract.Transaction.awaitTxConfirmed`
+-- |
+-- | - For info on `syncBackend` and syncWallet` see `doc/query-layers.md`
+type ContractTimeParams =
+  { awaitTxConfirmed :: { delay :: Milliseconds, timeout :: Seconds }
+  , waitUntilSlot :: { delay :: Milliseconds }
+  , syncWallet :: { delay :: Milliseconds, timeout :: Seconds }
+  , syncBackend :: { delay :: Milliseconds, timeout :: Seconds }
+  }
+
+type ContractSynchronizationParams =
+  { syncBackendWithWallet ::
+      { errorOnTimeout :: Boolean
+      , beforeCip30Methods :: Boolean
+      , beforeBalancing :: Boolean
+      }
+  , syncWalletWithTxInputs ::
+      { errorOnTimeout :: Boolean, beforeCip30Sign :: Boolean }
+  , syncWalletWithTransaction ::
+      { errorOnTimeout :: Boolean, beforeTxConfirmed :: Boolean }
+  }
+
 -- | Options to construct an environment for a `Contract` to run.
 -- |
 -- | See `Contract.Config` for pre-defined values for testnet and mainnet.
@@ -357,6 +431,8 @@ type ContractParams =
   -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
   , hooks :: Hooks
+  , timeParams :: ContractTimeParams
+  , synchronizationParams :: ContractSynchronizationParams
   }
 
 --------------------------------------------------------------------------------
@@ -372,17 +448,23 @@ wrapQueryM qm = do
   contractEnv <- ask
   liftAff $ runQueryM contractEnv ctlBackend qm
 
-runQueryM :: forall (a :: Type). ContractEnv -> CtlBackend -> QueryM a -> Aff a
-runQueryM contractEnv ctlBackend =
-  flip runReaderT (mkQueryEnv contractEnv ctlBackend) <<< unwrap
+runQueryM
+  :: forall (a :: Type) (rest :: Row Type)
+   . LogParams rest
+  -> CtlBackend
+  -> QueryM a
+  -> Aff a
+runQueryM params ctlBackend =
+  flip runReaderT (mkQueryEnv params ctlBackend) <<< unwrap
 
-mkQueryEnv :: ContractEnv -> CtlBackend -> QueryEnv
-mkQueryEnv contractEnv ctlBackend =
+mkQueryEnv
+  :: forall (rest :: Row Type). LogParams rest -> CtlBackend -> QueryEnv
+mkQueryEnv params ctlBackend =
   { config:
       { kupoConfig: ctlBackend.kupoConfig
-      , logLevel: contractEnv.logLevel
-      , customLogger: contractEnv.customLogger
-      , suppressLogs: contractEnv.suppressLogs
+      , logLevel: params.logLevel
+      , customLogger: params.customLogger
+      , suppressLogs: params.suppressLogs
       }
   , runtime:
       { ogmiosWs: ctlBackend.ogmios.ws

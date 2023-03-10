@@ -24,7 +24,7 @@ import Prelude
 
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
 import Ctl.Internal.FromData
   ( class FromData

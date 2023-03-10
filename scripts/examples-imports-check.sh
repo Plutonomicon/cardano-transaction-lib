@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Checks that no internal modules are used in examples
+
 examples_imports_check() {
   local examples_path="./examples"
   local examples_with_internal_imports=""

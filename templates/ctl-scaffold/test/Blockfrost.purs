@@ -8,7 +8,7 @@ import Prelude
 import Contract.Config (testnetConfig)
 import Contract.Monad (launchAff_)
 import Contract.Test.Blockfrost (executeContractTestsWithBlockfrost)
-import Data.Maybe (Maybe(Nothing, Just))
+import Data.Maybe (Maybe(Just))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Test.Scaffold.Main (suite)
@@ -19,5 +19,4 @@ main = launchAff_ do
   executeContractTestsWithBlockfrost
     TestSpec.defaultConfig { timeout = Just $ Milliseconds 1000000.0 }
     testnetConfig { suppressLogs = true }
-    Nothing
     suite

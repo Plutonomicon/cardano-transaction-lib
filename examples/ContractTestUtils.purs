@@ -65,6 +65,7 @@ import Data.Array (head)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Lens (view)
+import Effect.Exception (throw)
 
 type ContractParams =
   { receiverPkh :: PaymentPubKeyHash
@@ -98,7 +99,8 @@ mkChecks p = do
     , checkLossAtAddress (label senderAddress "Sender")
         case _ of
           Just { txFinalFee } -> pure (p.adaToSend + txFinalFee)
-          Nothing -> pure zero
+          Nothing -> liftEffect $
+            throw "Unable to estimate expected loss in wallet"
 
     , checkTokenGainAtAddress' (label senderAddress "Sender")
         ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)

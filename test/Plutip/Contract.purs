@@ -1805,12 +1805,12 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
-            getWalletBalance >>= flip shouldSatisfy
-              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
+            getWalletBalance >>= shouldEqual
+              ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
               )
           withCip30Mock alice MockNami do
-            getWalletBalance >>= flip shouldSatisfy
-              ( eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
+            getWalletBalance >>= shouldEqual
+              ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
               )
 
       test "getWalletBalance works (2)" do
@@ -1828,14 +1828,25 @@ suite = do
 
       test "CIP-30 utilities" do
         let
-          distribution :: InitialUTxOs
-          distribution =
+          distribution :: InitialUTxOsWithStakeKey
+          distribution = withStakeKey privateStakeKey
             [ BigInt.fromInt 1_000_000_000
             , BigInt.fromInt 50_000_000
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             Cip30.contract
+      test "ECDSA example" do
+        let
+          distribution = withStakeKey privateStakeKey
+            [ BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            ]
+        withWallets distribution \alice -> do
+          withCip30Mock alice MockNami $ ECDSA.contract
 
   group "CIP-49 Plutus Crypto Primitives" do
     test "ECDSA: a script that checks a signature works" do

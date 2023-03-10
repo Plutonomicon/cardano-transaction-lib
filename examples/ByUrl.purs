@@ -33,6 +33,7 @@ import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
+import Ctl.Examples.DropTokens as DropTokens
 import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
@@ -166,4 +167,5 @@ examples = Map.fromFoldable
   , "Schnorr" /\ Schnorr.contract
   , "ECDSA" /\ ECDSA.contract
   , "PaysWithDatum" /\ PaysWithDatum.contract
+  , "DropTokens" /\ DropTokens.contract
   ]

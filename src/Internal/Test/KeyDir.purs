@@ -45,6 +45,7 @@ import Contract.Wallet.KeyFile
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
+import Control.Parallel (parTraverse, parTraverse_)
 import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
@@ -163,8 +164,8 @@ runContractTestsWithKeyDir params backup = do
             "The test engine cannot satisfy the requested ADA distribution "
               <> "because there are not enough funds left. \n\n"
               <> "Total required value is: "
-              <> BigInt.toString distrTotalAmount
-              <> " Lovelace (estimated)\n"
+              <> showLovelace distrTotalAmount
+              <> " (estimated)\n"
               <> "Total available value is: "
               <> BigInt.toString (valueToCoin' balance)
               <> "\nThe test suite is using this address: "
@@ -224,7 +225,7 @@ runContractTestsWithKeyDir params backup = do
 -- | recovery attempts that happen before each test run.
 markAsInactive :: FilePath -> Array KeyWallet -> Contract Unit
 markAsInactive backup wallets = do
-  for_ wallets \wallet -> do
+  flip parTraverse_ wallets \wallet -> do
     networkId <- asks _.networkId
     let
       address = addressBech32 $ (unwrap wallet).address networkId
@@ -240,7 +241,7 @@ markAsInactive backup wallets = do
 restoreWallets :: FilePath -> Aff (Array KeyWallet)
 restoreWallets backup = do
   walletDirs <- readdir backup <#> Array.filter (String.startsWith "addr")
-  catMaybes <$> for walletDirs \walletDir -> do
+  catMaybes <$> flip parTraverse walletDirs \walletDir -> do
     let
       paymentKeyFilePath = Path.concat
         [ backup, walletDir, "payment_signing_key" ]
@@ -273,19 +274,20 @@ restoreWallets backup = do
 
 -- | Save wallets to files in the backup directory for private keys
 backupWallets :: FilePath -> ContractEnv -> Array KeyWallet -> Aff Unit
-backupWallets backup env walletsArray = liftAff $ for_ walletsArray \wallet ->
-  do
-    let
-      address = addressBech32 $ (unwrap wallet).address env.networkId
-      payment = keyWalletPrivatePaymentKey wallet
-      mbStake = keyWalletPrivateStakeKey wallet
-      folder = Path.concat [ backup, address ]
+backupWallets backup env walletsArray =
+  liftAff $ flip parTraverse_ walletsArray \wallet ->
+    do
+      let
+        address = addressBech32 $ (unwrap wallet).address env.networkId
+        payment = keyWalletPrivatePaymentKey wallet
+        mbStake = keyWalletPrivateStakeKey wallet
+        folder = Path.concat [ backup, address ]
 
-    mkdir folder
-    privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
-      payment
-    for mbStake $ privateStakeKeyToFile
-      (Path.concat [ folder, "stake_signing_key" ])
+      mkdir folder
+      privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
+        payment
+      for mbStake $ privateStakeKeyToFile
+        (Path.concat [ folder, "stake_signing_key" ])
 
 -- | Create a transaction that builds a specific UTxO distribution on the wallets.
 fundWallets
@@ -303,8 +305,8 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   -- Use log so we can see, regardless of suppression
   info $ joinWith " "
     [ "Sent"
-    , BigInt.toString fundTotal
-    , "lovelace to test wallets"
+    , showLovelace fundTotal
+    , "to test wallets"
     ]
   pure fundTotal
 
@@ -352,14 +354,15 @@ returnFunds
 returnFunds backup env allWalletsArray mbFundTotal hasRun =
   runContractInEnv env $
     noLogs do
-      nonEmptyWallets <- catMaybes <$> for allWalletsArray \wallet -> do
-        withKeyWallet wallet do
-          utxoMap <- liftedM "Failed to get utxos" $
-            (getWalletAddresses <#> Array.head) >>= traverse utxosAt
-          if Map.isEmpty utxoMap then do
-            markAsInactive backup [ wallet ]
-            pure Nothing
-          else pure $ Just (utxoMap /\ wallet)
+      nonEmptyWallets <- catMaybes <$>
+        flip parTraverse allWalletsArray \wallet -> do
+          withKeyWallet wallet do
+            utxoMap <- liftedM "Failed to get utxos" $
+              (getWalletAddresses <#> Array.head) >>= traverse utxosAt
+            if Map.isEmpty utxoMap then do
+              markAsInactive backup [ wallet ]
+              pure Nothing
+            else pure $ Just (utxoMap /\ wallet)
 
       when (Array.length nonEmptyWallets /= 0) do
         -- Print the messages only if we are running during initial fund recovery
@@ -396,13 +399,12 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
 
         info $ joinWith " " $
           [ "Refunded"
-          , BigInt.toString refundTotal
-          , "Lovelace"
+          , showLovelace refundTotal
           ] <> maybe []
             ( \fundTotal ->
                 [ "of"
-                , BigInt.toString fundTotal
-                , "Lovelace from test wallets"
+                , showLovelace fundTotal
+                , "from test wallets"
                 ]
             )
             mbFundTotal
@@ -411,6 +413,15 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             info $ "The test below didn't spend any ADA. Perhaps it does not "
               <> "need any funds to succeed. Consider using `noWallet` to "
               <> "skip funds distribution step"
+
+showLovelace :: BigInt -> String
+showLovelace n =
+  if isAdaExact then BigInt.toString (n `div` million) <> " ADA"
+  else BigInt.toString n <> " Lovelace"
+  where
+  million = BigInt.fromInt 1_000_000
+  isAdaExact =
+    (n `div` million) * million == n
 
 -- | A helper function that abstracts away conversion between `KeyWallet` and
 -- | its address and just gives us a `TxConstraints` value.
@@ -421,7 +432,7 @@ mustPayToKeyWallet
   -> TxConstraints i o
 mustPayToKeyWallet wallet value =
   let
-    convert = wrap <<< publicKeyHash <<< publicKeyFromPrivateKey
+    convert = publicKeyHash <<< publicKeyFromPrivateKey
     payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
     mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
   in
