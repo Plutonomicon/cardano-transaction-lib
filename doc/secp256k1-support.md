@@ -21,6 +21,7 @@ For a more in depth oversight please see [Cip-49](https://github.com/mlabs-haske
 [Cip-49](https://github.com/mlabs-haskell/CIPs/tree/c5bdd66fe49c19c341499f86cebaa2eef9e90b74/CIP-0049) provides two new Plutus builtin functions for signature verification.
 
 Both functions take the following as Parameters:
+
 - A verification key;
 - An input to verify (either the message itself, or a hash);
 - A signature.

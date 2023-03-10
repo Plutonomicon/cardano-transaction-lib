@@ -56,6 +56,7 @@ module.exports = {
   },
 
   resolve: {
+    // We use node_modules provided by Nix shell via an environment variable
     modules: [process.env.NODE_PATH],
     extensions: [".js"],
     fallback: {
@@ -77,7 +78,7 @@ module.exports = {
     alias: {
       // You should update this path to the location of your compiled scripts,
       // relative to `webpack.config.js`
-      Scripts: path.resolve(__dirname, "fixtures/scripts"),
+      Scripts: path.resolve(__dirname, "scripts"),
     },
   },
 
