@@ -6,7 +6,7 @@ exports.clearLineHandler = readline => () => {
 
 const fs = require("fs");
 
-exports._rmdirSync = path => () => fs.rmdirSync(path, { recursive: true });
+exports._rmdirSync = path => () => fs.rmSync(path, { recursive: true });
 
 exports.removeOnSignal =
   ({ signal, callback }) =>
