@@ -98,6 +98,9 @@ module.exports = {
     new webpack.ProvidePlugin({
       Buffer: ["buffer", "Buffer"],
     }),
+    // ContextReplacementPlugin is used just to suppress a webpack warning:
+    // "Critical dependency: the request of a dependency is an expression"
+    // See https://stackoverflow.com/a/59235546/17365145
     new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
     new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
   ],
