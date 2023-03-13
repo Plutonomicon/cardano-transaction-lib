@@ -3,7 +3,13 @@ module Ctl.Internal.BalanceTx.RedeemerIndex where
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson)
-import Ctl.Internal.Cardano.Types.Transaction (Certificate, Redeemer(Redeemer))
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Certificate
+  , Redeemer(Redeemer)
+  , Transaction(Transaction)
+  , TxBody(TxBody)
+  )
+import Ctl.Internal.Cardano.Types.Value (currencyMPSHash)
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
@@ -11,9 +17,12 @@ import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (findIndex)
 import Data.BigInt as BigInt
+import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype)
+import Data.Map as Map
+import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 
@@ -85,6 +94,19 @@ type RedeemersContext =
   , rewardAddresses :: Array RewardAddress
   , certs :: Array Certificate
   }
+
+mkRedeemersContext :: Transaction -> RedeemersContext
+mkRedeemersContext
+  (Transaction { body: TxBody { inputs, mint, withdrawals, certs } }) =
+  { inputs: Set.toUnfoldable inputs
+  , mintingPolicyHashes: Set.toUnfoldable (Map.keys mintedAssets) <#>
+      currencyMPSHash
+  , rewardAddresses: Set.toUnfoldable $ Map.keys $ fromMaybe Map.empty
+      withdrawals
+  , certs: fold certs
+  }
+  where
+  mintedAssets = fromMaybe Map.empty (map unwrap $ map unwrap mint)
 
 indexRedeemers
   :: RedeemersContext

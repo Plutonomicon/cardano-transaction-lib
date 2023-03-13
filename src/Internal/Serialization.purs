@@ -761,9 +761,8 @@ convertNetworkId = case _ of
 
 convertMint :: T.Mint -> Effect Mint
 convertMint (T.Mint nonAdaAssets) = do
-  let m = Value.unwrapNonAdaAsset nonAdaAssets
   mint <- newMint
-  forWithIndex_ m \scriptHashBytes' values -> do
+  forWithIndex_ (unwrap nonAdaAssets) \scriptHashBytes' values -> do
     let
       mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
         scriptHashBytes'

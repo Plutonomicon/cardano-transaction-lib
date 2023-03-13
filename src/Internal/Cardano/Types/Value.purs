@@ -48,7 +48,6 @@ module Ctl.Internal.Cardano.Types.Value
   , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
-  , unwrapNonAdaAsset
   , valueAssetClasses
   , valueAssets
   , valueOf
@@ -274,6 +273,7 @@ mkUnsafeAdaSymbol byteArr =
 newtype NonAdaAsset = NonAdaAsset (Map CurrencySymbol (Map TokenName BigInt))
 
 derive newtype instance Eq NonAdaAsset
+derive instance Newtype NonAdaAsset _
 
 instance Arbitrary NonAdaAsset where
   arbitrary =
@@ -302,7 +302,7 @@ instance MeetSemilattice NonAdaAsset where
   meet = unionWithNonAda min
 
 instance Negate NonAdaAsset where
-  negation = NonAdaAsset <<< map (map negate) <<< unwrapNonAdaAsset
+  negation = NonAdaAsset <<< map (map negate) <<< unwrap
 
 instance Split NonAdaAsset where
   split (NonAdaAsset mp) = NonAdaAsset npos /\ NonAdaAsset pos
@@ -362,9 +362,6 @@ equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
   currentMaxTokenQuantity =
     foldl (\quantity tn -> quantity `max` tokenQuantity tn) zero
       (flattenNonAdaValue nonAdaAssets)
-
-unwrapNonAdaAsset :: NonAdaAsset -> Map CurrencySymbol (Map TokenName BigInt)
-unwrapNonAdaAsset (NonAdaAsset mp) = mp
 
 -- We shouldn't need this check if we don't export unsafeAdaSymbol etc.
 -- | Create a singleton `NonAdaAsset` which by definition should be safe since
