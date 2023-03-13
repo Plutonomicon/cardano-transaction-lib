@@ -30,6 +30,7 @@ Thus, the goal of the developers is to ensure that the set of UTxOs available to
 
 - A dApp tries to balance a transaction with UTxOs from the wallet that are not yet available in Ogmios or Blockfrost, causing an error response
 - A transaction is passed for signing, but the wallet does not yet know about the UTxOs it spends, and thus refuses to sign it (this happens with Eternl)
+- A transaction is sent to the network via Ogmios or Blockfrost and is confirmed there, but the wallet still does not know about its UTxOs.
 
 CTL tries to be smart when dealing with the issue, and it aims to let the user work with both query layers as if it was one. To achieve this guarantee, CTL follows three simple rules:
 

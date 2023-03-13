@@ -117,11 +117,11 @@ main = Contract.Monad.launchAff_ do
 
 ### Making the `ContractEnv`
 
-The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ContractParams` should be used instead.
+The `ContractEnv` type contains data that is required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ContractParams` should be used instead.
 
 For local development and testing, we provide `Contract.Config.testnetConfig` where all `CtlBackend` service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
 
-It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ContractParams` with `runContract`.
+It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ContractParams` with `runContract` or its variants.
 
 A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
 
