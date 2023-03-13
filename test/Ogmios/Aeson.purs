@@ -139,6 +139,7 @@ printEvaluateTxFailures = launchAff_ do
               { datums: []
               , redeemersTxIns: []
               , unbalancedTx: wrap { transaction: mempty, utxoIndex: Map.empty }
+              , redeemers: []
               }
           )
       )

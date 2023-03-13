@@ -61,6 +61,10 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (addressPaymentValidatorHash)
+import Ctl.Internal.BalanceTx.RedeemerIndex
+  ( RedeemerPurpose(ForMint, ForCert, ForSpend, ForReward)
+  , UnindexedRedeemer(UnindexedRedeemer)
+  )
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
@@ -481,7 +485,8 @@ type ConstraintProcessingState (a :: Type) =
   , valueSpentBalancesOutputs :: ValueSpentBalances
   -- Balance of the values produced and required for the transaction's outputs
   , datums :: Array Datum
-  -- Ordered accumulation of datums so we can use to `setScriptDataHash`
+  -- Ordered accumulation of datums we can use to `setScriptDataHash`
+  , redeemers :: Array UnindexedRedeemer
   , redeemersTxIns :: Array (T.Redeemer /\ Maybe TransactionInput)
   -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
   -- add execution units via Ogmios
@@ -524,6 +529,12 @@ _redeemersTxIns
    . Lens' (ConstraintProcessingState a)
        (Array (T.Redeemer /\ Maybe TransactionInput))
 _redeemersTxIns = prop (SProxy :: SProxy "redeemersTxIns")
+
+_redeemers
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a)
+       (Array UnindexedRedeemer)
+_redeemers = prop (SProxy :: SProxy "redeemers")
 
 _mintRedeemers
   :: forall (a :: Type)
@@ -608,7 +619,6 @@ processLookupsAndConstraints
   -- Attach mint redeemers to witness set.
   mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
   lift $ traverse_ (attachToCps attachRedeemer <<< snd) mintRedeemers
-
   ExceptT $ foldConstraints (addOwnInput (Proxy :: Proxy datum)) ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
   ExceptT addScriptDataHash
@@ -647,6 +657,7 @@ runConstraintsM lookups txConstraints = do
       , valueSpentBalancesOutputs:
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
+      , redeemers: []
       , redeemersTxIns: mempty
       , mintRedeemers: empty
       , lookups
@@ -688,6 +699,7 @@ newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
   -- after balancing (when inputs are finalised). The potential input is
   -- `Just` for spending script utxos, i.e. `MustSpendScriptOutput` and
   -- `Nothing` otherwise.
+  , redeemers :: Array UnindexedRedeemer
   }
 
 derive instance Generic UnattachedUnbalancedTx _
@@ -713,7 +725,7 @@ mkUnbalancedTx
   -> Contract (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemersTxIns } ->
+    \{ unbalancedTx, datums, redeemersTxIns, redeemers } ->
       let
         stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
         stripScriptDataHash uTx =
@@ -725,7 +737,7 @@ mkUnbalancedTx scriptLookups txConstraints =
             _ { plutusData = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
-        wrap { unbalancedTx: tx, datums, redeemersTxIns }
+        wrap { unbalancedTx: tx, datums, redeemersTxIns, redeemers }
 
 addScriptDataHash
   :: forall (a :: Type)
@@ -1117,6 +1129,12 @@ processConstraint mpsMap osMap c = do
               NoOutputDatum -> throwError CannotFindDatum
             _cpsToTxBody <<< _inputs %= Set.insert txo
             let
+              uiRedeemer = UnindexedRedeemer
+                { purpose: ForSpend txo
+                , datum: unwrap red
+                }
+            _redeemers <>= [ uiRedeemer ]
+            let
               -- Create a redeemer with hardcoded execution units then call Ogmios
               -- to add the units in at the very end.
               -- Hardcode script spend index then reindex at the end *after
@@ -1176,7 +1194,8 @@ processConstraint mpsMap osMap c = do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
-
+      _redeemers <>=
+        [ UnindexedRedeemer { purpose: ForMint mpsHash, datum: unwrap red } ]
       let
         -- Create a redeemer with zero execution units then call Ogmios to
         -- add the units in at the very end.
@@ -1311,6 +1330,10 @@ processConstraint mpsMap osMap c = do
               plutusScript
           )
       index <- lift $ addCertificate cert
+      _redeemers <>=
+        [ UnindexedRedeemer
+            { purpose: ForCert cert, datum: unwrap redeemerData }
+        ]
       let
         redeemer = T.Redeemer
           { tag: Cert
@@ -1345,6 +1368,10 @@ processConstraint mpsMap osMap c = do
             )
             poolKeyHash
         ix <- lift $ addCertificate cert
+        _redeemers <>=
+          [ UnindexedRedeemer
+              { purpose: ForCert cert, datum: unwrap redeemerData }
+          ]
         let
           redeemer = T.Redeemer
             { tag: Cert
@@ -1386,6 +1413,10 @@ processConstraint mpsMap osMap c = do
         mbRewards
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
         Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
+      _redeemers <>=
+        [ UnindexedRedeemer
+            { purpose: ForReward rewardAddress, datum: unwrap redeemerData }
+        ]
       let
         redeemer = T.Redeemer
           { tag: Reward
