@@ -1372,7 +1372,7 @@ processConstraint mpsMap osMap c = do
         rewardAddress =
           RewardAddress.stakePubKeyHashRewardAddress networkId spkh
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
-        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+        Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = plutusScriptStakeValidatorHash stakeValidator
       networkId <- lift getNetworkId
@@ -1385,7 +1385,7 @@ processConstraint mpsMap osMap c = do
         (CannotWithdrawRewardsPlutusScript stakeValidator)
         mbRewards
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
-        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+        Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
       let
         redeemer = T.Redeemer
           { tag: Reward
@@ -1408,7 +1408,7 @@ processConstraint mpsMap osMap c = do
         (CannotWithdrawRewardsNativeScript stakeValidator)
         mbRewards
       _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
-        Map.union (Map.singleton rewardAddress (fromMaybe (Coin zero) rewards))
+        Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
       ExceptT $ attachToCps attachNativeScript (unwrap stakeValidator)
     MustSatisfyAnyOf xs -> do
       cps <- get
