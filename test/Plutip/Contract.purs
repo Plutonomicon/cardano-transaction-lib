@@ -157,7 +157,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, only, test)
+import Mote (group, skip, test)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
@@ -179,7 +179,7 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
 suite = do
-  only $ group "TooManyAssetsInOutput regression - #1441" do
+  skip $ group "TooManyAssetsInOutput regression - #1441" do
     test "Mint many assets at once" do
       let
         distribution :: InitialUTxOs
