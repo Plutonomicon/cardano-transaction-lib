@@ -390,17 +390,17 @@ runBalancer p = do
     worker (BalanceChangeAndMinFee state@{ transaction, minFee, leftoverUtxos }) =
       do
         logBalancerState "Balancing change and fees (Stage 2)" p.allUtxos state
-        { transaction, minFee: newMinFee } <- evaluateTx state
+        { transaction: evaluatedTx, minFee: newMinFee } <- evaluateTx state
         case newMinFee <= minFee of
           true ->
-            if (Set.isEmpty $ transaction.transaction ^. _body <<< _inputs) then
+            if (Set.isEmpty $ evaluatedTx.transaction ^. _body <<< _inputs) then
               do
                 selectionState <-
                   performMultiAssetSelection p.strategy leftoverUtxos
                     (lovelaceValueOf one)
                 runNextBalancerStep $ state
                   { transaction =
-                      transaction
+                      evaluatedTx
                         #
                           ( prop (Proxy :: Proxy "transaction") <<< _body <<<
                               _inputs %~
@@ -416,16 +416,12 @@ runBalancer p = do
             else
               logTransaction "Balanced transaction (Done)" p.allUtxos
                 transaction.transaction
-                *> finalizeTransaction transaction p.allUtxos
+                *> finalizeTransaction evaluatedTx p.allUtxos
           false ->
             runNextBalancerStep $ state
               { transaction = transaction
                   # prop (Proxy :: Proxy "transaction") <<< _body <<< _fee .~
                       Coin newMinFee
-                  #
-                    ( prop (Proxy :: Proxy "redeemers") %~ map
-                        redeemerToIndexedRedeemer
-                    )
               , minFee = newMinFee
               }
 
