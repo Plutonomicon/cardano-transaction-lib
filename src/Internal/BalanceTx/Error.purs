@@ -12,6 +12,7 @@ module Ctl.Internal.BalanceTx.Error
       , CouldNotGetUtxos
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
+      , TODO
       , ExUnitsEvaluationFailed
       , InsufficientUtxoBalanceToCoverAsset
       , ReindexRedeemersError
@@ -25,6 +26,10 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
+import Ctl.Internal.BalanceTx.RedeemerIndex
+  ( UnindexedRedeemer(..)
+  , redeemerPurposeToRedeemerTag
+  )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer))
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
@@ -76,6 +81,7 @@ data BalanceTxError
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
+  | TODO
   | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
   | ReindexRedeemersError ReindexErrors
   | UtxoLookupFailedFor TransactionInput
@@ -169,7 +175,7 @@ number ary = freeze (foldl go [] ary)
 -- | to visually verify the printing of errors without a context on fixtures.
 printTxEvaluationFailure
   :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationFailure -> String
-printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
+printTxEvaluationFailure (UnattachedUnbalancedTx { redeemers }) e =
   runPrettyString $ case e of
     Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
@@ -177,9 +183,10 @@ printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
   where
   lookupRedeemerPointer
     :: Ogmios.RedeemerPointer -> Maybe (Redeemer /\ Maybe TransactionInput)
-  lookupRedeemerPointer ptr = flip find redeemersTxIns
-    $ \(Redeemer rdmr /\ _) -> rdmr.tag == ptr.redeemerTag && rdmr.index ==
-        Natural.toBigInt ptr.redeemerIndex
+  lookupRedeemerPointer ptr = -- flip find redeemers
+    -- $ \(UnindexedRedeemer { redeemers, purpose }) -> (redeemerPurposeToRedeemerTag purpose).tag == ptr.redeemerTag && rdmr.index ==
+    --     Natural.toBigInt ptr.redeemerIndex
+    Nothing -- TODO
 
   printRedeemerPointer :: Ogmios.RedeemerPointer -> PrettyString
   printRedeemerPointer ptr =

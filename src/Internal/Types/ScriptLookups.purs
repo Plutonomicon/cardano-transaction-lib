@@ -1,5 +1,10 @@
 module Ctl.Internal.Types.ScriptLookups
-  ( MkUnbalancedTxError
+  ( EvaluatedTx
+  , IndexedTx
+  , PrebalancedTx(PrebalancedTx)
+  , UnindexedTx
+  , UnattachedTx_
+  , MkUnbalancedTxError
       ( CannotConvertPOSIXTimeRange
       , CannotSolveTimeConstraints
       , CannotConvertPaymentPubKeyHash
@@ -33,6 +38,10 @@ module Ctl.Internal.Types.ScriptLookups
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
+  , UnattachedUnbalancedIndexedTx(UnattachedUnbalancedIndexedTx)
+  , UnattachedUnbalancedIndexedEvaluatedTx
+      ( UnattachedUnbalancedIndexedEvaluatedTx
+      )
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -49,6 +58,7 @@ module Ctl.Internal.Types.ScriptLookups
   , typedValidatorLookupsM
   , unspentOutputs
   , unspentOutputsM
+  , indexTx
   ) where
 
 import Prelude hiding (join)
@@ -62,8 +72,13 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (addressPaymentValidatorHash)
 import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( RedeemerPurpose(ForMint, ForCert, ForSpend, ForReward)
+  ( IndexedRedeemer(..)
+  , RedeemerPurpose(ForMint, ForCert, ForSpend, ForReward)
   , UnindexedRedeemer(UnindexedRedeemer)
+  , attachRedeemers
+  , indexRedeemers
+  , mkRedeemersContext
+  , unindexedRedeemerToRedeemer
   )
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
@@ -75,6 +90,7 @@ import Ctl.Internal.Cardano.Types.Transaction
       , StakeDelegation
       )
   , Costmdls
+  , Redeemer(..)
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
@@ -524,22 +540,11 @@ _costModels
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Costmdls
 _costModels = prop (SProxy :: SProxy "costModels")
 
-_redeemersTxIns
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a)
-       (Array (T.Redeemer /\ Maybe TransactionInput))
-_redeemersTxIns = prop (SProxy :: SProxy "redeemersTxIns")
-
 _redeemers
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Array UnindexedRedeemer)
 _redeemers = prop (SProxy :: SProxy "redeemers")
-
-_mintRedeemers
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a) (Map MintingPolicyHash T.Redeemer)
-_mintRedeemers = prop (SProxy :: SProxy "mintRedeemers")
 
 _lookups
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
@@ -615,13 +620,9 @@ processLookupsAndConstraints
 
   ExceptT $ foldConstraints (processConstraint mpsMap osMap)
     timeConstraintsSolved
-
-  -- Attach mint redeemers to witness set.
-  mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
-  lift $ traverse_ (attachToCps attachRedeemer <<< snd) mintRedeemers
   ExceptT $ foldConstraints (addOwnInput (Proxy :: Proxy datum)) ownInputs
   ExceptT $ foldConstraints addOwnOutput ownOutputs
-  ExceptT addScriptDataHash
+  ExceptT addFakeScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUtxoIndex
 
@@ -692,13 +693,6 @@ mkUnbalancedTx' scriptLookups txConstraints =
 newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
   { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
   , datums :: Array Datum -- the array of ordered datums that require attaching
-  , redeemersTxIns ::
-      Array (T.Redeemer /\ Maybe TransactionInput) -- the array of
-  -- ordered redeemers that require attaching alongside a potential transaction
-  -- input. The input is required to determine the index of `Spend` redeemers
-  -- after balancing (when inputs are finalised). The potential input is
-  -- `Just` for spending script utxos, i.e. `MustSpendScriptOutput` and
-  -- `Nothing` otherwise.
   , redeemers :: Array UnindexedRedeemer
   }
 
@@ -708,6 +702,66 @@ derive newtype instance Eq UnattachedUnbalancedTx
 derive newtype instance EncodeAeson UnattachedUnbalancedTx
 
 instance Show UnattachedUnbalancedTx where
+  show = genericShow
+
+type UnattachedTx_ row =
+  (Record (transaction :: Transaction, datums :: Array Datum | row))
+
+type UnindexedTx = UnattachedTx_ (redeemers :: Array UnindexedRedeemer)
+type IndexedTx = UnattachedTx_ (redeemers :: Array IndexedRedeemer)
+type EvaluatedTx = UnattachedTx_ (redeemers :: Array Redeemer)
+
+newtype PrebalancedTx = PrebalancedTx IndexedTx
+
+derive instance Generic PrebalancedTx _
+derive instance Newtype PrebalancedTx _
+derive newtype instance Eq PrebalancedTx
+derive newtype instance EncodeAeson PrebalancedTx
+
+indexTx :: UnindexedTx -> Maybe IndexedTx
+indexTx { transaction, datums, redeemers } = do
+  redeemers' <- indexRedeemers (mkRedeemersContext transaction) redeemers
+  pure
+    { transaction: attachRedeemers redeemers' transaction
+    , datums
+    , redeemers: redeemers'
+    }
+
+instance Show PrebalancedTx where
+  show = genericShow
+
+-- | A newtype for the unbalanced transaction after creating one with datums
+-- | and redeemers not attached, but already indexed
+newtype UnattachedUnbalancedIndexedTx = UnattachedUnbalancedIndexedTx
+  { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
+  , datums :: Array Datum -- the array of ordered datums that require attaching
+  , redeemers :: Array IndexedRedeemer
+  }
+
+derive instance Generic UnattachedUnbalancedIndexedTx _
+derive instance Newtype UnattachedUnbalancedIndexedTx _
+derive newtype instance Eq UnattachedUnbalancedIndexedTx
+derive newtype instance EncodeAeson UnattachedUnbalancedIndexedTx
+
+instance Show UnattachedUnbalancedIndexedTx where
+  show = genericShow
+
+-- | A newtype for the unbalanced transaction after creating one with datums
+-- | and redeemers not attached, but already indexed
+newtype UnattachedUnbalancedIndexedEvaluatedTx =
+  UnattachedUnbalancedIndexedEvaluatedTx
+    { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
+    , datums ::
+        Array Datum -- the array of ordered datums that require attaching
+    , redeemers :: Array Redeemer
+    }
+
+derive instance Generic UnattachedUnbalancedIndexedEvaluatedTx _
+derive instance Newtype UnattachedUnbalancedIndexedEvaluatedTx _
+derive newtype instance Eq UnattachedUnbalancedIndexedEvaluatedTx
+derive newtype instance EncodeAeson UnattachedUnbalancedIndexedEvaluatedTx
+
+instance Show UnattachedUnbalancedIndexedEvaluatedTx where
   show = genericShow
 
 -- | An implementation that strips `witnessSet` and data hash from
@@ -725,7 +779,7 @@ mkUnbalancedTx
   -> Contract (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemersTxIns, redeemers } ->
+    \{ unbalancedTx, datums, redeemers } ->
       let
         stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
         stripScriptDataHash uTx =
@@ -737,16 +791,19 @@ mkUnbalancedTx scriptLookups txConstraints =
             _ { plutusData = Nothing, redeemers = Nothing }
         tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
       in
-        wrap { unbalancedTx: tx, datums, redeemersTxIns, redeemers }
+        wrap { unbalancedTx: tx, datums, redeemers }
 
-addScriptDataHash
+-- | Adds a placeholder for ScriptDataHash. It will be wrong at this stage,
+-- | because ExUnits hasn't been estimated yet. It will serve as a
+-- | placeholder that will have the same size as the correct value.
+addFakeScriptDataHash
   :: forall (a :: Type)
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
-addScriptDataHash = runExceptT do
+addFakeScriptDataHash = runExceptT do
   dats <- use _datums
   costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
-  reds <- use (_redeemersTxIns <<< to (map fst))
+  reds <- use (_redeemers <<< to (map unindexedRedeemerToRedeemer))
   tx <- use (_unbalancedTx <<< _transaction)
   tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
     Right
@@ -978,18 +1035,6 @@ lookupValidator
 lookupValidator vh osMap =
   note (ValidatorHashNotFound vh) $ lookup vh osMap
 
-reindexMintRedeemers
-  :: forall (a :: Type)
-   . MintingPolicyHash
-  -> T.Redeemer
-  -> ConstraintsM a (Array T.Redeemer)
-reindexMintRedeemers mpsHash redeemer = do
-  _mintRedeemers %= Map.insert mpsHash redeemer
-  mintRedeemers :: Array _ <- use _mintRedeemers <#> Map.toUnfoldable
-  pure $
-    mintRedeemers # mapWithIndex \ix (_ /\ T.Redeemer red) ->
-      T.Redeemer red { index = fromInt ix }
-
 processScriptRefUnspentOut
   :: forall (scriptHash :: Type) (a :: Type)
    . Newtype scriptHash ScriptHash
@@ -1134,22 +1179,7 @@ processConstraint mpsMap osMap c = do
                 , datum: unwrap red
                 }
             _redeemers <>= [ uiRedeemer ]
-            let
-              -- Create a redeemer with hardcoded execution units then call Ogmios
-              -- to add the units in at the very end.
-              -- Hardcode script spend index then reindex at the end *after
-              -- balancing* with `reindexSpentScriptRedeemers`
-              redeemer = T.Redeemer
-                { tag: Spend
-                , index: zero -- hardcoded and tweaked after balancing.
-                , "data": unwrap red
-                , exUnits: zero
-                }
             _valueSpentBalancesInputs <>= provideValue amount
-            -- Append redeemer for spending to array.
-            _redeemersTxIns <>= Array.singleton (redeemer /\ Just txo)
-            -- Attach redeemer to witness set.
-            ExceptT $ attachToCps attachRedeemer redeemer
     MustSpendNativeScriptOutput txo ns -> runExceptT do
       _cpsToTxBody <<< _inputs %= Set.insert txo
       ExceptT $ attachToCps attachNativeScript ns
@@ -1196,24 +1226,7 @@ processConstraint mpsMap osMap c = do
           pure $ map getNonAdaAsset $ value i
       _redeemers <>=
         [ UnindexedRedeemer { purpose: ForMint mpsHash, datum: unwrap red } ]
-      let
-        -- Create a redeemer with zero execution units then call Ogmios to
-        -- add the units in at the very end.
-        -- Hardcode minting policy index, then reindex with
-        -- `reindexMintRedeemers`.
-        redeemer = T.Redeemer
-          { tag: Mint
-          , index: zero
-          , "data": unwrap red
-          , exUnits: zero
-          }
       -- Remove mint redeemers from array before reindexing.
-      _redeemersTxIns %= filter \(T.Redeemer { tag } /\ _) -> tag /= Mint
-      -- Reindex mint redeemers.
-      mintRedeemers <- lift $ reindexMintRedeemers mpsHash redeemer
-      -- Append reindexed mint redeemers to array.
-      _redeemersTxIns <>= map (_ /\ Nothing) mintRedeemers
-
       _cpsToTxBody <<< _mint <>= map wrap mintVal
 
     MustMintValueUsingNativeScript ns tn i -> runExceptT do
@@ -1342,8 +1355,6 @@ processConstraint mpsMap osMap c = do
           , exUnits: zero
           }
       ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
-      ExceptT $ attachToCps attachRedeemer redeemer
-      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing) -- TODO: is needed?
     MustDeregisterStakeNativeScript stakeValidator -> do
       void $ addCertificate $ StakeDeregistration
         $ scriptHashCredential
@@ -1372,16 +1383,7 @@ processConstraint mpsMap osMap c = do
           [ UnindexedRedeemer
               { purpose: ForCert cert, datum: unwrap redeemerData }
           ]
-        let
-          redeemer = T.Redeemer
-            { tag: Cert
-            , index: fromInt ix
-            , "data": unwrap redeemerData
-            , exUnits: zero
-            }
         ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
-        ExceptT $ attachToCps attachRedeemer redeemer
-        _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing) -- TODO: is needed?
     MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
       void $ addCertificate $ StakeDelegation
         ( scriptHashCredential $ unwrap $ nativeScriptStakeValidatorHash
@@ -1425,8 +1427,6 @@ processConstraint mpsMap osMap c = do
           , exUnits: zero
           }
       ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
-      ExceptT $ attachToCps attachRedeemer redeemer
-      _redeemersTxIns <>= Array.singleton (redeemer /\ Nothing)
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = nativeScriptStakeValidatorHash stakeValidator
       networkId <- lift getNetworkId

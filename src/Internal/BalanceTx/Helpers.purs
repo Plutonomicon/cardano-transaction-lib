@@ -1,6 +1,5 @@
 module Ctl.Internal.BalanceTx.Helpers
   ( _body'
-  , _redeemersTxIns
   , _transaction'
   , _unbalancedTx
   ) where
@@ -38,9 +37,3 @@ _body' :: Lens' UnattachedUnbalancedTx TxBody
 _body' = lens' \unattachedTx ->
   unattachedTx ^. _transaction' <<< _body /\
     \txBody -> unattachedTx # _transaction' %~ (_body .~ txBody)
-
-_redeemersTxIns
-  :: Lens' UnattachedUnbalancedTx (Array (Redeemer /\ Maybe TransactionInput))
-_redeemersTxIns = lens' \(UnattachedUnbalancedTx rec@{ redeemersTxIns }) ->
-  redeemersTxIns /\
-    \rdmrs -> UnattachedUnbalancedTx rec { redeemersTxIns = rdmrs }

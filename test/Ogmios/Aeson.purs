@@ -137,7 +137,6 @@ printEvaluateTxFailures = launchAff_ do
       ( log <<< printTxEvaluationFailure
           ( wrap
               { datums: []
-              , redeemersTxIns: []
               , unbalancedTx: wrap { transaction: mempty, utxoIndex: Map.empty }
               , redeemers: []
               }

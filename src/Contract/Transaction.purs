@@ -54,7 +54,7 @@ import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (FinalizedTransaction)
+import Ctl.Internal.BalanceTx (FinalizedTransaction, UtxoIx)
 import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
@@ -244,7 +244,10 @@ import Ctl.Internal.Types.ScriptLookups
       )
   , ScriptLookups
   ) as ScriptLookups
-import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.ScriptLookups
+  ( UnattachedUnbalancedTx(..)
+  , UnindexedTx
+  )
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , plutusV1Script
@@ -259,6 +262,7 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
+import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx(..))
 import Ctl.Internal.Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
   , _transaction
@@ -432,14 +436,27 @@ withBalancedTx
   -> Contract a
 withBalancedTx = withSingleTransaction balanceAndLock unwrap
 
+unUnattachedUnbalancedTx :: UnattachedUnbalancedTx -> UnindexedTx /\ UtxoIx
+unUnattachedUnbalancedTx
+  ( UnattachedUnbalancedTx
+      { unbalancedTx: UnbalancedTx { transaction, utxoIndex }
+      , datums
+      , redeemers
+      }
+  ) =
+  { transaction, datums, redeemers } /\ utxoIndex
+
 -- | Attempts to balance an `UnattachedUnbalancedTx` using the specified
 -- | balancer constraints.
 balanceTxWithConstraints
   :: UnattachedUnbalancedTx
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints =
-  BalanceTx.balanceTxWithConstraints
+balanceTxWithConstraints tx =
+  let
+    tx' /\ ix = unUnattachedUnbalancedTx tx
+  in
+    BalanceTx.balanceTxWithConstraints tx' ix
 
 -- | Same as `balanceTxWithConstraints`, but uses the default balancer
 -- | constraints.

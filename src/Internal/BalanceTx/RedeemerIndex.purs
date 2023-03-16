@@ -8,6 +8,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Redeemer(Redeemer)
   , Transaction(Transaction)
   , TxBody(TxBody)
+  , _redeemers
+  , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Value (currencyMPSHash)
 import Ctl.Internal.Types.PlutusData (PlutusData)
@@ -19,12 +21,26 @@ import Data.Array (findIndex)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
+import Data.Lens ((.~))
 import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
+import Partial.Unsafe (unsafePartial)
+
+class AttachableRedeemer r where
+  attachRedeemers :: Array r -> Transaction -> Transaction
+
+instance AttachableRedeemer Redeemer where
+  attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
+
+-- instance AttachableRedeemer UnindexedRedeemer where
+--   attachRedeemers = attachRedeemers <<< map unindexedRedeemerToRedeemer
+
+instance AttachableRedeemer IndexedRedeemer where
+  attachRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
 
 -- | Redeemer that hasn't yet been indexed, that tracks its purpose info
 -- | that is enough to find its index given a `RedeemersContext`.
@@ -40,6 +56,21 @@ derive newtype instance EncodeAeson UnindexedRedeemer
 
 instance Show UnindexedRedeemer where
   show = genericShow
+
+redeemerPurposeToRedeemerTag = case _ of
+  ForSpend _ -> Spend
+  ForMint _ -> Mint
+  ForReward _ -> Reward
+  ForCert _ -> Cert
+
+unindexedRedeemerToRedeemer :: UnindexedRedeemer -> Redeemer
+unindexedRedeemerToRedeemer (UnindexedRedeemer { datum, purpose }) =
+  Redeemer
+    { tag: redeemerPurposeToRedeemerTag purpose
+    , "data": datum
+    , index: zero
+    , exUnits: zero
+    }
 
 -- | A redeemer with an index, but without `ExUnits`
 newtype IndexedRedeemer = IndexedRedeemer
@@ -65,6 +96,16 @@ indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
     , data: datum
     , exUnits: { mem: zero, steps: zero }
     }
+
+redeemerToIndexedRedeemer :: Redeemer -> IndexedRedeemer
+redeemerToIndexedRedeemer
+  ( Redeemer
+      { tag
+      , index
+      , data: datum
+      }
+  ) = IndexedRedeemer
+  { tag, datum, index: unsafePartial $ fromJust $ BigInt.toInt index }
 
 -- | Contains a value redeemer corresponds to, different for each possible
 -- | `RedeemerTag`.
