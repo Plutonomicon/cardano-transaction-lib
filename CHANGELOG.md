@@ -83,6 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Fixed
 
+- `Unable to convert Slot to POSIXTime` error of `waitUntilSlot` doesn't omit important error details anymore ([#1458](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1458))
 - Performance issues when using Eternl in multi-address mode ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `ConnectToNuFi` now reexported in `Contract.Wallet` ([#1435](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1435))
 - Fix a bug in UTxO selection in `Cip30Mock` (that affected `Cip30Mock` users) ([1437](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1437))
