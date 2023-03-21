@@ -5,26 +5,31 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 
 import Prelude
 
-import Control.Monad.Error.Class (liftEither, liftMaybe, throwError)
+import Contract.Log (logInfo')
+import Contract.Numeric.Natural (fromInt') as Natural
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos) as Constraints
-import Ctl.Internal.BalanceTx.Error (BalanceTxError(..))
-import Ctl.Internal.BalanceTx.Helpers (_body')
+import Ctl.Internal.BalanceTx.Error
+  ( BalanceTxError(UtxoLookupFailedFor, ExUnitsEvaluationFailed)
+  )
 import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( IndexedRedeemer(..)
+  ( IndexedRedeemer
   , attachRedeemers
-  , indexRedeemers
   , indexedRedeemerToRedeemer
-  , mkRedeemersContext
   )
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction(FinalizedTransaction)
-  , PrebalancedTransaction(PrebalancedTransaction)
   , askCostModelsForLanguages
   , askNetworkId
   , asksConstraints
   , liftContract
+  )
+import Ctl.Internal.BalanceTx.UnattachedTx
+  ( EvaluatedTx
+  , IndexedTx
+  , PrebalancedTx(PrebalancedTx)
   )
 import Ctl.Internal.Cardano.Types.ScriptRef as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
@@ -36,10 +41,8 @@ import Ctl.Internal.Cardano.Types.Transaction
   , TxBody(TxBody)
   , UtxoMap
   , _body
-  , _inputs
   , _isValid
   , _plutusData
-  , _redeemers
   , _witnessSet
   )
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
@@ -49,55 +52,41 @@ import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , TxEvaluationResult(TxEvaluationResult)
   ) as Ogmios
-import Ctl.Internal.ReindexRedeemers
-  ( ReindexErrors
-  , reindexSpentScriptRedeemers'
-  )
-import Ctl.Internal.Serialization.Types (Redeemers)
+import Ctl.Internal.QueryM.Ogmios (TxEvaluationFailure(UnparsedError))
 import Ctl.Internal.Transaction (setScriptDataHash)
 import Ctl.Internal.TxOutput
   ( transactionInputToTxOutRef
   , transactionOutputToOgmiosTxOut
   )
 import Ctl.Internal.Types.Datum (Datum)
-import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Natural
-import Ctl.Internal.Types.ScriptLookups
-  ( EvaluatedTx
-  , IndexedTx
-  , PrebalancedTx(..)
-  , UnattachedUnbalancedIndexedEvaluatedTx(..)
-  , UnattachedUnbalancedIndexedTx(UnattachedUnbalancedIndexedTx)
-  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  , UnindexedTx
-  )
+import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx(..), _transaction)
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable) as Array
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), note)
-import Data.Foldable (fold, foldMap)
+import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((%~), (.~), (?~))
+import Data.Lens.Setter ((?~))
 import Data.Map (empty, fromFoldable, lookup, toUnfoldable) as Map
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (for)
-import Data.Tuple (fst, snd)
+import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Undefined (undefined)
 
 evalTxExecutionUnits
   :: Transaction
   -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx = do
+  logInfo' "TXB"
+  logInfo' $ show tx
   queryHandle <- liftContract getQueryHandle
   additionalUtxos <- getOgmiosAdditionalUtxoSet
   evalResult <-
@@ -107,7 +96,7 @@ evalTxExecutionUnits tx = do
   case evalResult of
     Right a -> pure a
     Left evalFailure | tx ^. _isValid ->
-      throwError $ TODO
+      throwError $ ExUnitsEvaluationFailed tx evalFailure
     Left _ -> pure $ wrap Map.empty
   where
   getOgmiosAdditionalUtxoSet :: BalanceTxM Ogmios.AdditionalUtxoSet
@@ -135,11 +124,18 @@ evalExUnitsAndMinFee (PrebalancedTx unattachedTx) allUtxos = do
   -- Evaluate transaction ex units:
   exUnits <- evalTxExecutionUnits attachedTx
   -- Set execution units received from the server:
-  reindexedUnattachedTxWithExUnits <- liftMaybe TODO $
-    updateTxExecutionUnits' unattachedTx exUnits
+  txWithExUnits <-
+    case updateTxExecutionUnits unattachedTx exUnits of
+      Just res -> pure res
+      Nothing
+        | not (attachedTx ^. _isValid) -> pure $
+            unattachedTx
+              { redeemers = indexedRedeemerToRedeemer <$> unattachedTx.redeemers
+              }
+      _ -> throwError $ ExUnitsEvaluationFailed attachedTx
+        (UnparsedError "Unable to extract ExUnits from Ogmios response")
   -- Attach datums and redeemers, set the script integrity hash:
-  FinalizedTransaction finalizedTx <-
-    finalizeTransaction reindexedUnattachedTxWithExUnits allUtxos
+  FinalizedTransaction finalizedTx <- finalizeTransaction txWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
   networkId <- askNetworkId
   additionalUtxos <-
@@ -147,7 +143,7 @@ evalExUnitsAndMinFee (PrebalancedTx unattachedTx) allUtxos = do
       <$> asksConstraints Constraints._additionalUtxos
   minFee <- liftContract $ Contract.MinFee.calculateMinFee finalizedTx
     additionalUtxos
-  pure $ reindexedUnattachedTxWithExUnits /\ unwrap minFee
+  pure $ txWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
@@ -200,27 +196,6 @@ finalizeTransaction tx utxos = do
   getPlutusScript (TransactionOutput { scriptRef }) =
     ScriptRef.getPlutusScript =<< scriptRef
 
--- reindexRedeemers'
---   :: UnindexedTx
---   -> Maybe IndexedTx
--- reindexRedeemers' { transaction, redeemers, datums } = do
---   indexedRedeemers <- indexRedeemers ctx redeemers
---   pure { datums, redeemers: indexedRedeemers, transaction }
---   where
---   ctx = mkRedeemersContext transaction
-
--- reindexRedeemers
---   :: UnattachedUnbalancedTx
---   -> Either ReindexErrors UnattachedUnbalancedTx
--- reindexRedeemers
---   unattachedTx@(UnattachedUnbalancedTx { redeemers }) =
---   let
---     inputs = Array.fromFoldable $ unattachedTx ^. _body' <<< _inputs
---   in
---     reindexSpentScriptRedeemers' inputs redeemersTxIns <#>
---       \redeemersTxInsReindexed ->
---         unattachedTx # _redeemers .~ redeemersTxInsReindexed
-
 reattachDatumsAndFakeRedeemers :: IndexedTx -> Transaction
 reattachDatumsAndFakeRedeemers
   { transaction, datums, redeemers } =
@@ -236,20 +211,12 @@ reattachDatumsAndRedeemers
     transaction'
       # _witnessSet <<< _plutusData ?~ map unwrap datums
 
--- updateTxExecutionUnits
---   :: UnattachedUnbalancedTx
---   -> Ogmios.TxEvaluationResult
---   -> UnattachedUnbalancedTx
--- updateTxExecutionUnits unattachedTx rdmrPtrExUnitsList =
---   unattachedTx
---     # _redeemersTxIns %~ flip setRdmrsExecutionUnits rdmrPtrExUnitsList
-
-updateTxExecutionUnits'
+updateTxExecutionUnits
   :: IndexedTx
   -> Ogmios.TxEvaluationResult
   -> Maybe EvaluatedTx
-updateTxExecutionUnits' tx@{ redeemers } result =
-  getRedeemersExUnits result redeemers >>= \redeemers' -> pure $ tx
+updateTxExecutionUnits tx@{ redeemers } result =
+  getRedeemersExUnits result redeemers <#> \redeemers' -> tx
     { redeemers = redeemers' }
 
 getRedeemersExUnits
@@ -258,30 +225,14 @@ getRedeemersExUnits
   -> Maybe (Array Redeemer)
 getRedeemersExUnits (Ogmios.TxEvaluationResult result) redeemers = do
   for redeemers \indexedRedeemer -> do
-    let
-      Redeemer redeemer = indexedRedeemerToRedeemer indexedRedeemer
-      index = BigInt.fromInt (unwrap indexedRedeemer).index
     { memory, steps } <- Map.lookup
-      { redeemerTag: redeemer.tag
-      , redeemerIndex: Natural.fromBigInt' index
+      { redeemerTag: (unwrap indexedRedeemer).tag
+      , redeemerIndex: Natural.fromInt' (unwrap indexedRedeemer).index
       }
       result
-    pure $ Redeemer redeemer
+    pure $ Redeemer $ (unwrap $ indexedRedeemerToRedeemer indexedRedeemer)
       { exUnits =
           { mem: Natural.toBigInt memory
           , steps: Natural.toBigInt steps
           }
       }
-
-setRdmrsExecutionUnits
-  :: Array (Redeemer /\ Maybe TransactionInput)
-  -> Ogmios.TxEvaluationResult
-  -> Array (Redeemer /\ Maybe TransactionInput)
-setRdmrsExecutionUnits rs (Ogmios.TxEvaluationResult evalR) =
-  rs <#> \r@(Redeemer rec@{ tag: redeemerTag, index } /\ oref) ->
-    Map.lookup { redeemerTag, redeemerIndex: Natural.fromBigInt' index } evalR
-      # maybe r \{ memory, steps } ->
-          Redeemer rec
-            { exUnits =
-                { mem: Natural.toBigInt memory, steps: Natural.toBigInt steps }
-            } /\ oref

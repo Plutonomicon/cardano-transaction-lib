@@ -133,15 +133,7 @@ printEvaluateTxFailures = launchAff_ do
     let
       response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
       mbFailure = response >>= unwrap >>> either pure (const Nothing)
-    for_ mbFailure
-      ( log <<< printTxEvaluationFailure
-          ( wrap
-              { datums: []
-              , unbalancedTx: wrap { transaction: mempty, utxoIndex: Map.empty }
-              , redeemers: []
-              }
-          )
-      )
+    for_ mbFailure (log <<< printTxEvaluationFailure mempty)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do

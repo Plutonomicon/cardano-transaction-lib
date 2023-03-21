@@ -1,10 +1,5 @@
 module Ctl.Internal.Types.ScriptLookups
-  ( EvaluatedTx
-  , IndexedTx
-  , PrebalancedTx(PrebalancedTx)
-  , UnindexedTx
-  , UnattachedTx_
-  , MkUnbalancedTxError
+  ( MkUnbalancedTxError
       ( CannotConvertPOSIXTimeRange
       , CannotSolveTimeConstraints
       , CannotConvertPaymentPubKeyHash
@@ -58,7 +53,6 @@ module Ctl.Internal.Types.ScriptLookups
   , typedValidatorLookupsM
   , unspentOutputs
   , unspentOutputsM
-  , indexTx
   ) where
 
 import Prelude hiding (join)
@@ -72,25 +66,22 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (addressPaymentValidatorHash)
 import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( IndexedRedeemer(..)
-  , RedeemerPurpose(ForMint, ForCert, ForSpend, ForReward)
+  ( IndexedRedeemer
+  , RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
   , UnindexedRedeemer(UnindexedRedeemer)
-  , attachRedeemers
-  , indexRedeemers
-  , mkRedeemersContext
   , unindexedRedeemerToRedeemer
   )
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , PoolRegistration
+      ( StakeDelegation
       , PoolRetirement
-      , StakeDelegation
+      , PoolRegistration
+      , StakeDeregistration
+      , StakeRegistration
       )
   , Costmdls
-  , Redeemer(..)
+  , Redeemer
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
@@ -108,7 +99,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   )
-import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer)) as T
+import Ctl.Internal.Cardano.Types.Transaction (Redeemer) as T
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , CurrencySymbol
@@ -163,7 +154,6 @@ import Ctl.Internal.Transaction
   , attachDatum
   , attachNativeScript
   , attachPlutusScript
-  , attachRedeemer
   , setScriptDataHash
   )
 import Ctl.Internal.Types.Any (Any)
@@ -186,7 +176,6 @@ import Ctl.Internal.Types.PubKeyHash
   , payPubKeyHashEnterpriseAddress
   , stakePubKeyHashRewardAddress
   )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Cert, Reward, Mint, Spend))
 import Ctl.Internal.Types.RewardAddress
   ( stakePubKeyHashRewardAddress
   , stakeValidatorHashRewardAddress
@@ -262,15 +251,15 @@ import Ctl.Internal.Types.UnbalancedTransaction
   , _utxoIndex
   , emptyUnbalancedTx
   )
-import Data.Array (cons, filter, mapWithIndex, partition, toUnfoldable, zip)
-import Data.Array (length, singleton, union, (:)) as Array
+import Data.Array (cons, partition, toUnfoldable, zip)
+import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt, fromInt)
+import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
-import Data.Lens (non, view, (%=), (%~), (.=), (.~), (<>=))
+import Data.Lens (non, (%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -284,7 +273,6 @@ import Data.Set (insert) as Set
 import Data.Show.Generic (genericShow)
 import Data.Symbol (SProxy(SProxy))
 import Data.Traversable (for, traverse_)
-import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff.Class (liftAff)
@@ -503,9 +491,6 @@ type ConstraintProcessingState (a :: Type) =
   , datums :: Array Datum
   -- Ordered accumulation of datums we can use to `setScriptDataHash`
   , redeemers :: Array UnindexedRedeemer
-  , redeemersTxIns :: Array (T.Redeemer /\ Maybe TransactionInput)
-  -- Ordered accumulation of redeemers so we can use to `setScriptDataHash` and
-  -- add execution units via Ogmios
   , mintRedeemers :: Map MintingPolicyHash T.Redeemer
   -- Mint redeemers with the corresponding minting policy hashes.
   -- We need to reindex mint redeemers every time we add a new one, since
@@ -659,7 +644,6 @@ runConstraintsM lookups txConstraints = do
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
       , redeemers: []
-      , redeemersTxIns: mempty
       , mintRedeemers: empty
       , lookups
       , refScriptsUtxoMap: empty
@@ -702,32 +686,6 @@ derive newtype instance Eq UnattachedUnbalancedTx
 derive newtype instance EncodeAeson UnattachedUnbalancedTx
 
 instance Show UnattachedUnbalancedTx where
-  show = genericShow
-
-type UnattachedTx_ row =
-  (Record (transaction :: Transaction, datums :: Array Datum | row))
-
-type UnindexedTx = UnattachedTx_ (redeemers :: Array UnindexedRedeemer)
-type IndexedTx = UnattachedTx_ (redeemers :: Array IndexedRedeemer)
-type EvaluatedTx = UnattachedTx_ (redeemers :: Array Redeemer)
-
-newtype PrebalancedTx = PrebalancedTx IndexedTx
-
-derive instance Generic PrebalancedTx _
-derive instance Newtype PrebalancedTx _
-derive newtype instance Eq PrebalancedTx
-derive newtype instance EncodeAeson PrebalancedTx
-
-indexTx :: UnindexedTx -> Maybe IndexedTx
-indexTx { transaction, datums, redeemers } = do
-  redeemers' <- indexRedeemers (mkRedeemersContext transaction) redeemers
-  pure
-    { transaction: attachRedeemers redeemers' transaction
-    , datums
-    , redeemers: redeemers'
-    }
-
-instance Show PrebalancedTx where
   show = genericShow
 
 -- | A newtype for the unbalanced transaction after creating one with datums
@@ -1342,18 +1300,10 @@ processConstraint mpsMap osMap c = do
           ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
               plutusScript
           )
-      index <- lift $ addCertificate cert
       _redeemers <>=
         [ UnindexedRedeemer
             { purpose: ForCert cert, datum: unwrap redeemerData }
         ]
-      let
-        redeemer = T.Redeemer
-          { tag: Cert
-          , index: fromInt index
-          , "data": unwrap redeemerData
-          , exUnits: zero
-          }
       ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
     MustDeregisterStakeNativeScript stakeValidator -> do
       void $ addCertificate $ StakeDeregistration
@@ -1378,7 +1328,7 @@ processConstraint mpsMap osMap c = do
                 stakeValidator
             )
             poolKeyHash
-        ix <- lift $ addCertificate cert
+        lift $ addCertificate cert
         _redeemers <>=
           [ UnindexedRedeemer
               { purpose: ForCert cert, datum: unwrap redeemerData }
@@ -1419,13 +1369,6 @@ processConstraint mpsMap osMap c = do
         [ UnindexedRedeemer
             { purpose: ForReward rewardAddress, datum: unwrap redeemerData }
         ]
-      let
-        redeemer = T.Redeemer
-          { tag: Reward
-          , index: zero -- hardcoded and tweaked after balancing.
-          , "data": unwrap redeemerData
-          , exUnits: zero
-          }
       ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = nativeScriptStakeValidatorHash stakeValidator
@@ -1513,11 +1456,9 @@ addDatum dat = runExceptT do
 addCertificate
   :: forall (a :: Type)
    . Certificate
-  -> ConstraintsM a Int
+  -> ConstraintsM a Unit
 addCertificate cert = do
-  ix <- gets (view (_cpsToTxBody <<< _certs <<< non [] <<< to Array.length))
   _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
-  pure ix
 
 -- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
 _cpsToTransaction

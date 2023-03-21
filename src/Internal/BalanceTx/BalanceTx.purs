@@ -47,20 +47,26 @@ import Ctl.Internal.BalanceTx.Error
   , printTxEvaluationFailure
   ) as BalanceTxErrorExport
 import Ctl.Internal.BalanceTx.Error
-  ( BalanceTxError(..)
+  ( BalanceTxError
+      ( UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      , TODO
+      , BalanceInsufficientError
+      , CouldNotGetUtxos
+      , CouldNotGetCollateral
+      , CouldNotGetChangeAddress
+      )
   , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   ( evalExUnitsAndMinFee
   , finalizeTransaction
   )
-import Ctl.Internal.BalanceTx.Helpers (_transaction', _unbalancedTx)
 import Ctl.Internal.BalanceTx.RedeemerIndex (redeemerToIndexedRedeemer)
 import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
-  , PrebalancedTransaction
   , askCip30Wallet
   , askCoinsPerUtxoUnit
   , askNetworkId
@@ -70,6 +76,13 @@ import Ctl.Internal.BalanceTx.Types
   , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
+import Ctl.Internal.BalanceTx.UnattachedTx
+  ( EvaluatedTx
+  , IndexedTx
+  , PrebalancedTx(PrebalancedTx)
+  , UnindexedTx
+  , indexTx
+  )
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeRegistration, StakeDeregistration)
@@ -111,25 +124,16 @@ import Ctl.Internal.Contract.Wallet
   , getWalletCollateral
   , getWalletUtxos
   ) as Wallet
-import Ctl.Internal.Deserialization.Transaction (_txBody)
 import Ctl.Internal.Helpers ((??))
 import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.Plutus.Conversion (toPlutusValue)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
-import Ctl.Internal.Types.ScriptLookups
-  ( EvaluatedTx
-  , IndexedTx
-  , PrebalancedTx(PrebalancedTx)
-  , UnindexedTx
-  , indexTx
-  )
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1)
   , PlutusScript(PlutusScript)
   )
-import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
-import Ctl.Internal.Types.UnbalancedTransaction (_transaction, _utxoIndex)
+import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty
@@ -260,11 +264,11 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
     pure (transaction.transaction # _body <<< _networkId ?~ networkId)
 
   setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
-  setTransactionCollateral changeAddr transaction = do
+  setTransactionCollateral changeAddr tx = do
     collateral <-
       liftEitherContract $ note CouldNotGetCollateral <$>
         Wallet.getWalletCollateral
-    let collaterisedTx = addTxCollateral collateral transaction
+    let collaterisedTx = addTxCollateral collateral tx
     addTxCollateralReturn collateral collaterisedTx changeAddr
 
 --------------------------------------------------------------------------------
@@ -393,30 +397,33 @@ runBalancer p = do
         { transaction: evaluatedTx, minFee: newMinFee } <- evaluateTx state
         case newMinFee <= minFee of
           true ->
-            if (Set.isEmpty $ evaluatedTx.transaction ^. _body <<< _inputs) then
-              do
-                selectionState <-
-                  performMultiAssetSelection p.strategy leftoverUtxos
-                    (lovelaceValueOf one)
-                runNextBalancerStep $ state
-                  { transaction =
-                      evaluatedTx
-                        #
-                          ( prop (Proxy :: Proxy "transaction") <<< _body <<<
-                              _inputs %~
-                              Set.union (selectedInputs selectionState)
-                          )
-                        #
-                          ( prop (Proxy :: Proxy "redeemers") %~ map
-                              redeemerToIndexedRedeemer
-                          )
-                  , leftoverUtxos =
-                      selectionState ^. _leftoverUtxos
-                  }
-            else
-              logTransaction "Balanced transaction (Done)" p.allUtxos
-                transaction.transaction
-                *> finalizeTransaction evaluatedTx p.allUtxos
+            logTransaction "Balanced transaction (Done)" p.allUtxos
+              evaluatedTx.transaction *>
+              if Set.isEmpty $ evaluatedTx.transaction ^. _body <<< _inputs then
+                do
+                  selectionState <-
+                    performMultiAssetSelection p.strategy leftoverUtxos
+                      (lovelaceValueOf one)
+                  runNextBalancerStep $ state
+                    { transaction =
+                        evaluatedTx
+                          #
+                            ( prop (Proxy :: Proxy "transaction") <<< _body <<<
+                                _inputs %~
+                                Set.union (selectedInputs selectionState)
+                            )
+                          # -- delete ExUnits from redeemers - they will be changed anyway
+                            -- TODO: can we NOT remove them?
+                            ( prop (Proxy :: Proxy "redeemers") %~ map
+                                redeemerToIndexedRedeemer
+                            )
+                    , leftoverUtxos =
+                        selectionState ^. _leftoverUtxos
+                    }
+              else
+                logTransaction "Balanced transaction (Done)" p.allUtxos
+                  transaction.transaction
+                  *> finalizeTransaction evaluatedTx p.allUtxos
           false ->
             runNextBalancerStep $ state
               { transaction = transaction

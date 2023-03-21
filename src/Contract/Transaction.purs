@@ -78,6 +78,7 @@ import Ctl.Internal.BalanceTx.Error
   , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
   ) as BalanceTxError
+import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -245,8 +246,7 @@ import Ctl.Internal.Types.ScriptLookups
   , ScriptLookups
   ) as ScriptLookups
 import Ctl.Internal.Types.ScriptLookups
-  ( UnattachedUnbalancedTx(..)
-  , UnindexedTx
+  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   )
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
@@ -262,7 +262,7 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx(..))
+import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
   , _transaction

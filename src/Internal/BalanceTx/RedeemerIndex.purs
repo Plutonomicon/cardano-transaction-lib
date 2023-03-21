@@ -23,7 +23,7 @@ import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((.~))
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromJust, fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
