@@ -145,7 +145,7 @@ If you are under wayland you need to add `--ozone-platform=wayland` to the argum
 
 Use only one `ContractEnv` value. They are implicitly created every time `runContract` is called, so avoid using this function if you need to run multiple `Contract`s.
 
-See [here](./ctl-as-dependency.md#initializing-the-environment) for more info.
+See [here](./contract-environment.md) for more info.
 
 ### Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'
 
