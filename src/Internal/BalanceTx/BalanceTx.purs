@@ -430,17 +430,14 @@ runBalancer p = do
     runNextBalancerStep
       :: BalancerState UnindexedTx -> BalanceTxM FinalizedTransaction
     runNextBalancerStep state@{ transaction } = do
-      let txBody = transaction # _.transaction >>> unwrap >>> _.body
+      let txBody = transaction ^. _transaction <<< _body
       inputValue <- except $ getInputValue p.allUtxos txBody
       changeOutputs <- makeChange p.changeAddress inputValue p.certsFee txBody
 
       requiredValue <-
         except $ getRequiredValue p.certsFee p.allUtxos
-          ( setTxChangeOutputs changeOutputs transaction #
-              _.transaction
-                >>> unwrap
-                >>> _.body
-          )
+          $ setTxChangeOutputs changeOutputs transaction ^. _transaction <<<
+              _body
 
       worker $
         -- state { changeOutputs = changeOutputs } #
@@ -471,10 +468,8 @@ runBalancer p = do
       performCoinSelection =
         let
           txBody :: TxBody
-          txBody = setTxChangeOutputs changeOutputs transaction #
-            _.transaction
-              >>> unwrap
-              >>> _.body
+          txBody = setTxChangeOutputs changeOutputs transaction ^. _transaction
+            <<< _body
         in
           except (getRequiredValue p.certsFee p.allUtxos txBody)
             >>= performMultiAssetSelection p.strategy leftoverUtxos
