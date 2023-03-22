@@ -3,26 +3,21 @@ module Ctl.Internal.BalanceTx.UnattachedTx
   , UnindexedTx
   , IndexedTx
   , EvaluatedTx
-  , PrebalancedTx(PrebalancedTx)
   , indexTx
   ) where
 
 import Prelude
 
-import Aeson (class EncodeAeson)
 import Ctl.Internal.BalanceTx.RedeemerIndex
   ( IndexedRedeemer
   , UnindexedRedeemer
-  , attachRedeemers
+  , attachIndexedRedeemers
   , indexRedeemers
   , mkRedeemersContext
   )
 import Ctl.Internal.Cardano.Types.Transaction (Redeemer, Transaction)
 import Ctl.Internal.Types.Datum (Datum)
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
+import Data.Either (Either)
 
 type UnattachedTx redeemer =
   { transaction :: Transaction
@@ -30,25 +25,20 @@ type UnattachedTx redeemer =
   , redeemers :: Array redeemer
   }
 
+-- | A Tx with unindexed redeemers
 type UnindexedTx = UnattachedTx UnindexedRedeemer
+
+-- | A Tx with indexed, but not yet evaluated redeemers
 type IndexedTx = UnattachedTx IndexedRedeemer
+
+-- | A Tx with fully indexed and evaluated redeemers
 type EvaluatedTx = UnattachedTx Redeemer
 
-newtype PrebalancedTx = PrebalancedTx UnindexedTx
-
-derive instance Generic PrebalancedTx _
-derive instance Newtype PrebalancedTx _
-derive newtype instance Eq PrebalancedTx
-derive newtype instance EncodeAeson PrebalancedTx
-
-indexTx :: UnindexedTx -> Maybe IndexedTx
+indexTx :: UnindexedTx -> Either UnindexedRedeemer IndexedTx
 indexTx { transaction, datums, redeemers } = do
   redeemers' <- indexRedeemers (mkRedeemersContext transaction) redeemers
   pure
-    { transaction: attachRedeemers redeemers' transaction
+    { transaction: attachIndexedRedeemers redeemers' transaction
     , datums
     , redeemers: redeemers'
     }
-
-instance Show PrebalancedTx where
-  show = genericShow

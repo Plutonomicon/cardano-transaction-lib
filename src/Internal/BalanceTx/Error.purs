@@ -12,7 +12,6 @@ module Ctl.Internal.BalanceTx.Error
       , CouldNotGetUtxos
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
-      , TODO
       , ExUnitsEvaluationFailed
       , InsufficientUtxoBalanceToCoverAsset
       , ReindexRedeemersError
@@ -26,6 +25,7 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
+import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
@@ -47,7 +47,6 @@ import Ctl.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   ) as Ogmios
-import Ctl.Internal.ReindexRedeemers (ReindexErrors)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
@@ -78,9 +77,8 @@ data BalanceTxError
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError
   | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
-  | TODO
   | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
-  | ReindexRedeemersError ReindexErrors
+  | ReindexRedeemersError UnindexedRedeemer
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
 

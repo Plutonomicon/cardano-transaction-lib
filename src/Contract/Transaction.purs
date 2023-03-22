@@ -262,11 +262,8 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
-  , _transaction
-  , _utxoIndex
   , emptyUnbalancedTx
   ) as UnbalancedTx
 import Ctl.Internal.Types.UsedTxOuts
@@ -439,12 +436,13 @@ withBalancedTx = withSingleTransaction balanceAndLock unwrap
 unUnattachedUnbalancedTx :: UnattachedUnbalancedTx -> UnindexedTx /\ UtxoIx
 unUnattachedUnbalancedTx
   ( UnattachedUnbalancedTx
-      { unbalancedTx: UnbalancedTx { transaction, utxoIndex }
+      { transaction
       , datums
       , redeemers
+      , utxoIndex
       }
   ) =
-  { transaction, datums, redeemers } /\ utxoIndex
+  { transaction: unwrap transaction, datums, redeemers } /\ utxoIndex
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` using the specified
 -- | balancer constraints.
@@ -483,7 +481,7 @@ balanceTxsWithConstraints unbalancedTxs =
     throwError e
 
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
-  uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
+  uutxToTx = unwrap <<< _.transaction <<< unwrap
 
 -- | Same as `balanceTxsWithConstraints`, but uses the default balancer
 -- | constraints.

@@ -7,9 +7,7 @@ module Contract.AuxiliaryData
 import Prelude
 
 import Contract.Monad (Contract)
-import Contract.ScriptLookups
-  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  )
+import Contract.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
@@ -25,13 +23,16 @@ import Ctl.Internal.Metadata.MetadataType
   )
 import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx, _transaction)
+import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx)
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Effect.Class (liftEffect)
+import Type.Proxy (Proxy(Proxy))
 
 -- These functions involve `UnattachedUnbalancedTx`,
 -- which in turn involve `UnbalancedTx`. These functions involve ScriptOutput,
@@ -73,16 +74,15 @@ setTxMetadata tx =
 --------------------------------------------------------------------------------
 
 _unbalancedTx :: Lens' UnattachedUnbalancedTx UnbalancedTx
-_unbalancedTx = lens' \(UnattachedUnbalancedTx rec@{ unbalancedTx }) ->
-  Tuple unbalancedTx \ubTx -> UnattachedUnbalancedTx rec { unbalancedTx = ubTx }
+_unbalancedTx = _Newtype <<< prop (Proxy :: Proxy "transaction")
 
 _auxiliaryData :: Lens' UnattachedUnbalancedTx (Maybe AuxiliaryData)
 _auxiliaryData =
-  _unbalancedTx <<< _transaction <<< Tx._auxiliaryData
+  _unbalancedTx <<< _Newtype <<< Tx._auxiliaryData
 
 _auxiliaryDataHash :: Lens' UnattachedUnbalancedTx (Maybe AuxiliaryDataHash)
 _auxiliaryDataHash =
-  _unbalancedTx <<< _transaction <<< Tx._body <<< Tx._auxiliaryDataHash
+  _unbalancedTx <<< _Newtype <<< Tx._body <<< Tx._auxiliaryDataHash
 
 _metadata :: Lens' AuxiliaryData (Maybe GeneralTransactionMetadata)
 _metadata = lens' \(AuxiliaryData rec@{ metadata }) ->

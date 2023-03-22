@@ -50,7 +50,7 @@ import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
       ( UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
-      , TODO
+      , ReindexRedeemersError
       , BalanceInsufficientError
       , CouldNotGetUtxos
       , CouldNotGetCollateral
@@ -63,7 +63,8 @@ import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   , finalizeTransaction
   )
 import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( attachRedeemers
+  ( attachIndexedRedeemers
+  , attachRedeemers
   , indexRedeemers
   , mkRedeemersContext
   )
@@ -122,7 +123,7 @@ import Ctl.Internal.Contract.Wallet
   , getWalletCollateral
   , getWalletUtxos
   ) as Wallet
-import Ctl.Internal.Helpers ((??))
+import Ctl.Internal.Helpers (liftEither, (??))
 import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.Plutus.Conversion (toPlutusValue)
 import Ctl.Internal.Serialization.Address (Address)
@@ -146,6 +147,7 @@ import Data.Array.NonEmpty
   , zipWith
   ) as NEArray
 import Data.Array.NonEmpty as NEA
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
@@ -215,14 +217,11 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
             <#> traverse (note CouldNotGetUtxos)
               >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
-    unbalancedCollTx <-
-      -- TODO: check plutus scripts presence?
-      case Array.null (transaction # _.redeemers) of
-        true ->
-          -- Don't set collateral if tx doesn't contain phase-2 scripts:
-          transactionWithNetworkId
-        false ->
-          setTransactionCollateral changeAddress =<< transactionWithNetworkId
+    unbalancedCollTx <- transactionWithNetworkId >>=
+      if Array.null (transaction # _.redeemers)
+      -- Don't set collateral if tx doesn't contain phase-2 scripts:
+      then pure
+      else setTransactionCollateral changeAddress
     let
       allUtxos :: UtxoMap
       allUtxos =
@@ -237,13 +236,19 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
 
     selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
-    -- Balance and finalize the transaction:
-    reindexedRedeemers <- liftMaybe TODO $
+    -- Reindex redeemers and update transaction
+    reindexedRedeemers <- liftEither $ lmap ReindexRedeemersError $
       indexRedeemers (mkRedeemersContext unbalancedCollTx) transaction.redeemers
+    let
+      transaction' = transaction
+        { transaction = attachIndexedRedeemers reindexedRedeemers
+            unbalancedCollTx
+        }
+
+    -- Balance and finalize the transaction:
     runBalancer
       { strategy: selectionStrategy
-      , transaction: transaction
-          { transaction = attachRedeemers reindexedRedeemers unbalancedCollTx }
+      , transaction: transaction'
       , changeAddress
       , allUtxos
       , utxos: availableUtxos
@@ -498,7 +503,8 @@ runBalancer p = do
       let
         prebalancedTx :: UnindexedTx
         prebalancedTx = setTxChangeOutputs changeOutputs transaction
-      indexedTx <- liftMaybe TODO $ indexTx prebalancedTx
+      indexedTx <- liftEither $ lmap ReindexRedeemersError $ indexTx
+        prebalancedTx
       evaluatedTx /\ minFee <- evalExUnitsAndMinFee indexedTx p.allUtxos
       pure $ state { transaction = evaluatedTx, minFee = minFee }
 

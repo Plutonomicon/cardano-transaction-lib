@@ -1,3 +1,11 @@
+-- | Redeemer indexing refers to the process of updating redeemer's `index`
+-- | value based on its `RedeemerPurpose` and context from the transaction.
+-- | Redeemer indexing is needed, because at the Tx construction stage we
+-- | don't know the exact indices redeemers will have after balancing.
+-- | For the algorithm, see `indexof` description in
+-- | "Combining Scripts with Their Inputs" chapter of "A Formal Specification
+-- | of the Cardano Ledger integrating Plutus Core"
+-- | https://github.com/input-output-hk/cardano-ledger/releases/latest/download/alonzo-ledger.pdf
 module Ctl.Internal.BalanceTx.RedeemerIndex where
 
 import Prelude
@@ -19,25 +27,23 @@ import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (findIndex)
 import Data.BigInt as BigInt
+import Data.Either (Either, note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((.~))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
+import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
-import Data.Traversable (traverse)
+import Data.Traversable (for)
 import Partial.Unsafe (unsafePartial)
 
-class AttachableRedeemer r where
-  attachRedeemers :: Array r -> Transaction -> Transaction
+attachRedeemers :: Array Redeemer -> Transaction -> Transaction
+attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
 
-instance AttachableRedeemer Redeemer where
-  attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
-
-instance AttachableRedeemer IndexedRedeemer where
-  attachRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
+attachIndexedRedeemers :: Array IndexedRedeemer -> Transaction -> Transaction
+attachIndexedRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
 
 -- | Redeemer that hasn't yet been indexed, that tracks its purpose info
 -- | that is enough to find its index given a `RedeemersContext`.
@@ -54,6 +60,7 @@ derive newtype instance EncodeAeson UnindexedRedeemer
 instance Show UnindexedRedeemer where
   show = genericShow
 
+-- | Ignore the value that the redeemer points to
 redeemerPurposeToRedeemerTag :: RedeemerPurpose -> RedeemerTag
 redeemerPurposeToRedeemerTag = case _ of
   ForSpend _ -> Spend
@@ -107,6 +114,8 @@ redeemerToIndexedRedeemer
 
 -- | Contains a value redeemer corresponds to, different for each possible
 -- | `RedeemerTag`.
+-- | Allows to uniquely compute redeemer index, given a `RedeemersContext` that
+-- | is valid for the transaction.
 data RedeemerPurpose
   = ForSpend TransactionInput
   | ForMint MintingPolicyHash
@@ -150,9 +159,9 @@ mkRedeemersContext
 indexRedeemers
   :: RedeemersContext
   -> Array UnindexedRedeemer
-  -> Maybe (Array IndexedRedeemer)
+  -> Either UnindexedRedeemer (Array IndexedRedeemer)
 indexRedeemers ctx redeemers = do
-  traverse (indexRedeemer ctx) redeemers
+  for redeemers \redeemer -> note redeemer $ indexRedeemer ctx redeemer
 
 indexRedeemer :: RedeemersContext -> UnindexedRedeemer -> Maybe IndexedRedeemer
 indexRedeemer ctx (UnindexedRedeemer { purpose, datum }) = case purpose of

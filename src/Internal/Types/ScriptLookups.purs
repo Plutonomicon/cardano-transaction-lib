@@ -33,10 +33,6 @@ module Ctl.Internal.Types.ScriptLookups
       )
   , ScriptLookups(ScriptLookups)
   , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  , UnattachedUnbalancedIndexedTx(UnattachedUnbalancedIndexedTx)
-  , UnattachedUnbalancedIndexedEvaluatedTx
-      ( UnattachedUnbalancedIndexedEvaluatedTx
-      )
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -57,7 +53,6 @@ module Ctl.Internal.Types.ScriptLookups
 
 import Prelude hiding (join)
 
-import Aeson (class EncodeAeson)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
@@ -66,8 +61,7 @@ import Control.Monad.State.Trans (StateT, get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Address (addressPaymentValidatorHash)
 import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( IndexedRedeemer
-  , RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
+  ( RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
   , UnindexedRedeemer(UnindexedRedeemer)
   , unindexedRedeemerToRedeemer
   )
@@ -81,11 +75,9 @@ import Ctl.Internal.Cardano.Types.Transaction
       , StakeRegistration
       )
   , Costmdls
-  , Redeemer
   , Transaction
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody
   , _body
   , _certs
   , _inputs
@@ -244,13 +236,7 @@ import Ctl.Internal.Types.TypedValidator
   , TypedValidator(TypedValidator)
   )
 import Ctl.Internal.Types.TypedValidator (generalise) as TV
-import Ctl.Internal.Types.UnbalancedTransaction
-  ( PaymentPubKey
-  , UnbalancedTx
-  , _transaction
-  , _utxoIndex
-  , emptyUnbalancedTx
-  )
+import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey, UnbalancedTx)
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
@@ -482,7 +468,8 @@ instance Semigroup ValueSpentBalances where
 
 -- This is the state for essentially creating an unbalanced transaction.
 type ConstraintProcessingState (a :: Type) =
-  { unbalancedTx :: UnbalancedTx
+  { transaction :: UnbalancedTx
+  , utxoIndex :: Map TransactionInput TransactionOutput
   -- The unbalanced transaction that we're building
   , valueSpentBalancesInputs :: ValueSpentBalances
   -- Balance of the values given and required for the transaction's inputs
@@ -503,11 +490,15 @@ type ConstraintProcessingState (a :: Type) =
   , costModels :: Costmdls
   }
 
--- We could make these signatures polymorphic but they're not exported so don't
--- bother.
-_unbalancedTx
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) UnbalancedTx
-_unbalancedTx = prop (SProxy :: SProxy "unbalancedTx")
+_cpsTransaction
+  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
+_cpsTransaction = prop (SProxy :: SProxy "transaction") <<< _Newtype
+
+_cpsUtxoIndex
+  :: forall (a :: Type)
+   . Lens' (ConstraintProcessingState a)
+       (Map TransactionInput TransactionOutput)
+_cpsUtxoIndex = prop (SProxy :: SProxy "utxoIndex")
 
 _valueSpentBalancesInputs
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
@@ -637,7 +628,8 @@ runConstraintsM lookups txConstraints = do
   let
     initCps :: ConstraintProcessingState validator
     initCps =
-      { unbalancedTx: emptyUnbalancedTx
+      { transaction: wrap mempty
+      , utxoIndex: Map.empty
       , valueSpentBalancesInputs:
           ValueSpentBalances { required: mempty, provided: mempty }
       , valueSpentBalancesOutputs:
@@ -670,12 +662,13 @@ mkUnbalancedTx'
   -> TxConstraints redeemer datum
   -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx' scriptLookups txConstraints =
-  runConstraintsM scriptLookups txConstraints <#> map _.unbalancedTx
+  runConstraintsM scriptLookups txConstraints <#> map _.transaction
 
 -- | A newtype for the unbalanced transaction after creating one with datums
 -- | and redeemers not attached
 newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
-  { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
+  { transaction :: UnbalancedTx -- the unbalanced tx created
+  , utxoIndex :: Map TransactionInput TransactionOutput
   , datums :: Array Datum -- the array of ordered datums that require attaching
   , redeemers :: Array UnindexedRedeemer
   }
@@ -683,43 +676,9 @@ newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
 derive instance Generic UnattachedUnbalancedTx _
 derive instance Newtype UnattachedUnbalancedTx _
 derive newtype instance Eq UnattachedUnbalancedTx
-derive newtype instance EncodeAeson UnattachedUnbalancedTx
+-- derive newtype instance EncodeAeson UnattachedUnbalancedTx
 
 instance Show UnattachedUnbalancedTx where
-  show = genericShow
-
--- | A newtype for the unbalanced transaction after creating one with datums
--- | and redeemers not attached, but already indexed
-newtype UnattachedUnbalancedIndexedTx = UnattachedUnbalancedIndexedTx
-  { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
-  , datums :: Array Datum -- the array of ordered datums that require attaching
-  , redeemers :: Array IndexedRedeemer
-  }
-
-derive instance Generic UnattachedUnbalancedIndexedTx _
-derive instance Newtype UnattachedUnbalancedIndexedTx _
-derive newtype instance Eq UnattachedUnbalancedIndexedTx
-derive newtype instance EncodeAeson UnattachedUnbalancedIndexedTx
-
-instance Show UnattachedUnbalancedIndexedTx where
-  show = genericShow
-
--- | A newtype for the unbalanced transaction after creating one with datums
--- | and redeemers not attached, but already indexed
-newtype UnattachedUnbalancedIndexedEvaluatedTx =
-  UnattachedUnbalancedIndexedEvaluatedTx
-    { unbalancedTx :: UnbalancedTx -- the unbalanced tx created
-    , datums ::
-        Array Datum -- the array of ordered datums that require attaching
-    , redeemers :: Array Redeemer
-    }
-
-derive instance Generic UnattachedUnbalancedIndexedEvaluatedTx _
-derive instance Newtype UnattachedUnbalancedIndexedEvaluatedTx _
-derive newtype instance Eq UnattachedUnbalancedIndexedEvaluatedTx
-derive newtype instance EncodeAeson UnattachedUnbalancedIndexedEvaluatedTx
-
-instance Show UnattachedUnbalancedIndexedEvaluatedTx where
   show = genericShow
 
 -- | An implementation that strips `witnessSet` and data hash from
@@ -737,19 +696,19 @@ mkUnbalancedTx
   -> Contract (Either MkUnbalancedTxError UnattachedUnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ unbalancedTx, datums, redeemers } ->
+    \{ transaction, datums, redeemers, utxoIndex } ->
       let
-        stripScriptDataHash :: UnbalancedTx -> UnbalancedTx
-        stripScriptDataHash uTx =
-          uTx # _transaction <<< _body <<< _scriptDataHash .~ Nothing
+        stripScriptDataHash :: Transaction -> Transaction
+        stripScriptDataHash =
+          _body <<< _scriptDataHash .~ Nothing
 
-        stripDatumsRedeemers :: UnbalancedTx -> UnbalancedTx
-        stripDatumsRedeemers uTx = uTx # _transaction <<< _witnessSet %~
+        stripDatumsRedeemers :: Transaction -> Transaction
+        stripDatumsRedeemers = _witnessSet %~
           over TransactionWitnessSet
             _ { plutusData = Nothing, redeemers = Nothing }
-        tx = stripDatumsRedeemers $ stripScriptDataHash unbalancedTx
+        tx = stripDatumsRedeemers $ stripScriptDataHash $ unwrap transaction
       in
-        wrap { unbalancedTx: tx, datums, redeemers }
+        wrap { transaction: wrap tx, datums, redeemers, utxoIndex }
 
 -- | Adds a placeholder for ScriptDataHash. It will be wrong at this stage,
 -- | because ExUnits hasn't been estimated yet. It will serve as a
@@ -762,10 +721,10 @@ addFakeScriptDataHash = runExceptT do
   costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
   reds <- use (_redeemers <<< to (map unindexedRedeemerToRedeemer))
-  tx <- use (_unbalancedTx <<< _transaction)
+  tx <- use _cpsTransaction
   tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
     Right
-  _cpsToTransaction .= tx'
+  _cpsTransaction .= tx'
 
 -- | Add the remaining balance of the total value that the tx must spend.
 -- | See note [Balance of value spent]
@@ -786,27 +745,19 @@ addMissingValueSpent = do
       pkh' = lookups.ownPaymentPubKeyHash
       skh' = lookups.ownStakePubKeyHash
     -- Potential fix me: This logic may be suspect:
-    txOut <- case pkh', skh' of
+    txOutAddress <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just skh -> pure $ TransactionOutput
-        { address: payPubKeyHashBaseAddress networkId pkh skh
+      Just pkh, Just skh -> pure $ payPubKeyHashBaseAddress networkId pkh skh
+      Just pkh, Nothing -> pure $ payPubKeyHashEnterpriseAddress networkId pkh
+      Nothing, Just skh -> pure $ stakePubKeyHashRewardAddress networkId skh
+    let
+      txOut = TransactionOutput
+        { address: txOutAddress
         , amount: missing
         , datum: NoOutputDatum
         , scriptRef: Nothing
         }
-      Just pkh, Nothing -> pure $ TransactionOutput
-        { address: payPubKeyHashEnterpriseAddress networkId pkh
-        , amount: missing
-        , datum: NoOutputDatum
-        , scriptRef: Nothing
-        }
-      Nothing, Just skh -> pure $ TransactionOutput
-        { address: stakePubKeyHashRewardAddress networkId skh
-        , amount: missing
-        , datum: NoOutputDatum
-        , scriptRef: Nothing
-        }
-    _cpsToTxBody <<< _outputs %= Array.(:) txOut
+    _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
 
 updateUtxoIndex
   :: forall (a :: Type)
@@ -821,7 +772,7 @@ updateUtxoIndex = runExceptT do
       (txOutputs `union` refScriptsUtxoMap)
         <#> fromPlutusTxOutputWithRefScript networkId
   -- Left bias towards original map, hence `flip`:
-  _unbalancedTx <<< _utxoIndex %= flip union cTxOutputs
+  _cpsUtxoIndex %= flip union cTxOutputs
 
 -- Note, we don't use the redeemer here, unlike Plutus because of our lack of
 -- `TxIn` datatype.
@@ -850,7 +801,7 @@ addOwnInput _pd (InputConstraint { txOutRef }) = do
         <#> lmap TypeCheckFailed
     let value = typedTxOutRefValue typedTxOutRef
     -- Must be inserted in order. Hopefully this matches the order under CSL
-    _cpsToTxBody <<< _inputs %= Set.insert txOutRef
+    _cpsTransaction <<< _body <<< _inputs %= Set.insert txOutRef
     _valueSpentBalancesInputs <>= provideValue value
 
 -- | Add a typed output and return its value.
@@ -876,7 +827,7 @@ addOwnOutput (OutputConstraint { datum: d, value }) = do
     dat <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush
       >>> Bind.join
       >>> note (CannotQueryDatum dHash)
-    _cpsToTxBody <<< _outputs %= Array.(:) txOut
+    _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
     ExceptT $ addDatum dat
     _valueSpentBalancesOutputs <>= provideValue value'
 
@@ -1002,11 +953,12 @@ processScriptRefUnspentOut
 processScriptRefUnspentOut scriptHash inputWithRefScript = do
   unspentOut <- case inputWithRefScript of
     SpendInput unspentOut -> do
-      _cpsToTxBody <<< _inputs %= Set.insert (_.input <<< unwrap $ unspentOut)
+      _cpsTransaction <<< _body <<< _inputs %= Set.insert
+        (_.input <<< unwrap $ unspentOut)
       pure unspentOut
     RefInput unspentOut -> do
       let refInput = (unwrap unspentOut).input
-      _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
+      _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
       pure unspentOut
 
   updateRefScriptsUtxoMap unspentOut
@@ -1073,7 +1025,7 @@ processConstraint mpsMap osMap c = do
             systemStart
             posixTimeRange
             <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
-        _cpsToTxBody <<< _Newtype %=
+        _cpsTransaction <<< _body <<< _Newtype %=
           _
             { ttl = timeToLive
             , validityStartInterval = validityStartInterval
@@ -1083,7 +1035,8 @@ processConstraint mpsMap osMap c = do
       -- the corresponding `paymentPubKey` lookup. In the next major version,
       -- we might wish to revise this
       -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
-      _cpsToTxBody <<< _requiredSigners <>= Just [ wrap $ unwrap $ unwrap pkh ]
+      _cpsTransaction <<< _body <<< _requiredSigners <>= Just
+        [ wrap $ unwrap $ unwrap pkh ]
     MustSpendAtLeast plutusValue -> do
       let value = fromPlutusValue plutusValue
       runExceptT $ _valueSpentBalancesInputs <>= requireValue value
@@ -1095,7 +1048,7 @@ processConstraint mpsMap osMap c = do
       -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
       -- keeps track TransactionInput and TxInType (the input type, whether
       -- consuming script, public key or simple script)
-      _cpsToTxBody <<< _inputs %= Set.insert txo
+      _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
       _valueSpentBalancesInputs <>= provideValue amount
     MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo scriptRefUnspentOut
@@ -1130,7 +1083,7 @@ processConstraint mpsMap osMap c = do
                 ExceptT $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
-            _cpsToTxBody <<< _inputs %= Set.insert txo
+            _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
             let
               uiRedeemer = UnindexedRedeemer
                 { purpose: ForSpend txo
@@ -1139,10 +1092,10 @@ processConstraint mpsMap osMap c = do
             _redeemers <>= [ uiRedeemer ]
             _valueSpentBalancesInputs <>= provideValue amount
     MustSpendNativeScriptOutput txo ns -> runExceptT do
-      _cpsToTxBody <<< _inputs %= Set.insert txo
+      _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
       ExceptT $ attachToCps attachNativeScript ns
     MustReferenceOutput refInput -> runExceptT do
-      _cpsToTxBody <<< _referenceInputs %= Set.insert refInput
+      _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
       case scriptRefUnspentOut of
         Nothing -> do
@@ -1185,7 +1138,7 @@ processConstraint mpsMap osMap c = do
       _redeemers <>=
         [ UnindexedRedeemer { purpose: ForMint mpsHash, datum: unwrap red } ]
       -- Remove mint redeemers from array before reindexing.
-      _cpsToTxBody <<< _mint <>= map wrap mintVal
+      _cpsTransaction <<< _body <<< _mint <>= map wrap mintVal
 
     MustMintValueUsingNativeScript ns tn i -> runExceptT do
       let mpHash = wrap <<< unwrap <<< nativeScriptHash $ ns
@@ -1208,7 +1161,7 @@ processConstraint mpsMap osMap c = do
           _valueSpentBalancesOutputs <>= provideValue v
           pure $ map getNonAdaAsset $ value i
 
-      _cpsToTxBody <<< _mint <>= map wrap mintVal
+      _cpsTransaction <<< _body <<< _mint <>= map wrap mintVal
 
     MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
       networkId <- getNetworkId
@@ -1229,7 +1182,7 @@ processConstraint mpsMap osMap c = do
             , datum: fromMaybe NoOutputDatum datum'
             , scriptRef: scriptRef
             }
-        _cpsToTxBody <<< _outputs %= Array.(:) txOut
+        _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustPayToScript vlh mbCredential dat datp scriptRef plutusValue -> do
       networkId <- getNetworkId
@@ -1251,7 +1204,7 @@ processConstraint mpsMap osMap c = do
             }
         -- Note we don't `addDatum` as this included as part of `mustPayToScript`
         -- constraint already.
-        _cpsToTxBody <<< _outputs %= Array.(:) txOut
+        _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustPayToNativeScript nsh mbCredential plutusValue -> do
       networkId <- getNetworkId
@@ -1271,7 +1224,7 @@ processConstraint mpsMap osMap c = do
             , datum: NoOutputDatum
             , scriptRef: Nothing
             }
-        _cpsToTxBody <<< _outputs %= Array.(:) txOut
+        _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do
       let dh' = Hashing.datumHash dt
@@ -1350,7 +1303,7 @@ processConstraint mpsMap osMap c = do
       let
         rewardAddress =
           RewardAddress.stakePubKeyHashRewardAddress networkId spkh
-      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+      _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
         Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = plutusScriptStakeValidatorHash stakeValidator
@@ -1363,7 +1316,7 @@ processConstraint mpsMap osMap c = do
       ({ rewards }) <- ExceptT $ pure $ note
         (CannotWithdrawRewardsPlutusScript stakeValidator)
         mbRewards
-      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+      _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
         Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
       _redeemers <>=
         [ UnindexedRedeemer
@@ -1381,7 +1334,7 @@ processConstraint mpsMap osMap c = do
       ({ rewards }) <- ExceptT $ pure $ note
         (CannotWithdrawRewardsNativeScript stakeValidator)
         mbRewards
-      _cpsToTxBody <<< _withdrawals <<< non Map.empty %=
+      _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
         Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
       ExceptT $ attachToCps attachNativeScript (unwrap stakeValidator)
     MustSatisfyAnyOf xs -> do
@@ -1412,7 +1365,7 @@ processConstraint mpsMap osMap c = do
             ys
       tryNext (toUnfoldable $ map toUnfoldable xs)
     MustNotBeValid -> runExceptT do
-      _cpsToTransaction <<< _isValid .= false
+      _cpsTransaction <<< _isValid .= false
   where
   outputDatum
     :: Datum
@@ -1435,11 +1388,11 @@ attachToCps
   -> a -- Redeemer, Datum, or PlutusScript.
   -> ConstraintsM b (Either MkUnbalancedTxError Unit)
 attachToCps handler object = do
-  tx <- use (_unbalancedTx <<< _transaction)
+  tx <- use _cpsTransaction
   newTx <- liftEffect $ handler object tx <#> lmap ModifyTx
   either
     (pure <<< throwError)
-    (map Right <<< (.=) (_unbalancedTx <<< _transaction))
+    (map Right <<< (.=) _cpsTransaction)
     newTx
 
 -- Attaches datum to the transaction and to Array of datums in the state.
@@ -1458,19 +1411,10 @@ addCertificate
    . Certificate
   -> ConstraintsM a Unit
 addCertificate cert = do
-  _cpsToTxBody <<< _certs <<< non [] %= Array.(:) cert
-
--- Helper to focus from `ConstraintProcessingState` down to `Transaction`.
-_cpsToTransaction
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
-_cpsToTransaction = _unbalancedTx <<< _transaction
-
--- Helper to focus from `ConstraintProcessingState` down to `TxBody`.
-_cpsToTxBody :: forall (a :: Type). Lens' (ConstraintProcessingState a) TxBody
-_cpsToTxBody = _cpsToTransaction <<< _body
+  _cpsTransaction <<< _body <<< _certs <<< non [] %= Array.(:) cert
 
 getNetworkId
   :: forall (a :: Type)
    . ConstraintsM a NetworkId
-getNetworkId = use (_cpsToTxBody <<< _networkId)
+getNetworkId = use (_cpsTransaction <<< _body <<< _networkId)
   >>= maybe (asks _.networkId) pure

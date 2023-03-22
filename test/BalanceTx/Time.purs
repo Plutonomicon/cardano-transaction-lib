@@ -30,9 +30,8 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromInt, toInt) as BigNum
 import Ctl.Internal.Types.Interval (Interval)
-import Ctl.Internal.Types.UnbalancedTransaction (_transaction)
 import Data.BigInt (fromString) as BigInt
-import Data.Lens (view)
+import Data.Lens ((^.))
 import Effect.Aff (Aff)
 import Effect.Exception (error)
 import Mote (group, test)
@@ -152,7 +151,7 @@ getTimeFromUnbalanced
   :: UnattachedUnbalancedTx -> Contract (Interval POSIXTime)
 getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
   where
-  body = (_transaction <<< _body) `view` (unwrap utx).unbalancedTx
+  body = (utx # unwrap >>> _.transaction >>> unwrap) ^. _body
 
 toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do
@@ -206,4 +205,3 @@ validityToPosixTime { validityStartInterval, ttl: timeToLive } =
 
 mkPosixTime :: String -> POSIXTime
 mkPosixTime = wrap <<< unsafePartial fromJust <<< BigInt.fromString
-

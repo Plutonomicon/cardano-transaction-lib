@@ -5,7 +5,6 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 
 import Prelude
 
-import Contract.Log (logInfo')
 import Contract.Numeric.Natural (fromInt') as Natural
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
@@ -26,11 +25,7 @@ import Ctl.Internal.BalanceTx.Types
   , asksConstraints
   , liftContract
   )
-import Ctl.Internal.BalanceTx.UnattachedTx
-  ( EvaluatedTx
-  , IndexedTx
-  , PrebalancedTx(PrebalancedTx)
-  )
+import Ctl.Internal.BalanceTx.UnattachedTx (EvaluatedTx, IndexedTx)
 import Ctl.Internal.Cardano.Types.ScriptRef as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
@@ -85,8 +80,6 @@ evalTxExecutionUnits
   :: Transaction
   -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx = do
-  logInfo' "TXB"
-  logInfo' $ show tx
   queryHandle <- liftContract getQueryHandle
   additionalUtxos <- getOgmiosAdditionalUtxoSet
   evalResult <-
