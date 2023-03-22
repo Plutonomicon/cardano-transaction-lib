@@ -24,12 +24,15 @@ import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 
-type UnattachedTx row =
-  (Record (transaction :: Transaction, datums :: Array Datum | row))
+type UnattachedTx redeemer =
+  { transaction :: Transaction
+  , datums :: Array Datum
+  , redeemers :: Array redeemer
+  }
 
-type UnindexedTx = UnattachedTx (redeemers :: Array UnindexedRedeemer)
-type IndexedTx = UnattachedTx (redeemers :: Array IndexedRedeemer)
-type EvaluatedTx = UnattachedTx (redeemers :: Array Redeemer)
+type UnindexedTx = UnattachedTx UnindexedRedeemer
+type IndexedTx = UnattachedTx IndexedRedeemer
+type EvaluatedTx = UnattachedTx Redeemer
 
 newtype PrebalancedTx = PrebalancedTx UnindexedTx
 
