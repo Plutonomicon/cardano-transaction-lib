@@ -2,7 +2,6 @@ module Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptDatum(ScriptDatum, ScriptDatumHash)
   , UnbalancedTx(UnbalancedTx)
-  , emptyUnbalancedTx
   , payPubKeyRequiredSigner
   , payPubKeyVkey
   ) where
@@ -21,8 +20,6 @@ import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Serialization (publicKeyHash)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Data.Generic.Rep (class Generic)
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Types (Lens')
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 
@@ -67,9 +64,8 @@ newtype UnbalancedTx = UnbalancedTx Transaction
 derive instance Newtype UnbalancedTx _
 derive instance Generic UnbalancedTx _
 derive newtype instance Eq UnbalancedTx
+derive newtype instance Semigroup UnbalancedTx
+derive newtype instance Monoid UnbalancedTx
 
 instance Show UnbalancedTx where
   show = genericShow
-
-emptyUnbalancedTx :: UnbalancedTx
-emptyUnbalancedTx = UnbalancedTx mempty

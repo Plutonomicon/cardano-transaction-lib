@@ -264,7 +264,6 @@ import Ctl.Internal.Types.Transaction
   )
 import Ctl.Internal.Types.UnbalancedTransaction
   ( UnbalancedTx(UnbalancedTx)
-  , emptyUnbalancedTx
   ) as UnbalancedTx
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
