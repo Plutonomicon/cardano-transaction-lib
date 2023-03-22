@@ -6,7 +6,7 @@ import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
 import Contract.ScriptLookups
   ( ScriptLookups
-  , UnattachedUnbalancedTx
+  , UnbalancedTx
   , mkUnbalancedTx
   )
 import Contract.Time
@@ -146,7 +146,7 @@ unsafeSubtractOne value = wrap <<< fromJust
 --------------------------------------------------------------------------------
 
 getTimeFromUnbalanced
-  :: UnattachedUnbalancedTx -> Contract (Interval POSIXTime)
+  :: UnbalancedTx -> Contract (Interval POSIXTime)
 getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
   where
   body = (unwrap utx) # _.transaction >>> unwrap >>> _.body

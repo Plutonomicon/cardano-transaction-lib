@@ -12,12 +12,15 @@ module Contract.ScriptLookups
   ( mkUnbalancedTx
   , mkUnbalancedTxM
   , module ScriptLookups
+  , module X
   ) where
 
 import Prelude
 
 import Contract.Monad (Contract)
 import Ctl.Internal.IsData (class IsData)
+import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
+import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx)) as X
 import Ctl.Internal.Types.ScriptLookups
   ( MkUnbalancedTxError
       ( TypeCheckFailed
@@ -44,7 +47,6 @@ import Ctl.Internal.Types.ScriptLookups
       , CannotSatisfyAny
       )
   , ScriptLookups(ScriptLookups)
-  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , datum
   , generalise
   , mintingPolicy
@@ -68,7 +70,7 @@ import Ctl.Internal.Types.TypedValidator (class ValidatorTypes)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 
--- | Create an `UnattachedUnbalancedTx` given `ScriptLookups` and
+-- | Create an `UnbalancedTx` given `ScriptLookups` and
 -- | `TxConstraints`. You will probably want to use this version as it returns
 -- | datums and redeemers that require attaching (and maybe reindexing) in
 -- | a separate call. In particular, this should be called in conjuction with
@@ -84,7 +86,7 @@ mkUnbalancedTx
   -> Contract
        ( Either
            ScriptLookups.MkUnbalancedTxError
-           ScriptLookups.UnattachedUnbalancedTx
+           UnbalancedTx
        )
 mkUnbalancedTx = SL.mkUnbalancedTx
 
@@ -97,5 +99,5 @@ mkUnbalancedTxM
   => IsData redeemer
   => ScriptLookups.ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> Contract (Maybe ScriptLookups.UnattachedUnbalancedTx)
+  -> Contract (Maybe UnbalancedTx)
 mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups

@@ -32,7 +32,6 @@ module Ctl.Internal.Types.ScriptLookups
       , CannotMintZero
       )
   , ScriptLookups(ScriptLookups)
-  , UnattachedUnbalancedTx(UnattachedUnbalancedTx)
   , generalise
   , mintingPolicy
   , mintingPolicyM
@@ -51,6 +50,7 @@ module Ctl.Internal.Types.ScriptLookups
   , unspentOutputsM
   ) where
 
+import Ctl.Internal.ProcessConstraints.UnbalancedTx
 import Prelude hiding (join)
 
 import Contract.Hashing (plutusScriptStakeValidatorHash)
@@ -664,23 +664,6 @@ mkUnbalancedTx'
 mkUnbalancedTx' scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map _.transaction
 
--- | A newtype for the unbalanced transaction after creating one with datums
--- | and redeemers not attached
-newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
-  { transaction :: Transaction -- the unbalanced tx created
-  , utxoIndex :: Map TransactionInput TransactionOutput
-  , datums :: Array Datum -- the array of ordered datums that require attaching
-  , redeemers :: Array UnindexedRedeemer
-  }
-
-derive instance Generic UnattachedUnbalancedTx _
-derive instance Newtype UnattachedUnbalancedTx _
-derive newtype instance Eq UnattachedUnbalancedTx
--- derive newtype instance EncodeAeson UnattachedUnbalancedTx
-
-instance Show UnattachedUnbalancedTx where
-  show = genericShow
-
 -- | An implementation that strips `witnessSet` and data hash from
 -- | returned `UnbalancedTx` in order to calculate them later on server.
 -- | It returns part of the `ConstraintProcessingState` for later consumption by
@@ -693,7 +676,7 @@ mkUnbalancedTx
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> Contract (Either MkUnbalancedTxError UnattachedUnbalancedTx)
+  -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
     \{ transaction, datums, redeemers, utxoIndex } ->

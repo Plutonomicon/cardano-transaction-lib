@@ -105,8 +105,7 @@ evalTxExecutionUnits tx = do
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
--- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
--- the minimum fee.
+-- Returns a tuple consisting of updated `UnbalancedTx` and the minimum fee.
 evalExUnitsAndMinFee
   :: IndexedTx
   -> UtxoMap
