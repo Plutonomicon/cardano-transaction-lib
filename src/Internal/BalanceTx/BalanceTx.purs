@@ -64,7 +64,6 @@ import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   )
 import Ctl.Internal.BalanceTx.RedeemerIndex
   ( attachIndexedRedeemers
-  , attachRedeemers
   , indexRedeemers
   , mkRedeemersContext
   )
@@ -81,7 +80,12 @@ import Ctl.Internal.BalanceTx.Types
   , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
-import Ctl.Internal.BalanceTx.UnattachedTx (EvaluatedTx, UnindexedTx, indexTx)
+import Ctl.Internal.BalanceTx.UnattachedTx
+  ( EvaluatedTx
+  , UnindexedTx
+  , _transaction
+  , indexTx
+  )
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeRegistration, StakeDeregistration)
@@ -153,8 +157,6 @@ import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
 import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (TagSet)
 import Data.Log.Tag (fromArray, tag) as TagSet
@@ -168,7 +170,6 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Type.Proxy (Proxy(Proxy))
 
 type UtxoIx = Map TransactionInput TransactionOutput
 
@@ -264,18 +265,16 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
   transactionWithNetworkId :: BalanceTxM Transaction
   transactionWithNetworkId = do
     networkId <- maybe askNetworkId pure
-      ( transaction ^. prop (Proxy :: Proxy "transaction") <<< _body <<<
-          _networkId
-      )
+      (transaction ^. _transaction <<< _body <<< _networkId)
     pure (transaction.transaction # _body <<< _networkId ?~ networkId)
 
-  setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
-  setTransactionCollateral changeAddr tx = do
-    collateral <-
-      liftEitherContract $ note CouldNotGetCollateral <$>
-        Wallet.getWalletCollateral
-    let collaterisedTx = addTxCollateral collateral tx
-    addTxCollateralReturn collateral collaterisedTx changeAddr
+setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
+setTransactionCollateral changeAddr transaction = do
+  collateral <-
+    liftEitherContract $ note CouldNotGetCollateral <$>
+      Wallet.getWalletCollateral
+  addTxCollateralReturn collateral (addTxCollateral collateral transaction)
+    changeAddr
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -329,10 +328,7 @@ runBalancer p = do
   -- out utxos which use plutusv2 features if so.
   txHasPlutusV1 :: Boolean
   txHasPlutusV1 =
-    case
-      p.transaction ^. prop (Proxy :: Proxy "transaction") <<< _witnessSet <<<
-        _plutusScripts
-      of
+    case p.transaction ^. _transaction <<< _witnessSet <<< _plutusScripts of
       Just scripts -> flip Array.any scripts case _ of
         PlutusScript (_ /\ PlutusV1) -> true
         _ -> false
@@ -366,9 +362,8 @@ runBalancer p = do
                   spendable :: Boolean
                   spendable = not $ Set.member oref nonSpendableInputs ||
                     Set.member oref
-                      ( p.transaction ^. prop (Proxy :: Proxy "transaction")
-                          <<< _body
-                          <<< _referenceInputs
+                      ( p.transaction ^. _transaction <<< _body <<<
+                          _referenceInputs
                       )
 
                   validInContext :: Boolean
@@ -410,13 +405,9 @@ runBalancer p = do
                     performMultiAssetSelection p.strategy leftoverUtxos
                       (lovelaceValueOf one)
                   runNextBalancerStep $ state
-                    { transaction =
-                        transaction
-                          #
-                            ( prop (Proxy :: Proxy "transaction") <<< _body <<<
-                                _inputs %~
-                                Set.union (selectedInputs selectionState)
-                            )
+                    { transaction = transaction #
+                        _transaction <<< _body <<< _inputs %~ Set.union
+                          (selectedInputs selectionState)
                     , leftoverUtxos =
                         selectionState ^. _leftoverUtxos
                     }
@@ -427,8 +418,7 @@ runBalancer p = do
           false ->
             runNextBalancerStep $ state
               { transaction = transaction
-                  # prop (Proxy :: Proxy "transaction") <<< _body <<< _fee .~
-                      Coin newMinFee
+                  # _transaction <<< _body <<< _fee .~ Coin newMinFee
               , minFee = newMinFee
               }
 
@@ -470,9 +460,7 @@ runBalancer p = do
       performCoinSelection <#> \selectionState -> state
         { transaction =
             ( transaction #
-                prop (Proxy :: Proxy "transaction") <<< _Newtype
-                  <<< prop (Proxy :: Proxy "body")
-                  <<< _inputs %~
+                _transaction <<< _body <<< _inputs %~
                   Set.union (selectedInputs selectionState)
             )
         , leftoverUtxos =
@@ -515,12 +503,10 @@ addLovelacesToTransactionOutputs
 addLovelacesToTransactionOutputs transaction =
   map
     ( \txOutputs -> transaction #
-        prop (Proxy :: Proxy "transaction") <<< _body <<< _outputs .~ txOutputs
+        _transaction <<< _body <<< _outputs .~ txOutputs
     ) $
     traverse addLovelacesToTransactionOutput
-      ( transaction ^. prop (Proxy :: Proxy "transaction") <<< _body <<<
-          _outputs
-      )
+      (transaction ^. _transaction <<< _body <<< _outputs)
 
 addLovelacesToTransactionOutput
   :: TransactionOutput -> BalanceTxM TransactionOutput
@@ -544,10 +530,7 @@ addLovelacesToTransactionOutput txOutput = do
 setTxChangeOutputs
   :: Array TransactionOutput -> UnindexedTx -> UnindexedTx
 setTxChangeOutputs outputs tx =
-  tx #
-    prop (Proxy :: Proxy "transaction") <<< _Newtype
-      <<< prop (Proxy :: Proxy "body")
-      <<< _outputs %~ flip append outputs
+  tx # _transaction <<< _body <<< _outputs %~ flip append outputs
 
 --------------------------------------------------------------------------------
 -- Making change
