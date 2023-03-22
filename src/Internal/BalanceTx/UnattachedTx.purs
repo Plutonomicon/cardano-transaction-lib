@@ -13,6 +13,7 @@ import Aeson (class EncodeAeson)
 import Ctl.Internal.BalanceTx.RedeemerIndex
   ( IndexedRedeemer
   , UnindexedRedeemer
+  , attachRedeemers
   , indexRedeemers
   , mkRedeemersContext
   )
@@ -30,7 +31,7 @@ type UnindexedTx = UnattachedTx (redeemers :: Array UnindexedRedeemer)
 type IndexedTx = UnattachedTx (redeemers :: Array IndexedRedeemer)
 type EvaluatedTx = UnattachedTx (redeemers :: Array Redeemer)
 
-newtype PrebalancedTx = PrebalancedTx IndexedTx
+newtype PrebalancedTx = PrebalancedTx UnindexedTx
 
 derive instance Generic PrebalancedTx _
 derive instance Newtype PrebalancedTx _
@@ -41,7 +42,7 @@ indexTx :: UnindexedTx -> Maybe IndexedTx
 indexTx { transaction, datums, redeemers } = do
   redeemers' <- indexRedeemers (mkRedeemersContext transaction) redeemers
   pure
-    { transaction
+    { transaction: attachRedeemers redeemers' transaction
     , datums
     , redeemers: redeemers'
     }

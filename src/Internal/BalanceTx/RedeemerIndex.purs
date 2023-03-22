@@ -36,9 +36,6 @@ class AttachableRedeemer r where
 instance AttachableRedeemer Redeemer where
   attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
 
--- instance AttachableRedeemer UnindexedRedeemer where
---   attachRedeemers = attachRedeemers <<< map unindexedRedeemerToRedeemer
-
 instance AttachableRedeemer IndexedRedeemer where
   attachRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
 
@@ -57,6 +54,7 @@ derive newtype instance EncodeAeson UnindexedRedeemer
 instance Show UnindexedRedeemer where
   show = genericShow
 
+redeemerPurposeToRedeemerTag :: RedeemerPurpose -> RedeemerTag
 redeemerPurposeToRedeemerTag = case _ of
   ForSpend _ -> Spend
   ForMint _ -> Mint

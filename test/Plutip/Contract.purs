@@ -1849,7 +1849,7 @@ suite = do
           withCip30Mock alice MockNami $ ECDSA.contract
 
   group "CIP-49 Plutus Crypto Primitives" do
-    test "ECDSA: a script that checks a signature works" do
+    test "ECDSA: a script that checks if a signature is correct" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -1859,7 +1859,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           ECDSA.contract
-    test "Schnorr: a script that checks a signature works" do
+    test "Schnorr: a script that checks if a signature is correct" do
       let
         distribution :: InitialUTxOs
         distribution =

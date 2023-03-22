@@ -115,10 +115,10 @@ evalTxExecutionUnits tx = do
 -- Returns a tuple consisting of updated `UnattachedUnbalancedTx` and
 -- the minimum fee.
 evalExUnitsAndMinFee
-  :: PrebalancedTx
+  :: IndexedTx
   -> UtxoMap
   -> BalanceTxM (EvaluatedTx /\ BigInt)
-evalExUnitsAndMinFee (PrebalancedTx unattachedTx) allUtxos = do
+evalExUnitsAndMinFee unattachedTx allUtxos = do
   -- Reattach datums and redeemers before evaluating ex units:
   let attachedTx = reattachDatumsAndFakeRedeemers unattachedTx
   -- Evaluate transaction ex units:

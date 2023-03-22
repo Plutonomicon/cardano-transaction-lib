@@ -62,7 +62,11 @@ import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   ( evalExUnitsAndMinFee
   , finalizeTransaction
   )
-import Ctl.Internal.BalanceTx.RedeemerIndex (redeemerToIndexedRedeemer)
+import Ctl.Internal.BalanceTx.RedeemerIndex
+  ( attachRedeemers
+  , indexRedeemers
+  , mkRedeemersContext
+  )
 import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
@@ -76,13 +80,7 @@ import Ctl.Internal.BalanceTx.Types
   , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
-import Ctl.Internal.BalanceTx.UnattachedTx
-  ( EvaluatedTx
-  , IndexedTx
-  , PrebalancedTx(PrebalancedTx)
-  , UnindexedTx
-  , indexTx
-  )
+import Ctl.Internal.BalanceTx.UnattachedTx (EvaluatedTx, UnindexedTx, indexTx)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeRegistration, StakeDeregistration)
@@ -188,7 +186,7 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
       certsFee = getStakingBalance (transaction.transaction)
         depositValuePerCert
 
-    changeAddr <- getChangeAddress
+    changeAddress <- getChangeAddress
 
     mbSrcAddrs <- asksConstraints Constraints._srcAddresses
 
@@ -224,7 +222,7 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
           -- Don't set collateral if tx doesn't contain phase-2 scripts:
           transactionWithNetworkId
         false ->
-          setTransactionCollateral changeAddr =<< transactionWithNetworkId
+          setTransactionCollateral changeAddress =<< transactionWithNetworkId
     let
       allUtxos :: UtxoMap
       allUtxos =
@@ -240,10 +238,13 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
     selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
     -- Balance and finalize the transaction:
+    reindexedRedeemers <- liftMaybe TODO $
+      indexRedeemers (mkRedeemersContext unbalancedCollTx) transaction.redeemers
     runBalancer
       { strategy: selectionStrategy
-      , transaction: transaction { transaction = unbalancedCollTx }
-      , changeAddress: changeAddr
+      , transaction: transaction
+          { transaction = attachRedeemers reindexedRedeemers unbalancedCollTx }
+      , changeAddress
       , allUtxos
       , utxos: availableUtxos
       , certsFee
@@ -292,24 +293,23 @@ type BalancerState tx =
   }
 
 initBalancerState
-  :: IndexedTx
+  :: UnindexedTx
   -> UtxoMap
-  -> BalancerState IndexedTx
+  -> BalancerState UnindexedTx
 initBalancerState transaction =
   buildUtxoIndex >>>
     { transaction, leftoverUtxos: _, changeOutputs: mempty, minFee: zero }
 
 data BalancerStep
-  = PrebalanceTx (BalancerState IndexedTx)
-  | BalanceChangeAndMinFee (BalancerState IndexedTx)
+  = PrebalanceTx (BalancerState UnindexedTx)
+  | BalanceChangeAndMinFee (BalancerState UnindexedTx)
 
 runBalancer :: BalancerParams -> BalanceTxM FinalizedTransaction
 runBalancer p = do
   utxos <- partitionAndFilterUtxos
   transaction <- addLovelacesToTransactionOutputs p.transaction
-  indexedTx <- liftMaybe TODO $ indexTx transaction
   addInvalidInContext (foldMap (_.amount <<< unwrap) utxos.invalidInContext) do
-    mainLoop (initBalancerState indexedTx utxos.spendable)
+    mainLoop (initBalancerState transaction utxos.spendable)
   where
   addInvalidInContext
     :: forall (a :: Type). Value -> BalanceTxM a -> BalanceTxM a
@@ -384,7 +384,7 @@ runBalancer p = do
             }
             (Map.toUnfoldable p.utxos :: Array _)
 
-  mainLoop :: BalancerState IndexedTx -> BalanceTxM FinalizedTransaction
+  mainLoop :: BalancerState UnindexedTx -> BalanceTxM FinalizedTransaction
   mainLoop = worker <<< PrebalanceTx
     where
     worker :: BalancerStep -> BalanceTxM FinalizedTransaction
@@ -406,16 +406,11 @@ runBalancer p = do
                       (lovelaceValueOf one)
                   runNextBalancerStep $ state
                     { transaction =
-                        evaluatedTx
+                        transaction
                           #
                             ( prop (Proxy :: Proxy "transaction") <<< _body <<<
                                 _inputs %~
                                 Set.union (selectedInputs selectionState)
-                            )
-                          # -- delete ExUnits from redeemers - they will be changed anyway
-                            -- TODO: can we NOT remove them?
-                            ( prop (Proxy :: Proxy "redeemers") %~ map
-                                redeemerToIndexedRedeemer
                             )
                     , leftoverUtxos =
                         selectionState ^. _leftoverUtxos
@@ -438,7 +433,7 @@ runBalancer p = do
     -- | after generation of change, the first balancing step `PrebalanceTx`
     -- | is performed, otherwise we proceed to `BalanceChangeAndMinFee`.
     runNextBalancerStep
-      :: BalancerState IndexedTx -> BalanceTxM FinalizedTransaction
+      :: BalancerState UnindexedTx -> BalanceTxM FinalizedTransaction
     runNextBalancerStep state@{ transaction } = do
       let txBody = transaction # _.transaction >>> unwrap >>> _.body
       inputValue <- except $ getInputValue p.allUtxos txBody
@@ -446,17 +441,18 @@ runBalancer p = do
 
       requiredValue <-
         except $ getRequiredValue p.certsFee p.allUtxos
-          ( setTxChangeOutputs changeOutputs transaction # unwrap
-              >>> _.transaction
-              >>> unwrap
-              >>> _.body
+          ( setTxChangeOutputs changeOutputs transaction #
+              _.transaction
+                >>> unwrap
+                >>> _.body
           )
 
       worker $
         -- state { changeOutputs = changeOutputs } #
         -- if requiredValue == mempty then BalanceChangeAndMinFee else PrebalanceTx
         if requiredValue == mempty then
-          BalanceChangeAndMinFee $ state { changeOutputs = changeOutputs }
+          BalanceChangeAndMinFee $ state
+            { changeOutputs = changeOutputs, transaction = transaction }
         else
           PrebalanceTx $ state { changeOutputs = changeOutputs }
 
@@ -464,7 +460,7 @@ runBalancer p = do
     -- | utxo set so that the total input value is sufficient to cover all
     -- | transaction outputs, including generated change and min fee.
     prebalanceTx
-      :: BalancerState IndexedTx -> BalanceTxM (BalancerState IndexedTx)
+      :: BalancerState UnindexedTx -> BalanceTxM (BalancerState UnindexedTx)
     prebalanceTx state@{ transaction, changeOutputs, leftoverUtxos } =
       performCoinSelection <#> \selectionState -> state
         { transaction =
@@ -482,10 +478,10 @@ runBalancer p = do
       performCoinSelection =
         let
           txBody :: TxBody
-          txBody = setTxChangeOutputs changeOutputs transaction # unwrap
-            >>> _.transaction
-            >>> unwrap
-            >>> _.body
+          txBody = setTxChangeOutputs changeOutputs transaction #
+            _.transaction
+              >>> unwrap
+              >>> _.body
         in
           except (getRequiredValue p.certsFee p.allUtxos txBody)
             >>= performMultiAssetSelection p.strategy leftoverUtxos
@@ -497,13 +493,13 @@ runBalancer p = do
     -- | since this pre-condition is sometimes required for successfull script
     -- | execution during transaction evaluation.
     evaluateTx
-      :: BalancerState IndexedTx -> BalanceTxM (BalancerState EvaluatedTx)
+      :: BalancerState UnindexedTx -> BalanceTxM (BalancerState EvaluatedTx)
     evaluateTx state@{ transaction, changeOutputs } = do
       let
-        prebalancedTx :: PrebalancedTx
+        prebalancedTx :: UnindexedTx
         prebalancedTx = setTxChangeOutputs changeOutputs transaction
-
-      evaluatedTx /\ minFee <- evalExUnitsAndMinFee prebalancedTx p.allUtxos
+      indexedTx <- liftMaybe TODO $ indexTx prebalancedTx
+      evaluatedTx /\ minFee <- evalExUnitsAndMinFee indexedTx p.allUtxos
       pure $ state { transaction = evaluatedTx, minFee = minFee }
 
 -- | For each transaction output, if necessary, adds some number of lovelaces
@@ -540,10 +536,10 @@ addLovelacesToTransactionOutput txOutput = do
     { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
 
 setTxChangeOutputs
-  :: Array TransactionOutput -> IndexedTx -> PrebalancedTx
+  :: Array TransactionOutput -> UnindexedTx -> UnindexedTx
 setTxChangeOutputs outputs tx =
-  PrebalancedTx tx #
-    _Newtype <<< prop (Proxy :: Proxy "transaction") <<< _Newtype
+  tx #
+    prop (Proxy :: Proxy "transaction") <<< _Newtype
       <<< prop (Proxy :: Proxy "body")
       <<< _outputs %~ flip append outputs
 
