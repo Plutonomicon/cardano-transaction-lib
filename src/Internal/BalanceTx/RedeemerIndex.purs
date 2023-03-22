@@ -19,7 +19,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _redeemers
   , _witnessSet
   )
-import Ctl.Internal.Cardano.Types.Value (currencyMPSHash)
+import Ctl.Internal.Cardano.Types.Value (currencyMPSHash, unwrapNonAdaAsset)
 import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
@@ -154,7 +154,7 @@ mkRedeemersContext
   , certs: fold certs
   }
   where
-  mintedAssets = fromMaybe Map.empty (map unwrap $ map unwrap mint)
+  mintedAssets = fromMaybe Map.empty (map unwrapNonAdaAsset $ map unwrap mint)
 
 indexRedeemers
   :: RedeemersContext

@@ -1,7 +1,6 @@
 module Ctl.Internal.Types.UnbalancedTransaction
   ( PaymentPubKey(PaymentPubKey)
   , ScriptDatum(ScriptDatum, ScriptDatumHash)
-  , UnbalancedTx(UnbalancedTx)
   , payPubKeyRequiredSigner
   , payPubKeyVkey
   ) where
@@ -55,17 +54,3 @@ payPubKeyVkey (PaymentPubKey pk) = Vkey pk
 payPubKeyRequiredSigner :: PaymentPubKey -> RequiredSigner
 payPubKeyRequiredSigner (PaymentPubKey pk) =
   RequiredSigner <<< publicKeyHash $ convertPubKey pk
-
--- | An unbalanced transaction. It needs to be balanced and signed before it
--- | can be submitted to the ledger.
--- | Resembles `UnbalancedTx` from `plutus-apps`.
-newtype UnbalancedTx = UnbalancedTx Transaction
-
-derive instance Newtype UnbalancedTx _
-derive instance Generic UnbalancedTx _
-derive newtype instance Eq UnbalancedTx
-derive newtype instance Semigroup UnbalancedTx
-derive newtype instance Monoid UnbalancedTx
-
-instance Show UnbalancedTx where
-  show = genericShow

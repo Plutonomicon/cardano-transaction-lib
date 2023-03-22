@@ -22,7 +22,6 @@ module Contract.Transaction
   , module ScriptRef
   , module Scripts
   , module Transaction
-  , module UnbalancedTx
   , module X
   , signTransaction
   , submit
@@ -262,9 +261,6 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  ) as UnbalancedTx
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
@@ -441,7 +437,7 @@ unUnattachedUnbalancedTx
       , utxoIndex
       }
   ) =
-  { transaction: unwrap transaction, datums, redeemers } /\ utxoIndex
+  { transaction, datums, redeemers } /\ utxoIndex
 
 -- | Attempts to balance an `UnattachedUnbalancedTx` using the specified
 -- | balancer constraints.
@@ -480,7 +476,7 @@ balanceTxsWithConstraints unbalancedTxs =
     throwError e
 
   uutxToTx :: UnattachedUnbalancedTx -> Transaction
-  uutxToTx = unwrap <<< _.transaction <<< unwrap
+  uutxToTx = _.transaction <<< unwrap
 
 -- | Same as `balanceTxsWithConstraints`, but uses the default balancer
 -- | constraints.

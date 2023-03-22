@@ -25,13 +25,11 @@ import Contract.Time
   )
 import Contract.TxConstraints (mustValidateIn)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.Cardano.Types.Transaction (_body)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromInt, toInt) as BigNum
 import Ctl.Internal.Types.Interval (Interval)
 import Data.BigInt (fromString) as BigInt
-import Data.Lens ((^.))
 import Effect.Aff (Aff)
 import Effect.Exception (error)
 import Mote (group, test)
@@ -151,7 +149,7 @@ getTimeFromUnbalanced
   :: UnattachedUnbalancedTx -> Contract (Interval POSIXTime)
 getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
   where
-  body = (utx # unwrap >>> _.transaction >>> unwrap) ^. _body
+  body = (unwrap utx) # _.transaction >>> unwrap >>> _.body
 
 toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do

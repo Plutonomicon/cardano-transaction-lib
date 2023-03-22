@@ -236,7 +236,7 @@ import Ctl.Internal.Types.TypedValidator
   , TypedValidator(TypedValidator)
   )
 import Ctl.Internal.Types.TypedValidator (generalise) as TV
-import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey, UnbalancedTx)
+import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey)
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (singleton, union, (:)) as Array
 import Data.Bifunctor (lmap)
@@ -468,7 +468,7 @@ instance Semigroup ValueSpentBalances where
 
 -- This is the state for essentially creating an unbalanced transaction.
 type ConstraintProcessingState (a :: Type) =
-  { transaction :: UnbalancedTx
+  { transaction :: Transaction
   , utxoIndex :: Map TransactionInput TransactionOutput
   -- The unbalanced transaction that we're building
   , valueSpentBalancesInputs :: ValueSpentBalances
@@ -492,7 +492,7 @@ type ConstraintProcessingState (a :: Type) =
 
 _cpsTransaction
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
-_cpsTransaction = prop (SProxy :: SProxy "transaction") <<< _Newtype
+_cpsTransaction = prop (SProxy :: SProxy "transaction")
 
 _cpsUtxoIndex
   :: forall (a :: Type)
@@ -628,7 +628,7 @@ runConstraintsM lookups txConstraints = do
   let
     initCps :: ConstraintProcessingState validator
     initCps =
-      { transaction: wrap mempty
+      { transaction: mempty
       , utxoIndex: Map.empty
       , valueSpentBalancesInputs:
           ValueSpentBalances { required: mempty, provided: mempty }
@@ -660,14 +660,14 @@ mkUnbalancedTx'
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> Contract (Either MkUnbalancedTxError UnbalancedTx)
+  -> Contract (Either MkUnbalancedTxError Transaction)
 mkUnbalancedTx' scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map _.transaction
 
 -- | A newtype for the unbalanced transaction after creating one with datums
 -- | and redeemers not attached
 newtype UnattachedUnbalancedTx = UnattachedUnbalancedTx
-  { transaction :: UnbalancedTx -- the unbalanced tx created
+  { transaction :: Transaction -- the unbalanced tx created
   , utxoIndex :: Map TransactionInput TransactionOutput
   , datums :: Array Datum -- the array of ordered datums that require attaching
   , redeemers :: Array UnindexedRedeemer
@@ -697,18 +697,21 @@ mkUnbalancedTx
 mkUnbalancedTx scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
     \{ transaction, datums, redeemers, utxoIndex } ->
-      let
-        stripScriptDataHash :: Transaction -> Transaction
-        stripScriptDataHash =
-          _body <<< _scriptDataHash .~ Nothing
+      wrap
+        { transaction: stripDatumsRedeemers $ stripScriptDataHash transaction
+        , datums
+        , redeemers
+        , utxoIndex
+        }
+  where
+  stripScriptDataHash :: Transaction -> Transaction
+  stripScriptDataHash =
+    _body <<< _scriptDataHash .~ Nothing
 
-        stripDatumsRedeemers :: Transaction -> Transaction
-        stripDatumsRedeemers = _witnessSet %~
-          over TransactionWitnessSet
-            _ { plutusData = Nothing, redeemers = Nothing }
-        tx = stripDatumsRedeemers $ stripScriptDataHash $ unwrap transaction
-      in
-        wrap { transaction: wrap tx, datums, redeemers, utxoIndex }
+  stripDatumsRedeemers :: Transaction -> Transaction
+  stripDatumsRedeemers = _witnessSet %~
+    over TransactionWitnessSet
+      _ { plutusData = Nothing, redeemers = Nothing }
 
 -- | Adds a placeholder for ScriptDataHash. It will be wrong at this stage,
 -- | because ExUnits hasn't been estimated yet. It will serve as a

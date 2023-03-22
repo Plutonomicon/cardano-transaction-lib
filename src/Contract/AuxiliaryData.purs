@@ -11,6 +11,7 @@ import Contract.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
+  , Transaction
   )
 import Ctl.Internal.Cardano.Types.Transaction
   ( _auxiliaryData
@@ -23,7 +24,6 @@ import Ctl.Internal.Metadata.MetadataType
   )
 import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Ctl.Internal.Types.UnbalancedTransaction (UnbalancedTx)
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -73,16 +73,16 @@ setTxMetadata tx =
 -- Lenses
 --------------------------------------------------------------------------------
 
-_unbalancedTx :: Lens' UnattachedUnbalancedTx UnbalancedTx
+_unbalancedTx :: Lens' UnattachedUnbalancedTx Transaction
 _unbalancedTx = _Newtype <<< prop (Proxy :: Proxy "transaction")
 
 _auxiliaryData :: Lens' UnattachedUnbalancedTx (Maybe AuxiliaryData)
 _auxiliaryData =
-  _unbalancedTx <<< _Newtype <<< Tx._auxiliaryData
+  _unbalancedTx <<< Tx._auxiliaryData
 
 _auxiliaryDataHash :: Lens' UnattachedUnbalancedTx (Maybe AuxiliaryDataHash)
 _auxiliaryDataHash =
-  _unbalancedTx <<< _Newtype <<< Tx._body <<< Tx._auxiliaryDataHash
+  _unbalancedTx <<< Tx._body <<< Tx._auxiliaryDataHash
 
 _metadata :: Lens' AuxiliaryData (Maybe GeneralTransactionMetadata)
 _metadata = lens' \(AuxiliaryData rec@{ metadata }) ->
