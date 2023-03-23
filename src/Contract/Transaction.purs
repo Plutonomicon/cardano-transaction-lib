@@ -18,7 +18,6 @@ module Contract.Transaction
   , module PTransaction
   , module PTransactionUnspentOutput
   , module ReindexRedeemersExport
-  , module ScriptLookups
   , module ScriptRef
   , module Scripts
   , module Transaction
@@ -200,9 +199,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
 import Ctl.Internal.Plutus.Types.Value (Coin)
-import Ctl.Internal.ProcessConstraints.UnbalancedTx
-  ( UnbalancedTx(UnbalancedTx)
-  )
+import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.ReindexRedeemers
   ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
   ) as ReindexRedeemersExport
@@ -220,33 +217,7 @@ import Ctl.Internal.Types.RewardAddress
   , rewardAddressToBech32
   , rewardAddressToBytes
   ) as X
-import Ctl.Internal.Types.ScriptLookups
-  ( MkUnbalancedTxError
-      ( TypeCheckFailed
-      , ModifyTx
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , DatumNotFound
-      , MintingPolicyNotFound
-      , MintingPolicyHashNotCurrencySymbol
-      , CannotMakeValue
-      , ValidatorHashNotFound
-      , OwnPubKeyAndStakeKeyMissing
-      , TypedValidatorMissing
-      , DatumWrongHash
-      , CannotQueryDatum
-      , CannotHashDatum
-      , CannotConvertPOSIXTimeRange
-      , CannotGetMintingPolicyScriptIndex
-      , CannotGetValidatorHashFromAddress
-      , TypedTxOutHasNoDatumHash
-      , CannotHashMintingPolicy
-      , CannotHashValidator
-      , CannotConvertPaymentPubKeyHash
-      , CannotSatisfyAny
-      )
-  , ScriptLookups
-  ) as ScriptLookups
+import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , plutusV1Script
@@ -565,7 +536,7 @@ submitTxFromConstraintsReturningFee
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
-  => ScriptLookups.ScriptLookups validator
+  => ScriptLookups validator
   -> TxConstraints redeemer datum
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
@@ -581,7 +552,7 @@ submitTxFromConstraints
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
-  => ScriptLookups.ScriptLookups validator
+  => ScriptLookups validator
   -> TxConstraints redeemer datum
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints =

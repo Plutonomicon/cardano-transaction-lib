@@ -66,6 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Changed
 
 - **[IMPORTANT]** It is no more recommended to use `utxosAt` to get UTxOs at light wallet addresses. It may be a source of application bugs in some cases due to how wallets operate. Please see *Synchronization and wallet UTxO locking* section [here](./doc/query-layers.md) ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
+- `UnattachedUnbalancedTx` has been renamed and moved to `Contract.UnbalancedTx.UnbalancedTx`, the old `UnbalancedTx` type has been removed as not needed. `mkUnbalancedTx` function has been moved to `Contract.UnbalancedTx`.
 - All uses of `utxosAt` call have been replaced with `getWalletUtxos` in the balancer ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Naming changes in `Contract.Test.Assert` for consistency with other functions ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440)):
   - `checkNewUtxosAtAddress` -> `assertNewUtxosAtAddress`

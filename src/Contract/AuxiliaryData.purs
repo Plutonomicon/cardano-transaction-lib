@@ -8,7 +8,6 @@ module Contract.AuxiliaryData
 import Prelude
 
 import Contract.Monad (Contract)
-import Contract.ScriptLookups (UnbalancedTx)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
@@ -23,6 +22,7 @@ import Ctl.Internal.Metadata.MetadataType
   ( class MetadataType
   , toGeneralTxMetadata
   )
+import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
 import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Lens (lens', (?~))
