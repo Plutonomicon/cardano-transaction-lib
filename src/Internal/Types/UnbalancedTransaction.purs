@@ -11,7 +11,6 @@ import Aeson (class EncodeAeson)
 import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey
   , RequiredSigner(RequiredSigner)
-  , Transaction
   , Vkey(Vkey)
   , convertPubKey
   )

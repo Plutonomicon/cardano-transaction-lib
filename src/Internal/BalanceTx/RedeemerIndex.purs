@@ -43,12 +43,11 @@ import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((.~))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
-import Partial.Unsafe (unsafePartial)
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
 attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
@@ -112,16 +111,6 @@ indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
     , data: datum
     , exUnits: { mem: zero, steps: zero }
     }
-
-redeemerToIndexedRedeemer :: Redeemer -> IndexedRedeemer
-redeemerToIndexedRedeemer
-  ( Redeemer
-      { tag
-      , index
-      , data: datum
-      }
-  ) = IndexedRedeemer
-  { tag, datum, index: unsafePartial $ fromJust $ BigInt.toInt index }
 
 -- | Contains a value redeemer corresponds to, different for each possible
 -- | `RedeemerTag`.
