@@ -6,7 +6,18 @@
 -- | "Combining Scripts with Their Inputs" chapter of "A Formal Specification
 -- | of the Cardano Ledger integrating Plutus Core"
 -- | https://github.com/input-output-hk/cardano-ledger/releases/latest/download/alonzo-ledger.pdf
-module Ctl.Internal.BalanceTx.RedeemerIndex where
+module Ctl.Internal.BalanceTx.RedeemerIndex
+  ( IndexedRedeemer(IndexedRedeemer)
+  , RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
+  , RedeemersContext
+  , UnindexedRedeemer(UnindexedRedeemer)
+  , attachIndexedRedeemers
+  , attachRedeemers
+  , indexRedeemers
+  , indexedRedeemerToRedeemer
+  , mkRedeemersContext
+  , unindexedRedeemerToRedeemer
+  ) where
 
 import Prelude
 

@@ -100,7 +100,7 @@ import Ctl.Internal.ProcessConstraints.State
   , ValueSpentBalances(ValueSpentBalances)
   , _costModels
   , _cpsTransaction
-  , _cpsUtxoIndex
+  , _cpsUsedUtxos
   , _datums
   , _lookups
   , _redeemers
@@ -279,7 +279,7 @@ processLookupsAndConstraints
   ExceptT $ foldConstraints addOwnOutput ownOutputs
   ExceptT addFakeScriptDataHash
   ExceptT addMissingValueSpent
-  ExceptT updateUtxoIndex
+  ExceptT updateUsedUtxos
 
   where
   -- Don't write the output in terms of ExceptT because we can't write a
@@ -314,14 +314,13 @@ runConstraintsM lookups txConstraints = do
     initCps :: ConstraintProcessingState validator
     initCps =
       { transaction: mempty
-      , utxoIndex: Map.empty
+      , usedUtxos: Map.empty
       , valueSpentBalancesInputs:
           ValueSpentBalances { required: mempty, provided: mempty }
       , valueSpentBalancesOutputs:
           ValueSpentBalances { required: mempty, provided: mempty }
       , datums: mempty
       , redeemers: []
-      , mintRedeemers: empty
       , lookups
       , refScriptsUtxoMap: empty
       , costModels
@@ -385,10 +384,10 @@ addMissingValueSpent = do
         }
     _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
 
-updateUtxoIndex
+updateUsedUtxos
   :: forall (a :: Type)
    . ConstraintsM a (Either MkUnbalancedTxError Unit)
-updateUtxoIndex = runExceptT do
+updateUsedUtxos = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   refScriptsUtxoMap <- use _refScriptsUtxoMap
   networkId <- lift getNetworkId
@@ -398,7 +397,7 @@ updateUtxoIndex = runExceptT do
       (txOutputs `union` refScriptsUtxoMap)
         <#> fromPlutusTxOutputWithRefScript networkId
   -- Left bias towards original map, hence `flip`:
-  _cpsUtxoIndex %= flip union cTxOutputs
+  _cpsUsedUtxos %= flip union cTxOutputs
 
 -- Note, we don't use the redeemer here, unlike Plutus because of our lack of
 -- `TxIn` datatype.
@@ -1018,12 +1017,12 @@ mkUnbalancedTxImpl
   -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTxImpl scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ transaction, datums, redeemers, utxoIndex } ->
+    \{ transaction, datums, redeemers, usedUtxos } ->
       wrap
         { transaction: stripDatumsRedeemers $ stripScriptDataHash transaction
         , datums
         , redeemers
-        , utxoIndex
+        , usedUtxos
         }
   where
   stripScriptDataHash :: Transaction -> Transaction

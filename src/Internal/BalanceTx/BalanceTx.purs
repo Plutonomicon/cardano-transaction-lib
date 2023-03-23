@@ -2,7 +2,6 @@ module Ctl.Internal.BalanceTx
   ( module BalanceTxErrorExport
   , module FinalizedTransaction
   , balanceTxWithConstraints
-  , UtxoIx
   ) where
 
 import Prelude
@@ -171,16 +170,14 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 
-type UtxoIx = Map TransactionInput TransactionOutput
-
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
 balanceTxWithConstraints
   :: UnindexedTx
-  -> UtxoIx
+  -> Map TransactionInput TransactionOutput
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints transaction index constraintsBuilder = do
+balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
   pparams <- getProtocolParameters
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
@@ -228,7 +225,7 @@ balanceTxWithConstraints transaction index constraintsBuilder = do
       allUtxos =
         -- Combine utxos at the user address and those from any scripts
         -- involved with the contract in the unbalanced transaction:
-        utxos `Map.union` index
+        utxos `Map.union` extraUtxos
 
     availableUtxos <- liftContract $ filterLockedUtxos allUtxos
     logTrace' $ "balanceTxWithConstraints: all UTxOs: " <> show allUtxos

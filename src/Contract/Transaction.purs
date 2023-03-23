@@ -17,7 +17,6 @@ module Contract.Transaction
   , module OutputDatum
   , module PTransaction
   , module PTransactionUnspentOutput
-  , module ReindexRedeemersExport
   , module ScriptRef
   , module Scripts
   , module Transaction
@@ -52,7 +51,7 @@ import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (FinalizedTransaction, UtxoIx)
+import Ctl.Internal.BalanceTx (FinalizedTransaction)
 import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
@@ -200,10 +199,6 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ) as PTransactionUnspentOutput
 import Ctl.Internal.Plutus.Types.Value (Coin)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
-import Ctl.Internal.ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
-import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as X
 import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -249,6 +244,7 @@ import Data.Either (Either, hush)
 import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
+import Data.Map (Map)
 import Data.Map (empty, insert) as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
@@ -399,16 +395,17 @@ withBalancedTx
   -> Contract a
 withBalancedTx = withSingleTransaction balanceAndLock unwrap
 
-unUnbalancedTx :: UnbalancedTx -> UnindexedTx /\ UtxoIx
+unUnbalancedTx
+  :: UnbalancedTx -> UnindexedTx /\ Map TransactionInput TransactionOutput
 unUnbalancedTx
   ( UnbalancedTx
       { transaction
       , datums
       , redeemers
-      , utxoIndex
+      , usedUtxos
       }
   ) =
-  { transaction, datums, redeemers } /\ utxoIndex
+  { transaction, datums, redeemers } /\ usedUtxos
 
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.

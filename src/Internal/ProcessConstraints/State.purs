@@ -2,7 +2,7 @@ module Ctl.Internal.ProcessConstraints.State
   ( ConstraintsM
   , ConstraintProcessingState
   , _cpsTransaction
-  , _cpsUtxoIndex
+  , _cpsUsedUtxos
   , _valueSpentBalancesInputs
   , _valueSpentBalancesOutputs
   , _datums
@@ -26,13 +26,11 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Transaction
   , TransactionOutput
   )
-import Ctl.Internal.Cardano.Types.Transaction (Redeemer) as T
 import Ctl.Internal.Cardano.Types.Value (Value, negation, split)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -55,22 +53,22 @@ type ConstraintsM (a :: Type) (b :: Type) =
 -- This is the state for essentially creating an unbalanced transaction.
 type ConstraintProcessingState (a :: Type) =
   { transaction :: Transaction
-  , utxoIndex :: Map TransactionInput TransactionOutput
-  -- The unbalanced transaction that we're building
+  -- ^ The unbalanced transaction that we're building
+  , usedUtxos :: Map TransactionInput TransactionOutput
+  -- ^ All UTxOs that are used in the Tx
   , valueSpentBalancesInputs :: ValueSpentBalances
-  -- Balance of the values given and required for the transaction's inputs
+  -- ^ Balance of the values given and required for the transaction's inputs
   , valueSpentBalancesOutputs :: ValueSpentBalances
-  -- Balance of the values produced and required for the transaction's outputs
+  -- ^ Balance of the values produced and required for the transaction's outputs
   , datums :: Array Datum
-  -- Ordered accumulation of datums we can use to `setScriptDataHash`
+  -- ^ Ordered accumulation of datums we can use to `setScriptDataHash`
   , redeemers :: Array UnindexedRedeemer
-  , mintRedeemers :: Map MintingPolicyHash T.Redeemer
-  -- Mint redeemers with the corresponding minting policy hashes.
-  -- We need to reindex mint redeemers every time we add a new one, since
-  -- indexing relies on policy id ordering.
+  -- ^ Unindexed redeemers that will be attached to the Tx later, on balancing
+  -- stage.
   , lookups :: ScriptLookups a
-  -- ScriptLookups for resolving constraints. Should be treated as an immutable
+  -- ^ ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
+  -- TODO: remove: https://github.com/Plutonomicon/cardano-transaction-lib/issues/843
   , refScriptsUtxoMap ::
       Map TransactionInput Plutus.TransactionOutputWithRefScript
   , costModels :: Costmdls
@@ -80,11 +78,11 @@ _cpsTransaction
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
 _cpsTransaction = prop (SProxy :: SProxy "transaction")
 
-_cpsUtxoIndex
+_cpsUsedUtxos
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Map TransactionInput TransactionOutput)
-_cpsUtxoIndex = prop (SProxy :: SProxy "utxoIndex")
+_cpsUsedUtxos = prop (SProxy :: SProxy "usedUtxos")
 
 _valueSpentBalancesInputs
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
