@@ -238,7 +238,7 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
     reindexedRedeemers <- liftEither $ lmap ReindexRedeemersError $
       indexRedeemers (mkRedeemersContext unbalancedCollTx) transaction.redeemers
     let
-      transaction' = transaction
+      reindexedTransaction = transaction
         { transaction = attachIndexedRedeemers reindexedRedeemers
             unbalancedCollTx
         }
@@ -246,7 +246,7 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
     -- Balance and finalize the transaction:
     runBalancer
       { strategy: selectionStrategy
-      , transaction: transaction'
+      , transaction: reindexedTransaction
       , changeAddress
       , allUtxos
       , utxos: availableUtxos
@@ -393,25 +393,25 @@ runBalancer p = do
         logBalancerState "Balancing change and fees (Stage 2)" p.allUtxos state
         { transaction: evaluatedTx, minFee: newMinFee } <- evaluateTx state
         case newMinFee <= minFee of
-          true ->
+          true -> do
             logTransaction "Balanced transaction (Done)" p.allUtxos
-              evaluatedTx.transaction *>
-              if Set.isEmpty $ evaluatedTx.transaction ^. _body <<< _inputs then
-                do
-                  selectionState <-
-                    performMultiAssetSelection p.strategy leftoverUtxos
-                      (lovelaceValueOf one)
-                  runNextBalancerStep $ state
-                    { transaction = transaction #
-                        _transaction <<< _body <<< _inputs %~ Set.union
-                          (selectedInputs selectionState)
-                    , leftoverUtxos =
-                        selectionState ^. _leftoverUtxos
-                    }
-              else
-                logTransaction "Balanced transaction (Done)" p.allUtxos
-                  transaction.transaction
-                  *> finalizeTransaction evaluatedTx p.allUtxos
+              evaluatedTx.transaction
+            if Set.isEmpty $ evaluatedTx.transaction ^. _body <<< _inputs then
+              do
+                selectionState <-
+                  performMultiAssetSelection p.strategy leftoverUtxos
+                    (lovelaceValueOf one)
+                runNextBalancerStep $ state
+                  { transaction = transaction #
+                      _transaction <<< _body <<< _inputs %~ Set.union
+                        (selectedInputs selectionState)
+                  , leftoverUtxos =
+                      selectionState ^. _leftoverUtxos
+                  }
+            else do
+              logTransaction "Balanced transaction (Done)" p.allUtxos
+                transaction.transaction
+              finalizeTransaction evaluatedTx p.allUtxos
           false ->
             runNextBalancerStep $ state
               { transaction = transaction
@@ -437,13 +437,9 @@ runBalancer p = do
               _body
 
       worker $
-        -- state { changeOutputs = changeOutputs } #
-        -- if requiredValue == mempty then BalanceChangeAndMinFee else PrebalanceTx
-        if requiredValue == mempty then
-          BalanceChangeAndMinFee $ state
-            { changeOutputs = changeOutputs, transaction = transaction }
-        else
-          PrebalanceTx $ state { changeOutputs = changeOutputs }
+        if requiredValue == mempty then BalanceChangeAndMinFee $ state
+          { changeOutputs = changeOutputs, transaction = transaction }
+        else PrebalanceTx $ state { changeOutputs = changeOutputs }
 
     -- | Selects a combination of unspent transaction outputs from the wallet's
     -- | utxo set so that the total input value is sufficient to cover all
