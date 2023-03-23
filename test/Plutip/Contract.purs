@@ -102,6 +102,7 @@ import Ctl.Examples.Helpers
   )
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
+import Ctl.Examples.ManyAssets as ManyAssets
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt1
   , mintingPolicyRdmrInt2
@@ -156,7 +157,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, test)
+import Mote (group, skip, test)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
   ( cip25MetadataFixture1
@@ -178,6 +179,17 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
 suite = do
+  skip $ group "TooManyAssetsInOutput regression - #1441" do
+    test "Mint many assets at once" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1000_000_000
+          , BigInt.fromInt 2000_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice ManyAssets.contract
+
   group "Contract interface" do
     test "Collateral selection: UTxO with lower amount is selected" do
       let

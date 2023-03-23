@@ -62,6 +62,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - New functions in the assertion library to track changes in CIP-30 wallet total balance - see `Contract.Test.Assert` ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Added `start-runtime` npm script to the template, to simplify UX ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Configuration options for Kupo in `buildCtlRuntime` ([`deferDbIndexes`](https://cardanosolutions.github.io/kupo/#section/Getting-started/-defer-db-indexes) and [`pruneUtxo`](https://cardanosolutions.github.io/kupo/#section/Getting-started/-prune-utxo)) ([#1448](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1448))
+- `Contract.JsSdk` module containing helper functions for developers who want to use CTL from JS. See also: [this new guide](./doc/using-from-js.md) ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
+- New [docs for contract environment](./doc/contract-environment.md) ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
 
 ### Changed
 
@@ -78,9 +80,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Test.Blockfrost.executeContractTestsWithBlockfrost` does not require optional `CtlBackendParams` value (it is now constructed from environment variables).
 - `plutip-server` has been moved from [Plutip repo](https://github.com/mlabs-haskell/plutip) to CTL ([#1415](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1415))
 - `UnattachedUnbalancedTx` has been renamed and moved to `Contract.UnbalancedTx.UnbalancedTx`, the old `UnbalancedTx` type has been removed as not needed. `mkUnbalancedTx` function has been moved to `Contract.UnbalancedTx`  ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
+- Default NodeJS stable version is now v18 ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
 
 ### Fixed
 
+- `Unable to convert Slot to POSIXTime` error of `waitUntilSlot` doesn't omit important error details anymore ([#1458](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1458))
 - Performance issues when using Eternl in multi-address mode ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `ConnectToNuFi` now reexported in `Contract.Wallet` ([#1435](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1435))
 - Fix a bug in UTxO selection in `Cip30Mock` (that affected `Cip30Mock` users) ([1437](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1437))

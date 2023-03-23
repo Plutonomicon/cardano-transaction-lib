@@ -9,6 +9,9 @@ This document lists common problems encountered by CTL users and developers.
 - [Bundling-related](#bundling-related)
   - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
+  - [Q: I see `WebAssembly module is included in initial chunk.` error, why?](#q-i-see-webassembly-module-is-included-in-initial-chunk-error-why)
+  - [Q: I see `Cannot use 'import.meta' outside a module` error in the browser, why?](#q-i-see-cannot-use-importmeta-outside-a-module-error-in-the-browser-why)
+  - [Q: I see `Module not found: Error: Can't resolve 'utf-8-validate'` error when bundling, why?](#q-i-see-module-not-found-error-cant-resolve-utf-8-validate-error-when-bundling-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
   - [Q: What are the common reasons behind BalanceInsufficientError?](#q-what-are-the-common-reasons-behind-balanceinsufficienterror)
   - [Q: CTL consumed my collateral](#q-ctl-consumed-my-collateral)
@@ -48,6 +51,20 @@ URL: https://github.com/purescript/package-sets/releases/download/psc-0.14.5-202
 ```
 
 means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago`.
+
+### Q: I see `WebAssembly module is included in initial chunk.` error, why?
+
+You may be trying to use `require` instead of `import` in the app entry point, see [here](./using-from-js.md).
+
+### Q: I see `Cannot use 'import.meta' outside a module` error in the browser, why?
+
+`type="module"` is required in the HTML script import, see [here](./using-from-js.md).
+
+Other possible cause may be that you are trying to run a browser-targeted bundle in NodeJS.
+
+### Q: I see `Module not found: Error: Can't resolve 'utf-8-validate'` error when bundling, why?
+
+You probably forgot to set `BROWSER_RUNTIME=1` for the `webpack` command, see [here](./using-from-js.md).
 
 ## Common Contract execution problems
 
@@ -128,7 +145,7 @@ If you are under wayland you need to add `--ozone-platform=wayland` to the argum
 
 Use only one `ContractEnv` value. They are implicitly created every time `runContract` is called, so avoid using this function if you need to run multiple `Contract`s.
 
-Instead, initialize the environment with `withContractEnv` and pass it to `runContractInEnv`. The former ensures that the environment is properly finalized, but it forces the developer to follow the bracket pattern, which is not always convenient. As an alternative, `mkContractEnv` can be used. If you are initializing a contract environment with `mkContractEnv` only once during the lifeteime of your app, you should be fine, but if you re-create it dynamically and do not finalize it with `stopContractEnv`, it's fairly easy to hit the max websocket connections limit, which is 200 for Firefox, not to mention that it would be forcing the server to keep the connections.
+See [here](./contract-environment.md) for more info.
 
 ### Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'
 

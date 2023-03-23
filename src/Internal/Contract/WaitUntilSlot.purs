@@ -8,6 +8,7 @@ module Ctl.Internal.Contract.WaitUntilSlot
 import Prelude
 
 import Contract.Log (logTrace')
+import Contract.Monad (liftContractE)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
@@ -59,7 +60,8 @@ waitUntilSlot futureSlot = do
           futureTime <-
             liftEffect
               (slotToPosixTime eraSummaries systemStart futureSlot)
-              >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
+              >>= lmap (show >>> append "Unable to convert Slot to POSIXTime: ")
+                >>> liftContractE
           delayTime <- estimateDelayUntil futureTime
           liftAff $ delay delayTime
           let
