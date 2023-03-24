@@ -8,7 +8,8 @@ module Ctl.Internal.Contract.WaitUntilSlot
 import Prelude
 
 import Contract.Log (logTrace')
-import Contract.Monad (liftContractE)
+import Contract.Monad (liftContractE, liftContractM)
+import Contract.Prelude (Maybe(..))
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
@@ -22,6 +23,7 @@ import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
   , getSlotLength
+  , highestSlotInEraSummaries
   , slotToPosixTime
   )
 import Ctl.Internal.Types.Natural (Natural)
@@ -53,17 +55,29 @@ waitUntilSlot futureSlot = do
           eraSummaries <- liftAff $
             queryHandle.getEraSummaries
               >>= either (liftEffect <<< throw <<< show) pure
+          highestSlot <- liftContractM "Can't find any Era summary slot" $
+            highestSlotInEraSummaries eraSummaries
+          let
+            toWait = case futureSlot `sub` highestSlot of
+              Just waitThen ->
+                { waitNow: highestSlot
+                , waitThen
+                }
+              Nothing ->
+                { waitNow: futureSlot
+                , waitThen: wrap $ BigNum.fromInt 0
+                }
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
           getLag eraSummaries systemStart slot >>= logLag slotLengthMs
-          futureTime <-
+          timeToWaitFor <-
             liftEffect
-              (slotToPosixTime eraSummaries systemStart futureSlot)
+              (slotToPosixTime eraSummaries systemStart toWait.waitNow)
               >>= lmap (show >>> append "Unable to convert Slot to POSIXTime: ")
                 >>> liftContractE
-          delayTime <- estimateDelayUntil futureTime
-          liftAff $ delay delayTime
+          timeToWait <- estimateDelayUntil timeToWaitFor
+          liftAff $ delay timeToWait
           let
             -- Repeatedly check current slot until it's greater than or equal to futureAbsSlot
             fetchRepeatedly :: Contract Chain.Tip
@@ -79,12 +93,17 @@ waitUntilSlot futureSlot = do
                 Chain.TipAtGenesis -> do
                   liftAff $ delay retryDelay
                   fetchRepeatedly
-          fetchRepeatedly
+          _ <- fetchRepeatedly
+          waitUntilSlot toWait.waitThen
     Chain.TipAtGenesis -> do
       -- We just retry until the tip moves from genesis
       liftAff $ delay retryDelay
       waitUntilSlot futureSlot
   where
+  sub :: Slot -> Slot -> Maybe Slot
+  sub a b = map wrap <<< BigNum.fromBigInt $
+    BigNum.toBigInt (unwrap a) - BigNum.toBigInt (unwrap b)
+
   logLag :: Number -> Milliseconds -> Contract Unit
   logLag slotLengthMs (Milliseconds lag) = do
     logTrace' $

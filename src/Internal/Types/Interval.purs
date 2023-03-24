@@ -1,32 +1,20 @@
 module Ctl.Internal.Types.Interval
-  ( AbsTime(AbsTime)
+  ( AbsTime(..)
   , Closure
-  , Extended(NegInf, Finite, PosInf)
-  , Interval(EmptyInterval, StartAt, EndAt, AlwaysInterval, FiniteInterval)
-  , LowerBound(LowerBound)
-  , ModTime(ModTime)
-  , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
-  , POSIXTime(POSIXTime)
+  , Extended(..)
+  , Interval(..)
+  , LowerBound(..)
+  , ModTime(..)
+  , OnchainPOSIXTimeRange(..)
+  , POSIXTime(..)
   , POSIXTimeRange
-  , PosixTimeToSlotError
-      ( CannotFindTimeInEraSummaries
-      , PosixTimeBeforeSystemStart
-      , StartTimeGreaterThanTime
-      , EndSlotLessThanSlotOrModNonZero
-      , CannotGetBigIntFromNumber'
-      , CannotGetBigNumFromBigInt'
-      )
-  , RelSlot(RelSlot)
-  , RelTime(RelTime)
+  , PosixTimeToSlotError(..)
+  , RelSlot(..)
+  , RelTime(..)
   , SlotRange
-  , SlotToPosixTimeError
-      ( CannotFindSlotInEraSummaries
-      , StartingSlotGreaterThanSlot
-      , EndTimeLessThanTime
-      , CannotGetBigIntFromNumber
-      )
-  , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
-  , UpperBound(UpperBound)
+  , SlotToPosixTimeError(..)
+  , ToOnChainPosixTimeRangeError(..)
+  , UpperBound(..)
   , after
   , always
   , before
@@ -35,15 +23,19 @@ module Ctl.Internal.Types.Interval
   , findSlotEraSummary
   , findTimeEraSummary
   , from
+  , genFiniteInterval
+  , genLowerRay
+  , genUpperRay
   , getSlotLength
+  , highestSlotInEraSummaries
   , hull
   , intersection
   , isEmpty
   , isEmpty'
   , lowerBound
   , maxSlot
-  , mkFiniteInterval
   , member
+  , mkFiniteInterval
   , never
   , overlaps
   , overlaps'
@@ -58,9 +50,6 @@ module Ctl.Internal.Types.Interval
   , to
   , toOnchainPosixTimeRange
   , upperBound
-  , genFiniteInterval
-  , genLowerRay
-  , genUpperRay
   ) where
 
 import Prelude
@@ -78,6 +67,7 @@ import Aeson
   , partialFiniteNumber
   , (.:)
   )
+import Contract.Prelude (fromMaybe, maximum)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
@@ -724,6 +714,16 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   -- mean converting to milliseconds
   _transTime :: BigInt -> BigInt
   _transTime = (*) $ BigInt.fromInt 1000
+
+highestSlotInEraSummaries
+  :: EraSummaries
+  -> Maybe Slot
+highestSlotInEraSummaries (EraSummaries eraSummaries) =
+  maximum $ map highestMentionedSlot eraSummaries
+  where
+  highestMentionedSlot :: EraSummary -> Slot
+  highestMentionedSlot (EraSummary summary) =
+    _.slot $ unwrap $ fromMaybe summary.start summary.end
 
 -- | Finds the `EraSummary` an `Slot` lies inside (if any).
 findSlotEraSummary
