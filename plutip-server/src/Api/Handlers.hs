@@ -77,7 +77,9 @@ startClusterHandler
     isClusterDown <- liftIO $ isEmptyMVar statusMVar
     unless isClusterDown $ throwError ClusterIsRunningAlready
     -- FIXME: hard-coded path, make it a parameter
-    let cfg = def {clusterWorkingDir = Fixed "/cluster" False, extraConfig = extraConf}
+    -- TODO: it's /cluster/workdir because plutip will try to re-create the working folder
+    -- but /cluster is a mounting point and cannnot be recreated.
+    let cfg = def {clusterWorkingDir = Fixed "/cluster/workdir" False, extraConfig = extraConf}
         keysToGenerate' = map fromIntegral <$> keysToGenerate
     (statusTVar, (clusterEnv, keys)) <- liftIO $ startFundedCluster cfg keysToGenerate' (curry pure)
     liftIO $ putMVar statusMVar statusTVar
