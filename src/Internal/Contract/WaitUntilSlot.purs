@@ -8,8 +8,8 @@ module Ctl.Internal.Contract.WaitUntilSlot
 import Prelude
 
 import Contract.Log (logTrace')
-import Contract.Monad (liftContractE, liftContractM)
-import Contract.Prelude (Maybe(..))
+import Contract.Monad (liftContractE)
+import Contract.Prelude (Either(..), Maybe(..))
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
@@ -22,8 +22,8 @@ import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
+  , findSlotEraSummaryOrHighest
   , getSlotLength
-  , highestSlotInEraSummaries
   , slotToPosixTime
   )
 import Ctl.Internal.Types.Natural (Natural)
@@ -55,15 +55,16 @@ waitUntilSlot futureSlot = do
           eraSummaries <- liftAff $
             queryHandle.getEraSummaries
               >>= either (liftEffect <<< throw <<< show) pure
-          highestSlot <- liftContractM "Can't find any Era summary slot" $
-            highestSlotInEraSummaries eraSummaries
+          eraSummaryLookupResult <-
+            liftContractE
+              $ lmap (show >>> append "Can't find any Era summary slot: ")
+              $ findSlotEraSummaryOrHighest eraSummaries futureSlot
           let
-            toWait = case futureSlot `sub` highestSlot of
-              Just waitThen ->
-                { waitNow: highestSlot
-                , waitThen
-                }
-              Nothing ->
+            toWait = case eraSummaryLookupResult of
+              Left { highestEndSlot }
+                | Just waitThen <- futureSlot `sub` highestEndSlot ->
+                    { waitNow: highestEndSlot, waitThen }
+              _ ->
                 { waitNow: futureSlot
                 , waitThen: wrap $ BigNum.fromInt 0
                 }

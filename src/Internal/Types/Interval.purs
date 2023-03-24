@@ -21,6 +21,7 @@ module Ctl.Internal.Types.Interval
   , beginningOfTime
   , contains
   , findSlotEraSummary
+  , findSlotEraSummaryOrHighest
   , findTimeEraSummary
   , from
   , genFiniteInterval
@@ -67,7 +68,7 @@ import Aeson
   , partialFiniteNumber
   , (.:)
   )
-import Contract.Prelude (fromMaybe, maximum)
+import Contract.Prelude (foldl, fromMaybe, maximum)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
@@ -88,7 +89,7 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , PNil
   )
 import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
-import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.Serialization.Address (Slot(..))
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.BigNum
@@ -107,6 +108,7 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
+import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
@@ -726,6 +728,67 @@ highestSlotInEraSummaries (EraSummaries eraSummaries) =
     _.slot $ unwrap $ fromMaybe summary.start summary.end
 
 -- | Finds the `EraSummary` an `Slot` lies inside (if any).
+findSlotEraSummaryOrHighest
+  :: EraSummaries
+  -> Slot -- Slot we are testing and trying to find inside `EraSummaries`
+  -> Either
+       SlotToPosixTimeError
+       ( Either
+           { summary :: EraSummary
+           , highestEndSlot :: Slot
+           }
+           EraSummary
+       )
+findSlotEraSummaryOrHighest (EraSummaries eraSummaries) slot =
+  note (CannotFindSlotInEraSummaries slot)
+    $ interpretResult <<< lookup
+        <$> Array.uncons eraSummaries
+
+  where
+  interpretResult = case _ of
+    { wrongSlot: Just highestEndSlot, summary } ->
+      Left { highestEndSlot, summary }
+    { summary } ->
+      Right summary
+
+  lookup unsonsed =
+    foldl withElem (lookInSummary unsonsed.head) unsonsed.tail
+
+  slotNumber :: Slot -> BigInt
+  slotNumber = unwrap >>> BigNum.toBigInt
+
+  withElem
+    :: { wrongSlot :: Maybe Slot, summary :: EraSummary }
+    -> EraSummary
+    -> { wrongSlot :: Maybe Slot, summary :: EraSummary }
+  withElem found@{ wrongSlot: Nothing } _ = found
+  withElem acc@{ wrongSlot: Just highestSlot } summary =
+    case lookInSummary summary of
+      { wrongSlot: Just wrongSlot }
+        | wrongSlot <= highestSlot -> acc
+      lookupResult -> lookupResult
+
+  -- Storing slot to compare and find highest, (Nothing /\ _) means "found"
+  lookInSummary
+    :: EraSummary
+    -> { wrongSlot :: Maybe Slot
+       , summary :: EraSummary
+       }
+  lookInSummary summary@(EraSummary { start, end }) =
+    let
+      aboveLowerBound =
+        slotNumber (unwrap start).slot <= slotNumber slot
+      wrongSlot =
+        case map unwrap end of
+          Just { slot: endSlot }
+            | not aboveLowerBound
+            , not $ slotNumber endSlot <= slotNumber slot ->
+                Just endSlot
+          _ -> Nothing -- right summary has been found
+    in
+      { wrongSlot, summary }
+
+-- | Finds the `EraSummary` an `Slot` lies inside (if any).
 findSlotEraSummary
   :: EraSummaries
   -> Slot -- Slot we are testing and trying to find inside `EraSummaries`
@@ -733,14 +796,14 @@ findSlotEraSummary
 findSlotEraSummary (EraSummaries eraSummaries) slot =
   note (CannotFindSlotInEraSummaries slot) $ find pred eraSummaries
   where
-  biSlot :: BigInt
-  biSlot = BigNum.toBigInt $ unwrap slot
+  slotNumber :: Slot -> BigInt
+  slotNumber = unwrap >>> BigNum.toBigInt
 
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    BigNum.toBigInt (unwrap (unwrap start).slot) <= biSlot
+    slotNumber (unwrap start).slot <= slotNumber slot
       && maybe true
-        ((<) biSlot <<< BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
+        ((_ < slotNumber slot) <<< slotNumber <<< _.slot <<< unwrap)
         end
 
 -- This doesn't need to be exported but we can do it for tests.
