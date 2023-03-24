@@ -67,6 +67,8 @@ waitUntilSlot futureSlot = do
                 { waitNow: futureSlot
                 , waitThen: wrap $ BigNum.fromInt 0
                 }
+          logTrace' $
+            "waitUntilSlot: toWait: " <> show toWait
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
