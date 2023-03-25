@@ -63,16 +63,19 @@ waitUntilSlot futureSlot = do
               $ lmap (show >>> append "Can't find any Era summary slot: ")
               $ findSlotEraSummaryOrHighest eraSummaries futureSlot
           let
+            asSlot = BigNum.fromInt >>> wrap
             toWait = case eraSummaryLookupResult of
               Left { highestEndSlot }
-                | Just waitThen <- futureSlot `sub` highestEndSlot ->
-                    { waitNow: highestEndSlot, waitThen }
+                | Just waitThen <- futureSlot `sub` highestEndSlot
+                , Just waitNow <- highestEndSlot `sub` asSlot 1 ->
+                    { waitNow, waitThen }
               _ ->
                 { waitNow: futureSlot
-                , waitThen: wrap $ BigNum.fromInt 0
+                , waitThen: asSlot 0
                 }
           logTrace' $
-            "waitUntilSlot: toWait: " <> show toWait
+            "waitUntilSlot: toWait: " <> show toWait <> "  " <> show
+              eraSummaryLookupResult
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
