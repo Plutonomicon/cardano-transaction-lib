@@ -52,9 +52,12 @@ waitUntilSlot futureSlot = do
       | slot >= futureSlot -> pure tip
       | otherwise -> do
           { systemStart } <- asks _.ledgerConstants
-          eraSummaries <- liftAff $
-            queryHandle.getEraSummaries
-              >>= either (liftEffect <<< throw <<< show) pure
+          let
+            getEraSummaries =
+              liftAff $
+                queryHandle.getEraSummaries
+                  >>= either (liftEffect <<< throw <<< show) pure
+          eraSummaries <- getEraSummaries
           eraSummaryLookupResult <-
             liftContractE
               $ lmap (show >>> append "Can't find any Era summary slot: ")
@@ -90,7 +93,8 @@ waitUntilSlot futureSlot = do
                   | currentSlot_ >= futureSlot -> pure currentTip
                   | otherwise -> do
                       liftAff $ delay $ Milliseconds slotLengthMs
-                      getLag eraSummaries systemStart currentSlot_
+                      eraSummaries' <- getEraSummaries
+                      getLag eraSummaries' systemStart currentSlot_
                         >>= logLag slotLengthMs
                       fetchRepeatedly
                 Chain.TipAtGenesis -> do
