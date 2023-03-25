@@ -8,8 +8,8 @@ module Ctl.Internal.Contract.WaitUntilSlot
 import Prelude
 
 import Contract.Log (logTrace')
-import Contract.Monad (liftContractE)
-import Contract.Prelude (Either(..), Maybe(..))
+import Contract.Monad (liftContractE, liftContractM)
+import Contract.Prelude (Maybe(..), maybe)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
@@ -22,8 +22,8 @@ import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , findSlotEraSummary
-  , findSlotEraSummaryOrHighest
   , getSlotLength
+  , highestEndSlotInEraSummaries
   , slotToPosixTime
   )
 import Ctl.Internal.Types.Natural (Natural)
@@ -58,24 +58,22 @@ waitUntilSlot futureSlot = do
                 queryHandle.getEraSummaries
                   >>= either (liftEffect <<< throw <<< show) pure
           eraSummaries <- getEraSummaries
-          eraSummaryLookupResult <-
-            liftContractE
-              $ lmap (show >>> append "Can't find any Era summary slot: ")
-              $ findSlotEraSummaryOrHighest eraSummaries futureSlot
+          highestSlot <- liftContractM "Can't find any Era summary" $
+            highestEndSlotInEraSummaries eraSummaries
           let
-            asSlot = BigNum.fromInt >>> wrap
-            toWait = case eraSummaryLookupResult of
-              Left { highestEndSlot }
+            toWait = case highestSlot of
+              Just highestEndSlot
                 | Just waitThen <- futureSlot `sub` highestEndSlot
-                , Just waitNow <- highestEndSlot `sub` asSlot 1 ->
-                    { waitNow, waitThen }
+                , Just waitNow <-
+                    highestEndSlot `sub` wrap (BigNum.fromInt 1) ->
+                    { waitNow, waitThen: Just waitThen }
               _ ->
                 { waitNow: futureSlot
-                , waitThen: asSlot 0
+                , waitThen: Nothing
                 }
           logTrace' $
             "waitUntilSlot: toWait: " <> show toWait <> "  " <> show
-              eraSummaryLookupResult
+              highestSlot
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
@@ -104,7 +102,7 @@ waitUntilSlot futureSlot = do
                   liftAff $ delay retryDelay
                   fetchRepeatedly
           _ <- fetchRepeatedly
-          waitUntilSlot toWait.waitThen
+          maybe (pure tip) waitUntilSlot toWait.waitThen
     Chain.TipAtGenesis -> do
       -- We just retry until the tip moves from genesis
       liftAff $ delay retryDelay

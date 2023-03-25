@@ -21,14 +21,13 @@ module Ctl.Internal.Types.Interval
   , beginningOfTime
   , contains
   , findSlotEraSummary
-  , findSlotEraSummaryOrHighest
   , findTimeEraSummary
   , from
   , genFiniteInterval
   , genLowerRay
   , genUpperRay
   , getSlotLength
-  , highestSlotInEraSummaries
+  , highestEndSlotInEraSummaries
   , hull
   , intersection
   , isEmpty
@@ -68,7 +67,7 @@ import Aeson
   , partialFiniteNumber
   , (.:)
   )
-import Contract.Prelude (foldl, fromMaybe, maximum)
+import Contract.Prelude (maximum)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
@@ -108,7 +107,6 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
-import Data.Array as Array
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
@@ -717,76 +715,13 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   _transTime :: BigInt -> BigInt
   _transTime = (*) $ BigInt.fromInt 1000
 
-highestSlotInEraSummaries
+highestEndSlotInEraSummaries
   :: EraSummaries
-  -> Maybe Slot
-highestSlotInEraSummaries (EraSummaries eraSummaries) =
-  maximum $ map highestMentionedSlot eraSummaries
-  where
-  highestMentionedSlot :: EraSummary -> Slot
-  highestMentionedSlot (EraSummary summary) =
-    _.slot $ unwrap $ fromMaybe summary.start summary.end
-
--- | Finds the `EraSummary` an `Slot` lies inside (if any).
-findSlotEraSummaryOrHighest
-  :: EraSummaries
-  -> Slot -- Slot we are testing and trying to find inside `EraSummaries`
-  -> Either
-       SlotToPosixTimeError
-       ( Either
-           { summary :: EraSummary
-           , highestEndSlot :: Slot
-           }
-           EraSummary
-       )
-findSlotEraSummaryOrHighest (EraSummaries eraSummaries) slot =
-  note (CannotFindSlotInEraSummaries slot)
-    $ interpretResult <<< lookup
-        <$> Array.uncons eraSummaries
-
-  where
-  interpretResult = case _ of
-    { wrongSlot: Just highestEndSlot, summary } ->
-      Left { highestEndSlot, summary }
-    { summary } ->
-      Right summary
-
-  lookup unsonsed =
-    foldl withElem (lookInSummary unsonsed.head) unsonsed.tail
-
-  slotNumber :: Slot -> BigInt
-  slotNumber = unwrap >>> BigNum.toBigInt
-
-  withElem
-    :: { wrongSlot :: Maybe Slot, summary :: EraSummary }
-    -> EraSummary
-    -> { wrongSlot :: Maybe Slot, summary :: EraSummary }
-  withElem found@{ wrongSlot: Nothing } _ = found
-  withElem acc@{ wrongSlot: Just highestSlot } summary =
-    case lookInSummary summary of
-      { wrongSlot: Just wrongSlot }
-        | wrongSlot <= highestSlot -> acc
-      lookupResult -> lookupResult
-
-  -- Storing slot to compare and find highest, (Nothing /\ _) means "found"
-  lookInSummary
-    :: EraSummary
-    -> { wrongSlot :: Maybe Slot
-       , summary :: EraSummary
-       }
-  lookInSummary summary@(EraSummary { start, end }) =
-    let
-      aboveLowerBound =
-        slotNumber (unwrap start).slot <= slotNumber slot
-      wrongSlot =
-        case map unwrap end of
-          Just { slot: endSlot }
-            | aboveTheEnd <- slotNumber slot > slotNumber endSlot
-            , not aboveLowerBound || aboveTheEnd ->
-                Just endSlot
-          _ -> Nothing -- right summary has been found
-    in
-      { wrongSlot, summary }
+  -> Maybe (Maybe Slot)
+highestEndSlotInEraSummaries =
+  unwrap
+    >>> map (unwrap >>> _.end >>> map (unwrap >>> _.slot))
+    >>> maximum
 
 -- | Finds the `EraSummary` an `Slot` lies inside (if any).
 findSlotEraSummary
