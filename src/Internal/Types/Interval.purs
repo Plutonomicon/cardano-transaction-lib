@@ -803,7 +803,7 @@ findSlotEraSummary (EraSummaries eraSummaries) slot =
   pred (EraSummary { start, end }) =
     slotNumber (unwrap start).slot <= slotNumber slot
       && maybe true
-        ((_ < slotNumber slot) <<< slotNumber <<< _.slot <<< unwrap)
+        ((slotNumber slot < _) <<< slotNumber <<< _.slot <<< unwrap)
         end
 
 -- This doesn't need to be exported but we can do it for tests.
