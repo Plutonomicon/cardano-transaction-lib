@@ -781,8 +781,8 @@ findSlotEraSummaryOrHighest (EraSummaries eraSummaries) slot =
       wrongSlot =
         case map unwrap end of
           Just { slot: endSlot }
-            | not aboveLowerBound
-            , not $ slotNumber endSlot <= slotNumber slot ->
+            | aboveTheEnd <- slotNumber slot > slotNumber endSlot
+            , not aboveLowerBound || aboveTheEnd ->
                 Just endSlot
           _ -> Nothing -- right summary has been found
     in
