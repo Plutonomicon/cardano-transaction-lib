@@ -20,7 +20,7 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
-import Contract.Chain (currentTime)
+import Contract.Chain (currentTime, waitNSlots)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Metadata
@@ -29,6 +29,7 @@ import Contract.Metadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Contract.Monad (Contract, liftContractE, liftContractM, liftedE, liftedM)
+import Contract.Numeric.Natural as Natural
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -191,6 +192,14 @@ suite = do
         withKeyWallet alice ManyAssets.contract
 
   group "Contract interface" do
+    -- NOTE: plutip timeout must be increased for this test to pass.
+    skip $ test "Can wait for many slots (30_000 ms)" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000 ]
+      withWallets distribution \_ ->
+        void $ waitNSlots $ Natural.fromInt' (100_000 `div` 100) -- meaning 1 slot ~ 100 ms
+
     test "Collateral selection: UTxO with lower amount is selected" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs
