@@ -715,6 +715,8 @@ slotToPosixTime eraSummaries sysStart slot = runExceptT do
   _transTime :: BigInt -> BigInt
   _transTime = (*) $ BigInt.fromInt 1000
 
+-- | Finds the highest era end slot in `EraSummaries` (if any).
+-- | `Nothing :: Maybe Slot` - is the highest slot that can ever be found.
 highestEndSlotInEraSummaries
   :: EraSummaries
   -> Maybe (Maybe Slot)
