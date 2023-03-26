@@ -54,9 +54,8 @@ waitUntilSlot futureSlot = do
           { systemStart } <- asks _.ledgerConstants
           let
             getEraSummaries =
-              liftAff $
-                queryHandle.getEraSummaries
-                  >>= either (liftEffect <<< throw <<< show) pure
+              liftAff queryHandle.getEraSummaries
+                >>= liftContractE
           eraSummaries <- getEraSummaries
           highestSlot <- liftContractM "Can't find any Era summary" $
             highestEndSlotInEraSummaries eraSummaries
@@ -74,7 +73,8 @@ waitUntilSlot futureSlot = do
           logTrace' $
             "waitUntilSlot: toWait: " <> show toWait <> "  " <> show
               highestSlot
-          slotLengthMs <- map getSlotLength $ liftEither
+          slotLengthMs <- map getSlotLength
+            $ liftContractE
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
           getLag eraSummaries systemStart slot >>= logLag slotLengthMs
