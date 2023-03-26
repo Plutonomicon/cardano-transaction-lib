@@ -82,7 +82,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Default NodeJS stable version is now v18 ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
 
 ### Fixed
-
+- `waitUntilSlot` and functions based on it now does not fail if slot to wait for is not in bounds of any existing era and is in future. ([#1466](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1466))
 - `Unable to convert Slot to POSIXTime` error of `waitUntilSlot` doesn't omit important error details anymore ([#1458](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1458))
 - Performance issues when using Eternl in multi-address mode ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `ConnectToNuFi` now reexported in `Contract.Wallet` ([#1435](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1435))
