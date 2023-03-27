@@ -97,9 +97,6 @@ mkCip30WalletAff
   -> Aff Cip30Wallet
 mkCip30WalletAff walletName enableWallet = do
   wallet <- toAffE enableWallet
-  -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral wallet) do
-    liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
     , getNetworkId
