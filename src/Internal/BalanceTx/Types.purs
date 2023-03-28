@@ -2,7 +2,6 @@ module Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , BalanceTxMContext
   , FinalizedTransaction(FinalizedTransaction)
-  , PrebalancedTransaction(PrebalancedTransaction)
   , askCip30Wallet
   , askCoinsPerUtxoUnit
   , askCostModelsForLanguages
@@ -31,7 +30,6 @@ import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Scripts (Language)
 import Ctl.Internal.Wallet (Cip30Wallet, cip30Wallet)
 import Data.Either (Either)
@@ -98,12 +96,4 @@ derive instance Newtype FinalizedTransaction _
 derive newtype instance Eq FinalizedTransaction
 
 instance Show FinalizedTransaction where
-  show = genericShow
-
-newtype PrebalancedTransaction = PrebalancedTransaction UnattachedUnbalancedTx
-
-derive instance Generic PrebalancedTransaction _
-derive instance Newtype PrebalancedTransaction _
-
-instance Show PrebalancedTransaction where
   show = genericShow

@@ -469,7 +469,6 @@ mkServiceWebSocket lens url continue = do
         lens.logger Debug $
           lens.serviceName <> " WebSocket error (" <> err <>
             "). Reconnecting..."
-      -- continue $ Right (ws /\ dispatcher /\ pending)
       continue $ Right (lens.typedWebSocket ws)
   pure $ Canceler $ \err -> liftEffect do
     _wsFinalize ws

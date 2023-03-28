@@ -50,6 +50,7 @@ import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
 import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
+import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -59,7 +60,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , encodeDistribution
   , keyWallets
   )
-import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx, unspentOutputs)
+import Ctl.Internal.Types.ScriptLookups (unspentOutputs)
 import Ctl.Internal.Types.TxConstraints
   ( TxConstraint(MustPayToPubKeyAddress)
   , TxConstraints
@@ -381,7 +382,8 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
+        unbalancedTx <- liftedE $ mkUnbalancedTxImpl (lookups :: _ Void)
+          constraints
         balancedTx <- liftedE $ balanceTx unbalancedTx
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
