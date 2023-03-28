@@ -139,8 +139,6 @@ Our default [WebPack config](../webpack.config.js) uses `BROWSER_RUNTIME` enviro
     }),
 ```
 
-The reason why we are tied to WebPack is that it is one of the few bundlers that support async WASM imports.
-
 There's [a claim that Vite bundler can also be used](https://github.com/Plutonomicon/cardano-transaction-lib/issues/79#issuecomment-1257036068), although we don't officially support this method.
 
 ### Calling in the browser
