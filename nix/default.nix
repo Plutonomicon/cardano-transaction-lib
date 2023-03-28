@@ -20,7 +20,7 @@
 , spagoPackages ? "${src}/spago-packages.nix"
   # Configuration that will be used to generate a `devShell` for the project
 , shell ? { }
-  # Path to submodule locations that needs to be copied when making node env
+  # Paths to submodule locations that need to be copied when constructing the NodeJS environment
 , submodules ? [ ]
 , ...
 }:
