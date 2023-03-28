@@ -25,7 +25,13 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer))
+import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Redeemer(Redeemer)
+  , Transaction
+  , _redeemers
+  , _witnessSet
+  )
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
@@ -41,11 +47,7 @@ import Ctl.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   ) as Ogmios
-import Ctl.Internal.ReindexRedeemers (ReindexErrors)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
-import Ctl.Internal.Types.ScriptLookups
-  ( UnattachedUnbalancedTx(UnattachedUnbalancedTx)
-  )
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
@@ -56,6 +58,7 @@ import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Function (applyN)
 import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
+import Data.Lens (non, (^.))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -63,8 +66,6 @@ import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
 import Data.String.Common (joinWith, split) as String
 import Data.String.Utils (padEnd)
-import Data.Tuple (snd)
-import Data.Tuple.Nested (type (/\), (/\))
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
@@ -75,9 +76,9 @@ data BalanceTxError
   | CouldNotGetUtxos
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError
-  | ExUnitsEvaluationFailed UnattachedUnbalancedTx Ogmios.TxEvaluationFailure
+  | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
   | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
-  | ReindexRedeemersError ReindexErrors
+  | ReindexRedeemersError UnindexedRedeemer
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
 
@@ -168,18 +169,19 @@ number ary = freeze (foldl go [] ary)
 -- | Exported to allow testing, use `Test.Ogmios.Aeson.printEvaluateTxFailures`
 -- | to visually verify the printing of errors without a context on fixtures.
 printTxEvaluationFailure
-  :: UnattachedUnbalancedTx -> Ogmios.TxEvaluationFailure -> String
-printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
+  :: Transaction -> Ogmios.TxEvaluationFailure -> String
+printTxEvaluationFailure transaction e =
   runPrettyString $ case e of
     Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
   where
   lookupRedeemerPointer
-    :: Ogmios.RedeemerPointer -> Maybe (Redeemer /\ Maybe TransactionInput)
-  lookupRedeemerPointer ptr = flip find redeemersTxIns
-    $ \(Redeemer rdmr /\ _) -> rdmr.tag == ptr.redeemerTag && rdmr.index ==
-        Natural.toBigInt ptr.redeemerIndex
+    :: Ogmios.RedeemerPointer -> Maybe Redeemer
+  lookupRedeemerPointer ptr =
+    flip find (transaction ^. _witnessSet <<< _redeemers <<< non [])
+      $ \(Redeemer { index, tag }) -> tag == ptr.redeemerTag && index ==
+          Natural.toBigInt ptr.redeemerIndex
 
   printRedeemerPointer :: Ogmios.RedeemerPointer -> PrettyString
   printRedeemerPointer ptr =
@@ -195,9 +197,8 @@ printTxEvaluationFailure (UnattachedUnbalancedTx { redeemersTxIns }) e =
   printRedeemerDetails ptr =
     let
       mbRedeemerTxIn = lookupRedeemerPointer ptr
-      mbData = mbRedeemerTxIn <#> \(Redeemer r /\ _) -> "Redeemer: " <> show
-        r.data
-      mbTxIn = (mbRedeemerTxIn >>= snd) <#> \txIn -> "Input: " <> show txIn
+      mbData = mbRedeemerTxIn <#> \(Redeemer r) -> "Redeemer: " <> show r.data
+      mbTxIn = mbRedeemerTxIn <#> \txIn -> "Input: " <> show txIn
     in
       foldMap line $ Array.catMaybes [ mbData, mbTxIn ]
 

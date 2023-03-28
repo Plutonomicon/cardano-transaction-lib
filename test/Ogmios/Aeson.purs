@@ -18,9 +18,8 @@ import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (bimap, lmap)
 import Data.Either (either, hush)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_, traverse)
@@ -133,15 +132,7 @@ printEvaluateTxFailures = launchAff_ do
     let
       response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
       mbFailure = response >>= unwrap >>> either pure (const Nothing)
-    for_ mbFailure
-      ( log <<< printTxEvaluationFailure
-          ( wrap
-              { datums: []
-              , redeemersTxIns: []
-              , unbalancedTx: wrap { transaction: mempty, utxoIndex: Map.empty }
-              }
-          )
-      )
+    for_ mbFailure (log <<< printTxEvaluationFailure mempty)
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do

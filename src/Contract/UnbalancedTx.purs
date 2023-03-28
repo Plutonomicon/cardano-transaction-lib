@@ -1,6 +1,6 @@
 -- | A module for creating off-chain script lookups, and an unbalanced
 -- | transaction.
-module Contract.ScriptLookups
+module Contract.UnbalancedTx
   ( mkUnbalancedTx
   , mkUnbalancedTxM
   , module X
@@ -53,34 +53,13 @@ import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups
   )
-import Ctl.Internal.Types.ScriptLookups
-  ( ScriptLookups(ScriptLookups)
-  , datum
-  , generalise
-  , mintingPolicy
-  , mintingPolicyM
-  , ownPaymentPubKeyHash
-  , ownPaymentPubKeyHashM
-  , ownStakePubKeyHash
-  , ownStakePubKeyHashM
-  , typedValidatorLookups
-  , typedValidatorLookupsM
-  -- , paymentPubKeyM
-  , unspentOutputs
-  , unspentOutputsM
-  -- , unsafePaymentPubKey
-  , validator
-  , validatorM
-  ) as X
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.TypedValidator (class ValidatorTypes)
 import Data.Either (Either, hush)
 import Data.Maybe (Maybe)
 
 -- | Create an `UnbalancedTx` given `ScriptLookups` and
--- | `TxConstraints`. You will probably want to use this version as it returns
--- | datums and redeemers that require attaching (and maybe reindexing) in
--- | a separate call. In particular, this should be called in conjuction with
+-- | `TxConstraints`. This should be called in conjuction with
 -- | `balanceTx` and  `signTransaction`.
 mkUnbalancedTx
   :: forall (validator :: Type) (datum :: Type)
@@ -98,6 +77,8 @@ mkUnbalancedTx
 mkUnbalancedTx = PC.mkUnbalancedTxImpl
 
 -- | Same as `mkUnbalancedTx` but hushes the error.
+-- TODO: remove, reason: it's trivial
+-- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1047
 mkUnbalancedTxM
   :: forall (validator :: Type) (datum :: Type)
        (redeemer :: Type)

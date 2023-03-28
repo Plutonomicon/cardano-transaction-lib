@@ -17,12 +17,9 @@ module Contract.Transaction
   , module OutputDatum
   , module PTransaction
   , module PTransactionUnspentOutput
-  , module ReindexRedeemersExport
-  , module ScriptLookups
   , module ScriptRef
   , module Scripts
   , module Transaction
-  , module UnbalancedTx
   , module X
   , signTransaction
   , submit
@@ -78,6 +75,7 @@ import Ctl.Internal.BalanceTx.Error
   , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
   ) as BalanceTxError
+import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -200,10 +198,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   , mkTxUnspentOut
   ) as PTransactionUnspentOutput
 import Ctl.Internal.Plutus.Types.Value (Coin)
-import Ctl.Internal.ReindexRedeemers
-  ( ReindexErrors(CannotGetTxOutRefIndexForRedeemer)
-  ) as ReindexRedeemersExport
-import Ctl.Internal.ReindexRedeemers (reindexSpentScriptRedeemers) as X
+import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -217,34 +212,7 @@ import Ctl.Internal.Types.RewardAddress
   , rewardAddressToBech32
   , rewardAddressToBytes
   ) as X
-import Ctl.Internal.Types.ScriptLookups
-  ( MkUnbalancedTxError
-      ( TypeCheckFailed
-      , ModifyTx
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , DatumNotFound
-      , MintingPolicyNotFound
-      , MintingPolicyHashNotCurrencySymbol
-      , CannotMakeValue
-      , ValidatorHashNotFound
-      , OwnPubKeyAndStakeKeyMissing
-      , TypedValidatorMissing
-      , DatumWrongHash
-      , CannotQueryDatum
-      , CannotHashDatum
-      , CannotConvertPOSIXTimeRange
-      , CannotGetMintingPolicyScriptIndex
-      , CannotGetValidatorHashFromAddress
-      , TypedTxOutHasNoDatumHash
-      , CannotHashMintingPolicy
-      , CannotHashValidator
-      , CannotConvertPaymentPubKeyHash
-      , CannotSatisfyAny
-      )
-  , ScriptLookups
-  ) as ScriptLookups
-import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
+import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , plutusV1Script
@@ -259,12 +227,6 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.UnbalancedTransaction
-  ( UnbalancedTx(UnbalancedTx)
-  , _transaction
-  , _utxoIndex
-  , emptyUnbalancedTx
-  ) as UnbalancedTx
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
@@ -282,6 +244,7 @@ import Data.Either (Either, hush)
 import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
+import Data.Map (Map)
 import Data.Map (empty, insert) as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
@@ -392,7 +355,7 @@ withSingleTransaction prepare extract utx action =
 -- | Errors will be thrown.
 withBalancedTxsWithConstraints
   :: forall (a :: Type)
-   . Array (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
+   . Array (UnbalancedTx /\ BalanceTxConstraintsBuilder)
   -> (Array FinalizedTransaction -> Contract a)
   -> Contract a
 withBalancedTxsWithConstraints =
@@ -402,7 +365,7 @@ withBalancedTxsWithConstraints =
 -- | constraints.
 withBalancedTxs
   :: forall (a :: Type)
-   . Array UnattachedUnbalancedTx
+   . Array UnbalancedTx
   -> (Array FinalizedTransaction -> Contract a)
   -> Contract a
 withBalancedTxs = withTransactions balanceTxs unwrap
@@ -415,7 +378,7 @@ withBalancedTxs = withTransactions balanceTxs unwrap
 -- | Errors will be thrown.
 withBalancedTxWithConstraints
   :: forall (a :: Type)
-   . UnattachedUnbalancedTx
+   . UnbalancedTx
   -> BalanceTxConstraintsBuilder
   -> (FinalizedTransaction -> Contract a)
   -> Contract a
@@ -427,24 +390,39 @@ withBalancedTxWithConstraints unbalancedTx =
 -- | constraints.
 withBalancedTx
   :: forall (a :: Type)
-   . UnattachedUnbalancedTx
+   . UnbalancedTx
   -> (FinalizedTransaction -> Contract a)
   -> Contract a
 withBalancedTx = withSingleTransaction balanceAndLock unwrap
 
--- | Attempts to balance an `UnattachedUnbalancedTx` using the specified
+unUnbalancedTx
+  :: UnbalancedTx -> UnindexedTx /\ Map TransactionInput TransactionOutput
+unUnbalancedTx
+  ( UnbalancedTx
+      { transaction
+      , datums
+      , redeemers
+      , usedUtxos
+      }
+  ) =
+  { transaction, datums, redeemers } /\ usedUtxos
+
+-- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
 balanceTxWithConstraints
-  :: UnattachedUnbalancedTx
+  :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints =
-  BalanceTx.balanceTxWithConstraints
+balanceTxWithConstraints tx =
+  let
+    tx' /\ ix = unUnbalancedTx tx
+  in
+    BalanceTx.balanceTxWithConstraints tx' ix
 
 -- | Same as `balanceTxWithConstraints`, but uses the default balancer
 -- | constraints.
 balanceTx
-  :: UnattachedUnbalancedTx
+  :: UnbalancedTx
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTx = flip balanceTxWithConstraints mempty
 
@@ -454,7 +432,7 @@ balanceTx = flip balanceTxWithConstraints mempty
 balanceTxsWithConstraints
   :: forall (t :: Type -> Type)
    . Traversable t
-  => t (UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder)
+  => t (UnbalancedTx /\ BalanceTxConstraintsBuilder)
   -> Contract (t FinalizedTransaction)
 balanceTxsWithConstraints unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLockWithConstraints unbalancedTxs
@@ -465,26 +443,26 @@ balanceTxsWithConstraints unbalancedTxs =
       withUsedTxOuts <<< unlockTransactionInputs <<< uutxToTx <<< fst
     throwError e
 
-  uutxToTx :: UnattachedUnbalancedTx -> Transaction
-  uutxToTx = _.transaction <<< unwrap <<< _.unbalancedTx <<< unwrap
+  uutxToTx :: UnbalancedTx -> Transaction
+  uutxToTx = _.transaction <<< unwrap
 
 -- | Same as `balanceTxsWithConstraints`, but uses the default balancer
 -- | constraints.
 balanceTxs
   :: forall (t :: Type -> Type)
    . Traversable t
-  => t UnattachedUnbalancedTx
+  => t UnbalancedTx
   -> Contract (t FinalizedTransaction)
 balanceTxs = balanceTxsWithConstraints <<< map (flip Tuple mempty)
 
--- | Attempts to balance an `UnattachedUnbalancedTx` hushing the error.
+-- | Attempts to balance an `UnbalancedTx` hushing the error.
 balanceTxM
-  :: UnattachedUnbalancedTx
+  :: UnbalancedTx
   -> Contract (Maybe FinalizedTransaction)
 balanceTxM = map hush <<< balanceTx
 
 balanceAndLockWithConstraints
-  :: UnattachedUnbalancedTx /\ BalanceTxConstraintsBuilder
+  :: UnbalancedTx /\ BalanceTxConstraintsBuilder
   -> Contract FinalizedTransaction
 balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
   balancedTx <-
@@ -494,7 +472,7 @@ balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
   pure balancedTx
 
 balanceAndLock
-  :: UnattachedUnbalancedTx
+  :: UnbalancedTx
   -> Contract FinalizedTransaction
 balanceAndLock = balanceAndLockWithConstraints <<< flip Tuple mempty
 
@@ -555,7 +533,7 @@ submitTxFromConstraintsReturningFee
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
-  => ScriptLookups.ScriptLookups validator
+  => ScriptLookups validator
   -> TxConstraints redeemer datum
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
@@ -571,7 +549,7 @@ submitTxFromConstraints
    . ValidatorTypes validator datum redeemer
   => IsData datum
   => IsData redeemer
-  => ScriptLookups.ScriptLookups validator
+  => ScriptLookups validator
   -> TxConstraints redeemer datum
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints =
