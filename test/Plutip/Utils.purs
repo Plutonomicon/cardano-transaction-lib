@@ -13,13 +13,10 @@ import Contract.Transaction
   , submit
   )
 import Control.Monad.Reader (asks)
-import Ctl.Internal.Types.UsedTxOuts (TxOutRefCache)
-import Data.Newtype (unwrap)
+import Ctl.Internal.UsedTxOuts (UsedTxOuts)
+import Ctl.Internal.UsedTxOuts as UsedTxOuts
 import Effect.Class (liftEffect)
-import Effect.Ref as Ref
 
--- TODO: Get everything we can about a tx and confirm them
--- eg. outputs, metadata, datums, scripts
 submitAndLog
   :: BalancedSignedTransaction -> Contract Unit
 submitAndLog bsTx = do
@@ -28,7 +25,6 @@ submitAndLog bsTx = do
   awaitTxConfirmed txId
   logInfo' $ "Confirmed Tx ID: " <> show txId
 
-getLockedInputs :: Contract TxOutRefCache
-getLockedInputs = do
-  cache <- asks _.usedTxOuts
-  liftEffect $ Ref.read $ unwrap cache
+getLockedInputs :: Contract UsedTxOuts
+getLockedInputs =
+  liftEffect <<< UsedTxOuts.get =<< asks _.storage

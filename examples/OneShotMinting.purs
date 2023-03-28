@@ -106,7 +106,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   let checks = mkChecks (cs /\ tn /\ one)
   void $ runChecks checks $ lift do
     { txHash, txFinalFee } <-
-      submitTxFromConstraintsReturningFee lookups constraints
+      submitTxFromConstraintsReturningFee lookups constraints mempty
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"

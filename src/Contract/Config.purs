@@ -28,9 +28,7 @@ module Contract.Config
   ) where
 
 import Contract.Address (NetworkId(MainnetId, TestnetId))
-import Ctl.Internal.BalanceTx.Sync
-  ( disabledSynchronizationParams
-  ) as X
+import Ctl.Internal.BalanceTx.Sync (disabledSynchronizationParams) as X
 import Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
@@ -68,6 +66,7 @@ import Ctl.Internal.ServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
   )
+import Ctl.Internal.UsedTxOuts.Storage (Storage, mkRefStorage) as X
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
@@ -103,6 +102,7 @@ testnetConfig =
   , customLogger: Nothing
   , suppressLogs: false
   , hooks: emptyHooks
+  , storageSpec: Nothing
   , timeParams: defaultTimeParams
   , synchronizationParams: defaultSynchronizationParams
   }

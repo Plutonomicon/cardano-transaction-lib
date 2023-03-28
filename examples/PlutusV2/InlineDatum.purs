@@ -77,7 +77,7 @@ payToCheckDatumIsInline vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxFromConstraints lookups constraints
+  submitTxFromConstraints lookups constraints mempty
 
 spendFromCheckDatumIsInline
   :: ValidatorHash
@@ -109,7 +109,7 @@ spendFromCheckDatumIsInline vhash validator txId = do
     constraints =
       Constraints.mustSpendScriptOutput txInput redeemer
 
-  spendTxId <- submitTxFromConstraints lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints mempty
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
@@ -134,7 +134,7 @@ payToCheckDatumIsInlineWrong vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxFromConstraints lookups constraints
+  submitTxFromConstraints lookups constraints mempty
 
 readFromCheckDatumIsInline
   :: ValidatorHash

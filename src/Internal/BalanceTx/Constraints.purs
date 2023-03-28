@@ -1,6 +1,6 @@
 module Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints(BalanceTxConstraints)
-  , BalanceTxConstraintsBuilder(BalanceTxConstraintsBuilder)
+  , BalancerConstraints(BalancerConstraints)
   , buildBalanceTxConstraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
@@ -43,7 +43,8 @@ import Data.Lens.Record (prop)
 import Data.Lens.Setter (appendOver, set, setJust)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype, over2, unwrap, wrap)
+import Data.Monoid.Endo (Endo(Endo))
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (singleton) as Set
 import Type.Proxy (Proxy(Proxy))
@@ -78,19 +79,18 @@ _changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
 _selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
 _selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
 
-newtype BalanceTxConstraintsBuilder =
-  BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
+newtype BalancerConstraints =
+  BalancerConstraints (Endo Function BalanceTxConstraints)
 
-derive instance Newtype BalanceTxConstraintsBuilder _
+derive instance Newtype BalancerConstraints _
 
-instance Semigroup BalanceTxConstraintsBuilder where
-  append = over2 BalanceTxConstraintsBuilder (>>>)
+derive newtype instance Semigroup BalancerConstraints
 
-instance Monoid BalanceTxConstraintsBuilder where
-  mempty = wrap identity
+derive newtype instance Monoid BalancerConstraints
 
-buildBalanceTxConstraints :: BalanceTxConstraintsBuilder -> BalanceTxConstraints
-buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
+buildBalanceTxConstraints :: BalancerConstraints -> BalanceTxConstraints
+buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap <<<
+  unwrap
   where
   defaultConstraints :: BalanceTxConstraints
   defaultConstraints = wrap
@@ -109,9 +109,9 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustSendChangeToAddress
-  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
+  :: Plutus.AddressWithNetworkTag -> BalancerConstraints
 mustSendChangeToAddress =
-  wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
+  wrap <<< Endo <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
 
 -- | Tells the balancer to use UTxO's at given addresses.
 -- | If this constraint is not set, then the default addresses owned by the
@@ -120,9 +120,9 @@ mustSendChangeToAddress =
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddresses
-  :: NetworkId -> Array Plutus.Address -> BalanceTxConstraintsBuilder
+  :: NetworkId -> Array Plutus.Address -> BalancerConstraints
 mustUseUtxosAtAddresses networkId =
-  wrap <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
+  wrap <<< Endo <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
 
 -- | Tells the balancer to use UTxO's at a given address.
 -- | If this constraint is not set, then the default addresses owned by the
@@ -131,7 +131,7 @@ mustUseUtxosAtAddresses networkId =
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddress
-  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
+  :: Plutus.AddressWithNetworkTag -> BalancerConstraints
 mustUseUtxosAtAddress (Plutus.AddressWithNetworkTag { address, networkId }) =
   mustUseUtxosAtAddresses networkId (Array.singleton address)
 
@@ -139,27 +139,26 @@ mustUseUtxosAtAddress (Plutus.AddressWithNetworkTag { address, networkId }) =
 -- | between them if the total change `Value` contains token quantities
 -- | exceeding the specified upper bound.
 -- | (See `Cardano.Types.Value.equipartitionValueWithTokenQuantityUpperBound`)
-mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
+mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalancerConstraints
 mustGenChangeOutsWithMaxTokenQuantity =
-  wrap <<< setJust _maxChangeOutputTokenQuantity <<< max one
+  wrap <<< Endo <<< setJust _maxChangeOutputTokenQuantity <<< max one
 
 -- | Tells the balancer not to spend UTxO's with the specified output references.
 mustNotSpendUtxosWithOutRefs
-  :: Set TransactionInput -> BalanceTxConstraintsBuilder
-mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
+  :: Set TransactionInput -> BalancerConstraints
+mustNotSpendUtxosWithOutRefs = wrap <<< Endo <<< appendOver _nonSpendableInputs
 
 -- | Tells the balancer not to spend a UTxO with the specified output reference.
-mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
+mustNotSpendUtxoWithOutRef :: TransactionInput -> BalancerConstraints
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
 -- | Tells the balancer to use the provided UTxO set when evaluating script
 -- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
 -- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
-mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
-mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
+mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalancerConstraints
+mustUseAdditionalUtxos = wrap <<< Endo <<< set _additionalUtxos
 
 -- | Tells the balancer to use the given strategy for coin selection.
-mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
-mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
-
+mustUseCoinSelectionStrategy :: SelectionStrategy -> BalancerConstraints
+mustUseCoinSelectionStrategy = wrap <<< Endo <<< set _selectionStrategy

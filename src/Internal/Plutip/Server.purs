@@ -72,7 +72,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , keyWallets
   , transferFundsFromEnterpriseToBase
   )
-import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
+import Ctl.Internal.UsedTxOuts.Storage (mkRefStorage)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
@@ -582,7 +582,6 @@ mkClusterContractEnv
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Aff ContractEnv
 mkClusterContractEnv plutipCfg logger customLogger = do
-  usedTxOuts <- newUsedTxOuts
   backend <- buildBackend logger $ mkCtlBackendParams
     { ogmiosConfig: plutipCfg.ogmiosConfig
     , kupoConfig: plutipCfg.kupoConfig
@@ -591,6 +590,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     plutipCfg { customLogger = customLogger }
     backend
   backendKnownTxs <- liftEffect $ Ref.new Set.empty
+  disabledStorage <- liftEffect mkRefStorage
   pure
     { backend
     , handle: mkQueryHandle plutipCfg backend
@@ -601,8 +601,8 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , suppressLogs: plutipCfg.suppressLogs
     , hooks: emptyHooks
     , wallet: Nothing
-    , usedTxOuts
     , ledgerConstants
+    , storage: disabledStorage
     -- timeParams have no effect when KeyWallet is used
     , timeParams: defaultTimeParams
     , synchronizationParams: defaultSynchronizationParams

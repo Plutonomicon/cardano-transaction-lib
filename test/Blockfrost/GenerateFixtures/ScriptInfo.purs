@@ -104,7 +104,7 @@ generateFixtures = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txHash <- submitTxFromConstraints lookups constraints
+  txHash <- submitTxFromConstraints lookups constraints mempty
   awaitTxConfirmed txHash
 
   forWithIndex_ hashesLanguages \i (scriptHash /\ language) -> do
@@ -126,4 +126,3 @@ generateFixtures = do
       ScriptInfo h | h == scriptHash ->
         storeBlockfrostFixture i "getScriptInfo" rawResponse
       _ -> pure unit
-

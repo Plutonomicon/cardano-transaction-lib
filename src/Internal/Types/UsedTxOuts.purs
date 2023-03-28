@@ -1,229 +1,63 @@
 -- | The set of wallets utxos selected as inputs for any subsequent transaction
 -- | might actually be already submitted by a previous one and pending
 -- | to be spent.
--- | This module provides a simple, in-memory cache that helps with keeping
--- | submitted utxos in-check.
+-- | This module provides a simple interface to mark and un-mark Tx inputs as
+-- | used.
 module Ctl.Internal.Types.UsedTxOuts
-  ( UsedTxOuts(UsedTxOuts)
-  , TxOutRefUnlockKeys(TxOutRefUnlockKeys)
-  , TxOutRefCache
-  , isTxOutRefUsed
-  , lockTransactionInputs
-  , lockRemainingTransactionInputs
-  , LockTransactionError(LockTransactionError)
-  , newUsedTxOuts
-  , unlockTxOutRefs
-  , unlockTxOutKeys
+  ( lockTransactionInputs
   , unlockTransactionInputs
-  , withLockedTransactionInputs
   ) where
 
-import Control.Alt ((<$>))
-import Control.Alternative (guard, pure)
-import Control.Applicative (unless)
-import Control.Bind (bind, (=<<), (>>=))
-import Control.Category ((<<<), (>>>))
-import Control.Monad.Error.Class (class MonadError, catchError, throwError)
-import Control.Monad.RWS (ask)
-import Control.Monad.Reader (class MonadAsk)
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
-import Ctl.Internal.Types.Transaction (TransactionHash)
-import Data.Array (concatMap)
-import Data.Foldable (class Foldable, all, foldr)
-import Data.Function (($))
-import Data.Map (Map)
-import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
-import Data.Monoid (class Monoid, mempty)
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Semigroup (class Semigroup)
-import Data.Set (Set)
-import Data.Set as Set
-import Data.Tuple.Nested (type (/\), (/\))
-import Data.UInt (UInt)
-import Data.Unit (Unit)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, throw)
-import Effect.Ref (Ref)
-import Effect.Ref as Ref
-import Prelude (discard, map, not, otherwise, (<>))
+import Prelude
 
-type TxOutRefCache = Map TransactionHash (Set UInt)
-newtype TxOutRefUnlockKeys = TxOutRefUnlockKeys TxOutRefCache
+import Aeson (finiteNumber)
+import Control.Monad.Error.Class (liftEither)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction, _body, _inputs)
+import Ctl.Internal.UsedTxOuts as UsedTxOuts
+import Ctl.Internal.UsedTxOuts.Storage (Storage)
+import Data.DateTime.Instant (unInstant)
+import Data.Either (note)
+import Data.Foldable (all, foldr)
+import Data.Lens ((^.))
+import Data.Maybe (isNothing)
+import Data.Newtype (unwrap)
+import Effect (Effect)
+import Effect.Exception (error)
+import Effect.Now (now)
 
-derive instance Newtype TxOutRefUnlockKeys _
-
-instance Semigroup TxOutRefUnlockKeys where
-  append k1 k2 = wrap $ Map.unionWith Set.union (unwrap k1) (unwrap k2)
-
-instance Monoid TxOutRefUnlockKeys where
-  mempty = wrap Map.empty
-
--- | Tracks UTxOs that have already been spent to avoid double-spending attempts.
-newtype UsedTxOuts = UsedTxOuts (Ref TxOutRefCache)
-
-derive instance Newtype UsedTxOuts _
-
-data LockTransactionError = LockTransactionError
-
--- | Creates a new empty filter.
-newUsedTxOuts
-  :: forall (m :: Type -> Type) (t :: Type -> Type)
-   . MonadEffect m
-  => m UsedTxOuts
-newUsedTxOuts = UsedTxOuts <$> liftEffect (Ref.new Map.empty)
-
--- | `lockRemainingTransactionInputs alreadyLocked tx`
--- |
--- | Mark 'tx's inputs as used, except for those which
--- | are contained in 'alreadylocked' (which have been
--- | locked in a previous step).
-lockRemainingTransactionInputs
-  :: forall (m :: Type -> Type)
-   . MonadAsk UsedTxOuts m
-  => MonadError Error m
-  => MonadEffect m
-  => TxOutRefUnlockKeys
-  -> Transaction
-  -> m TxOutRefUnlockKeys
-lockRemainingTransactionInputs alreadyLocked tx =
-  let
-    outRefs :: Set { transactionId :: TransactionHash, index :: UInt }
-    outRefs =
-      Set.filter (not $ cacheContains $ unwrap alreadyLocked) $ txOutRefs tx
-
-    updateCache :: TxOutRefCache -> { state :: TxOutRefCache, value :: Boolean }
-    updateCache cache
-      | all (isUnlocked cache) outRefs =
-          { state: foldr insertCache cache $ outRefs, value: true }
-      | otherwise = { state: cache, value: false }
-
-    isUnlocked cache { transactionId, index } = maybe true
-      (not $ Set.member index)
-      (Map.lookup transactionId cache)
-
-    refsToTxOut
-      :: Set { transactionId :: TransactionHash, index :: UInt }
-      -> TxOutRefCache
-    refsToTxOut = foldr insertCache Map.empty
-
-    insertCache
-      :: { transactionId :: TransactionHash, index :: UInt }
-      -> TxOutRefCache
-      -> TxOutRefCache
-    insertCache { transactionId, index } = Map.alter
-      (fromMaybe Set.empty >>> Set.insert index >>> Just)
-      transactionId
-
-  in
-    do
-      cache <- unwrap <$> ask
-      success <- liftEffect $ Ref.modify' updateCache cache
-      unless success $ liftEffect $ throw
-        "Transaction inputs locked by another transaction"
-      pure $ (wrap $ refsToTxOut outRefs) <> alreadyLocked
-
--- | Mark transaction's inputs as used.
--- | Returns the set of TxOuts that was locked by this call
+-- | Marks transaction's inputs as used.
+-- | If some of them are used, returns `false` and does not mark the remaining.
 lockTransactionInputs
   :: forall (m :: Type -> Type)
-   . MonadAsk UsedTxOuts m
-  => MonadError Error m
-  => MonadEffect m
-  => Transaction
-  -> m TxOutRefUnlockKeys
-lockTransactionInputs = lockRemainingTransactionInputs mempty
+   . Storage
+  -> Transaction
+  -> Effect Boolean
+lockTransactionInputs storage tx = do
+  mbTimestamp <- now <#> unInstant >>> unwrap >>> finiteNumber
+  timestamp <- liftEither $ note (error tsError) mbTimestamp
+  usedTxOuts <- UsedTxOuts.get storage
+  let
+    inputs = tx ^. _body <<< _inputs
+    isUnlocked input = isNothing $ UsedTxOuts.lookup input usedTxOuts
+  if all isUnlocked inputs then do
+    let usedTxOuts' = foldr (UsedTxOuts.insert timestamp) usedTxOuts inputs
+    UsedTxOuts.set storage usedTxOuts'
+    pure true
+  else
+    pure false
+  where
+  tsError = "Impossible happened: unable to convert timestamp to finite number"
 
--- | Lock the inputs of a transaction and then run a monadic action.
--- | Will throw `Error` if any of the inputs are already locked.
--- | In case of any error, locks will be released.
-withLockedTransactionInputs
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadAsk UsedTxOuts m
-  => MonadError Error m
-  => MonadEffect m
-  => Transaction
-  -> m a
-  -> m a
-withLockedTransactionInputs t f = do
-  used <- lockTransactionInputs t
-  catchError f \e -> do
-    unlockTxOutKeys used
-    throwError e
-
--- | Remove transaction's inputs used marks.
+-- | Un-mark transaction's inputs as used, if they are marked.
 unlockTransactionInputs
   :: forall (m :: Type -> Type)
-   . MonadAsk UsedTxOuts m
-  => MonadEffect m
-  => Transaction
-  -> m Unit
-unlockTransactionInputs = txOutRefs >>> unlockTxOutRefs
-
--- | Remove used marks from TxOutRefs given directly.
-unlockTxOutRefs
-  :: forall (m :: Type -> Type) (t :: Type -> Type) (a :: Type)
-   . MonadAsk UsedTxOuts m
-  => MonadEffect m
-  => Foldable t
-  => t { transactionId :: TransactionHash, index :: UInt }
-  -> m Unit
-unlockTxOutRefs txOutRefs' =
+   . Storage
+  -> Transaction
+  -> Effect Unit
+unlockTransactionInputs storage tx = do
   let
-    updateCache :: TxOutRefCache -> TxOutRefCache
-    updateCache cache = foldr
-      ( \{ transactionId, index } ->
-          Map.update
-            ( Set.delete index >>> \s ->
-                if Set.isEmpty s then Nothing else Just s
-            )
-            transactionId
-      )
-      cache
-      txOutRefs'
-  in
-    ask >>= (unwrap >>> Ref.modify_ updateCache >>> liftEffect)
-
--- | Remove used marks from all inputs that are saved in a `TxOutRefUnlockKeys`.
--- | Use this on the result of a previous `lockTransactionInputs`
-unlockTxOutKeys
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadAsk UsedTxOuts m
-  => MonadEffect m
-  => TxOutRefUnlockKeys
-  -> m Unit
-unlockTxOutKeys = unlockTxOutRefs <<< cacheToRefs <<< unwrap
-  where
-  cacheToRefs
-    :: TxOutRefCache
-    -> Array { transactionId :: TransactionHash, index :: UInt }
-  cacheToRefs = concatMap flatten <<< Map.toUnfoldable
-
-  flatten
-    :: TransactionHash /\ Set UInt
-    -> Array { transactionId :: TransactionHash, index :: UInt }
-  flatten (tid /\ indexes) = map ({ transactionId: tid, index: _ })
-    (Set.toUnfoldable indexes)
-
-cacheContains
-  :: TxOutRefCache
-  -> { transactionId :: TransactionHash, index :: UInt }
-  -> Boolean
-cacheContains cache { transactionId, index } = isJust $ do
-  indices <- Map.lookup transactionId cache
-  guard $ Set.member index indices
-
--- | Query if TransactionInput is marked as used.
-isTxOutRefUsed
-  :: forall (m :: Type -> Type) (a :: Type)
-   . MonadAsk UsedTxOuts m
-  => MonadEffect m
-  => { transactionId :: TransactionHash, index :: UInt }
-  -> m Boolean
-isTxOutRefUsed ref = do
-  cache <- liftEffect <<< Ref.read <<< unwrap =<< ask
-  pure (cacheContains cache ref)
-
-txOutRefs
-  :: Transaction -> Set { transactionId :: TransactionHash, index :: UInt }
-txOutRefs tx = Set.map unwrap (unwrap (unwrap tx).body).inputs
+    inputs = tx ^. _body <<< _inputs
+  usedTxOuts <- UsedTxOuts.get storage
+  let
+    usedTxOuts' = foldr UsedTxOuts.delete usedTxOuts inputs
+  UsedTxOuts.set storage usedTxOuts'

@@ -38,7 +38,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxFromConstraints lookups constraints
+  txId <- submitTxFromConstraints lookups constraints mempty
 
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"

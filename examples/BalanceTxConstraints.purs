@@ -11,7 +11,7 @@ import Contract.Address
   , ownPaymentPubKeysHashes
   )
 import Contract.BalanceTxConstraints
-  ( BalanceTxConstraintsBuilder
+  ( BalancerConstraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
@@ -33,7 +33,7 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , signTransaction
   , submit
   )
@@ -144,7 +144,7 @@ contract (ContractParams p) = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-    balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+    balanceTxConstraints :: BalanceTxConstraints.BalancerConstraints
     balanceTxConstraints =
       BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
         <> BalanceTxConstraints.mustUseUtxosAtAddress bobAddress
@@ -155,8 +155,7 @@ contract (ContractParams p) = do
     unbalancedTx <-
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-    balancedTx <-
-      liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
+    balancedTx <- balanceTx unbalancedTx balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

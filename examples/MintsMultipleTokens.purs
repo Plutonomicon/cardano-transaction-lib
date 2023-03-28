@@ -65,7 +65,7 @@ contract = do
         <> Lookups.mintingPolicy mp2
         <> Lookups.mintingPolicy mp3
 
-  txId <- submitTxFromConstraints lookups constraints
+  txId <- submitTxFromConstraints lookups constraints mempty
 
   awaitTxConfirmed txId
   logInfo' $ "Tx submitted successfully!"

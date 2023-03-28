@@ -53,4 +53,3 @@ oneShotMintingPolicyScriptV2 txInput = do
     plutusScriptV2FromEnvelope envelope
   liftContractE $
     mkOneShotMintingPolicy script txInput
-

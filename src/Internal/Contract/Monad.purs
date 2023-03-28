@@ -32,7 +32,7 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader, ask, asks)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT)
+import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
@@ -52,7 +52,7 @@ import Ctl.Internal.Contract.QueryHandle
   , queryHandleForSelfHostedBlockfrostBackend
   )
 import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
-import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
+import Ctl.Internal.Helpers (liftM, logWithLevel)
 import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.QueryM
@@ -75,14 +75,17 @@ import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.Transaction (TransactionHash)
-import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
+import Ctl.Internal.UsedTxOuts as UsedTxOuts
+import Ctl.Internal.UsedTxOuts.Storage (Storage, mkRefStorage)
+import Ctl.Internal.UsedTxOuts.StorageSpec (StorageSpec, mkStorage)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -90,12 +93,11 @@ import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
-import Effect.Aff.Class (liftAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
 
 --------------------------------------------------------------------------------
@@ -195,10 +197,10 @@ type ContractEnv =
   , suppressLogs :: Boolean
   , hooks :: Hooks
   , wallet :: Maybe Wallet
-  , usedTxOuts :: UsedTxOuts
   , ledgerConstants :: LedgerConstants
   , timeParams :: ContractTimeParams
   , synchronizationParams :: ContractSynchronizationParams
+  , storage :: Storage
   , knownTxs ::
       { backend :: Ref (Set TransactionHash)
       }
@@ -228,10 +230,10 @@ mkContractEnv
   -> Aff ContractEnv
 mkContractEnv params = do
   for_ params.hooks.beforeInit (void <<< liftEffect <<< try)
-
-  usedTxOuts <- newUsedTxOuts
   backend <- liftEffect $ Ref.new Set.empty
-
+  storage <- case params.storageSpec of
+    Nothing -> liftEffect mkRefStorage
+    Just storageSpec -> pure $ mkStorage storageSpec
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
@@ -244,10 +246,10 @@ mkContractEnv params = do
     -- Compose the sub-builders together
     in
       b1 >>> b2 >>> merge
-        { usedTxOuts
-        , timeParams: params.timeParams
+        { timeParams: params.timeParams
         , synchronizationParams: params.synchronizationParams
         , knownTxs: { backend }
+        , storage
         }
   pure $ build envBuilder constants
   where
@@ -427,9 +429,11 @@ type ContractParams =
   , networkId :: NetworkId
   , logLevel :: LogLevel
   , walletSpec :: Maybe WalletSpec
+  , storageSpec :: Maybe StorageSpec
+  -- ^ Which storage to use to permanently save already-spent UTxOs.
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
-  -- | Suppress logs until an exception is thrown
   , suppressLogs :: Boolean
+  -- ^ Suppress logs until an exception is thrown
   , hooks :: Hooks
   , timeParams :: ContractTimeParams
   , synchronizationParams :: ContractSynchronizationParams
@@ -476,10 +480,7 @@ mkQueryEnv params ctlBackend =
 --------------------------------------------------------------------------------
 
 filterLockedUtxos :: UtxoMap -> Contract UtxoMap
-filterLockedUtxos utxos =
-  withTxRefsCache $
-    flip filterMapWithKeyM utxos
-      (\k _ -> not <$> isTxOutRefUsed (unwrap k))
-
-withTxRefsCache :: forall (a :: Type). ReaderT UsedTxOuts Aff a -> Contract a
-withTxRefsCache = Contract <<< withReaderT _.usedTxOuts
+filterLockedUtxos utxos = do
+  usedTxOuts <- liftEffect <<< UsedTxOuts.get =<< asks _.storage
+  pure $ utxos `flip Map.filterKeys`
+    \k -> isNothing $ UsedTxOuts.lookup k usedTxOuts

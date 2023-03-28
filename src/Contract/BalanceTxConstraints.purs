@@ -3,7 +3,7 @@
 module Contract.BalanceTxConstraints (module BalanceTxConstraints) where
 
 import Ctl.Internal.BalanceTx.Constraints
-  ( BalanceTxConstraintsBuilder
+  ( BalancerConstraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustNotSpendUtxosWithOutRefs

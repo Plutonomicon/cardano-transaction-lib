@@ -66,6 +66,7 @@ contract = do
   txHash <- submitTxFromConstraints
     (Lookups.mintingPolicy mintingPolicy <> lookups)
     constraints
+    mempty
   void $ awaitTxConfirmed txHash
 
 contractWithMintRedeemers :: Contract Unit
@@ -95,6 +96,7 @@ contractWithMintRedeemers = do
         unlockingLookups
     )
     (unlockingConstraints <> mintingConstraints)
+    mempty
   void $ awaitTxConfirmed txHash
 
 spendLockedByIntOutputParams

@@ -300,7 +300,7 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
       \(wallet /\ walletDistr) -> flip foldMap walletDistr
         \value -> mustPayToKeyWallet wallet $ lovelaceValueOf value
 
-  txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
+  txHash <- submitTxFromConstraints (mempty :: _ Void) constraints mempty
   awaitTxConfirmed txHash
   let fundTotal = Array.foldl (+) zero $ join distrArray
   -- Use log so we can see, regardless of suppression
@@ -384,7 +384,7 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
 
         unbalancedTx <- liftedE $ mkUnbalancedTxImpl (lookups :: _ Void)
           constraints
-        balancedTx <- liftedE $ balanceTx unbalancedTx
+        balancedTx <- balanceTx unbalancedTx mempty
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)

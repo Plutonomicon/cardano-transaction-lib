@@ -36,6 +36,6 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- submitTxFromConstraints lookups constraints
+  txId <- submitTxFromConstraints lookups constraints mempty
   awaitTxConfirmed txId
   liftEffect unlock

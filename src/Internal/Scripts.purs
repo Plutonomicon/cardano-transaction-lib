@@ -99,5 +99,6 @@ nativeScriptStakeValidatorHash
 nativeScriptStakeValidatorHash = unwrap >>> nativeScriptHash >>> unwrap >>> wrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
+-- TODO: remove Maybe
 scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
 scriptCurrencySymbol = mpsSymbol <<< mintingPolicyHash

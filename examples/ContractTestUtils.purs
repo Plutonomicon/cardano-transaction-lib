@@ -159,7 +159,7 @@ mkContract p = do
 
   unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
-  balancedTx <- liftedE $ balanceTx unbalancedTxWithMetadata
+  balancedTx <- balanceTx unbalancedTxWithMetadata mempty
   balancedSignedTx <- signTransaction balancedTx
 
   txId <- submit balancedSignedTx

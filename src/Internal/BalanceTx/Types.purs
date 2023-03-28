@@ -20,7 +20,7 @@ import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints
-  , BalanceTxConstraintsBuilder
+  , BalancerConstraints
   )
 import Ctl.Internal.BalanceTx.Constraints
   ( buildBalanceTxConstraints
@@ -75,7 +75,7 @@ askNetworkId = asksContractEnv _.networkId
 
 withBalanceTxConstraints
   :: forall (a :: Type)
-   . BalanceTxConstraintsBuilder
+   . BalancerConstraints
   -> ReaderT BalanceTxMContext Contract a
   -> Contract a
 withBalanceTxConstraints constraintsBuilder =

@@ -115,7 +115,7 @@ payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxFromConstraints lookups constraints
+  submitTxFromConstraints lookups constraints mempty
 
 spendFromAlwaysSucceeds
   :: ValidatorHash
@@ -159,7 +159,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = Lookups.unspentOutputs scriptAddressUtxos
 
-  spendTxId <- submitTxFromConstraints lookups constraints
+  spendTxId <- submitTxFromConstraints lookups constraints mempty
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values and minted tokens."
   where
@@ -206,5 +206,5 @@ mintAlwaysMintsV2ToTheScript tokenName validator sum = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txHash <- submitTxFromConstraints lookups constraints
+  txHash <- submitTxFromConstraints lookups constraints mempty
   void $ awaitTxConfirmed txHash

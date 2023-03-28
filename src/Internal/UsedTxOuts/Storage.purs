@@ -25,8 +25,8 @@ type Storage =
   , setItem :: String -> String -> Effect Unit
   }
 
-mkDisabledStorage :: Effect Storage
-mkDisabledStorage = do
+mkRefStorage :: Effect Storage
+mkRefStorage = do
   ref <- Ref.new Map.empty
   pure
     { getItem: \key -> do

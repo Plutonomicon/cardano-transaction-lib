@@ -23,7 +23,7 @@ import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
   )
-import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
+import Ctl.Internal.BalanceTx.Constraints (BalancerConstraints)
 import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
   , _maxChangeOutputTokenQuantity
@@ -175,7 +175,7 @@ import Effect.Class (liftEffect)
 balanceTxWithConstraints
   :: UnindexedTx
   -> Map TransactionInput TransactionOutput
-  -> BalanceTxConstraintsBuilder
+  -> BalancerConstraints
   -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
   pparams <- getProtocolParameters
@@ -248,7 +248,8 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
       { strategy: selectionStrategy
       , transaction: reindexedTransaction
       , changeAddress
-      , allUtxos
+      , allUtxos: availableUtxos
+      -- TODO: remove
       , utxos: availableUtxos
       , certsFee
       }

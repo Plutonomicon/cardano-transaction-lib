@@ -212,18 +212,19 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< liftedE (balanceTx unbalancedTx)
+        signTransaction =<< balanceTx unbalancedTx mempty
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx
       walletsInfo
     txHash <- submit signedTx'
     awaitTxConfirmed txHash
-    -- Clear the used txouts cache because we know the state of these
-    -- utxos is settled, see here:
-    -- https://github.com/Plutonomicon/cardano-transaction-lib/pull/838#discussion_r941592493
-    cache <- asks (unwrap <<< _.usedTxOuts)
-    liftEffect $ Ref.write Map.empty cache
+  -- Clear the used txouts cache because we know the state of these
+  -- utxos is settled, see here:
+  -- https://github.com/Plutonomicon/cardano-transaction-lib/pull/838#discussion_r941592493
+  -- TODO: update
+  -- cache <- asks (unwrap <<< _.usedTxOuts)
+  -- liftEffect $ Ref.write Map.empty cache
   where
   constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
   constraintsForWallet { utxos, payPkh, stakePkh } =

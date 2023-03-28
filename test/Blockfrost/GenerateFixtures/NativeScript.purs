@@ -93,7 +93,7 @@ generateFixtures numFixtures = do
       lookups :: Lookups.ScriptLookups Void
       lookups = mempty
 
-    txHash <- submitTxFromConstraints lookups constraints
+    txHash <- submitTxFromConstraints lookups constraints mempty
     awaitTxConfirmed txHash
 
     -- TODO:
@@ -121,4 +121,3 @@ generateFixtures numFixtures = do
         NativeScriptByHash h | h == nativeScriptHash ->
           storeBlockfrostFixture i "getNativeScriptByHash" rawResponse
         _ -> pure unit
-

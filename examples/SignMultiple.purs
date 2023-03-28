@@ -25,7 +25,6 @@ import Contract.Transaction
   , signTransaction
   , submit
   , submitTxFromConstraints
-  , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (getWalletUtxos)
@@ -38,12 +37,7 @@ import Data.Map (Map, filter)
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
-
-getLockedInputs
-  :: Contract (Map TransactionHash (Set UInt))
-getLockedInputs = do
-  cache <- asks _.usedTxOuts
-  liftEffect $ Ref.read $ unwrap cache
+import Test.Ctl.Plutip.Utils (getLockedInputs)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -60,34 +54,34 @@ contract = do
     logWarn' "Insufficient Utxos for 2 transactions"
     createAdditionalUtxos
 
-  let
-    constraints :: Constraints.TxConstraints Void Void
-    constraints = Constraints.mustPayToPubKeyAddress pkh skh
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+  -- let
+  --   constraints :: Constraints.TxConstraints Void Void
+  --   constraints = Constraints.mustPayToPubKeyAddress pkh skh
+  --     $ Value.lovelaceValueOf
+  --     $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups Void
-    lookups = mempty
+  --   lookups :: Lookups.ScriptLookups Void
+  --   lookups = mempty
 
-  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  -- unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  -- unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
-    locked <- getLockedInputs
-    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
-      <> show locked
-    traverse (submitAndLog <=< signTransaction) balancedTxs
+  -- txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
+  --   locked <- getLockedInputs
+  --   logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+  --     <> show locked
+  --   traverse (submitAndLog <=< signTransaction) balancedTxs
 
-  locked <- getLockedInputs
-  logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
+  -- locked <- getLockedInputs
+  -- logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
 
-  case txIds of
-    [ txId0, txId1 ] -> do
-      awaitTxConfirmed txId0
-      logInfo' $ "Tx 0 submitted successfully!"
-      awaitTxConfirmed txId1
-      logInfo' $ "Tx 1 submitted successfully!"
-    _ -> throwContractError "Unexpected error - no transaction IDs"
+  -- case txIds of
+  --   [ txId0, txId1 ] -> do
+  --     awaitTxConfirmed txId0
+  --     logInfo' $ "Tx 0 submitted successfully!"
+  --     awaitTxConfirmed txId1
+  --     logInfo' $ "Tx 1 submitted successfully!"
+  --   _ -> throwContractError "Unexpected error - no transaction IDs"
 
   where
   submitAndLog
@@ -133,7 +127,7 @@ createAdditionalUtxos = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxFromConstraints lookups constraints
+  txId <- submitTxFromConstraints lookups constraints mempty
 
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"

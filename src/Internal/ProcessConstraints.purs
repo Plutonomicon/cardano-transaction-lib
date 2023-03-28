@@ -215,7 +215,7 @@ import Ctl.Internal.Types.TypedTxOut
   , typedTxOutTxOut
   )
 import Ctl.Internal.Types.TypedValidator (class DatumType, class ValidatorTypes)
-import Data.Array (cons, partition, toUnfoldable, zip)
+import Data.Array (cons, mapMaybe, partition, toUnfoldable, zip)
 import Data.Array (singleton, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
@@ -235,7 +235,6 @@ import Effect (Effect)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import MedeaPrelude (mapMaybe)
 import Prelude (join) as Bind
 import Type.Proxy (Proxy(Proxy))
 
