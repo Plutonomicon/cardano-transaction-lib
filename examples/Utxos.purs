@@ -91,7 +91,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp0 <> Lookups.unspentOutputs utxos
 
-  txHash <- submitTxFromConstraints lookups constraints mempty
+  txHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"
 

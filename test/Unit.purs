@@ -43,7 +43,6 @@ import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
-import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 import Test.Spec.Runner (defaultConfig)
 
@@ -77,7 +76,6 @@ testPlan = do
   Serialization.Hash.suite
   Transaction.suite
   TxOutput.suite
-  UsedTxOuts.suite
   Ogmios.Address.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite

@@ -110,6 +110,13 @@ import Type.Proxy (Proxy(Proxy))
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L325
 data SelectionStrategy = SelectionStrategyOptimal | SelectionStrategyMinimal
 
+derive instance Generic SelectionStrategy _
+
+derive instance Eq SelectionStrategy
+
+instance Show SelectionStrategy where
+  show = genericShow
+
 instance Arbitrary SelectionStrategy where
   arbitrary =
     Arbitrary.elements $

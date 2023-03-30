@@ -1,7 +1,5 @@
 module Ctl.Internal.BalanceTx.Constraints
-  ( BalanceTxConstraints(BalanceTxConstraints)
-  , BalancerConstraints(BalancerConstraints)
-  , buildBalanceTxConstraints
+  ( BalancerConstraints(BalancerConstraints)
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
@@ -20,6 +18,7 @@ module Ctl.Internal.BalanceTx.Constraints
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyOptimal)
   )
@@ -36,20 +35,20 @@ import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton) as Array
 import Data.BigInt (BigInt)
-import Data.Function (applyFlipped)
+import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter (appendOver, set, setJust)
-import Data.Map (empty) as Map
-import Data.Maybe (Maybe(Nothing))
-import Data.Monoid.Endo (Endo(Endo))
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Map (empty, union) as Map
+import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (class Newtype, wrap)
 import Data.Set (Set)
-import Data.Set (singleton) as Set
+import Data.Set (singleton, union) as Set
+import Data.Show.Generic (genericShow)
 import Type.Proxy (Proxy(Proxy))
 
-newtype BalanceTxConstraints = BalanceTxConstraints
+newtype BalancerConstraints = BalancerConstraints
   { additionalUtxos :: Plutus.UtxoMap
   , maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
@@ -58,42 +57,29 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   , selectionStrategy :: SelectionStrategy
   }
 
-derive instance Newtype BalanceTxConstraints _
-
-_additionalUtxos :: Lens' BalanceTxConstraints Plutus.UtxoMap
-_additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
-
-_maxChangeOutputTokenQuantity :: Lens' BalanceTxConstraints (Maybe BigInt)
-_maxChangeOutputTokenQuantity =
-  _Newtype <<< prop (Proxy :: Proxy "maxChangeOutputTokenQuantity")
-
-_nonSpendableInputs :: Lens' BalanceTxConstraints (Set TransactionInput)
-_nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
-
-_srcAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
-_srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
-
-_changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
-_changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
-
-_selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
-_selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
-
-newtype BalancerConstraints =
-  BalancerConstraints (Endo Function BalanceTxConstraints)
-
 derive instance Newtype BalancerConstraints _
+derive instance Generic BalancerConstraints _
 
-derive newtype instance Semigroup BalancerConstraints
+derive newtype instance Eq BalancerConstraints
 
-derive newtype instance Monoid BalancerConstraints
+instance Show BalancerConstraints where
+  show = genericShow
 
-buildBalanceTxConstraints :: BalancerConstraints -> BalanceTxConstraints
-buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap <<<
-  unwrap
-  where
-  defaultConstraints :: BalanceTxConstraints
-  defaultConstraints = wrap
+instance Semigroup BalancerConstraints where
+  append (BalancerConstraints a) (BalancerConstraints b) = BalancerConstraints
+    { additionalUtxos: Map.union a.additionalUtxos b.additionalUtxos
+    , maxChangeOutputTokenQuantity:
+        case a.maxChangeOutputTokenQuantity, b.maxChangeOutputTokenQuantity of
+          Just ta, Just tb -> Just $ min ta tb
+          mta, mtb -> mta <|> mtb
+    , nonSpendableInputs: Set.union a.nonSpendableInputs b.nonSpendableInputs
+    , srcAddresses: a.srcAddresses <> b.srcAddresses
+    , changeAddress: b.changeAddress <|> a.changeAddress -- right-skewed
+    , selectionStrategy: b.selectionStrategy
+    }
+
+instance Monoid BalancerConstraints where
+  mempty = wrap
     { additionalUtxos: Map.empty
     , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
@@ -101,6 +87,25 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap <<<
     , changeAddress: Nothing
     , selectionStrategy: SelectionStrategyOptimal
     }
+
+_additionalUtxos :: Lens' BalancerConstraints Plutus.UtxoMap
+_additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
+
+_maxChangeOutputTokenQuantity :: Lens' BalancerConstraints (Maybe BigInt)
+_maxChangeOutputTokenQuantity =
+  _Newtype <<< prop (Proxy :: Proxy "maxChangeOutputTokenQuantity")
+
+_nonSpendableInputs :: Lens' BalancerConstraints (Set TransactionInput)
+_nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
+
+_srcAddresses :: Lens' BalancerConstraints (Maybe (Array Address))
+_srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
+
+_changeAddress :: Lens' BalancerConstraints (Maybe Address)
+_changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
+
+_selectionStrategy :: Lens' BalancerConstraints SelectionStrategy
+_selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
 
 -- | Tells the balancer to send all generated change to a given address.
 -- | If this constraint is not set, then the default change address owned by
@@ -110,8 +115,8 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap <<<
 -- | does NOT have any effect on which address will be used as a change address.
 mustSendChangeToAddress
   :: Plutus.AddressWithNetworkTag -> BalancerConstraints
-mustSendChangeToAddress =
-  wrap <<< Endo <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
+mustSendChangeToAddress addr =
+  mempty # setJust _changeAddress (fromPlutusAddressWithNetworkTag addr)
 
 -- | Tells the balancer to use UTxO's at given addresses.
 -- | If this constraint is not set, then the default addresses owned by the
@@ -121,8 +126,8 @@ mustSendChangeToAddress =
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddresses
   :: NetworkId -> Array Plutus.Address -> BalancerConstraints
-mustUseUtxosAtAddresses networkId =
-  wrap <<< Endo <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
+mustUseUtxosAtAddresses networkId address =
+  mempty # setJust _srcAddresses (fromPlutusAddress networkId <$> address)
 
 -- | Tells the balancer to use UTxO's at a given address.
 -- | If this constraint is not set, then the default addresses owned by the
@@ -140,13 +145,14 @@ mustUseUtxosAtAddress (Plutus.AddressWithNetworkTag { address, networkId }) =
 -- | exceeding the specified upper bound.
 -- | (See `Cardano.Types.Value.equipartitionValueWithTokenQuantityUpperBound`)
 mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalancerConstraints
-mustGenChangeOutsWithMaxTokenQuantity =
-  wrap <<< Endo <<< setJust _maxChangeOutputTokenQuantity <<< max one
+mustGenChangeOutsWithMaxTokenQuantity q =
+  mempty # setJust _maxChangeOutputTokenQuantity (max one q)
 
 -- | Tells the balancer not to spend UTxO's with the specified output references.
 mustNotSpendUtxosWithOutRefs
   :: Set TransactionInput -> BalancerConstraints
-mustNotSpendUtxosWithOutRefs = wrap <<< Endo <<< appendOver _nonSpendableInputs
+mustNotSpendUtxosWithOutRefs utxos = mempty # appendOver _nonSpendableInputs
+  utxos
 
 -- | Tells the balancer not to spend a UTxO with the specified output reference.
 mustNotSpendUtxoWithOutRef :: TransactionInput -> BalancerConstraints
@@ -157,8 +163,8 @@ mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 -- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalancerConstraints
-mustUseAdditionalUtxos = wrap <<< Endo <<< set _additionalUtxos
+mustUseAdditionalUtxos utxos = mempty # set _additionalUtxos utxos
 
 -- | Tells the balancer to use the given strategy for coin selection.
 mustUseCoinSelectionStrategy :: SelectionStrategy -> BalancerConstraints
-mustUseCoinSelectionStrategy = wrap <<< Endo <<< set _selectionStrategy
+mustUseCoinSelectionStrategy s = mempty # set _selectionStrategy s

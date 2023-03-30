@@ -17,6 +17,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustDeregisterStakeNativeScript
   , mustDeregisterStakePlutusScript
   , mustDeregisterStakePubKey
+  , mustGenChangeOutsWithMaxTokenQuantity
   , mustHashDatum
   , mustIncludeDatum
   , mustMintCurrency
@@ -27,6 +28,8 @@ import Ctl.Internal.Types.TxConstraints
   , mustMintValue
   , mustMintValueWithRedeemer
   , mustNotBeValid
+  , mustNotSpendUtxoWithOutRef
+  , mustNotSpendUtxosWithOutRefs
   , mustPayToNativeScript
   , mustPayToNativeScriptAddress
   , mustPayToPubKey
@@ -49,12 +52,17 @@ import Ctl.Internal.Types.TxConstraints
   , mustRegisterStakeScript
   , mustRetirePool
   , mustSatisfyAnyOf
+  , mustSendChangeToAddress
   , mustSpendAtLeast
   , mustSpendAtLeastTotal
   , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   , mustSpendScriptOutputUsingScriptRef
+  , mustUseAdditionalUtxos
+  , mustUseCoinSelectionStrategy
+  , mustUseUtxosAtAddress
+  , mustUseUtxosAtAddresses
   , mustValidateIn
   , mustWithdrawStakeNativeScript
   , mustWithdrawStakePlutusScript

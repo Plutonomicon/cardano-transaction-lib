@@ -74,7 +74,7 @@ contract = do
 
   void $ runChecks checks $ lift do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-    balancedSignedTx <- signTransaction =<< balanceTx unbalancedTx mempty
+    balancedSignedTx <- signTransaction =<< balanceTx unbalancedTx
     txHash <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash

@@ -42,7 +42,7 @@ onePkh2PkhTx = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxFromConstraints lookups constraints mempty
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"

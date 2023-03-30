@@ -236,7 +236,6 @@ import Data.Map (empty, insert) as Map
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (error)
@@ -302,18 +301,16 @@ unUnbalancedTx
 
 balanceTx
   :: UnbalancedTx
-  -> BalancerConstraints
   -> Contract FinalizedTransaction
-balanceTx tx cs = balanceTxs (NonEmptyArray.singleton $ tx /\ cs) <#>
+balanceTx tx = balanceTxs (NonEmptyArray.singleton tx) <#>
   NonEmptyArray.head
 
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
 balanceTxE
   :: UnbalancedTx
-  -> BalancerConstraints
   -> Contract (Either BalanceTxError FinalizedTransaction)
-balanceTxE tx cs = balanceTxsE (NonEmptyArray.singleton $ tx /\ cs) <#>
+balanceTxE tx = balanceTxsE (NonEmptyArray.singleton tx) <#>
   NonEmptyArray.head
 
 -- | Balances each transaction using specified balancer constraint sets and
@@ -322,7 +319,7 @@ balanceTxE tx cs = balanceTxsE (NonEmptyArray.singleton $ tx /\ cs) <#>
 balanceTxs
   :: forall (t :: Type -> Type)
    . Traversable t
-  => t (UnbalancedTx /\ BalancerConstraints)
+  => t UnbalancedTx
   -> Contract (t FinalizedTransaction)
 balanceTxs txs = balanceTxsE txs >>= traverse (liftedE <<< pure)
 
@@ -332,7 +329,7 @@ balanceTxs txs = balanceTxsE txs >>= traverse (liftedE <<< pure)
 balanceTxsE
   :: forall (t :: Type -> Type)
    . Traversable t
-  => t (UnbalancedTx /\ BalancerConstraints)
+  => t UnbalancedTx
   -> Contract (t (Either BalanceTxError FinalizedTransaction))
 balanceTxsE unbalancedTxs = do
   storage <- asks _.storage
@@ -340,28 +337,24 @@ balanceTxsE unbalancedTxs = do
     unlockAllOnError :: forall (a :: Type). Contract a -> Contract a
     unlockAllOnError f = catchError f $ \e -> do
       liftEffect $ for_ unbalancedTxs $
-        unlockTransactionInputs storage <<< uutxToTx <<< fst
+        unlockTransactionInputs storage <<< _.transaction <<< unwrap
       throwError e
   unlockAllOnError $ traverse balanceAndLockWithConstraintsE unbalancedTxs
-  where
-  uutxToTx :: UnbalancedTx -> Transaction
-  uutxToTx = _.transaction <<< unwrap
 
 balanceAndLockWithConstraintsE
-  :: UnbalancedTx /\ BalancerConstraints
+  :: UnbalancedTx
   -> Contract (Either BalanceTxError FinalizedTransaction)
-balanceAndLockWithConstraintsE i@(unbalancedTx /\ constraints) = do
-  -- HERE
+balanceAndLockWithConstraintsE unbalancedTx = do
   let
     tx' /\ ix = unUnbalancedTx unbalancedTx
-
-  balanceTxWithConstraints tx' ix constraints >>= either (pure <<< Left)
-    \finalizedTx -> do
-      storage <- asks _.storage
-      successfullyLocked <- liftEffect $
-        lockTransactionInputs storage (unwrap finalizedTx)
-      if successfullyLocked then pure $ Right finalizedTx
-      else balanceAndLockWithConstraintsE i
+  balanceTxWithConstraints tx' ix (unwrap unbalancedTx).balancerConstraints >>=
+    either (pure <<< Left)
+      \finalizedTx -> do
+        storage <- asks _.storage
+        successfullyLocked <- liftEffect $
+          lockTransactionInputs storage (unwrap finalizedTx)
+        if successfullyLocked then pure $ Right finalizedTx
+        else balanceAndLockWithConstraintsE unbalancedTx
 
 newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
 
@@ -422,11 +415,10 @@ submitTxFromConstraintsReturningFee
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> BalancerConstraints
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
-submitTxFromConstraintsReturningFee lookups constraints balancerConstraints = do
+submitTxFromConstraintsReturningFee lookups constraints = do
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx balancerConstraints
+  balancedTx <- balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
@@ -439,8 +431,6 @@ submitTxFromConstraints
   => IsData redeemer
   => ScriptLookups validator
   -> TxConstraints redeemer datum
-  -> BalancerConstraints
   -> Contract TransactionHash
-submitTxFromConstraints lookups constraints balancerConstraints =
+submitTxFromConstraints lookups constraints =
   _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints
-    balancerConstraints

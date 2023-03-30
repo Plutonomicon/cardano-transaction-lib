@@ -1,6 +1,5 @@
 module Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
-  , BalanceTxMContext
   , FinalizedTransaction(FinalizedTransaction)
   , askCip30Wallet
   , askCoinsPerUtxoUnit
@@ -9,22 +8,17 @@ module Ctl.Internal.BalanceTx.Types
   , asksConstraints
   , liftEitherContract
   , liftContract
-  , withBalanceTxConstraints
   ) where
 
 import Prelude
 
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
-import Control.Monad.Reader.Trans (ReaderT, runReaderT)
+import Control.Monad.Reader.Trans (ReaderT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Constraints
-  ( BalanceTxConstraints
-  , BalancerConstraints
+  ( BalancerConstraints
   )
-import Ctl.Internal.BalanceTx.Constraints
-  ( buildBalanceTxConstraints
-  ) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
@@ -43,10 +37,8 @@ import Data.Set (Set)
 import Data.Set (member) as Set
 import Data.Show.Generic (genericShow)
 
-type BalanceTxMContext = { constraints :: BalanceTxConstraints }
-
 type BalanceTxM (a :: Type) =
-  ExceptT BalanceTxError (ReaderT BalanceTxMContext Contract) a
+  ExceptT BalanceTxError (ReaderT BalancerConstraints Contract) a
 
 liftContract :: forall (a :: Type). Contract a -> BalanceTxM a
 liftContract = lift <<< lift
@@ -56,8 +48,8 @@ liftEitherContract
 liftEitherContract = ExceptT <<< lift
 
 asksConstraints
-  :: forall (a :: Type). Lens' BalanceTxConstraints a -> BalanceTxM a
-asksConstraints l = asks (view l <<< _.constraints)
+  :: forall (a :: Type). Lens' BalancerConstraints a -> BalanceTxM a
+asksConstraints l = asks (view l)
 
 asksContractEnv :: forall (a :: Type). (ContractEnv -> a) -> BalanceTxM a
 asksContractEnv = lift <<< lift <<< asks
@@ -72,17 +64,6 @@ askCip30Wallet = asksContractEnv (cip30Wallet <=< _.wallet)
 
 askNetworkId :: BalanceTxM NetworkId
 askNetworkId = asksContractEnv _.networkId
-
-withBalanceTxConstraints
-  :: forall (a :: Type)
-   . BalancerConstraints
-  -> ReaderT BalanceTxMContext Contract a
-  -> Contract a
-withBalanceTxConstraints constraintsBuilder =
-  flip runReaderT { constraints }
-  where
-  constraints :: BalanceTxConstraints
-  constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
 
 askCostModelsForLanguages :: Set Language -> BalanceTxM Costmdls
 askCostModelsForLanguages languages =

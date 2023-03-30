@@ -86,7 +86,7 @@ contract = do
     lookups = mempty
 
   void $ runChecks checks $ lift do
-    txHash <- submitTxFromConstraints lookups constraints mempty
+    txHash <- submitTxFromConstraints lookups constraints
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { address, txHash, datum, datumHash: datumHash' }

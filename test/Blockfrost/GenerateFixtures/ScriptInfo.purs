@@ -104,7 +104,7 @@ generateFixtures = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txHash <- submitTxFromConstraints lookups constraints mempty
+  txHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txHash
 
   forWithIndex_ hashesLanguages \i (scriptHash /\ language) -> do

@@ -55,7 +55,7 @@ mintToken = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  submitTxFromConstraints lookups constraints mempty
+  submitTxFromConstraints lookups constraints
 
 sendToken :: Contract TransactionHash
 sendToken = do
@@ -69,7 +69,7 @@ sendToken = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  submitTxFromConstraints lookups constraints mempty
+  submitTxFromConstraints lookups constraints
 
 tokenValue :: Contract (MintingPolicy /\ Value)
 tokenValue = do

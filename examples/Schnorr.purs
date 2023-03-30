@@ -67,7 +67,7 @@ prepTest = do
     constraints = Constraints.mustPayToScript valHash unitDatum
       Constraints.DatumInline
       val
-  txId <- submitTxFromConstraints lookups constraints mempty
+  txId <- submitTxFromConstraints lookups constraints
   logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
@@ -101,7 +101,7 @@ testVerification txId ecdsaRed = do
 
     constraints :: Constraints.TxConstraints Void Void
     constraints = Constraints.mustSpendScriptOutput txIn red
-  txId' <- submitTxFromConstraints lookups constraints mempty
+  txId' <- submitTxFromConstraints lookups constraints
   logInfo' $ "Submitted Schnorr test verification tx: " <> show txId'
   awaitTxConfirmed txId'
   logInfo' $ "Transaction confirmed: " <> show txId'

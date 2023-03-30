@@ -52,7 +52,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- submitTxFromConstraints lookups constraints mempty
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' "Minted successfully"
@@ -73,7 +73,7 @@ toSelfContract cs tn amount = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  txId <- submitTxFromConstraints lookups constraints mempty
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"

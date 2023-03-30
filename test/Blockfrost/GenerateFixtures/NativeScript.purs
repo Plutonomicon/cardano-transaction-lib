@@ -93,7 +93,7 @@ generateFixtures numFixtures = do
       lookups :: Lookups.ScriptLookups Void
       lookups = mempty
 
-    txHash <- submitTxFromConstraints lookups constraints mempty
+    txHash <- submitTxFromConstraints lookups constraints
     awaitTxConfirmed txHash
 
     -- TODO:

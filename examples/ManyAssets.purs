@@ -62,7 +62,7 @@ mkContractWithAssertions exampleName = do
     lookups = Lookups.mintingPolicy mp
       <> Lookups.unspentOutputs utxos
 
-  txHash <- submitTxFromConstraints lookups constraints mempty
+  txHash <- submitTxFromConstraints lookups constraints
   logInfo' $ "Tx ID: " <> show txHash
   awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"

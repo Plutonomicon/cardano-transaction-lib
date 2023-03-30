@@ -212,7 +212,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< balanceTx unbalancedTx mempty
+        signTransaction =<< balanceTx unbalancedTx
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx

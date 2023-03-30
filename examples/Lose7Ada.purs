@@ -70,7 +70,7 @@ payToAlwaysFails vhash = do
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
 
-  submitTxFromConstraints lookups constraints mempty
+  submitTxFromConstraints lookups constraints
 
 spendFromAlwaysFails
   :: ValidatorHash
@@ -100,7 +100,7 @@ spendFromAlwaysFails vhash validator txId = do
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustNotBeValid
 
-  spendTxId <- submitTxFromConstraints lookups constraints mempty
+  spendTxId <- submitTxFromConstraints lookups constraints
   logInfo' $ "Tx ID: " <> show spendTxId
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."

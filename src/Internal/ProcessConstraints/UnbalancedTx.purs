@@ -4,6 +4,7 @@ module Ctl.Internal.ProcessConstraints.UnbalancedTx
 
 import Prelude hiding (join)
 
+import Ctl.Internal.BalanceTx.Constraints (BalancerConstraints)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput)
 import Ctl.Internal.Types.Datum (Datum)
@@ -20,6 +21,7 @@ newtype UnbalancedTx = UnbalancedTx
   , usedUtxos :: Map TransactionInput TransactionOutput
   , datums :: Array Datum -- the array of ordered datums that require attaching
   , redeemers :: Array UnindexedRedeemer
+  , balancerConstraints :: BalancerConstraints
   }
 
 derive instance Generic UnbalancedTx _

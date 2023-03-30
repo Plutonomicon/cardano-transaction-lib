@@ -11,10 +11,6 @@ module Ctl.Examples.TxChaining
 import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeysHashes)
-import Contract.BalanceTxConstraints
-  ( BalancerConstraints
-  , mustUseAdditionalUtxos
-  ) as BalanceTxConstraints
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, liftedM, runContract)

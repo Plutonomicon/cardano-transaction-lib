@@ -10,7 +10,7 @@ import Contract.Log (logTrace')
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (trace) as Logger
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader (asks, runReaderT)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionState
@@ -76,7 +76,6 @@ import Ctl.Internal.BalanceTx.Types
   , asksConstraints
   , liftContract
   , liftEitherContract
-  , withBalanceTxConstraints
   )
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UnattachedTx
@@ -177,10 +176,10 @@ balanceTxWithConstraints
   -> Map TransactionInput TransactionOutput
   -> BalancerConstraints
   -> Contract (Either BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
+balanceTxWithConstraints transaction extraUtxos constraints = do
   pparams <- getProtocolParameters
 
-  withBalanceTxConstraints constraintsBuilder $ runExceptT do
+  flip runReaderT constraints $ runExceptT do
     let
       depositValuePerCert = (unwrap pparams).stakeAddressDeposit
       certsFee = getStakingBalance (transaction.transaction)

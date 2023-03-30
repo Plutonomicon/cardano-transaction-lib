@@ -48,7 +48,7 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
 
-  txId <- submitTxFromConstraints lookups constraints mempty
+  txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"

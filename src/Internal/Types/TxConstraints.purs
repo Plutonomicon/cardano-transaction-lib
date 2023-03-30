@@ -93,10 +93,21 @@ module Ctl.Internal.Types.TxConstraints
   , requiredSignatories
   , singleton
   , utxoWithScriptRef
+  , mustGenChangeOutsWithMaxTokenQuantity
+  , mustNotSpendUtxoWithOutRef
+  , mustNotSpendUtxosWithOutRefs
+  , mustSendChangeToAddress
+  , mustUseAdditionalUtxos
+  , mustUseCoinSelectionStrategy
+  , mustUseUtxosAtAddress
+  , mustUseUtxosAtAddresses
   ) where
 
 import Prelude hiding (join)
 
+import Ctl.Internal.BalanceTx.CoinSelection (SelectionStrategy)
+import Ctl.Internal.BalanceTx.Constraints (BalancerConstraints)
+import Ctl.Internal.BalanceTx.Constraints as BalancerConstraints
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -105,6 +116,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , PoolRegistrationParams
   )
 import Ctl.Internal.NativeScripts (NativeScriptHash)
+import Ctl.Internal.Plutus.Types.Address (Address, AddressWithNetworkTag)
 import Ctl.Internal.Plutus.Types.Credential (Credential)
 import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
@@ -115,6 +127,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets)
+import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Interval
   ( POSIXTimeRange
@@ -145,6 +158,7 @@ import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
+import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Warn, Text)
@@ -273,6 +287,7 @@ instance Show o => Show (OutputConstraint o) where
 -- | Restrictions placed on the allocation of funds to outputs of transactions.
 newtype TxConstraints (i :: Type) (o :: Type) = TxConstraints
   { constraints :: Array TxConstraint
+  , balancerConstraints :: BalancerConstraints
   , ownInputs :: Array (InputConstraint i)
   , ownOutputs :: Array (OutputConstraint o)
   }
@@ -809,3 +824,84 @@ requiredDatums = foldMap f <<< _.constraints <<< unwrap
   f :: TxConstraint -> Array Datum
   f (MustIncludeDatum dt) = Array.singleton dt
   f _ = []
+
+setBalancerConstraint
+  :: forall (i :: Type) (o :: Type)
+   . BalancerConstraints
+  -> TxConstraints i o
+setBalancerConstraint txc = mempty #
+  over TxConstraints _ { balancerConstraints = txc }
+
+-- | Tells the balancer to split change outputs and equipartition change `Value`
+-- | between them if the total change `Value` contains token quantities
+-- | exceeding the specified upper bound.
+-- | (See `Cardano.Types.Value.equipartitionValueWithTokenQuantityUpperBound`)
+mustGenChangeOutsWithMaxTokenQuantity
+  :: forall (i :: Type) (o :: Type). BigInt -> TxConstraints i o
+mustGenChangeOutsWithMaxTokenQuantity = setBalancerConstraint <<<
+  BalancerConstraints.mustGenChangeOutsWithMaxTokenQuantity
+
+-- | Tells the balancer not to spend UTxO's with the specified output references.
+mustNotSpendUtxoWithOutRef
+  :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
+mustNotSpendUtxoWithOutRef = setBalancerConstraint <<<
+  BalancerConstraints.mustNotSpendUtxoWithOutRef
+
+-- | Tells the balancer not to spend a UTxO with the specified output reference.
+mustNotSpendUtxosWithOutRefs
+  :: forall (i :: Type) (o :: Type). Set TransactionInput -> TxConstraints i o
+mustNotSpendUtxosWithOutRefs = setBalancerConstraint <<<
+  BalancerConstraints.mustNotSpendUtxosWithOutRefs
+
+-- | Tells the balancer to send all generated change to a given address.
+-- | If this constraint is not set, then the default change address owned by
+-- | the wallet is used.
+-- |
+-- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
+-- | does NOT have any effect on which address will be used as a change address.
+mustSendChangeToAddress
+  :: forall (i :: Type) (o :: Type). AddressWithNetworkTag -> TxConstraints i o
+mustSendChangeToAddress = setBalancerConstraint <<<
+  BalancerConstraints.mustSendChangeToAddress
+
+-- | Tells the balancer to use the provided UTxO set when evaluating script
+-- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
+-- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
+-- | spendable by the transaction (see `Examples.TxChaining` for reference).
+mustUseAdditionalUtxos
+  :: forall (i :: Type) (o :: Type)
+   . Map TransactionInput TransactionOutputWithRefScript
+  -> TxConstraints i o
+mustUseAdditionalUtxos = setBalancerConstraint <<<
+  BalancerConstraints.mustUseAdditionalUtxos
+
+-- | Tells the balancer to use the given strategy for coin selection.
+mustUseCoinSelectionStrategy
+  :: forall (i :: Type) (o :: Type). SelectionStrategy -> TxConstraints i o
+mustUseCoinSelectionStrategy = setBalancerConstraint <<<
+  BalancerConstraints.mustUseCoinSelectionStrategy
+
+-- | Tells the balancer to use UTxO's at a given address.
+-- | If this constraint is not set, then the default addresses owned by the
+-- | wallet are used.
+-- |
+-- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
+-- | does NOT have any effect on which address will be used as a change address.
+mustUseUtxosAtAddress
+  :: forall (i :: Type) (o :: Type). AddressWithNetworkTag -> TxConstraints i o
+mustUseUtxosAtAddress = setBalancerConstraint <<<
+  BalancerConstraints.mustUseUtxosAtAddress
+
+-- | Tells the balancer to use UTxO's at given addresses.
+-- | If this constraint is not set, then the default addresses owned by the
+-- | wallet are used.
+-- |
+-- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
+-- | does NOT have any effect on which address will be used as a change address.
+mustUseUtxosAtAddresses
+  :: forall (i :: Type) (o :: Type)
+   . NetworkId
+  -> Array Address
+  -> TxConstraints i o
+mustUseUtxosAtAddresses network = setBalancerConstraint <<<
+  BalancerConstraints.mustUseUtxosAtAddresses network

@@ -10,13 +10,6 @@ import Contract.Address
   , getWalletAddressesWithNetworkTag
   , ownPaymentPubKeysHashes
   )
-import Contract.BalanceTxConstraints
-  ( BalancerConstraints
-  , mustGenChangeOutsWithMaxTokenQuantity
-  , mustNotSpendUtxoWithOutRef
-  , mustSendChangeToAddress
-  , mustUseUtxosAtAddress
-  ) as BalanceTxConstraints
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
 import Contract.ScriptLookups as Lookups
@@ -114,7 +107,7 @@ checks =
 
 contract :: ContractParams -> Contract Unit
 contract (ContractParams p) = do
-  logInfo' "Examples.BalanceTxConstraints"
+  logInfo' "Running Examples.BalanceTxConstraints"
 
   alicePubKeyHash <-
     liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
@@ -140,22 +133,19 @@ contract (ContractParams p) = do
     constraints =
       Constraints.mustMintValue (Value.singleton cs tn $ fromInt 11)
         <> foldMap Constraints.mustBeSignedBy [ alicePubKeyHash, bobPubKeyHash ]
+        <> Constraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
+        <> Constraints.mustUseUtxosAtAddress bobAddress
+        <> Constraints.mustSendChangeToAddress bobAddress
+        <> Constraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
-
-    balanceTxConstraints :: BalanceTxConstraints.BalancerConstraints
-    balanceTxConstraints =
-      BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
-        <> BalanceTxConstraints.mustUseUtxosAtAddress bobAddress
-        <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
-        <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
   void $ runChecks checks $ lift do
     unbalancedTx <-
       liftedE $ Lookups.mkUnbalancedTx lookups constraints
 
-    balancedTx <- balanceTx unbalancedTx balanceTxConstraints
+    balancedTx <- balanceTx unbalancedTx
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

@@ -69,7 +69,7 @@ payToIncludeDatum vhash =
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
   in
-    submitTxFromConstraints lookups constraints mempty
+    submitTxFromConstraints lookups constraints
 
 spendFromIncludeDatum
   :: ValidatorHash
@@ -90,7 +90,7 @@ spendFromIncludeDatum vhash validator txId = do
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustIncludeDatum datum
-  spendTxId <- submitTxFromConstraints lookups constraints mempty
+  spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 

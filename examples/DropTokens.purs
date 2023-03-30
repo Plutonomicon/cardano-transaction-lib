@@ -49,5 +49,5 @@ contract = do
     lookups :: Lookups.ScriptLookups Void
     lookups = mempty
 
-  submitTxFromConstraints lookups constraints mempty >>= awaitTxConfirmed
+  submitTxFromConstraints lookups constraints >>= awaitTxConfirmed
   logInfo' "Tx submitted successfully!"

@@ -1022,6 +1022,7 @@ mkUnbalancedTxImpl scriptLookups txConstraints =
         , datums
         , redeemers
         , usedUtxos
+        , balancerConstraints: (unwrap txConstraints).balancerConstraints
         }
   where
   stripScriptDataHash :: Transaction -> Transaction
