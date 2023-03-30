@@ -7,7 +7,11 @@ module Ctl.Internal.QueryM.Ogmios
   , CurrentEpoch(CurrentEpoch)
   , DelegationsAndRewardsR(DelegationsAndRewardsR)
   , ExecutionUnits
+  , MempoolReleased(Released)
+  , MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
+  , MempoolTransaction(MempoolTransaction)
+  , MempoolTxBody(MempoolTxBody)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
   , OgmiosTxOut
@@ -49,6 +53,8 @@ module Ctl.Internal.QueryM.Ogmios
   , evaluateTxCall
   , queryPoolIdsCall
   , mempoolSnapshotHasTxCall
+  , mempoolSnapshotNextTxCall
+  , mempoolSnpashotSizeAndCapacityCall
   , mkOgmiosCallType
   , queryChainTipCall
   , queryCurrentEpochCall
@@ -57,6 +63,7 @@ module Ctl.Internal.QueryM.Ogmios
   , querySystemStartCall
   , queryPoolParameters
   , queryDelegationsAndRewards
+  , releaseMempoolCall
   , submitTxCall
   , slotLengthFactor
   , parseIpv6String
@@ -69,7 +76,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
+  , JsonDecodeError(AtKey, TypeMismatch, MissingValue, UnexpectedValue)
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
@@ -103,7 +110,8 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Costmdls(Costmdls)
+  ( AuxiliaryData
+  , Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
   , Ipv4(Ipv4)
@@ -113,6 +121,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , PoolPubKeyHash
   , Relay(MultiHostName, SingleHostAddr, SingleHostName)
   , SubCoin
+  , TransactionWitnessSet
   , URL(URL)
   , UnitInterval
   )
@@ -176,6 +185,7 @@ import Ctl.Internal.Types.SystemStart
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
+import Data.Argonaut (fromString) as JSON
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
 import Data.Bifunctor (lmap)
@@ -317,6 +327,23 @@ mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   , args: { id: _ }
   }
 
+mempoolSnapshotNextTxCall
+  :: MempoolSnapshotAcquired -> JsonWspCall Unit (Maybe MempoolTransaction)
+mempoolSnapshotNextTxCall _ = mkOgmiosCallType
+  { methodname: "NextTx"
+  , args: const { fields: "all" }
+  }
+
+mempoolSnpashotSizeAndCapacityCall
+  :: MempoolSnapshotAcquired -> JsonWspCall Unit MempoolSizeAndCapacity
+mempoolSnpashotSizeAndCapacityCall _ =
+  mkOgmiosCallTypeNoArgs "SizeAndCapacity"
+
+releaseMempoolCall
+  :: MempoolSnapshotAcquired -> JsonWspCall Unit MempoolReleased
+releaseMempoolCall _ =
+  mkOgmiosCallTypeNoArgs "ReleaseMempool"
+
 --------------------------------------------------------------------------------
 -- Local Tx Monitor Query Response & Parsing
 --------------------------------------------------------------------------------
@@ -330,6 +357,117 @@ instance DecodeAeson MempoolSnapshotAcquired where
   decodeAeson =
     map AwaitAcquired <<< aesonObject
       (flip getField "AwaitAcquired" >=> flip getField "slot")
+
+-- | The acquired snapshot’s size (in bytes), number of transactions, and capacity
+-- | (in bytes).
+newtype MempoolSizeAndCapacity = MempoolSizeAndCapacity
+  { capacity :: BigInt
+  , currentSize :: BigInt
+  , numberOfTxs :: BigInt
+  }
+
+derive instance Generic MempoolSizeAndCapacity _
+derive instance Newtype MempoolSizeAndCapacity _
+instance Show MempoolSizeAndCapacity where
+  show = genericShow
+
+instance DecodeAeson MempoolSizeAndCapacity where
+  decodeAeson = aesonObject $ \o -> do
+    capacity <- getField o "capacity"
+    currentSize <- getField o "currentSize"
+    numberOfTxs <- getField o "numberOfTxs"
+
+    pure $ wrap { capacity, currentSize, numberOfTxs }
+
+data MempoolReleased = Released
+
+-- Ogmios only has a single response for releasing the mempool
+-- https://github.com/CardanoSolutions/ogmios/blob/d326d8839d50ff628f7be1b5552f7cd22b2f094e/server/src/Ogmios/Data/Protocol/StateQuery.hs#L231
+instance DecodeAeson MempoolReleased where
+  decodeAeson = aesonString $ \a -> case a of
+    "Released" -> Right Released
+    _ -> Left $ UnexpectedValue $ JSON.fromString a
+
+instance Show MempoolReleased where
+  show Released = "Mempool Released"
+
+newtype MempoolTransaction = MempoolTransaction
+  { id :: OgmiosTxId
+  -- , inputSource :: InputSource
+  , body :: MempoolTxBody
+  -- , witness :: MempoolWitnessSet
+  -- , metadata :: Maybe MempoolAuxiliaryData
+  -- , raw :: String
+  }
+
+derive instance Generic MempoolTransaction _
+derive instance Newtype MempoolTransaction _
+instance Show MempoolTransaction where
+  show = genericShow
+
+instance DecodeAeson MempoolTransaction where
+  decodeAeson = aesonObject $ \o -> do
+    id <- getField o "id"
+    body <- getField o "body"
+    pure $ MempoolTransaction { id, body }
+
+-- TODO: Decode the remaining parts of the transaction.
+newtype MempoolTxBody = MempoolTxBody
+  { inputs :: Array OgmiosTxOutRef
+  -- , collaterals :: Array OgmiosTxOutRef
+  , outputs :: Array OgmiosTxOut
+  -- , certificates :: Array Certificate
+  -- , withdrawls :: Map OgmiosRewardAddress BigInt
+  -- , fee :: BigInt
+  -- , validityInterval :: ValidityInterval
+  -- , update :: Maybe Update
+  -- , mint :: Maybe Value
+  -- , network :: Maybe NetworkId
+  -- , scriptIntegrityHash :: Maybe String
+  -- , requiredExtraSignatures :: Array OgmiosRequiredSigner
+  }
+
+derive instance Generic MempoolTxBody _
+derive instance Newtype MempoolTxBody _
+instance Show MempoolTxBody where
+  show = genericShow
+
+instance DecodeAeson MempoolTxBody where
+  decodeAeson = aesonObject $ \o -> do
+    inputs <- aesonArray (traverse parseTxOutRef) =<< getField o "inputs"
+    outputs <- aesonArray (traverse parseTxOut) =<< getField o "outputs"
+    pure $ MempoolTxBody { inputs, outputs }
+
+data InputSource = Inputs | Collaterals
+type OgmiosRewardAddress = String
+type OgmiosRequiredSigner = String
+newtype MempoolWitnessSet = MempoolWitnessSet TransactionWitnessSet
+
+type MempoolAuxiliaryData =
+  { hash :: String
+  , body :: AuxiliaryData
+  }
+
+type ValidityInterval =
+  { invalidBefore :: Maybe BigInt
+  , invalidHereafter :: Maybe BigInt
+  }
+
+-- parser for ValidityInterval
+parseValidityInterval :: Aeson -> Either JsonDecodeError ValidityInterval
+parseValidityInterval = aesonObject $ \o -> do
+  invalidBefore <- getFieldOptional o "invalidBefore"
+  invalidHereafter <- getFieldOptional o "invalidHereafter"
+  pure { invalidBefore, invalidHereafter }
+
+-- parser for InputSource
+parseInputSource :: Aeson -> Either JsonDecodeError InputSource
+parseInputSource = aesonObject $ \o -> do
+  inputSource <- getField o "invalidSource"
+  case inputSource of
+    "inputs" -> Right Inputs
+    "outputs" -> Right Collaterals
+    _ -> Left $ UnexpectedValue $ JSON.fromString inputSource
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -1116,6 +1254,14 @@ aesonArray
   -> Aeson
   -> Either JsonDecodeError a
 aesonArray = caseAesonArray (Left (TypeMismatch "Expected Array"))
+
+-- helper for assuming we get an string
+aesonString
+  :: forall (a :: Type)
+   . (String -> Either JsonDecodeError a)
+  -> Aeson
+  -> Either JsonDecodeError a
+aesonString = caseAesonString (Left (TypeMismatch "Expected String"))
 
 -- parser for txOutRef
 parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef

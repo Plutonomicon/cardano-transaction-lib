@@ -17,6 +17,7 @@ module Ctl.Internal.QueryM
   , QueryRuntime
   , SubmitTxListenerSet
   , WebSocket(WebSocket)
+  , acquireMempoolSnapshotAff
   , evaluateTxOgmios
   , getChainTip
   , getLogger
@@ -27,14 +28,19 @@ module Ctl.Internal.QueryM
   , postAeson
   , mkListenerSet
   , defaultMessageListener
+  , mempoolSnapshotHasTxAff
+  , mempoolSnapshotNextTxAff
+  , mempoolSnapshotSizeAndCapacityAff
   , mkOgmiosRequest
   , mkOgmiosRequestAff
   , mkOgmiosWebSocketAff
   , mkRequest
   , mkRequestAff
+  , releaseMempoolAff
   , scriptToAeson
   , submitTxOgmios
   , underlyingWebSocket
+  , withMempoolSnapshot
   ) where
 
 import Prelude
@@ -354,6 +360,37 @@ mempoolSnapshotHasTxAff ogmiosWs logger ms =
   mkOgmiosRequestAff ogmiosWs logger (Ogmios.mempoolSnapshotHasTxCall ms)
     _.mempoolHasTx
 
+mempoolSnapshotSizeAndCapacityAff
+  :: OgmiosWebSocket
+  -> Logger
+  -> Ogmios.MempoolSnapshotAcquired
+  -> Aff Ogmios.MempoolSizeAndCapacity
+mempoolSnapshotSizeAndCapacityAff ogmiosWs logger ms =
+  mkOgmiosRequestAff ogmiosWs logger
+    (Ogmios.mempoolSnpashotSizeAndCapacityCall ms)
+    _.mempoolSizeAndCapcity
+    unit
+
+releaseMempoolAff
+  :: OgmiosWebSocket
+  -> Logger
+  -> Ogmios.MempoolSnapshotAcquired
+  -> Aff Ogmios.MempoolReleased
+releaseMempoolAff ogmiosWs logger ms =
+  mkOgmiosRequestAff ogmiosWs logger (Ogmios.releaseMempoolCall ms)
+    _.releaseMempool
+    unit
+
+mempoolSnapshotNextTxAff
+  :: OgmiosWebSocket
+  -> Logger
+  -> Ogmios.MempoolSnapshotAcquired
+  -> Aff (Maybe Ogmios.MempoolTransaction)
+mempoolSnapshotNextTxAff ogmiosWs logger ms =
+  mkOgmiosRequestAff ogmiosWs logger (Ogmios.mempoolSnapshotNextTxCall ms)
+    _.mempoolNextTx
+    unit
+
 --------------------------------------------------------------------------------
 -- Affjax
 --------------------------------------------------------------------------------
@@ -587,7 +624,13 @@ mkOgmiosWebSocketLens logger isTxConfirmed = do
             mkListenerSet dispatcher pendingRequests
         , acquireMempool:
             mkListenerSet dispatcher pendingRequests
+        , releaseMempool:
+            mkListenerSet dispatcher pendingRequests
         , mempoolHasTx:
+            mkListenerSet dispatcher pendingRequests
+        , mempoolNextTx:
+            mkListenerSet dispatcher pendingRequests
+        , mempoolSizeAndCapcity:
             mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
@@ -630,7 +673,10 @@ type OgmiosListeners =
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
+  , releaseMempool :: ListenerSet Unit Ogmios.MempoolReleased
   , mempoolHasTx :: ListenerSet TxHash Boolean
+  , mempoolNextTx :: ListenerSet Unit (Maybe Ogmios.MempoolTransaction)
+  , mempoolSizeAndCapcity :: ListenerSet Unit Ogmios.MempoolSizeAndCapacity
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
   , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
