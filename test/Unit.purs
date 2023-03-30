@@ -43,6 +43,7 @@ import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
+import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 import Test.Spec.Runner (defaultConfig)
 
@@ -56,6 +57,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
+  UsedTxOuts.suite
   ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite

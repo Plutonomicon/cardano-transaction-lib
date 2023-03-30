@@ -23,6 +23,7 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Ctl.Internal.Contract.AppInstance (newAppInstanceId)
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
@@ -590,7 +591,8 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     plutipCfg { customLogger = customLogger }
     backend
   backendKnownTxs <- liftEffect $ Ref.new Set.empty
-  disabledStorage <- liftEffect mkRefStorage
+  refStorage <- liftEffect mkRefStorage
+  appInstanceId <- liftEffect newAppInstanceId
   pure
     { backend
     , handle: mkQueryHandle plutipCfg backend
@@ -602,11 +604,12 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , hooks: emptyHooks
     , wallet: Nothing
     , ledgerConstants
-    , storage: disabledStorage
+    , storage: refStorage
     -- timeParams have no effect when KeyWallet is used
     , timeParams: defaultTimeParams
     , synchronizationParams: defaultSynchronizationParams
     , knownTxs: { backend: backendKnownTxs }
+    , appInstanceId
     }
 
 defaultRetryPolicy :: RetryPolicy

@@ -40,7 +40,6 @@ import Control.Monad.Error.Class (catchError, liftEither, throwError, try)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.BalanceTx (FinalizedTransaction, balanceTxWithConstraints)
 import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as X
-import Ctl.Internal.BalanceTx.Constraints (BalancerConstraints)
 import Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
   , BalanceTxError
@@ -215,15 +214,12 @@ import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
   )
-import Ctl.Internal.Types.UsedTxOuts
-  ( lockTransactionInputs
-  , unlockTransactionInputs
-  )
 import Ctl.Internal.Types.VRFKeyHash
   ( VRFKeyHash
   , vrfKeyHashFromBytes
   , vrfKeyHashToBytes
   ) as X
+import Ctl.Internal.UsedTxOuts (lockTransactionInputs, unlockTransactionInputs)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
@@ -347,12 +343,13 @@ balanceAndLockWithConstraintsE
 balanceAndLockWithConstraintsE unbalancedTx = do
   let
     tx' /\ ix = unUnbalancedTx unbalancedTx
+  id <- asks _.appInstanceId
   balanceTxWithConstraints tx' ix (unwrap unbalancedTx).balancerConstraints >>=
     either (pure <<< Left)
       \finalizedTx -> do
         storage <- asks _.storage
         successfullyLocked <- liftEffect $
-          lockTransactionInputs storage (unwrap finalizedTx)
+          lockTransactionInputs id storage (unwrap finalizedTx)
         if successfullyLocked then pure $ Right finalizedTx
         else balanceAndLockWithConstraintsE unbalancedTx
 

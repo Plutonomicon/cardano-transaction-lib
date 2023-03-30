@@ -67,15 +67,13 @@ import Contract.Transaction
   , awaitTxConfirmed
   , balanceTx
   , balanceTxE
+  , createAdditionalUtxos
   , getTxMetadata
   , signTransaction
   , submit
   , submitTxFromConstraints
   )
 import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints
-  ( mustUseAdditionalUtxos
-  ) as TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (UtxoMap, getWalletBalance, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
@@ -143,7 +141,7 @@ import Ctl.Internal.Wallet.Cip30Mock
 import Data.Array (head, (!!))
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft, isRight)
-import Data.Foldable (fold, foldM)
+import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isJust)
@@ -172,7 +170,7 @@ import Test.Ctl.Fixtures
 import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
 suite = do
@@ -1073,7 +1071,7 @@ suite = do
                     (view _input alwaysSucceedsUtxo)
                     unitRedeemer
                 , Constraints.mustPayToPubKey alicePkh value
-                , TxConstraints.mustUseAdditionalUtxos additionalUtxos
+                , Constraints.mustUseAdditionalUtxos additionalUtxos
                 ]
 
               lookups :: Lookups.ScriptLookups PlutusData
@@ -1498,41 +1496,35 @@ suite = do
 
             unbalancedTx0 <-
               liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
-            pure unit
-      -- withBalancedTx unbalancedTx0 \balancedTx0 -> do
-      --   balancedSignedTx0 <- signTransaction balancedTx0
+            balancedTx0 <- balanceTx unbalancedTx0
+            balancedSignedTx0 <- signTransaction balancedTx0
 
-      --   additionalUtxos <- createAdditionalUtxos balancedSignedTx0
+            additionalUtxos <- createAdditionalUtxos balancedSignedTx0
 
-      --   logInfo' $ "Additional utxos: " <> show additionalUtxos
-      --   length additionalUtxos `shouldNotEqual` 0
+            logInfo' $ "Additional utxos: " <> show additionalUtxos
+            length additionalUtxos `shouldNotEqual` 0
 
-      --   let
-      --     constraints1 :: TxConstraints Unit Unit
-      --     constraints1 =
-      --       Constraints.mustPayToPubKey pkh
-      --         (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
+            let
+              constraints1 :: TxConstraints Unit Unit
+              constraints1 =
+                Constraints.mustPayToPubKey pkh
+                  (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
+                  <> Constraints.mustUseAdditionalUtxos additionalUtxos
 
-      --     lookups1 :: Lookups.ScriptLookups PlutusData
-      --     lookups1 = Lookups.unspentOutputs additionalUtxos
+              lookups1 :: Lookups.ScriptLookups PlutusData
+              lookups1 = Lookups.unspentOutputs additionalUtxos
 
-      --     balanceTxConstraints
-      --       :: TxConstraints.BalancerConstraints
-      --     balanceTxConstraints =
-      --       TxConstraints.mustUseAdditionalUtxos additionalUtxos
+            unbalancedTx1 <-
+              liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+            balancedTx1 <-
+              balanceTx unbalancedTx1
+            balancedSignedTx1 <- signTransaction balancedTx1
 
-      --   unbalancedTx1 <-
-      --     liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-      --   balancedTx1 <-
-      --     liftedE $ balanceTxWithConstraints unbalancedTx1
-      --       balanceTxConstraints
-      --   balancedSignedTx1 <- signTransaction balancedTx1
+            txId0 <- submit balancedSignedTx0
+            txId1 <- submit balancedSignedTx1
 
-      --   txId0 <- submit balancedSignedTx0
-      --   txId1 <- submit balancedSignedTx1
-
-      --   awaitTxConfirmed txId0
-      --   awaitTxConfirmed txId1
+            awaitTxConfirmed txId0
+            awaitTxConfirmed txId1
 
       test "Evaluation with additional UTxOs" do
         -- We create two transactions. First, we create outputs with Ada, non-Ada
@@ -1621,44 +1613,35 @@ suite = do
 
             unbalancedTx0 <-
               liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+            balancedTx0 <- balanceTx unbalancedTx0
+            balancedSignedTx0 <- signTransaction balancedTx0
+            additionalUtxos <- createAdditionalUtxos balancedSignedTx0
+            logInfo' $ "Additional utxos: " <> show additionalUtxos
+            length additionalUtxos `shouldNotEqual` 0
 
-            pure unit
+            let
+              constraints1 :: TxConstraints Unit Unit
+              constraints1 =
+                Constraints.mustPayToPubKey pkh
+                  ( Value.lovelaceValueOf (BigInt.fromInt 60_000_000)
+                      <> Value.singleton cs tn (BigInt.fromInt 50)
+                  )
+                  <> Constraints.mustUseAdditionalUtxos additionalUtxos
 
-    -- withBalancedTx unbalancedTx0 \balancedTx0 -> do
-    --   balancedSignedTx0 <- signTransaction balancedTx0
+              lookups1 :: Lookups.ScriptLookups PlutusData
+              lookups1 = Lookups.unspentOutputs additionalUtxos
 
-    --   additionalUtxos <- createAdditionalUtxos balancedSignedTx0
+            unbalancedTx1 <-
+              liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
+            balancedTx1 <-
+              balanceTx unbalancedTx1
+            balancedSignedTx1 <- signTransaction balancedTx1
 
-    --   logInfo' $ "Additional utxos: " <> show additionalUtxos
-    --   length additionalUtxos `shouldNotEqual` 0
+            txId0 <- submit balancedSignedTx0
+            txId1 <- submit balancedSignedTx1
 
-    --   let
-    --     constraints1 :: TxConstraints Unit Unit
-    --     constraints1 =
-    --       Constraints.mustPayToPubKey pkh $
-    --         Value.lovelaceValueOf (BigInt.fromInt 60_000_000)
-    --           <> Value.singleton cs tn (BigInt.fromInt 50)
-
-    --     lookups1 :: Lookups.ScriptLookups PlutusData
-    --     lookups1 = Lookups.unspentOutputs additionalUtxos
-
-    --     balanceTxConstraints
-    --       :: TxConstraints.BalancerConstraints
-    --     balanceTxConstraints =
-    --       TxConstraints.mustUseAdditionalUtxos additionalUtxos
-
-    --   unbalancedTx1 <-
-    --     liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-    --   balancedTx1 <-
-    --     liftedE $ balanceTxWithConstraints unbalancedTx1
-    --       balanceTxConstraints
-    --   balancedSignedTx1 <- signTransaction balancedTx1
-
-    --   txId0 <- submit balancedSignedTx0
-    --   txId1 <- submit balancedSignedTx1
-
-    --   awaitTxConfirmed txId0
-    --   awaitTxConfirmed txId1
+            awaitTxConfirmed txId0
+            awaitTxConfirmed txId1
 
     group "Application of arguments to parameterized scripts" do
       test "returns the same script when called without args" do

@@ -37,6 +37,7 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
+import Ctl.Internal.Contract.AppInstance (AppInstanceId, newAppInstanceId)
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend
@@ -75,6 +76,7 @@ import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.UsedTxOuts (unlockAllBy)
 import Ctl.Internal.UsedTxOuts as UsedTxOuts
 import Ctl.Internal.UsedTxOuts.Storage (Storage, mkRefStorage)
 import Ctl.Internal.UsedTxOuts.StorageSpec (StorageSpec, mkStorage)
@@ -204,6 +206,7 @@ type ContractEnv =
   , knownTxs ::
       { backend :: Ref (Set TransactionHash)
       }
+  , appInstanceId :: AppInstanceId
   }
 
 getQueryHandle :: Contract QueryHandle
@@ -234,6 +237,7 @@ mkContractEnv params = do
   storage <- case params.storageSpec of
     Nothing -> liftEffect mkRefStorage
     Just storageSpec -> pure $ mkStorage storageSpec
+  appInstanceId <- liftEffect newAppInstanceId
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
@@ -250,6 +254,7 @@ mkContractEnv params = do
         , synchronizationParams: params.synchronizationParams
         , knownTxs: { backend }
         , storage
+        , appInstanceId
         }
   pure $ build envBuilder constants
   where
@@ -347,8 +352,9 @@ walletNetworkCheck envNetworkId =
 -- | Finalizes a `Contract` environment.
 -- | Closes the connections in `ContractEnv`, effectively making it unusable.
 stopContractEnv :: ContractEnv -> Aff Unit
-stopContractEnv { backend } =
+stopContractEnv { backend, storage, appInstanceId } = do
   liftEffect $ traverse_ stopCtlRuntime (getCtlBackend backend)
+  liftEffect $ unlockAllBy storage appInstanceId
   where
   stopCtlRuntime :: CtlBackend -> Effect Unit
   stopCtlRuntime { ogmios } =
