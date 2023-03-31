@@ -39,7 +39,7 @@ exports._addLinks = configs => tests => () => {
     optionEl.textContent = config;
     optionEl.value = config;
     configSelectEl.appendChild(optionEl);
-    if (document.location.search.startsWith("?" + config)) {
+    if (document.location.search.startsWith("?" + config + ":")) {
       configSelectEl.selectedIndex = ix;
     }
   });
