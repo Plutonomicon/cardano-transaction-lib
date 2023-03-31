@@ -50,7 +50,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsRuntime
   , TmpDir
-  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt, LaceExt)
   , getE2EWalletExtension
   , mkE2ETest
   , mkExtensionId
@@ -63,6 +63,8 @@ import Ctl.Internal.Test.E2E.Wallets
   , flintSign
   , geroConfirmAccess
   , geroSign
+  , laceConfirmAccess
+  , laceSign
   , lodeConfirmAccess
   , lodeSign
   , namiConfirmAccess
@@ -279,6 +281,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     GeroExt -> geroConfirmAccess
                     LodeExt -> lodeConfirmAccess
                     NamiExt -> namiConfirmAccess
+                    LaceExt -> laceConfirmAccess
                 sign =
                   case wallet of
                     EternlExt -> eternlSign
@@ -286,6 +289,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     GeroExt -> geroSign
                     LodeExt -> lodeSign
                     NamiExt -> namiSign
+                    LaceExt -> laceSign
                 someWallet =
                   { wallet
                   , name: walletName wallet
@@ -389,6 +393,7 @@ readExtensions wallets = do
   gero <- readExtensionParams "GERO" wallets
   lode <- readExtensionParams "LODE" wallets
   eternl <- readExtensionParams "ETERNL" wallets
+  lace <- readExtensionParams "LACE" wallets
 
   pure $ Map.fromFoldable $ catMaybes
     [ Tuple NamiExt <$> nami
@@ -396,6 +401,7 @@ readExtensions wallets = do
     , Tuple GeroExt <$> gero
     , Tuple LodeExt <$> lode
     , Tuple EternlExt <$> eternl
+    , Tuple LaceExt <$> lace
     ]
 
 -- | Read E2E test suite parameters from environment variables and CLI
@@ -924,3 +930,4 @@ walletName = case _ of
   GeroExt -> "gero"
   LodeExt -> "lode"
   NamiExt -> "nami"
+  LaceExt -> "lace"

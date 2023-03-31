@@ -12,7 +12,7 @@ module Ctl.Internal.Test.E2E.Types
   , unExtensionId
   , WalletPassword
   , ExtensionParams
-  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt, LaceExt)
   , Extensions
   , E2ETestRuntime
   , SettingsRuntime
@@ -93,7 +93,7 @@ type ExtensionParams =
   }
 
 -- | Enumeration of all known extensions.
-data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt
+data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt | LaceExt
 
 derive instance Eq WalletExt
 derive instance Ord WalletExt
@@ -148,6 +148,7 @@ mkE2ETest str =
     <|> (tryWalletPrefix "gero" <#> mkTestEntry (WalletExtension GeroExt))
     <|> (tryWalletPrefix "lode" <#> mkTestEntry (WalletExtension LodeExt))
     <|> (tryWalletPrefix "nami" <#> mkTestEntry (WalletExtension NamiExt))
+    <|> (tryWalletPrefix "lace" <#> mkTestEntry (WalletExtension LaceExt))
     <|> (tryWalletPrefix "plutip" <#> mkTestEntry PlutipCluster)
     <|> (pure $ mkTestEntry NoWallet str)
   where
