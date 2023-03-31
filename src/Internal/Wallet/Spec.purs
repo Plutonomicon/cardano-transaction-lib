@@ -7,6 +7,7 @@ module Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       , ConnectToLode
       , ConnectToNuFi
+      , ConnectToLace
       )
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
@@ -24,6 +25,7 @@ import Ctl.Internal.Wallet
       , EternlWallet
       , LodeWallet
       , NuFiWallet
+      , LaceWallet
       )
   , mkKeyWallet
   , mkWalletAff
@@ -55,6 +57,7 @@ data WalletSpec
   | ConnectToEternl
   | ConnectToLode
   | ConnectToNuFi
+  | ConnectToLace
 
 mkWalletBySpec :: WalletSpec -> Aff Wallet
 mkWalletBySpec = case _ of
@@ -73,3 +76,4 @@ mkWalletBySpec = case _ of
   ConnectToEternl -> mkWalletAff EternlWallet
   ConnectToLode -> mkWalletAff LodeWallet
   ConnectToNuFi -> mkWalletAff NuFiWallet
+  ConnectToLace -> mkWalletAff LaceWallet

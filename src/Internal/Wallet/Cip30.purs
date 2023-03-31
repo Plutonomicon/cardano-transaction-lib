@@ -44,7 +44,7 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
 import Effect (Effect)
@@ -90,16 +90,11 @@ type Cip30Wallet =
   }
 
 mkCip30WalletAff
-  :: String
-  -- ^ Name of the wallet for error messages
-  -> Effect (Promise Cip30Connection)
+  :: Effect (Promise Cip30Connection)
   -- ^ A function to get wallet connection
   -> Aff Cip30Wallet
-mkCip30WalletAff walletName enableWallet = do
+mkCip30WalletAff enableWallet = do
   wallet <- toAffE enableWallet
-  -- Ensure the Nami wallet has collateral set up
-  whenM (isNothing <$> getCollateral wallet) do
-    liftEffect $ throw $ walletName <> " wallet missing collateral"
   pure
     { connection: wallet
     , getNetworkId

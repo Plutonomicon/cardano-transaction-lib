@@ -7,6 +7,7 @@ module Contract.Config
   , testnetEternlConfig
   , testnetLodeConfig
   , testnetNuFiConfig
+  , testnetLaceConfig
   , mainnetConfig
   , mainnetNamiConfig
   , mainnetGeroConfig
@@ -14,6 +15,7 @@ module Contract.Config
   , mainnetEternlConfig
   , mainnetLodeConfig
   , mainnetNuFiConfig
+  , mainnetLaceConfig
   , defaultSynchronizationParams
   , strictSynchronizationParams
   , defaultTimeParams
@@ -83,6 +85,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToEternl
       , ConnectToLode
       , ConnectToNuFi
+      , ConnectToLace
       )
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
@@ -172,6 +175,9 @@ testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
 testnetNuFiConfig :: ContractParams
 testnetNuFiConfig = testnetConfig { walletSpec = Just ConnectToNuFi }
 
+testnetLaceConfig :: ContractParams
+testnetLaceConfig = testnetConfig { walletSpec = Just ConnectToLace }
+
 mainnetConfig :: ContractParams
 mainnetConfig = testnetConfig { networkId = MainnetId }
 
@@ -192,3 +198,6 @@ mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }
 
 mainnetNuFiConfig :: ContractParams
 mainnetNuFiConfig = mainnetConfig { walletSpec = Just ConnectToNuFi }
+
+mainnetLaceConfig :: ContractParams
+mainnetLaceConfig = mainnetConfig { walletSpec = Just ConnectToLace }

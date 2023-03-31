@@ -11,6 +11,7 @@ import Contract.Config
       , ConnectToEternl
       , ConnectToFlint
       , ConnectToNuFi
+      , ConnectToLace
       )
   , blockfrostPublicPreviewServerConfig
   , mainnetFlintConfig
@@ -23,6 +24,7 @@ import Contract.Config
   , testnetEternlConfig
   , testnetFlintConfig
   , testnetGeroConfig
+  , testnetLaceConfig
   , testnetLodeConfig
   , testnetNamiConfig
   , testnetNuFiConfig
@@ -98,6 +100,10 @@ main = do
             /\ (mkBlockfrostPreviewConfig mbApiKey)
               { walletSpec = Just ConnectToNuFi }
             /\ Nothing
+        , "blockfrost-lace-preview"
+            /\ (mkBlockfrostPreviewConfig mbApiKey)
+              { walletSpec = Just ConnectToLace }
+            /\ Nothing
         ]
   addLinks walletsWithBlockfrost examples
   route walletsWithBlockfrost examples
@@ -121,6 +127,7 @@ wallets = Map.fromFoldable
   , "eternl" /\ testnetEternlConfig /\ Nothing
   , "lode" /\ testnetLodeConfig /\ Nothing
   , "nufi" /\ testnetNuFiConfig /\ Nothing
+  , "lace" /\ testnetLaceConfig /\ Nothing
   , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
