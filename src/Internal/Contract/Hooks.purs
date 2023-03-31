@@ -13,6 +13,7 @@ type Hooks =
   , onSuccess :: Maybe (Effect Unit)
   , onError :: Maybe (Error -> Effect Unit)
   , onSubmit :: Maybe (Transaction -> Effect Unit)
+  , onFinalization :: Maybe (Effect Unit)
   }
 
 emptyHooks :: Hooks
@@ -22,4 +23,5 @@ emptyHooks =
   , onSuccess: Nothing
   , onError: Nothing
   , onSubmit: Nothing
+  , onFinalization: Nothing
   }

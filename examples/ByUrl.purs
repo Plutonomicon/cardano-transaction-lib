@@ -51,9 +51,11 @@ import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.TxChaining as TxChaining
 import Ctl.Examples.Utxos as Utxos
 import Ctl.Examples.Wallet as Wallet
+import Ctl.Internal.UsedTxOuts.StorageSpec (StorageSpec(UseLocalStorage))
 import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint, MockLode, MockNuFi)
   )
+import Data.Bifunctor (lmap)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
@@ -73,32 +75,33 @@ main = do
   mbApiKey <- getBlockfrostApiKey
   let
     walletsWithBlockfrost =
-      wallets `Map.union` Map.fromFoldable
-        [ "blockfrost-nami-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToNami }
-            /\ Nothing
-        , "blockfrost-gero-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToGero }
-            /\ Nothing
-        , "blockfrost-eternl-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToEternl }
-            /\ Nothing
-        , "blockfrost-lode-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToLode }
-            /\ Nothing
-        , "blockfrost-flint-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToFlint }
-            /\ Nothing
-        , "blockfrost-nufi-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToNuFi }
-            /\ Nothing
-        ]
+      map (lmap _ { storageSpec = Just UseLocalStorage }) $
+        wallets `Map.union` Map.fromFoldable
+          [ "blockfrost-nami-preview"
+              /\ (mkBlockfrostPreviewConfig mbApiKey)
+                { walletSpec = Just ConnectToNami }
+              /\ Nothing
+          , "blockfrost-gero-preview"
+              /\ (mkBlockfrostPreviewConfig mbApiKey)
+                { walletSpec = Just ConnectToGero }
+              /\ Nothing
+          , "blockfrost-eternl-preview"
+              /\ (mkBlockfrostPreviewConfig mbApiKey)
+                { walletSpec = Just ConnectToEternl }
+              /\ Nothing
+          , "blockfrost-lode-preview"
+              /\ (mkBlockfrostPreviewConfig mbApiKey)
+                { walletSpec = Just ConnectToLode }
+              /\ Nothing
+          , "blockfrost-flint-preview"
+              /\ (mkBlockfrostPreviewConfig mbApiKey)
+                { walletSpec = Just ConnectToFlint }
+              /\ Nothing
+          , "blockfrost-nufi-preview"
+              /\ (mkBlockfrostPreviewConfig mbApiKey)
+                { walletSpec = Just ConnectToNuFi }
+              /\ Nothing
+          ]
   addLinks walletsWithBlockfrost examples
   route walletsWithBlockfrost examples
 

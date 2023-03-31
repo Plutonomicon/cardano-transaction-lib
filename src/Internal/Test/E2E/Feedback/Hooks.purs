@@ -20,6 +20,7 @@ e2eFeedbackHooks =
   , onSuccess: Just $ pushBrowserEvent Success
   , onError: Just (pushBrowserEvent <<< Failure <<< show)
   , onSubmit: Nothing
+  , onFinalization: Nothing
   }
 
 addE2EFeedbackHooks :: Hooks -> Hooks

@@ -37,7 +37,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Wallet (mkKeyWalletFromPrivateKeys, withKeyWallet)
 import Control.Alternative (guard)
-import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Serialization.Types (PrivateKey)
@@ -52,14 +51,11 @@ import Data.Array as Array
 import Data.BigInt (BigInt)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
-import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Class (liftEffect)
-import Effect.Ref as Ref
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces

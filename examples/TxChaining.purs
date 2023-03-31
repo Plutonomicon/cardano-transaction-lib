@@ -12,17 +12,9 @@ import Contract.Prelude
 
 import Contract.Address (ownPaymentPubKeysHashes)
 import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, liftedM, runContract)
 import Contract.PlutusData (PlutusData)
 import Contract.ScriptLookups as Lookups
-import Contract.Transaction
-  ( awaitTxConfirmed
-  , balanceTx
-  , createAdditionalUtxos
-  , signTransaction
-  , submit
-  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value

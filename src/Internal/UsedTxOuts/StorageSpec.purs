@@ -13,10 +13,12 @@ data StorageSpec
 
 mkStorage :: StorageSpec -> Storage
 mkStorage UseLocalStorage = localStorage
-mkStorage _ = undefined
+mkStorage (UseFileStorage file) = undefined
+mkStorage (UseGlobalVariable var) = undefined
+mkStorage (UseStorage storage) = storage
 
 defaultStorageSpec :: StorageSpec
 defaultStorageSpec = _defaultStorageSpec UseLocalStorage
-  (UseFileStorage ".CTL_SPENT_UTXOS")
+  (UseFileStorage ".ctl_locked_utxos")
 
 foreign import _defaultStorageSpec :: StorageSpec -> StorageSpec -> StorageSpec

@@ -10,6 +10,8 @@ module Ctl.Internal.UsedTxOuts
   , Timestamp
   , lockTransactionInputs
   , unlockTransactionInputs
+  , get
+  , lookup
   ) where
 
 import Prelude

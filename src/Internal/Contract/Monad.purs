@@ -78,6 +78,7 @@ import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.UsedTxOuts (unlockAllBy)
 import Ctl.Internal.UsedTxOuts as UsedTxOuts
+import Ctl.Internal.UsedTxOuts.CleanupBeforeUnload (attachCleanupHandler)
 import Ctl.Internal.UsedTxOuts.Storage (Storage, mkRefStorage)
 import Ctl.Internal.UsedTxOuts.StorageSpec (StorageSpec, mkStorage)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
@@ -238,6 +239,18 @@ mkContractEnv params = do
     Nothing -> liftEffect mkRefStorage
     Just storageSpec -> pure $ mkStorage storageSpec
   appInstanceId <- liftEffect newAppInstanceId
+  mbRemoveHandler <- liftEffect $ attachCleanupHandler $ unlockAllBy storage
+    appInstanceId
+  let
+    addFinalizationHook :: Hooks -> Hooks
+    addFinalizationHook hooks = hooks
+      { onFinalization =
+          case hooks.onFinalization of
+            Nothing -> mbRemoveHandler
+            Just hook ->
+              Just $ void (try hook) *>
+                traverse_ identity mbRemoveHandler
+      }
   envBuilder <- sequential ado
     b1 <- parallel do
       backend <- buildBackend logger params.backendParams
@@ -255,6 +268,7 @@ mkContractEnv params = do
         , knownTxs: { backend }
         , storage
         , appInstanceId
+        , hooks: addFinalizationHook params.hooks
         }
   pure $ build envBuilder constants
   where
@@ -270,7 +284,6 @@ mkContractEnv params = do
     , walletSpec: params.walletSpec
     , customLogger: params.customLogger
     , suppressLogs: params.suppressLogs
-    , hooks: params.hooks
     }
 
 buildBackend :: Logger -> QueryBackendParams -> Aff QueryBackend
@@ -352,8 +365,9 @@ walletNetworkCheck envNetworkId =
 -- | Finalizes a `Contract` environment.
 -- | Closes the connections in `ContractEnv`, effectively making it unusable.
 stopContractEnv :: ContractEnv -> Aff Unit
-stopContractEnv { backend, storage, appInstanceId } = do
+stopContractEnv { backend, storage, appInstanceId, hooks } = do
   liftEffect $ traverse_ stopCtlRuntime (getCtlBackend backend)
+  liftEffect $ for_ hooks.onFinalization $ void <<< try
   liftEffect $ unlockAllBy storage appInstanceId
   where
   stopCtlRuntime :: CtlBackend -> Effect Unit
