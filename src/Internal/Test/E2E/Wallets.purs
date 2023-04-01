@@ -242,7 +242,8 @@ laceConfirmAccess extId re = do
 
 -- Not implemented yet
 laceSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
-laceSign extId password re = do
+laceSign extId _password re = do
+  void $ liftEffect $ throw "Lace support is not implemented"
   inWalletPage pattern re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ "button")
       {}
