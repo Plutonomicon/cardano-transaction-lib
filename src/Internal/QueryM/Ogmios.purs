@@ -16,9 +16,20 @@ module Ctl.Internal.QueryM.Ogmios
   , Network(Mainnet, Testnet)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
+  , OgmiosCertificate
+      ( StakeDelegation
+      , StakeKeyRegistration
+      , StakeKeyDeregistration
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisDelegation
+      , MoveInstantaneousRewards
+      )
   , OgmiosRequiredSigner
+  , OgmiosRewardAddress
   , OgmiosTxOut
   , OgmiosTxOutRef
+  , OgmiosWithdrawls(OgmiosWithdrawls)
   , PParamRational(PParamRational)
   , PoolParameters
   , PoolParametersR(PoolParametersR)
@@ -42,15 +53,26 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosSystemStart(OgmiosSystemStart)
   , OgmiosTxIn
   , OgmiosTxId
+  , Proposal(Proposal)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , PoolIdsR
   , TxHash
+  , Update(Update)
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
   , ValidityInterval
+  , StakeDelegation
+  , PoolRetirement
+  , GenesisDelegation
+  , MoveInstantaneousRewards
+  , DigestBlake2BCredential
+  , PoolId
+  , Rewards(Rewards)
+  , RewardPot(Reserves, Treasury)
+  , LovelaceDelta
   , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
@@ -125,7 +147,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , PoolPubKeyHash
   , Relay(MultiHostName, SingleHostAddr, SingleHostName)
   , SubCoin
-  , TransactionWitnessSet
   , URL(URL)
   , UnitInterval
   )
@@ -195,7 +216,7 @@ import Data.Array (head, length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, hush, note)
+import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
@@ -417,16 +438,15 @@ instance DecodeAeson MempoolTransaction where
     inputSource <- getField o "inputSource"
     pure $ MempoolTransaction { id, body, inputSource, raw }
 
--- TODO: Decode the remaining parts of the transaction.
 newtype MempoolTxBody = MempoolTxBody
   { inputs :: Array OgmiosTxOutRef
   , collaterals :: Array OgmiosTxOutRef
   , outputs :: Array OgmiosTxOut
-  -- , certificates :: Array Certificate
-  -- , withdrawls :: Map OgmiosRewardAddress BigInt
-  , fee :: BigInt
+  , certificates :: Array OgmiosCertificate
+  , withdrawls :: OgmiosWithdrawls
+  , fee :: Coin
   , validityInterval :: ValidityInterval
-  -- , update :: Maybe Update
+  , update :: Maybe Update
   , mint :: Maybe Value
   , network :: Maybe Network
   , scriptIntegrityHash :: Maybe String
@@ -440,28 +460,33 @@ instance Show MempoolTxBody where
 
 instance DecodeAeson MempoolTxBody where
   decodeAeson = aesonObject $ \o -> do
-    inputs <- aesonArray (traverse parseTxOutRef) =<< getField o "inputs"
-    collaterals <- aesonArray (traverse parseTxOutRef) =<< getField o "collaterals"
-    outputs <- aesonArray (traverse parseTxOut) =<< getField o "outputs"
-    fee <- getField o "fee"
-    validityInterval <- parseValidityInterval =<< getField o "validityInterval"
-    mint <- getFieldOptional' o "mint" >>= case _ of
+    inputs <- aesonArray (traverse parseTxOutRef) =<< o .: "inputs"
+    collaterals <- aesonArray (traverse parseTxOutRef) =<< o .: "collaterals"
+    outputs <- aesonArray (traverse parseTxOut) =<< o .: "outputs"
+    certificates <- aesonArray (traverse decodeAeson) =<< o .: "certificates"
+    fee <- o .: "fee"
+    validityInterval <- parseValidityInterval =<< o .: "validityInterval"
+    update <- o .:? "update"
+    mint <- o .:? "mint" >>= case _ of
       Nothing -> pure Nothing
       Just aes -> do
         val <- parseValue aes
         pure $ Just val
-    -- withdrawls <- getFieldOptional' o "withdrawls" >>= case _ of
-    --   Nothing -> pure Map.empty
-    --   Just aes -> map decodeAeson $ Map.fromFoldable $ ForeignObject.toUnfoldable aes
-    network <- getFieldOptional' o "network"
-    requiredExtraSignatures <- aesonArray (traverse decodeAeson) =<< getField o "requiredExtraSignatures"
-    scriptIntegrityHash <- getFieldOptional' o "scriptIntegrityHash"
+    withdrawls <- o .:? "withdrawls" >>= case _ of
+      Nothing -> pure $ OgmiosWithdrawls Map.empty
+      Just wthd -> pure wthd
+    network <- o .:? "network"
+    requiredExtraSignatures <- aesonArray (traverse decodeAeson) =<< o .: "requiredExtraSignatures"
+    scriptIntegrityHash <- o .:? "scriptIntegrityHash"
     pure $ MempoolTxBody
       { inputs
       , collaterals
       , outputs
+      , certificates
+      , withdrawls
       , fee
       , validityInterval
+      , update
       , mint
       , network
       , scriptIntegrityHash
@@ -472,10 +497,8 @@ data InputSource = Inputs | Collaterals
 derive instance Generic InputSource _
 instance Show InputSource where
   show = genericShow
-
 instance DecodeAeson InputSource where
-  decodeAeson = aesonObject $ \o -> do
-    inputSource <- getField o "inputSource"
+  decodeAeson = aesonString $ \inputSource ->
     case inputSource of
       "inputs" -> Right Inputs
       "outputs" -> Right Collaterals
@@ -483,7 +506,133 @@ instance DecodeAeson InputSource where
 
 type OgmiosRewardAddress = String
 type OgmiosRequiredSigner = String
-newtype MempoolWitnessSet = MempoolWitnessSet TransactionWitnessSet
+newtype MempoolWitnessSet = MempoolWitnessSet
+  { signatures :: Map String String
+  , scripts :: Map String ScriptRef
+  -- , bootstrap :: Array BootstrapWitness
+  -- , datums :: Map String Datum
+  -- , redeemers :: Map String Redeemer
+  }
+
+data OgmiosCertificate
+  = StakeDelegation StakeDelegation
+  | StakeKeyRegistration DigestBlake2BCredential
+  | StakeKeyDeregistration DigestBlake2BCredential
+  | PoolRegistration PoolParameters
+  | PoolRetirement PoolRetirement
+  | GenesisDelegation GenesisDelegation
+  | MoveInstantaneousRewards MoveInstantaneousRewards
+
+derive instance Generic OgmiosCertificate _
+instance Show OgmiosCertificate where
+  show = genericShow
+instance DecodeAeson OgmiosCertificate where
+  decodeAeson = aesonObject $ \o -> do
+    case (Array.head $ ForeignObject.toUnfoldable o) of
+      Just ("stakeDelegation" /\ certificate) -> map StakeDelegation $ parseStakeDelegation certificate
+      Just ("stakeKeyRegistration" /\ certificate) -> map StakeKeyRegistration $ decodeAeson certificate
+      Just ("stakeKeyDeregistration" /\ certificate) -> map StakeKeyDeregistration $ decodeAeson certificate
+      Just ("poolRegistration" /\ certificate) -> aesonObject (map PoolRegistration <<< decodePoolParameters) certificate
+      Just ("poolRetirement" /\ certificate) -> map PoolRetirement $ parsePoolRetirement certificate
+      Just ("GenesisDelegation" /\ certificate) -> map GenesisDelegation $ parseGenesisDelegation certificate
+      Just ("moveInstantaneousRewards" /\ certificate) -> map MoveInstantaneousRewards $ parseMoveInstantaneousRewards certificate
+      _ -> Left $ TypeMismatch "Expected a Certificate"
+
+type StakeDelegation =
+  { delegator :: DigestBlake2BCredential
+  , delegatee :: PoolId
+  }
+type PoolRetirement =
+  { retirementEpoch :: Epoch
+  , poolId :: PoolId
+  }
+type GenesisDelegation =
+  { delegateKeyHash :: VRFKeyHash
+  , verificationKeyHash :: VRFKeyHash
+  , vrfVerificationKeyHash :: VRFKeyHash
+  }
+type MoveInstantaneousRewards =
+  { rewards :: Maybe Rewards
+  , value :: Maybe Coin
+  , pot :: RewardPot
+  }
+
+parseStakeDelegation :: Aeson -> Either JsonDecodeError StakeDelegation
+parseStakeDelegation = aesonObject $ \o -> do
+  delegator <- o .: "delegator"
+  delegatee <- o .: "delegatee"
+  pure { delegator, delegatee }
+
+parsePoolRetirement :: Aeson -> Either JsonDecodeError PoolRetirement
+parsePoolRetirement = aesonObject $ \o -> do
+  retirementEpoch <- o .: "retirementEpoch"
+  poolId <- o .: "poolId"
+  pure { retirementEpoch, poolId }
+
+parseGenesisDelegation :: Aeson -> Either JsonDecodeError GenesisDelegation
+parseGenesisDelegation = aesonObject $ \o -> do
+  delegateKeyHash <- decodeVRFKeyHash =<< o .: "delegateKeyHash"
+  verificationKeyHash <- decodeVRFKeyHash =<< o .: "verificationKeyHash"
+  vrfVerificationKeyHash <- decodeVRFKeyHash =<< o .: "vrfVerificationKeyHash"
+  pure { delegateKeyHash, verificationKeyHash, vrfVerificationKeyHash }
+
+parseMoveInstantaneousRewards :: Aeson -> Either JsonDecodeError MoveInstantaneousRewards
+parseMoveInstantaneousRewards = aesonObject $ \o -> do
+  rewards <- o .:? "rewards"
+  value <- o .:? "value"
+  pot <- o .: "pot"
+  pure { rewards, value, pot }
+
+type PoolId = String
+type DigestBlake2BCredential = String
+newtype Rewards = Rewards (Map String LovelaceDelta)
+
+derive instance Generic Rewards _
+instance Show Rewards where
+  show = genericShow
+instance DecodeAeson Rewards where
+  decodeAeson = aesonObject $ \obj -> do
+    let rewardsList = ForeignObject.toUnfoldable obj :: Array (String /\ Aeson)
+    Rewards <<< Map.fromFoldable <$>
+      traverse decodeRewardAmount rewardsList
+    where
+    decodeRewardAmount
+      :: String /\ Aeson
+      -> Either JsonDecodeError (String /\ Coin)
+    decodeRewardAmount (rewardAddress /\ aeson) = do
+      coin <- decodeAeson aeson
+      pure $ rewardAddress /\ Coin coin
+
+type LovelaceDelta = Coin
+data RewardPot = Reserves | Treasury
+
+derive instance Generic RewardPot _
+instance Show RewardPot where
+  show = genericShow
+instance DecodeAeson RewardPot where
+  decodeAeson = aesonString $ \rewardPot ->
+    case rewardPot of
+      "reserves" -> Right Reserves
+      "treasury" -> Right Treasury
+      _ -> unexpectedValueError rewardPot
+
+newtype OgmiosWithdrawls = OgmiosWithdrawls (Map OgmiosRewardAddress Coin)
+
+derive instance Generic OgmiosWithdrawls _
+instance Show OgmiosWithdrawls where
+  show = genericShow
+instance DecodeAeson OgmiosWithdrawls where
+  decodeAeson = aesonObject $ \obj -> do
+    let withdrawlList = ForeignObject.toUnfoldable obj :: Array (String /\ Aeson)
+    OgmiosWithdrawls <<< Map.fromFoldable <$>
+      traverse decodeWithdrawlAmount withdrawlList
+    where
+    decodeWithdrawlAmount
+      :: OgmiosRewardAddress /\ Aeson
+      -> Either JsonDecodeError (OgmiosRewardAddress /\ Coin)
+    decodeWithdrawlAmount (rewardAddress /\ aeson) = do
+      coin <- decodeAeson aeson
+      pure $ rewardAddress /\ Coin coin
 
 type MempoolAuxiliaryData =
   { hash :: String
@@ -515,49 +664,53 @@ parseValidityInterval = aesonObject $ \o -> do
   invalidHereafter <- getFieldOptional o "invalidHereafter"
   pure { invalidBefore, invalidHereafter }
 
-newtype ProtocolParametersUpdate = ProtocolParametersUpdate
-  {  minFeeCoefficient :: Maybe UInt
-  ,  minFeeConstant :: Maybe UInt
-  ,  maxBlockBodySize :: Maybe UInt
-  ,  maxBlockHeaderSize :: Maybe UInt
-  ,  maxTxSize :: Maybe UInt
-  ,  stakeKeyDeposit :: Maybe UInt
-  ,  poolDeposit :: Maybe UInt
-  ,  poolRetirementEpochBound :: Maybe UInt
-  ,  desiredNumberOfPools :: Maybe UInt
-  ,  poolInfluence :: Maybe Ratio
-  ,  monetaryExpansion :: Maybe Ratio
-  ,  treasuryExpansion :: Maybe Ratio
-  ,  decentralizationParameter :: Maybe Ratio
-  ,  minPoolCost :: Maybe UInt
-  ,  coinsPerUtxoWord :: Maybe UInt
-  ,  maxValueSize :: Maybe UInt
-  ,  collateralPercentage :: Maybe UInt
-  ,  maxCollateralInputs :: Maybe UInt
-  ,  extraEntropy :: Nonce
-  ,  protocolVersion :: ProtocolVersion
-  ,  costModels :: CostModels
-  ,  prices :: Prices
-  ,  maxExecutionUnitsPerTransaction :: ExUnits
-  ,  maxExecutionUnitsPerBlock :: ExUnits
+newtype Update = Update
+  { epoch :: UInt
+  , proposal :: Proposal
   }
+derive instance Generic Update _
+instance Show Update where
+  show = genericShow
+instance DecodeAeson Update where
+  decodeAeson = aesonObject $ \o -> do
+    epoch <- getField o "epoch"
+    proposal <- getField o "proposal"
+    pure $ Update { epoch, proposal }
+
+newtype Proposal = Proposal (Map String OgmiosProtocolParameters)
+derive instance Generic Proposal _
+instance Show Proposal where
+  show = genericShow
+instance DecodeAeson Proposal where
+  decodeAeson = aesonObject $ \obj -> do
+    let proposalList = ForeignObject.toUnfoldable obj :: Array (String /\ Aeson)
+    Proposal <<< Map.fromFoldable <$>
+      traverse decodeWithdrawlAmount proposalList
+    where
+    decodeWithdrawlAmount
+      :: String /\ Aeson
+      -> Either JsonDecodeError (String /\ OgmiosProtocolParameters)
+    decodeWithdrawlAmount (string /\ aeson) = do
+      opp <- decodeAeson aeson
+      pure $ string /\ opp
 
 type Nonce = String
 type Ratio = String
 
-type ProtocolVersion =
+newtype ProtocolVersion = ProtocolVersion
   { major :: UInt
   , minor :: UInt
   , patch :: Maybe UInt
   }
-
-type Prices =
-  { memory :: UnitInterval
-  , steps :: UnitInterval
-  }
-
-type CostModels = Map String CostModel
-type CostModel = Map String Int
+derive instance Generic ProtocolVersion _
+instance Show ProtocolVersion where
+  show = genericShow
+instance DecodeAeson ProtocolVersion where
+  decodeAeson = aesonObject $ \o -> do
+    major <- getField o "major"
+    minor <- getField o "minor"
+    patch <- getFieldOptional' o "patch"
+    pure $ ProtocolVersion { major, minor, patch }
 
 unexpectedValueError :: forall a. String -> Either JsonDecodeError a
 unexpectedValueError = Left <<< UnexpectedValue <<< JSON.fromString
@@ -743,30 +896,38 @@ instance DecodeAeson PoolParametersR where
   decodeAeson aeson = do
     obj :: Object (Object Aeson) <- decodeAeson aeson
     kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
-      vrfKeyhashHex <- objParams .: "vrf"
-      vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
-        vrfKeyhashHex
-      vrfKeyhash <- note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
-        (wrap vrfKeyhashBytes)
-      pledge <- objParams .: "pledge"
-      cost <- objParams .: "cost"
-      margin <- decodeUnitInterval =<< objParams .: "margin"
-      rewardAccount <- objParams .: "rewardAccount"
-      poolOwners <- objParams .: "owners"
-      relayArr <- objParams .: "relays"
-      relays <- for relayArr decodeRelay
-      poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
-      pure $ k /\
-        { vrfKeyhash
-        , pledge
-        , cost
-        , margin
-        , rewardAccount
-        , poolOwners
-        , relays
-        , poolMetadata
-        }
+      poolParams <- decodePoolParameters objParams
+      pure $ k /\ poolParams
     pure $ PoolParametersR $ Map.fromFoldable kvs
+
+decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
+decodePoolParameters = \objParams -> do
+  vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrf"
+  pledge <- objParams .: "pledge"
+  cost <- objParams .: "cost"
+  margin <- decodeUnitInterval =<< objParams .: "margin"
+  rewardAccount <- objParams .: "rewardAccount"
+  poolOwners <- objParams .: "owners"
+  relayArr <- objParams .: "relays"
+  relays <- for relayArr decodeRelay
+  poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
+  pure
+    { vrfKeyhash
+    , pledge
+    , cost
+    , margin
+    , rewardAccount
+    , poolOwners
+    , relays
+    , poolMetadata
+    }
+
+decodeVRFKeyHash :: Aeson -> Either JsonDecodeError VRFKeyHash
+decodeVRFKeyHash = aesonString $ \vrfKeyhashHex -> do
+  vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
+    vrfKeyhashHex
+  note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
+    (wrap vrfKeyhashBytes)
 
 decodeUnitInterval :: Aeson -> Either JsonDecodeError UnitInterval
 decodeUnitInterval aeson = do
