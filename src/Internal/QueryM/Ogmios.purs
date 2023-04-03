@@ -7,13 +7,16 @@ module Ctl.Internal.QueryM.Ogmios
   , CurrentEpoch(CurrentEpoch)
   , DelegationsAndRewardsR(DelegationsAndRewardsR)
   , ExecutionUnits
+  , InputSource(Collaterals, Inputs)
   , MempoolReleased(Released)
   , MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
   , MempoolTxBody(MempoolTxBody)
+  , Network(Mainnet, Testnet)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
+  , OgmiosRequiredSigner
   , OgmiosTxOut
   , OgmiosTxOutRef
   , PParamRational(PParamRational)
@@ -47,6 +50,7 @@ module Ctl.Internal.QueryM.Ogmios
   , TxHash
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
+  , ValidityInterval
   , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
@@ -191,7 +195,7 @@ import Data.Array (head, length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, note)
+import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
@@ -393,11 +397,11 @@ instance Show MempoolReleased where
 
 newtype MempoolTransaction = MempoolTransaction
   { id :: OgmiosTxId
-  -- , inputSource :: InputSource
+  , inputSource :: InputSource
   , body :: MempoolTxBody
   -- , witness :: MempoolWitnessSet
   -- , metadata :: Maybe MempoolAuxiliaryData
-  -- , raw :: String
+  , raw :: String
   }
 
 derive instance Generic MempoolTransaction _
@@ -409,22 +413,24 @@ instance DecodeAeson MempoolTransaction where
   decodeAeson = aesonObject $ \o -> do
     id <- getField o "id"
     body <- getField o "body"
-    pure $ MempoolTransaction { id, body }
+    raw <- getField o "raw"
+    inputSource <- getField o "inputSource"
+    pure $ MempoolTransaction { id, body, inputSource, raw }
 
 -- TODO: Decode the remaining parts of the transaction.
 newtype MempoolTxBody = MempoolTxBody
   { inputs :: Array OgmiosTxOutRef
-  -- , collaterals :: Array OgmiosTxOutRef
+  , collaterals :: Array OgmiosTxOutRef
   , outputs :: Array OgmiosTxOut
   -- , certificates :: Array Certificate
   -- , withdrawls :: Map OgmiosRewardAddress BigInt
-  -- , fee :: BigInt
-  -- , validityInterval :: ValidityInterval
+  , fee :: BigInt
+  , validityInterval :: ValidityInterval
   -- , update :: Maybe Update
-  -- , mint :: Maybe Value
-  -- , network :: Maybe NetworkId
-  -- , scriptIntegrityHash :: Maybe String
-  -- , requiredExtraSignatures :: Array OgmiosRequiredSigner
+  , mint :: Maybe Value
+  , network :: Maybe Network
+  , scriptIntegrityHash :: Maybe String
+  , requiredExtraSignatures :: Array OgmiosRequiredSigner
   }
 
 derive instance Generic MempoolTxBody _
@@ -435,10 +441,46 @@ instance Show MempoolTxBody where
 instance DecodeAeson MempoolTxBody where
   decodeAeson = aesonObject $ \o -> do
     inputs <- aesonArray (traverse parseTxOutRef) =<< getField o "inputs"
+    collaterals <- aesonArray (traverse parseTxOutRef) =<< getField o "collaterals"
     outputs <- aesonArray (traverse parseTxOut) =<< getField o "outputs"
-    pure $ MempoolTxBody { inputs, outputs }
+    fee <- getField o "fee"
+    validityInterval <- parseValidityInterval =<< getField o "validityInterval"
+    mint <- getFieldOptional' o "mint" >>= case _ of
+      Nothing -> pure Nothing
+      Just aes -> do
+        val <- parseValue aes
+        pure $ Just val
+    -- withdrawls <- getFieldOptional' o "withdrawls" >>= case _ of
+    --   Nothing -> pure Map.empty
+    --   Just aes -> map decodeAeson $ Map.fromFoldable $ ForeignObject.toUnfoldable aes
+    network <- getFieldOptional' o "network"
+    requiredExtraSignatures <- aesonArray (traverse decodeAeson) =<< getField o "requiredExtraSignatures"
+    scriptIntegrityHash <- getFieldOptional' o "scriptIntegrityHash"
+    pure $ MempoolTxBody
+      { inputs
+      , collaterals
+      , outputs
+      , fee
+      , validityInterval
+      , mint
+      , network
+      , scriptIntegrityHash
+      , requiredExtraSignatures
+      }
 
 data InputSource = Inputs | Collaterals
+derive instance Generic InputSource _
+instance Show InputSource where
+  show = genericShow
+
+instance DecodeAeson InputSource where
+  decodeAeson = aesonObject $ \o -> do
+    inputSource <- getField o "inputSource"
+    case inputSource of
+      "inputs" -> Right Inputs
+      "outputs" -> Right Collaterals
+      _ -> unexpectedValueError inputSource
+
 type OgmiosRewardAddress = String
 type OgmiosRequiredSigner = String
 newtype MempoolWitnessSet = MempoolWitnessSet TransactionWitnessSet
@@ -453,6 +495,19 @@ type ValidityInterval =
   , invalidHereafter :: Maybe BigInt
   }
 
+data Network = Mainnet | Testnet
+derive instance Generic Network _
+instance Show Network where
+  show = genericShow
+
+instance DecodeAeson Network where
+  decodeAeson = aesonObject $ \o -> do
+    network <- getField o "network"
+    case network of
+      "mainnet" -> Right Mainnet
+      "testnet" -> Right Testnet
+      _ -> unexpectedValueError network
+
 -- parser for ValidityInterval
 parseValidityInterval :: Aeson -> Either JsonDecodeError ValidityInterval
 parseValidityInterval = aesonObject $ \o -> do
@@ -460,14 +515,52 @@ parseValidityInterval = aesonObject $ \o -> do
   invalidHereafter <- getFieldOptional o "invalidHereafter"
   pure { invalidBefore, invalidHereafter }
 
--- parser for InputSource
-parseInputSource :: Aeson -> Either JsonDecodeError InputSource
-parseInputSource = aesonObject $ \o -> do
-  inputSource <- getField o "invalidSource"
-  case inputSource of
-    "inputs" -> Right Inputs
-    "outputs" -> Right Collaterals
-    _ -> Left $ UnexpectedValue $ JSON.fromString inputSource
+newtype ProtocolParametersUpdate = ProtocolParametersUpdate
+  {  minFeeCoefficient :: Maybe UInt
+  ,  minFeeConstant :: Maybe UInt
+  ,  maxBlockBodySize :: Maybe UInt
+  ,  maxBlockHeaderSize :: Maybe UInt
+  ,  maxTxSize :: Maybe UInt
+  ,  stakeKeyDeposit :: Maybe UInt
+  ,  poolDeposit :: Maybe UInt
+  ,  poolRetirementEpochBound :: Maybe UInt
+  ,  desiredNumberOfPools :: Maybe UInt
+  ,  poolInfluence :: Maybe Ratio
+  ,  monetaryExpansion :: Maybe Ratio
+  ,  treasuryExpansion :: Maybe Ratio
+  ,  decentralizationParameter :: Maybe Ratio
+  ,  minPoolCost :: Maybe UInt
+  ,  coinsPerUtxoWord :: Maybe UInt
+  ,  maxValueSize :: Maybe UInt
+  ,  collateralPercentage :: Maybe UInt
+  ,  maxCollateralInputs :: Maybe UInt
+  ,  extraEntropy :: Nonce
+  ,  protocolVersion :: ProtocolVersion
+  ,  costModels :: CostModels
+  ,  prices :: Prices
+  ,  maxExecutionUnitsPerTransaction :: ExUnits
+  ,  maxExecutionUnitsPerBlock :: ExUnits
+  }
+
+type Nonce = String
+type Ratio = String
+
+type ProtocolVersion =
+  { major :: UInt
+  , minor :: UInt
+  , patch :: Maybe UInt
+  }
+
+type Prices =
+  { memory :: UnitInterval
+  , steps :: UnitInterval
+  }
+
+type CostModels = Map String CostModel
+type CostModel = Map String Int
+
+unexpectedValueError :: forall a. String -> Either JsonDecodeError a
+unexpectedValueError = Left <<< UnexpectedValue <<< JSON.fromString
 
 --------------------------------------------------------------------------------
 -- Helpers
