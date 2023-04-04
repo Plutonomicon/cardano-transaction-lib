@@ -160,6 +160,8 @@ import("./output.js").then(
 });
 ```
 
+Note that `import` returns a `Promise`.
+
 The config also contains some setup for output target:
 
 ```js
@@ -186,6 +188,9 @@ The HTML page should contain this import, pointing to output bundle filename:
 ```
 
 `type="module"` is required here.
+
+
+`experiments.syncWebAssembly` WebPack setting must be set to `true` because CTL internal code expects it.
 
 The whole webpage can be served with `BROWSER_RUNTIME=1 webpack-dev-server --progress` or built with `BROWSER_RUNTIME=1 webpack --mode=production`
 
