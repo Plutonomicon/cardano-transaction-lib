@@ -664,8 +664,8 @@ type PoolRetirement =
   }
 
 type GenesisDelegation =
-  { delegateKeyHash :: VRFKeyHash
-  , verificationKeyHash :: VRFKeyHash
+  { delegateKeyHash :: VerificationKey
+  , verificationKeyHash :: VerificationKey
   , vrfVerificationKeyHash :: VRFKeyHash
   }
 
@@ -689,8 +689,8 @@ parsePoolRetirement = aesonObject $ \o -> do
 
 parseGenesisDelegation :: Aeson -> Either JsonDecodeError GenesisDelegation
 parseGenesisDelegation = aesonObject $ \o -> do
-  delegateKeyHash <- decodeVRFKeyHash =<< o .: "delegateKeyHash"
-  verificationKeyHash <- decodeVRFKeyHash =<< o .: "verificationKeyHash"
+  delegateKeyHash <- o .: "delegateKeyHash"
+  verificationKeyHash <- o .: "verificationKeyHash"
   vrfVerificationKeyHash <- decodeVRFKeyHash =<< o .: "vrfVerificationKeyHash"
   pure { delegateKeyHash, verificationKeyHash, vrfVerificationKeyHash }
 
