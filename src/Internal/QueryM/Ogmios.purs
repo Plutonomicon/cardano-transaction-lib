@@ -15,6 +15,7 @@ module Ctl.Internal.QueryM.Ogmios
   , MempoolTxBody(MempoolTxBody)
   , Network(Mainnet, Testnet)
   , OgmiosAddress
+  , OgmiosAuxiliaryData(OgmiosAuxiliaryData)
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
   , OgmiosBootstrapWitness(OgmiosBootstrapWitness)
   , OgmiosCertificate
@@ -116,6 +117,7 @@ import Aeson
   , decodeAeson
   , encodeAeson
   , fromArray
+  , fromString
   , getField
   , getFieldOptional
   , getFieldOptional'
@@ -143,8 +145,7 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Cardano.Types.Transaction
-  ( AuxiliaryData
-  , Costmdls(Costmdls)
+  ( Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
   , Ipv4(Ipv4)
@@ -216,6 +217,17 @@ import Ctl.Internal.Types.SystemStart
   , sysStartToOgmiosTimestamp
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionMetadatum
+      ( MetadataMap
+      , MetadataList
+      , Int
+      , Bytes
+      , Text
+      )
+  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  )
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut (fromString) as JSON
 import Data.Array (catMaybes, index)
@@ -428,7 +440,7 @@ newtype MempoolTransaction = MempoolTransaction
   , inputSource :: InputSource
   , body :: MempoolTxBody
   , witness :: OgmiosWitnessSet
-  -- , metadata :: Maybe OgmiosAuxiliaryData
+  , metadata :: Maybe OgmiosAuxiliaryData
   , raw :: String
   }
 
@@ -443,8 +455,9 @@ instance DecodeAeson MempoolTransaction where
     inputSource <- o .: "inputSource"
     body <- o .: "body"
     witness <- o .: "witness"
+    metadata <- o .:? "metadata"
     raw <- o .: "raw"
-    pure $ MempoolTransaction { id, inputSource, body, witness, raw }
+    pure $ MempoolTransaction { id, inputSource, body, witness, metadata, raw }
 
 newtype MempoolTxBody = MempoolTxBody
   { inputs :: Array OgmiosTxOutRef
@@ -712,13 +725,58 @@ instance DecodeAeson OgmiosWithdrawls where
 newtype OgmiosAuxiliaryData = OgmiosAuxiliaryData
   { hash :: String
   , body :: { scripts :: Maybe (Array ScriptRef)
-            , blob :: Maybe AuxiliaryData
+            , blob :: Maybe GeneralTransactionMetadata
             }
   }
 
 derive instance Generic OgmiosAuxiliaryData _
 instance Show OgmiosAuxiliaryData where
   show = genericShow
+instance DecodeAeson OgmiosAuxiliaryData where
+  decodeAeson = aesonObject $ \o -> do
+    hash <- o .: "hash"
+    body <- o .: "body" >>= (aesonObject $ \obj -> do
+      scripts <- obj .:? "scripts" >>= case _ of
+        Nothing -> pure Nothing
+        Just aes -> Just <$> aesonArray (traverse $ aesonObject parseScript) aes
+      blob <- obj .:? "blob" >>= case _ of
+        Nothing -> pure Nothing
+        Just aes -> Just <$> parseMetadata aes
+      pure { scripts, blob })
+    pure $ OgmiosAuxiliaryData { hash, body }
+
+
+parseMetadata :: Aeson -> Either JsonDecodeError GeneralTransactionMetadata
+parseMetadata = aesonObject $ \o -> do
+  let metadata = ForeignObject.toUnfoldable o :: Array (String /\ Aeson)
+  GeneralTransactionMetadata <<< Map.fromFoldable <$>
+    traverse decodeMetadata metadata
+  where
+  decodeMetadata
+    :: String /\ Aeson
+    -> Either JsonDecodeError (TransactionMetadatumLabel /\ TransactionMetadatum)
+  decodeMetadata (num /\ aeson) = do
+    label <- note (TypeMismatch "Epected a BigInt") $ TransactionMetadatumLabel <$> BigInt.fromString num
+    metadatum <- decodeMetadatum aeson
+    pure $ label /\ metadatum
+  
+  decodeMetadatum :: Aeson -> Either JsonDecodeError TransactionMetadatum
+  decodeMetadatum = aesonObject $ \o -> do
+    case (Array.head $ ForeignObject.toUnfoldable o) of
+      Just ("MetadataMap" /\ metadatum) -> decodeMetadataMap metadatum
+      Just ("MetadataList" /\ metadatum) -> map MetadataList $ aesonArray (traverse decodeMetadatum) metadatum
+      Just ("Int" /\ metadatum) -> map Int $ decodeAeson metadatum
+      Just ("Bytes" /\ metadatum) -> map Bytes $ decodeAeson metadatum
+      Just ("Text" /\ metadatum) -> map Text $ decodeAeson metadatum
+      _ -> Left $ TypeMismatch "Expected a TransactionMetadatum"
+
+  decodeMetadataMap :: Aeson -> Either JsonDecodeError TransactionMetadatum
+  decodeMetadataMap = aesonObject $ \o -> do
+    let metadata = ForeignObject.toUnfoldable o :: Array (String /\ Aeson)
+    MetadataMap <<< Map.fromFoldable <$>
+      ( for metadata \(Tuple k v) ->
+          Tuple <$> (decodeMetadatum $ fromString k) <*> decodeMetadatum v
+      )
 
 type ValidityInterval =
   { invalidBefore :: Maybe BigInt
