@@ -537,6 +537,7 @@ newtype OgmiosWitnessSet = OgmiosWitnessSet
   }
 
 derive instance Generic OgmiosWitnessSet _
+derive instance Newtype OgmiosWitnessSet _
 instance Show OgmiosWitnessSet where
   show = genericShow
 
@@ -579,6 +580,7 @@ newtype OgmiosRedeemer = OgmiosRedeemer
   { redeemer :: String, executionUnits :: ExUnits }
 
 derive instance Generic OgmiosRedeemer _
+derive instance Newtype OgmiosRedeemer _
 instance Show OgmiosRedeemer where
   show = genericShow
 
@@ -600,6 +602,7 @@ newtype OgmiosBootstrapWitness = OgmiosBootstrapWitness
   }
 
 derive instance Generic OgmiosBootstrapWitness _
+derive instance Newtype OgmiosBootstrapWitness _
 instance Show OgmiosBootstrapWitness where
   show = genericShow
 
@@ -704,6 +707,7 @@ type DigestBlake2BCredential = String
 newtype Rewards = Rewards (Map String LovelaceDelta)
 
 derive instance Generic Rewards _
+derive instance Newtype Rewards _
 instance Show Rewards where
   show = genericShow
 
@@ -737,6 +741,7 @@ instance DecodeAeson RewardPot where
 newtype OgmiosWithdrawls = OgmiosWithdrawls (Map OgmiosRewardAddress Coin)
 
 derive instance Generic OgmiosWithdrawls _
+derive instance Newtype OgmiosWithdrawls _
 instance Show OgmiosWithdrawls where
   show = genericShow
 
@@ -763,6 +768,7 @@ newtype OgmiosAuxiliaryData = OgmiosAuxiliaryData
   }
 
 derive instance Generic OgmiosAuxiliaryData _
+derive instance Newtype OgmiosAuxiliaryData _
 instance Show OgmiosAuxiliaryData where
   show = genericShow
 
@@ -850,6 +856,7 @@ newtype Update = Update
   }
 
 derive instance Generic Update _
+derive instance Newtype Update _
 instance Show Update where
   show = genericShow
 
@@ -862,6 +869,7 @@ instance DecodeAeson Update where
 newtype Proposal = Proposal (Map String OgmiosProtocolParameters)
 
 derive instance Generic Proposal _
+derive instance Newtype Proposal _
 instance Show Proposal where
   show = genericShow
 
@@ -888,6 +896,7 @@ newtype ProtocolVersion = ProtocolVersion
   }
 
 derive instance Generic ProtocolVersion _
+derive instance Newtype ProtocolVersion _
 instance Show ProtocolVersion where
   show = genericShow
 
