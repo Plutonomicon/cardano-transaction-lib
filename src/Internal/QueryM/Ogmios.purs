@@ -16,6 +16,7 @@ module Ctl.Internal.QueryM.Ogmios
   , Network(Mainnet, Testnet)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
+  , OgmiosBootstrapWitness(OgmiosBootstrapWitness)
   , OgmiosCertificate
       ( StakeDelegation
       , StakeKeyRegistration
@@ -25,11 +26,13 @@ module Ctl.Internal.QueryM.Ogmios
       , GenesisDelegation
       , MoveInstantaneousRewards
       )
+  , OgmiosRedeemer(OgmiosRedeemer)
   , OgmiosRequiredSigner
   , OgmiosRewardAddress
   , OgmiosTxOut
   , OgmiosTxOutRef
   , OgmiosWithdrawls(OgmiosWithdrawls)
+  , OgmiosWitnessSet(OgmiosWitnessSet)
   , PParamRational(PParamRational)
   , PoolParameters
   , PoolParametersR(PoolParametersR)
@@ -45,6 +48,7 @@ module Ctl.Internal.QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
+  , Signature
   , AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosUtxoMap
   , OgmiosDatum
@@ -73,6 +77,9 @@ module Ctl.Internal.QueryM.Ogmios
   , Rewards(Rewards)
   , RewardPot(Reserves, Treasury)
   , LovelaceDelta
+  , ChainCode
+  , AddressAttributes
+  , VerificationKey
   , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
@@ -420,8 +427,8 @@ newtype MempoolTransaction = MempoolTransaction
   { id :: OgmiosTxId
   , inputSource :: InputSource
   , body :: MempoolTxBody
-  -- , witness :: MempoolWitnessSet
-  -- , metadata :: Maybe MempoolAuxiliaryData
+  , witness :: OgmiosWitnessSet
+  -- , metadata :: Maybe OgmiosAuxiliaryData
   , raw :: String
   }
 
@@ -432,11 +439,12 @@ instance Show MempoolTransaction where
 
 instance DecodeAeson MempoolTransaction where
   decodeAeson = aesonObject $ \o -> do
-    id <- getField o "id"
-    body <- getField o "body"
-    raw <- getField o "raw"
-    inputSource <- getField o "inputSource"
-    pure $ MempoolTransaction { id, body, inputSource, raw }
+    id <- o .: "id"
+    inputSource <- o .: "inputSource"
+    body <- o .: "body"
+    witness <- o .: "witness"
+    raw <- o .: "raw"
+    pure $ MempoolTransaction { id, inputSource, body, witness, raw }
 
 newtype MempoolTxBody = MempoolTxBody
   { inputs :: Array OgmiosTxOutRef
@@ -469,9 +477,7 @@ instance DecodeAeson MempoolTxBody where
     update <- o .:? "update"
     mint <- o .:? "mint" >>= case _ of
       Nothing -> pure Nothing
-      Just aes -> do
-        val <- parseValue aes
-        pure $ Just val
+      Just aes -> map Just $ parseValue aes
     withdrawls <- o .:? "withdrawls" >>= case _ of
       Nothing -> pure $ OgmiosWithdrawls Map.empty
       Just wthd -> pure wthd
@@ -506,13 +512,82 @@ instance DecodeAeson InputSource where
 
 type OgmiosRewardAddress = String
 type OgmiosRequiredSigner = String
-newtype MempoolWitnessSet = MempoolWitnessSet
-  { signatures :: Map String String
+newtype OgmiosWitnessSet = OgmiosWitnessSet
+  { signatures :: Map String Signature
   , scripts :: Map String ScriptRef
-  -- , bootstrap :: Array BootstrapWitness
-  -- , datums :: Map String Datum
-  -- , redeemers :: Map String Redeemer
+  , bootstrap :: Array OgmiosBootstrapWitness
+  , datums :: Map String OgmiosDatum
+  , redeemers :: Map String OgmiosRedeemer
   }
+
+derive instance Generic OgmiosWitnessSet _
+instance Show OgmiosWitnessSet where
+  show = genericShow
+instance DecodeAeson OgmiosWitnessSet where
+  decodeAeson = aesonObject $ \o -> do
+    signatureList :: Array (String /\ Aeson) <- ForeignObject.toUnfoldable <$> o .: "signatures"
+    scriptList :: Array (String /\ Aeson) <- ForeignObject.toUnfoldable <$> o .: "scripts"
+    bootstrap <- aesonArray (traverse decodeAeson) =<< o .: "bootstrap"
+    datumList :: Array (String /\ Aeson) <- ForeignObject.toUnfoldable <$> o .: "datums"
+    redeemerList :: Array (String /\ Aeson) <- ForeignObject.toUnfoldable <$> o .: "redeemers"
+    
+    signatures <- Map.fromFoldable <$> traverse (decodeValue decodeAeson) signatureList
+    scripts <- Map.fromFoldable <$> traverse (decodeValue $ aesonObject parseScript) scriptList
+    datums <- Map.fromFoldable <$> traverse (decodeValue decodeAeson) datumList
+    redeemers <- Map.fromFoldable <$> traverse (decodeValue decodeAeson) redeemerList
+
+    pure $ OgmiosWitnessSet
+      { signatures, scripts, bootstrap, datums, redeemers }
+
+    where
+
+    decodeValue
+      :: forall a. (Aeson -> Either JsonDecodeError a)
+      -> String /\ Aeson
+      -> Either JsonDecodeError (String /\ a)
+    decodeValue func (str /\ aes) = do
+      val <- func aes
+      pure $ str /\ val
+
+newtype OgmiosRedeemer = OgmiosRedeemer
+  { redeemer :: String, executionUnits :: ExUnits }
+
+derive instance Generic OgmiosRedeemer _
+instance Show OgmiosRedeemer where
+  show = genericShow
+instance DecodeAeson OgmiosRedeemer where
+  decodeAeson = aesonObject $ \o -> do
+    redeemer <- o .: "redeemer"
+    execUnitsAeson <- o .: "executionUnits"
+    executionUnits <- flip aesonObject execUnitsAeson $ \obj -> do
+      mem <- obj .: "memory"
+      steps <- obj .: "steps"
+      pure { mem, steps }
+    pure $ OgmiosRedeemer { redeemer, executionUnits }
+
+newtype OgmiosBootstrapWitness = OgmiosBootstrapWitness
+  { signature :: Signature
+  , chainCode :: Maybe ChainCode
+  , addressAttributes :: Maybe AddressAttributes
+  , key :: VerificationKey
+  }
+
+derive instance Generic OgmiosBootstrapWitness _
+instance Show OgmiosBootstrapWitness where
+  show = genericShow
+instance DecodeAeson OgmiosBootstrapWitness where
+  decodeAeson = aesonObject $ \o -> do
+    signature <- o .: "signature"
+    chainCode <- o .:? "chainCode"
+    addressAttributes <- o .:? "addressAttributes"
+    key <- o .: "key"
+    pure $ OgmiosBootstrapWitness
+      { signature, chainCode, addressAttributes, key }
+
+type Signature = String
+type ChainCode = String
+type AddressAttributes = String
+type VerificationKey = String
 
 data OgmiosCertificate
   = StakeDelegation StakeDelegation
@@ -634,10 +709,16 @@ instance DecodeAeson OgmiosWithdrawls where
       coin <- decodeAeson aeson
       pure $ rewardAddress /\ Coin coin
 
-type MempoolAuxiliaryData =
+newtype OgmiosAuxiliaryData = OgmiosAuxiliaryData
   { hash :: String
-  , body :: AuxiliaryData
+  , body :: { scripts :: Maybe (Array ScriptRef)
+            , blob :: Maybe AuxiliaryData
+            }
   }
+
+derive instance Generic OgmiosAuxiliaryData _
+instance Show OgmiosAuxiliaryData where
+  show = genericShow
 
 type ValidityInterval =
   { invalidBefore :: Maybe BigInt
@@ -1541,27 +1622,26 @@ parseTxOut = aesonObject $ \o -> do
   value <- parseValue o
   datumHash <- getFieldOptional' o "datumHash"
   datum <- getFieldOptional' o "datum"
-  script <- parseScript o
+  script <- getFieldOptional' o "script" >>= case _ of
+    Nothing -> pure Nothing
+    Just script -> Just <$> parseScript script
   pure { address, value, datumHash, datum, script }
 
-parseScript :: Object Aeson -> Either JsonDecodeError (Maybe ScriptRef)
-parseScript outer =
-  getFieldOptional' outer "script" >>= case _ of
-    Nothing -> pure Nothing
-    Just script -> do
-      case (Array.head $ ForeignObject.toUnfoldable script) of
-        Just ("plutus:v1" /\ plutusScript) ->
-          Just <$> parsePlutusScriptWithLang PlutusV1 plutusScript
+parseScript :: Object Aeson -> Either JsonDecodeError ScriptRef
+parseScript script =
+  case (Array.head $ ForeignObject.toUnfoldable script) of
+    Just ("plutus:v1" /\ plutusScript) ->
+      parsePlutusScriptWithLang PlutusV1 plutusScript
 
-        Just ("plutus:v2" /\ plutusScript) ->
-          Just <$> parsePlutusScriptWithLang PlutusV2 plutusScript
+    Just ("plutus:v2" /\ plutusScript) ->
+      parsePlutusScriptWithLang PlutusV2 plutusScript
 
-        Just ("native" /\ nativeScript) ->
-          Just <<< NativeScriptRef <$> parseNativeScript nativeScript
+    Just ("native" /\ nativeScript) ->
+      NativeScriptRef <$> parseNativeScript nativeScript
 
-        _ ->
-          Left $ TypeMismatch $
-            "Expected native or Plutus script, got: " <> show script
+    _ ->
+      Left $ TypeMismatch $
+        "Expected native or Plutus script, got: " <> show script
   where
   parsePlutusScriptWithLang
     :: Language -> Aeson -> Either JsonDecodeError ScriptRef
