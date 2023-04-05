@@ -231,27 +231,36 @@ laceConfirmAccess extId re = do
       void $ Toppokki.pageWaitForSelector (wrap $ "button")
         {}
         page
+      delaySec 1.0
       void $ doJQ (buttonWithText "Authorize") click page
       delaySec 0.1
       void $ doJQ (buttonWithText "Always") click page
   when wasInPage do
     waitForWalletPageClose pattern 10.0 re.browser
+  -- Toppokki.newPage re.browser >>=
+  --   Toppokki.goto (wrap $ "chrome-extension://" <> unExtensionId extId <> "/app.html#/assets")
   where
   pattern :: Pattern
-  pattern = wrap $ unExtensionId extId <> "/dappConnector.html#/dapp/connect"
+  pattern = wrap $ unExtensionId extId <> "/dappConnector.html"
 
 -- Not implemented yet
 laceSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
-laceSign extId _password re = do
-  void $ liftEffect $ throw "Lace support is not implemented"
+laceSign extId password re = do
   inWalletPage pattern re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ "button")
       {}
       page
-    void $ doJQ (buttonWithText "Confirm") click page
+    delaySec 0.1
+    clickButton "Confirm" page
+    delaySec 0.1
+    typeInto (inputType "password") password page
+    delaySec 0.1
+    clickButton "Confirm" page
+    delaySec 1.0
+    clickButton "Close" page
   -- TODO: continue from here
   where
-  pattern = Pattern $ unExtensionId extId <> "/index.html?#/swap?tx="
+  pattern = Pattern $ unExtensionId extId <> "/dappConnector.html#/dapp/sign-tx"
 
 -- Not implemented yet
 flintConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit

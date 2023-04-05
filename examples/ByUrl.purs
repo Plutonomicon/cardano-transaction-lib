@@ -13,6 +13,7 @@ import Contract.Config
       , ConnectToNuFi
       , ConnectToLace
       )
+  , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
   , mainnetFlintConfig
   , mainnetGeroConfig
@@ -104,6 +105,34 @@ main = do
             /\ (mkBlockfrostPreviewConfig mbApiKey)
               { walletSpec = Just ConnectToLace }
             /\ Nothing
+        , "blockfrost-nami-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToNami }
+            /\ Nothing
+        , "blockfrost-gero-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToGero }
+            /\ Nothing
+        , "blockfrost-eternl-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToEternl }
+            /\ Nothing
+        , "blockfrost-lode-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToLode }
+            /\ Nothing
+        , "blockfrost-flint-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToFlint }
+            /\ Nothing
+        , "blockfrost-nufi-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToNuFi }
+            /\ Nothing
+        , "blockfrost-lace-preprod"
+            /\ (mkBlockfrostPreprodConfig mbApiKey)
+              { walletSpec = Just ConnectToLace }
+            /\ Nothing
         ]
   addLinks walletsWithBlockfrost examples
   route walletsWithBlockfrost examples
@@ -145,6 +174,16 @@ mkBlockfrostPreviewConfig apiKey =
   testnetConfig
     { backendParams = mkBlockfrostBackendParams
         { blockfrostConfig: blockfrostPublicPreviewServerConfig
+        , blockfrostApiKey: apiKey
+        , confirmTxDelay: Just (Seconds 30.0)
+        }
+    }
+
+mkBlockfrostPreprodConfig :: Maybe String -> ContractParams
+mkBlockfrostPreprodConfig apiKey =
+  testnetConfig
+    { backendParams = mkBlockfrostBackendParams
+        { blockfrostConfig: blockfrostPublicPreprodServerConfig
         , blockfrostApiKey: apiKey
         , confirmTxDelay: Just (Seconds 30.0)
         }
