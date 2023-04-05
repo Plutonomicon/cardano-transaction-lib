@@ -19,4 +19,4 @@ Timecodes:
 
 # Blockfrost backend demo
 
-Here is [another video](https://drive.google.com/file/d/1cU7vsHlq0-rdybMn2_doBd8XDWA_MHwO/view?usp=share_link) with a walkthrough for CTL with [Blockfrost backend](./blockfrost.md) setup.
+Here is [another video](https://drive.google.com/file/d/1cU7vsHlq0-rdybMn2_doBd8XDWA_MHwO/view?usp=share_link) with a walkthrough for CTL with [Blockfrost backend](./blockfrost.md) setup. A [presentation video](https://drive.google.com/file/d/1p-WT8L3x3iKYtNPjujo1JgmZZQ403GNS/view?usp=share_link) is also available - it gives a quick overview in under 5 minutes.
