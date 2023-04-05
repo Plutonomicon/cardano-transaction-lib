@@ -9,7 +9,7 @@ import Prelude
 
 import Contract.Log (logTrace')
 import Contract.Monad (liftContractE, liftContractM)
-import Contract.Prelude (Maybe(..), maybe)
+import Contract.Prelude (Maybe(Just, Nothing), maybe)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
