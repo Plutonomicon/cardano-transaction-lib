@@ -17,6 +17,7 @@ import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Contract.Address (NetworkId(MainnetId))
+import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither)
@@ -324,6 +325,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
             "Impossible happened: could not decode wallets. Please report as bug"
             $ decodeWallets distr (unwrap <$> response.privateKeys)
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
+        void $ waitNSlots one
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
 
