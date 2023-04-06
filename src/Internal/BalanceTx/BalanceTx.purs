@@ -186,7 +186,7 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
       certsFee = getStakingBalance (transaction.transaction)
         depositValuePerCert
 
-    changeAddr <- getChangeAddress
+    changeAddress <- getChangeAddress
 
     mbSrcAddrs <- asksConstraints Constraints._srcAddresses
 
