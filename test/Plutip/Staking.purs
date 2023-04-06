@@ -8,8 +8,6 @@ import Prelude
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , getNetworkId
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   )
 import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
@@ -66,7 +64,11 @@ import Contract.TxConstraints
   , mustWithdrawStakePubKey
   )
 import Contract.Value (lovelaceValueOf)
-import Contract.Wallet (withKeyWallet)
+import Contract.Wallet
+  ( ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.IncludeDatum (only42Script)
@@ -140,10 +142,10 @@ suite = do
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*>
                 liftedM "Failed to get Stake PKH"
-                  (join <<< head <$> ownStakePubKeysHashes)
+                  (join <<< head <$> ownStakePubKeyHashes)
 
           -- Register
           do
@@ -180,10 +182,10 @@ suite = do
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*>
                 liftedM "Failed to get Stake PKH"
-                  (join <<< head <$> ownStakePubKeysHashes)
+                  (join <<< head <$> ownStakePubKeyHashes)
           validator1 <- alwaysSucceedsScript <#> unwrap >>>
             PlutusScriptStakeValidator
           validator2 <- only42Script <#> unwrap >>>
@@ -232,10 +234,10 @@ suite = do
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*>
                 liftedM "Failed to get Stake PKH"
-                  (join <<< head <$> ownStakePubKeysHashes)
+                  (join <<< head <$> ownStakePubKeyHashes)
           let
             nativeScript = ScriptAny
               [ ScriptPubkey $ unwrap $ unwrap alicePkh ]
@@ -277,9 +279,9 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> withKeyWallet alice do
         alicePkh /\ aliceStakePkh <- Tuple
-          <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+          <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
           <*> liftedM "Failed to get Stake PKH"
-            (join <<< head <$> ownStakePubKeysHashes)
+            (join <<< head <$> ownStakePubKeyHashes)
 
         -- Register stake key
         do
@@ -397,9 +399,9 @@ suite = do
         runPlutipContract config distribution \alice ->
           withKeyWallet alice do
             alicePkh /\ aliceStakePkh <- Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*> liftedM "Failed to get Stake PKH"
-                (join <<< head <$> ownStakePubKeysHashes)
+                (join <<< head <$> ownStakePubKeyHashes)
             validator <- alwaysSucceedsScript <#> unwrap >>>
               PlutusScriptStakeValidator
             let
@@ -507,9 +509,9 @@ suite = do
         runPlutipContract config distribution \(alice /\ bob) -> do
           bobPkh /\ bobStakePkh <- withKeyWallet bob do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*> liftedM "Failed to get Stake PKH"
-                (join <<< head <$> ownStakePubKeysHashes)
+                (join <<< head <$> ownStakePubKeyHashes)
           let
             nativeScript = ScriptAny
               [ ScriptPubkey $ unwrap $ unwrap bobStakePkh ]
@@ -620,9 +622,9 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice do
           alicePkh /\ aliceStakePkh <- Tuple
-            <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+            <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
             <*> liftedM "Failed to get Stake PKH"
-              (join <<< head <$> ownStakePubKeysHashes)
+              (join <<< head <$> ownStakePubKeyHashes)
 
           -- Register stake key
           do

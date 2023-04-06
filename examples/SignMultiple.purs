@@ -5,7 +5,6 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo', logWarn')
 import Contract.Monad
@@ -28,9 +27,13 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletUtxos)
 import Contract.Value (leq)
 import Contract.Value as Value
+import Contract.Wallet
+  ( getWalletUtxos
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.BigInt as BigInt
@@ -51,9 +54,9 @@ main = example testnetNamiConfig
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeysHashes
+    ownStakePubKeyHashes
 
   -- Early fail if not enough utxos present for 2 transactions
   unlessM hasSufficientUtxos do
@@ -114,9 +117,9 @@ contract = do
 createAdditionalUtxos :: Contract Unit
 createAdditionalUtxos = do
   logInfo' "Creating additional UTxOs for SignMultiple example"
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeysHashes
+    ownStakePubKeyHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void

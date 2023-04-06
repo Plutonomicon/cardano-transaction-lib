@@ -18,9 +18,6 @@ import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
@@ -35,7 +32,13 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
-import Contract.Wallet (mkKeyWalletFromPrivateKeys, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , mkKeyWalletFromPrivateKeys
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
@@ -200,7 +203,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       head <$> withKeyWallet ourWallet getWalletAddresses
     ourUtxos <- utxosAt ourAddr
     ourPkh <- liftedM "Could not get our payment pkh" $
-      head <$> withKeyWallet ourWallet ownPaymentPubKeysHashes
+      head <$> withKeyWallet ourWallet ownPaymentPubKeyHashes
     let
       lookups :: Lookups.ScriptLookups Void
       lookups = Lookups.unspentOutputs ourUtxos
@@ -245,11 +248,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -> KeyWallet
     -> Contract (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
-    join <<< head <$> ownStakePubKeysHashes >>= case _ of
+    join <<< head <$> ownStakePubKeyHashes >>= case _ of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
         payPkh <- liftedM "Could not get payment pubkeyhash" $
-          head <$> ownPaymentPubKeysHashes
+          head <$> ownPaymentPubKeyHashes
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $
           payPubKeyHashEnterpriseAddress networkId payPkh

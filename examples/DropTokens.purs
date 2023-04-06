@@ -11,7 +11,6 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.TxConstraints as Helpers
-import Contract.Utxos (getWalletBalance)
 import Contract.Value
   ( coinToValue
   , flattenNonAdaAssets
@@ -19,6 +18,7 @@ import Contract.Value
   , singleton
   , valueToCoin
   )
+import Contract.Wallet (getWalletBalance)
 import Data.Array as Array
 import Test.Ctl.Fixtures (nullPaymentPubKeyHash)
 

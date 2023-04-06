@@ -3,28 +3,18 @@
 -- | a given `Address` is defined.
 module Contract.Utxos
   ( getUtxo
-  , getWalletBalance
-  , getWalletUtxos
   , utxosAt
   , module X
   ) where
 
 import Prelude
 
-import Contract.Address (getWalletCollateral)
-import Contract.Log (logTrace', logWarn')
+import Contract.Log (logWarn')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
-import Contract.Value as Value
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.BalanceTx.Sync
-  ( getControlledAddresses
-  , isCip30Wallet
-  , syncBackendWithWallet
-  , withoutSync
-  )
+import Ctl.Internal.BalanceTx.Sync (getControlledAddresses, isCip30Wallet)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , toPlutusTxOutput
@@ -33,14 +23,9 @@ import Ctl.Internal.Plutus.Conversion
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
-import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.Foldable (fold, foldr)
-import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe)
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe)
 import Data.Set (member) as Set
-import Data.Tuple.Nested ((/\))
 import Effect.Aff.Class (liftAff)
 
 -- | Queries for UTxOs at the given `Address`.
@@ -85,47 +70,3 @@ getUtxo oref = do
   cardanoTxOutput <- liftedE $ liftAff $ queryHandle.getUtxoByOref oref
   for cardanoTxOutput
     (liftContractM "getUtxo: failed to convert tx output" <<< toPlutusTxOutput)
-
-getWalletBalance
-  :: Contract (Maybe Value)
-getWalletBalance = do
-  logTrace' "getWalletBalance"
-  whenM
-    ( asks $ _.synchronizationParams
-        >>> _.syncBackendWithWallet
-        >>> _.beforeCip30Methods
-    )
-    syncBackendWithWallet
-  let
-    getUtxoValue = unwrap >>> _.output >>> unwrap >>> _.amount
-    sumValues = foldr (Value.unionWith add) mempty
-  -- include both spendable UTxOs and collateral
-  utxos <- getWalletUtxos <#> fromMaybe Map.empty
-  collateralUtxos <- withoutSync getWalletCollateral <#> fold >>> toUtxoMap
-  let allUtxos = Map.union utxos collateralUtxos
-  pure $ pure $ sumValues $ map getUtxoValue $ Map.values allUtxos
-  where
-  toUtxoMap = Map.fromFoldable <<< map
-    (unwrap >>> \({ input, output }) -> input /\ output)
-
--- | Similar to `utxosAt` called on own address, except that it uses CIP-30
--- | wallet state and not query layer state.
--- | The user should not expect these states to be in sync.
--- | When active wallet is `KeyWallet`, query layer state is used.
--- | This function is expected to be more performant than `utxosAt` when there
--- | is a large number of assets.
-getWalletUtxos
-  :: Contract (Maybe UtxoMap)
-getWalletUtxos = do
-  logTrace' "getWalletUtxos"
-  whenM
-    ( asks $
-        _.synchronizationParams
-          >>> _.syncBackendWithWallet
-          >>> _.beforeCip30Methods
-    )
-    syncBackendWithWallet
-  mCardanoUtxos <- Wallet.getWalletUtxos
-  for mCardanoUtxos $
-    liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
-      toPlutusUtxoMap

@@ -6,7 +6,7 @@ module Ctl.Examples.PlutusV2.ReferenceScripts
 
 import Contract.Prelude
 
-import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
+import Contract.Address (scriptHashAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
@@ -30,6 +30,7 @@ import Contract.TxConstraints
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
+import Contract.Wallet (ownStakePubKeyHashes)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
 import Data.BigInt (fromInt) as BigInt
@@ -64,7 +65,7 @@ payWithScriptRefToAlwaysSucceeds
 payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`
-  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -91,7 +92,7 @@ spendFromAlwaysSucceeds :: ValidatorHash -> TransactionHash -> Contract Unit
 spendFromAlwaysSucceeds vhash txId = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`
-  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   let
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
