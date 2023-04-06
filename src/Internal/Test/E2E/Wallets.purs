@@ -225,6 +225,7 @@ geroSign extId password re =
 
 laceConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 laceConfirmAccess extId re = do
+  void $ liftEffect $ throw "Lace support is not implemented"
   wasInPage <- isJust <$> inWalletPageOptional extId pattern re
     confirmAccessTimeout
     \page -> do
@@ -237,6 +238,10 @@ laceConfirmAccess extId re = do
       void $ doJQ (buttonWithText "Always") click page
   when wasInPage do
     waitForWalletPageClose pattern 10.0 re.browser
+  -- Trigger wallet page opening.
+  -- Lace has a glitch that prevents CIP-30 API promises from resolving until
+  -- the wallet is interacted with at least once after browser startup.
+  -- https://discord.com/channels/826816523368005654/1050085066056925195/1091336339250749511
   -- Toppokki.newPage re.browser >>=
   --   Toppokki.goto (wrap $ "chrome-extension://" <> unExtensionId extId <> "/app.html#/assets")
   where
@@ -246,6 +251,7 @@ laceConfirmAccess extId re = do
 -- Not implemented yet
 laceSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 laceSign extId password re = do
+  void $ liftEffect $ throw "Lace support is not implemented"
   inWalletPage pattern re signTimeout \page -> do
     void $ Toppokki.pageWaitForSelector (wrap $ "button")
       {}
