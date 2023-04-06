@@ -6,8 +6,6 @@ import Contract.Prelude
 
 import Contract.Address
   ( PaymentPubKeyHash
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -21,6 +19,10 @@ import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
+import Contract.Wallet
+  ( ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
@@ -37,7 +39,7 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
-  pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeysHashes
+  pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeyHashes
 
   mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
   tn <- Helpers.mkTokenName "NSToken"
@@ -61,8 +63,8 @@ contract = do
 
 toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract Unit
 toSelfContract cs tn amount = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  skh <- join <<< head <$> ownStakePubKeyHashes
 
   let
     constraints :: Constraints.TxConstraints Void Void

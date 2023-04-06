@@ -2,7 +2,6 @@ module Ctl.Examples.PlutusV2.ReferenceInputs (contract, example, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -33,7 +32,11 @@ import Contract.Transaction
   )
 import Contract.TxConstraints as Constraints
 import Contract.Value (lovelaceValueOf) as Value
-import Contract.Wallet (getWalletUtxos)
+import Contract.Wallet
+  ( getWalletUtxos
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head) as Array
@@ -53,8 +56,8 @@ contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputs"
 
   pkh <- liftedM "Failed to get own PKH"
-    (Array.head <$> ownPaymentPubKeysHashes)
-  skh <- join <<< Array.head <$> ownStakePubKeysHashes
+    (Array.head <$> ownPaymentPubKeyHashes)
+  skh <- join <<< Array.head <$> ownStakePubKeyHashes
 
   utxos <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
   oref <-

@@ -9,10 +9,6 @@ import Contract.Address
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddresses
-  , getWalletCollateral
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , scriptHashAddress
   )
 import Contract.AuxiliaryData (setGeneralTxMetadata)
@@ -81,10 +77,19 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (UtxoMap, getWalletBalance, utxosAt)
+import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
-import Contract.Wallet (getWalletUtxos, isWalletAvailable, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , getWalletCollateral
+  , getWalletUtxos
+  , isWalletAvailable
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Control.Monad.Error.Class (try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
@@ -226,8 +231,8 @@ suite = do
       withWallets distribution \alice -> do
         checkUtxoDistribution distribution alice
         pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-          ownPaymentPubKeysHashes
-        stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeysHashes
+          ownPaymentPubKeyHashes
+        stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeyHashes
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
     test
@@ -243,9 +248,9 @@ suite = do
         withWallets distribution \alice -> do
           checkUtxoDistribution distribution alice
           pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-            ownPaymentPubKeysHashes
+            ownPaymentPubKeyHashes
           stakePkh <- join <<< head <$> withKeyWallet alice
-            ownStakePubKeysHashes
+            ownStakePubKeyHashes
           stakePkh `shouldSatisfy` isJust
           withKeyWallet alice $ pkh2PkhContract pkh stakePkh
 
@@ -270,15 +275,15 @@ suite = do
           sequential ado
             parallel $ withKeyWallet alice do
               pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet bob
-                ownPaymentPubKeysHashes
+                ownPaymentPubKeyHashes
               stakePkh <- join <<< head <$> withKeyWallet bob
-                ownStakePubKeysHashes
+                ownStakePubKeyHashes
               pkh2PkhContract pkh stakePkh
             parallel $ withKeyWallet bob do
               pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-                ownPaymentPubKeysHashes
+                ownPaymentPubKeyHashes
               stakePkh <- join <<< head <$> withKeyWallet alice
-                ownStakePubKeysHashes
+                ownStakePubKeyHashes
               pkh2PkhContract pkh stakePkh
             in unit
 
@@ -303,16 +308,16 @@ suite = do
             sequential ado
               parallel $ withKeyWallet alice do
                 pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet bob
-                  ownPaymentPubKeysHashes
+                  ownPaymentPubKeyHashes
                 stakePkh <- join <<< head <$> withKeyWallet bob
-                  ownStakePubKeysHashes
+                  ownStakePubKeyHashes
                 pkh2PkhContract pkh stakePkh
               parallel $ withKeyWallet bob do
                 pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet
                   alice
-                  ownPaymentPubKeysHashes
+                  ownPaymentPubKeyHashes
                 stakePkh <- join <<< head <$> withKeyWallet alice
-                  ownStakePubKeysHashes
+                  ownStakePubKeyHashes
                 pkh2PkhContract pkh stakePkh
               in unit
 
@@ -346,14 +351,14 @@ suite = do
       withWallets distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
           alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
-            (coerce <<< head) <$> withKeyWallet alice ownPaymentPubKeysHashes
+            (coerce <<< head) <$> withKeyWallet alice ownPaymentPubKeyHashes
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
-            (coerce <<< head) <$> withKeyWallet bob ownPaymentPubKeysHashes
+            (coerce <<< head) <$> withKeyWallet bob ownPaymentPubKeyHashes
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
             (coerce <<< head) <$> withKeyWallet charlie
-              ownPaymentPubKeysHashes
+              ownPaymentPubKeyHashes
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            (coerce <<< head) <$> withKeyWallet dan ownPaymentPubKeysHashes
+            (coerce <<< head) <$> withKeyWallet dan ownPaymentPubKeyHashes
           let
             nativeScript = ScriptAll
               [ ScriptPubkey alicePaymentPKH
@@ -443,14 +448,14 @@ suite = do
       withWallets distribution \(alice /\ bob /\ charlie /\ dan) ->
         do
           alicePaymentPKH <- liftedM "Unable to get Alice's PKH" $
-            (coerce <<< head) <$> withKeyWallet alice ownPaymentPubKeysHashes
+            (coerce <<< head) <$> withKeyWallet alice ownPaymentPubKeyHashes
           bobPaymentPKH <- liftedM "Unable to get Bob's PKH" $
-            (coerce <<< head) <$> withKeyWallet bob ownPaymentPubKeysHashes
+            (coerce <<< head) <$> withKeyWallet bob ownPaymentPubKeyHashes
           charliePaymentPKH <- liftedM "Unable to get Charlie's PKH" $
             (coerce <<< head) <$> withKeyWallet charlie
-              ownPaymentPubKeysHashes
+              ownPaymentPubKeyHashes
           danPaymentPKH <- liftedM "Unable to get Dan's PKH" $
-            (coerce <<< head) <$> withKeyWallet dan ownPaymentPubKeysHashes
+            (coerce <<< head) <$> withKeyWallet dan ownPaymentPubKeyHashes
           let
             nativeScript = ScriptNOfK 2
               [ ScriptPubkey alicePaymentPKH
@@ -567,7 +572,7 @@ suite = do
           -- Spending same amount
 
           pkh <-
-            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
             constraints' :: Constraints.TxConstraints Void Void
@@ -609,7 +614,7 @@ suite = do
           -- Spending more than minted amount
 
           pkh <-
-            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
             constraints' :: Constraints.TxConstraints Void Void
@@ -652,7 +657,7 @@ suite = do
           -- Spending same amount
 
           pkh <-
-            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
             constraints' :: Constraints.TxConstraints Void Void
@@ -694,7 +699,7 @@ suite = do
           -- Spending more than minted amount
 
           pkh <-
-            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+            liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
             constraints' :: Constraints.TxConstraints Void Void
@@ -1018,7 +1023,7 @@ suite = do
 
       withWallets distribution \alice -> do
         alicePkh <- withKeyWallet alice do
-          liftedM "Could not get own PKH" (head <$> ownPaymentPubKeysHashes)
+          liftedM "Could not get own PKH" (head <$> ownPaymentPubKeyHashes)
 
         validator <- AlwaysSucceeds.alwaysSucceedsScript
 
@@ -1291,8 +1296,8 @@ suite = do
           withWallets distribution \(alice /\ seed) -> do
             alicePkh /\ aliceStakePkh <- withKeyWallet alice do
               pkh <- liftedM "Failed to get PKH" $ head <$>
-                ownPaymentPubKeysHashes
-              stakePkh <- join <<< head <$> ownStakePubKeysHashes
+                ownPaymentPubKeyHashes
+              stakePkh <- join <<< head <$> ownStakePubKeyHashes
               pure $ pkh /\ stakePkh
 
             mp <- alwaysMintsPolicy
@@ -1410,8 +1415,8 @@ suite = do
 
       withWallets distribution \(alice /\ bob) -> do
         receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          head <$> withKeyWallet bob ownPaymentPubKeysHashes
-        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+          head <$> withKeyWallet bob ownPaymentPubKeyHashes
+        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
@@ -1471,7 +1476,7 @@ suite = do
         withWallets distribution \alice -> do
           withKeyWallet alice do
             pkh <- liftedM "Failed to get PKH" $ head <$>
-              ownPaymentPubKeysHashes
+              ownPaymentPubKeyHashes
 
             let
               constraints0 :: TxConstraints Unit Unit
@@ -1566,7 +1571,7 @@ suite = do
         withWallets distribution \alice -> do
           withKeyWallet alice do
             pkh <- liftedM "Failed to get PKH" $ head <$>
-              ownPaymentPubKeysHashes
+              ownPaymentPubKeyHashes
 
             wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
             logInfo' $ "wUtxos0 " <> show wUtxos0
@@ -1804,8 +1809,8 @@ suite = do
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             pkh <- liftedM "Failed to get PKH" $ head <$>
-              ownPaymentPubKeysHashes
-            stakePkh <- join <<< head <$> ownStakePubKeysHashes
+              ownPaymentPubKeyHashes
+            stakePkh <- join <<< head <$> ownStakePubKeyHashes
             pkh2PkhContract pkh stakePkh
 
       test "getWalletBalance works" do
@@ -1884,8 +1889,8 @@ suite = do
 
 signMultipleContract :: Contract Unit
 signMultipleContract = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  stakePkh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  stakePkh <- join <<< head <$> ownStakePubKeyHashes
   let
     constraints :: Constraints.TxConstraints Void Void
     constraints = mustPayToPubKeyStakeAddress pkh stakePkh

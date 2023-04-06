@@ -2,10 +2,14 @@ module Ctl.Examples.Wallet (example, contract) where
 
 import Contract.Prelude
 
-import Contract.Address (getWalletAddresses, getWalletCollateral)
 import Contract.Config (ContractParams)
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.Utxos (getWalletBalance, getWalletUtxos)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , getWalletCollateral
+  , getWalletUtxos
+  )
 
 contract :: Contract Unit
 contract = do

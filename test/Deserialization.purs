@@ -2,7 +2,7 @@ module Test.Ctl.Deserialization (suite) where
 
 import Prelude
 
-import Contract.Address (ByteArray)
+import Contract.Prim.ByteArray (ByteArray)
 import Contract.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType(Other)

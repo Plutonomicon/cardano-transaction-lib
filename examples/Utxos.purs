@@ -5,8 +5,6 @@ import Contract.Prelude
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
-  , ownPaymentPubKeyHash
-  , ownStakePubKeyHash
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo, logInfo')
@@ -29,7 +27,11 @@ import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
-import Contract.Wallet (getWalletUtxos)
+import Contract.Wallet
+  ( getWalletUtxos
+  , ownPaymentPubKeyHash
+  , ownStakePubKeyHash
+  )
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
 import Data.Array (head) as Array

@@ -6,8 +6,6 @@ import Prelude
 
 import Contract.Address
   ( addressToBech32
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
   )
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
@@ -28,9 +26,15 @@ import Contract.Transaction
   , submit
   , submitTxFromConstraints
   )
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (valueToCoin')
-import Contract.Wallet (privateKeysToKeyWallet, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , ownPaymentPubKeyHashes
+  , privateKeysToKeyWallet
+  , withKeyWallet
+  )
 import Contract.Wallet.Key
   ( keyWalletPrivatePaymentKey
   , keyWalletPrivateStakeKey
@@ -375,7 +379,7 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
         let utxos = nonEmptyWallets # map fst # Map.unions
 
         pkhs <- fold <$> for nonEmptyWallets
-          (snd >>> flip withKeyWallet ownPaymentPubKeysHashes)
+          (snd >>> flip withKeyWallet ownPaymentPubKeyHashes)
 
         let
           constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput

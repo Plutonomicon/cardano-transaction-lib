@@ -10,7 +10,6 @@ module Ctl.Examples.TxChaining
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes)
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
@@ -31,6 +30,7 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
+import Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Array (head)
 import Data.BigInt as BigInt
 
@@ -43,7 +43,7 @@ example cfg = launchAff_ do
 
 contract :: Contract Unit
 contract = do
-  pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeysHashes
+  pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeyHashes
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -79,4 +79,3 @@ contract = do
 
     awaitTxConfirmed txId0
     awaitTxConfirmed txId1
-

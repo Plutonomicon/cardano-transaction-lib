@@ -13,7 +13,7 @@ module Ctl.Examples.AlwaysSucceeds
 
 import Contract.Prelude
 
-import Contract.Address (ownStakePubKeysHashes, scriptHashAddress)
+import Contract.Address (scriptHashAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
@@ -33,6 +33,7 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
 import Data.BigInt as BigInt
@@ -60,7 +61,7 @@ example cfg = launchAff_ do
 payToAlwaysSucceeds :: ValidatorHash -> Contract TransactionHash
 payToAlwaysSucceeds vhash = do
   -- Send to own stake credential. This is used to test mustPayToScriptAddress.
-  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   let
     constraints :: TxConstraints Unit Unit
     constraints =
@@ -90,7 +91,7 @@ spendFromAlwaysSucceeds
   -> Contract Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   -- Use own stake credential if available
-  mbStakeKeyHash <- join <<< head <$> ownStakePubKeysHashes
+  mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   let
     scriptAddress =
       scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)

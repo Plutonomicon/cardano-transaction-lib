@@ -10,9 +10,6 @@ import Contract.Prelude
 
 import Contract.Address
   ( Address
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash)
@@ -44,6 +41,11 @@ import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
+import Contract.Wallet
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithDatum)
 import Data.Array (head)
@@ -66,8 +68,8 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PaysWithDatum"
 
-  pkh <- liftedM "Could not get own PKH" (head <$> ownPaymentPubKeysHashes)
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Could not get own PKH" (head <$> ownPaymentPubKeyHashes)
+  skh <- join <<< head <$> ownStakePubKeyHashes
   address <- liftedM "Could not get own address" (head <$> getWalletAddresses)
 
   let

@@ -1,4 +1,4 @@
--- | A module for Address-related functionality and querying own wallet.
+-- | A module for Address-related functionality.
 module Contract.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
@@ -7,22 +7,8 @@ module Contract.Address
   , addressWithNetworkTagToBech32
   , addressFromBech32
   , addressToBech32
-  , getWalletAddress
-  , getWalletAddresses
-  , getWalletAddressWithNetworkTag
-  , getWalletAddressesWithNetworkTag
-  , getWalletCollateral
-  , module ByteArray
-  , module ExportAddress
-  , module ExportPubKeyHash
-  , module ExportUnbalancedTransaction
-  , module Hash
-  , module SerializationAddress
+  , module X
   , module TypeAliases
-  , ownPaymentPubKeyHash
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeyHash
-  , ownStakePubKeysHashes
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyHashRewardAddress
@@ -38,28 +24,17 @@ module Contract.Address
 
 import Prelude
 
-import Contract.Log (logTrace')
-import Contract.Monad (Contract, liftContractM, liftedM)
-import Contract.Prelude (liftM)
+import Contract.Monad (Contract, liftContractM)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Address
   ( addressPaymentValidatorHash
   , addressStakeValidatorHash
   ) as Address
-import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
-import Ctl.Internal.Contract.Wallet
-  ( getWalletAddresses
-  , getWalletCollateral
-  , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
-  ) as Contract
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
   , toPlutusAddress
-  , toPlutusAddressWithNetworkTag
-  , toPlutusTxUnspentOutput
   )
 import Ctl.Internal.Plutus.Types.Address
   ( Address
@@ -73,10 +48,7 @@ import Ctl.Internal.Plutus.Types.Address
   , toPubKeyHash
   , toStakingCredential
   , toValidatorHash
-  ) as ExportAddress
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
+  ) as X
 import Ctl.Internal.Scripts
   ( typedValidatorBaseAddress
   , typedValidatorEnterpriseAddress
@@ -91,17 +63,17 @@ import Ctl.Internal.Serialization.Address
   , Pointer
   , Slot(Slot)
   , TransactionIndex(TransactionIndex)
-  ) as SerializationAddress
+  ) as X
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId)
   , addressBech32
   , addressNetworkId
   )
 import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as Hash
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as X
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
-import Ctl.Internal.Types.ByteArray (ByteArray) as ByteArray
+import Ctl.Internal.Types.PaymentPubKey (PaymentPubKey(PaymentPubKey)) as X
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , PubKeyHash
@@ -111,7 +83,7 @@ import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
-  ) as ExportPubKeyHash
+  ) as X
 import Ctl.Internal.Types.PubKeyHash
   ( payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
@@ -123,102 +95,8 @@ import Ctl.Internal.Types.PubKeyHash
   ) as PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Ctl.Internal.Types.TypedValidator (TypedValidator)
-import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey(PaymentPubKey)) as ExportUnbalancedTransaction
-import Data.Array (head)
 import Data.Maybe (Maybe)
-import Data.Traversable (for, traverse)
 import Effect.Exception (error)
-import Prim.TypeError (class Warn, Text)
-
--- | Get an `Address` of the browser wallet.
-getWalletAddress
-  :: Warn
-       ( Text
-           "This function returns only one `Adress` even in case multiple `Adress`es are available. Use `getWalletAdresses` instead"
-       )
-  => Contract (Maybe Address)
-getWalletAddress = head <$> getWalletAddresses
-
--- | Get all the `Address`es of the browser wallet.
-getWalletAddresses :: Contract (Array Address)
-getWalletAddresses = do
-  addresses <- Contract.getWalletAddresses
-  traverse
-    ( liftM
-        (error "getWalletAddresses: failed to deserialize `Address`")
-        <<< toPlutusAddress
-    )
-    addresses
-
--- | Get an `AddressWithNetworkTag` of the browser wallet.
-getWalletAddressWithNetworkTag
-  :: Warn
-       ( Text
-           "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use `getWalletAddressesWithNetworkTag` instead"
-       )
-  => Contract (Maybe AddressWithNetworkTag)
-getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
-
--- | Get all the `AddressWithNetworkTag`s of the browser wallet discarding errors.
-getWalletAddressesWithNetworkTag :: Contract (Array AddressWithNetworkTag)
-getWalletAddressesWithNetworkTag = do
-  addresses <- Contract.getWalletAddresses
-  traverse
-    ( liftM
-        ( error
-            "getWalletAddressesWithNetworkTag: failed to deserialize `Address`"
-        )
-        <<< toPlutusAddressWithNetworkTag
-    )
-    addresses
-
--- | Get the collateral of the browser wallet. This collateral will vary
--- | depending on the wallet.
--- | E.g. Nami creates a hard-coded 5 Ada collateral.
--- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
--- | is available.
-getWalletCollateral
-  :: Contract (Maybe (Array TransactionUnspentOutput))
-getWalletCollateral = do
-  logTrace' "getWalletCollateral"
-  whenM
-    ( asks
-        ( _.synchronizationParams
-            >>> _.syncBackendWithWallet
-            >>> _.beforeCip30Methods
-        )
-    )
-    syncBackendWithWallet
-  mtxUnspentOutput <- Contract.getWalletCollateral
-  for mtxUnspentOutput $ traverse $
-    liftedM
-      "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
-      <<< pure
-      <<< toPlutusTxUnspentOutput
-
--- | Gets a wallet `PaymentPubKeyHash` via `getWalletAddresses`.
-ownPaymentPubKeyHash
-  :: Warn
-       ( Text
-           "This function returns only one `PaymentPubKeyHash` even in case multiple `PaymentPubKeysHash`es are available. Use `ownPaymentPubKeysHashes` instead"
-       )
-  => Contract (Maybe PaymentPubKeyHash)
-ownPaymentPubKeyHash = head <$> ownPaymentPubKeysHashes
-
--- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
-ownPaymentPubKeysHashes :: Contract (Array PaymentPubKeyHash)
-ownPaymentPubKeysHashes = Contract.ownPaymentPubKeyHashes
-
-ownStakePubKeyHash
-  :: Warn
-       ( Text
-           "This function returns only one `StakePubKeyHash` even in case multiple `StakePubKeysHash`es are available. Use `ownStakePubKeysHashes` instead"
-       )
-  => Contract (Maybe StakePubKeyHash)
-ownStakePubKeyHash = join <<< head <$> ownStakePubKeysHashes
-
-ownStakePubKeysHashes :: Contract (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = Contract.ownStakePubKeysHashes
 
 getNetworkId :: Contract NetworkId
 getNetworkId = asks _.networkId
