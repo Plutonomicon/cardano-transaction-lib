@@ -6,8 +6,6 @@ import Prelude
 
 import Contract.Address
   ( addressToBech32
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
   )
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
@@ -28,9 +26,15 @@ import Contract.Transaction
   , submit
   , submitTxFromConstraints
   )
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (valueToCoin')
-import Contract.Wallet (privateKeysToKeyWallet, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , ownPaymentPubKeyHashes
+  , privateKeysToKeyWallet
+  , withKeyWallet
+  )
 import Contract.Wallet.Key
   ( keyWalletPrivatePaymentKey
   , keyWalletPrivateStakeKey
@@ -50,6 +54,7 @@ import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
 import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
+import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -59,7 +64,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , encodeDistribution
   , keyWallets
   )
-import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx, unspentOutputs)
+import Ctl.Internal.Types.ScriptLookups (unspentOutputs)
 import Ctl.Internal.Types.TxConstraints
   ( TxConstraint(MustPayToPubKeyAddress)
   , TxConstraints
@@ -374,14 +379,15 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
         let utxos = nonEmptyWallets # map fst # Map.unions
 
         pkhs <- fold <$> for nonEmptyWallets
-          (snd >>> flip withKeyWallet ownPaymentPubKeysHashes)
+          (snd >>> flip withKeyWallet ownPaymentPubKeyHashes)
 
         let
           constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
+        unbalancedTx <- liftedE $ mkUnbalancedTxImpl (lookups :: _ Void)
+          constraints
         balancedTx <- liftedE $ balanceTx unbalancedTx
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)

@@ -11,7 +11,7 @@ import Ctl.Internal.Cardano.Types.Transaction as Transaction
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.Wallet (withWallet)
 import Ctl.Internal.Wallet
-  ( Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami, NuFi)
+  ( Wallet(KeyWallet, Lode, Eternl, Flint, Gero, Nami, NuFi, Lace)
   , callCip30Wallet
   )
 import Data.Array (fromFoldable)
@@ -45,6 +45,7 @@ signTransaction tx = do
       liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
     Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
     NuFi nufi -> liftAff $ callCip30Wallet nufi \w -> flip w.signTx tx
+    Lace nufi -> liftAff $ callCip30Wallet nufi \w -> flip w.signTx tx
     KeyWallet kw -> liftAff do
       witnessSet <- (unwrap kw).signTx tx
       pure $ Just (tx # _witnessSet <>~ witnessSet)

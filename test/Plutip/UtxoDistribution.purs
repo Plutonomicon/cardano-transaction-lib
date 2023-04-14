@@ -17,9 +17,6 @@ import Prelude
 import Contract.Address
   ( Address
   , getNetworkId
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
 import Contract.Monad (Contract, liftedM)
@@ -36,7 +33,13 @@ import Contract.Transaction
   )
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
-import Contract.Wallet (KeyWallet, withKeyWallet)
+import Contract.Wallet
+  ( KeyWallet
+  , getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Control.Lazy (fix)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
@@ -196,7 +199,7 @@ assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 assertUtxosAtPlutipWalletAddress
   :: KeyWallet -> Contract Unit
 assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
-  maybeStake <- join <<< head <$> ownStakePubKeysHashes
+  maybeStake <- join <<< head <$> ownStakePubKeyHashes
   when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
 
 assertNoUtxosAtEnterpriseAddress
@@ -206,7 +209,7 @@ assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
     ( payPubKeyHashEnterpriseAddress
         <$> getNetworkId
         <*> liftedM "Could not get payment pubkeyhash"
-          (head <$> ownPaymentPubKeysHashes)
+          (head <$> ownPaymentPubKeyHashes)
     )
 
 assertNoUtxosAtAddress :: Address -> Contract Unit

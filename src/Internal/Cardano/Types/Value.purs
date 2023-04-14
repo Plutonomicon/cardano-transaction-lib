@@ -43,9 +43,9 @@ module Ctl.Internal.Cardano.Types.Value
   , numNonAdaCurrencySymbols
   , numTokenNames
   , posNonAdaAsset
+  , scriptHashAsCurrencySymbol
   , split
   , sumTokenNameLengths
-  , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
   , unwrapNonAdaAsset

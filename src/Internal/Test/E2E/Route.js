@@ -13,32 +13,57 @@ exports._writeExampleHTML = example => wallets => () => {
 };
 
 exports._addLinks = configs => tests => () => {
-  const table = document.createElement("table");
-  table.border = "1";
-  const header = document.createElement("tr");
+  const configSelectEl = document.createElement("select");
+  const testNameSelectEl = document.createElement("select");
+  const linkEl = document.createElement("a");
+  linkEl.textContent = "➡ RUN EXAMPLE";
 
-  header.appendChild(document.createElement("th"));
-  for (let config of configs) {
-    const td = document.createElement("th");
-    td.textContent = config;
-    header.appendChild(td);
-  }
-  table.appendChild(header);
+  const h1El = document.createElement("h3");
+  h1El.textContent = "Example runner";
 
-  for (let test of tests) {
-    const tr = document.createElement("tr");
-    const titleTd = document.createElement("td");
-    titleTd.textContent = test;
-    tr.appendChild(titleTd);
-    for (let config of configs) {
-      const td = document.createElement("td");
-      const link = document.createElement("a");
-      link.href = "?" + config + ":" + test;
-      link.textContent = config;
-      td.appendChild(link);
-      tr.appendChild(td);
+  const selectEnvironmentEl = document.createElement("span");
+  selectEnvironmentEl.textContent = "Environment: ";
+
+  const selectExampleEl = document.createElement("span");
+  selectExampleEl.textContent = "Example: ";
+
+  document.body.appendChild(h1El);
+  document.body.appendChild(selectEnvironmentEl);
+
+  const updateUrl = () => {
+    linkEl.href = "?" + configSelectEl.value + ":" + testNameSelectEl.value;
+  };
+
+  configs.forEach((config, ix) => {
+    const optionEl = document.createElement("option");
+    optionEl.textContent = config;
+    optionEl.value = config;
+    configSelectEl.appendChild(optionEl);
+    if (document.location.search.startsWith("?" + config + ":")) {
+      configSelectEl.selectedIndex = ix;
     }
-    table.appendChild(tr);
-  }
-  document.body.appendChild(table);
+  });
+  document.body.appendChild(configSelectEl);
+  document.body.appendChild(document.createElement("br"));
+
+  document.body.appendChild(selectExampleEl);
+
+  tests.forEach((test, ix) => {
+    const optionEl = document.createElement("option");
+    optionEl.textContent = test;
+    optionEl.value = test;
+    testNameSelectEl.appendChild(optionEl);
+    if (document.location.search.endsWith(":" + test)) {
+      testNameSelectEl.selectedIndex = ix;
+    }
+  });
+  document.body.appendChild(testNameSelectEl);
+
+  updateUrl();
+  document.body.appendChild(document.createElement("br"));
+
+  document.body.appendChild(linkEl);
+
+  configSelectEl.onchange = updateUrl;
+  testNameSelectEl.onchange = updateUrl;
 };

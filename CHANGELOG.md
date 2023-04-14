@@ -58,6 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - **[IMPORTANT]** New machinery to achieve better synchronization between wallets and query layer has been added. This affects all CTL-based apps when light wallet browser extensions are in use. See [here](./doc/query-layers.md) for more info ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - **Local Blockfrost runtime** based on [run-your-own version of Blockfrost](https://github.com/blockfrost/blockfrost-backend-ryo/) - see [here](./doc/blockfrost.md#running-blockfrost-locally) for more info ([#1395](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1395))
+- **Lace wallet support** - ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - Automatic retries for `503 Service Unavailable` Kupo request errors. Retry attempts happen with exponentially increasing intervals ([#1436](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1436))
 - New functions in the assertion library to track changes in CIP-30 wallet total balance - see `Contract.Test.Assert` ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Added `start-runtime` npm script to the template, to simplify UX ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
@@ -78,8 +79,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `PoolPubKeyHash` is now a wrapper over `PubKeyHash` instead of `Ed25519KeyHash` ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `Contract.Wallet.Key.publicKeyFromPrivateKey` uses `PublicKey` type from public API ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `Contract.Test.Blockfrost.executeContractTestsWithBlockfrost` does not require optional `CtlBackendParams` value (it is now constructed from environment variables).
-- `plutip-server` was moved from [Plutip repo](https://github.com/mlabs-haskell/plutip) to CTL ([#1415](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1415))
+- `plutip-server` has been moved from [Plutip repo](https://github.com/mlabs-haskell/plutip) to CTL ([#1415](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1415))
+- `UnattachedUnbalancedTx` has been renamed and moved to `Contract.UnbalancedTx.UnbalancedTx`, the old `UnbalancedTx` type has been removed as not needed. `mkUnbalancedTx` function has been moved to `Contract.UnbalancedTx`  ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 - Default NodeJS stable version is now v18 ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
+- Do not require light wallet collateral for all interactions ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
+- Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
+- `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 
 ### Fixed
 - `waitUntilSlot` and functions based on it now does not fail if slot to wait for is not in bounds of any existing era and is in future. ([#1466](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1466))
@@ -92,10 +97,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Test.Assert`: handle exceptions coming from callbacks that calculate expected values  (in `checkLovelaceDeltaAtAddress`, `checkTokenDeltaAtAddress`, `checkLovelaceDeltaInWallet` and `checkTokenDeltaInWallet`), propagate original error messages correctly ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Fixed collateral selection - sort the UTxOs by ADA value in descending order, before selecting them for collateral, to ensure that if a combination that satisfies the requirements is possible, it will be selected. The bug affected CIP-30 wallets. ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Output correct reward address in CIP-30 mock ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
+- Add a single-slot wait at Plutip startup before attempting to query any wallet UTxOs ([#1470](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1470))
+- Index `Reward` redeemers properly ([#1419](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1419),  [#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 
 ### Removed
 
 - `E2E_SKIP_JQUERY_DOWNLOAD` configuration variable for [E2E test suite](./doc/e2e-testing.md). It is not needed, because it's expected value can be determined from the environment, and thus it can be an implementation detail ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
+- `reindexSpentScriptRedeemers` function from the public API - if there is a need to modify the `Transaction` in a way that breaks redeemer indices, it should be done before balancing ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 
 ## [v5.0.0]
 

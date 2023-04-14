@@ -7,8 +7,6 @@ import Contract.Prelude
 
 import Contract.Address
   ( Address
-  , getWalletAddressesWithNetworkTag
-  , ownPaymentPubKeysHashes
   )
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
@@ -41,7 +39,12 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (singleton, valueOf) as Value
-import Contract.Wallet (KeyWallet, withKeyWallet)
+import Contract.Wallet
+  ( KeyWallet
+  , getWalletAddressesWithNetworkTag
+  , ownPaymentPubKeyHashes
+  , withKeyWallet
+  )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
@@ -117,12 +120,12 @@ contract (ContractParams p) = do
   logInfo' "Examples.BalanceTxConstraints"
 
   alicePubKeyHash <-
-    liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+    liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
   bobPubKeyHash <-
     liftedM "Failed to get Bob's PKH"
       $ head
-      <$> (withKeyWallet p.bobKeyWallet ownPaymentPubKeysHashes)
+      <$> (withKeyWallet p.bobKeyWallet ownPaymentPubKeyHashes)
 
   bobAddress <-
     liftedM "Failed to get Bob's address"

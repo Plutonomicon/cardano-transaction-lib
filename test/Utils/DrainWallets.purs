@@ -2,7 +2,6 @@ module Test.Ctl.Utils.DrainWallets (main) where
 
 import Prelude
 
-import Contract.Address (getWalletAddresses, ownPaymentPubKeysHashes)
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
@@ -20,7 +19,12 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (mustBeSignedBy, mustSpendPubKeyOutput)
 import Contract.Utxos (utxosAt)
-import Contract.Wallet (privateKeysToKeyWallet, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , privateKeysToKeyWallet
+  , withKeyWallet
+  )
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
@@ -88,7 +92,7 @@ run privateKey walletsDir = runContract config do
     do
       address <- getWalletAddresses >>= head >>> liftMaybe
         (error "no addresses")
-      pkh <- ownPaymentPubKeysHashes >>= head >>> liftMaybe (error "no PKH")
+      pkh <- ownPaymentPubKeyHashes >>= head >>> liftMaybe (error "no PKH")
       utxos <- utxosAt address
       pure
         { utxos

@@ -27,7 +27,7 @@ If only one `Contract` is ever executed, just using `runContract` is perfectly f
 
 ### Following the bracket pattern
 
-[Bracket pattern](https://wiki.haskell.org/Bracket_pattern) in functional programming world is commonly used to safely manage resources. In our case, `withContractEnv` should be used to initialize and finalize a `ContractEnv`. `withContractEnv` should be used to run a `Contract` within the environment:
+[Bracket pattern](https://wiki.haskell.org/Bracket_pattern) in functional programming world is commonly used to safely manage resources. In our case, `withContractEnv` should be used to initialize and finalize a `ContractEnv`. `runContractEnv` should be used to run a `Contract` within the environment:
 
 ```purescript
 withContractEnv :: forall (a :: Type). ContractParams -> (ContractEnv -> Aff a) -> Aff a

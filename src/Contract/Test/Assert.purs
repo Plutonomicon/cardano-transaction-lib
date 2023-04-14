@@ -75,9 +75,9 @@ import Contract.Transaction
   , TransactionOutputWithRefScript
   , getTxMetadata
   )
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
-import Contract.Wallet (getWalletUtxos)
+import Contract.Wallet (getWalletBalance, getWalletUtxos)
 import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.Error.Class as E
 import Control.Monad.Reader (ReaderT, ask, local, mapReaderT, runReaderT)

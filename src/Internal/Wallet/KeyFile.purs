@@ -86,14 +86,17 @@ privateStakeKeyFromFile filePath = do
   liftM (error "Unable to decode private stake key") $
     PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
 
+-- | Write private payment key to file in cardano-cli envelope format
 privatePaymentKeyToFile :: FilePath -> PrivatePaymentKey -> Aff Unit
 privatePaymentKeyToFile filePath key =
   liftEffect <<< (writeTextFile Encoding.UTF8 filePath) $ formatPaymentKey key
 
+-- | Write private stake key to file in cardano-cli envelope format
 privateStakeKeyToFile :: FilePath -> PrivateStakeKey -> Aff Unit
 privateStakeKeyToFile filePath key =
   liftEffect <<< (writeTextFile Encoding.UTF8 filePath) $ formatStakeKey key
 
+-- | Convert private payment key to cardano-cli envelope format.
 formatPaymentKey :: PrivatePaymentKey -> String
 formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show
   $
@@ -102,6 +105,7 @@ formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show
     , cborHex: keyToCbor key
     }
 
+-- | Convert private stake key to cardano-cli envelope format.
 formatStakeKey :: PrivateStakeKey -> String
 formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show
   $
