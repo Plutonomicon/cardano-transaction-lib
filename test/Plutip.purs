@@ -45,7 +45,7 @@ main :: Effect Unit
 main = interruptOnSignal SIGINT =<< launchAff do
   flip cancelWith (effectCanceler (exitCode 1)) do
     Utils.interpretWithConfig
-      defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
+      defaultConfig { timeout = Just $ Milliseconds 110_000.0, exit = true }
       $ group "Plutip" do
           testPlutipContracts config Assert.suite
           Logging.suite

@@ -192,8 +192,7 @@ suite = do
         withKeyWallet alice ManyAssets.contract
 
   group "Contract interface" do
-    -- NOTE: plutip timeout must be increased for this test to pass.
-    skip $ test "Can wait for many slots (30_000 ms)" do
+    test "Can wait for many slots (100_000 ms)" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 ]
