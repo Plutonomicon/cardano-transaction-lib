@@ -8,7 +8,6 @@ module Ctl.Internal.Contract.WaitUntilSlot
 import Prelude
 
 import Contract.Log (logTrace')
-import Contract.Monad (liftContractE)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
@@ -30,7 +29,7 @@ import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
-import Data.Either (either, hush)
+import Data.Either (either)
 import Data.Int as Int
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
@@ -57,11 +56,12 @@ waitUntilSlot futureSlot = do
             $ lmap (const $ error "Unable to get current Era summary")
             $ findSlotEraSummary eraSummaries slot
           getLag eraSummaries systemStart slot >>= logLag slotLengthMs
-          futureTime <-
-            liftEffect
-              (slotToPosixTime eraSummaries systemStart futureSlot)
-              >>= lmap (show >>> append "Unable to convert Slot to POSIXTime: ")
-                >>> liftContractE
+          futureTime <- slotToPosixTime eraSummaries systemStart futureSlot
+            # lmap
+                ( show >>> append "Unable to convert Slot to POSIXTime: " >>>
+                    error
+                )
+            # liftEither
           delayTime <- estimateDelayUntil futureTime
           liftAff $ delay delayTime
           let
@@ -100,8 +100,9 @@ getLag
   -> Slot
   -> Contract Milliseconds
 getLag eraSummaries sysStart nowSlot = do
-  nowPosixTime <- liftEffect (slotToPosixTime eraSummaries sysStart nowSlot) >>=
-    hush >>> liftM (error "Unable to convert Slot to POSIXTime")
+  nowPosixTime <- slotToPosixTime eraSummaries sysStart nowSlot
+    # lmap (error <<< append "Unable to convert Slot to POSIXTime: " <<< show)
+    # liftEither
   nowMs <- unwrap <<< unInstant <$> liftEffect now
   logTrace' $
     "getLag: current slot: " <> BigNum.toString (unwrap nowSlot)
@@ -178,9 +179,9 @@ slotToEndPOSIXTime slot = do
   eraSummaries <- liftAff $
     queryHandle.getEraSummaries
       >>= either (liftEffect <<< throw <<< show) pure
-  futureTime <- liftEffect $
-    slotToPosixTime eraSummaries systemStart futureSlot
-      >>= hush >>> liftM (error "Unable to convert Slot to POSIXTime")
+  futureTime <- slotToPosixTime eraSummaries systemStart futureSlot
+    # lmap (error <<< append "Unable to convert Slot to POSIXTime: " <<< show)
+    # liftEither
   -- We assume that a slot is 1000 milliseconds here.
   -- TODO Don't
   pure ((wrap <<< BigInt.fromInt $ -1) + futureTime)

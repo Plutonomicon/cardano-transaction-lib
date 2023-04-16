@@ -16,7 +16,7 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
-import Contract.Chain (currentTime)
+import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Metadata
@@ -25,6 +25,7 @@ import Contract.Metadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Contract.Monad (Contract, liftContractE, liftContractM, liftedE, liftedM)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -57,7 +58,7 @@ import Contract.Test.Plutip
   , withStakeKey
   , withWallets
   )
-import Contract.Time (getEraSummaries)
+import Contract.Time (Slot(Slot), getEraSummaries)
 import Contract.Transaction
   ( BalanceTxError(BalanceInsufficientError)
   , DataHash
@@ -190,6 +191,14 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
 suite = do
+  group "WaitUntilSlot" do
+    test "wait for slot far in the future" do
+      withWallets unit \_ -> do
+        -- Plutip increases last known slot by 80 at a time
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 10
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
   group "Regressions" do
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
