@@ -41,8 +41,9 @@ import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Data.Natural (Natural)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
@@ -63,7 +64,9 @@ type PlutipConfig =
   , suppressLogs :: Boolean
   , hooks :: Hooks
   , clusterConfig ::
-      { slotLength :: Seconds }
+      { slotLength :: Seconds
+      , maxTxSize :: Maybe UInt
+      }
   }
 
 type FilePath = String
@@ -73,17 +76,27 @@ type ErrorMessage = String
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution
   , epochSize :: UInt
+  , maxTxSize :: Maybe UInt
   , slotLength :: Seconds
   }
 
 instance EncodeAeson ClusterStartupRequest where
   encodeAeson
     ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength }
+        { keysToGenerate, epochSize, slotLength: Seconds slotLength, maxTxSize: Nothing }
     ) = encodeAeson
     { keysToGenerate
     , epochSize
     , slotLength: unsafePartial partialFiniteNumber slotLength
+    }
+  encodeAeson
+    ( ClusterStartupRequest
+        { keysToGenerate, epochSize, slotLength: Seconds slotLength, maxTxSize: Just maxTxSize }
+    ) = encodeAeson
+    { keysToGenerate
+    , epochSize
+    , slotLength: unsafePartial partialFiniteNumber slotLength
+    , maxTxSize
     }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey

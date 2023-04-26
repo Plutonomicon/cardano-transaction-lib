@@ -39,7 +39,9 @@ config =
   , customLogger: Nothing
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.1 }
+      { slotLength: Seconds 0.1
+      , maxTxSize: Nothing
+      }
   }
 
 privateStakeKey :: PrivateStakeKey

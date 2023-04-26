@@ -417,6 +417,7 @@ startPlutipCluster cfg keysToGenerate = do
                 $ ClusterStartupRequest
                     { keysToGenerate
                     , slotLength: cfg.clusterConfig.slotLength
+                    , maxTxSize: cfg.clusterConfig.maxTxSize
                     , epochSize
                     }
             , responseFormat = Affjax.ResponseFormat.string
