@@ -298,10 +298,10 @@ calculateMinFee
   :: Transaction
   -> UtxoMap
   -> Contract Coin
-calculateMinFee tx additionalUtxos = do
+calculateMinFee tx allUtxos = do
   networkId <- asks _.networkId
-  let additionalUtxos' = fromPlutusUtxoMap networkId additionalUtxos
-  toPlutusCoin <$> Contract.calculateMinFee tx additionalUtxos'
+  let allUtxos' = fromPlutusUtxoMap networkId allUtxos
+  toPlutusCoin <$> Contract.calculateMinFee tx allUtxos'
 
 -- | Helper to adapt to UsedTxOuts.
 withUsedTxOuts

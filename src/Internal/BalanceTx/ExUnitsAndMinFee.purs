@@ -65,8 +65,8 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((?~))
-import Data.Map (empty, fromFoldable, lookup, toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Map (empty, fromFoldable, lookup, toUnfoldable, union) as Map
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -133,8 +133,10 @@ evalExUnitsAndMinFee unattachedTx allUtxos = do
   additionalUtxos <-
     fromPlutusUtxoMap networkId
       <$> asksConstraints Constraints._additionalUtxos
-  minFee <- liftContract $ Contract.MinFee.calculateMinFee finalizedTx
-    additionalUtxos
+  minFee <- liftContract $
+    Contract.MinFee.calculateMinFee
+      finalizedTx
+      (Map.union allUtxos additionalUtxos)
   pure $ txWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,

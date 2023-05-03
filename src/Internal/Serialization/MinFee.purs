@@ -34,11 +34,11 @@ calculateMinFeeCsl
    . MonadEffect m
   => MonadThrow Error m
   => ProtocolParameters
-  -> Set Ed25519KeyHash
+  -> Int
   -> T.Transaction
   -> m Coin
-calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
-  let tx = addFakeSignatures selfSigners txNoSigs
+calculateMinFeeCsl (ProtocolParameters pparams) nKeySigners txNoSigs = do
+  let tx = addFakeSignatures nKeySigners txNoSigs
   cslTx <- liftEffect $ Serialization.convertTransaction tx
   minFee <- liftMaybe (error "Unable to calculate min_fee") $
     BigNum.toBigInt <$> _minFee maybeFfiHelper cslTx
@@ -50,8 +50,8 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
   pure $ wrap $ minFee + minScriptFee
 
 -- | Adds fake signatures for each expected signature of a transaction.
-addFakeSignatures :: Set Ed25519KeyHash -> T.Transaction -> T.Transaction
-addFakeSignatures selfSigners tx =
+addFakeSignatures :: Int -> T.Transaction -> T.Transaction
+addFakeSignatures nKeySigners tx =
   let
     -- requiredSigners field of a transaction
     requiredSigners :: Set Ed25519KeyHash
@@ -74,11 +74,9 @@ addFakeSignatures selfSigners tx =
       >>> map (map unwrap >>> Array.length)
       >>> fromMaybe 0
 
-    nSelfSigners = let n = Set.size selfSigners in if n == 0 then 1 else n
-
   in
     tx # _witnessSet <<< _vkeys .~ Just
-      ( Array.replicate (nRequiredSigners + nsPossibleSigners + nSelfSigners)
+      ( Array.replicate (nRequiredSigners + nsPossibleSigners + nKeySigners)
           fakeVkeywitness
       )
 
