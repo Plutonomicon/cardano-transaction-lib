@@ -46,12 +46,13 @@ import Ctl.Internal.BalanceTx.Error
   ) as BalanceTxErrorExport
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
-      ( UtxoLookupFailedFor
-      , UtxoMinAdaValueCalculationFailed
-      , ReindexRedeemersError
-      , BalanceInsufficientError
-      , CouldNotGetUtxos
+      ( BalanceInsufficientError
       , CouldNotGetChangeAddress
+      , CouldNotGetCollateral
+      , CouldNotGetUtxos
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
       )
   , InvalidInContext(InvalidInContext)
   )
@@ -152,6 +153,7 @@ import Data.Array.NonEmpty
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
@@ -336,7 +338,7 @@ runBalancer p = do
     isCip30 <- isJust <$> askCip30Wallet
     -- Get collateral inputs to mark them as unspendable.
     -- Some CIP-30 wallets don't allow to sign Txs that spend it.
-    let 
+    let
       nonSpendableCollateralInputs =
         if isCip30 then
           p.walletCollateral # map (unwrap >>> _.input) >>> Set.fromFoldable
@@ -497,22 +499,24 @@ runBalancer p = do
       -> Set TransactionInput
       -> BalanceTxM UnindexedTx
     setTransactionCollateral transaction selectedInputs = do
+      unless (length selectedCollateral <= p.maxCollateralInputs) $
+        throwError CouldNotGetCollateral
       txWithCollateral <-
         addTxCollateralReturn
-          mostAda
-          (addTxCollateral mostAda transaction')
+          selectedCollateral
+          (addTxCollateral selectedCollateral transaction')
           p.changeAddress
       pure $ transaction # _transaction .~ txWithCollateral
       where
-      mostAda :: Array TransactionUnspentOutput
-      mostAda =
-        Array.take p.maxCollateralInputs $
-          Array.sortBy (compare `on` unspentOutputToCoin)
+      selectedCollateral :: Array TransactionUnspentOutput
+      selectedCollateral =
+        Array.foldl consumeUntilEnough [] $
+          Array.sortBy (compare `on` unspentOutputToNegativeCoin)
             (spentUtxos <> p.walletCollateral)
 
-      unspentOutputToCoin :: TransactionUnspentOutput -> BigInt
-      unspentOutputToCoin =
-        unwrap >>> _.output >>> unwrap >>> _.amount >>> valueToCoin'
+      unspentOutputToNegativeCoin :: TransactionUnspentOutput -> BigInt
+      unspentOutputToNegativeCoin =
+        unwrap >>> _.output >>> unwrap >>> _.amount >>> valueToCoin' >>> negate
 
       spentUtxos :: Array TransactionUnspentOutput
       spentUtxos =
@@ -529,6 +533,17 @@ runBalancer p = do
 
       transaction' :: Transaction
       transaction' = transaction # _.transaction
+
+      targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
+      utxoValue u = (unwrap (unwrap u).output).amount
+
+      consumeUntilEnough
+        :: Array TransactionUnspentOutput
+        -> TransactionUnspentOutput
+        -> Array TransactionUnspentOutput
+      consumeUntilEnough utxos utxo =
+        if foldMap utxoValue utxos `Value.geq` targetCollateral then utxos
+        else Array.cons utxo utxos
 
 -- | For each transaction output, if necessary, adds some number of lovelaces
 -- | to cover the utxo min-ada-value requirement.
