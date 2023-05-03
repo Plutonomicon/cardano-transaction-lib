@@ -41,9 +41,8 @@ import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype)
-import Data.Natural (Natural)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
@@ -83,7 +82,11 @@ newtype ClusterStartupRequest = ClusterStartupRequest
 instance EncodeAeson ClusterStartupRequest where
   encodeAeson
     ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength, maxTxSize: Nothing }
+        { keysToGenerate
+        , epochSize
+        , slotLength: Seconds slotLength
+        , maxTxSize: Nothing
+        }
     ) = encodeAeson
     { keysToGenerate
     , epochSize
@@ -91,7 +94,11 @@ instance EncodeAeson ClusterStartupRequest where
     }
   encodeAeson
     ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength, maxTxSize: Just maxTxSize }
+        { keysToGenerate
+        , epochSize
+        , slotLength: Seconds slotLength
+        , maxTxSize: Just maxTxSize
+        }
     ) = encodeAeson
     { keysToGenerate
     , epochSize
