@@ -63,7 +63,11 @@ type PlutipConfig =
   , suppressLogs :: Boolean
   , hooks :: Hooks
   , clusterConfig ::
-      { slotLength :: Seconds }
+      { slotLength :: Seconds
+      , epochSize :: Maybe UInt
+      , maxTxSize :: Maybe UInt
+      , raiseExUnitsToMax :: Boolean
+      }
   }
 
 type FilePath = String
@@ -74,16 +78,20 @@ newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution
   , epochSize :: UInt
   , slotLength :: Seconds
+  , maxTxSize :: Maybe UInt
+  , raiseExUnitsToMax :: Boolean
   }
 
 instance EncodeAeson ClusterStartupRequest where
   encodeAeson
     ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength }
+        { keysToGenerate, epochSize, slotLength: Seconds slotLength, maxTxSize, raiseExUnitsToMax }
     ) = encodeAeson
     { keysToGenerate
     , epochSize
     , slotLength: unsafePartial partialFiniteNumber slotLength
+    , maxTxSize
+    , raiseExUnitsToMax
     }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey

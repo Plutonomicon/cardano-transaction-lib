@@ -101,6 +101,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.ExUnits as ExUnits
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
 import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
@@ -168,7 +169,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import Mote (group, skip, test)
+import Mote (group, skip, test, only)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -235,6 +236,26 @@ suite = do
           ]
 
       withWallets distribution \_ → pure unit
+
+  only $ group "Plutip interface" do
+    test
+      "ExUnits limits"
+      do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 50_000_000
+            ]
+        withWallets distribution \alice -> do
+          withKeyWallet alice do
+            validator <- ExUnits.exUnitsScript (BigInt.fromInt 1000)
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- ExUnits.payToExUnits vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+            ExUnits.spendFromExUnits vhash validator txId
 
   group "Contract interface" do
     test "Collateral selection: UTxO with lower amount is selected" do

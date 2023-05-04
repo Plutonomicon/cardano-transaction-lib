@@ -25,54 +25,18 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Contract.Hooks (emptyHooks)
-import Ctl.Internal.Contract.Monad
-  ( buildBackend
-  , getLedgerConstants
-  , mkQueryHandle
-  , stopContractEnv
-  )
+import Ctl.Internal.Contract.Monad (buildBackend, getLedgerConstants, mkQueryHandle, stopContractEnv)
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
-import Ctl.Internal.Plutip.Spawn
-  ( ManagedProcess
-  , NewOutputAction(Success, NoOp)
-  , OnSignalRef
-  , cleanupOnSigint
-  , cleanupTmpDir
-  , removeOnSignal
-  , spawn
-  , stop
-  )
-import Ctl.Internal.Plutip.Types
-  ( ClusterStartupParameters
-  , ClusterStartupRequest(ClusterStartupRequest)
-  , PlutipConfig
-  , PrivateKeyResponse(PrivateKeyResponse)
-  , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
-  , StopClusterRequest(StopClusterRequest)
-  , StopClusterResponse
-  )
+import Ctl.Internal.Plutip.Spawn (ManagedProcess, NewOutputAction(Success, NoOp), OnSignalRef, cleanupOnSigint, cleanupTmpDir, removeOnSignal, spawn, stop)
+import Ctl.Internal.Plutip.Types (ClusterStartupParameters, ClusterStartupRequest(ClusterStartupRequest), PlutipConfig, PrivateKeyResponse(PrivateKeyResponse), StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure), StopClusterRequest(StopClusterRequest), StopClusterResponse)
 import Ctl.Internal.Plutip.Utils (tmpdir)
-import Ctl.Internal.Service.Error
-  ( ClientError(ClientDecodeJsonError, ClientHttpError)
-  )
-import Ctl.Internal.Test.ContractTest
-  ( ContractTest(ContractTest)
-  , ContractTestPlan(ContractTestPlan)
-  , ContractTestPlanHandler
-  )
+import Ctl.Internal.Service.Error (ClientError(ClientDecodeJsonError, ClientHttpError))
+import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest), ContractTestPlan(ContractTestPlan), ContractTestPlanHandler)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Test.UtxoDistribution
-  ( class UtxoDistribution
-  , InitialUTxODistribution
-  , InitialUTxOs
-  , decodeWallets
-  , encodeDistribution
-  , keyWallets
-  , transferFundsFromEnterpriseToBase
-  )
+import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution, InitialUTxODistribution, InitialUTxOs, decodeWallets, encodeDistribution, keyWallets, transferFundsFromEnterpriseToBase)
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
@@ -83,7 +47,7 @@ import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
@@ -96,12 +60,7 @@ import Data.UInt as UInt
 import Effect.Aff (Aff, Milliseconds(Milliseconds), try)
 import Effect.Aff (bracket) as Aff
 import Effect.Aff.Class (liftAff)
-import Effect.Aff.Retry
-  ( RetryPolicy
-  , constantDelay
-  , limitRetriesByCumulativeDelay
-  , recovering
-  )
+import Effect.Aff.Retry (RetryPolicy, constantDelay, limitRetriesByCumulativeDelay, recovering)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Effect.Ref (Ref)
@@ -416,8 +375,10 @@ startPlutipCluster cfg keysToGenerate = do
                 $ encodeAeson
                 $ ClusterStartupRequest
                     { keysToGenerate
-                    , slotLength: cfg.clusterConfig.slotLength
                     , epochSize
+                    , slotLength: cfg.clusterConfig.slotLength
+                    , maxTxSize: cfg.clusterConfig.maxTxSize
+                    , raiseExUnitsToMax: cfg.clusterConfig.raiseExUnitsToMax
                     }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
