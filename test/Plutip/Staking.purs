@@ -702,5 +702,10 @@ suite = do
   config =
     Common.config
       { clusterConfig =
-          Common.config.clusterConfig { slotLength = Seconds 0.05 }
+          Common.config.clusterConfig
+            -- changing these constants breaks rewards
+            -- https://github.com/mlabs-haskell/plutip/issues/149
+            { slotLength = Seconds 0.05
+            , epochSize = Just $ UInt.fromInt 80
+            }
       }

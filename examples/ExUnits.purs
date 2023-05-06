@@ -126,6 +126,4 @@ exUnitsScript :: Contract Validator
 exUnitsScript =
   liftMaybe (error "Error decoding exUnits") do
     envelope <- decodeTextEnvelope exUnits
-    script <- plutusScriptV2FromEnvelope envelope
-    -- hush $ Validator <$> applyArgs script [  ]
-    pure $ Validator script
+    Validator <$> plutusScriptV2FromEnvelope envelope

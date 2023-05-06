@@ -13,6 +13,7 @@
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Cluster configuration options](#cluster-configuration-options)
+  - [Limitations](#limitations)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
   - [See also](#see-also)
 
@@ -188,6 +189,10 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 - `slotLength` and `epochSize` define time-related protocol parameters. Epoch size is specified in slots.
 - `maxTxSize` (in bytes) allows to stress-test protocols with more restrictive transaction size limits.
 - `raiseExUnitsToMax` allows to bypass execution units limit (useful when compiling the contract with tracing in development and without it in production).
+
+### Limitations
+
+Non-default values of `slotLength` and `epochSize` break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info.
 
 ## Using addresses with staking key components
 
