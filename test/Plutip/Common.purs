@@ -12,11 +12,10 @@ import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
-import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
 
 config :: PlutipConfig
-config = defaultPlutipConfig { clusterConfig = defaultPlutipConfig.clusterConfig { epochSize = pure $ UInt.fromInt 0, maxTxSize = pure $ UInt.fromInt 15000, raiseExUnitsToMax = true }}
+config = defaultPlutipConfig
 
 privateStakeKey :: PrivateStakeKey
 privateStakeKey = wrap $ unsafePartial $ fromJust

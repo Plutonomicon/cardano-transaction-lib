@@ -85,7 +85,12 @@ newtype ClusterStartupRequest = ClusterStartupRequest
 instance EncodeAeson ClusterStartupRequest where
   encodeAeson
     ( ClusterStartupRequest
-        { keysToGenerate, epochSize, slotLength: Seconds slotLength, maxTxSize, raiseExUnitsToMax }
+        { keysToGenerate
+        , epochSize
+        , slotLength: Seconds slotLength
+        , maxTxSize
+        , raiseExUnitsToMax
+        }
     ) = encodeAeson
     { keysToGenerate
     , epochSize

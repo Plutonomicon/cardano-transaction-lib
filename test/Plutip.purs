@@ -4,7 +4,7 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Test.Plutip (noWallet, testPlutipContracts)
+import Contract.Test.Plutip (PlutipConfig, noWallet, testPlutipContracts)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutip.Server
@@ -34,6 +34,7 @@ import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
+import Test.Ctl.Plutip.ExUnits as ExUnits
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
@@ -47,6 +48,11 @@ main = interruptOnSignal SIGINT =<< launchAff do
     Utils.interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
       $ group "Plutip" do
+          group "ExUnits - normal limits" do
+            testPlutipContracts config $ ExUnits.mkFailingSuite 3000
+            testPlutipContracts config $ ExUnits.mkSuite 2550
+          group "ExUnits - relaxed limits" do
+            testPlutipContracts configWithMaxExUnits $ ExUnits.mkSuite 3000
           testPlutipContracts config Assert.suite
           Logging.suite
           testStartPlutipCluster
@@ -57,6 +63,10 @@ main = interruptOnSignal SIGINT =<< launchAff do
             NetworkId.suite
             Contract.suite
           UtxoDistribution.suite
+
+configWithMaxExUnits :: PlutipConfig
+configWithMaxExUnits = config
+  { clusterConfig = config.clusterConfig { raiseExUnitsToMax = true } }
 
 testStartPlutipCluster :: TestPlanM (Aff Unit) Unit
 testStartPlutipCluster = group "Server" do
