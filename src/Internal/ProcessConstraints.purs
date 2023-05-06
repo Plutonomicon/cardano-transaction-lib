@@ -51,7 +51,7 @@ import Ctl.Internal.Cardano.Types.Value
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
 import Ctl.Internal.Hashing (datumHash) as Hashing
-import Ctl.Internal.Helpers (liftM)
+import Ctl.Internal.Helpers (liftEither, liftM)
 import Ctl.Internal.IsData (class IsData)
 import Ctl.Internal.NativeScripts (nativeScriptHash)
 import Ctl.Internal.Plutus.Conversion
@@ -607,11 +607,9 @@ processConstraint mpsMap osMap c = do
         queryHandle.getEraSummaries
           >>= either (liftEffect <<< throw <<< show) pure
       runExceptT do
-        ({ timeToLive, validityStartInterval }) <- ExceptT $ liftEffect $
-          posixTimeRangeToTransactionValidity eraSummaries
-            systemStart
-            posixTimeRange
-            <#> lmap (CannotConvertPOSIXTimeRange posixTimeRange)
+        ({ timeToLive, validityStartInterval }) <- liftEither $
+          posixTimeRangeToTransactionValidity eraSummaries systemStart
+            posixTimeRange # lmap (CannotConvertPOSIXTimeRange posixTimeRange)
         _cpsTransaction <<< _body <<< _Newtype %=
           _
             { ttl = timeToLive
