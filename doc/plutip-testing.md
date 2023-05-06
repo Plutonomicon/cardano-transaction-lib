@@ -1,6 +1,6 @@
 # CTL integration with Plutip
 
-[Plutip](https://github.com/mlabs-haskell/plutip) is a tool to run private Cardano testnets. CTL provides integration with Plutip via a [`plutip-server` binary](https://github.com/mlabs-haskell/plutip/pull/79) that exposes an HTTP interface to control local Cardano clusters.
+[Plutip](https://github.com/mlabs-haskell/plutip) is a tool to run private Cardano testnets. CTL provides integration with Plutip via [`plutip-server` binary](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/plutip-server) that exposes an HTTP interface to control local Cardano clusters.
 
 **Table of Contents**
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -12,6 +12,8 @@
   - [Testing with Mote](#testing-with-mote)
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
+- [Cluster configuration options](#cluster-configuration-options)
+  - [Limitations](#limitations)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
   - [See also](#see-also)
 
@@ -26,15 +28,15 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 
 All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them.
 
-The services are NOT run by `docker-compose` as is the case with `launchCtlRuntime`: they are started and stopped on each CTL `Contract` execution by CTL.
+The services are NOT run by `docker-compose` as is the case with `launchCtlRuntime`: they are started and stopped on each CTL `ContractTest` execution by CTL itself.
 
 ## Testing contracts
 
-There are two entry points to the testing interface: `Contract.Test.Plutip.runPlutipContract` and `Contract.Test.Plutip.testPlutipContracts`. They work similarly, the difference being that `runPlutipContract` accepts a single `Contract` and runs in `Aff`, whereas `testPlutipContracts` transforms a `MoteT` test tree of `PlutipTest` into `Aff`. [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining tests, and combined with `testPlutipContracts` you can use a single plutip instance to run multiple indepedent tests.
+There are two entry points to the testing interface: `Contract.Test.Plutip.runPlutipContract` and `Contract.Test.Plutip.testPlutipContracts`. They work similarly, the difference being that `runPlutipContract` accepts a single `Contract` and runs in `Aff`, whereas `testPlutipContracts` interprets a `MoteT` (test tree of `ContractTest`s) into `Aff`. [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining tests, and combined with `testPlutipContracts` you can use a single plutip instance to run multiple indepedent tests.
 
 ### Testing in Aff context
 
-`Contract.Test.Plutip.runPlutipContract`'s function type is as follows:
+`Contract.Test.Plutip.runPlutipContract`'s function type is defined as follows:
 
 ```purescript
 runPlutipContract
@@ -48,7 +50,7 @@ runPlutipContract
 
 `distr` is a specification of how many wallets and with how much funds should be created. It should either be a `unit` (for no wallets), nested tuples containing `Array BigInt` or an `Array` of `Array BigInt`, where each element of the `Array BigInt` specifies an UTxO amount in Lovelaces (0.000001 Ada).
 
-The `wallets` argument is either a `Unit`, a tuple of `KeyWallet`s (with the same nesting level as in `distr`, which is guaranteed by `UtxoDistribution`) or an `Array KeyWallet`.
+The `wallets` argument of the callback is either a `Unit`, a tuple of `KeyWallet`s (with the same nesting level as in `distr`, which is guaranteed by `UtxoDistribution`) or an `Array KeyWallet`.
 
 `wallets` should be pattern-matched on, and its components should be passed to `withKeyWallet`:
 
@@ -75,7 +77,9 @@ An example `Contract` with two actors using `Array`:
 let
   distribution :: Array (Array BigInt)
   distribution =
+    -- wallet one: twu UTxOs
     [ [ BigInt.fromInt 1_000_000_000, BigInt.fromInt 2_000_000_000]
+    -- wallet two: one UTxO
     , [ BigInt.fromInt 2_000_000_000 ]
     ]
 runPlutipContract config distribution \wallets -> do
@@ -88,11 +92,9 @@ runPlutipContract config distribution \wallets -> do
 
 In most cases at least two UTxOs per wallet are needed (one of which will be used as collateral, so it should exceed `5_000_000` Lovelace).
 
-Note that during execution WebSocket connection errors may occur. However, payloads are re-sent after these errors, so you can ignore them. [These errors will be suppressed in the future.](https://github.com/Plutonomicon/cardano-transaction-lib/issues/670).
-
 ### Testing with Mote
 
-`Contract.Test.Plutip.testPlutipContracts` type is as follows:
+`Contract.Test.Plutip.testPlutipContracts` type is defined as follows:
 
 ```purescript
 testPlutipContracts
@@ -103,7 +105,7 @@ testPlutipContracts
 
 The final `MoteT` type requires the bracket, test and test building type to all be in `Aff`. The brackets cannot be ignored in the `MoteT` test runner, as it is what allows a single plutip instance to persist over multiple tests.
 
-To create tests of type `PlutipTest`, you must either use `Contract.Test.Plutip.withWallets` or `Contract.Test.Plutip.noWallet`, the latter being a helper alias of the first:
+To create tests of type `PlutipTest`, the user should either use `Contract.Test.Plutip.withWallets` or `Contract.Test.Plutip.noWallet`:
 
 ```purescript
 withWallets
@@ -172,6 +174,26 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 }
 ```
 
+## Cluster configuration options
+
+`PlutipConfig` type contains `clusterConfig` record with the following options:
+
+```purescript
+{ slotLength :: Seconds
+, epochSize :: Maybe UInt
+, maxTxSize :: Maybe UInt
+, raiseExUnitsToMax :: Boolean
+}
+```
+
+- `slotLength` and `epochSize` define time-related protocol parameters. Epoch size is specified in slots.
+- `maxTxSize` (in bytes) allows to stress-test protocols with more restrictive transaction size limits.
+- `raiseExUnitsToMax` allows to bypass execution units limit (useful when compiling the contract with tracing in development and without it in production).
+
+### Limitations
+
+Non-default values of `slotLength` and `epochSize` break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info.
+
 ## Using addresses with staking key components
 
 It's possible to use stake keys with Plutip. `Contract.Test.Plutip.withStakeKey` function can be used to modify the distribution spec:
@@ -191,7 +213,7 @@ let
 
 Although stake keys serve no real purpose in plutip context, they allow to use base addresses, and thus allow to have the same code for plutip testing, in-browser tests and production.
 
-Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
+Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. These transactions happen on the CTL side, because Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
 
 ### See also
 
