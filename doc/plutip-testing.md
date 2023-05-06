@@ -12,6 +12,7 @@
   - [Testing with Mote](#testing-with-mote)
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
+- [Cluster configuration options](#cluster-configuration-options)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
   - [See also](#see-also)
 
