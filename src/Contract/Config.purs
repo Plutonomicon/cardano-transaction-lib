@@ -140,7 +140,10 @@ defaultTimeParams =
 defaultSynchronizationParams :: ContractSynchronizationParams
 defaultSynchronizationParams =
   { syncBackendWithWallet:
-      { errorOnTimeout: false, beforeCip30Methods: true, beforeBalancing: true }
+      { errorOnTimeout: false
+      , beforeCip30Methods: false
+      , beforeBalancing: true
+      }
   , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: true }
   , syncWalletWithTransaction:
       { errorOnTimeout: false, beforeTxConfirmed: true }
