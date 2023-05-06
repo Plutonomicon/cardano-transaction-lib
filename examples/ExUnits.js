@@ -1,3 +1,5 @@
+/* global BROWSER_RUNTIME */
+
 let script;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   script = require("Scripts/exunits.plutus");
