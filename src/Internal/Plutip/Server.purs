@@ -83,7 +83,7 @@ import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
@@ -403,9 +403,9 @@ startPlutipCluster
 startPlutipCluster cfg keysToGenerate = do
   let
     url = mkServerEndpointUrl cfg "start"
-    -- TODO epoch size cannot currently be changed due to
-    -- https://github.com/mlabs-haskell/plutip/issues/149
-    epochSize = UInt.fromInt 80
+    -- TODO: Non-default values for `slotLength` and `epochSize` break staking
+    -- rewards, see https://github.com/mlabs-haskell/plutip/issues/149
+    epochSize = fromMaybe (UInt.fromInt 80) cfg.clusterConfig.epochSize
   res <- do
     response <- liftAff
       ( Affjax.request
