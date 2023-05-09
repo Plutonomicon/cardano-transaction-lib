@@ -41,8 +41,7 @@ signTransaction tx = do
     Nami nami -> liftAff $ callCip30Wallet nami \nw -> flip nw.signTx tx
     Gero gero -> liftAff $ callCip30Wallet gero \nw -> flip nw.signTx tx
     Flint flint -> liftAff $ callCip30Wallet flint \nw -> flip nw.signTx tx
-    Eternl eternl -> do
-      liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
+    Eternl eternl -> liftAff $ callCip30Wallet eternl \nw -> flip nw.signTx tx
     Lode lode -> liftAff $ callCip30Wallet lode \nw -> flip nw.signTx tx
     NuFi nufi -> liftAff $ callCip30Wallet nufi \w -> flip w.signTx tx
     Lace nufi -> liftAff $ callCip30Wallet nufi \w -> flip w.signTx tx

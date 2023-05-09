@@ -7,6 +7,7 @@ module Ctl.Internal.BalanceTx
 import Prelude
 
 import Contract.Log (logTrace')
+import Control.Alt (alt)
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (trace) as Logger
@@ -21,6 +22,7 @@ import Ctl.Internal.BalanceTx.CoinSelection
 import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
+  , minRequiredCollateral
   )
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Constraints
@@ -87,7 +89,7 @@ import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate(StakeDeregistration, StakeRegistration)
   , Transaction
-  , TransactionOutput
+  , TransactionOutput(TransactionOutput)
   , TxBody
   , UtxoMap
   , _body
@@ -153,8 +155,7 @@ import Data.Array.NonEmpty
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
-import Data.Either (Either, hush, note)
+import Data.Either (Either(Left, Right), hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
@@ -168,7 +169,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
-import Data.Tuple (fst)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
@@ -499,8 +500,11 @@ runBalancer p = do
       -> Set TransactionInput
       -> BalanceTxM UnindexedTx
     setTransactionCollateral transaction selectedInputs = do
-      unless (length selectedCollateral <= p.maxCollateralInputs) $
-        throwError CouldNotGetCollateral
+      selectedCollateral <- do
+        liftEither =<<
+          alt
+            <$> selectCollateral (spentUtxos <> p.walletCollateral)
+            <*> selectCollateral walletUtxos
       txWithCollateral <-
         addTxCollateralReturn
           selectedCollateral
@@ -508,15 +512,45 @@ runBalancer p = do
           p.changeAddress
       pure $ transaction # _transaction .~ txWithCollateral
       where
-      selectedCollateral :: Array TransactionUnspentOutput
-      selectedCollateral =
-        Array.foldl consumeUntilEnough [] $
-          Array.sortBy (compare `on` unspentOutputToNegativeCoin)
-            (spentUtxos <> p.walletCollateral)
+      selectCollateral
+        :: Array TransactionUnspentOutput
+        -> BalanceTxM (Either BalanceTxError (Array TransactionUnspentOutput))
+      selectCollateral utxos = do
+        minAda <- do
+          let
+            expectedOutput = TransactionOutput
+              { address: p.changeAddress
+              , amount: foldMap utxoValue utxos
+              , datum: NoOutputDatum
+              , scriptRef: Nothing
+              }
+          coinsPerUtxoUnit <- askCoinsPerUtxoUnit
+          fromMaybe zero <$>
+            liftEffect (utxoMinAdaValue coinsPerUtxoUnit expectedOutput)
+        utxoCollaterals <- traverse unspentOutputCollateral utxos
+        let
+          selection =
+            Array.foldl
+              (consumeUntilEnough (targetCollateral <> lovelaceValueOf minAda))
+              [] $
+              fst <$> Array.sortBy (compare `on` (negate <<< snd))
+                (Array.zip utxos utxoCollaterals)
+        pure
+          if
+            length selection <= p.maxCollateralInputs
+              && sum (unspentOutputToCoin <$> selection) >
+                (valueToCoin' targetCollateral + minAda) then Right selection
+          else Left CouldNotGetCollateral
 
-      unspentOutputToNegativeCoin :: TransactionUnspentOutput -> BigInt
-      unspentOutputToNegativeCoin =
-        unwrap >>> _.output >>> unwrap >>> _.amount >>> valueToCoin' >>> negate
+      unspentOutputCollateral :: TransactionUnspentOutput -> BalanceTxM BigInt
+      unspentOutputCollateral utxo = do
+        coinsPerUtxoUnit <- askCoinsPerUtxoUnit
+        minAda <- fromMaybe zero <$>
+          liftEffect (utxoMinAdaValue coinsPerUtxoUnit (unwrap utxo).output)
+        pure $ unspentOutputToCoin utxo - minAda
+
+      unspentOutputToCoin :: TransactionUnspentOutput -> BigInt
+      unspentOutputToCoin = utxoValue >>> valueToCoin'
 
       spentUtxos :: Array TransactionUnspentOutput
       spentUtxos =
@@ -534,15 +568,21 @@ runBalancer p = do
       transaction' :: Transaction
       transaction' = transaction # _.transaction
 
-      targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
+      walletUtxos :: Array TransactionUnspentOutput
+      walletUtxos =
+        Map.toUnfoldable p.walletUtxos <#> \(input /\ output) ->
+          TransactionUnspentOutput { input, output }
+
+      targetCollateral = Value.lovelaceValueOf $ minRequiredCollateral
       utxoValue u = (unwrap (unwrap u).output).amount
 
       consumeUntilEnough
-        :: Array TransactionUnspentOutput
+        :: Value
+        -> Array TransactionUnspentOutput
         -> TransactionUnspentOutput
         -> Array TransactionUnspentOutput
-      consumeUntilEnough utxos utxo =
-        if foldMap utxoValue utxos `Value.geq` targetCollateral then utxos
+      consumeUntilEnough targetValue utxos utxo =
+        if foldMap utxoValue utxos `Value.geq` targetValue then utxos
         else Array.cons utxo utxos
 
 -- | For each transaction output, if necessary, adds some number of lovelaces

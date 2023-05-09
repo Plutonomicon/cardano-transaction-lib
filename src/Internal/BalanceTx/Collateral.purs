@@ -60,24 +60,15 @@ addTxCollateralReturn
   -> Address
   -> BalanceTxM Transaction
 addTxCollateralReturn collateral transaction ownAddress =
-  let
-    collAdaValue :: BigInt
-    collAdaValue = foldl adaValue' zero collateral
-
-    collNonAdaAsset :: NonAdaAsset
-    collNonAdaAsset = foldMap nonAdaAsset collateral
-  in
-    case collAdaValue <= minRequiredCollateral && collNonAdaAsset == mempty of
-      true ->
-        pure transaction
-      false ->
-        setTxCollateralReturn collAdaValue collNonAdaAsset
+  case collAdaValue <= minRequiredCollateral && collNonAdaAsset == mempty of
+    true ->
+      pure transaction
+    false ->
+      setTxCollateralReturn
   where
   setTxCollateralReturn
-    :: BigInt
-    -> NonAdaAsset
-    -> BalanceTxM Transaction
-  setTxCollateralReturn collAdaValue collNonAdaAsset = do
+    :: BalanceTxM Transaction
+  setTxCollateralReturn = do
     let
       maxBigNumAdaValue :: Coin
       maxBigNumAdaValue = wrap (BigNum.toBigInt BigNum.maxValue)
@@ -122,6 +113,12 @@ addTxCollateralReturn collateral transaction ownAddress =
         false ->
           Left $ CollateralReturnError
             "Negative totalCollateral after covering min-utxo-ada requirement."
+
+  collAdaValue :: BigInt
+  collAdaValue = foldl adaValue' zero collateral
+
+  collNonAdaAsset :: NonAdaAsset
+  collNonAdaAsset = foldMap nonAdaAsset collateral
 
 --------------------------------------------------------------------------------
 -- Helpers

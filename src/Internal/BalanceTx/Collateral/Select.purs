@@ -36,7 +36,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 
 minRequiredCollateral :: BigInt
-minRequiredCollateral = BigInt.fromInt 5_000_000
+minRequiredCollateral = BigInt.fromInt 3_000_000
 
 -- | A constant that limits the number of candidate utxos for collateral
 -- | selection, thus maintaining acceptable time complexity.
