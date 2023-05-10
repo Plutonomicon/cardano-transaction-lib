@@ -21,6 +21,9 @@ import Effect (Effect)
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = _publicKeyFromBech32 maybeFfiHelper
 
+-- | When RawBytes has length of 32 bytes, this function will assume it is a `Normal` key.
+-- | When it has length longer than 32 bytes, this function will assume it as `Extended` key, and
+-- | It will use first 64 bytes and discard the rest.
 privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = _privateKeyFromBytes maybeFfiHelper
 
