@@ -30,9 +30,13 @@ exports._ed25519SignatureFromBech32 = maybe => bech32 => {
 
 exports._privateKeyFromBytes = maybe => bytes => {
   try {
-    return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
+    return maybe.just(lib.PrivateKey.from_extended_bytes(bytes.slice(0,64)));
   } catch (_) {
-    return maybe.nothing;
+    try {
+      return maybe.just(lib.PrivateKey.from_normal_bytes(bytes.slice(0,32)));
+    } catch (_) {
+      return maybe.nothing;
+    }
   }
 };
 
