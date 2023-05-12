@@ -10,6 +10,7 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
+import Mote (only)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
@@ -44,6 +45,7 @@ import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
+import Test.Ctl.Wallet.Bip32 as Bip32
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 import Test.Spec.Runner (defaultConfig)
 
@@ -62,6 +64,7 @@ testPlan = do
   NativeScript.suite
   Base64.suite
   ByteArray.suite
+  only Bip32.suite
   Cip25.suite
   Cip30SignData.suite
   Data.suite

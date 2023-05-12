@@ -66,6 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.JsSdk` module containing helper functions for developers who want to use CTL from JS. See also: [this new guide](./doc/using-from-js.md) ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
 - New [docs for contract environment](./doc/contract-environment.md) ([#1453](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1453))
 - Cluster configuration options to `PlutipConfig`: `epochSize`, `maxTxSize` and `raiseExUnitsToMax` - see [Plutip docs](./doc/plutip-testing.md) ([#1494](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1494))
+- HD wallet support with mnemonic seed phrases
 
 ### Changed
 

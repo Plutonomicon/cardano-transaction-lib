@@ -79,6 +79,15 @@ import Ctl.Internal.Wallet
   , walletToWalletExtension
   ) as X
 import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
+import Ctl.Internal.Wallet.Bip32
+  ( Bip32Account
+  , bip32AccountFromMnemonic
+  , deriveChangeKey
+  , derivePaymentKey
+  , deriveStakeKey
+  , mkKeyWalletSpecFromMnemonic
+  , mkWalletFromMnemonic
+  ) as X
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
