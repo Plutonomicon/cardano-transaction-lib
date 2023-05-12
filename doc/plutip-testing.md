@@ -192,7 +192,8 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 
 ### Limitations
 
-Non-default values of `slotLength` and `epochSize` break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info.
+Non-default value of `epochSize` (current default is 80) break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info.
+`slotLength` can be changed without any problems.
 
 ## Using addresses with staking key components
 
