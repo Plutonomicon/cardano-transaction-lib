@@ -10,7 +10,6 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
-import Mote (only)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Base64 as Base64
@@ -63,8 +62,8 @@ testPlan = do
   Ipv6.suite
   NativeScript.suite
   Base64.suite
+  Bip32.suite
   ByteArray.suite
-  only Bip32.suite
   Cip25.suite
   Cip30SignData.suite
   Data.suite
