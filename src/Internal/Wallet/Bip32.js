@@ -11,7 +11,7 @@ const bip39 = require("bip39");
 
 const HARDENED = 0x80000000;
 
-exports.bip32PrivateKeyFromMnemonic = left => right => phrase => {
+exports._bip32PrivateKeyFromMnemonic = left => right => phrase => {
   try {
     return right(
       lib.Bip32PrivateKey.from_bip39_entropy(

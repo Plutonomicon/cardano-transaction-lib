@@ -80,13 +80,8 @@ import Ctl.Internal.Wallet
   ) as X
 import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet.Bip32
-  ( Bip32Account
-  , bip32AccountFromMnemonic
-  , deriveChangeKey
-  , derivePaymentKey
-  , deriveStakeKey
+  ( mkKeyWalletFromMnemonic
   , mkKeyWalletSpecFromMnemonic
-  , mkWalletFromMnemonic
   ) as X
 import Ctl.Internal.Wallet.Key
   ( KeyWallet

@@ -4,7 +4,7 @@ module Test.Ctl.Wallet.Bip32
 
 import Contract.Prelude
 
-import Contract.Wallet (mkWalletFromMnemonic)
+import Contract.Wallet (mkKeyWalletFromMnemonic)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId)
   , addressFromBech32
@@ -20,24 +20,24 @@ suite =
   group "BIP32/BIP39/CIP1852 wallets" do
     test "generates valid wallets for valid phrases" do
       assertTrue "Valid phrase produces correct wallet" $
-        case mkWalletFromMnemonic goodPhrase zero of
+        case mkKeyWalletFromMnemonic goodPhrase zero of
           Left _ -> false
           Right (KeyWallet wallet) ->
             Just (wallet.address MainnetId) == addressFromBech32
               goodPhraseAddress0
       assertTrue "Account index produces correct wallet" $
-        case mkWalletFromMnemonic goodPhrase one of
+        case mkKeyWalletFromMnemonic goodPhrase one of
           Left _ -> false
           Right (KeyWallet wallet) ->
             Just (wallet.address MainnetId) == addressFromBech32
               goodPhraseAddress1
     test "handles errors for invalid phrases" do
       assertTrue "Invalid phrase length returns an error" $
-        case mkWalletFromMnemonic invalidPhrase zero of
+        case mkKeyWalletFromMnemonic invalidPhrase zero of
           Left e -> e == "Error: Invalid mnemonic"
           Right _ -> false
       assertTrue "Invalid phrase checksum returns an error" $
-        case mkWalletFromMnemonic invalidChecksum zero of
+        case mkKeyWalletFromMnemonic invalidChecksum zero of
           Left e -> e == "Error: Invalid mnemonic checksum"
           Right _ -> false
   where

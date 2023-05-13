@@ -1,11 +1,14 @@
 module Ctl.Internal.Wallet.Bip32
-  ( Bip32Account
-  , bip32AccountFromMnemonic
+  ( Cip1852Account
+  , bip32ToPrivateKey
+  , bip32PrivateKeyFromMnemonic
+  , cip1852AccountFromBip32PrivateKey
+  , cip1852AccountFromMnemonic
   , derivePaymentKey
   , deriveChangeKey
   , deriveStakeKey
   , mkKeyWalletSpecFromMnemonic
-  , mkWalletFromMnemonic
+  , mkKeyWalletFromMnemonic
   ) where
 
 import Contract.Prelude
@@ -17,20 +20,18 @@ import Contract.Config
   , PrivateStakeKeySource(PrivateStakeKeyValue)
   , WalletSpec(UseKeys)
   )
-import Contract.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Ctl.Internal.Serialization.Types (Bip32PrivateKey, PrivateKey)
+import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 
-newtype Bip32Account = Bip32Account Bip32PrivateKey
+newtype Cip1852Account = Cip1852Account Bip32PrivateKey
 
-foreign import bip32PrivateKeyFromMnemonic
+foreign import _bip32PrivateKeyFromMnemonic
   :: (String -> Either String Bip32PrivateKey)
   -> (Bip32PrivateKey -> Either String Bip32PrivateKey)
   -> String
   -> Either String Bip32PrivateKey
-
-foreign import bip32ToPrivateKey :: Bip32PrivateKey -> PrivateKey
 
 foreign import derivePrivateKey
   :: UInt
@@ -40,32 +41,45 @@ foreign import derivePrivateKey
   -> Bip32PrivateKey
   -> Bip32PrivateKey
 
--- | Derive a BIP32 account given a mnemonic phrase and account index
-bip32AccountFromMnemonic :: String -> UInt -> Either String Bip32Account
-bip32AccountFromMnemonic phrase account =
-  bip32PrivateKeyFromMnemonic Left Right phrase
-    <#> derivePrivateKey (UInt.fromInt 1852) true
-    <#> derivePrivateKey (UInt.fromInt 1815) true
-    <#> derivePrivateKey account true
-    <#> Bip32Account
+-- | Convert a BIP32 private key to a raw private key
+foreign import bip32ToPrivateKey :: Bip32PrivateKey -> PrivateKey
+
+-- | Derive a BIP32 private key given a mnemonic phrase
+bip32PrivateKeyFromMnemonic :: String -> Either String Bip32PrivateKey
+bip32PrivateKeyFromMnemonic = _bip32PrivateKeyFromMnemonic Left Right
+
+-- | Derive a CIP1852 account from a BIP32 private key given an account index
+cip1852AccountFromBip32PrivateKey :: UInt -> Bip32PrivateKey -> Cip1852Account
+cip1852AccountFromBip32PrivateKey account key =
+  Cip1852Account
+    $ key
+    # derivePrivateKey (UInt.fromInt 1852) true
+    # derivePrivateKey (UInt.fromInt 1815) true
+    # derivePrivateKey account true
+
+-- | Derive a CIP1852 account given a mnemonic phrase and account index
+cip1852AccountFromMnemonic :: String -> UInt -> Either String Cip1852Account
+cip1852AccountFromMnemonic phrase account =
+  cip1852AccountFromBip32PrivateKey account
+    <$> bip32PrivateKeyFromMnemonic phrase
 
 -- | Derive a payment key for the given account
-derivePaymentKey :: Bip32Account -> UInt -> Bip32PrivateKey
-derivePaymentKey (Bip32Account key) index =
+derivePaymentKey :: Cip1852Account -> UInt -> Bip32PrivateKey
+derivePaymentKey (Cip1852Account key) index =
   key
     # derivePrivateKey zero false
     # derivePrivateKey index false
 
 -- | Derive a change key for the given account
-deriveChangeKey :: Bip32Account -> UInt -> Bip32PrivateKey
-deriveChangeKey (Bip32Account key) index =
+deriveChangeKey :: Cip1852Account -> UInt -> Bip32PrivateKey
+deriveChangeKey (Cip1852Account key) index =
   key
     # derivePrivateKey one false
     # derivePrivateKey index false
 
 -- | Derive the stake key for the given account
-deriveStakeKey :: Bip32Account -> Bip32PrivateKey
-deriveStakeKey (Bip32Account key) =
+deriveStakeKey :: Cip1852Account -> Bip32PrivateKey
+deriveStakeKey (Cip1852Account key) =
   key
     # derivePrivateKey (UInt.fromInt 2) false
     # derivePrivateKey (UInt.fromInt 0) false
@@ -73,7 +87,7 @@ deriveStakeKey (Bip32Account key) =
 -- | Create a key wallet spec given a mnemonic phrase and account index
 mkKeyWalletSpecFromMnemonic :: String -> UInt -> Either String WalletSpec
 mkKeyWalletSpecFromMnemonic phrase accountIndex = do
-  account <- bip32AccountFromMnemonic phrase accountIndex
+  account <- cip1852AccountFromMnemonic phrase accountIndex
   let
     paymentKey = derivePaymentKey account zero # bip32ToPrivateKey
     stakeKey = deriveStakeKey account # bip32ToPrivateKey
@@ -83,9 +97,9 @@ mkKeyWalletSpecFromMnemonic phrase accountIndex = do
       (Just $ PrivateStakeKeyValue $ PrivateStakeKey stakeKey)
 
 -- | Create a wallet given a mnemonic phrase and account index
-mkWalletFromMnemonic :: String -> UInt -> Either String KeyWallet
-mkWalletFromMnemonic phrase accountIndex = do
-  account <- bip32AccountFromMnemonic phrase accountIndex
+mkKeyWalletFromMnemonic :: String -> UInt -> Either String KeyWallet
+mkKeyWalletFromMnemonic phrase accountIndex = do
+  account <- cip1852AccountFromMnemonic phrase accountIndex
   let
     paymentKey = derivePaymentKey account zero # bip32ToPrivateKey
     stakeKey = deriveStakeKey account # bip32ToPrivateKey
