@@ -79,10 +79,6 @@ import Ctl.Internal.Wallet
   , walletToWalletExtension
   ) as X
 import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
-import Ctl.Internal.Wallet.Bip32
-  ( mkKeyWalletFromMnemonic
-  , mkKeyWalletSpecFromMnemonic
-  ) as X
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
@@ -91,10 +87,12 @@ import Ctl.Internal.Wallet.Key
   ) as X
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey) as X
 import Ctl.Internal.Wallet.Spec
-  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  ( MnemonicSource(MnemonicString, MnemonicFile)
+  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , WalletSpec
       ( UseKeys
+      , UseMnemonic
       , ConnectToNami
       , ConnectToGero
       , ConnectToFlint

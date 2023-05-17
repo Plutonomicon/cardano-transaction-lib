@@ -4,7 +4,7 @@ module Test.Ctl.Wallet.Bip32
 
 import Contract.Prelude
 
-import Contract.Wallet (mkKeyWalletFromMnemonic)
+import Contract.Wallet.Key (mkKeyWalletFromMnemonic)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId)
   , addressFromBech32

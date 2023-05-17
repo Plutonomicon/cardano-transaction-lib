@@ -7,21 +7,11 @@ module Ctl.Internal.Wallet.Bip32
   , derivePaymentKey
   , deriveChangeKey
   , deriveStakeKey
-  , mkKeyWalletSpecFromMnemonic
-  , mkKeyWalletFromMnemonic
   ) where
 
 import Contract.Prelude
 
-import Contract.Config
-  ( PrivatePaymentKey(PrivatePaymentKey)
-  , PrivatePaymentKeySource(PrivatePaymentKeyValue)
-  , PrivateStakeKey(PrivateStakeKey)
-  , PrivateStakeKeySource(PrivateStakeKeyValue)
-  , WalletSpec(UseKeys)
-  )
 import Ctl.Internal.Serialization.Types (Bip32PrivateKey, PrivateKey)
-import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 
@@ -83,27 +73,3 @@ deriveStakeKey (Cip1852Account key) =
   key
     # derivePrivateKey (UInt.fromInt 2) false
     # derivePrivateKey (UInt.fromInt 0) false
-
--- | Create a key wallet spec given a mnemonic phrase and account index
-mkKeyWalletSpecFromMnemonic :: String -> UInt -> Either String WalletSpec
-mkKeyWalletSpecFromMnemonic phrase accountIndex = do
-  account <- cip1852AccountFromMnemonic phrase accountIndex
-  let
-    paymentKey = derivePaymentKey account zero # bip32ToPrivateKey
-    stakeKey = deriveStakeKey account # bip32ToPrivateKey
-  pure $
-    UseKeys
-      (PrivatePaymentKeyValue $ PrivatePaymentKey paymentKey)
-      (Just $ PrivateStakeKeyValue $ PrivateStakeKey stakeKey)
-
--- | Create a wallet given a mnemonic phrase and account index
-mkKeyWalletFromMnemonic :: String -> UInt -> Either String KeyWallet
-mkKeyWalletFromMnemonic phrase accountIndex = do
-  account <- cip1852AccountFromMnemonic phrase accountIndex
-  let
-    paymentKey = derivePaymentKey account zero # bip32ToPrivateKey
-    stakeKey = deriveStakeKey account # bip32ToPrivateKey
-  pure $
-    privateKeysToKeyWallet
-      (PrivatePaymentKey paymentKey)
-      (Just $ PrivateStakeKey stakeKey)
