@@ -980,17 +980,17 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1678285155,
-        "narHash": "sha256-GcaiQRZhPYysINnAFPN+IyQu9S/CZA8eb5sTGZ4qfxw=",
+        "lastModified": 1684305087,
+        "narHash": "sha256-8MvK2AxG3bGWkxWutsCWRk9MYxf/FdQu/DkAvemjqHM=",
         "owner": "blockfrost",
         "repo": "blockfrost-backend-ryo",
-        "rev": "49269a9adb27b370209a61de2f5407945112860a",
+        "rev": "113ddfc2dbea9beba3a428aa274965237f31b858",
         "type": "github"
       },
       "original": {
         "owner": "blockfrost",
         "repo": "blockfrost-backend-ryo",
-        "rev": "49269a9adb27b370209a61de2f5407945112860a",
+        "rev": "113ddfc2dbea9beba3a428aa274965237f31b858",
         "type": "github"
       }
     },
