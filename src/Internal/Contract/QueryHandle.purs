@@ -150,4 +150,5 @@ queryHandleForSelfHostedBlockfrostBackend
     blockfrostQueryHandle
       { evaluateTx = ctlQueryHandle.evaluateTx
       , submitTx = ctlQueryHandle.submitTx
+      , doesTxExist = ctlQueryHandle.doesTxExist
       }
