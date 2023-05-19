@@ -107,7 +107,7 @@ spendFromAlwaysFails vhash validator txId = do
   logInfo' "Successfully spent locked values."
 
   balance <- fold <$> getWalletBalance
-  let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-5_000_000)
+  let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-3_000_000)
   balance `shouldEqual` (balanceBefore <> collateralLoss)
 
   where

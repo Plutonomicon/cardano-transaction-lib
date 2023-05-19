@@ -33,7 +33,7 @@ exports._privateKeyFromBytes = maybe => bytes => {
     if (bytes.length == 32)
       return maybe.just(lib.PrivateKey.from_normal_bytes(bytes));
     else
-      return maybe.just(lib.PrivateKey.from_extended_bytes(bytes.slice(0,64)));
+      return maybe.just(lib.PrivateKey.from_extended_bytes(bytes.slice(0, 64)));
   } catch (_) {
     return maybe.nothing;
   }
