@@ -118,6 +118,7 @@ import Ctl.Internal.Cardano.Types.Value
   , minus
   , mkValue
   , posNonAdaAsset
+  , unwrapNonAdaAsset
   , valueToCoin'
   )
 import Ctl.Internal.Cardano.Types.Value as Value
@@ -535,19 +536,24 @@ runBalancer p = do
               [] $
               fst <$> Array.sortBy (compare `on` (negate <<< snd))
                 (Array.zip utxos utxoCollaterals)
+        selectionCollateral <-
+          sum <$> traverse unspentOutputCollateral selection
         pure
           if
             length selection <= p.maxCollateralInputs
-              && sum (unspentOutputToCoin <$> selection) >
+              && selectionCollateral >
                 (valueToCoin' targetCollateral + minAda) then Right selection
           else Left CouldNotGetCollateral
 
       unspentOutputCollateral :: TransactionUnspentOutput -> BalanceTxM BigInt
-      unspentOutputCollateral utxo = do
-        coinsPerUtxoUnit <- askCoinsPerUtxoUnit
-        minAda <- fromMaybe zero <$>
-          liftEffect (utxoMinAdaValue coinsPerUtxoUnit (unwrap utxo).output)
-        pure $ unspentOutputToCoin utxo - minAda
+      unspentOutputCollateral utxo =
+        if null (unwrapNonAdaAsset <<< getNonAdaAsset <<< utxoValue $ utxo) then
+          pure $ unspentOutputToCoin utxo
+        else do
+          coinsPerUtxoUnit <- askCoinsPerUtxoUnit
+          minAda <- fromMaybe zero <$>
+            liftEffect (utxoMinAdaValue coinsPerUtxoUnit (unwrap utxo).output)
+          pure $ unspentOutputToCoin utxo - minAda
 
       unspentOutputToCoin :: TransactionUnspentOutput -> BigInt
       unspentOutputToCoin = utxoValue >>> valueToCoin'
