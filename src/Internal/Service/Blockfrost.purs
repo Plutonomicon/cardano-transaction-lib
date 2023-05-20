@@ -544,7 +544,7 @@ utxosAt address = runExceptT $
     utxos <- ExceptT $
       blockfrostGetRequest (UtxosAtAddress address page maxNumResultsOnPage)
         <#> handle404AsMempty <<< handleBlockfrostResponse
-    case Array.length (unwrap utxos) < maxNumResultsOnPage of
+    case Array.length (unwrap utxos) /= maxNumResultsOnPage of
       true -> pure utxos
       false -> append utxos <$> ExceptT (utxosAtAddressOnPage $ page + 1)
 
