@@ -3,6 +3,7 @@ module Ctl.Internal.Plutip.Types
   , ErrorMessage
   , FilePath
   , PlutipConfig
+  , PostgresConfig
   , ClusterStartupRequest(ClusterStartupRequest)
   , PrivateKeyResponse(PrivateKeyResponse)
   , ClusterStartupFailureReason
@@ -59,6 +60,7 @@ type PlutipConfig =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
+  , postgresConfig :: PostgresConfig
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
@@ -68,6 +70,14 @@ type PlutipConfig =
       , maxTxSize :: Maybe UInt
       , raiseExUnitsToMax :: Boolean
       }
+  }
+
+type PostgresConfig =
+  { host :: String
+  , port :: UInt
+  , user :: String
+  , password :: String
+  , dbname :: String
   }
 
 type FilePath = String
