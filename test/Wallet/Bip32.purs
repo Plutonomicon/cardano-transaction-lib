@@ -4,50 +4,74 @@ module Test.Ctl.Wallet.Bip32
 
 import Contract.Prelude
 
-import Contract.Wallet.Key (mkKeyWalletFromMnemonic)
+import Contract.Wallet.Key
+  ( StakeKeyPresence(WithStakeKey)
+  , mkKeyWalletFromMnemonic
+  )
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId)
   , addressFromBech32
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
+import Data.Lens (_Left, preview)
+import Data.UInt as UInt
 import Effect.Aff (Aff)
-import Mote (group, test)
-import Test.Ctl.Utils (assertTrue)
+import Mote (group, only, test)
+import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
-suite =
+suite = only do
   group "BIP32/BIP39/CIP1852 wallets" do
-    test "generates valid wallets for valid phrases" do
-      assertTrue "Valid phrase produces correct wallet" $
-        case mkKeyWalletFromMnemonic goodPhrase zero of
-          Left _ -> false
-          Right (KeyWallet wallet) ->
-            Just (wallet.address MainnetId) == addressFromBech32
-              goodPhraseAddress0
-      assertTrue "Account index produces correct wallet" $
-        case mkKeyWalletFromMnemonic goodPhrase one of
-          Left _ -> false
-          Right (KeyWallet wallet) ->
-            Just (wallet.address MainnetId) == addressFromBech32
-              goodPhraseAddress1
+    group "generates valid wallets for valid phrases" do
+      for_ accs \(accountIndex /\ addressIndex /\ addressStr) -> do
+        test
+          ( "Account index produces correct wallet (m/1852'/1815'/"
+              <> show accountIndex
+              <> "'/"
+              <> show addressIndex
+              <> ")"
+          )
+          do
+            addressFromBech32 addressStr `shouldEqual`
+              hush
+                ( mkKeyWalletFromMnemonic phrase1
+                    { accountIndex: UInt.fromInt accountIndex
+                    , addressIndex: UInt.fromInt addressIndex
+                    }
+                    WithStakeKey <#>
+                    \(KeyWallet wallet) -> wallet.address MainnetId
+                )
+  group "Invalid mnemonics" do
     test "handles errors for invalid phrases" do
-      assertTrue "Invalid phrase length returns an error" $
-        case mkKeyWalletFromMnemonic invalidPhrase zero of
-          Left e -> e == "Error: Invalid mnemonic"
-          Right _ -> false
-      assertTrue "Invalid phrase checksum returns an error" $
-        case mkKeyWalletFromMnemonic invalidChecksum zero of
-          Left e -> e == "Error: Invalid mnemonic checksum"
-          Right _ -> false
+      blush (mkKeyWalletFromMnemonic invalidPhrase zero WithStakeKey)
+        `shouldEqual` Just "Error: Invalid mnemonic"
+      blush (mkKeyWalletFromMnemonic invalidChecksum zero WithStakeKey)
+        `shouldEqual` Just "Error: Invalid mnemonic checksum"
   where
-  goodPhrase =
-    "twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve"
-  goodPhraseAddress0 =
-    "addr1q9w8atxfen0fqd99rnagywam68n7tvzg4g5t39azwtgm2uy0cwl6t7cd6sffn3l8ryyfn4ztw009gqtumhenxahughnspt8frx"
-  goodPhraseAddress1 =
-    "addr1q85w3avkx4xvsadj57sw4eumrl8tcsq6yhr3evv4zy0gavhmyjhs96g96jax70qqyskmwrzvc6jm45w4y76q29vful2snqc60k"
+  blush = preview _Left
   invalidPhrase =
     "twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve"
   invalidChecksum =
     "twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve twelve zebra"
+  phrase1 =
+    "what abstract myself forum setup leader series maximum home abuse shadow wreck inflict dust basket cycle involve quick abstract eagle staff town voyage raven"
+  -- these fixtures are from Eternl wallet
+  accs =
+    [ 0 /\ 0 /\
+        "addr1q8day0u0gtx3302u5mmgmw20q67s9mkglte8y8kqk75jge5mvvhnhsjfj5jfpt7dv4tu6wlz7z032cmmp9ljftjmkzfswlmg44"
+    , 0 /\ 1 /\
+        "addr1qyp2qjzpq6mg3yd4uxnfl40pr7z7l9fl64tuuce45e00ejumvvhnhsjfj5jfpt7dv4tu6wlz7z032cmmp9ljftjmkzfszpjxxa"
+    , 0 /\ 2 /\
+        "addr1q94zxqrq57c8j05gdz2vq06gdejxlngpyezeyxask8w5j9umvvhnhsjfj5jfpt7dv4tu6wlz7z032cmmp9ljftjmkzfskqdfjm"
+    , 0 /\ 3 /\
+        "addr1q8rpcfpamcdw3ldhz65st3sh2artdv0vtpqafelz9a0nt3umvvhnhsjfj5jfpt7dv4tu6wlz7z032cmmp9ljftjmkzfs7zugcf"
+    , 0 /\ 4 /\
+        "addr1qyn58rgkzd9jlw8ay7hz34lwdaa0u8l2ww7qkxp2s08y88ymvvhnhsjfj5jfpt7dv4tu6wlz7z032cmmp9ljftjmkzfsx84jh7"
+    , 1 /\ 0 /\
+        "addr1qyka9awkxtcm4py0yf9qnzdeh786zjqp6lt37purjrxtaju6w4gzwu7mms8sn7rd0apcwtyu2xjzflvm7sc5vd3vtvpq4xgxpq"
+    , 1 /\ 1 /\
+        "addr1q9mmg8l2w7ar4cj89jte699dxuu0u3partkjt7fqdga5a7u6w4gzwu7mms8sn7rd0apcwtyu2xjzflvm7sc5vd3vtvpqnux32a"
+    , 1 /\ 2 /\
+        "addr1q8eddt79d4nt3hazvjdwa3cy27nukxnvv0j5x7g28atn3ey6w4gzwu7mms8sn7rd0apcwtyu2xjzflvm7sc5vd3vtvpq66x2a8"
+    ]
