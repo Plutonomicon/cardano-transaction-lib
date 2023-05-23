@@ -322,7 +322,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startClaritySyncWorker' :: Aff Unit
   startClaritySyncWorker' =
     bracket
-      startClaritySyncServer
+      startClaritySyncWorker
       (stopChildProcessWithPort $ UInt.fromInt 9001)
       (const $ pure unit)
 
@@ -404,7 +404,9 @@ configCheck cfg = do
   let
     services :: Array (UInt /\ String)
     services =
-      [ cfg.port /\ "plutip-server"
+      [ UInt.fromInt 5432 /\ "postgres"
+      , UInt.fromInt 9001 /\ "clarity-sync-server"
+      , cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.kupoConfig.port /\ "kupo"
       ]
@@ -522,8 +524,8 @@ startClaritySyncServer = do
     defaultSpawnOptions
     Nothing
 
-startClaritySyncWorker' :: Aff ManagedProcess
-startClaritySyncWorker' = do
+startClaritySyncWorker :: Aff ManagedProcess
+startClaritySyncWorker = do
   spawn "clarity-sync-worker"
     [ "--ogmios-port"
     , "1338"
@@ -532,9 +534,9 @@ startClaritySyncWorker' = do
     , "--ogmios-host"
     , "localhost"
     , "--block-slot"
-    , "16378086"
+    , "0"
     , "--block-hash"
-    , "04658487a3fc19f2a156a503db4907217dcbee55afd0ee7ad397137e682e3c94"
+    , "0000000000000000000000000000000000000000000000000000000000000000"
     ]
     defaultSpawnOptions
     Nothing
