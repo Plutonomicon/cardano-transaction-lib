@@ -316,14 +316,14 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startClaritySyncServer' =
     bracket
       startClaritySyncServer
-      (stopChildProcessWithPort $ UInt.fromInt 9001)
+      (stopChildProcessWithPort claritySyncServerPort)
       (const $ pure unit)
 
   startClaritySyncWorker' :: Aff Unit
   startClaritySyncWorker' =
     bracket
       startClaritySyncWorker
-      (stopChildProcessWithPort $ UInt.fromInt 9001)
+      (stopChildProcessWithPort claritySyncServerPort)
       (const $ pure unit)
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
@@ -405,7 +405,7 @@ configCheck cfg = do
     services :: Array (UInt /\ String)
     services =
       [ UInt.fromInt 5432 /\ "postgres"
-      , UInt.fromInt 9001 /\ "clarity-sync-server"
+      , claritySyncServerPort /\ "clarity-sync-server"
       , cfg.port /\ "plutip-server"
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.kupoConfig.port /\ "kupo"
@@ -517,9 +517,9 @@ startClaritySyncServer :: Aff ManagedProcess
 startClaritySyncServer = do
   spawn "clarity-sync-server"
     [ "--port"
-    , "9001"
+    , claritySyncServerPortString
     , "--pg-conn"
-    , "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
+    , postgresConnectionString
     ]
     defaultSpawnOptions
     Nothing
@@ -528,18 +528,27 @@ startClaritySyncWorker :: Aff ManagedProcess
 startClaritySyncWorker = do
   spawn "clarity-sync-worker"
     [ "--ogmios-port"
-    , "1338"
+    , ogmiosPortString
     , "--pg-conn"
-    , "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
+    , postgresConnectionString
     , "--ogmios-host"
     , "localhost"
-    , "--block-slot"
-    , "0"
-    , "--block-hash"
-    , "0000000000000000000000000000000000000000000000000000000000000000"
+    , "--from-tip"
     ]
     defaultSpawnOptions
     Nothing
+
+postgresConnectionString :: String
+postgresConnectionString = "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
+
+ogmiosPortString :: String
+ogmiosPortString = "1338"
+
+claritySyncServerPort :: UInt
+claritySyncServerPort = UInt.fromInt 9001
+
+claritySyncServerPortString :: String
+claritySyncServerPortString = "9001"
 
 startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
 startOgmios cfg params = do
