@@ -112,7 +112,14 @@ import Effect.Ref as Ref
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
-import Node.ChildProcess (defaultSpawnOptions)
+import Node.ChildProcess
+  ( ChildProcess
+  , SpawnOptions
+  , StdIOBehaviour(Ignore, Pipe)
+  , defaultExecOptions
+  , defaultSpawnOptions
+  , exec
+  )
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
@@ -257,7 +264,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startOgmios' response
   startKupo' response
   startClaritySyncServer'
-  startClaritySyncWorker'
+  void startClaritySyncWorkerExec
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure
@@ -524,6 +531,15 @@ startClaritySyncServer = do
     defaultSpawnOptions
     Nothing
 
+startClaritySyncWorkerExec :: Aff ChildProcess
+startClaritySyncWorkerExec = liftEffect $ exec claritySyncWorkerCmdString
+  defaultExecOptions
+  (\_ -> pure unit)
+
+claritySyncWorkerCmdString :: String
+claritySyncWorkerCmdString =
+  "clarity-sync-worker --ogmios-port 1338 --pg-conn \"host=localhost port=5432 user=clarity password=clarity dbname=clarity\" --ogmios-host \"127.0.0.1\" --from-tip"
+
 startClaritySyncWorker :: Aff ManagedProcess
 startClaritySyncWorker = do
   spawn "clarity-sync-worker"
@@ -539,7 +555,8 @@ startClaritySyncWorker = do
     Nothing
 
 postgresConnectionString :: String
-postgresConnectionString = "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
+postgresConnectionString =
+  "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
 
 ogmiosPortString :: String
 ogmiosPortString = "1338"
