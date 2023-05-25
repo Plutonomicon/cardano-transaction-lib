@@ -33,6 +33,7 @@ import Mote.Monad (mapTest)
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
+import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.ExUnits as ExUnits
 import Test.Ctl.Plutip.Logging as Logging
@@ -48,6 +49,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
     Utils.interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
       $ group "Plutip" do
+          testPlutipContracts config Mnemonics.suite
           group "ExUnits - normal limits" do
             testPlutipContracts config $ ExUnits.mkFailingSuite 3000
             testPlutipContracts config $ ExUnits.mkSuite 2550
