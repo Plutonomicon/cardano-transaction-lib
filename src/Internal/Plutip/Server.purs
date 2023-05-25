@@ -326,13 +326,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (stopChildProcessWithPort claritySyncServerPort)
       (const $ pure unit)
 
-  startClaritySyncWorker' :: Aff Unit
-  startClaritySyncWorker' =
-    bracket
-      startClaritySyncWorker
-      (stopChildProcessWithPort claritySyncServerPort)
-      (const $ pure unit)
-
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
     bracket (startOgmios plutipCfg response)
@@ -534,32 +527,17 @@ startClaritySyncServer = do
 startClaritySyncWorkerExec :: Aff ChildProcess
 startClaritySyncWorkerExec = liftEffect $ exec claritySyncWorkerCmdString
   defaultExecOptions
-  (\_ -> pure unit)
+  (const $ pure unit)
 
 claritySyncWorkerCmdString :: String
 claritySyncWorkerCmdString =
-  "clarity-sync-worker --ogmios-port 1338 --pg-conn \"host=localhost port=5432 user=clarity password=clarity dbname=clarity\" --ogmios-host \"127.0.0.1\" --from-tip"
-
-startClaritySyncWorker :: Aff ManagedProcess
-startClaritySyncWorker = do
-  spawn "clarity-sync-worker"
-    [ "--ogmios-port"
-    , ogmiosPortString
-    , "--pg-conn"
-    , postgresConnectionString
-    , "--ogmios-host"
-    , "localhost"
-    , "--from-tip"
-    ]
-    defaultSpawnOptions
-    Nothing
+  "clarity-sync-worker --ogmios-port 1338 \
+    \--pg-conn \"host=localhost port=5432 user=clarity password=clarity dbname=clarity\" \
+    \--ogmios-host \"127.0.0.1\" \
+    \--from-tip"
 
 postgresConnectionString :: String
-postgresConnectionString =
-  "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
-
-ogmiosPortString :: String
-ogmiosPortString = "1338"
+postgresConnectionString = "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
 
 claritySyncServerPort :: UInt
 claritySyncServerPort = UInt.fromInt 9001
