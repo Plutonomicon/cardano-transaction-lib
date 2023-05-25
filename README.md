@@ -48,6 +48,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)
 - [Ada staking support](./doc/staking.md)
+- [Key management](./doc/key-management.md)
 - [SECP256k1 support (CIP-49)](./doc/secp256k1-support.md)
 - [Custom query layers](./doc/custom-query-layers.md)
 - [FAQs](./doc/faq.md)
