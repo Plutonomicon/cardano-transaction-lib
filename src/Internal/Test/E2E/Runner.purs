@@ -207,13 +207,6 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
-  , postgresConfig:
-      { host: "127.0.0.1"
-      , port: UInt.fromInt 5432
-      , user: "ctxlib"
-      , password: "ctxlib"
-      , dbname: "ctxlib"
-      }
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks

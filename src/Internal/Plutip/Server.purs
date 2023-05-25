@@ -50,7 +50,6 @@ import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
   , PlutipConfig
-  , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
@@ -115,7 +114,6 @@ import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess
   ( ChildProcess
   , SpawnOptions
-  , StdIOBehaviour(Ignore, Pipe)
   , defaultExecOptions
   , defaultSpawnOptions
   , exec
@@ -313,11 +311,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startPostgres' :: ClusterStartupParameters -> Aff Unit
   startPostgres' response =
     bracket
-      (startPostgresServer plutipCfg.postgresConfig response)
-      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.postgresConfig.port)
+      (startPostgresServer response)
+      (stopChildProcessWithPortAndRemoveOnSignal $ UInt.fromInt 5432)
       \(process /\ workingDir /\ _) -> do
         liftEffect $ cleanupTmpDir process workingDir
-        void $ configurePostgresServer plutipCfg.postgresConfig
+        void configurePostgresServer
 
   startClaritySyncServer' :: Aff Unit
   startClaritySyncServer' =
@@ -532,12 +530,19 @@ startClaritySyncWorkerExec = liftEffect $ exec claritySyncWorkerCmdString
 claritySyncWorkerCmdString :: String
 claritySyncWorkerCmdString =
   "clarity-sync-worker --ogmios-port 1338 \
-    \--pg-conn \"host=localhost port=5432 user=clarity password=clarity dbname=clarity\" \
-    \--ogmios-host \"127.0.0.1\" \
-    \--from-tip"
+  \--pg-conn \"host=localhost port=5432 user=clarity password=clarity dbname=clarity\" \
+  \--ogmios-host \"127.0.0.1\" \
+  \--from-tip"
 
 postgresConnectionString :: String
-postgresConnectionString = "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
+postgresConnectionString =
+  "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
+
+postgresPortString :: String
+postgresPortString = "5432"
+
+postgresHostString :: String
+postgresHostString = "127.0.0.1"
 
 claritySyncServerPort :: UInt
 claritySyncServerPort = UInt.fromInt 9001
@@ -623,10 +628,9 @@ checkPlutipServer cfg = do
     $ stopPlutipCluster cfg
 
 startPostgresServer
-  :: PostgresConfig
-  -> ClusterStartupParameters
+  :: ClusterStartupParameters
   -> Aff (ManagedProcess /\ String /\ OnSignalRef)
-startPostgresServer pgConfig params = do
+startPostgresServer params = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
@@ -643,9 +647,9 @@ startPostgresServer pgConfig params = do
     [ "-D"
     , databaseDir
     , "-p"
-    , UInt.toString pgConfig.port
+    , postgresPortString
     , "-h"
-    , pgConfig.host
+    , postgresHostString
     , "-k"
     , postgresSocket
     ]
@@ -653,14 +657,13 @@ startPostgresServer pgConfig params = do
     Nothing
   pure (pgChildProcess /\ workingDir /\ sig)
 
-configurePostgresServer
-  :: PostgresConfig -> Aff Unit
-configurePostgresServer pgConfig = do
+configurePostgresServer :: Aff Unit
+configurePostgresServer = do
   defaultRecovering $ waitForStop =<< spawn "psql"
     [ "-h"
-    , pgConfig.host
+    , postgresHostString
     , "-p"
-    , UInt.toString pgConfig.port
+    , postgresPortString
     , "-d"
     , "postgres"
     , "-c"
@@ -670,29 +673,29 @@ configurePostgresServer pgConfig = do
     Nothing
   waitForStop =<< spawn "psql"
     [ "-h"
-    , pgConfig.host
+    , postgresHostString
     , "-p"
-    , UInt.toString pgConfig.port
+    , postgresPortString
     , "-d"
     , "postgres"
     , "-c"
-    , "CREATE ROLE " <> pgConfig.user
+    , "CREATE ROLE " <> "clarity"
         <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
-        <> pgConfig.password
+        <> "clarity"
         <> "';"
     ]
     defaultSpawnOptions
     Nothing
   waitForStop =<< spawn "createdb"
     [ "-h"
-    , pgConfig.host
+    , postgresHostString
     , "-p"
-    , UInt.toString pgConfig.port
+    , postgresPortString
     , "-U"
-    , pgConfig.user
+    , "clarity"
     , "-O"
-    , pgConfig.user
-    , pgConfig.dbname
+    , "clarity"
+    , "clarity"
     ]
     defaultSpawnOptions
     Nothing
