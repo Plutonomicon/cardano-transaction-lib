@@ -4,6 +4,8 @@ module Ctl.Internal.Plutip.Types
   , FilePath
   , PlutipConfig
   , PostgresConfig
+  , ProcessType(Spawn, Exec)
+  , Service(..)
   , ClusterStartupRequest(ClusterStartupRequest)
   , PrivateKeyResponse(PrivateKeyResponse)
   , ClusterStartupFailureReason
@@ -40,15 +42,42 @@ import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
+import Data.Show (class Show)
+import Data.Show.Generic (genericShow)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds(Seconds))
+import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Partial.Unsafe (unsafePartial)
+
+newtype Service = Service
+  { processType :: ProcessType
+  , command :: String
+  , arguments :: Array (String /\ String)
+  , port :: Maybe UInt
+  }
+
+derive instance Newtype Service _
+
+derive instance Generic Service _
+
+instance Show Service where
+  show = genericShow
+
+data ProcessType = Spawn | Exec
+
+derive instance Eq ProcessType
+
+derive instance Generic ProcessType _
+
+instance Show ProcessType where
+  show = genericShow
 
 -- | A config that is used to run tests on Plutip clusters.
 -- | Note that the test suite starts the services on the specified ports.
@@ -60,7 +89,10 @@ type PlutipConfig =
   -- Server configs are used to deploy the corresponding services:
   , ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
+  -- Optional Postgres service
   , postgresConfig :: Maybe PostgresConfig
+  -- Optional custom services to run
+  , extraServices :: Array Service
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks

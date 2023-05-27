@@ -11,9 +11,9 @@ import Ctl.Internal.Plutip.Server
   ( checkPlutipServer
   , startPlutipCluster
   , startPlutipServer
-  , stopChildProcessWithPort
   , stopPlutipCluster
   )
+import Ctl.Internal.Plutip.Services (stopChildProcessWithPort)
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.TestPlanM as Utils

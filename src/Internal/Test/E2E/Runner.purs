@@ -208,6 +208,7 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
+  , extraServices: []
   , suppressLogs: true
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks

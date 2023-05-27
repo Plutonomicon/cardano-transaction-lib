@@ -5,10 +5,10 @@ module Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   , startPlutipServer
   , checkPlutipServer
-  , stopChildProcessWithPort
   , testPlutipContracts
   ) where
 
+import Ctl.Internal.Plutip.Services
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
@@ -20,6 +20,7 @@ import Contract.Address (NetworkId(MainnetId))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
+import Contract.Prelude (undefined)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
@@ -52,6 +53,7 @@ import Ctl.Internal.Plutip.Types
   , PlutipConfig
   , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
+  , Service(Service)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
@@ -264,9 +266,10 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     Nothing -> pure unit
   startOgmios' response
   startKupo' response
-  startClaritySyncServer'
-  void startClaritySyncWorkerExec
-  { env, printLogs, clearLogs } <- mkContractEnv'
+  case plutipCfg.extraServices of
+    [] -> pure unit
+    services -> runServices services cleanupRef
+  { env, printLogs, clearLogs } <- mkContractEnv' cleanupRef
   wallets <- mkWallets' env ourKey response
   pure
     { env
@@ -275,25 +278,13 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     , clearLogs
     }
   where
-  -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
-  -- later.
-  bracket
-    :: forall (a :: Type) (b :: Type)
-     . Aff a
-    -> (a -> Aff Unit)
-    -> (a -> Aff b)
-    -> Aff b
-  bracket before after action = do
-    Aff.bracket
-      before
-      (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
-      action
-
   startPlutipServer' :: Aff Unit
   startPlutipServer' =
-    bracket (startPlutipServer plutipCfg)
+    bracket
+      (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port)
       (const $ checkPlutipServer plutipCfg)
+      cleanupRef
 
   startPlutipCluster'
     :: Aff (PrivatePaymentKey /\ ClusterStartupParameters)
@@ -310,15 +301,18 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (startPlutipCluster plutipCfg distrArray)
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
+      cleanupRef
 
   startPostgres' :: ClusterStartupParameters -> PostgresConfig -> Aff Unit
   startPostgres' response postgresConfig =
     bracket
       (startPostgresServer response postgresConfig)
       (stopChildProcessWithPortAndRemoveOnSignal $ UInt.fromInt 5432)
-      \(process /\ workingDir /\ _) -> do
-        liftEffect $ cleanupTmpDir process workingDir
-        void $ configurePostgresServer postgresConfig
+      ( \(process /\ workingDir /\ _) -> do
+          liftEffect $ cleanupTmpDir process workingDir
+          void $ configurePostgresServer postgresConfig
+      )
+      cleanupRef
 
   startClaritySyncServer' :: Aff Unit
   startClaritySyncServer' =
@@ -326,20 +320,26 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       startClaritySyncServer
       (stopChildProcessWithPort claritySyncServerPort)
       (const $ pure unit)
+      cleanupRef
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
-    bracket (startOgmios plutipCfg response)
+    bracket
+      (startOgmios plutipCfg response)
       (stopChildProcessWithPort plutipCfg.ogmiosConfig.port)
       (const $ pure unit)
+      cleanupRef
 
   startKupo' :: ClusterStartupParameters -> Aff Unit
   startKupo' response =
-    bracket (startKupo plutipCfg response)
+    bracket
+      (startKupo plutipCfg response)
       (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
-      \(process /\ workdir /\ _) -> do
-        liftEffect $ cleanupTmpDir process workdir
-        pure unit
+      ( \(process /\ workdir /\ _) -> do
+          liftEffect $ cleanupTmpDir process workdir
+          pure unit
+      )
+      cleanupRef
 
   mkWallets'
     :: ContractEnv
@@ -360,12 +360,13 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         pure wallets
 
   mkContractEnv'
-    :: Aff
+    :: Ref (Array (Aff Unit))
+    -> Aff
          { env :: ContractEnv
          , printLogs :: Aff Unit
          , clearLogs :: Aff Unit
          }
-  mkContractEnv' | plutipCfg.suppressLogs = do
+  mkContractEnv' cleanupRef | plutipCfg.suppressLogs = do
     -- if logs should be suppressed, setup the machinery and continue with
     -- the bracket
     { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
@@ -380,12 +381,15 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
           configLogger
       )
       stopContractEnv
-      \env -> pure
-        { env
-        , printLogs: liftEffect printLogs
-        , clearLogs: liftEffect clearLogs
-        }
-  mkContractEnv' =
+      ( \env -> pure
+          { env
+          , printLogs: liftEffect printLogs
+          , clearLogs: liftEffect clearLogs
+          }
+      )
+      cleanupRef
+
+  mkContractEnv' cleanupRef =
     -- otherwise, proceed with the env setup and provide a normal logger
     bracket
       ( mkClusterContractEnv plutipCfg
@@ -393,11 +397,13 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
           plutipCfg.customLogger
       )
       stopContractEnv
-      \env -> pure
-        { env
-        , printLogs: pure unit
-        , clearLogs: pure unit
-        }
+      ( \env -> pure
+          { env
+          , printLogs: pure unit
+          , clearLogs: pure unit
+          }
+      )
+      cleanupRef
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
@@ -540,12 +546,6 @@ claritySyncWorkerCmdString =
 postgresConnectionString :: String
 postgresConnectionString =
   "host=localhost port=5432 user=clarity password=clarity dbname=clarity"
-
-postgresPortString :: String
-postgresPortString = "5432"
-
-postgresHostString :: String
-postgresHostString = "127.0.0.1"
 
 claritySyncServerPort :: UInt
 claritySyncServerPort = UInt.fromInt 9001
@@ -703,27 +703,6 @@ configurePostgresServer postgresConfig = do
     ]
     defaultSpawnOptions
     Nothing
-
--- | Kill a process and wait for it to stop listening on a specific port.
-stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
-stopChildProcessWithPort port childProcess = do
-  stop childProcess
-  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
-    \_ -> do
-      isAvailable <- isPortAvailable port
-      unless isAvailable do
-        liftEffect $ throw "retry"
-
-stopChildProcessWithPortAndRemoveOnSignal
-  :: UInt -> (ManagedProcess /\ String /\ OnSignalRef) -> Aff Unit
-stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
-  stop $ childProcess
-  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
-    \_ -> do
-      isAvailable <- isPortAvailable port
-      unless isAvailable do
-        liftEffect $ throw "retry"
-  liftEffect $ removeOnSignal sig
 
 mkClusterContractEnv
   :: PlutipConfig
