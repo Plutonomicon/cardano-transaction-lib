@@ -87,7 +87,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   ) as NativeScript
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef, ScriptRefByHash)
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , scriptRefFromMintingPolicy
   ) as ScriptRef
 import Ctl.Internal.Cardano.Types.Transaction
