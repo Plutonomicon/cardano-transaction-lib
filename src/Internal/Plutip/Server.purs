@@ -50,6 +50,7 @@ import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , ClusterStartupRequest(ClusterStartupRequest)
   , PlutipConfig
+  , PostgresConfig
   , PrivateKeyResponse(PrivateKeyResponse)
   , StartClusterResponse(ClusterStartupSuccess, ClusterStartupFailure)
   , StopClusterRequest(StopClusterRequest)
@@ -258,7 +259,9 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
   startPlutipServer'
   ourKey /\ response <- startPlutipCluster'
-  startPostgres' response
+  case plutipCfg.postgresConfig of
+    Just postgresConfig -> startPostgres' response postgresConfig
+    Nothing -> pure unit
   startOgmios' response
   startKupo' response
   startClaritySyncServer'
@@ -308,14 +311,14 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
 
-  startPostgres' :: ClusterStartupParameters -> Aff Unit
-  startPostgres' response =
+  startPostgres' :: ClusterStartupParameters -> PostgresConfig -> Aff Unit
+  startPostgres' response postgresConfig =
     bracket
-      (startPostgresServer response)
+      (startPostgresServer response postgresConfig)
       (stopChildProcessWithPortAndRemoveOnSignal $ UInt.fromInt 5432)
       \(process /\ workingDir /\ _) -> do
         liftEffect $ cleanupTmpDir process workingDir
-        void configurePostgresServer
+        void $ configurePostgresServer postgresConfig
 
   startClaritySyncServer' :: Aff Unit
   startClaritySyncServer' =
@@ -629,8 +632,9 @@ checkPlutipServer cfg = do
 
 startPostgresServer
   :: ClusterStartupParameters
+  -> PostgresConfig
   -> Aff (ManagedProcess /\ String /\ OnSignalRef)
-startPostgresServer params = do
+startPostgresServer params postgresConfig = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
@@ -647,9 +651,9 @@ startPostgresServer params = do
     [ "-D"
     , databaseDir
     , "-p"
-    , postgresPortString
+    , postgresConfig.port
     , "-h"
-    , postgresHostString
+    , postgresConfig.host
     , "-k"
     , postgresSocket
     ]
@@ -657,13 +661,13 @@ startPostgresServer params = do
     Nothing
   pure (pgChildProcess /\ workingDir /\ sig)
 
-configurePostgresServer :: Aff Unit
-configurePostgresServer = do
+configurePostgresServer :: PostgresConfig -> Aff Unit
+configurePostgresServer postgresConfig = do
   defaultRecovering $ waitForStop =<< spawn "psql"
     [ "-h"
-    , postgresHostString
+    , postgresConfig.host
     , "-p"
-    , postgresPortString
+    , postgresConfig.port
     , "-d"
     , "postgres"
     , "-c"
@@ -673,29 +677,29 @@ configurePostgresServer = do
     Nothing
   waitForStop =<< spawn "psql"
     [ "-h"
-    , postgresHostString
+    , postgresConfig.host
     , "-p"
-    , postgresPortString
+    , postgresConfig.port
     , "-d"
     , "postgres"
     , "-c"
-    , "CREATE ROLE " <> "clarity"
+    , "CREATE ROLE " <> postgresConfig.user
         <> " WITH LOGIN SUPERUSER CREATEDB PASSWORD '"
-        <> "clarity"
+        <> postgresConfig.password
         <> "';"
     ]
     defaultSpawnOptions
     Nothing
   waitForStop =<< spawn "createdb"
     [ "-h"
-    , postgresHostString
+    , postgresConfig.host
     , "-p"
-    , postgresPortString
+    , postgresConfig.port
     , "-U"
-    , "clarity"
+    , postgresConfig.user
     , "-O"
-    , "clarity"
-    , "clarity"
+    , postgresConfig.password
+    , postgresConfig.dbName
     ]
     defaultSpawnOptions
     Nothing

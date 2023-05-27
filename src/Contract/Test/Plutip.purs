@@ -63,6 +63,7 @@ defaultPlutipConfig =
       , secure: false
       , path: Nothing
       }
+  , postgresConfig: Nothing
   , suppressLogs: true
   , customLogger: Nothing
   , hooks: emptyHooks

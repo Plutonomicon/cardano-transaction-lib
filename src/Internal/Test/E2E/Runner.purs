@@ -201,6 +201,7 @@ buildPlutipConfig options =
       , secure: false
       , path: Nothing
       }
+  , postgresConfig: Nothing
   , kupoConfig:
       { host: "127.0.0.1"
       , port: fromMaybe (UInt.fromInt defaultPorts.kupo) options.kupoPort
