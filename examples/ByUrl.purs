@@ -176,7 +176,6 @@ mkBlockfrostPreviewConfig apiKey =
         { blockfrostConfig: blockfrostPublicPreviewServerConfig
         , blockfrostApiKey: apiKey
         , confirmTxDelay: Just (Seconds 30.0)
-        , resolveScriptRefs: true
         }
     }
 
@@ -187,7 +186,6 @@ mkBlockfrostPreprodConfig apiKey =
         { blockfrostConfig: blockfrostPublicPreprodServerConfig
         , blockfrostApiKey: apiKey
         , confirmTxDelay: Just (Seconds 30.0)
-        , resolveScriptRefs: true
         }
     }
 

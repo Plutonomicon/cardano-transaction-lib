@@ -40,7 +40,6 @@ type BlockfrostBackend =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
   , confirmTxDelay :: Maybe Seconds
-  , resolveScriptRefs :: Boolean
   }
 
 getCtlBackend :: QueryBackend -> Maybe CtlBackend
@@ -68,7 +67,6 @@ type BlockfrostBackendParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
   , confirmTxDelay :: Maybe Seconds
-  , resolveScriptRefs :: Boolean
   }
 
 defaultConfirmTxDelay :: Maybe Seconds

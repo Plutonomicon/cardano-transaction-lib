@@ -17,7 +17,7 @@ module Ctl.Internal.Hashing
 import Prelude
 
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(PlutusScriptRef, NativeScriptRef, ScriptRefByHash)
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Deserialization.Transaction (_txBody)
 import Ctl.Internal.Serialization (toBytes)
@@ -87,4 +87,3 @@ scriptRefHash :: ScriptRef -> ScriptHash
 scriptRefHash (PlutusScriptRef plutusScript) = plutusScriptHash plutusScript
 scriptRefHash (NativeScriptRef nativeScript) =
   nativeScriptHash $ convertNativeScript nativeScript
-scriptRefHash (ScriptRefByHash hash) = hash

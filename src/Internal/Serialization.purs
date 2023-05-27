@@ -18,7 +18,7 @@ module Ctl.Internal.Serialization
 import Prelude
 
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(PlutusScriptRef, NativeScriptRef, ScriptRefByHash)
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( Certificate
@@ -172,7 +172,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (error, throwError)
 import Untagged.Union (UndefinedOr, maybeToUor)
 
 foreign import hashTransaction :: TransactionBody -> Effect TransactionHash
@@ -819,16 +818,14 @@ convertTxOutput
         $ convertPlutusData
         $ unwrap datumValue
   for_ scriptRef $
-    convertScriptRef >=> transactionOutputSetScriptRef txo
+    convertScriptRef >>> transactionOutputSetScriptRef txo
   pure txo
 
-convertScriptRef :: T.ScriptRef -> Effect ScriptRef
+convertScriptRef :: T.ScriptRef -> ScriptRef
 convertScriptRef (T.NativeScriptRef nativeScript) =
-  pure <<< scriptRefNewNativeScript $ convertNativeScript nativeScript
+  scriptRefNewNativeScript $ convertNativeScript nativeScript
 convertScriptRef (T.PlutusScriptRef plutusScript) =
-  pure <<< scriptRefNewPlutusScript $ convertPlutusScript plutusScript
-convertScriptRef (T.ScriptRefByHash _scriptHash) =
-  throwError (error "Script hash must be resolved before converting")
+  scriptRefNewPlutusScript $ convertPlutusScript plutusScript
 
 convertValue :: Value.Value -> Effect Value
 convertValue val = do

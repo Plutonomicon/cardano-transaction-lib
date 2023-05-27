@@ -1,5 +1,5 @@
 module Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef, ScriptRefByHash)
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , scriptRefFromMintingPolicy
   , getNativeScript
   , getPlutusScript
@@ -18,7 +18,6 @@ import Aeson
   )
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Helpers (encodeTagged')
-import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , PlutusScript
@@ -28,10 +27,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 
-data ScriptRef
-  = NativeScriptRef NativeScript
-  | PlutusScriptRef PlutusScript
-  | ScriptRefByHash ScriptHash
+data ScriptRef = NativeScriptRef NativeScript | PlutusScriptRef PlutusScript
 
 scriptRefFromMintingPolicy :: MintingPolicy -> ScriptRef
 scriptRefFromMintingPolicy = case _ of
@@ -48,7 +44,6 @@ instance EncodeAeson ScriptRef where
   encodeAeson = case _ of
     NativeScriptRef r -> encodeTagged' "NativeScriptRef" r
     PlutusScriptRef r -> encodeTagged' "PlutusScriptRef" r
-    ScriptRefByHash r -> encodeTagged' "ScriptRefByHash" r
 
 instance DecodeAeson ScriptRef where
   decodeAeson = caseAesonObject (Left $ TypeMismatch "Expected object") $

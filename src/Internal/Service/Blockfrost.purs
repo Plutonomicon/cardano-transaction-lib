@@ -107,7 +107,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   )
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(PlutusScriptRef, NativeScriptRef, ScriptRefByHash)
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
@@ -263,7 +263,6 @@ type BlockfrostServiceParams =
   , blockfrostApiKey :: Maybe String
   , onBlockfrostRawGetResponse :: OnBlockfrostRawGetResponseHook
   , onBlockfrostRawPostResponse :: OnBlockfrostRawPostResponseHook
-  , resolveScriptRefs :: Boolean
   }
 
 type BlockfrostServiceM (a :: Type) = LoggerT
@@ -300,7 +299,6 @@ mkServiceParams
 mkServiceParams onBlockfrostRawGetResponse onBlockfrostRawPostResponse backend =
   { blockfrostConfig: backend.blockfrostConfig
   , blockfrostApiKey: backend.blockfrostApiKey
-  , resolveScriptRefs: backend.resolveScriptRefs
   , onBlockfrostRawGetResponse
   , onBlockfrostRawPostResponse
   }
@@ -917,25 +915,15 @@ resolveBlockfrostUtxosAtAddress
   -> BlockfrostServiceM (Either ClientError UtxoMap)
 resolveBlockfrostUtxosAtAddress (BlockfrostUtxosAtAddress utxos) =
   -- TODO: `Parallel` instance for `BlockfrostServiceM`?
-  LoggerT \logger -> do
-    shouldResolve <- asks _.resolveScriptRefs
+  LoggerT \logger ->
     let
       resolve
         :: BlockfrostTransactionOutput
         -> ExceptT ClientError (ReaderT BlockfrostServiceParams Aff)
              TransactionOutput
-      resolve =
-        if shouldResolve then
-          ExceptT <<< flip runLoggerT logger <<< resolveBlockfrostTxOutput
-        else
-          \(BlockfrostTransactionOutput { address, amount, datum, scriptHash }) ->
-            pure $ TransactionOutput
-              { address
-              , amount
-              , datum
-              , scriptRef: ScriptRefByHash <$> scriptHash
-              }
-    runExceptT $ Map.fromFoldable <$> parTraverse (traverse resolve) utxos
+      resolve = ExceptT <<< flip runLoggerT logger <<< resolveBlockfrostTxOutput
+    in
+      runExceptT $ Map.fromFoldable <$> parTraverse (traverse resolve) utxos
 
 newtype BlockfrostUtxosOfTransaction =
   BlockfrostUtxosOfTransaction (Array BlockfrostUnspentOutput)

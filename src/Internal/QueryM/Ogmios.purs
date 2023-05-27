@@ -100,7 +100,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   )
 import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(PlutusScriptRef, NativeScriptRef, ScriptRefByHash)
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls(Costmdls)
@@ -134,11 +134,7 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash
-  ( Ed25519KeyHash
-  , ed25519KeyHashFromBytes
-  , scriptHashFromBytes
-  )
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
 import Ctl.Internal.Types.ByteArray
@@ -1047,8 +1043,6 @@ instance EncodeAeson AdditionalUtxoSet where
       encodeAeson { "plutus:v1": s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
       encodeAeson { "plutus:v2": s }
-    encodeScriptRef (ScriptRefByHash r) =
-      encodeAeson { "hash": r }
 
     encodeNonAdaAsset :: NonAdaAsset -> Aeson
     encodeNonAdaAsset assets = encodeMap $
@@ -1165,9 +1159,6 @@ parseScript outer =
         Just ("native" /\ nativeScript) ->
           Just <<< NativeScriptRef <$> parseNativeScript nativeScript
 
-        Just ("hash" /\ scriptHash) ->
-          Just <$> parseScriptHash scriptHash
-
         _ ->
           Left $ TypeMismatch $
             "Expected native or Plutus script, got: " <> show script
@@ -1224,21 +1215,6 @@ parseScript outer =
               (map (ScriptNOfK n) <<< traverse parseNativeScript)
 
           _ -> Left scriptTypeMismatch
-
-  parseScriptHash :: Aeson -> Either JsonDecodeError ScriptRef
-  parseScriptHash aeson = do
-    let
-      scriptHashTypeMismatch :: JsonDecodeError
-      scriptHashTypeMismatch = TypeMismatch
-        $ "Expected hex-encoded script hash, got: " <> show aeson
-
-    aeson # caseAesonString (Left scriptHashTypeMismatch)
-      \hexEncodedScriptHash -> do
-        scriptHashBytes <-
-          note
-            scriptHashTypeMismatch
-            (scriptHashFromBytes =<< hexToByteArray hexEncodedScriptHash)
-        pure $ ScriptRefByHash scriptHashBytes
 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
