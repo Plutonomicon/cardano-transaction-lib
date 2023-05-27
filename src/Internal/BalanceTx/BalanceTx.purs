@@ -529,6 +529,7 @@ runBalancer p = do
           fromMaybe zero <$>
             liftEffect (utxoMinAdaValue coinsPerUtxoUnit expectedOutput)
         utxoCollaterals <- traverse unspentOutputCollateral utxos
+        logTrace' $ "Looking for collateral in " <> show utxoCollaterals
         let
           selection =
             Array.foldl
@@ -541,8 +542,8 @@ runBalancer p = do
         pure
           if
             length selection <= p.maxCollateralInputs
-              && selectionCollateral >
-                (valueToCoin' targetCollateral + minAda) then Right selection
+              && selectionCollateral >= valueToCoin' targetCollateral then Right
+            selection
           else Left CouldNotGetCollateral
 
       unspentOutputCollateral :: TransactionUnspentOutput -> BalanceTxM BigInt
