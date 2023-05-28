@@ -13,9 +13,10 @@
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Cluster configuration options](#cluster-configuration-options)
-  - [Limitations](#limitations)
+  - [Current limitations](#current-limitations)
 - [Using addresses with staking key components](#using-addresses-with-staking-key-components)
-  - [See also](#see-also)
+- [Limitations](#limitations)
+- [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Architecture
@@ -260,7 +261,7 @@ See a [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix) for an exam
 - `maxTxSize` (in bytes) allows to stress-test protocols with more restrictive transaction size limits.
 - `raiseExUnitsToMax` allows to bypass execution units limit (useful when compiling the contract with tracing in development and without it in production).
 
-### Limitations
+### Current limitations
 
 * Non-default value of `epochSize` (current default is 80) break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info. `slotLength` can be changed without any problems.
 * Currently there's no way to share wallets between separate tests (which is useful for complex protocols). You can adapt [this PR](https://github.com/IndigoProtocol/cardano-transaction-lib/pull/1) (needs to be updated for the newer versions of CTL, likely won't need too many changes) if you need it now (and even better -- make a PR to CTL).
@@ -287,7 +288,12 @@ Although stake keys serve no real purpose in plutip context, they allow to use b
 
 Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to base addresses, which requires a few transactions before the test can be run. These transactions happen on the CTL side, because Plutip can currently handle only enterprise addreses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
 
-### See also
+## Limitations
+* See the `epochSize` configuration option problem [here](#current-limitations).
+* Currently there's no way to share wallets between separate tests (which is useful for complex protocols). You can adapt [this PR](https://github.com/IndigoProtocol/cardano-transaction-lib/pull/1) (needs to be updated for the newer versions of CTL, likely won't need too many changes) if you need it now (and even better -- make a PR to CTL).
+* If you've used a [`plutus-simple-model`](https://github.com/mlabs-haskell/plutus-simple-model) library then you might know that it allows time travel in tests, which can be very useful for testing vesting schedules, etc. Testing with Plutip doesn't allow this, as it's running a real network, so you'd have to really wait, say 1 year, in order to test onchain which checks that much time has passed.
+
+## See also
 
 - To actually write the test bodies, [assertions library](./test-utils.md) can be useful.
 - Check out the [`ContractTestUtils`](../examples/ContractTestUtils.purs) example on assertions library usage.
