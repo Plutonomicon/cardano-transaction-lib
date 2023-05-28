@@ -537,6 +537,7 @@ startKupo cfg params = do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
+  -- here we set also the SIGINT handler for the whole process
   sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
   pure (childProcess /\ workdir /\ sig)
   where
