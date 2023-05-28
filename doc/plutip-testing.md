@@ -264,8 +264,6 @@ See a [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix) for an exam
 ### Current limitations
 
 * Non-default value of `epochSize` (current default is 80) break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info. `slotLength` can be changed without any problems.
-* Currently there's no way to share wallets between separate tests (which is useful for complex protocols). You can adapt [this PR](https://github.com/IndigoProtocol/cardano-transaction-lib/pull/1) (needs to be updated for the newer versions of CTL, likely won't need too many changes) if you need it now (and even better -- make a PR to CTL).
-* If you've used a [`plutus-simple-model`](https://github.com/mlabs-haskell/plutus-simple-model) library then you might know that it allows time travel in tests, which can be very useful for testing vesting schedules, etc. Testing with Plutip doesn't allow this, as it's running a real network, so you'd have to really wait, say 1 year, in order to test onchain which checks that much time has passed.
 
 ## Using addresses with staking key components
 
