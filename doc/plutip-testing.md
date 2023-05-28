@@ -290,3 +290,7 @@ Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses
 ### See also
 
 - To actually write the test bodies, [assertions library](./test-utils.md) can be useful.
+- Check out the [`ContractTestUtils`](../examples/ContractTestUtils.purs) example on assertions library usage.
+- Take a look at CTL's Plutip tests for the usage examples:
+   - the entry point with `main` that runs Plutip tests is [here](../test/Plutip.purs),
+   - folder with various test suites is [here](../test/Plutip/).
