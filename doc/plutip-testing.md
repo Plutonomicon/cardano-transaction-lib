@@ -148,7 +148,7 @@ where
    * also environment setup and Plutip startup and teardown will happen once per each top-level test or group inside the `testPlutipContracts` call,
    * so wrap your tests or groups in a single group if you want for the cluster to start only once,
 * `test :: Type` is a type of tests themselves,
-   * in our case it's [`ContractTest`](../src/Internal/Test/ContractTest.hs), which in a nutshell describes a function from some wallet UTxO distribution to a `Contract r`
+   * in our case it's [`ContractTest`](../src/Internal/Test/ContractTest.purs), which in a nutshell describes a function from some wallet UTxO distribution to a `Contract r`
    * wallet UTxO distribution is the one that you need to pattern-match on when writing tests
 * `m :: Type -> Type` is a monad where effects during the construction of the test suite can be performed,
    * here we use `Aff` again
