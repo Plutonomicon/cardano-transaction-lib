@@ -201,7 +201,7 @@ In the example above the environment and cluster setup will happen 3 times.
 
 `testPlutipContracts` also combines distributions of individual tests in a single big distribution (via nested tuples) and modifies tests to pluck their required distributions out of the big one.
 This allows to create wallets and fund them in one step, during the Plutip setup.
-See the comments in the [`Ctl.Internal.Plutip.Server` module](../src/Plutip/Server.purs) for more info (relevant ones are in `execDistribution` and `testPlutipContracts` functions).
+See the comments in the [`Ctl.Internal.Plutip.Server` module](../src/Internal/Plutip/Server.purs) for more info (relevant ones are in `execDistribution` and `testPlutipContracts` functions).
 
 In complicated protocols you might want to execute some `Contract`s in one test and then execute other `Contract`s which depend on some wallet-dependent state set up by the first batch of contracts, e.g. some authorization token is present at some wallet.
 Keeping these steps in separate sequential tests allows to pinpoint where things failed much easier, but currently CTL uses separate wallets for each test without an easy way to refer to wallets in other tests, so you have to call first batch of contracts again to replicate the state of the wallets, which in turn might fail or mess up your protocol, because the chain state is shared between tests for each top-level group.
