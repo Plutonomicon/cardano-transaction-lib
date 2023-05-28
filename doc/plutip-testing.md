@@ -209,6 +209,9 @@ This functionality will probably be added to CTL later.
 
 ### Note on SIGINT
 
+<!-- TODO: clarify which node is meant here -- node.js or cardano-node? -->
+<!-- TODO: why does the CTL project template restore the default behavior? -->
+
 Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, node's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel. To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let node shut down gracefully when no more events are to be processed.
 
 ```purescript
