@@ -8,8 +8,14 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  - [Testing in Aff context](#testing-in-aff-context)
+  - [Testing with Mote overview](#testing-with-mote-overview)
+  - [Testing in Aff context overview](#testing-in-aff-context-overview)
+  - [Writing checks in tests](#writing-checks-in-tests)
+  - [Note on running parallel clusters](#note-on-running-parallel-clusters)
   - [Testing with Mote](#testing-with-mote)
+    - [Using Mote testing interface](#using-mote-testing-interface)
+    - [Overview of internal implementation](#overview-of-internal-implementation)
+  - [Testing in Aff context](#testing-in-aff-context)
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Cluster configuration options](#cluster-configuration-options)
@@ -44,26 +50,128 @@ CTL can help you test the offchain `Contract`s from your project (and consequent
 
 There are two approaches to writing such tests.
 
-[First](#testing-in-aff-context) is to use the `Contract.Test.Plutip.runPlutipContract` function, which takes a single `Contract`, launches a Plutip cluster and executes the passed contract.
-This function runs in `Aff`; it will also throw an exception should contract fail for any reason.
-After the contract execution the Plutip cluster is terminated.
-You can either call it directly from your test's main or use any library for grouping and describing tests which support effects in the test body, like Mote.
+### Testing with Mote overview
 
 [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining and grouping tests (plus other quality of life features, e.g. skipping marked tests).
 
-
-[Second](#testing-with-mote) (and more widely used) approach is to first build a tree of tests (in CTL's case a tree of `ContractTest` types -- basically a function from some distribution of funds to a `Contract a`) via Mote and then use the `Contract.Test.Plutip.testPlutipContracts` function to execute them.
+First (and more widely used) approach is to first build a tree of tests (in CTL's case a tree of `ContractTest` types -- basically a function from some distribution of funds to a `Contract a`) via Mote and then use the `Contract.Test.Plutip.testPlutipContracts` function to execute them.
 This allows to set up a Plutip cluster only once per top-level groups and tests passed to the `testPlutipContracts` and then use it in many independent tests.
 The function will interpret a `MoteT` (effectful test tree) into `Aff`, which you can then actually run.
 
 The [`ctl-scaffold` template](../templates/ctl-scaffold) provides a simple `Mote`-based example.
 
+More info and usage examples are [here](#testing-with-mote).
+
+### Testing in Aff context overview
+
+[First](#testing-in-aff-context) is to use the `Contract.Test.Plutip.runPlutipContract` function, which takes a single `Contract`, launches a Plutip cluster and executes the passed contract.
+This function runs in `Aff`; it will also throw an exception should contract fail for any reason.
+After the contract execution the Plutip cluster is terminated.
+You can either call it directly from your test's main or use any library for grouping and describing tests which support effects in the test body, like Mote.
+
+### Writing checks in tests
 
 CTL will run contracts in your test bodies and will print errors for any failed tests.
 Only test body failures are checked and this works fine if you want to make sure your `Contract`s execute without errors; if you want to add more precise checks (like checking that particular token is now at some address, that some exact amount was transferred, etc.) then you need to write these checks manually in a `Contract` monad (and preferably to utilize the [assertions library](./test-utils.md)) and then throw errors.
 
+### Note on running parallel clusters
+
 The communication with Plutip happens via the `plutip-server`'s HTTP interface, which allows to start or stop a cluster.
 [`plutip-server`](../plutip-server) allows only once active cluster at a time, but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously. One caveat is that nodes in different clusters might get assigned the same port (see [this](https://github.com/mlabs-haskell/plutip/blob/master/README.md#note-on-running-multiple-clusters) Plutip doc) and then race to use it, which will result in one cluster starting fine and another repeatedly failing. The way to deal with this is to start another environment and try again.
+
+### Testing with Mote
+
+`Contract.Test.Plutip.testPlutipContracts` type is defined as follows:
+```purescript
+testPlutipContracts
+  :: PlutipConfig
+  -> TestPlanM ContractTest Unit
+  -> TestPlanM (Aff Unit) Unit
+```
+
+It takes a plutip config and a tree of Mote tests, where tests are of type `ContractTest`.
+
+To create tests of type `ContractTest`, you should either use `Contract.Test.Plutip.withWallets` or `Contract.Test.Plutip.noWallet`:
+
+```purescript
+withWallets
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> (wallets -> Contract Unit)
+  -> ContractTest
+
+noWallet :: Contract Unit -> ContractTest
+noWallet test = withWallets unit (const test)
+```
+
+Usage of `testPlutipContracts` is similar to that of `runPlutipContract`, and distributions are handled in the same way. Here's an example:
+
+```purescript
+suite :: MoteT Aff (Aff Unit) Aff
+suite = testPlutipContracts config do
+  test "Test 1" do
+    let
+      distribution :: Array BigInt /\ Array BigInt
+      distribution = ...
+    withWallets distribution \(alice /\ bob) -> do
+      ...
+
+  test "Test 2" do
+    let
+      distribution :: Array BigInt
+      distribution = ...
+    withWallets distribution \alice -> do
+      ...
+
+  test "Test 3" do
+    noWallet do
+      ...
+```
+
+#### Using Mote testing interface
+
+To define tests suites you can use `test`, group them with `group` and also wrap tests or groups with `bracket` to execute custom actions before and after tests/groups that are inside the bracket.
+Note that in Mote you can define several tests and several groups in a single block, and bracket that wraps them will be run for each such test or group.
+
+Internally `testPlutipContracts` places a bracket that sets up the CTL environment and starts up the Plutip cluster on the top level, so if you want to launch cluster only once wrap your tests or groups in a single group.
+In the example above the environment and cluster setup will happen 3 times.
+
+#### Overview of internal implementation
+
+`Contract.Test.Plutip.testPlutipContracts` type is defined as follows (after expansion of the CTL's `TestPlanM` type synonym):
+```purescript
+type TestPlanM :: Type -> Type -> Type
+type TestPlanM test a = MoteT Aff test Aff a
+
+testPlutipContracts
+  :: PlutipConfig
+  -> MoteT Aff ContractTest Aff Unit
+  -> MoteT Aff (Aff Unit) Aff Unit
+
+-- Recall that `MoteT` has three type variables
+newtype MoteT bracket test m a
+```
+where
+* `bracket :: Type -> Type` is where brackets will be run (before/setup is `bracket r` and after/shutdown is of type `r -> bracket Unit`),
+   * in our case it's `Aff` and is where the CTL environment and Plutip cluster setup will happen,
+   * also environment setup and Plutip startup and teardown will happen once per each top-level test or group inside the `testPlutipContracts` call,
+   * so wrap your tests or groups in a single group if you want for the cluster to start only once,
+* `test :: Type` is a type of tests themselves,
+   * in our case it's [`ContractTest`](../src/Internal/Test/ContractTest.purs), which in a nutshell describes a function from some wallet UTxO distribution to a `Contract r`
+   * wallet UTxO distribution is the one that you need to pattern-match on when writing tests
+* `m :: Type -> Type` is a monad where effects during the construction of the test suite can be performed,
+   * here we use `Aff` again
+* `a :: Type` is a result of the test suite, we use `Unit` here.
+
+`testPlutipContracts` also combines distributions of individual tests in a single big distribution (via nested tuples) and modifies tests to pluck their required distributions out of the big one.
+This allows to create wallets and fund them in one step, during the Plutip setup.
+See the comments in the [`Ctl.Internal.Plutip.Server` module](../src/Internal/Plutip/Server.purs) for more info (relevant ones are in `execDistribution` and `testPlutipContracts` functions).
+
+In complicated protocols you might want to execute some `Contract`s in one test and then execute other `Contract`s which depend on some wallet-dependent state set up by the first batch of contracts, e.g. some authorization token is present at some wallet.
+Keeping these steps in separate sequential tests allows to pinpoint where things failed much easier, but currently CTL uses separate wallets for each test without an easy way to refer to wallets in other tests, so you have to call first batch of contracts again to replicate the state of the wallets, which in turn might fail or mess up your protocol, because the chain state is shared between tests for each top-level group.
+There's a patch to CTL you can adapt (and even better -- make a PR) if you need to share wallets between tests right now, see the [limitations](#limitations) doc for more info.
+This functionality will probably be added to CTL later.
 
 ### Testing in Aff context
 
@@ -127,86 +235,6 @@ In most cases at least two UTxOs per wallet are needed (one of which will be use
 Internally `runPlutipContract` runs a contract in an `Aff.bracket`, which creates a Plutip cluster on setup and terminates it during the shutdown or in case of an exception.
 Logs will be printed in case of an error.
 
-### Testing with Mote
-
-`Contract.Test.Plutip.testPlutipContracts` type is defined as follows (after expansion of the CTL's `TestPlanM` type synonym):
-```purescript
-type TestPlanM :: Type -> Type -> Type
-type TestPlanM test a = MoteT Aff test Aff a
-
-testPlutipContracts
-  :: PlutipConfig
-  -> MoteT Aff ContractTest Aff Unit
-  -> MoteT Aff (Aff Unit) Aff Unit
-
--- Recall that `MoteT` has three type variables
-newtype MoteT bracket test m a
-```
-where
-* `bracket :: Type -> Type` is where brackets will be run (before/setup is `bracket r` and after/shutdown is of type `r -> bracket Unit`),
-   * in our case it's `Aff` and is where the CTL environment and Plutip cluster setup will happen,
-   * also environment setup and Plutip startup and teardown will happen once per each top-level test or group inside the `testPlutipContracts` call,
-   * so wrap your tests or groups in a single group if you want for the cluster to start only once,
-* `test :: Type` is a type of tests themselves,
-   * in our case it's [`ContractTest`](../src/Internal/Test/ContractTest.purs), which in a nutshell describes a function from some wallet UTxO distribution to a `Contract r`
-   * wallet UTxO distribution is the one that you need to pattern-match on when writing tests
-* `m :: Type -> Type` is a monad where effects during the construction of the test suite can be performed,
-   * here we use `Aff` again
-* `a :: Type` is a result of the test suite, we use `Unit` here.
-
-To create tests of type `ContractTest`, the user should either use `Contract.Test.Plutip.withWallets` or `Contract.Test.Plutip.noWallet`:
-
-```purescript
-withWallets
-  :: forall (distr :: Type) (wallets :: Type)
-   . UtxoDistribution distr wallets
-  => distr
-  -> (wallets -> Contract Unit)
-  -> ContractTest
-
-noWallet :: Contract Unit -> ContractTest
-noWallet test = withWallets unit (const test)
-```
-
-Usage of `testPlutipContracts` is similar to that of `runPlutipContract`, and distributions are handled in the same way. Here's an example:
-
-```purescript
-suite :: MoteT Aff (Aff Unit) Aff
-suite = testPlutipContracts config do
-  test "Test 1" do
-    let
-      distribution :: Array BigInt /\ Array BigInt
-      distribution = ...
-    withWallets distribution \(alice /\ bob) -> do
-      ...
-
-  test "Test 2" do
-    let
-      distribution :: Array BigInt
-      distribution = ...
-    withWallets distribution \alice -> do
-      ...
-
-  test "Test 3" do
-    noWallet do
-      ...
-```
-
-To define tests suites you can use `test`, group them with `group` and also wrap tests or groups with `bracket` to execute custom actions before and after tests/groups that are inside the bracket.
-Note that in Mote you can define several tests and several groups in a single block, and bracket that wraps them will be run for each such test or group.
-
-Internally `testPlutipContracts` places a bracket that sets up the CTL environment and starts up the Plutip cluster on the top level, so if you want to launch cluster only once wrap your tests or groups in a single group.
-In the example above the environment and cluster setup will happen 3 times.
-
-
-`testPlutipContracts` also combines distributions of individual tests in a single big distribution (via nested tuples) and modifies tests to pluck their required distributions out of the big one.
-This allows to create wallets and fund them in one step, during the Plutip setup.
-See the comments in the [`Ctl.Internal.Plutip.Server` module](../src/Internal/Plutip/Server.purs) for more info (relevant ones are in `execDistribution` and `testPlutipContracts` functions).
-
-In complicated protocols you might want to execute some `Contract`s in one test and then execute other `Contract`s which depend on some wallet-dependent state set up by the first batch of contracts, e.g. some authorization token is present at some wallet.
-Keeping these steps in separate sequential tests allows to pinpoint where things failed much easier, but currently CTL uses separate wallets for each test without an easy way to refer to wallets in other tests, so you have to call first batch of contracts again to replicate the state of the wallets, which in turn might fail or mess up your protocol, because the chain state is shared between tests for each top-level group.
-There's a patch to CTL you can adapt (and even better -- make a PR) if you need to share wallets between tests right now, see the [limitations](#limitations) doc for more info.
-This functionality will probably be added to CTL later.
 
 ### Note on SIGINT
 
