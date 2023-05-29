@@ -72,7 +72,7 @@ You can either call it directly from your test's main or use any library for gro
 ### Writing checks in tests
 
 CTL will run contracts in your test bodies and will print errors for any failed tests.
-Only test body failures are checked and this works fine if you want to make sure your `Contract`s execute without errors; if you want to add more precise checks (like checking that particular token is now at some address, that some exact amount was transferred, etc.) then you need to write these checks manually in a `Contract` monad (and preferably to utilize the [assertions library](./test-utils.md)) and then throw errors.
+For more complex checks you can use the [assertions library](./test-utils.md).
 
 ### Note on running clusters
 
