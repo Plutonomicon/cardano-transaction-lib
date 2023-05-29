@@ -143,7 +143,7 @@ withPlutipContractEnv plutipCfg distr cont = do
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
 
--- | Run several `Contract`s in tests in a (single) Plutip instance.
+-- | Run several `Contract`s in tests in a (single) Plutip environment (plutip-server and cluster, kupo, etc.).
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
 -- |       Namely, brackets are run for each of the top-level groups and tests
 -- |       inside the bracket.
