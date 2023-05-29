@@ -63,7 +63,7 @@ CTL will run contracts in your test bodies and will print errors for any failed 
 Only test body failures are checked and this works fine if you want to make sure your `Contract`s execute without errors; if you want to add more precise checks (like checking that particular token is now at some address, that some exact amount was transferred, etc.) then you need to either write these checks manually in a `Contract` monad and then throw errors, or (preferably) use the [assertions library](./test-utils.md).
 
 The communication with Plutip happens via the `plutip-server`'s HTTP interface, which allows to start or stop a cluster.
-[`plutip-server`](../plutip-server) allows only once active cluster at a time, but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously.
+[`plutip-server`](../plutip-server) allows only once active cluster at a time, but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously. One caveat is that nodes in different clusters might get assigned the same port (see [this](https://github.com/mlabs-haskell/plutip/blob/master/README.md#note-on-running-multiple-clusters) Plutip doc) and then race to use it, which will result in one cluster starting fine and another repeatedly failing. The way to deal with this is to start another environment and try again.
 
 ### Testing in Aff context
 
