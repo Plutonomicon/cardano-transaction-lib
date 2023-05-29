@@ -2,7 +2,7 @@
 
 Plutip-server is a simple HTTP interface for [Plutip](https://github.com/mlabs-haskell/plutip) to start and stop local plutip clusters on demand.
 
-CTL handles communication with Plutip via this server and there's usually no need to use it directly, though `plutip-server` can be useful if you need to control Plutip from a different service.
+CTL handles communication with Plutip via this server and there's usually no need to use it directly, though `plutip-server` can be useful if you need to control Plutip from a different service (although [`plutip-local-cluster`](https://github.com/mlabs-haskell/plutip/tree/master/local-cluster), which is a CLI program, is probably more convenient for that).
 
 Server exposes two POST endpoints for starting and stopping clusters (only up to one active cluster is allowed at a time).
 

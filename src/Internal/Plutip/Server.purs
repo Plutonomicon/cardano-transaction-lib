@@ -203,7 +203,7 @@ whenError whenErrorAction action = do
 -- | distribution. Adapts the tests to pick their distribution out of the
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
--- | This is a current way of constructing all the wallets with required distributions
+-- | This is the current method of constructing all the wallets with required distributions
 -- | in one go during Plutip startup.
 execDistribution :: TestPlanM ContractTest Unit -> Aff ContractTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
@@ -537,7 +537,7 @@ startKupo cfg params = do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
-  -- here we set also the SIGINT handler for the whole process
+  -- here we also set the SIGINT handler for the whole process
   sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
   pure (childProcess /\ workdir /\ sig)
   where

@@ -27,7 +27,7 @@ CTL depends on a number of binaries in the `$PATH` to execute Plutip tests:
 - [`ogmios`](https://ogmios.dev/)
 - [`kupo`](https://cardanosolutions.github.io/kupo/)
 
-All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them; an example of using CTL's overlays is in a [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix#L35).
+All of these are provided by CTL's `overlays.runtime` (and are provided in CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make the services available in your package set (e.g. by defining them within your own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runPlutipTest` expects all of them; an example of using CTL's overlays is in the [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix#L35).
 
 The services are NOT run by `docker-compose` (via `arion`) as is the case with `launchCtlRuntime`: instead they are started and stopped on each CTL `ContractTest` execution by CTL itself.
 
@@ -35,8 +35,8 @@ If you have based your project on the [`ctl-scaffold` template](../templates/ctl
 1. `nix develop` followed by `npm run test` (recommended for development)
 2. `nix run .#checks.x86_64-linux.ctl-scaffold-plutip-test`
    * where you'd usually replace `x86_64-linux` with the system you run tests on
-   * and `ctl-scaffold-plutip-test` with the name of the plutip test package for your project;
-   * note that compilation of your project via Nix will fail in case there are any warnings, so you'd need to either fix or temporarily disable them.
+   * and `ctl-scaffold-plutip-test` with the name of the plutip test derivation for your project;
+   * note that building of your project via Nix will fail in case there are any PureScript compile-time warnings.
 
 ## Testing contracts
 
@@ -79,7 +79,7 @@ runPlutipContract
   -> Aff a
 ```
 
-`distr` is a specification of how many wallets and with how much funds should be created. It should either be a `Unit` (for no wallets), nested tuples containing `Array BigInt` or an `Array` of `Array BigInt`, where each element of the `Array BigInt` specifies an UTxO amount in Lovelaces (0.000001 Ada).
+`distr` is a specification of how many wallets and with how much funds should be created. It should either be a `Unit` (for no wallets), nested tuples containing `Array BigInt` or an `Array (Array BigInt)`, where each element of the inner array specifies an UTxO amount in Lovelaces (0.000001 Ada).
 
 The `wallets` argument of the callback is either a `Unit`, a tuple of `KeyWallet`s (with the same nesting level as in `distr`, which is guaranteed by `UtxoDistribution`) or an `Array KeyWallet`.
 
@@ -125,7 +125,7 @@ In most cases at least two UTxOs per wallet are needed (one of which will be use
 
 
 Internally `runPlutipContract` runs a contract in an `Aff.bracket`, which creates a Plutip cluster on setup and terminates it during the shutdown or in case of an exception.
-Logs will be printed in case of error.
+Logs will be printed in case of an error.
 
 ### Testing with Mote
 
@@ -143,7 +143,7 @@ testPlutipContracts
 newtype MoteT bracket test m a
 ```
 where
-* `bracket :: Type -> Type` is where brackets will be run (before/setup is `bracket r` and after/teardown is of type `r -> bracket Unit`),
+* `bracket :: Type -> Type` is where brackets will be run (before/setup is `bracket r` and after/shutdown is of type `r -> bracket Unit`),
    * in our case it's `Aff` and is where the CTL environment and Plutip cluster setup will happen,
    * also environment setup and Plutip startup and teardown will happen once per each top-level test or group inside the `testPlutipContracts` call,
    * so wrap your tests or groups in a single group if you want for the cluster to start only once,
@@ -243,7 +243,7 @@ You can run Plutip tests via CTL's `purescriptProject` as well. After creating y
 ```
 
 The usual approach is to put `projectname-plutip-test` in the `checks` attribute of your project's `flake.nix`.
-See a [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix) for an example.
+This is done by default in the [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix).
 
 ## Cluster configuration options
 
@@ -263,7 +263,7 @@ See a [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix) for an exam
 
 ### Current limitations
 
-* Non-default value of `epochSize` (current default is 80) break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info. `slotLength` can be changed without any problems.
+* Non-default values of `epochSize` (current default is 80) break staking rewards - see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info. `slotLength` can be changed without any problems.
 
 ## Using addresses with staking key components
 
@@ -293,8 +293,7 @@ Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses
 
 ## See also
 
-- To actually write the test bodies, [assertions library](./test-utils.md) can be useful.
-- Check out the [`ContractTestUtils`](../examples/ContractTestUtils.purs) example on assertions library usage.
+- To actually write the test bodies, [assertions library](./test-utils.md) can be useful [(usage example)](../examples/ContractTestUtils.purs).
 - Take a look at CTL's Plutip tests for the usage examples:
    - the entry point with `main` that runs Plutip tests is [here](../test/Plutip.purs),
    - folder with various test suites is [here](../test/Plutip/).

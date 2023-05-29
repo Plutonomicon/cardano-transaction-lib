@@ -95,7 +95,7 @@ data StartClusterRequest = StartClusterRequest
   , maxTxSize :: Maybe Natural
   -- ^ Set The maxTxSize. If set to Nothing use the default
   , raiseExUnitsToMax :: Maybe Bool
-  -- ^ Raise the execution units to the maxBound when true.
+  -- ^ Raise the execution units to the maximum when true.
   -- If set to Nothing use the default
   }
   deriving stock (Show, Eq, Generic)

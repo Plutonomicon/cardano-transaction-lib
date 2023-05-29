@@ -15,7 +15,7 @@ import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet
 -- | `UtxoDistribution`.
--- Internally this a function which takes a two-argument function from
+-- Internally this function takes a two-argument callback from
 -- some distribution and a single test to some value and returns that value.
 -- Another way of looking at it: pattern-match `ContractTest runTest`,
 -- then you can pass a function to `runTest`:
