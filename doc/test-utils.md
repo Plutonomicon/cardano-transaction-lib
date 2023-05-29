@@ -87,6 +87,6 @@ type ContractCheck a =
 
 Particular values can be constructed with utility functions, as demonstrated in the [ContractTestUtils example](../examples/ContractTestUtils.purs) (see `mkAssertions`).
 
-An example on using defined checks in the tests is an [assertions test suite](../test/Plutip/Contract/Assert.purs).
+An example for using checks in the tests is [here](../test/Plutip/Contract/Assert.purs).
 
 All the functions require `Labeled` arguments, that can be constructed with `label` function; or `noLabel`, if descriptive names in error messages are not needed.
