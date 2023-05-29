@@ -11,7 +11,7 @@
   - [Testing with Mote overview](#testing-with-mote-overview)
   - [Testing in Aff context overview](#testing-in-aff-context-overview)
   - [Writing checks in tests](#writing-checks-in-tests)
-  - [Note on running parallel clusters](#note-on-running-parallel-clusters)
+  - [Note on running clusters](#note-on-running-clusters)
   - [Testing with Mote](#testing-with-mote)
     - [Using Mote testing interface](#using-mote-testing-interface)
     - [Overview of internal implementation](#overview-of-internal-implementation)
@@ -74,10 +74,14 @@ You can either call it directly from your test's main or use any library for gro
 CTL will run contracts in your test bodies and will print errors for any failed tests.
 Only test body failures are checked and this works fine if you want to make sure your `Contract`s execute without errors; if you want to add more precise checks (like checking that particular token is now at some address, that some exact amount was transferred, etc.) then you need to write these checks manually in a `Contract` monad (and preferably to utilize the [assertions library](./test-utils.md)) and then throw errors.
 
-### Note on running parallel clusters
+### Note on running clusters
 
 The communication with Plutip happens via the `plutip-server`'s HTTP interface, which allows to start or stop a cluster.
-[`plutip-server`](../plutip-server) allows only once active cluster at a time, but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously. One caveat is that nodes in different clusters might get assigned the same port (see [this](https://github.com/mlabs-haskell/plutip/blob/master/README.md#note-on-running-multiple-clusters) Plutip doc) and then race to use it, which will result in one cluster starting fine and another repeatedly failing. The way to deal with this is to start another environment and try again.
+[`plutip-server`](../plutip-server) allows only once active cluster at a time.
+CTL currently launches `plutip-server` and `kupo` on pre-defined ports, so you won't be able to launch multiple environments to get parallel cluster.
+
+<!-- TODO: uncomment and update this in case CTL adds support for configuring ports for kupo, plutip-server, etc. -->
+<!-- but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously. One caveat is that nodes in different clusters might get assigned the same port (see [this](https://github.com/mlabs-haskell/plutip/blob/master/README.md#note-on-running-multiple-clusters) Plutip doc) and then race to use it, which will result in one cluster starting fine and another repeatedly failing. The way to deal with this is to start another environment and try again. -->
 
 ### Testing with Mote
 
@@ -238,7 +242,7 @@ Logs will be printed in case of an error.
 
 ### Note on SIGINT
 
-Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, Node.js's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel. To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let Node.js shut down gracefully when no more events are to be processed.
+Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, Node.js's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel (note that this is currently possible only by patching CTL). To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let Node.js shut down gracefully when no more events are to be processed.
 
 ```purescript
 ...
