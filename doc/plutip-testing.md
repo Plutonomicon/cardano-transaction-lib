@@ -124,7 +124,7 @@ runPlutipContract config distribution \wallets -> do
 In most cases at least two UTxOs per wallet are needed (one of which will be used as collateral, so it should exceed `5_000_000` Lovelace).
 
 
-Internally `runPlutipContract` runs a contract in an `Aff.bracket`, which creates Plutip cluster during the setup and terminates it during the teardown or in the case of an exception.
+Internally `runPlutipContract` runs a contract in an `Aff.bracket`, which creates a Plutip cluster on setup and terminates it during the shutdown or in case of an exception.
 Logs will be printed in case of error.
 
 ### Testing with Mote
