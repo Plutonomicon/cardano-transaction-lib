@@ -242,7 +242,7 @@ Logs will be printed in case of an error.
 
 ### Note on SIGINT
 
-Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT signal, Node.js's default behaviour of exiting on that signal no longer occurs. This was done to add cleanup handlers and let them run in parallel instead of exiting eagerly, which is possible when running multiple clusters in parallel (note that this is currently possible only by patching CTL). To restore the exit behaviour, we provide helpers to cancel an `Aff` fiber and set the exit code, to let Node.js shut down gracefully when no more events are to be processed.
+Due to `testPlutipContracts`/`runPlutipContract` adding listeners to the SIGINT IPC signal, Node.js's default behaviour of exiting on CTRL+C no longer occurs. This was done to let cluster cleanup handlers run asynchronously. To restore the usual exit-by-CTRL+C, we provide helpers to cancel an `Aff` fiber and set the exit code, to let Node.js shut down gracefully when no more events are to be processed.
 
 ```purescript
 ...
