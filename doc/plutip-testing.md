@@ -8,14 +8,13 @@
 
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
-  - [Testing with Mote overview](#testing-with-mote-overview)
-  - [Testing in Aff context overview](#testing-in-aff-context-overview)
+  - [Testing with Mote](#testing-with-mote)
+    - [Overview](#overview)
+    - [Using Mote testing interface](#using-mote-testing-interface)
+    - [Internal implementation overview](#internal-implementation-overview)
+  - [Testing in Aff context](#testing-in-aff-context)
   - [Writing checks in tests](#writing-checks-in-tests)
   - [Note on running clusters](#note-on-running-clusters)
-  - [Testing with Mote](#testing-with-mote)
-    - [Using Mote testing interface](#using-mote-testing-interface)
-    - [Overview of internal implementation](#overview-of-internal-implementation)
-  - [Testing in Aff context](#testing-in-aff-context)
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Cluster configuration options](#cluster-configuration-options)
@@ -50,7 +49,9 @@ CTL can help you test the offchain `Contract`s from your project (and consequent
 
 There are two approaches to writing such tests.
 
-### Testing with Mote overview
+### Testing with Mote
+
+#### Overview
 
 [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining and grouping tests (plus other quality of life features, e.g. skipping marked tests).
 
@@ -59,31 +60,6 @@ This allows to set up a Plutip cluster only once per top-level groups and tests 
 The function will interpret a `MoteT` (effectful test tree) into `Aff`, which you can then actually run.
 
 The [`ctl-scaffold` template](../templates/ctl-scaffold) provides a simple `Mote`-based example.
-
-More info and usage examples are [here](#testing-with-mote).
-
-### Testing in Aff context overview
-
-[First](#testing-in-aff-context) is to use the `Contract.Test.Plutip.runPlutipContract` function, which takes a single `Contract`, launches a Plutip cluster and executes the passed contract.
-This function runs in `Aff`; it will also throw an exception should contract fail for any reason.
-After the contract execution the Plutip cluster is terminated.
-You can either call it directly from your test's main or use any library for grouping and describing tests which support effects in the test body, like Mote.
-
-### Writing checks in tests
-
-CTL will run contracts in your test bodies and will print errors for any failed tests.
-For more complex checks you can use the [assertions library](./test-utils.md).
-
-### Note on running clusters
-
-The communication with Plutip happens via the `plutip-server`'s HTTP interface, which allows to start or stop a cluster.
-[`plutip-server`](../plutip-server) allows only once active cluster at a time.
-CTL currently launches `plutip-server` and `kupo` on pre-defined ports, so you won't be able to launch multiple environments to get parallel cluster.
-
-<!-- TODO: uncomment and update this in case CTL adds support for configuring ports for kupo, plutip-server, etc. -->
-<!-- but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously. One caveat is that nodes in different clusters might get assigned the same port (see [this](https://github.com/mlabs-haskell/plutip/blob/master/README.md#note-on-running-multiple-clusters) Plutip doc) and then race to use it, which will result in one cluster starting fine and another repeatedly failing. The way to deal with this is to start another environment and try again. -->
-
-### Testing with Mote
 
 `Contract.Test.Plutip.testPlutipContracts` type is defined as follows:
 ```purescript
@@ -141,7 +117,7 @@ Note that in Mote you can define several tests and several groups in a single bl
 Internally `testPlutipContracts` places a bracket that sets up the CTL environment and starts up the Plutip cluster on the top level, so if you want to launch cluster only once wrap your tests or groups in a single group.
 In the example above the environment and cluster setup will happen 3 times.
 
-#### Overview of internal implementation
+#### Internal implementation overview
 
 `Contract.Test.Plutip.testPlutipContracts` type is defined as follows (after expansion of the CTL's `TestPlanM` type synonym):
 ```purescript
@@ -178,6 +154,11 @@ There's a patch to CTL you can adapt (and even better -- make a PR) if you need 
 This functionality will probably be added to CTL later.
 
 ### Testing in Aff context
+
+Second approach is to use the `Contract.Test.Plutip.runPlutipContract` function, which takes a single `Contract`, launches a Plutip cluster and executes the passed contract.
+This function runs in `Aff`; it will also throw an exception should contract fail for any reason.
+After the contract execution the Plutip cluster is terminated.
+You can either call it directly from your test's main or use any library for grouping and describing tests which support effects in the test body, like Mote.
 
 `Contract.Test.Plutip.runPlutipContract`'s function type is defined as follows:
 
@@ -239,6 +220,19 @@ In most cases at least two UTxOs per wallet are needed (one of which will be use
 Internally `runPlutipContract` runs a contract in an `Aff.bracket`, which creates a Plutip cluster on setup and terminates it during the shutdown or in case of an exception.
 Logs will be printed in case of an error.
 
+### Writing checks in tests
+
+CTL will run contracts in your test bodies and will print errors for any failed tests.
+For more complex checks you can use the [assertions library](./test-utils.md).
+
+### Note on running clusters
+
+The communication with Plutip happens via the `plutip-server`'s HTTP interface, which allows to start or stop a cluster.
+[`plutip-server`](../plutip-server) allows only once active cluster at a time.
+CTL currently launches `plutip-server` and `kupo` on pre-defined ports, so you won't be able to launch multiple environments to get parallel cluster.
+
+<!-- TODO: uncomment and update this in case CTL adds support for configuring ports for kupo, plutip-server, etc. -->
+<!-- but nothing stops you from setting up multiple CTL environments and multiple `plutip-server`s by running tests in separate fibers and thus using multiple Plutip clusters simultaneously. One caveat is that nodes in different clusters might get assigned the same port (see [this](https://github.com/mlabs-haskell/plutip/blob/master/README.md#note-on-running-multiple-clusters) Plutip doc) and then race to use it, which will result in one cluster starting fine and another repeatedly failing. The way to deal with this is to start another environment and try again. -->
 
 ### Note on SIGINT
 
