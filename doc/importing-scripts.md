@@ -8,6 +8,7 @@
 - [Serializing Plutus scripts](#serializing-plutus-scripts)
   - [PlutusTx](#plutustx)
   - [Plutarch](#plutarch)
+  - [plutarch-ctl-bridge](#plutarch-ctl-bridge)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Importing serialized scripts
@@ -138,3 +139,7 @@ Note that we specified plutus version.
 ### Plutarch
 
 You can use [`ply`](https://github.com/mlabs-haskell/ply) and [`ply-ctl`](https://github.com/mlabs-haskell/ply-ctl).
+
+### plutarch-ctl-bridge
+
+You can use [`plutarch-ctl-bridge`](https://github.com/mlabs-haskell/plutarch-ctl-bridge) to generate Purescript types from your Haskell type definitions and typed script wrappers from parametrized Plutarch scripts. See [example module](https://github.com/mlabs-haskell/plutarch-ctl-bridge/blob/main/example/Main.hs).
