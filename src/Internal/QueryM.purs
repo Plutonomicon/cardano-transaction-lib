@@ -35,6 +35,7 @@ module Ctl.Internal.QueryM
   , scriptToAeson
   , submitTxOgmios
   , underlyingWebSocket
+  , chainFromMempool
   ) where
 
 import Prelude
@@ -54,7 +55,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Control.Alt (class Alt)
+import Control.Alt (class Alt, (<|>))
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
@@ -68,7 +69,7 @@ import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
-import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash, Transaction)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
@@ -314,10 +315,14 @@ evaluateTxOgmios cbor additionalUtxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  liftAff $ mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
-    Ogmios.evaluateTxCall
-    _.evaluate
-    (cbor /\ additionalUtxos)
+  let
+    evaluate additionalUtxos' =
+      ( mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+          Ogmios.evaluateTxCall
+          _.evaluate
+          (cbor /\ additionalUtxos')
+      )
+  liftAff $ evaluate additionalUtxos <|> evaluate (wrap Map.empty)
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -343,6 +348,28 @@ withMempoolSnapshot ogmiosWs logger cont =
       launchAff_ (cont Nothing)
     Right mempoolSnapshot ->
       launchAff_ (cont $ Just mempoolSnapshot)
+
+chainFromMempool
+  :: forall a
+   . Show a
+  => (a -> TxHash -> Transaction -> a)
+  -> a
+  -> QueryM a
+chainFromMempool mapUtxos initialUtxos = do
+  _snapshot <-
+    mkOgmiosRequest
+      Ogmios.acquireMempoolSnapshotCall
+      _.acquireMempool
+      unit
+  getNextTxs initialUtxos
+  where
+  getNextTxs :: a -> QueryM a
+  getNextTxs utxos = do
+    nextTx <- mkOgmiosRequest Ogmios.nextTxCall _.nextTx unit
+    case nextTx of
+      Ogmios.NextTxNull -> pure utxos
+      Ogmios.NextTxHash _ -> pure utxos
+      Ogmios.NextTx hash tx -> getNextTxs $ mapUtxos utxos hash tx
 
 mempoolSnapshotHasTxAff
   :: OgmiosWebSocket
@@ -589,6 +616,8 @@ mkOgmiosWebSocketLens logger isTxConfirmed = do
             mkListenerSet dispatcher pendingRequests
         , mempoolHasTx:
             mkListenerSet dispatcher pendingRequests
+        , nextTx:
+            mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
         , poolIds:
@@ -630,6 +659,7 @@ type OgmiosListeners =
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
+  , nextTx :: ListenerSet Unit Ogmios.NextTx
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR

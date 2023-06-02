@@ -8,6 +8,7 @@ module Ctl.Internal.QueryM.Ogmios
   , DelegationsAndRewardsR(DelegationsAndRewardsR)
   , ExecutionUnits
   , MempoolSnapshotAcquired
+  , NextTx(NextTx, NextTxHash, NextTxNull)
   , OgmiosAddress
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
   , OgmiosTxOut
@@ -58,6 +59,7 @@ module Ctl.Internal.QueryM.Ogmios
   , queryPoolParameters
   , queryDelegationsAndRewards
   , submitTxCall
+  , nextTxCall
   , slotLengthFactor
   , parseIpv6String
   , rationalToSubcoin
@@ -70,6 +72,7 @@ import Aeson
   , class EncodeAeson
   , Aeson
   , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
+  , caseAeson
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
@@ -89,6 +92,7 @@ import Aeson
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
+import Ctl.Internal.Base64 (decodeBase64)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -111,8 +115,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   , PoolMetadata(PoolMetadata)
   , PoolMetadataHash(PoolMetadataHash)
   , PoolPubKeyHash
-  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
+  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
   , SubCoin
+  , Transaction
   , URL(URL)
   , UnitInterval
   )
@@ -131,6 +136,7 @@ import Ctl.Internal.Cardano.Types.Value
   , valueToCoin
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.Transaction (convertTransaction)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
@@ -181,7 +187,7 @@ import Data.Array (head, length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left, Right), either, note)
+import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
@@ -315,6 +321,12 @@ mempoolSnapshotHasTxCall
 mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   { methodname: "HasTx"
   , args: { id: _ }
+  }
+
+nextTxCall :: JsonWspCall Unit NextTx
+nextTxCall = mkOgmiosCallType
+  { methodname: "NextTx"
+  , args: const { fields: "all" }
   }
 
 --------------------------------------------------------------------------------
@@ -1265,3 +1277,39 @@ instance DecodeAeson Assets where
         <> t
         <> ", got: "
         <> v
+
+---------------- NEXTTX QUERY RESPONSE & PARSING
+
+data NextTx
+  = NextTx TxHash Transaction
+  | NextTxHash TxHash
+  | NextTxNull
+
+instance DecodeAeson NextTx where
+  decodeAeson =
+    note (TypeMismatch "Couldn't parse NextTx") <$>
+      caseAeson
+        { caseNull: const $ pure NextTxNull
+        , caseString: map NextTxHash <<< hexToByteArray
+        , caseObject: \obj ->
+            NextTx
+              <$> (Object.lookup "id" obj >>= decodeAeson >>> hush)
+              <*> getTx obj
+        , caseBoolean: const Nothing
+        , caseArray: const Nothing
+        , caseFiniteBigNumber: const Nothing
+        }
+    where
+    getTx :: Object Aeson -> Maybe Transaction
+    getTx =
+      Object.lookup "raw"
+        >=> (decodeAeson >>> hush)
+        >=> decodeBase64
+        >=> (wrap >>> fromBytes)
+        >=> (convertTransaction >>> hush)
+
+instance Show NextTx where
+  show NextTxNull = "NextTxNull"
+  show (NextTxHash hash) = "NextTxHash " <> show hash
+  show (NextTx hash tx) = "NextTx " <> show hash <> " " <> show tx
+
