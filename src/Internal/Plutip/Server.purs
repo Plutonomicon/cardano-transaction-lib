@@ -1,6 +1,9 @@
 module Ctl.Internal.Plutip.Server
   ( runPlutipContract
   , withPlutipContractEnv
+  , startPlutipContractEnv
+  , runCleanup
+  , whenError
   , startPlutipCluster
   , stopPlutipCluster
   , startPlutipServer
