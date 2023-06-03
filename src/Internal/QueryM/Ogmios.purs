@@ -37,7 +37,7 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosTxIn
   , OgmiosTxId
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, ScriptFailures, AdditionalUtxoOverlap)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , PoolIdsR
@@ -181,6 +181,7 @@ import Ctl.Internal.Types.SystemStart
   , sysStartToOgmiosTimestamp
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
+import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
@@ -213,7 +214,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object (singleton, toUnfoldable) as ForeignObject
+import Foreign.Object (lookup, singleton, toUnfoldable) as ForeignObject
 import Foreign.Object as Object
 import Partial.Unsafe (unsafePartial)
 import Untagged.TypeCheck (class HasRuntimeType)
@@ -323,8 +324,8 @@ mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   , args: { id: _ }
   }
 
-nextTxCall :: JsonWspCall Unit NextTx
-nextTxCall = mkOgmiosCallType
+nextTxCall :: MempoolSnapshotAcquired -> JsonWspCall Unit NextTx
+nextTxCall _ = mkOgmiosCallType
   { methodname: "NextTx"
   , args: const { fields: "all" }
   }
@@ -711,12 +712,12 @@ instance Show ScriptFailure where
 
 -- The following cases are fine to fall through into unparsed error:
 -- IncompatibleEra
--- AdditionalUtxoOverlap
 -- NotEnoughSynced
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
   = UnparsedError String
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
+  | AdditionalUtxoOverlap (Array TransactionInput)
 
 derive instance Generic TxEvaluationFailure _
 
@@ -795,7 +796,7 @@ instance DecodeAeson TxEvaluationFailure where
   decodeAeson = aesonObject $ runReaderT cases
     where
     cases :: ObjectParser TxEvaluationFailure
-    cases = decodeScriptFailures <|> defaultCase
+    cases = decodeScriptFailures <|> decodeAdditionalUtxoOverlap <|> defaultCase
 
     defaultCase :: ObjectParser TxEvaluationFailure
     defaultCase = ReaderT \o ->
@@ -810,6 +811,21 @@ instance DecodeAeson TxEvaluationFailure where
           v' <- decodeAeson v
           (_ /\ v') <$> decodeRedeemerPointer k
       pure $ ScriptFailures scriptFailures
+
+    decodeAdditionalUtxoOverlap :: ObjectParser TxEvaluationFailure
+    decodeAdditionalUtxoOverlap = ReaderT \o -> do
+      refObjs <-
+        ( getField o "EvaluationFailure" >>= flip getField
+            "AdditionalUtxoOverlap"
+        )
+      refs <- for (refObjs :: Array _)
+        \obj -> do
+          transactionId <-
+            decodeAeson =<< note MissingValue (ForeignObject.lookup "txId" obj)
+          index <-
+            decodeAeson =<< note MissingValue (ForeignObject.lookup "index" obj)
+          pure $ TransactionInput { transactionId, index }
+      pure $ AdditionalUtxoOverlap refs
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 

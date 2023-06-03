@@ -45,7 +45,7 @@ import Ctl.Internal.QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, ScriptFailures, AdditionalUtxoOverlap)
   ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -175,6 +175,8 @@ printTxEvaluationFailure transaction e =
     Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
+    Ogmios.AdditionalUtxoOverlap utxos ->
+      line "AdditionalUtxoOverlap:" <> (foldMap (line <<< show) utxos)
   where
   lookupRedeemerPointer
     :: Ogmios.RedeemerPointer -> Maybe Redeemer

@@ -55,7 +55,7 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
-import Control.Alt (class Alt, (<|>))
+import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
   ( class MonadError
@@ -117,6 +117,8 @@ import Ctl.Internal.QueryM.Ogmios
   , OgmiosProtocolParameters
   , PoolIdsR
   , PoolParametersR
+  , TxEvaluationFailure(AdditionalUtxoOverlap)
+  , TxEvaluationR(TxEvaluationR)
   , TxHash
   , aesonObject
   )
@@ -317,12 +319,16 @@ evaluateTxOgmios cbor additionalUtxos = do
   cfg <- asks _.config
   let
     evaluate additionalUtxos' =
-      ( mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
-          Ogmios.evaluateTxCall
-          _.evaluate
-          (cbor /\ additionalUtxos')
-      )
-  liftAff $ evaluate additionalUtxos <|> evaluate (wrap Map.empty)
+      mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+        Ogmios.evaluateTxCall
+        _.evaluate
+        (cbor /\ additionalUtxos')
+  liftAff $ do
+    TxEvaluationR result <- evaluate additionalUtxos
+    case result of
+      Left (AdditionalUtxoOverlap _) -> do
+        evaluate (wrap Map.empty)
+      _ -> pure $ TxEvaluationR result
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
@@ -356,20 +362,20 @@ chainFromMempool
   -> a
   -> QueryM a
 chainFromMempool mapUtxos initialUtxos = do
-  _snapshot <-
+  snapshot <-
     mkOgmiosRequest
       Ogmios.acquireMempoolSnapshotCall
       _.acquireMempool
       unit
+  let
+    getNextTxs :: a -> QueryM a
+    getNextTxs utxos = do
+      nextTx <- mkOgmiosRequest (Ogmios.nextTxCall snapshot) _.nextTx unit
+      case nextTx of
+        Ogmios.NextTxNull -> pure utxos
+        Ogmios.NextTxHash _ -> pure utxos
+        Ogmios.NextTx hash tx -> getNextTxs $ mapUtxos utxos hash tx
   getNextTxs initialUtxos
-  where
-  getNextTxs :: a -> QueryM a
-  getNextTxs utxos = do
-    nextTx <- mkOgmiosRequest Ogmios.nextTxCall _.nextTx unit
-    case nextTx of
-      Ogmios.NextTxNull -> pure utxos
-      Ogmios.NextTxHash _ -> pure utxos
-      Ogmios.NextTx hash tx -> getNextTxs $ mapUtxos utxos hash tx
 
 mempoolSnapshotHasTxAff
   :: OgmiosWebSocket
