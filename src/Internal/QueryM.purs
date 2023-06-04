@@ -35,7 +35,6 @@ module Ctl.Internal.QueryM
   , scriptToAeson
   , submitTxOgmios
   , underlyingWebSocket
-  , chainFromMempool
   ) where
 
 import Prelude
@@ -69,7 +68,7 @@ import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
-import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash, Transaction)
+import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.JsWebSocket
   ( JsWebSocket
@@ -355,28 +354,6 @@ withMempoolSnapshot ogmiosWs logger cont =
     Right mempoolSnapshot ->
       launchAff_ (cont $ Just mempoolSnapshot)
 
-chainFromMempool
-  :: forall a
-   . Show a
-  => (a -> TxHash -> Transaction -> a)
-  -> a
-  -> QueryM a
-chainFromMempool mapUtxos initialUtxos = do
-  snapshot <-
-    mkOgmiosRequest
-      Ogmios.acquireMempoolSnapshotCall
-      _.acquireMempool
-      unit
-  let
-    getNextTxs :: a -> QueryM a
-    getNextTxs utxos = do
-      nextTx <- mkOgmiosRequest (Ogmios.nextTxCall snapshot) _.nextTx unit
-      case nextTx of
-        Ogmios.NextTxNull -> pure utxos
-        Ogmios.NextTxHash _ -> pure utxos
-        Ogmios.NextTx hash tx -> getNextTxs $ mapUtxos utxos hash tx
-  getNextTxs initialUtxos
-
 mempoolSnapshotHasTxAff
   :: OgmiosWebSocket
   -> Logger
@@ -622,8 +599,6 @@ mkOgmiosWebSocketLens logger isTxConfirmed = do
             mkListenerSet dispatcher pendingRequests
         , mempoolHasTx:
             mkListenerSet dispatcher pendingRequests
-        , nextTx:
-            mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
         , poolIds:
@@ -665,7 +640,6 @@ type OgmiosListeners =
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
-  , nextTx :: ListenerSet Unit Ogmios.NextTx
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
