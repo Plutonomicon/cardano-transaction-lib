@@ -37,11 +37,11 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Function (applyFlipped)
-import Data.Lens (Lens')
+import Data.Lens (Lens', over)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter (appendOver, set, setJust)
-import Data.Map (empty) as Map
+import Data.Map (empty, union) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Data.Set (Set)
@@ -157,7 +157,7 @@ mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 -- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
 mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
-mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
+mustUseAdditionalUtxos = wrap <<< (over _additionalUtxos <<< Map.union)
 
 -- | Tells the balancer to use the given strategy for coin selection.
 mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder

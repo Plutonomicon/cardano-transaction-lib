@@ -1,7 +1,8 @@
 module Ctl.Internal.BalanceTx
-  ( module BalanceTxErrorExport
+  ( balanceTxWithConstraints
+  , balanceTxWithConstraints'
+  , module BalanceTxErrorExport
   , module FinalizedTransaction
-  , balanceTxWithConstraints
   ) where
 
 import Prelude
@@ -178,88 +179,93 @@ import Effect.Class (liftEffect)
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
-balanceTxWithConstraints
+balanceTxWithConstraints'
   :: UnindexedTx
+  -> Contract (Maybe UtxoMap)
   -> Map TransactionInput TransactionOutput
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
+balanceTxWithConstraints'
+  transaction
+  getWalletUtxos
+  extraUtxos
+  constraintsBuilder = do
   pparams <- getProtocolParameters
 
-  withBalanceTxConstraints constraintsBuilder $ runExceptT do
-    let
-      maxCollateralInputs = UInt.toInt (unwrap pparams).maxCollateralInputs
-      depositValuePerCert = (unwrap pparams).stakeAddressDeposit
-      certsFee = getStakingBalance (transaction.transaction)
-        depositValuePerCert
+  withBalanceTxConstraints constraintsBuilder $
+    runExceptT do
+      let
+        maxCollateralInputs = UInt.toInt (unwrap pparams).maxCollateralInputs
+        depositValuePerCert = (unwrap pparams).stakeAddressDeposit
+        certsFee = getStakingBalance (transaction.transaction)
+          depositValuePerCert
 
-    changeAddress <- getChangeAddress
+      changeAddress <- getChangeAddress
 
-    mbSrcAddrs <- asksConstraints Constraints._srcAddresses
+      mbSrcAddrs <- asksConstraints Constraints._srcAddresses
 
-    utxos <- liftEitherContract do
-      case mbSrcAddrs of
-        -- Use wallet UTxOs.
-        Nothing -> do
-          note CouldNotGetUtxos <$> do
-            Wallet.getWalletUtxos
-        -- Use UTxOs from source addresses
-        Just srcAddrs -> do
-          queryHandle <- getQueryHandle
-          -- Even though some of the addresses may be controlled by the wallet,
-          -- we can't query the wallet for available UTxOs, because there's no
-          -- way to tell it to return UTxOs only from specific subset of the
-          -- addresses controlled by a CIP-30 wallet.
-          -- `utxosAt` calls are expensive when there are a lot of addresses to
-          -- check.
-          parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs
-            <#> traverse (note CouldNotGetUtxos)
-              >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
+      utxos <- liftEitherContract do
+        case mbSrcAddrs of
+          -- Use wallet UTxOs.
+          Nothing -> note CouldNotGetUtxos <$> getWalletUtxos
+          -- Use UTxOs from source addresses
+          Just srcAddrs -> do
+            queryHandle <- getQueryHandle
+            -- Even though some of the addresses may be controlled by the wallet,
+            -- we can't query the wallet for available UTxOs, because there's no
+            -- way to tell it to return UTxOs only from specific subset of the
+            -- addresses controlled by a CIP-30 wallet.
+            -- `utxosAt` calls are expensive when there are a lot of addresses to
+            -- check.
+            parTraverse (queryHandle.utxosAt >>> liftAff >>> map hush) srcAddrs
+              <#> traverse (note CouldNotGetUtxos)
+                >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
-    collateralUtxos <- fromMaybe [] <$> liftContract Wallet.getWalletCollateral
-    let
-      collateralUtxoMap :: UtxoMap
-      collateralUtxoMap =
-        Map.fromFoldable $
-          collateralUtxos <#> \(TransactionUnspentOutput { input, output }) ->
-            input /\ output
+      collateralUtxos <- fromMaybe [] <$> liftContract
+        Wallet.getWalletCollateral
+      let
+        collateralUtxoMap :: UtxoMap
+        collateralUtxoMap =
+          Map.fromFoldable $
+            collateralUtxos <#> \(TransactionUnspentOutput { input, output }) ->
+              input /\ output
 
-      allUtxos :: UtxoMap
-      allUtxos = utxos `Map.union` extraUtxos `Map.union` collateralUtxoMap
+        allUtxos :: UtxoMap
+        allUtxos = utxos `Map.union` extraUtxos `Map.union` collateralUtxoMap
 
-    availableUtxos <- liftContract $ filterLockedUtxos allUtxos
-    logTrace' $ "balanceTxWithConstraints: all UTxOs: " <> show allUtxos
-    logTrace' $ "balanceTxWithConstraints: available UTxOs: " <> show
-      availableUtxos
+      availableUtxos <- liftContract $ filterLockedUtxos allUtxos
+      logTrace' $ "balanceTxWithConstraints: all UTxOs: " <> show allUtxos
+      logTrace' $ "balanceTxWithConstraints: available UTxOs: " <> show
+        availableUtxos
 
-    selectionStrategy <- asksConstraints Constraints._selectionStrategy
+      selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
-    transactionWithNetworkId' <- transactionWithNetworkId
-    -- Reindex redeemers and update transaction
-    reindexedRedeemers <- liftEither $ lmap ReindexRedeemersError $
-      indexRedeemers
-        (mkRedeemersContext transactionWithNetworkId')
-        transaction.redeemers
-    let
-      reindexedTransaction = transaction
-        { transaction =
-            attachIndexedRedeemers
-              reindexedRedeemers
-              transactionWithNetworkId'
+      transactionWithNetworkId' <- transactionWithNetworkId
+      -- Reindex redeemers and update transaction
+      reindexedRedeemers <- liftEither $ lmap ReindexRedeemersError $
+        indexRedeemers
+          (mkRedeemersContext transactionWithNetworkId')
+          transaction.redeemers
+      let
+        reindexedTransaction = transaction
+          { transaction =
+              attachIndexedRedeemers
+                reindexedRedeemers
+                transactionWithNetworkId'
+          }
+
+      -- Balance and finalize the transaction:
+      runBalancer
+        { strategy: selectionStrategy
+        , transaction: reindexedTransaction
+        , changeAddress
+        , allUtxos
+        , utxos: availableUtxos
+        , certsFee
+        , maxCollateralInputs
+        , walletUtxos: utxos
+        , walletCollateral: collateralUtxos
         }
-
-    -- Balance and finalize the transaction:
-    runBalancer
-      { strategy: selectionStrategy
-      , transaction: reindexedTransaction
-      , changeAddress
-      , allUtxos
-      , utxos: availableUtxos
-      , certsFee
-      , maxCollateralInputs
-      , walletUtxos: utxos
-      , walletCollateral: collateralUtxos
-      }
   where
   getChangeAddress :: BalanceTxM Address
   getChangeAddress =
@@ -272,6 +278,18 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
     networkId <- maybe askNetworkId pure
       (transaction ^. _transaction <<< _body <<< _networkId)
     pure (transaction.transaction # _body <<< _networkId ?~ networkId)
+
+balanceTxWithConstraints
+  :: UnindexedTx
+  -> Map TransactionInput TransactionOutput
+  -> BalanceTxConstraintsBuilder
+  -> Contract (Either BalanceTxError FinalizedTransaction)
+balanceTxWithConstraints transaction extraUtxos constraintsBuilder =
+  balanceTxWithConstraints'
+    transaction
+    Wallet.getWalletUtxos
+    extraUtxos
+    constraintsBuilder
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
