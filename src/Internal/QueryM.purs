@@ -141,10 +141,11 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionInput(..))
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
-import Data.Foldable (foldl)
+import Data.Foldable (foldl, foldr)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
@@ -311,23 +312,28 @@ submitTxOgmios txHash tx = do
     (txHash /\ tx)
 
 evaluateTxOgmios
-  :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
+  :: CborBytes
+  -> AdditionalUtxoSet
+  -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios cbor additionalUtxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  let
-    evaluate additionalUtxos' =
-      mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
-        Ogmios.evaluateTxCall
-        _.evaluate
-        (cbor /\ additionalUtxos')
-  liftAff $ do
-    TxEvaluationR result <- evaluate additionalUtxos
-    case result of
-      Left (AdditionalUtxoOverlap _) -> do
-        evaluate (wrap Map.empty)
-      _ -> pure $ TxEvaluationR result
+  TxEvaluationR result <- liftAff $
+    mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+      Ogmios.evaluateTxCall
+      _.evaluate
+      (cbor /\ additionalUtxos)
+  case result of
+    Left (AdditionalUtxoOverlap refs) ->
+      evaluateTxOgmios cbor <<< wrap $
+        foldr Map.delete (unwrap additionalUtxos) (toOgmiosOutRef <$> refs)
+    _ -> pure $ TxEvaluationR result
+  where
+  toOgmiosOutRef (TransactionInput { transactionId, index }) =
+    { txId: byteArrayToHex $ unwrap transactionId
+    , index
+    }
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
