@@ -327,13 +327,8 @@ evaluateTxOgmios cbor additionalUtxos = do
   case result of
     Left (AdditionalUtxoOverlap refs) ->
       evaluateTxOgmios cbor <<< wrap $
-        foldr Map.delete (unwrap additionalUtxos) (toOgmiosOutRef <$> refs)
+        foldr Map.delete (unwrap additionalUtxos) refs
     _ -> pure $ TxEvaluationR result
-  where
-  toOgmiosOutRef (TransactionInput { transactionId, index }) =
-    { txId: byteArrayToHex $ unwrap transactionId
-    , index
-    }
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol

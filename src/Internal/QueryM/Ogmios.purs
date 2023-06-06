@@ -175,7 +175,6 @@ import Ctl.Internal.Types.SystemStart
   , sysStartToOgmiosTimestamp
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
@@ -705,7 +704,7 @@ instance Show ScriptFailure where
 data TxEvaluationFailure
   = UnparsedError String
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
-  | AdditionalUtxoOverlap (Array TransactionInput)
+  | AdditionalUtxoOverlap (Array OgmiosTxOutRef)
 
 derive instance Generic TxEvaluationFailure _
 
@@ -808,11 +807,11 @@ instance DecodeAeson TxEvaluationFailure where
         )
       refs <- for (refObjs :: Array _)
         \obj -> do
-          transactionId <-
+          txId <-
             decodeAeson =<< note MissingValue (ForeignObject.lookup "txId" obj)
           index <-
             decodeAeson =<< note MissingValue (ForeignObject.lookup "index" obj)
-          pure $ TransactionInput { transactionId, index }
+          pure { txId, index }
       pure $ AdditionalUtxoOverlap refs
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
