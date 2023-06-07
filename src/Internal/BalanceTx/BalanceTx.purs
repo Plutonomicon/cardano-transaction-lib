@@ -231,7 +231,7 @@ balanceTxWithConstraints'
               input /\ output
 
         allUtxos :: UtxoMap
-        allUtxos = utxos `Map.union` extraUtxos `Map.union` collateralUtxoMap
+        allUtxos = utxos `Map.union` extraUtxos
 
       availableUtxos <- liftContract $ filterLockedUtxos allUtxos
       logTrace' $ "balanceTxWithConstraints: all UTxOs: " <> show allUtxos
@@ -263,7 +263,7 @@ balanceTxWithConstraints'
         , utxos: availableUtxos
         , certsFee
         , maxCollateralInputs
-        , walletUtxos: utxos
+        , walletUtxos: utxos `Map.union` collateralUtxoMap
         , walletCollateral: collateralUtxos
         }
   where
