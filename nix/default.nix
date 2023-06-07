@@ -184,7 +184,8 @@ let
       buildPhase = ''
         psa ${pkgs.lib.optionalString strictComp "--strict" } \
           --censor-lib --is-lib=.spago ${spagoGlobs} \
-          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs"
+          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs" \
+          -gsourcemaps,js
       '';
       # We also need to copy all of `src` here, since compiled modules in `output`
       # might refer to paths that will point to nothing if we use `src` directly
