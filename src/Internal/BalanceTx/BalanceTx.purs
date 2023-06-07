@@ -511,7 +511,8 @@ runBalancer p = do
         prebalancedTx = setTxChangeOutputs changeOutputs transaction
       indexedTx <- liftEither $ lmap ReindexRedeemersError $ indexTx
         prebalancedTx
-      evaluatedTx /\ minFee <- evalExUnitsAndMinFee indexedTx p.allUtxos
+      evaluatedTx /\ minFee <-
+        evalExUnitsAndMinFee indexedTx (p.walletUtxos `Map.union` p.allUtxos)
       pure $ state { transaction = evaluatedTx, minFee = minFee }
 
     setTransactionCollateral
