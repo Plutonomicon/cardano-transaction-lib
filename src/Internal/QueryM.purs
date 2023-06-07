@@ -116,6 +116,8 @@ import Ctl.Internal.QueryM.Ogmios
   , OgmiosProtocolParameters
   , PoolIdsR
   , PoolParametersR
+  , TxEvaluationFailure(AdditionalUtxoOverlap)
+  , TxEvaluationR(TxEvaluationR)
   , TxHash
   , aesonObject
   )
@@ -139,10 +141,11 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionInput(..))
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
-import Data.Foldable (foldl)
+import Data.Foldable (foldl, foldr)
 import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
@@ -309,15 +312,23 @@ submitTxOgmios txHash tx = do
     (txHash /\ tx)
 
 evaluateTxOgmios
-  :: CborBytes -> AdditionalUtxoSet -> QueryM Ogmios.TxEvaluationR
+  :: CborBytes
+  -> AdditionalUtxoSet
+  -> QueryM Ogmios.TxEvaluationR
 evaluateTxOgmios cbor additionalUtxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  liftAff $ mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
-    Ogmios.evaluateTxCall
-    _.evaluate
-    (cbor /\ additionalUtxos)
+  TxEvaluationR result <- liftAff $
+    mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
+      Ogmios.evaluateTxCall
+      _.evaluate
+      (cbor /\ additionalUtxos)
+  case result of
+    Left (AdditionalUtxoOverlap refs) ->
+      evaluateTxOgmios cbor <<< wrap $
+        foldr Map.delete (unwrap additionalUtxos) refs
+    _ -> pure $ TxEvaluationR result
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Monitor Protocol
