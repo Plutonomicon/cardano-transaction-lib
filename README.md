@@ -53,6 +53,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Custom query layers](./doc/custom-query-layers.md)
 - [FAQs](./doc/faq.md)
 - [Feature overview video](./doc/video-intro.md)
+- [Comparison with other frameworks (Lucid)](./doc/comparisons.md)
 - [Development workflows for CTL](./doc/development.md)
 
 You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).
