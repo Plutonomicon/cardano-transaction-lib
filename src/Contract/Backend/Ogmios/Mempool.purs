@@ -1,19 +1,23 @@
--- A module for interacting with Ogmios' Local TX Monitor
+-- | A module for interacting with Ogmios' Local TX Monitor
+-- | https://ogmios.dev/mini-protocols/local-tx-monitor/
 module Contract.Backend.Ogmios.Mempool
   ( module Ogmios
   , acquireMempoolSnapshot
-  , fetchMempoolTXs
+  , fetchMempoolTxs
   , mempoolSnapshotHasTx
   , mempoolSnapshotNextTx
   , mempoolSnapshotSizeAndCapacity
   , mempoolTxToUtxoMap
   , releaseMempool
+  , withMempoolSnapshot
   ) where
 
 import Contract.Prelude
 
 import Contract.Monad (Contract)
 import Contract.Utxos (UtxoMap)
+import Control.Apply (lift2)
+import Control.Monad.Error.Class (try)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutus.Conversion (toPlutusTxOutputWithRefScript)
 import Ctl.Internal.QueryM
@@ -34,13 +38,15 @@ import Ctl.Internal.TxOutput
   ( ogmiosTxOutToTransactionOutput
   , txOutRefToTransactionInput
   )
-import Data.Array (range, (:))
+import Data.Array (range)
 import Data.Array as Array
 import Data.Bifunctor (bimap)
+import Data.List (List(Cons))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.UInt as UInt
+import Effect.Exception (throw)
 
 -- | Establish a connection with the Local TX Monitor.
 -- | Instantly accquires the current mempool snapshot, and will wait for the next
@@ -70,35 +76,52 @@ mempoolSnapshotSizeAndCapacity = wrapQueryM <<<
 
 -- | Release the connection to the Local TX Monitor.
 releaseMempool
-  :: Ogmios.MempoolSnapshotAcquired -> Contract Ogmios.MempoolReleased
-releaseMempool = wrapQueryM <<< QueryM.releaseMempool
+  :: Ogmios.MempoolSnapshotAcquired -> Contract Unit
+releaseMempool = void <<< wrapQueryM <<< QueryM.releaseMempool
+
+-- | A bracket-style function for working with mempool snapshots - ensures
+-- | release in the presence of exceptions
+withMempoolSnapshot
+  :: forall a
+   . (Ogmios.MempoolSnapshotAcquired -> Contract a)
+  -> Contract a
+withMempoolSnapshot f = do
+  s <- acquireMempoolSnapshot
+  res <- try $ f s
+  releaseMempool s
+  liftEither res
 
 -- | Recursively request the next TX in the mempool until Ogmios does not
 -- | respond with a new TX.
-fetchMempoolTXs
+fetchMempoolTxs
   :: Ogmios.MempoolSnapshotAcquired
   -> Contract (Array Ogmios.MempoolTransaction)
-fetchMempoolTXs ms = do
-  nextTX <- mempoolSnapshotNextTx ms
-  case nextTX of
-    Just tx -> do
-      txs <- fetchMempoolTXs ms
-      pure $ tx : txs
-    Nothing -> pure mempty
+fetchMempoolTxs ms = Array.fromFoldable <$> go
+  where
+  go = do
+    nextTX <- mempoolSnapshotNextTx ms
+    case nextTX of
+      Just tx -> Cons tx <$> go
+      Nothing -> pure mempty
 
 -- | Convert the UTxOs in the `MempoolTransaction` type into a `UtxoMap`.
-mempoolTxToUtxoMap :: Ogmios.MempoolTransaction -> UtxoMap
-mempoolTxToUtxoMap (Ogmios.MempoolTransaction { id, body }) =
-  Map.fromFoldable $ Array.catMaybes $ uncurry tupleMaybes
-    <$> bimap txOutRefToTransactionInput
-      (toPlutusTxOutputWithRefScript <=< ogmiosTxOutToTransactionOutput)
-    <$> Array.zipWith (\i x -> Tuple { txId: id, index: UInt.fromInt i } x)
-      (range 0 (length outputs - 1))
-      outputs
-
+mempoolTxToUtxoMap :: Ogmios.MempoolTransaction -> Contract UtxoMap
+mempoolTxToUtxoMap tx@(Ogmios.MempoolTransaction { id, body }) = do
+  let
+    tuples = uncurry (lift2 Tuple)
+      <$> bimap txOutRefToTransactionInput
+        (toPlutusTxOutputWithRefScript <=< ogmiosTxOutToTransactionOutput)
+      <$> Array.zipWith (\i x -> Tuple { txId: id, index: UInt.fromInt i } x)
+        (range 0 (length outputs - 1))
+        outputs
+  Map.fromFoldable <$> for tuples
+    ( maybe
+        ( liftEffect $ throw
+            $ "mempoolTxToUtxoMap: impossible happened (conversion"
+            <> " failure), please report as bug: "
+            <> show tx
+        )
+        pure
+    )
   where
   outputs = (unwrap body).outputs
-
-  -- | Combine two `Maybe`s into a `Maybe Tuple`.
-  tupleMaybes :: forall a b. Maybe a -> Maybe b -> Maybe (Tuple a b)
-  tupleMaybes ma mb = (ma # map Tuple) <*> mb

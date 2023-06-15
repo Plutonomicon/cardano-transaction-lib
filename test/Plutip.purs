@@ -34,6 +34,7 @@ import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
+import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
@@ -57,6 +58,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
             NetworkId.suite
             Contract.suite
           UtxoDistribution.suite
+          testPlutipContracts config OgmiosMempool.suite
 
 testStartPlutipCluster :: TestPlanM (Aff Unit) Unit
 testStartPlutipCluster = group "Server" do
