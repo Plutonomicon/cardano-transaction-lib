@@ -35,6 +35,7 @@ import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
 import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
+import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Plutip.ExUnits as ExUnits
 import Test.Ctl.Plutip.Logging as Logging
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
@@ -61,10 +62,10 @@ main = interruptOnSignal SIGINT =<< launchAff do
           testPlutipContracts config $ do
             flip mapTest QueryM.AffInterface.suite
               (noWallet <<< wrapQueryM)
-
             NetworkId.suite
             Contract.suite
           UtxoDistribution.suite
+          testPlutipContracts config OgmiosMempool.suite
 
 configWithMaxExUnits :: PlutipConfig
 configWithMaxExUnits = config
