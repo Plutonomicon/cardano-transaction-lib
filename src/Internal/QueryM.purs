@@ -379,7 +379,7 @@ releaseMempoolAff
   :: OgmiosWebSocket
   -> Logger
   -> Ogmios.MempoolSnapshotAcquired
-  -> Aff Ogmios.MempoolReleased
+  -> Aff String
 releaseMempoolAff ogmiosWs logger ms =
   mkOgmiosRequestAff ogmiosWs logger (Ogmios.releaseMempoolCall ms)
     _.releaseMempool
@@ -423,7 +423,7 @@ mempoolSnapshotSizeAndCapacity ms =
 
 releaseMempool
   :: Ogmios.MempoolSnapshotAcquired
-  -> QueryM Ogmios.MempoolReleased
+  -> QueryM String
 releaseMempool ms =
   mkOgmiosRequest
     (Ogmios.releaseMempoolCall ms)
@@ -721,7 +721,7 @@ type OgmiosListeners =
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
-  , releaseMempool :: ListenerSet Unit Ogmios.MempoolReleased
+  , releaseMempool :: ListenerSet Unit String
   , mempoolHasTx :: ListenerSet TxHash Boolean
   , mempoolNextTx :: ListenerSet Unit (Maybe Ogmios.MempoolTransaction)
   , mempoolSizeAndCapcity :: ListenerSet Unit Ogmios.MempoolSizeAndCapacity

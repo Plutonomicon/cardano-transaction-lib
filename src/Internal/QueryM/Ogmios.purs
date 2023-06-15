@@ -7,33 +7,13 @@ module Ctl.Internal.QueryM.Ogmios
   , CurrentEpoch(CurrentEpoch)
   , DelegationsAndRewardsR(DelegationsAndRewardsR)
   , ExecutionUnits
-  , InputSource(Collaterals, Inputs)
-  , MempoolReleased(Released)
   , MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
-  , MempoolTxBody(MempoolTxBody)
-  , Network(Mainnet, Testnet)
   , OgmiosAddress
-  , OgmiosAuxiliaryData(OgmiosAuxiliaryData)
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
-  , OgmiosBootstrapWitness(OgmiosBootstrapWitness)
-  , OgmiosCertificate
-      ( StakeDelegation
-      , StakeKeyRegistration
-      , StakeKeyDeregistration
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisDelegation
-      , MoveInstantaneousRewards
-      )
-  , OgmiosRedeemer(OgmiosRedeemer)
-  , OgmiosRequiredSigner
-  , OgmiosRewardAddress
   , OgmiosTxOut
   , OgmiosTxOutRef
-  , OgmiosWithdrawls(OgmiosWithdrawls)
-  , OgmiosWitnessSet(OgmiosWitnessSet)
   , PParamRational(PParamRational)
   , PoolParameters
   , PoolParametersR(PoolParametersR)
@@ -49,7 +29,6 @@ module Ctl.Internal.QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
-  , Signature
   , AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosUtxoMap
   , OgmiosDatum
@@ -58,29 +37,14 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosSystemStart(OgmiosSystemStart)
   , OgmiosTxIn
   , OgmiosTxId
-  , Proposal(Proposal)
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , PoolIdsR
   , TxHash
-  , Update(Update)
   , UtxoQR(UtxoQR)
   , UtxoQueryResult
-  , ValidityInterval
-  , StakeDelegation
-  , PoolRetirement
-  , GenesisDelegation
-  , MoveInstantaneousRewards
-  , DigestBlake2BCredential
-  , PoolId
-  , Rewards(Rewards)
-  , RewardPot(Reserves, Treasury)
-  , LovelaceDelta
-  , ChainCode
-  , AddressAttributes
-  , VerificationKey
   , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
@@ -110,14 +74,13 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(AtKey, TypeMismatch, MissingValue, UnexpectedValue)
+  , JsonDecodeError(TypeMismatch, MissingValue, AtKey)
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
   , decodeAeson
   , encodeAeson
   , fromArray
-  , fromString
   , getField
   , getFieldOptional
   , getFieldOptional'
@@ -217,25 +180,12 @@ import Ctl.Internal.Types.SystemStart
   , sysStartToOgmiosTimestamp
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import Ctl.Internal.Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum
-      ( MetadataMap
-      , MetadataList
-      , Int
-      , Bytes
-      , Text
-      )
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  )
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
-import Data.Argonaut (fromString) as JSON
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
-import Data.Bitraversable (bitraverse)
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
@@ -385,7 +335,7 @@ mempoolSnpashotSizeAndCapacityCall _ =
   mkOgmiosCallTypeNoArgs "SizeAndCapacity"
 
 releaseMempoolCall
-  :: MempoolSnapshotAcquired -> JsonWspCall Unit MempoolReleased
+  :: MempoolSnapshotAcquired -> JsonWspCall Unit String
 releaseMempoolCall _ =
   mkOgmiosCallTypeNoArgs "ReleaseMempool"
 
@@ -425,24 +375,8 @@ instance DecodeAeson MempoolSizeAndCapacity where
 
     pure $ wrap { capacity, currentSize, numberOfTxs }
 
-data MempoolReleased = Released
-
--- Ogmios only has a single response for releasing the mempool
--- https://github.com/CardanoSolutions/ogmios/blob/d326d8839d50ff628f7be1b5552f7cd22b2f094e/server/src/Ogmios/Data/Protocol/StateQuery.hs#L231
-instance DecodeAeson MempoolReleased where
-  decodeAeson = aesonString \a -> case a of
-    "Released" -> Right Released
-    _ -> unexpectedValueError a
-
-instance Show MempoolReleased where
-  show Released = "Mempool Released"
-
 newtype MempoolTransaction = MempoolTransaction
   { id :: OgmiosTxId
-  , inputSource :: InputSource
-  , body :: MempoolTxBody
-  , witness :: OgmiosWitnessSet
-  , metadata :: Maybe OgmiosAuxiliaryData
   , raw :: String
   }
 
@@ -455,127 +389,12 @@ instance Show MempoolTransaction where
 instance DecodeAeson MempoolTransaction where
   decodeAeson = aesonObject \o -> do
     id <- o .: "id"
-    inputSource <- o .: "inputSource"
-    body <- o .: "body"
-    witness <- o .: "witness"
-    metadata <- o .:? "metadata"
     raw <- o .: "raw"
-    pure $ MempoolTransaction { id, inputSource, body, witness, metadata, raw }
-
-newtype MempoolTxBody = MempoolTxBody
-  { inputs :: Array OgmiosTxOutRef
-  , collaterals :: Array OgmiosTxOutRef
-  , outputs :: Array OgmiosTxOut
-  , certificates :: Array OgmiosCertificate
-  , withdrawls :: OgmiosWithdrawls
-  , fee :: Coin
-  , validityInterval :: ValidityInterval
-  , update :: Maybe Update
-  , mint :: Maybe Value
-  , network :: Maybe Network
-  , scriptIntegrityHash :: Maybe String
-  , requiredExtraSignatures :: Array OgmiosRequiredSigner
-  }
-
-derive instance Generic MempoolTxBody _
-derive instance Newtype MempoolTxBody _
-instance Show MempoolTxBody where
-  show = genericShow
-
-instance DecodeAeson MempoolTxBody where
-  decodeAeson = aesonObject \o -> do
-    inputs <- aesonArray (traverse parseTxOutRef) =<< o .: "inputs"
-    collaterals <- aesonArray (traverse parseTxOutRef) =<< o .: "collaterals"
-    outputs <- aesonArray (traverse parseTxOut) =<< o .: "outputs"
-    certificates <- aesonArray (traverse decodeAeson) =<< o .: "certificates"
-    fee <- o .: "fee"
-    validityInterval <- parseValidityInterval =<< o .: "validityInterval"
-    update <- o .:? "update"
-    mint <- o .:? "mint" >>= case _ of
-      Nothing -> pure Nothing
-      Just aes -> map Just $ parseValue aes
-    withdrawls <- o .:? "withdrawls" >>= case _ of
-      Nothing -> pure $ OgmiosWithdrawls Map.empty
-      Just wthd -> pure wthd
-    network <- o .:? "network"
-    requiredExtraSignatures <- aesonArray (traverse decodeAeson) =<< o .:
-      "requiredExtraSignatures"
-    scriptIntegrityHash <- o .:? "scriptIntegrityHash"
-    pure $ MempoolTxBody
-      { inputs
-      , collaterals
-      , outputs
-      , certificates
-      , withdrawls
-      , fee
-      , validityInterval
-      , update
-      , mint
-      , network
-      , scriptIntegrityHash
-      , requiredExtraSignatures
-      }
-
-data InputSource = Inputs | Collaterals
-
-derive instance Generic InputSource _
-
-instance Show InputSource where
-  show = genericShow
-
-instance DecodeAeson InputSource where
-  decodeAeson = aesonString \inputSource ->
-    case inputSource of
-      "inputs" -> Right Inputs
-      "outputs" -> Right Collaterals
-      _ -> unexpectedValueError inputSource
+    pure $ MempoolTransaction { id, raw }
 
 type OgmiosRewardAddress = String
 
 type OgmiosRequiredSigner = String
-
-newtype OgmiosWitnessSet = OgmiosWitnessSet
-  { signatures :: Map String Signature
-  , scripts :: Map String ScriptRef
-  , bootstrap :: Array OgmiosBootstrapWitness
-  , datums :: Map String OgmiosDatum
-  , redeemers :: Map String OgmiosRedeemer
-  }
-
-derive instance Generic OgmiosWitnessSet _
-derive instance Newtype OgmiosWitnessSet _
-
-instance Show OgmiosWitnessSet where
-  show = genericShow
-
-instance DecodeAeson OgmiosWitnessSet where
-  decodeAeson = aesonObject \o -> do
-    signatures <- flattenAesonObject <$> o .: "signatures" >>=
-      traverse (decodeValue decodeAeson) >>> map Map.fromFoldable
-    scripts <- flattenAesonObject <$> o .: "scripts" >>=
-      traverse (decodeValue $ aesonObject parseScript) >>> map Map.fromFoldable
-    bootstrap <- o .: "bootstrap" >>= aesonArray (traverse decodeAeson)
-    datums <- flattenAesonObject <$> o .: "datums" >>=
-      traverse (decodeValue decodeAeson) >>> map Map.fromFoldable
-    redeemers <- flattenAesonObject <$> o .: "redeemers" >>=
-      traverse (decodeValue decodeAeson) >>> map Map.fromFoldable
-
-    pure $ OgmiosWitnessSet
-      { signatures, scripts, bootstrap, datums, redeemers }
-
-    where
-
-    flattenAesonObject :: Object Aeson -> Array (Tuple String Aeson)
-    flattenAesonObject = ForeignObject.toUnfoldable
-
-    decodeValue
-      :: forall a
-       . (Aeson -> Either JsonDecodeError a)
-      -> String /\ Aeson
-      -> Either JsonDecodeError (String /\ a)
-    decodeValue func (str /\ aes) = do
-      val <- func aes
-      pure $ str /\ val
 
 newtype OgmiosRedeemer = OgmiosRedeemer
   { redeemer :: String, executionUnits :: ExUnits }
@@ -595,269 +414,6 @@ instance DecodeAeson OgmiosRedeemer where
       steps <- obj .: "steps"
       pure { mem, steps }
     pure $ OgmiosRedeemer { redeemer, executionUnits }
-
-newtype OgmiosBootstrapWitness = OgmiosBootstrapWitness
-  { signature :: Signature
-  , chainCode :: Maybe ChainCode
-  , addressAttributes :: Maybe AddressAttributes
-  , key :: VerificationKey
-  }
-
-derive instance Generic OgmiosBootstrapWitness _
-derive instance Newtype OgmiosBootstrapWitness _
-
-instance Show OgmiosBootstrapWitness where
-  show = genericShow
-
-instance DecodeAeson OgmiosBootstrapWitness where
-  decodeAeson = aesonObject \o -> do
-    signature <- o .: "signature"
-    chainCode <- o .:? "chainCode"
-    addressAttributes <- o .:? "addressAttributes"
-    key <- o .: "key"
-    pure $ OgmiosBootstrapWitness
-      { signature, chainCode, addressAttributes, key }
-
-type Signature = String
-
-type ChainCode = String
-
-type AddressAttributes = String
-
-type VerificationKey = String
-
-data OgmiosCertificate
-  = StakeDelegation StakeDelegation
-  | StakeKeyRegistration DigestBlake2BCredential
-  | StakeKeyDeregistration DigestBlake2BCredential
-  | PoolRegistration PoolParameters
-  | PoolRetirement PoolRetirement
-  | GenesisDelegation GenesisDelegation
-  | MoveInstantaneousRewards MoveInstantaneousRewards
-
-derive instance Generic OgmiosCertificate _
-
-instance Show OgmiosCertificate where
-  show = genericShow
-
-instance DecodeAeson OgmiosCertificate where
-  decodeAeson = aesonObject \o -> do
-    case (Array.head $ ForeignObject.toUnfoldable o) of
-      Just ("stakeDelegation" /\ certificate) -> StakeDelegation <$>
-        parseStakeDelegation certificate
-      Just ("stakeKeyRegistration" /\ certificate) -> StakeKeyRegistration <$>
-        decodeAeson certificate
-      Just ("stakeKeyDeregistration" /\ certificate) ->
-        StakeKeyDeregistration <$> decodeAeson certificate
-      Just ("poolRegistration" /\ certificate) -> aesonObject
-        (map PoolRegistration <<< decodePoolParameters)
-        certificate
-      Just ("poolRetirement" /\ certificate) -> PoolRetirement <$>
-        parsePoolRetirement certificate
-      Just ("genesisDelegation" /\ certificate) -> GenesisDelegation <$>
-        parseGenesisDelegation certificate
-      Just ("moveInstantaneousRewards" /\ certificate) ->
-        MoveInstantaneousRewards <$> parseMoveInstantaneousRewards certificate
-      _ -> Left $ TypeMismatch "Expected a Certificate"
-
-type StakeDelegation =
-  { delegator :: DigestBlake2BCredential
-  , delegatee :: PoolId
-  }
-
-type PoolRetirement =
-  { retirementEpoch :: Epoch
-  , poolId :: PoolId
-  }
-
-type GenesisDelegation =
-  { delegateKeyHash :: VerificationKey
-  , verificationKeyHash :: VerificationKey
-  , vrfVerificationKeyHash :: VRFKeyHash
-  }
-
-type MoveInstantaneousRewards =
-  { rewards :: Maybe Rewards
-  , value :: Maybe Coin
-  , pot :: RewardPot
-  }
-
-parseStakeDelegation :: Aeson -> Either JsonDecodeError StakeDelegation
-parseStakeDelegation = aesonObject \o -> do
-  delegator <- o .: "delegator"
-  delegatee <- o .: "delegatee"
-  pure { delegator, delegatee }
-
-parsePoolRetirement :: Aeson -> Either JsonDecodeError PoolRetirement
-parsePoolRetirement = aesonObject \o -> do
-  retirementEpoch <- o .: "retirementEpoch"
-  poolId <- o .: "poolId"
-  pure { retirementEpoch, poolId }
-
-parseGenesisDelegation :: Aeson -> Either JsonDecodeError GenesisDelegation
-parseGenesisDelegation = aesonObject \o -> do
-  delegateKeyHash <- o .: "delegateKeyHash"
-  verificationKeyHash <- o .: "verificationKeyHash"
-  vrfVerificationKeyHash <- decodeVRFKeyHash =<< o .: "vrfVerificationKeyHash"
-  pure { delegateKeyHash, verificationKeyHash, vrfVerificationKeyHash }
-
-parseMoveInstantaneousRewards
-  :: Aeson -> Either JsonDecodeError MoveInstantaneousRewards
-parseMoveInstantaneousRewards = aesonObject \o -> do
-  rewards <- o .:? "rewards"
-  value <- o .:? "value"
-  pot <- o .: "pot"
-  pure { rewards, value, pot }
-
-type PoolId = String
-
-type DigestBlake2BCredential = String
-
-newtype Rewards = Rewards (Map String LovelaceDelta)
-
-derive instance Generic Rewards _
-derive instance Newtype Rewards _
-
-instance Show Rewards where
-  show = genericShow
-
-instance DecodeAeson Rewards where
-  decodeAeson = aesonObject \obj -> do
-    let rewardsList = ForeignObject.toUnfoldable obj :: Array (String /\ Aeson)
-    Rewards <<< Map.fromFoldable <$>
-      traverse decodeRewardAmount rewardsList
-    where
-    decodeRewardAmount
-      :: String /\ Aeson
-      -> Either JsonDecodeError (String /\ Coin)
-    decodeRewardAmount (rewardAddress /\ aeson) = do
-      coin <- decodeAeson aeson
-      pure $ rewardAddress /\ Coin coin
-
-type LovelaceDelta = Coin
-
-data RewardPot = Reserves | Treasury
-
-derive instance Generic RewardPot _
-
-instance Show RewardPot where
-  show = genericShow
-
-instance DecodeAeson RewardPot where
-  decodeAeson = aesonString \rewardPot ->
-    case rewardPot of
-      "reserves" -> Right Reserves
-      "treasury" -> Right Treasury
-      _ -> unexpectedValueError rewardPot
-
-newtype OgmiosWithdrawls = OgmiosWithdrawls (Map OgmiosRewardAddress Coin)
-
-derive instance Generic OgmiosWithdrawls _
-derive instance Newtype OgmiosWithdrawls _
-
-instance Show OgmiosWithdrawls where
-  show = genericShow
-
-instance DecodeAeson OgmiosWithdrawls where
-  decodeAeson = aesonObject \obj -> do
-    let
-      withdrawlList = ForeignObject.toUnfoldable obj :: Array (String /\ Aeson)
-    OgmiosWithdrawls <<< Map.fromFoldable <$>
-      traverse decodeWithdrawlAmount withdrawlList
-    where
-    decodeWithdrawlAmount
-      :: OgmiosRewardAddress /\ Aeson
-      -> Either JsonDecodeError (OgmiosRewardAddress /\ Coin)
-    decodeWithdrawlAmount (rewardAddress /\ aeson) = do
-      coin <- decodeAeson aeson
-      pure $ rewardAddress /\ Coin coin
-
-newtype OgmiosAuxiliaryData = OgmiosAuxiliaryData
-  { hash :: String
-  , body ::
-      { scripts :: Maybe (Array ScriptRef)
-      , blob :: Maybe GeneralTransactionMetadata
-      }
-  }
-
-derive instance Generic OgmiosAuxiliaryData _
-derive instance Newtype OgmiosAuxiliaryData _
-instance Show OgmiosAuxiliaryData where
-  show = genericShow
-
-instance DecodeAeson OgmiosAuxiliaryData where
-  decodeAeson = aesonObject \o -> do
-    hash <- o .: "hash"
-    body <- o .: "body" >>=
-      ( aesonObject $ \obj -> do
-          scripts <- obj .:? "scripts" >>= case _ of
-            Nothing -> pure Nothing
-            Just aes -> Just <$> aesonArray (traverse $ aesonObject parseScript)
-              aes
-          blob <- obj .:? "blob" >>= case _ of
-            Nothing -> pure Nothing
-            Just aes -> Just <$> parseMetadata aes
-          pure { scripts, blob }
-      )
-    pure $ OgmiosAuxiliaryData { hash, body }
-
-parseMetadata :: Aeson -> Either JsonDecodeError GeneralTransactionMetadata
-parseMetadata = aesonObject \o -> do
-  let metadata = ForeignObject.toUnfoldable o :: Array (String /\ Aeson)
-  GeneralTransactionMetadata <<< Map.fromFoldable <$>
-    traverse decodeMetadata metadata
-  where
-  decodeMetadata
-    :: String /\ Aeson
-    -> Either JsonDecodeError
-         (TransactionMetadatumLabel /\ TransactionMetadatum)
-  decodeMetadata (num /\ aeson) = do
-    label <- note (TypeMismatch "Epected a BigInt") $ TransactionMetadatumLabel
-      <$> BigInt.fromString num
-    metadatum <- decodeMetadatum aeson
-    pure $ label /\ metadatum
-
-  decodeMetadatum :: Aeson -> Either JsonDecodeError TransactionMetadatum
-  decodeMetadatum = aesonObject \o -> do
-    case (Array.head $ ForeignObject.toUnfoldable o) of
-      Just ("MetadataMap" /\ metadatum) -> decodeMetadataMap metadatum
-      Just ("MetadataList" /\ metadatum) -> MetadataList <$> aesonArray
-        (traverse decodeMetadatum)
-        metadatum
-      Just ("Int" /\ metadatum) -> Int <$> decodeAeson metadatum
-      Just ("Bytes" /\ metadatum) -> Bytes <$> decodeAeson metadatum
-      Just ("Text" /\ metadatum) -> Text <$> decodeAeson metadatum
-      _ -> Left $ TypeMismatch "Expected a TransactionMetadatum"
-
-  decodeMetadataMap :: Aeson -> Either JsonDecodeError TransactionMetadatum
-  decodeMetadataMap = aesonObject \o -> do
-    MetadataMap <<< Map.fromFoldable <$> traverse
-      (bitraverse (decodeMetadatum <<< fromString) decodeMetadatum)
-      (ForeignObject.toUnfoldable o :: Array (String /\ Aeson))
-
-type ValidityInterval =
-  { invalidBefore :: Maybe BigInt
-  , invalidHereafter :: Maybe BigInt
-  }
-
-data Network = Mainnet | Testnet
-
-derive instance Generic Network _
-instance Show Network where
-  show = genericShow
-
-instance DecodeAeson Network where
-  decodeAeson = aesonString \network ->
-    case network of
-      "mainnet" -> Right Mainnet
-      "testnet" -> Right Testnet
-      _ -> unexpectedValueError network
-
-parseValidityInterval :: Aeson -> Either JsonDecodeError ValidityInterval
-parseValidityInterval = aesonObject \o -> do
-  invalidBefore <- o .:? "invalidBefore"
-  invalidHereafter <- o .:? "invalidHereafter"
-  pure { invalidBefore, invalidHereafter }
 
 newtype Update = Update
   { epoch :: UInt
@@ -918,9 +474,6 @@ instance DecodeAeson ProtocolVersion where
     minor <- o .: "minor"
     patch <- o .:? "patch"
     pure $ ProtocolVersion { major, minor, patch }
-
-unexpectedValueError :: forall a. String -> Either JsonDecodeError a
-unexpectedValueError = Left <<< UnexpectedValue <<< JSON.fromString
 
 --------------------------------------------------------------------------------
 -- Helpers
