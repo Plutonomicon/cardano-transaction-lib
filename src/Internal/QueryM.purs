@@ -45,7 +45,6 @@ module Ctl.Internal.QueryM
   , scriptToAeson
   , submitTxOgmios
   , underlyingWebSocket
-  , withMempoolSnapshot
   ) where
 
 import Prelude

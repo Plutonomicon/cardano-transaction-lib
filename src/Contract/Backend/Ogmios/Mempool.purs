@@ -1,4 +1,5 @@
 -- | A module for interacting with Ogmios' Local TX Monitor
+-- | These functions only work with Ogmios backend (not Blockfrost!).
 -- | https://ogmios.dev/mini-protocols/local-tx-monitor/
 module Contract.Backend.Ogmios.Mempool
   ( module Ogmios
@@ -7,7 +8,6 @@ module Contract.Backend.Ogmios.Mempool
   , mempoolSnapshotHasTx
   , mempoolSnapshotNextTx
   , mempoolSnapshotSizeAndCapacity
-  , mempoolTxToUtxoMap
   , releaseMempool
   , withMempoolSnapshot
   ) where
@@ -15,11 +15,11 @@ module Contract.Backend.Ogmios.Mempool
 import Contract.Prelude
 
 import Contract.Monad (Contract)
-import Contract.Utxos (UtxoMap)
-import Control.Apply (lift2)
-import Control.Monad.Error.Class (try)
+import Control.Monad.Error.Class (liftMaybe, try)
+import Ctl.Internal.Base64 (decodeBase64)
+import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Plutus.Conversion (toPlutusTxOutputWithRefScript)
+import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.QueryM
   ( acquireMempoolSnapshot
   , mempoolSnapshotHasTx
@@ -28,25 +28,16 @@ import Ctl.Internal.QueryM
   , releaseMempool
   ) as QueryM
 import Ctl.Internal.QueryM.Ogmios
-  ( MempoolReleased(Released)
-  , MempoolSizeAndCapacity(MempoolSizeAndCapacity)
+  ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
   , TxHash
   ) as Ogmios
-import Ctl.Internal.TxOutput
-  ( ogmiosTxOutToTransactionOutput
-  , txOutRefToTransactionInput
-  )
-import Data.Array (range)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
-import Data.Bifunctor (bimap)
 import Data.List (List(Cons))
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap)
-import Data.UInt as UInt
-import Effect.Exception (throw)
+import Effect.Exception (error)
 
 -- | Establish a connection with the Local TX Monitor.
 -- | Instantly accquires the current mempool snapshot, and will wait for the next
@@ -56,16 +47,25 @@ acquireMempoolSnapshot = wrapQueryM QueryM.acquireMempoolSnapshot
 
 -- | Check to see if a TxHash is present in the current mempool snapshot.
 mempoolSnapshotHasTx
-  :: Ogmios.MempoolSnapshotAcquired -> Ogmios.TxHash -> Contract Boolean
-mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms
+  :: Ogmios.MempoolSnapshotAcquired -> TransactionHash -> Contract Boolean
+mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms <<<
+  unwrap
 
 -- | Get the first received TX in the current mempool snapshot. This function can
 -- | be recursively called to traverse the finger-tree of the mempool data set.
 -- | This will return `Nothing` once it has reached the end of the current mempool.
 mempoolSnapshotNextTx
   :: Ogmios.MempoolSnapshotAcquired
-  -> Contract (Maybe Ogmios.MempoolTransaction)
-mempoolSnapshotNextTx = wrapQueryM <<< QueryM.mempoolSnapshotNextTx
+  -> Contract (Maybe Transaction)
+mempoolSnapshotNextTx mempoolAcquired = do
+  mbTx <- wrapQueryM $ QueryM.mempoolSnapshotNextTx mempoolAcquired
+  for mbTx \(Ogmios.MempoolTransaction { raw }) -> do
+    byteArray <- liftMaybe (error "Failed to decode transaction")
+      $ decodeBase64 raw
+    liftMaybe (error "Failed to decode tx")
+      $ hush
+      $ deserializeTransaction
+      $ wrap byteArray
 
 -- | The acquired snapshot’s size (in bytes), number of transactions, and
 -- | capacity (in bytes).
@@ -95,7 +95,7 @@ withMempoolSnapshot f = do
 -- | respond with a new TX.
 fetchMempoolTxs
   :: Ogmios.MempoolSnapshotAcquired
-  -> Contract (Array Ogmios.MempoolTransaction)
+  -> Contract (Array Transaction)
 fetchMempoolTxs ms = Array.fromFoldable <$> go
   where
   go = do
@@ -103,25 +103,3 @@ fetchMempoolTxs ms = Array.fromFoldable <$> go
     case nextTX of
       Just tx -> Cons tx <$> go
       Nothing -> pure mempty
-
--- | Convert the UTxOs in the `MempoolTransaction` type into a `UtxoMap`.
-mempoolTxToUtxoMap :: Ogmios.MempoolTransaction -> Contract UtxoMap
-mempoolTxToUtxoMap tx@(Ogmios.MempoolTransaction { id, body }) = do
-  let
-    tuples = uncurry (lift2 Tuple)
-      <$> bimap txOutRefToTransactionInput
-        (toPlutusTxOutputWithRefScript <=< ogmiosTxOutToTransactionOutput)
-      <$> Array.zipWith (\i x -> Tuple { txId: id, index: UInt.fromInt i } x)
-        (range 0 (length outputs - 1))
-        outputs
-  Map.fromFoldable <$> for tuples
-    ( maybe
-        ( liftEffect $ throw
-            $ "mempoolTxToUtxoMap: impossible happened (conversion"
-            <> " failure), please report as bug: "
-            <> show tx
-        )
-        pure
-    )
-  where
-  outputs = (unwrap body).outputs
