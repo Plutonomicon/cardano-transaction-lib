@@ -23,12 +23,12 @@ import Ctl.Internal.Helpers ((<\>))
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Types.Any (Any)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
+import Ctl.Internal.Types.PaymentPubKey (PaymentPubKey)
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (MintingPolicy, Validator)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
 import Ctl.Internal.Types.TypedValidator (generalise) as TV
-import Ctl.Internal.Types.UnbalancedTransaction (PaymentPubKey)
 import Data.Array (singleton, union) as Array
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map, empty, singleton, union)

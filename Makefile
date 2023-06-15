@@ -9,6 +9,7 @@ js-sources := $(shell fd --no-ignore-parent -ejs)
 ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript modules in examples/
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')
+preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
 
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
@@ -49,6 +50,10 @@ format:
 query-preview-testnet-tip:
 	CARDANO_NODE_SOCKET_PATH=${preview-node-ipc}/node.socket cardano-cli query tip \
 	  --testnet-magic 2
+
+query-preprod-testnet-tip:
+	CARDANO_NODE_SOCKET_PATH=${preprod-node-ipc}/node.socket cardano-cli query tip \
+	  --testnet-magic 1
 
 run-ci-actions:
 	nix build -L .#checks.x86_64-linux.formatting-check

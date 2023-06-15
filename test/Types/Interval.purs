@@ -164,12 +164,11 @@ testPosixTimeToSlot eraSummaries sysStart = do
     -> POSIXTime
     -> Effect Unit
   idTest es ss transf posixTime = do
-    posixTimeToSlot es ss posixTime >>= case _ of
+    case posixTimeToSlot es ss posixTime of
       Left err -> throwError $ error $ show err
       Right slot -> do
-        ePosixTime <- slotToPosixTime es ss slot
         either (throwError <<< error <<< show) (shouldEqual $ transf posixTime)
-          ePosixTime
+          $ slotToPosixTime es ss slot
 
 testSlotToPosixTime :: EraSummaries -> SystemStart -> Effect Unit
 testSlotToPosixTime eraSummaries sysStart = do
@@ -190,11 +189,11 @@ testSlotToPosixTime eraSummaries sysStart = do
   where
   idTest :: EraSummaries -> SystemStart -> Slot -> Effect Unit
   idTest es ss slot = do
-    slotToPosixTime es ss slot >>= case _ of
+    case slotToPosixTime es ss slot of
       Left err -> throwError $ error $ show err
       Right posixTime -> do
-        eSlot <- posixTimeToSlot es ss posixTime
-        either (throwError <<< error <<< show) (shouldEqual slot) eSlot
+        either (throwError <<< error <<< show) (shouldEqual slot)
+          $ posixTimeToSlot es ss posixTime
 
   mkSlot :: Int -> Slot
   mkSlot = Slot <<< BigNum.fromInt
@@ -215,7 +214,7 @@ testPosixTimeToSlotError eraSummaries sysStart = do
     -> PosixTimeToSlotError
     -> Effect Unit
   errTest es ss posixTime expectedErr = do
-    posixTimeToSlot es ss posixTime >>= case _ of
+    case posixTimeToSlot es ss posixTime of
       Left err -> err `shouldEqual` expectedErr
       Right _ ->
         throwError $ error $ "Test should have failed giving: " <> show

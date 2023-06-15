@@ -16,9 +16,6 @@ import Contract.Address
   , PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   )
@@ -60,6 +57,11 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
+import Contract.Wallet
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.BigInt (BigInt)
@@ -128,8 +130,8 @@ mkChecks p = do
 mkContract :: ContractParams -> Contract ContractResult
 mkContract p = do
   logInfo' "Running Examples.ContractTestUtils"
-  ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  ownSkh <- join <<< head <$> ownStakePubKeysHashes
+  ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  ownSkh <- join <<< head <$> ownStakePubKeyHashes
   let
     mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
       ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef

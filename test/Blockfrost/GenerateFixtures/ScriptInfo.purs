@@ -2,7 +2,6 @@ module Test.Ctl.Blockfrost.GenerateFixtures.ScriptInfo (main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
@@ -24,6 +23,7 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints) as Constraints
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
+import Contract.Wallet (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -126,4 +126,3 @@ generateFixtures = do
       ScriptInfo h | h == scriptHash ->
         storeBlockfrostFixture i "getScriptInfo" rawResponse
       _ -> pure unit
-

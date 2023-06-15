@@ -48,9 +48,12 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)
 - [Ada staking support](./doc/staking.md)
+- [Key management](./doc/key-management.md)
 - [SECP256k1 support (CIP-49)](./doc/secp256k1-support.md)
+- [Custom query layers](./doc/custom-query-layers.md)
 - [FAQs](./doc/faq.md)
 - [Feature overview video](./doc/video-intro.md)
+- [Comparison with other frameworks (Lucid)](./doc/comparisons.md)
 - [Development workflows for CTL](./doc/development.md)
 
 You can also access [PureScript documentation for CTL and its dependencies](https://plutonomicon.github.io/cardano-transaction-lib/) for the most recent `develop` version, or [generate it yourself](./doc/development.md#generating-ps-documentation).

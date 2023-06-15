@@ -7,7 +7,7 @@ module Ctl.Internal.Contract.Wallet
   , getWallet
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
+  , ownStakePubKeyHashes
   , withWallet
   , getWalletCollateral
   , getWalletBalance
@@ -108,11 +108,12 @@ ownPubKeyHashes = do
     liftM (error "Impossible happened: CIP-30 method returned script address")
       $ stakeCredentialToKeyHash paymentCred <#> wrap
 
+-- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
 ownPaymentPubKeyHashes :: Contract (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
-ownStakePubKeysHashes :: Contract (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = do
+ownStakePubKeyHashes :: Contract (Array (Maybe StakePubKeyHash))
+ownStakePubKeyHashes = do
   addresses <- getWalletAddresses
   pure $ addressToMStakePubKeyHash <$> addresses
   where

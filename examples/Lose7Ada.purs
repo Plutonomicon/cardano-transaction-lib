@@ -32,8 +32,9 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Contract.Wallet (getWalletBalance)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.BigInt as BigInt
 import Data.Foldable (fold)

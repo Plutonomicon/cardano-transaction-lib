@@ -4,6 +4,7 @@ module Ctl.Internal.Serialization.Types
   , AuxiliaryData
   , AuxiliaryDataHash
   , BigInt
+  , Bip32PrivateKey
   , Bip32PublicKey
   , BootstrapWitness
   , BootstrapWitnesses
@@ -89,6 +90,7 @@ foreign import data Assets :: Type
 foreign import data AuxiliaryData :: Type
 foreign import data AuxiliaryDataHash :: Type
 foreign import data BigInt :: Type
+foreign import data Bip32PrivateKey :: Type
 foreign import data Bip32PublicKey :: Type
 foreign import data BootstrapWitness :: Type
 foreign import data BootstrapWitnesses :: Type

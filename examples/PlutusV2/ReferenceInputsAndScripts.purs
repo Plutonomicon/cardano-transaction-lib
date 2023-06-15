@@ -10,9 +10,6 @@ import Contract.Prelude
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , scriptHashAddress
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
@@ -53,6 +50,11 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value as Value
+import Contract.Wallet
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Ctl.Examples.Helpers (mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
   ( alwaysMintsPolicyScriptV2
@@ -96,8 +98,8 @@ contract = do
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  skh <- join <<< head <$> ownStakePubKeyHashes
   let
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)

@@ -3,7 +3,6 @@ module Test.Ctl.Plutip.Contract.Assert (suite) where
 
 import Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Monad (liftedM)
 import Contract.PlutusData (PlutusData(Integer))
 import Contract.Test (ContractTest)
@@ -14,7 +13,11 @@ import Contract.Test.Assert
   )
 import Contract.Test.Mote (TestPlanM)
 import Contract.Test.Plutip (InitialUTxOs, withWallets)
-import Contract.Wallet (withKeyWallet)
+import Contract.Wallet
+  ( ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName)
@@ -45,8 +48,8 @@ suite = do
 
       withWallets distribution \(alice /\ bob) -> do
         receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          head <$> withKeyWallet bob ownPaymentPubKeysHashes
-        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+          head <$> withKeyWallet bob ownPaymentPubKeyHashes
+        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
@@ -74,8 +77,8 @@ suite = do
 
       withWallets distribution \(alice /\ bob) -> do
         receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          head <$> withKeyWallet bob ownPaymentPubKeysHashes
-        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+          head <$> withKeyWallet bob ownPaymentPubKeyHashes
+        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
@@ -105,8 +108,8 @@ suite = do
 
       withWallets distribution \(alice /\ bob) -> do
         receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          head <$> withKeyWallet bob ownPaymentPubKeysHashes
-        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+          head <$> withKeyWallet bob ownPaymentPubKeyHashes
+        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
@@ -140,8 +143,8 @@ suite = do
 
       withWallets distribution \(alice /\ bob) -> do
         receiverPkh <- liftedM "Unable to get Bob's PKH" $
-          head <$> withKeyWallet bob ownPaymentPubKeysHashes
-        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeysHashes
+          head <$> withKeyWallet bob ownPaymentPubKeyHashes
+        receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 

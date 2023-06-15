@@ -155,8 +155,7 @@ toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do
   eraSummaries <- getEraSummaries
   systemStart <- getSystemStart
-  eitherTime <- liftEffect $ slotToPosixTime eraSummaries systemStart time
-  case eitherTime of
+  case slotToPosixTime eraSummaries systemStart time of
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value
 
@@ -164,9 +163,7 @@ toPosixTimeRange :: Interval Slot -> Contract (Interval POSIXTime)
 toPosixTimeRange range = do
   eraSummaries <- getEraSummaries
   systemStart <- getSystemStart
-  eitherRange <- liftEffect $
-    slotRangeToPosixTimeRange eraSummaries systemStart range
-  case eitherRange of
+  case slotRangeToPosixTimeRange eraSummaries systemStart range of
     Left e -> (throwError <<< error <<< show) e
     Right value -> pure value
 

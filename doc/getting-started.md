@@ -217,15 +217,9 @@ You can import your scripts to use with CTL. See [importing-scripts](./importing
 
 ### Without a light wallet
 
-We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
+We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed.
 
-```shell
-$ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
-```
-
-The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See [`examples/KeyWallet/Internal/Pkh2PkhContract.purs`](../examples/KeyWallet/Internal/Pkh2PkhContract.purs#L49).
-
-From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip).
+See [here](./key-management.md)
 
 ### With a light wallet
 

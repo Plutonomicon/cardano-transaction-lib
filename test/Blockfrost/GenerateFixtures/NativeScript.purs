@@ -2,7 +2,6 @@ module Test.Ctl.Blockfrost.GenerateFixtures.NativeScript (main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
@@ -23,6 +22,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints) as Constraints
 import Contract.Value (lovelaceValueOf) as Value
+import Contract.Wallet (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Service.Blockfrost
@@ -121,4 +121,3 @@ generateFixtures numFixtures = do
         NativeScriptByHash h | h == nativeScriptHash ->
           storeBlockfrostFixture i "getNativeScriptByHash" rawResponse
         _ -> pure unit
-
