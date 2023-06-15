@@ -34,7 +34,7 @@ import Ctl.Internal.TxOutput
   ( ogmiosTxOutToTransactionOutput
   , txOutRefToTransactionInput
   )
-import Data.Array ((..), (:))
+import Data.Array (range, (:))
 import Data.Array as Array
 import Data.Bifunctor (bimap)
 import Data.Map as Map
@@ -93,7 +93,7 @@ mempoolTxToUtxoMap (Ogmios.MempoolTransaction { id, body }) =
     <$> bimap txOutRefToTransactionInput
       (toPlutusTxOutputWithRefScript <=< ogmiosTxOutToTransactionOutput)
     <$> Array.zipWith (\i x -> Tuple { txId: id, index: UInt.fromInt i } x)
-      (0 .. (length outputs - 1))
+      (range 0 (length outputs - 1))
       outputs
 
   where
