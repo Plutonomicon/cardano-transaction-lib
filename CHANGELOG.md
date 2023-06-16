@@ -68,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Cluster configuration options to `PlutipConfig`: `epochSize`, `maxTxSize` and `raiseExUnitsToMax` - see [Plutip docs](./doc/plutip-testing.md) ([#1494](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1494))
 - [HD wallet support](./doc/key-management.md) with mnemonic seed phrases ([#1498](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1498))
 - Ogmios-specific functions for Local TX Monitor Ouroboros Mini-Protocol in `Contract.Backend.Ogmios` ([#1508](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1508/))
+- New `mustSendChangeWithDatum` balancer constraint
 
 ### Changed
 
