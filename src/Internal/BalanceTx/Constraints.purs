@@ -6,12 +6,14 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
+  , mustSendChangeWithDatum
   , mustUseAdditionalUtxos
   , mustUseCoinSelectionStrategy
   , mustUseUtxosAtAddress
   , mustUseUtxosAtAddresses
   , _additionalUtxos
   , _changeAddress
+  , _changeDatum
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
   , _selectionStrategy
@@ -33,6 +35,7 @@ import Ctl.Internal.Plutus.Types.Address
   ) as Plutus
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as Plutus
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
+import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton) as Array
 import Data.BigInt (BigInt)
@@ -54,6 +57,7 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   , nonSpendableInputs :: Set TransactionInput
   , srcAddresses :: Maybe (Array Address)
   , changeAddress :: Maybe Address
+  , changeDatum :: Maybe OutputDatum
   , selectionStrategy :: SelectionStrategy
   }
 
@@ -74,6 +78,9 @@ _srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
 
 _changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
 _changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
+
+_changeDatum :: Lens' BalanceTxConstraints (Maybe OutputDatum)
+_changeDatum = _Newtype <<< prop (Proxy :: Proxy "changeDatum")
 
 _selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
 _selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
@@ -98,6 +105,7 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
     , srcAddresses: Nothing
+    , changeDatum: Nothing
     , changeAddress: Nothing
     , selectionStrategy: SelectionStrategyOptimal
     }
@@ -112,6 +120,12 @@ mustSendChangeToAddress
   :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
 mustSendChangeToAddress =
   wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
+
+-- | Tells the balancer to include the datum in each change UTxO. Useful when
+-- | balancing a transactions for script owned UTxOs.
+mustSendChangeWithDatum :: OutputDatum -> BalanceTxConstraintsBuilder
+mustSendChangeWithDatum =
+  wrap <<< setJust _changeDatum
 
 -- | Tells the balancer to use UTxO's at given addresses.
 -- | If this constraint is not set, then the default addresses owned by the

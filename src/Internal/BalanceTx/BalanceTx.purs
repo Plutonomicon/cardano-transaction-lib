@@ -26,6 +26,7 @@ import Ctl.Internal.BalanceTx.Collateral
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
+  , _changeDatum
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
   , _selectionStrategy
@@ -190,6 +191,8 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
 
     mbSrcAddrs <- asksConstraints Constraints._srcAddresses
 
+    changeDatum' <- asksConstraints Constraints._changeDatum
+
     utxos <- liftEitherContract do
       case mbSrcAddrs of
         -- Use wallet UTxOs.
@@ -248,6 +251,7 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
       { strategy: selectionStrategy
       , transaction: reindexedTransaction
       , changeAddress
+      , changeDatum: fromMaybe NoOutputDatum changeDatum'
       , allUtxos
       , utxos: availableUtxos
       , certsFee
@@ -281,6 +285,7 @@ type BalancerParams =
   { strategy :: SelectionStrategy
   , transaction :: UnindexedTx
   , changeAddress :: Address
+  , changeDatum :: OutputDatum
   , allUtxos :: UtxoMap
   , utxos :: UtxoMap
   , certsFee :: Coin
@@ -429,7 +434,9 @@ runBalancer p = do
     runNextBalancerStep state@{ transaction } = do
       let txBody = transaction ^. _transaction <<< _body
       inputValue <- except $ getInputValue p.allUtxos txBody
-      changeOutputs <- makeChange p.changeAddress inputValue p.certsFee txBody
+      changeOutputs <- makeChange p.changeAddress p.changeDatum inputValue
+        p.certsFee
+        txBody
 
       requiredValue <-
         except $ getRequiredValue p.certsFee p.allUtxos
@@ -535,14 +542,19 @@ setTxChangeOutputs outputs tx =
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1396
 makeChange
-  :: Address -> Value -> Coin -> TxBody -> BalanceTxM (Array TransactionOutput)
-makeChange changeAddress inputValue certsFee txBody =
+  :: Address
+  -> OutputDatum
+  -> Value
+  -> Coin
+  -> TxBody
+  -> BalanceTxM (Array TransactionOutput)
+makeChange changeAddress changeDatum inputValue certsFee txBody =
   -- Always generate change when a transaction has no outputs to avoid issues
   -- with transaction confirmation:
   -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
   if excessValue == mempty && (txBody ^. _outputs) /= mempty then pure mempty
   else
-    map (mkChangeOutput changeAddress) <$>
+    map (mkChangeOutput changeAddress changeDatum) <$>
       ( assignCoinsToChangeValues changeAddress excessCoin
           =<< splitOversizedValues changeValueOutputCoinPairs
       )
@@ -725,7 +737,9 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
 
   minCoinFor :: Value -> BalanceTxM BigInt
   minCoinFor value = do
-    let txOutput = mkChangeOutput changeAddress value
+    let
+      -- NOTE: Datum here doesn't matter, we deconstruct UTxO immediately anyway
+      txOutput = mkChangeOutput changeAddress NoOutputDatum value
     coinsPerUtxoUnit <- askCoinsPerUtxoUnit
     ExceptT $ liftEffect $ utxoMinAdaValue coinsPerUtxoUnit txOutput
       <#> note UtxoMinAdaValueCalculationFailed
@@ -740,9 +754,9 @@ derive newtype instance Eq AssetCount
 instance Ord AssetCount where
   compare = compare `on` (Array.length <<< Value.valueAssets <<< unwrap)
 
-mkChangeOutput :: Address -> Value -> TransactionOutput
-mkChangeOutput changeAddress amount = wrap
-  { address: changeAddress, amount, datum: NoOutputDatum, scriptRef: Nothing }
+mkChangeOutput :: Address -> OutputDatum -> Value -> TransactionOutput
+mkChangeOutput changeAddress datum amount = wrap
+  { address: changeAddress, amount, datum, scriptRef: Nothing }
 
 --------------------------------------------------------------------------------
 -- Getters for various `Value`s
