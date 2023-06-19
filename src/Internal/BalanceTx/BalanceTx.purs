@@ -23,7 +23,10 @@ import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
   )
-import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
+import Ctl.Internal.BalanceTx.Constraints
+  ( BalanceTxConstraintsBuilder
+  , _nonSpendableInputs
+  )
 import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
   , _changeDatum
@@ -271,9 +274,15 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
 
 setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
 setTransactionCollateral changeAddr transaction = do
-  collateral <-
-    liftEitherContract $ note CouldNotGetCollateral <$>
+  nonSpendableSet <- asksConstraints _nonSpendableInputs
+  collateral <- do
+    rawCollateral <- liftEitherContract $ note CouldNotGetCollateral <$>
       Wallet.getWalletCollateral
+    -- filter out UTxOs that are set as non-spendable in the balancer constraints
+    let
+      isSpendable = not <<< flip Set.member nonSpendableSet <<< _.input <<<
+        unwrap
+    pure $ Array.filter isSpendable rawCollateral
   addTxCollateralReturn collateral (addTxCollateral collateral transaction)
     changeAddr
 
