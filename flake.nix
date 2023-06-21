@@ -40,7 +40,7 @@
     };
 
     # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/49269a9adb27b370209a61de2f5407945112860a";
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/113ddfc2dbea9beba3a428aa274965237f31b858";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
 
     # Plutip server related inputs
