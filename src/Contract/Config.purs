@@ -75,8 +75,11 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey(PrivateStakeKey)
   )
 import Ctl.Internal.Wallet.Spec
-  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  ( Cip1852DerivationPath
+  , MnemonicSource(MnemonicString, MnemonicFile)
+  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
+  , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , WalletSpec
       ( UseKeys
       , ConnectToNami
