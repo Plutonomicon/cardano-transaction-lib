@@ -28,7 +28,8 @@ import Data.Array as Array
 import Data.Either (hush)
 import Data.Lens (non)
 import Data.Lens.Getter ((^.))
-import Data.Map (keys, values) as Map
+import Data.Map (keys, lookup, values) as Map
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (difference, fromFoldable, intersection, mapMaybe, union) as Set
@@ -62,18 +63,24 @@ getSelfSigners tx additionalUtxos = do
       (_.address <<< unwrap) <$> Map.values additionalUtxos
 
   (inUtxosAddrs :: Set Address) <- setFor txInputs $ \txInput ->
-    liftedM (error $ "Couldn't get tx output for " <> show txInput) $
-      (map <<< map) (_.address <<< unwrap)
-        (liftAff $ queryHandle.getUtxoByOref txInput <#> hush >>> join)
+    liftedM (error $ "Couldn't get tx output for " <> show txInput)
+      $ (map <<< map) (_.address <<< unwrap)
+      $ case Map.lookup txInput additionalUtxos of
+          Nothing ->
+            liftAff (queryHandle.getUtxoByOref txInput <#> hush >>> join)
+          Just utxo -> pure $ Just utxo
 
   let
     collateralInputs = tx ^. _body <<< _collateral <<< non []
 
   (collateralAddresses :: Set Address) <-
     setFor (Set.fromFoldable collateralInputs) $ \txInput ->
-      liftedM (error $ "Couldn't get tx output for " <> show txInput) $
-        (map <<< map) (_.address <<< unwrap)
-          (liftAff $ queryHandle.getUtxoByOref txInput <#> hush >>> join)
+      liftedM (error $ "Couldn't get tx output for " <> show txInput)
+        $ (map <<< map) (_.address <<< unwrap)
+        $ case Map.lookup txInput additionalUtxos of
+            Nothing ->
+              liftAff (queryHandle.getUtxoByOref txInput <#> hush >>> join)
+            Just utxo -> pure $ Just utxo
 
   -- Get own addressses
   (ownAddrs :: Set Address) <- Set.fromFoldable <$> getWalletAddresses
