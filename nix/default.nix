@@ -199,7 +199,6 @@ let
         install-spago-style
       '';
       buildPhase = ''
-        set -vox
         psa ${pkgs.lib.optionalString strictComp "--strict" } \
           --censor-lib \
           --is-lib=.spago ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''--is-lib=./${extraSourcesDir} "${extraSourcesDir}/*/**/*.purs"''} \
