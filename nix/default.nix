@@ -485,7 +485,7 @@ let
       (oas: {
         inherit name;
         buildPhase = ''
-          purs docs --format ${format} "./**/*.purs" ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''--is-lib=./${extraSourcesDir} "${extraSourcesDir}/*/**/*.purs"''}
+          purs docs --format ${format} "./**/*.purs" ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''"${extraSourcesDir}/*/**/*.purs"''}
         '';
         installPhase = ''
           mkdir $out
