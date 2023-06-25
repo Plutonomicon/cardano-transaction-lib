@@ -491,7 +491,7 @@ let
           mkdir $out
           cp -r generated-docs $out
           cp -r output $out
-          cp -r $src/src $out
+          if [ -e $src/src ]; then cp -r $src/src $out; fi
         '';
       });
 
