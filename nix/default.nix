@@ -510,7 +510,8 @@ let
       ''
         export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
         export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
-        cp -r ${buildPursDocs { }}/{generated-docs,output,src} .
+        if [ -e ${buildPursDocs { }}/src ]; then cp -r ${buildPursDocs { }}/src .; fi
+        cp -r ${buildPursDocs { }}/{generated-docs,output} .
         install-spago-style
         chmod -R +rwx .
         purescript-docs-search build-index --package-name ${packageName} --source-files 'src/**/*.purs'
