@@ -1,7 +1,7 @@
 module Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
   , InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendInput)
+  , InputWithScriptRef(RefInput, SpendInput, RefInputUnchecked)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
@@ -209,6 +209,9 @@ data InputWithScriptRef
   -- | `RefInput` asserts the utxo containing the reference script should be
   -- | used as a reference input and therefore cannot be spent.
   = RefInput TransactionUnspentOutput
+  -- | `RefInputUnchecked` is similar to `RefInput` but does not require
+  -- | to resolve script.
+  | RefInputUnchecked TransactionInput
   -- | `SpendInput` asserts the utxo containing the reference script should be
   -- | used as a regular input and therefore can be spent.
   | SpendInput TransactionUnspentOutput
@@ -220,13 +223,14 @@ instance Show InputWithScriptRef where
   show = genericShow
 
 utxoWithScriptRef
-  :: InputWithScriptRef -> Map TransactionInput TransactionOutputWithRefScript
-utxoWithScriptRef inputWithRefScript = Map.singleton input output
-  where
-  TransactionUnspentOutput { input, output } =
-    case inputWithRefScript of
-      RefInput unspentOut -> unspentOut
-      SpendInput unspentOut -> unspentOut
+  :: InputWithScriptRef
+  -> Maybe (Map TransactionInput TransactionOutputWithRefScript)
+utxoWithScriptRef (SpendInput (TransactionUnspentOutput { input, output })) =
+  Just $ Map.singleton input output
+utxoWithScriptRef (RefInput (TransactionUnspentOutput { input, output })) =
+  Just $ Map.singleton input output
+utxoWithScriptRef _ =
+  Nothing
 
 -- | `DatumPresence` describes how datum should be stored in the transaction
 -- | when paying to a script.

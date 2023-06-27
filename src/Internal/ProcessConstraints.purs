@@ -170,7 +170,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
   , InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendInput)
+  , InputWithScriptRef(RefInput, RefInputUnchecked, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraint
       ( MustBeSignedBy
@@ -496,7 +496,8 @@ lookupTxOutRef
   -> ConstraintsM a (Either MkUnbalancedTxError TransactionOutput)
 lookupTxOutRef oref = case _ of
   Just inputWithRefScript ->
-    lookup oref (utxoWithScriptRef inputWithRefScript)
+    utxoWithScriptRef inputWithRefScript
+      >>= lookup oref
       # maybe (lookupTxOutRef oref Nothing) (map Right <<< convertTxOutput)
   Nothing ->
     runExceptT do
@@ -537,19 +538,22 @@ processScriptRefUnspentOut
   => scriptHash
   -> InputWithScriptRef
   -> ConstraintsM a (Either MkUnbalancedTxError Unit)
-processScriptRefUnspentOut scriptHash inputWithRefScript = do
-  unspentOut <- case inputWithRefScript of
+processScriptRefUnspentOut scriptHash inputWithRefScript =
+  case inputWithRefScript of
     SpendInput unspentOut -> do
       _cpsTransaction <<< _body <<< _inputs %= Set.insert
         (_.input <<< unwrap $ unspentOut)
-      pure unspentOut
+      updateRefScriptsUtxoMap unspentOut
+      checkScriptRef unspentOut
     RefInput unspentOut -> do
       let refInput = (unwrap unspentOut).input
       _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
-      pure unspentOut
+      updateRefScriptsUtxoMap unspentOut
+      checkScriptRef unspentOut
+    RefInputUnchecked refInput -> do
+      _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
+      pure (Right unit)
 
-  updateRefScriptsUtxoMap unspentOut
-  checkScriptRef unspentOut
   where
   updateRefScriptsUtxoMap
     :: TransactionUnspentOutput -> ConstraintsM a Unit
@@ -574,19 +578,20 @@ checkRefNative
   :: forall (a :: Type)
    . InputWithScriptRef
   -> ConstraintsM a (Either MkUnbalancedTxError Boolean)
-checkRefNative scriptRef = pure $ note (WrongRefScriptHash Nothing) $ isNative
-  (unwrap (unwrap uout).output).scriptRef
+checkRefNative scriptRef =
+  case scriptRef of
+    RefInput ref -> isNative ref
+    SpendInput ref -> isNative ref
+    RefInputUnchecked _ -> pure $ Right false
   where
-  isNative ref = ref >>=
-    ( case _ of
-        NativeScriptRef _ -> pure true
-        _ -> pure false
-    )
-
-  uout :: TransactionUnspentOutput
-  uout = case scriptRef of
-    RefInput ref' -> ref'
-    SpendInput ref' -> ref'
+  isNative ref =
+    pure $ note (WrongRefScriptHash Nothing) $
+      (unwrap (unwrap ref).output).scriptRef
+        >>=
+          ( case _ of
+              NativeScriptRef _ -> pure true
+              _ -> pure false
+          )
 
 -- | Modify the `UnbalancedTx` so that it satisfies the constraints, if
 -- | possible. Fails if a hash is missing from the lookups, or if an output

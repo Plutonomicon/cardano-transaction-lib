@@ -5,7 +5,7 @@ module Contract.TxConstraints (module TxConstraints) where
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
   , InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendInput)
+  , InputWithScriptRef(RefInput, RefInputUnchecked, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraints(TxConstraints)
   , addTxIn
