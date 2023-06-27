@@ -43,7 +43,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
-  , InputWithScriptRef(RefInput)
+  , InputWithScriptRef(RefInput, RefInputUnchecked)
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
@@ -155,7 +155,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
           (RefInput $ mkTxUnspentOut refValidatorInput refValidatorOutput)
 
       , Constraints.mustMintCurrencyUsingScriptRef mph tokenName one
-          (RefInput $ mkTxUnspentOut refMpInput refMpOutput)
+          (RefInputUnchecked refMpInput)
       ]
 
     lookups :: Lookups.ScriptLookups PlutusData
