@@ -38,6 +38,8 @@ Then, add `https://public-plutonomicon.cachix.org` and `public-plutonomicon.cach
 
 The easiest way to create a new CTL project is to use our `ctl-scaffold` flake template. This lives in the CTL repo -- you can have a look [here](../templates/ctl-scaffold). It contains a simple, yet complete, flakes-based scaffolding project with example `outputs` for a CTL project, including its runtime.
 
+Alternatively, consider [the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold) flake template. It's a scaffold built on top of the above mentioned `ctl-scaffold`, but includes a react based frontend and a haskell onchain additionaly. It's more of a demo application, than a minimal working example.
+
 A new project can be initialized as follows:
 
 ```
