@@ -160,8 +160,8 @@ let additions =
           , "prelude"
           , "tuples"
           ]
-        , repo = "https://github.com/mlabs-haskell/purescript-bignumber"
-        , version = "705923edd892a3397b90d28ce7db9a7181dcd599"
+        , repo = "https://github.com/errfrom/purescript-bignumber"
+        , version = "9b3179ad07428d189e42a7a205aab9c7c4849d4a"
         }
       , sequences =
         { dependencies =
