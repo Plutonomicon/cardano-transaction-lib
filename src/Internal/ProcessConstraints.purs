@@ -577,12 +577,12 @@ processScriptRefUnspentOut scriptHash inputWithRefScript =
 checkRefNative
   :: forall (a :: Type)
    . InputWithScriptRef
-  -> ConstraintsM a (Either MkUnbalancedTxError Boolean)
+  -> ConstraintsM a (Either MkUnbalancedTxError (Maybe Boolean))
 checkRefNative scriptRef =
   case scriptRef of
-    RefInput ref -> isNative ref
-    SpendInput ref -> isNative ref
-    RefInputUnchecked _ -> pure $ Right false
+    RefInput ref -> isNative ref <#> map Just
+    SpendInput ref -> isNative ref <#> map Just
+    RefInputUnchecked _ -> pure $ Right Nothing
   where
   isNative ref =
     pure $ note (WrongRefScriptHash Nothing) $
@@ -700,9 +700,12 @@ processConstraint mpsMap osMap c = do
                 ExpectedPlutusScriptGotNativeScript mpsHash
           )
         Just scriptRefUnspentOut' -> do
-          isNative <- ExceptT $ checkRefNative scriptRefUnspentOut'
-          when isNative $ throwError $ ExpectedPlutusScriptGotNativeScript
-            mpsHash
+          (ExceptT $ checkRefNative scriptRefUnspentOut') >>=
+            case _ of
+              Just true ->
+                throwError $ ExpectedPlutusScriptGotNativeScript mpsHash
+              _ -> pure unit
+
           (ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut')
 
       cs <-
