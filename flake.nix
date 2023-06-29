@@ -240,25 +240,25 @@
         spago = final: prev: {
           easy-ps = prev.easy-ps // {
             spago = prev.easy-ps.spago.overrideAttrs (_: rec {
-              version = "0.20.7";
+              version = "0.21.0";
               src =
                 if final.stdenv.isDarwin
                 then
                   final.fetchurl
                     {
                       url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
-                      sha256 = "0s5zgz4kqglsavyh7h70zmn16vayg30alp42w3nx0zwaqkp79xla";
+                      sha256 = "19c0kdg7gk1c7v00lnkcsxidffab84d50d6l6vgrjy4i86ilhzd5";
                     }
                 else
                   final.fetchurl {
                     url = "https://github.com/purescript/spago/releases/download/${version}/Linux.tar.gz";
-                    sha256 = "0bh15dr1fg306kifqipnakv3rxab7hjfpcfzabw7vmg0gsfx8xka";
+                    sha256 = "1klczy04vwn5b39cnxflcqzap0d5kysp4dsw73i95xm5m7s37049";
                   };
             });
           };
         };
         runtime =
-          (
+          
             final: prev:
               let
                 inherit (prev) system;
