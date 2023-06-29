@@ -183,8 +183,8 @@ let additions =
           , "unfoldable"
           , "unsafe-coerce"
           ]
-        , repo = "https://github.com/hdgarrood/purescript-sequences"
-        , version = "v3.0.2"
+        , repo = "https://github.com/garganscript/purescript-sequences"
+        , version = "cae456c1a7463785ad33981a93e7a9cb5fc7872c"
         }
       , properties =
         { dependencies = [ "prelude", "console" ]
@@ -243,8 +243,8 @@ let additions =
           , "unordered-collections"
           , "unsafe-coerce"
           ]
-        , repo = "https://github.com/juspay/medea-ps.git"
-        , version = "8b215851959aa8bbf33e6708df6bd683c89d1a5a"
+        , repo = "https://github.com/errfrom/medea-ps.git"
+        , version = "00981e4ce7249808413a6db8d88d849bbe85245a"
         }
       , purescript-toppokki =
         { dependencies =
@@ -276,4 +276,3 @@ let additions =
       }
 
 in  (upstream // additions)
-  with parsing.version = "v7.0.1"

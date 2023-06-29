@@ -34,7 +34,6 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.MonadPlus (class MonadPlus)
-import Control.MonadZero (class MonadZero)
 import Control.Plus (class Plus)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.DateTime.Instant (unInstant)
@@ -72,8 +71,6 @@ derive newtype instance monadThrowValidationM ::
 derive newtype instance monadErrorValidationM ::
   MonadError ValidationError ValidationM
 
--- note: MonadZero is being deprecated
-derive newtype instance monadZeroValidationM :: MonadZero ValidationM
 derive newtype instance monadPlusValidationM :: MonadPlus ValidationM
 instance altValidationM :: Alt ValidationM where
   alt (ValidationM first) (ValidationM second) = case runExceptT first of

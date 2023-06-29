@@ -132,11 +132,11 @@ import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.NonEmpty ((:|))
+import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
-import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
