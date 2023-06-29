@@ -193,7 +193,8 @@ let
       buildPhase = ''
         psa ${pkgs.lib.optionalString strictComp "--strict" } \
           --censor-lib --is-lib=.spago ${spagoGlobs} \
-          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs"
+          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs" \
+          -gsourcemaps,js
       '';
       # We also need to copy all of `src` here, since compiled modules in `output`
       # might refer to paths that will point to nothing if we use `src` directly
@@ -236,7 +237,7 @@ let
       # (idea taken from `plutus-playground-client`)
       ''
         cd ${project}
-        ${nodejs}/bin/node -e 'require("./output/${testMain}").main()'
+        ${nodejs}/bin/node --enable-source-maps -e 'require("./output/${testMain}").main()'
         touch $out
       '';
 
@@ -366,7 +367,7 @@ let
         done;
 
 
-        ${nodejs}/bin/node -e 'require("${project}/output/${testMain}").main()' e2e-test run
+        ${nodejs}/bin/node --enable-source-maps -e 'require("${project}/output/${testMain}").main()' e2e-test run
         mkdir $out
       ''
   ;

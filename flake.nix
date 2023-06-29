@@ -40,11 +40,11 @@
     };
 
     # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/49269a9adb27b370209a61de2f5407945112860a";
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/113ddfc2dbea9beba3a428aa274965237f31b858";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
 
     # Plutip server related inputs
-    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
+    plutip.url = "github:mlabs-haskell/plutip/1d35f53c7e4938c6df0fdd3bea6c5e9d5f704158";
     plutip-nixpkgs.follows = "plutip/nixpkgs";
     haskell-nix.url = "github:mlabs-haskell/haskell.nix";
     iohk-nix = {

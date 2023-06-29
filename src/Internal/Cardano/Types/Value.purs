@@ -131,7 +131,7 @@ import Test.QuickCheck.Gen (Gen, chooseInt, suchThat, vectorOf)
 -- to `split` and `negate` (it's just 6 functions) in total without the need of
 -- a somewhat meaningless typeclass.
 
--- We could write a Ring instance to get `negate` but I'm not sure this would
+-- We could write a Group instance to get `negate` but I'm not sure this would
 -- make much sense for Value. Plutus uses a custom AdditiveGroup.
 -- We could define a Data.Group although zero-valued tokens don't degenerate
 -- from our map currently - I don't think we'd want this behaviour.
@@ -160,6 +160,10 @@ derive newtype instance Ord Coin
 derive newtype instance DecodeAeson Coin
 derive newtype instance EncodeAeson Coin
 derive newtype instance Equipartition Coin
+derive newtype instance Semiring Coin
+derive newtype instance Ring Coin
+derive newtype instance CommutativeRing Coin
+derive newtype instance EuclideanRing Coin
 
 instance Arbitrary Coin where
   arbitrary = Coin <<< fromInt <$> suchThat arbitrary (_ >= zero)

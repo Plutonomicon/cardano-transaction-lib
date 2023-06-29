@@ -64,7 +64,9 @@ type PlutipConfig =
   , hooks :: Hooks
   , clusterConfig ::
       { slotLength :: Seconds
+      , epochSize :: Maybe UInt
       , maxTxSize :: Maybe UInt
+      , raiseExUnitsToMax :: Boolean
       }
   }
 
@@ -75,8 +77,9 @@ type ErrorMessage = String
 newtype ClusterStartupRequest = ClusterStartupRequest
   { keysToGenerate :: InitialUTxODistribution
   , epochSize :: UInt
-  , maxTxSize :: Maybe UInt
   , slotLength :: Seconds
+  , maxTxSize :: Maybe UInt
+  , raiseExUnitsToMax :: Boolean
   }
 
 instance EncodeAeson ClusterStartupRequest where
@@ -85,25 +88,15 @@ instance EncodeAeson ClusterStartupRequest where
         { keysToGenerate
         , epochSize
         , slotLength: Seconds slotLength
-        , maxTxSize: Nothing
-        }
-    ) = encodeAeson
-    { keysToGenerate
-    , epochSize
-    , slotLength: unsafePartial partialFiniteNumber slotLength
-    }
-  encodeAeson
-    ( ClusterStartupRequest
-        { keysToGenerate
-        , epochSize
-        , slotLength: Seconds slotLength
-        , maxTxSize: Just maxTxSize
+        , maxTxSize
+        , raiseExUnitsToMax
         }
     ) = encodeAeson
     { keysToGenerate
     , epochSize
     , slotLength: unsafePartial partialFiniteNumber slotLength
     , maxTxSize
+    , raiseExUnitsToMax
     }
 
 newtype PrivateKeyResponse = PrivateKeyResponse PrivateKey
